@@ -136,12 +136,36 @@ int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 	}
 
 	if (display->haveOLED()) {
-		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
-		                                                           : deluge::hid::display::OLED::kitIcon;
-		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Load synth" : "Load kit";
+		if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+			fileIcon = deluge::hid::display::OLED::synthIcon;
+		}
+		else if (instrumentTypeToLoad == InstrumentType::KIT) {
+			fileIcon = deluge::hid::display::OLED::kitIcon;
+		}
+		else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+			fileIcon = deluge::hid::display::OLED::synthIcon;
+		}
+
+		if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+			title = "Load synth";
+		}
+		else if (instrumentTypeToLoad == InstrumentType::KIT) {
+			title = "Load kit";
+		}
+		else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+			title = "Load midi";
+		}
 	}
 
-	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
+	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+		filePrefix = "SYNT";
+	}
+	else if (instrumentTypeToLoad == InstrumentType::KIT) {
+		filePrefix = "KIT";
+	}
+	else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+		filePrefix = "MIDI";
+	}
 
 	enteredText.clear();
 

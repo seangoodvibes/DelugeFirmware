@@ -71,12 +71,36 @@ tryDefaultDir:
 	}
 
 	if (display->haveOLED()) {
-		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
-		                                                           : deluge::hid::display::OLED::kitIcon;
-		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
+		if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+			fileIcon = deluge::hid::display::OLED::synthIcon;
+		}
+		else if (instrumentTypeToLoad == InstrumentType::KIT) {
+			fileIcon = deluge::hid::display::OLED::kitIcon;
+		}
+		else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+			fileIcon = deluge::hid::display::OLED::synthIcon;
+		}
+
+		if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+			title = "Save synth";
+		}
+		else if (instrumentTypeToLoad == InstrumentType::KIT) {
+			title = "Save kit";
+		}
+		else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+			title = "Save midi";
+		}
 	}
 
-	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
+	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+		filePrefix = "SYNT";
+	}
+	else if (instrumentTypeToLoad == InstrumentType::KIT) {
+		filePrefix = "KIT";
+	}
+	else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+		filePrefix = "MIDI";
+	}
 
 	int32_t error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
@@ -88,8 +112,11 @@ gotError:
 	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
-	else {
+	else if (instrumentTypeToLoad == InstrumentType::KIT) {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
+	}
+	else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+		indicator_leds::blinkLed(IndicatorLED::MIDI);
 	}
 
 	/*
@@ -162,7 +189,17 @@ fail:
 
 	instrumentToSave->writeToFile(currentSong->currentClip, currentSong);
 
-	char const* endString = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
+	char const* endString;
+
+	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+		endString = "\n</sound>\n";
+	}
+	else if (instrumentTypeToLoad == InstrumentType::KIT) {
+		endString = "\n</kit>\n";
+	}
+	else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+		endString = "\n</midi>\n";
+	}
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
