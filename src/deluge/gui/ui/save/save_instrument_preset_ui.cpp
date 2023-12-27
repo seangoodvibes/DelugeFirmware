@@ -51,12 +51,16 @@ bool SaveInstrumentPresetUI::opened() {
 	    currentInstrument
 	        ->type; // Must set this before calling SaveUI::opened(), which uses this to work out folder name
 
+	display->displayPopup("1");
+
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
 doReturnFalse:
 		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on the pads.
 		return false;
 	}
+
+	display->displayPopup("2");
 
 	enteredText.set(&currentInstrument->name);
 	enteredTextEditPos = enteredText.getLength();
@@ -102,12 +106,16 @@ tryDefaultDir:
 		filePrefix = "MIDI";
 	}
 
+	display->displayPopup("3");
+
 	int32_t error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
 gotError:
 		display->displayError(error);
 		goto doReturnFalse;
 	}
+
+	display->displayPopup("4");
 
 	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);

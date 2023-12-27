@@ -131,8 +131,11 @@ int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
-	else {
+	else if (instrumentTypeToLoad == InstrumentType::KIT) {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
+	}
+	else if (instrumentTypeToLoad == InstrumentType::MIDI_OUT) {
+		indicator_leds::blinkLed(IndicatorLED::MIDI);
 	}
 
 	if (display->haveOLED()) {
@@ -418,7 +421,7 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 	}
 
 	// If MIDI or CV, we have a different method for this, and the UI will be exited
-	if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
+	if (newInstrumentType == InstrumentType::CV) {
 
 		Instrument* newInstrument;
 		// In arranger...

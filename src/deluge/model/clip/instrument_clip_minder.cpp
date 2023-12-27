@@ -323,6 +323,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {
+		display->displayPopup("hold save");
+
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
@@ -335,6 +337,12 @@ yesSaveInstrument:
 
 		else if (b == KIT) {
 			if (getCurrentClip()->output->type == InstrumentType::KIT) {
+				goto yesSaveInstrument;
+			}
+		}
+
+		else if (b == MIDI) {
+			if (getCurrentClip()->output->type == InstrumentType::MIDI_OUT) {
 				goto yesSaveInstrument;
 			}
 		}
@@ -361,6 +369,16 @@ yesLoadInstrument:
 			}
 			else {
 				Browser::instrumentTypeToLoad = InstrumentType::KIT;
+				goto yesLoadInstrument;
+			}
+		}
+
+		else if (b == MIDI) {
+			if (getCurrentClip()->onKeyboardScreen) {
+				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
+			}
+			else {
+				Browser::instrumentTypeToLoad = InstrumentType::MIDI_OUT;
 				goto yesLoadInstrument;
 			}
 		}

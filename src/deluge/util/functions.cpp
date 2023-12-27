@@ -1636,6 +1636,9 @@ char const* getInstrumentFolder(InstrumentType instrumentType) {
 	else if (instrumentType == InstrumentType::KIT) {
 		return "KITS";
 	}
+	else if (instrumentType == InstrumentType::MIDI_OUT) {
+		return "MIDI";
+	}
 	else {
 		return "SONGS";
 	}

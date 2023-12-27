@@ -470,14 +470,20 @@ doOther:
 		}
 	}
 
-	else if (b == MIDI) {
+	else if (b == MIDI && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
+	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				changeInstrumentType(InstrumentType::MIDI_OUT);
+				if (Buttons::isNewOrShiftButtonPressed()) {
+					createNewInstrument(InstrumentType::MIDI_OUT);
+				}
+				else {
+					changeInstrumentType(InstrumentType::MIDI_OUT);
+				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 				createDrumForAuditionedNoteRow(DrumType::MIDI);
