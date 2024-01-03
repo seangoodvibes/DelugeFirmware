@@ -234,8 +234,8 @@ enum class MidiLearn : uint8_t {
 
 constexpr size_t kMinTimePerTimerTick = 1;
 constexpr int32_t kNumInputTicksToAverageTime = 24;
-constexpr int32_t kNumInputTicksToAllowTempoTargeting =
-    24; // This is probably even high enough to cause audible glitches
+// This is probably even high enough to cause audible glitches
+constexpr int32_t kNumInputTicksToAllowTempoTargeting = 24;
 constexpr int32_t kMaxOutputTickMagnitude = 5;
 
 constexpr int32_t kZoomSpeed = 110;
@@ -252,8 +252,10 @@ constexpr int32_t kSampleMarkerBlinkTime = 200;
 
 constexpr int32_t USE_DEFAULT_VELOCITY = 255;
 
-constexpr int32_t kMaxSequenceLength = 1610612736; // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
-constexpr int32_t kAmountNoteOnLatenessAllowed = 2205; // In audio samples. That's 50mS. Multiply mS by 44.1
+// The biggest multiple of 3 which can fit in a signed 32-bit int32_t
+constexpr int32_t kMaxSequenceLength = 1610612736;
+// In audio samples. That's 50mS. Multiply mS by 44.1
+constexpr int32_t kAmountNoteOnLatenessAllowed = 2205;
 
 enum class GateType : uint8_t {
 	V_TRIG,
@@ -504,7 +506,8 @@ constexpr ParamType FIRST_HYBRID = Global::DELAY_RATE;
 constexpr ParamType FIRST_EXP = Global::DELAY_RATE;
 } // namespace Global
 
-constexpr ParamType PLACEHOLDER_RANGE = 89; // Not a real param. For the purpose of reading old files from before V3.2.0
+ // Not a real param. For the purpose of reading old files from before V3.2.0
+constexpr ParamType PLACEHOLDER_RANGE = 89;
 namespace Unpatched {
 constexpr ParamType START = 90;
 
@@ -743,7 +746,8 @@ enum class FilterType {
 };
 constexpr auto kNumFilterTypes = util::to_underlying(FilterType::EQ) + 1;
 
-constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
+// That's sources as in oscillators - within a Sound (synth).
+constexpr int32_t kNumSources = 2;
 
 enum class ArpMode {
 	OFF,
@@ -898,7 +902,8 @@ enum class InterpolationMode {
 constexpr int32_t kNumInterpolationModes = 2;
 
 constexpr int32_t kCacheByteDepth = 3;
-constexpr int32_t kCacheByteDepthMagnitude = 2; // Invalid / unused for odd numbers of bytes like 3
+// Invalid / unused for odd numbers of bytes like 3
+constexpr int32_t kCacheByteDepthMagnitude = 2;
 
 constexpr int32_t kMaxUnisonDetune = 50;
 constexpr int32_t kMaxUnisonStereoSpread = 50;
