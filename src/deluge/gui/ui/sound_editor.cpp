@@ -427,7 +427,7 @@ void SoundEditor::goUpOneLevel() {
 }
 
 void SoundEditor::exitCompletely() {
-	if (inSettingsMenu()) {
+	if (inSettingsMenu() || inAutomationMenu()) {
 		// First, save settings
 
 		display->displayLoadingAnimationText("Saving settings");
@@ -1369,6 +1369,10 @@ bool SoundEditor::inSettingsMenu() {
 bool SoundEditor::inSongMenu() {
 	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView)
 	        || (menuItemNavigationRecord[0] == &soundEditorRootMenuPerformanceView));
+}
+
+bool SoundEditor::inAutomationMenu() {
+	return (menuItemNavigationRecord[0] == &defaultAutomationMenu);
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
