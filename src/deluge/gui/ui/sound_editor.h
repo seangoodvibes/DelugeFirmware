@@ -117,6 +117,7 @@ public:
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
 	bool inSongMenu();
+	bool inAutomationMenu();
 	bool setupKitGlobalFXMenu;
 	void exitCompletely();
 	void goUpOneLevel();
