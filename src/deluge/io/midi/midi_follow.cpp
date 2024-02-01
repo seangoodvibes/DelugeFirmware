@@ -491,6 +491,9 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				}
 			}
 		}
+		if (ccNumber == midiEngine.midiFollowPerformanceViewMorphModeCCNumber) {
+			performanceSessionView.receivedMorphCCFromMidiFollow(value);
+		}
 	}
 }
 

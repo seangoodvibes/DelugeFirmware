@@ -53,6 +53,9 @@ public:
 		}
 
 		if (performanceSessionView.defaultEditingMode) {
+			if (performanceSessionView.morphMode) {
+				performanceSessionView.exitMorphMode();
+			}
 			indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 		}
 		else {

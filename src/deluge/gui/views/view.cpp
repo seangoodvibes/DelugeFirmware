@@ -1087,7 +1087,10 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	// don't update knob indicator levels when you're in performance view morph mode
+	UI* currentUI = getCurrentUI();
+	if (((currentUI == &automationView) && !automationView.isOnAutomationOverview())
+	    || ((currentUI == &performanceSessionView) && performanceSessionView.morphMode)) {
 		return;
 	}
 
@@ -1166,7 +1169,10 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
 void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	// ignore modButtonAction when in the Performance View Morph Mode
+	RootUI* rootUI = getRootUI();
+	if (((rootUI == &automationView) && !automationView.isOnAutomationOverview())
+	    || ((rootUI == &performanceSessionView) && performanceSessionView.morphMode)) {
 		return;
 	}
 
@@ -1367,7 +1373,9 @@ void View::setModLedStates() {
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((rootUI == &automationView) && !automationView.isOnAutomationOverview()) {
+		// if you're in the Performance View Morph Mode, turn off Mod LED's
+		if (((rootUI == &automationView) && !automationView.isOnAutomationOverview())
+		    || ((rootUI == &performanceSessionView) && performanceSessionView.morphMode)) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {

@@ -62,12 +62,16 @@ public:
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
 
 	bool midiThru;
+
+	MIDITakeoverMode midiTakeover;
+
 	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypes]; // A, B, C, Feedback
 	uint8_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
 	bool midiFollowFeedbackFilter;
-	MIDITakeoverMode midiTakeover;
+	int32_t midiFollowPerformanceViewMorphModeCCNumber;
+
 	bool midiSelectKitRow;
 
 	// shared buffer for formatting sysex messages.

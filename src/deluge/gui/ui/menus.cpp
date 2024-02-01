@@ -65,6 +65,7 @@
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
+#include "gui/menu_item/midi/follow/performance_session_view/learn_morph.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/sub.h"
@@ -734,6 +735,8 @@ midi::FollowChannel midiFollowChannelFeedbackMenu{STRING_FOR_CHANNEL, STRING_FOR
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
+// Menu for Performance View Morph Mode CC Learn
+midi::LearnMorph midiFollowLearnMorphMenu{STRING_FOR_PERFORM_LEARN_MORPH};
 
 Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,
@@ -763,6 +766,7 @@ Submenu midiFollowSubmenu{
         &midiFollowKitRootNoteMenu,
         &midiFollowFeedbackSubmenu,
         &midiFollowDisplayParamMenu,
+        &midiFollowLearnMorphMenu,
     },
 };
 

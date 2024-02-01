@@ -69,7 +69,8 @@ using deluge::modulation::params::kNoParamID;
 using namespace deluge;
 using namespace gui;
 
-#define PERFORM_DEFAULTS_XML "PerformanceView.XML"
+#define PERFORM_DEFAULTS_FOLDER "PERFORMANCE_VIEW"
+#define PERFORM_DEFAULTS_XML "default.XML"
 #define PERFORM_DEFAULTS_TAG "defaults"
 #define PERFORM_DEFAULTS_FXVALUES_TAG "defaultFXValues"
 #define PERFORM_DEFAULTS_PARAM_TAG "param"
@@ -182,7 +183,14 @@ PerformanceSessionView::PerformanceSessionView() {
 
 	defaultEditingMode = false;
 
-	layoutVariant = 1;
+	layoutBank = 0;
+	layoutVariant = 0;
+	morphMode = false;
+	morphLayoutAVariant = kNoSelection;
+	morphLayoutBVariant = kNoSelection;
+	backupMorphALayout = false;
+	backupMorphBLayout = false;
+	morphPosition = 0;
 
 	onFXDisplay = false;
 
@@ -200,9 +208,13 @@ PerformanceSessionView::PerformanceSessionView() {
 		initFXPress(fxPress[xDisplay]);
 		initFXPress(backupFXPress[xDisplay]);
 		initFXPress(backupXMLDefaultFXPress[xDisplay]);
+		initFXPress(morphAFXPress[xDisplay]);
+		initFXPress(morphBFXPress[xDisplay]);
 
 		initLayout(layoutForPerformance[xDisplay]);
 		initLayout(backupXMLDefaultLayoutForPerformance[xDisplay]);
+		initLayout(morphALayoutForPerformance[xDisplay]);
+		initLayout(morphBLayoutForPerformance[xDisplay]);
 
 		initDefaultFXValues(xDisplay);
 	}
@@ -242,6 +254,8 @@ void PerformanceSessionView::initDefaultFXValues(int32_t xDisplay) {
 		int32_t defaultFXValue = calculateKnobPosForSinglePadPress(xDisplay, yDisplay);
 		defaultFXValues[xDisplay][yDisplay] = defaultFXValue;
 		backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValue;
+		morphAFXValues[xDisplay][yDisplay] = defaultFXValue;
+		morphBFXValues[xDisplay][yDisplay] = defaultFXValue;
 	}
 }
 
@@ -273,6 +287,10 @@ void PerformanceSessionView::focusRegained() {
 
 	if (defaultEditingMode) {
 		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+	}
+
+	if (morphMode) {
+		updateMorphLedStates();
 	}
 
 	if (display->have7SEG()) {
@@ -647,8 +665,8 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, morphMode);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, morphMode);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
 
@@ -750,20 +768,273 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// save performance view layout
+	else if (((b == SCALE_MODE) && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
+	         || ((b == CROSS_SCREEN_EDIT) && Buttons::isButtonPressed(deluge::hid::button::SCALE_MODE))) {
+
+		if (on) {
+			if (morphMode) {
+				exitMorphMode();
+			}
+			else {
+				enterMorphMode();
+			}
+		}
+		//	else {
+		//		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+		//		indicator_leds::setLedState(IndicatorLED::KIT, false);
+		//		indicator_leds::setLedState(IndicatorLED::MIDI, false);
+		//		indicator_leds::setLedState(IndicatorLED::CV, false);
+		//	}
+	}
+
+	else if ((b == SCALE_MODE) && !morphMode) {
+		if (on) {
+			layoutBank = 1;
+			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, true);
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+			if (layoutVariant == 1) {
+				indicator_leds::blinkLed(IndicatorLED::SYNTH);
+			}
+			else if (layoutVariant == 2) {
+				indicator_leds::blinkLed(IndicatorLED::KIT);
+			}
+			else if (layoutVariant == 3) {
+				indicator_leds::blinkLed(IndicatorLED::MIDI);
+			}
+			else if (layoutVariant == 4) {
+				indicator_leds::blinkLed(IndicatorLED::CV);
+			}
+			displayLayoutVariant(layoutVariant);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+	}
+
+	else if ((b == CROSS_SCREEN_EDIT) && !morphMode) {
+		if (on) {
+			layoutBank = 2;
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+			if (layoutVariant == 5) {
+				indicator_leds::blinkLed(IndicatorLED::SYNTH);
+			}
+			else if (layoutVariant == 6) {
+				indicator_leds::blinkLed(IndicatorLED::KIT);
+			}
+			else if (layoutVariant == 7) {
+				indicator_leds::blinkLed(IndicatorLED::MIDI);
+			}
+			else if (layoutVariant == 8) {
+				indicator_leds::blinkLed(IndicatorLED::CV);
+			}
+			displayLayoutVariant(layoutVariant);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+	}
+
+	// save default performance view layout
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
 		if (on) {
+			layoutBank = 0;
+			layoutVariant = 0;
 			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == SYNTH && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 1;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 5;
+			}
+			if (layoutVariant == 1 || layoutVariant == 5) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == KIT && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 2;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 6;
+			}
+			if (layoutVariant == 2 || layoutVariant == 6) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == MIDI && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 3;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 7;
+			}
+			if (layoutVariant == 3 || layoutVariant == 7) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == CV && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 4;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 8;
+			}
+			if (layoutVariant == 4 || layoutVariant == 8) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
 		}
 	}
 
 	// load performance view layout
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
 		if (on) {
+			if (layoutVariant != 0) {
+				successfullyReadDefaultsFromFile = false;
+			}
+			layoutBank = 0;
+			layoutVariant = 0;
 			loadPerformanceViewLayout();
 			renderViewDisplay();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == SYNTH && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 1) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 1;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 5) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 5;
+			}
+			if (layoutVariant == 1 || layoutVariant == 5) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == KIT && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 2) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 2;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 6) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 6;
+			}
+			if (layoutVariant == 2 || layoutVariant == 6) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == MIDI && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 3) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 3;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 7) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 7;
+			}
+			if (layoutVariant == 3 || layoutVariant == 7) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == CV && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 4) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 4;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 8) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 8;
+			}
+			if (layoutVariant == 4 || layoutVariant == 8) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
+		}
+	}
+
+	else if (b == SYNTH && morphMode) {
+		if (on) {
+			morphPosition = 0;
+			loadMorphALayout();
+
+			displayLayoutVariant(morphLayoutAVariant);
+		}
+	}
+
+	else if (b == CV && morphMode) {
+		if (on) {
+			morphPosition = kMaxKnobPos;
+			loadMorphBLayout();
+			displayLayoutVariant(morphLayoutBVariant);
 		}
 	}
 
@@ -810,6 +1081,9 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 				}
 				else {
+					if (morphMode) {
+						exitMorphMode();
+					}
 					if (!defaultEditingMode) {
 						resetPerformanceView(modelStack);
 						indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
@@ -1326,7 +1600,21 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDispl
 
 /// Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
-	if (lastPadPress.isActive && defaultEditingMode && !editingParam && (getCurrentUI() == &soundEditor)) {
+	if (morphMode && Buttons::isButtonPressed(deluge::hid::button::SYNTH)) {
+		selectLayoutVariant(offset, morphLayoutAVariant);
+		backupMorphALayout = true;
+		loadSelectedLayoutVariant(morphLayoutAVariant);
+		backupMorphALayout = false;
+		return;
+	}
+	else if (morphMode && Buttons::isButtonPressed(deluge::hid::button::CV)) {
+		selectLayoutVariant(offset, morphLayoutBVariant);
+		backupMorphBLayout = true;
+		loadSelectedLayoutVariant(morphLayoutBVariant);
+		backupMorphBLayout = false;
+		return;
+	}
+	else if (lastPadPress.isActive && defaultEditingMode && !editingParam && (getCurrentUI() == &soundEditor)) {
 		int32_t lastSelectedParamShortcutX = layoutForPerformance[lastPadPress.xDisplay].xDisplay;
 		int32_t lastSelectedParamShortcutY = layoutForPerformance[lastPadPress.xDisplay].yDisplay;
 
@@ -1346,13 +1634,12 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
 				updateLayoutChangeStatus();
 			}
-			goto exit;
+			return;
 		}
 	}
 	if (getCurrentUI() == &soundEditor) {
 		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
 	}
-exit:
 	return;
 }
 
@@ -1409,7 +1696,10 @@ uint32_t PerformanceSessionView::getMaxLength() {
 /// updates the display if the mod encoder has just updated the same parameter currently being held / last held
 /// if no param is currently being held, it will reset the display to just show "Performance View"
 void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
+	if (morphMode && !defaultEditingMode) {
+		morph(offset);
+	}
+	else {
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 
 		if (!defaultEditingMode) {
@@ -1429,6 +1719,9 @@ void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t o
 
 /// used to reset stutter if it's already active
 void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+	if (morphMode) {
+		return;
+	}
 	// release stutter if it's already active before beginning stutter again
 	if (on) {
 		int32_t modKnobMode = -1;
@@ -1503,32 +1796,58 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 		}
 	}
 
-	if (defaultEditingMode) {
-		if (anyChangesToSave) {
-			indicator_leds::blinkLed(IndicatorLED::SAVE);
+	// this could get called by the morph midi command, so only refresh if we're in performance view
+	if (getCurrentUI() == this) {
+		if (defaultEditingMode) {
+			if (anyChangesToSave) {
+				indicator_leds::blinkLed(IndicatorLED::SAVE);
+			}
+			else {
+				indicator_leds::setLedState(IndicatorLED::SAVE, false);
+			}
 		}
 		else {
 			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 		}
 	}
-	else {
-		indicator_leds::setLedState(IndicatorLED::SAVE, false);
-	}
 
 	return;
 }
 
+void PerformanceSessionView::getLayoutFilePath(char* filePath) {
+	// create folder /PERFORMANCE_VIEW/
+	// determine the layout file name
+	// append layout file name to folder path
+	// append .XML to end of file name
+	memset(filePath, 0, 50);
+	filePath[0] = '/';
+	strncat(&filePath[1], PERFORM_DEFAULTS_FOLDER, 48);
+	strncat(filePath, "/", 49);
+	char fileName[15];
+	memset(fileName, 0, 15);
+	if (layoutVariant == 0) {
+		strncat(filePath, PERFORM_DEFAULTS_XML, 49);
+	}
+	else {
+		intToString(layoutVariant, fileName);
+		strncat(filePath, fileName, 49);
+		strncat(filePath, ".XML", 49);
+	}
+}
+
 /// update saved perfomance view layout and update saved changes status
 void PerformanceSessionView::savePerformanceViewLayout() {
-	writeDefaultsToFile();
+	char filePath[50];
+	getLayoutFilePath(filePath);
+	writeDefaultsToFile(filePath);
 	updateLayoutChangeStatus();
 }
 
 /// create default XML file and write defaults
-/// I should check if file exists before creating one
-void PerformanceSessionView::writeDefaultsToFile() {
-	// PerformanceView.xml
-	int32_t error = storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true);
+void PerformanceSessionView::writeDefaultsToFile(char const* filePath) {
+	// Default.xml / 1.xml, 2.xml ... 8.xml
+	// if the file already exists, this will overwrite it.
+	int32_t error = storageManager.createXMLFile(filePath, true);
 	if (error) {
 		return;
 	}
@@ -1554,7 +1873,8 @@ void PerformanceSessionView::writeDefaultsToFile() {
 
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
-/// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
+/// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own
+/// FX
 void PerformanceSessionView::writeDefaultFXValuesToFile() {
 	char tagName[10];
 	tagName[0] = 'F';
@@ -1649,10 +1969,17 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 	else {
 		readDefaultsFromFile();
 	}
+	layoutUpdated();
+}
+
+void PerformanceSessionView::layoutUpdated() {
 	actionLogger.deleteAllLogs();
 	backupPerformanceLayout();
 	updateLayoutChangeStatus();
-	uiNeedsRendering(this);
+	// this could get called by the morph midi command, so only refresh if we're in performance view
+	if (getCurrentUI() == this) {
+		uiNeedsRendering(this);
+	}
 }
 
 /// re-read defaults from backed up XML in memory in order to reduce SD Card IO
@@ -1678,9 +2005,12 @@ void PerformanceSessionView::readDefaultsFromFile() {
 		return;
 	}
 
+	char filePath[50];
+	getLayoutFilePath(filePath);
+
 	FilePointer fp;
 	// PerformanceView.XML
-	bool success = storageManager.fileExists(PERFORM_DEFAULTS_XML, &fp);
+	bool success = storageManager.fileExists(filePath, &fp);
 	if (!success) {
 		loadDefaultLayout();
 		return;
@@ -1707,7 +2037,8 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-/// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
+/// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour,
+/// rowTailColour)
 void PerformanceSessionView::loadDefaultLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeof(ParamsForPerformance));
@@ -1766,8 +2097,8 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 }
 
 /// compares param name from <param> tag to the list of params available for use in performance view
-/// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
-/// rowColour, rowTailColour)
+/// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay,
+/// yDisplay, rowColour, rowTailColour)
 void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
 	char const* tagName = storageManager.readTagOrAttributeValue();
@@ -1780,6 +2111,14 @@ void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 
 			memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
 			       sizeof(ParamsForPerformance));
+			if (backupMorphALayout) {
+				memcpy(&morphALayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
+				       sizeof(ParamsForPerformance));
+			}
+			if (backupMorphBLayout) {
+				memcpy(&morphBLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
+				       sizeof(ParamsForPerformance));
+			}
 			break;
 		}
 	}
@@ -1809,6 +2148,14 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 
+				if (backupMorphALayout) {
+					morphAFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
+				}
+
+				if (backupMorphBLayout) {
+					morphBFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
+				}
+
 				break;
 			}
 		}
@@ -1831,6 +2178,16 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 
 					backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
 					backupXMLDefaultFXPress[xDisplay].timeLastPadPress = fxPress[xDisplay].timeLastPadPress;
+
+					if (backupMorphALayout) {
+						morphAFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
+						morphAFXPress[xDisplay].timeLastPadPress = fxPress[xDisplay].timeLastPadPress;
+					}
+
+					if (backupMorphBLayout) {
+						morphBFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
+						morphBFXPress[xDisplay].timeLastPadPress = fxPress[xDisplay].timeLastPadPress;
+					}
 				}
 			}
 		}
@@ -1843,6 +2200,16 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 
 				backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
 				backupXMLDefaultFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
+
+				if (backupMorphALayout) {
+					morphAFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
+					morphAFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
+				}
+
+				if (backupMorphBLayout) {
+					morphBFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
+					morphBFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
+				}
 			}
 		}
 		//<resetValue>
@@ -1853,6 +2220,14 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 				fxPress[xDisplay].previousKnobPosition = kKnobPosOffset;
 			}
 			backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
+
+			if (backupMorphALayout) {
+				morphAFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
+			}
+
+			if (backupMorphBLayout) {
+				morphBFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
+			}
 		}
 		storageManager.exitTag();
 	}
@@ -1879,5 +2254,381 @@ void PerformanceSessionView::initializeHeldFX(int32_t xDisplay) {
 	else {
 		initFXPress(fxPress[xDisplay]);
 		initFXPress(backupXMLDefaultFXPress[xDisplay]);
+		if (backupMorphALayout) {
+			initFXPress(morphAFXPress[xDisplay]);
+		}
+		if (backupMorphBLayout) {
+			initFXPress(morphBFXPress[xDisplay]);
+		}
+	}
+}
+
+void PerformanceSessionView::selectLayoutVariant(int32_t offset, int32_t& variant) {
+	if (variant == kNoSelection) {
+		if (offset > 0) {
+			variant = -1;
+		}
+		else if (offset < 0) {
+			variant = 9;
+		}
+	}
+	variant += offset;
+	if (variant < 0) {
+		variant = kNoSelection;
+	}
+	else if (variant > 8) {
+		variant = kNoSelection;
+	}
+	displayLayoutVariant(variant);
+}
+
+void PerformanceSessionView::displayLayoutVariant(int32_t variant) {
+	if (variant == kNoSelection) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NONE));
+	}
+	else if (variant == 0) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULT_LAYOUT));
+	}
+	else {
+		char buffer[10];
+		intToString(variant, buffer);
+		display->displayPopup(buffer);
+	}
+}
+
+void PerformanceSessionView::loadSelectedLayoutVariant(int32_t variant) {
+	if (variant != kNoSelection) {
+		layoutVariant = variant;
+		successfullyReadDefaultsFromFile = false;
+		loadPerformanceViewLayout();
+		renderViewDisplay();
+	}
+}
+
+void PerformanceSessionView::enterMorphMode() {
+	morphMode = true;
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, true);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+	updateMorphLedStates();
+	view.setModLedStates();
+}
+
+void PerformanceSessionView::exitMorphMode() {
+	morphMode = false;
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	view.setKnobIndicatorLevels();
+	view.setModLedStates();
+}
+
+void PerformanceSessionView::receivedMorphCCFromMidiFollow(int32_t value) {
+	if (value == kMaxMIDIValue) {
+		value = kMaxKnobPos;
+	}
+	int32_t offset = value - morphPosition;
+	morph(offset);
+}
+
+void PerformanceSessionView::morph(int32_t offset, bool isMIDICommand) {
+	if (offset != 0 && (isMIDICommand || isMorphingPossible())) {
+		int32_t currentMorphPosition = morphPosition;
+		adjustMorphPosition(offset);
+
+		// loop through every performance column on the grid
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			params::Kind paramKind = layoutForPerformance[xDisplay].paramKind;
+			int32_t paramID = layoutForPerformance[xDisplay].paramID;
+
+			// no morphing stutter
+			if ((paramKind == params::Kind::UNPATCHED_GLOBAL) && (paramID == UNPATCHED_STUTTER_RATE)) {
+				continue;
+			}
+
+			// if no parameter value is being held in either the Morph A or B layouts, then no morphing is possible
+			if (!morphAFXPress[xDisplay].padPressHeld && !morphBFXPress[xDisplay].padPressHeld) {
+				continue;
+			}
+
+			int32_t sourceKnobPosition;
+			int32_t targetKnobPosition;
+			if (offset > 0) {
+				if (morphAFXPress[xDisplay].padPressHeld) {
+					sourceKnobPosition = morphAFXPress[xDisplay].currentKnobPosition;
+				}
+				else {
+					sourceKnobPosition = getCurrentParameterValue(paramKind, paramID);
+				}
+				if (morphBFXPress[xDisplay].padPressHeld) {
+					targetKnobPosition = morphBFXPress[xDisplay].currentKnobPosition;
+				}
+				else {
+					targetKnobPosition = morphAFXPress[xDisplay].previousKnobPosition;
+				}
+			}
+			else if (offset < 0) {
+				if (morphBFXPress[xDisplay].padPressHeld) {
+					sourceKnobPosition = morphBFXPress[xDisplay].currentKnobPosition;
+				}
+				else {
+					sourceKnobPosition = getCurrentParameterValue(paramKind, paramID);
+				}
+				if (morphAFXPress[xDisplay].padPressHeld) {
+					targetKnobPosition = morphAFXPress[xDisplay].currentKnobPosition;
+				}
+				else {
+					targetKnobPosition = morphBFXPress[xDisplay].previousKnobPosition;
+				}
+			}
+			if (sourceKnobPosition == kNoSelection) {
+				continue;
+			}
+			if (targetKnobPosition == kNoSelection) {
+				continue;
+			}
+			if (sourceKnobPosition != targetKnobPosition) {
+				morphTowardsTarget(paramKind, paramID, sourceKnobPosition + kKnobPosOffset,
+				                   targetKnobPosition + kKnobPosOffset, offset);
+			}
+		}
+
+		// check if morph position has changed
+		if (currentMorphPosition != morphPosition) {
+			// have we landed on the final Morph A position?
+			// if yes, fully load that backup as the current layout
+			if (morphPosition == 0) {
+				loadMorphALayout();
+			}
+			// have we landed on the final Morph B position?
+			// if yes, fully load that backup as the current layout
+			else if (morphPosition == kMaxKnobPos) {
+				loadMorphBLayout();
+			}
+		}
+	}
+	else {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_CANT_MORPH));
+	}
+}
+
+bool PerformanceSessionView::isMorphingPossible() {
+	if ((morphLayoutAVariant != kNoSelection) && (morphLayoutBVariant != kNoSelection)) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			if ((morphALayoutForPerformance[xDisplay].paramKind == params::Kind::NONE)
+			    || (morphALayoutForPerformance[xDisplay].paramID == kNoSelection)) {
+				return false;
+			}
+
+			if ((morphBLayoutForPerformance[xDisplay].paramKind == params::Kind::NONE)
+			    || (morphBLayoutForPerformance[xDisplay].paramID == kNoSelection)) {
+				return false;
+			}
+
+			// no morphing stutter
+			if ((layoutForPerformance[xDisplay].paramKind == params::Kind::UNPATCHED_GLOBAL)
+			    && (layoutForPerformance[xDisplay].paramID == UNPATCHED_STUTTER_RATE)) {
+				continue;
+			}
+
+			// let's make sure the layout's are compatible for morphing
+			if ((morphALayoutForPerformance[xDisplay].paramKind == morphBLayoutForPerformance[xDisplay].paramKind)
+			    && (morphALayoutForPerformance[xDisplay].paramID == morphBLayoutForPerformance[xDisplay].paramID)) {
+				// if they're compatible, is there a held value in either layout?
+				if (morphAFXPress[xDisplay].padPressHeld || morphBFXPress[xDisplay].padPressHeld) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void PerformanceSessionView::adjustMorphPosition(int32_t offset) {
+	morphPosition += offset;
+	if (morphPosition < 0) {
+		morphPosition = 0;
+	}
+	else if (morphPosition > kMaxKnobPos) {
+		morphPosition = kMaxKnobPos;
+	}
+
+	char buffer[10];
+	intToString(morphPosition, buffer);
+	display->displayPopup(buffer);
+	updateMorphLedStates();
+}
+
+void PerformanceSessionView::morphTowardsTarget(params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
+                                                int32_t targetKnobPosition, int32_t offset) {
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			float floatMorphPosition = static_cast<float>(morphPosition);
+			float floatKnobPositionDifference =
+			    static_cast<float>(targetKnobPosition) - static_cast<float>(sourceKnobPosition);
+			float floatMorphKnobPosition;
+
+			// morphing towards B
+			if (offset > 0) {
+				floatMorphKnobPosition =
+				    sourceKnobPosition + std::round(((floatMorphPosition / kMaxKnobPos) * floatKnobPositionDifference));
+			}
+			// morphing towards A
+			else if (offset < 0) {
+				floatMorphKnobPosition =
+				    sourceKnobPosition
+				    + std::round((((kMaxKnobPos - floatMorphPosition) / kMaxKnobPos) * floatKnobPositionDifference));
+			}
+
+			int32_t morphKnobPosition = static_cast<int32_t>(floatMorphKnobPosition);
+
+			int32_t newParameterValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+			    morphKnobPosition - kKnobPosOffset, modelStackWithParam);
+
+			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
+			                                                          view.modPos, view.modLength);
+		}
+	}
+}
+
+int32_t PerformanceSessionView::getCurrentParameterValue(params::Kind paramKind, int32_t paramID) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+
+			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+
+			return knobPos;
+		}
+	}
+	return kNoSelection;
+}
+
+void PerformanceSessionView::loadMorphALayout() {
+	if (morphLayoutAVariant != kNoSelection) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			memcpy(&layoutForPerformance[xDisplay], &morphALayoutForPerformance[xDisplay],
+			       sizeof(ParamsForPerformance));
+
+			memcpy(&fxPress[xDisplay], &morphAFXPress[xDisplay], sizeof(FXColumnPress));
+
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				defaultFXValues[xDisplay][yDisplay] = morphAFXValues[xDisplay][yDisplay];
+			}
+
+			initializeHeldFX(xDisplay);
+		}
+		layoutVariant = morphLayoutAVariant;
+		layoutUpdated();
+		updateMorphLedStates();
+	}
+}
+
+void PerformanceSessionView::loadMorphBLayout() {
+	if (morphLayoutBVariant != kNoSelection) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			memcpy(&layoutForPerformance[xDisplay], &morphBLayoutForPerformance[xDisplay],
+			       sizeof(ParamsForPerformance));
+
+			memcpy(&fxPress[xDisplay], &morphBFXPress[xDisplay], sizeof(FXColumnPress));
+
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				defaultFXValues[xDisplay][yDisplay] = morphBFXValues[xDisplay][yDisplay];
+			}
+
+			initializeHeldFX(xDisplay);
+		}
+		layoutVariant = morphLayoutBVariant;
+		layoutUpdated();
+		updateMorphLedStates();
+	}
+}
+
+void PerformanceSessionView::updateMorphLedStates() {
+	// this could get called by the morph midi command, so only refresh if we're in performance view
+	if (morphMode && getCurrentUI() == this) {
+		if (morphPosition == 0) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, true);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition > 0) && (morphPosition < 32)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, true);
+			indicator_leds::setLedState(IndicatorLED::KIT, true);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition >= 32) && (morphPosition < 64)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, true);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if (morphPosition == 64) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, true);
+			indicator_leds::setLedState(IndicatorLED::MIDI, true);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition > 64) && (morphPosition < 96)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, true);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition >= 96) && (morphPosition < kMaxKnobPos)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, true);
+			indicator_leds::setLedState(IndicatorLED::CV, true);
+		}
+		else if (morphPosition == kMaxKnobPos) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, true);
+		}
+		setKnobIndicatorLevels();
+	}
+}
+
+void PerformanceSessionView::setKnobIndicatorLevels() {
+	if (morphMode) {
+		if (isMorphingPossible()) {
+			indicator_leds::setKnobIndicatorLevel(0, morphPosition);
+			indicator_leds::setKnobIndicatorLevel(1, morphPosition);
+			if (morphPosition == 64) {
+				indicator_leds::blinkKnobIndicator(0);
+				indicator_leds::blinkKnobIndicator(1);
+
+				// Make it harder to turn that knob away from its centred position
+				view.pretendModKnobsUntouchedForAWhile();
+			}
+			else {
+				indicator_leds::stopBlinkingKnobIndicator(0);
+				indicator_leds::stopBlinkingKnobIndicator(1);
+			}
+		}
+		else {
+			indicator_leds::clearKnobIndicatorLevels();
+		}
+	}
+	else {
+		view.setKnobIndicatorLevels();
 	}
 }

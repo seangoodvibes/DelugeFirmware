@@ -73,6 +73,7 @@ public:
 	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
 	void setKnobIndicatorLevel(uint8_t whichModEncoder);
+	void pretendModKnobsUntouchedForAWhile();
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
@@ -133,7 +134,6 @@ public:
 	                            bool isAutomation = false);
 
 private:
-	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();
 };

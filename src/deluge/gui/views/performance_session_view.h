@@ -117,15 +117,22 @@ public:
 
 	// public so midi follow can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
+	void receivedMorphCCFromMidiFollow(int32_t value);
 
 	// public so view.modEncoderAction and midi follow can access it
 	PadPress lastPadPress;
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
+	// pink mode related
 	// public so Grid View can access it
 	bool gridModeActive;
 	uint32_t timeGridModePress;
+
+	// morph mode
+	// public so soundEditor && view.setModLedStates can access it
+	bool morphMode;
+	void exitMorphMode();
 
 private:
 	// initialize
@@ -155,8 +162,13 @@ private:
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
+	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
+	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
+	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
+
 	/// write/load default values
-	void writeDefaultsToFile();
+	void getLayoutFilePath(char* filePath);
+	void writeDefaultsToFile(char const* filePath);
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
@@ -180,15 +192,52 @@ private:
 	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth];
 	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
 
-	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
-	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
-	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
+	FXColumnPress morphAFXPress[kDisplayWidth];
+	ParamsForPerformance morphALayoutForPerformance[kDisplayWidth];
+	int32_t morphAFXValues[kDisplayWidth][kDisplayHeight];
+
+	FXColumnPress morphBFXPress[kDisplayWidth];
+	ParamsForPerformance morphBLayoutForPerformance[kDisplayWidth];
+	int32_t morphBFXValues[kDisplayWidth][kDisplayHeight];
 
 	PadPress firstPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	int32_t layoutBank;    // A or B (assign a layout to the bank for cross fader action)
-	int32_t layoutVariant; // 1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
+
+	// saving layouts
+
+	int32_t layoutBank; // 0, 1, 2
+	// 0 = default
+	// 1 = Bank A
+	// 2 = Bank B
+	// De-select bank A or B by loading default layout
+	int32_t layoutVariant; // 0, 1, 2, 3, 4, 5, 6, 7, 8
+	// 0 = Default - Load + Keyboard button
+	// 1-4 = Bank A, layout A, B, C, D - Load + Synth/Kit/Midi/CV buttons
+	// 5-8 = Bank B, layout E, F, G, H - Load + Synth/Kit/Midi/CV buttons
+
+	// morph mode
+
+	int32_t morphLayoutAVariant; // assign layoutVariant above to morph layout A
+	int32_t morphLayoutBVariant; // assign layoutVariant above to morph Layout B
+	bool backupMorphALayout;
+	bool backupMorphBLayout;
+	int32_t morphPosition; // position between morphLayoutA and morphLayoutB (0 = A, 128 = B)
+	void selectLayoutVariant(int32_t offset, int32_t& variant);
+	void displayLayoutVariant(int32_t variant);
+	void loadSelectedLayoutVariant(int32_t variant);
+	void enterMorphMode();
+	void morph(int32_t offset, bool isMIDICommand = false);
+	bool isMorphingPossible();
+	void adjustMorphPosition(int32_t offset);
+	void updateMorphLedStates();
+	void setKnobIndicatorLevels();
+	int32_t getCurrentParameterValue(deluge::modulation::params::Kind paramKind, int32_t paramID);
+	void morphTowardsTarget(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
+	                        int32_t targetKnobPosition, int32_t offset);
+	void loadMorphALayout();
+	void loadMorphBLayout();
+	void layoutUpdated();
 
 	// backup current layout
 	void backupPerformanceLayout();
