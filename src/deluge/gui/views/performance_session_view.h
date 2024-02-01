@@ -156,7 +156,8 @@ private:
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	/// write/load default values
-	void writeDefaultsToFile();
+	void getLayoutFilePath(char* filePath);
+	void writeDefaultsToFile(char const* filePath);
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
@@ -187,8 +188,15 @@ private:
 	PadPress firstPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	int32_t layoutBank;    // A or B (assign a layout to the bank for cross fader action)
-	int32_t layoutVariant; // 1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
+	int32_t layoutBank; // 0, 1, 2
+	// 0 = default
+	// 1 = Bank A
+	// 2 = Bank B
+	// De-select bank A or B by loading default layout
+	int32_t layoutVariant; // 0, 1, 2, 3, 4, 5, 6, 7, 8
+	// 0 = Default - Load + Keyboard button
+	// 1-4 = Bank A, layout A, B, C, D - Load + Synth/Kit/Midi/CV buttons
+	// 5-8 = Bank B, layout E, F, G, H - Load + Synth/Kit/Midi/CV buttons
 
 	// backup current layout
 	void backupPerformanceLayout();

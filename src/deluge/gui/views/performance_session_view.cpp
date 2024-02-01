@@ -69,7 +69,8 @@ using deluge::modulation::params::kNoParamID;
 using namespace deluge;
 using namespace gui;
 
-#define PERFORM_DEFAULTS_XML "PerformanceView.XML"
+#define PERFORM_DEFAULTS_FOLDER "PERFORMANCE_VIEW"
+#define PERFORM_DEFAULTS_XML "default.XML"
 #define PERFORM_DEFAULTS_TAG "defaults"
 #define PERFORM_DEFAULTS_FXVALUES_TAG "defaultFXValues"
 #define PERFORM_DEFAULTS_PARAM_TAG "param"
@@ -182,7 +183,8 @@ PerformanceSessionView::PerformanceSessionView() {
 
 	defaultEditingMode = false;
 
-	layoutVariant = 1;
+	layoutBank = 0;
+	layoutVariant = 0;
 
 	onFXDisplay = false;
 
@@ -750,20 +752,235 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// save performance view layout
+	else if (b == SCALE_MODE) {
+		if (on) {
+			layoutBank = 1;
+			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, true);
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+			if (layoutVariant == 1) {
+				indicator_leds::blinkLed(IndicatorLED::SYNTH);
+			}
+			else if (layoutVariant == 2) {
+				indicator_leds::blinkLed(IndicatorLED::KIT);
+			}
+			else if (layoutVariant == 3) {
+				indicator_leds::blinkLed(IndicatorLED::MIDI);
+			}
+			else if (layoutVariant == 4) {
+				indicator_leds::blinkLed(IndicatorLED::CV);
+			}
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+	}
+
+	else if (b == CROSS_SCREEN_EDIT) {
+		if (on) {
+			layoutBank = 2;
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+			indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+			if (layoutVariant == 5) {
+				indicator_leds::blinkLed(IndicatorLED::SYNTH);
+			}
+			else if (layoutVariant == 6) {
+				indicator_leds::blinkLed(IndicatorLED::KIT);
+			}
+			else if (layoutVariant == 7) {
+				indicator_leds::blinkLed(IndicatorLED::MIDI);
+			}
+			else if (layoutVariant == 8) {
+				indicator_leds::blinkLed(IndicatorLED::CV);
+			}
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+	}
+
+	// save default performance view layout
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
 		if (on) {
+			layoutBank = 0;
+			layoutVariant = 0;
 			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == SYNTH && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 1;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 5;
+			}
+			if (layoutVariant == 1 || layoutVariant == 5) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == KIT && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 2;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 6;
+			}
+			if (layoutVariant == 2 || layoutVariant == 6) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == MIDI && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 3;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 7;
+			}
+			if (layoutVariant == 3 || layoutVariant == 7) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
+		}
+	}
+
+	// save alternate performance view layout
+	else if (b == CV && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				layoutVariant = 4;
+			}
+			else if (layoutBank == 2) {
+				layoutVariant = 8;
+			}
+			if (layoutVariant == 4 || layoutVariant == 8) {
+				savePerformanceViewLayout();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			}
 		}
 	}
 
 	// load performance view layout
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
 		if (on) {
+			if (layoutVariant != 0) {
+				successfullyReadDefaultsFromFile = false;
+			}
+			layoutBank = 0;
+			layoutVariant = 0;
 			loadPerformanceViewLayout();
 			renderViewDisplay();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == SYNTH && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 1) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 1;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 5) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 5;
+			}
+			if (layoutVariant == 1 || layoutVariant == 5) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == KIT && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 2) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 2;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 6) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 6;
+			}
+			if (layoutVariant == 2 || layoutVariant == 6) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == MIDI && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 3) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 3;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 7) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 7;
+			}
+			if (layoutVariant == 3 || layoutVariant == 7) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
+		}
+	}
+
+	// load alternate performance view layout
+	else if (b == CV && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		if (on) {
+			if (layoutBank == 1) {
+				if (layoutVariant != 4) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 4;
+			}
+			else if (layoutBank == 2) {
+				if (layoutVariant != 8) {
+					successfullyReadDefaultsFromFile = false;
+				}
+				layoutVariant = 8;
+			}
+			if (layoutVariant == 4 || layoutVariant == 8) {
+				loadPerformanceViewLayout();
+				renderViewDisplay();
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			}
 		}
 	}
 
@@ -1518,17 +1735,40 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 	return;
 }
 
+void PerformanceSessionView::getLayoutFilePath(char* filePath) {
+	// create folder /PERFORMANCE_VIEW/
+	// determine the layout file name
+	// append layout file name to folder path
+	// append .XML to end of file name
+	memset(filePath, 0, 50);
+	filePath[0] = '/';
+	strncat(&filePath[1], PERFORM_DEFAULTS_FOLDER, 48);
+	strncat(filePath, "/", 49);
+	char fileName[15];
+	memset(fileName, 0, 15);
+	if (layoutVariant == 0) {
+		strncat(filePath, PERFORM_DEFAULTS_XML, 49);
+	}
+	else {
+		intToString(layoutVariant, fileName);
+		strncat(filePath, fileName, 49);
+		strncat(filePath, ".XML", 49);
+	}
+}
+
 /// update saved perfomance view layout and update saved changes status
 void PerformanceSessionView::savePerformanceViewLayout() {
-	writeDefaultsToFile();
+	char filePath[50];
+	getLayoutFilePath(filePath);
+	writeDefaultsToFile(filePath);
 	updateLayoutChangeStatus();
 }
 
 /// create default XML file and write defaults
-/// I should check if file exists before creating one
-void PerformanceSessionView::writeDefaultsToFile() {
-	// PerformanceView.xml
-	int32_t error = storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true);
+void PerformanceSessionView::writeDefaultsToFile(char const* filePath) {
+	// Default.xml / 1.xml, 2.xml ... 8.xml
+	// if the file already exists, this will overwrite it.
+	int32_t error = storageManager.createXMLFile(filePath, true);
 	if (error) {
 		return;
 	}
@@ -1554,7 +1794,8 @@ void PerformanceSessionView::writeDefaultsToFile() {
 
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
-/// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
+/// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own
+/// FX
 void PerformanceSessionView::writeDefaultFXValuesToFile() {
 	char tagName[10];
 	tagName[0] = 'F';
@@ -1678,9 +1919,12 @@ void PerformanceSessionView::readDefaultsFromFile() {
 		return;
 	}
 
+	char filePath[50];
+	getLayoutFilePath(filePath);
+
 	FilePointer fp;
 	// PerformanceView.XML
-	bool success = storageManager.fileExists(PERFORM_DEFAULTS_XML, &fp);
+	bool success = storageManager.fileExists(filePath, &fp);
 	if (!success) {
 		loadDefaultLayout();
 		return;
@@ -1707,7 +1951,8 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-/// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
+/// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour,
+/// rowTailColour)
 void PerformanceSessionView::loadDefaultLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeof(ParamsForPerformance));
@@ -1766,8 +2011,8 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 }
 
 /// compares param name from <param> tag to the list of params available for use in performance view
-/// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
-/// rowColour, rowTailColour)
+/// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay,
+/// yDisplay, rowColour, rowTailColour)
 void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
 	char const* tagName = storageManager.readTagOrAttributeValue();
