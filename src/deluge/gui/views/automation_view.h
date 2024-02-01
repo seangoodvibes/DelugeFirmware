@@ -225,6 +225,9 @@ private:
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
+	int32_t getCurrentNodeIndex(ModelStackWithAutoParam* modelStack, int32_t pos);
+	int32_t getRightNodeIndex(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
+	int32_t getLeftNodeIndex(ModelStackWithAutoParam* modelStack, int32_t rightI);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                 bool modEncoderAction = false);

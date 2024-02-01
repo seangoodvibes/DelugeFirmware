@@ -685,14 +685,13 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
                                int32_t xZoom) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
 		int32_t knobPos = 0;
+		int32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
 
 		if (isAutomated) {
 			knobPos = getAverageSquareKnobPosition(modelStackWithParam, xDisplay, lengthToDisplay, xScroll, xZoom);
 		}
 		else {
-			uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
 			knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 		}
 
@@ -700,7 +699,15 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 
 		if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
 			if (isAutomated) { // automated, render bright colour
-				pixel = rowColour[yDisplay];
+				int32_t nodeI = getCurrentNodeIndex(modelStackWithParam, squareStart);
+				//if -1, current pos is not a node
+				//render full colour if it's node, tail colour if it's not
+				if (nodeI != -1) {
+					pixel = rowColour[yDisplay];
+				}
+				else {
+					pixel = rowTailColour[yDisplay];
+				}
 			}
 			else { // not automated, render less bright tail colour
 				pixel = rowTailColour[yDisplay];
@@ -3453,16 +3460,10 @@ bool AutomationView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, i
 		return false;
 	}
 
-	int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-	if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
-		rightI = 0;
-	}
+	int32_t rightI = getRightNodeIndex(modelStack, pos, reversed);
 	ParamNode* rightNode = modelStack->autoParam->nodes.getElement(rightI);
 
-	int32_t leftI = rightI - 1;
-	if (leftI < 0) {
-		leftI += modelStack->autoParam->nodes.getNumElements();
-	}
+	int32_t leftI = getLeftNodeIndex(modelStack, rightI);
 	ParamNode* leftNode = modelStack->autoParam->nodes.getElement(leftI);
 
 	if (reversed) {
@@ -3471,6 +3472,26 @@ bool AutomationView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, i
 	else {
 		return rightNode->interpolated;
 	}
+}
+
+int32_t AutomationView::getCurrentNodeIndex(ModelStackWithAutoParam* modelStack, int32_t pos) {
+	return modelStack->autoParam->nodes.searchExact(pos);
+}
+
+int32_t AutomationView::getRightNodeIndex(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed) {
+	int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
+	if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
+		rightI = 0;
+	}
+	return rightI;
+}
+
+int32_t AutomationView::getLeftNodeIndex(ModelStackWithAutoParam* modelStack, int32_t rightI) {
+	int32_t leftI = rightI - 1;
+	if (leftI < 0) {
+		leftI += modelStack->autoParam->nodes.getNumElements();
+	}
+	return leftI;
 }
 
 // this function writes the new values calculated by the handleSinglePadPress and handleMultiPadPress functions
