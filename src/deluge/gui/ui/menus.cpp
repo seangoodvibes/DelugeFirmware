@@ -65,8 +65,8 @@
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
+#include "gui/menu_item/midi/follow/performance_session_view/learn_morph.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
-#include "gui/menu_item/midi/performance_session_view/learn_morph.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
@@ -735,6 +735,8 @@ midi::FollowChannel midiFollowChannelFeedbackMenu{STRING_FOR_CHANNEL, STRING_FOR
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
+// Menu for Performance View Morph Mode CC Learn
+midi::LearnMorph midiFollowLearnMorphMenu{STRING_FOR_PERFORM_LEARN_MORPH};
 
 Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,
@@ -764,6 +766,7 @@ Submenu midiFollowSubmenu{
         &midiFollowKitRootNoteMenu,
         &midiFollowFeedbackSubmenu,
         &midiFollowDisplayParamMenu,
+        &midiFollowLearnMorphMenu,
     },
 };
 
@@ -1071,15 +1074,11 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
 // Menu for Performance View Editing Mode
 menu_item::performance_session_view::EditingMode performEditorMenu{STRING_FOR_PERFORM_EDITOR};
 
-// Menu for Performance View Morph Mode CC Learn
-menu_item::midi::LearnMorph performLearnMorphMenu{STRING_FOR_PERFORM_LEARN_MORPH};
-
 // Root menu for Performance View
 menu_item::Submenu soundEditorRootMenuPerformanceView{
     STRING_FOR_PERFORM_FX,
     {
         &performEditorMenu,
-        &performLearnMorphMenu,
         &globalLevelMenu,
         &globalPanMenu,
         &globalLPFMenu,

@@ -25,17 +25,15 @@ namespace deluge::gui::menu_item::midi {
 class LearnMorph final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(midiEngine.performanceViewMorphModeFaderCCNumber); }
-	void writeCurrentValue() override { midiEngine.performanceViewMorphModeFaderCCNumber = this->getValue(); }
+	void readCurrentValue() override { this->setValue(midiEngine.midiFollowPerformanceViewMorphModeCCNumber); }
+	void writeCurrentValue() override { midiEngine.midiFollowPerformanceViewMorphModeCCNumber = this->getValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
 	bool allowsLearnMode() override { return true; }
 
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return performanceSessionView.morphMode; }
-
 	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) {
 		this->setValue(ccNumber);
-		midiEngine.performanceViewMorphModeFaderCCNumber = ccNumber;
+		midiEngine.midiFollowPerformanceViewMorphModeCCNumber = ccNumber;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
 			renderDisplay();
@@ -47,7 +45,7 @@ public:
 
 	void unlearnAction() {
 		this->setValue(MIDI_CC_NONE);
-		midiEngine.performanceViewMorphModeFaderCCNumber = MIDI_CC_NONE;
+		midiEngine.midiFollowPerformanceViewMorphModeCCNumber = MIDI_CC_NONE;
 		if (soundEditor.getCurrentMenuItem() == this) {
 			renderDisplay();
 		}
@@ -69,7 +67,7 @@ public:
 			this->setValue(this->getValue() + offset);
 			if ((this->getValue() > kMaxMIDIValue) || (this->getValue() < 0)) {
 				this->setValue(MIDI_CC_NONE);
-				midiEngine.performanceViewMorphModeFaderCCNumber = MIDI_CC_NONE;
+				midiEngine.midiFollowPerformanceViewMorphModeCCNumber = MIDI_CC_NONE;
 				renderDisplay();
 				return;
 			}

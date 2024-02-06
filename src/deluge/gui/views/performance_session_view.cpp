@@ -2322,6 +2322,9 @@ void PerformanceSessionView::exitMorphMode() {
 }
 
 void PerformanceSessionView::receivedMorphCCFromMidiFollow(int32_t value) {
+	if (value == kMaxMIDIValue) {
+		value = kMaxKnobPos;
+	}
 	int32_t offset = value - morphPosition;
 	morph(offset);
 }

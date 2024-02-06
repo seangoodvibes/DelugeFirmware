@@ -218,6 +218,8 @@ MidiEngine::MidiEngine() {
 	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
+	midiTakeover = MIDITakeoverMode::JUMP;
+
 	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
 		midiChannelType.clear();
 	}
@@ -225,10 +227,9 @@ MidiEngine::MidiEngine() {
 	midiFollowDisplayParam = false;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
-	midiTakeover = MIDITakeoverMode::JUMP;
-	midiSelectKitRow = false;
+	midiFollowPerformanceViewMorphModeCCNumber = MIDI_CC_NONE;
 
-	performanceViewMorphModeFaderCCNumber = MIDI_CC_NONE;
+	midiSelectKitRow = false;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 

@@ -139,6 +139,7 @@ namespace FlashStorage {
 151: automationShift;
 152: automationNudgeNote;
 153: automationDisableAuditionPadShortcuts;
+154: midiFollow performance view morph mode cc number
 */
 
 uint8_t defaultScale;
@@ -259,6 +260,7 @@ void resetMidiFollowSettings() {
 	midiEngine.midiFollowDisplayParam = false;
 	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiEngine.midiFollowFeedbackFilter = false;
+	midiEngine.midiFollowPerformanceViewMorphModeCCNumber = MIDI_CC_NONE;
 }
 
 void resetAutomationSettings() {
@@ -537,6 +539,7 @@ void readSettings() {
 		    buffer[131];
 		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
 		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
+		midiEngine.midiFollowPerformanceViewMorphModeCCNumber = buffer[154];
 	}
 	else {
 		resetMidiFollowSettings();
@@ -594,6 +597,10 @@ bool areMidiFollowSettingsValid(uint8_t* buffer) {
 	}
 	// midiEngine.midiFollowFeedbackFilter
 	else if (buffer[133] != false && buffer[133] != true) {
+		return false;
+	}
+	// midiEngine.midiFollowPerformanceViewMorphModeCCNumber
+	else if ((buffer[154] < 0 || buffer[154] > kMaxMIDIValue) && buffer[154] != MIDI_CC_NONE) {
 		return false;
 	}
 	// place holder for checking if midi follow devices are valid
@@ -747,6 +754,7 @@ void writeSettings() {
 	buffer[131] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
 	buffer[132] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
 	buffer[133] = midiEngine.midiFollowFeedbackFilter;
+	buffer[154] = midiEngine.midiFollowPerformanceViewMorphModeCCNumber;
 
 	buffer[146] = gridEmptyPadsCreateRec;
 

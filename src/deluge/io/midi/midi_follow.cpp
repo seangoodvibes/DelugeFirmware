@@ -491,10 +491,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				}
 			}
 		}
-		if (ccNumber == midiEngine.performanceViewMorphModeFaderCCNumber) {
-			if (value == kMaxMIDIValue) {
-				value = kMaxKnobPos;
-			}
+		if (ccNumber == midiEngine.midiFollowPerformanceViewMorphModeCCNumber) {
 			performanceSessionView.receivedMorphCCFromMidiFollow(value);
 		}
 	}
