@@ -1796,16 +1796,19 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 		}
 	}
 
-	if (defaultEditingMode) {
-		if (anyChangesToSave) {
-			indicator_leds::blinkLed(IndicatorLED::SAVE);
+	// this could get called by the morph midi command, so only refresh if we're in performance view
+	if (getCurrentUI() == this) {
+		if (defaultEditingMode) {
+			if (anyChangesToSave) {
+				indicator_leds::blinkLed(IndicatorLED::SAVE);
+			}
+			else {
+				indicator_leds::setLedState(IndicatorLED::SAVE, false);
+			}
 		}
 		else {
 			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 		}
-	}
-	else {
-		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 	}
 
 	return;
@@ -1973,7 +1976,10 @@ void PerformanceSessionView::layoutUpdated() {
 	actionLogger.deleteAllLogs();
 	backupPerformanceLayout();
 	updateLayoutChangeStatus();
-	uiNeedsRendering(this);
+	// this could get called by the morph midi command, so only refresh if we're in performance view
+	if (getCurrentUI() == this) {
+		uiNeedsRendering(this);
+	}
 }
 
 /// re-read defaults from backed up XML in memory in order to reduce SD Card IO
@@ -2315,8 +2321,13 @@ void PerformanceSessionView::exitMorphMode() {
 	view.setModLedStates();
 }
 
-void PerformanceSessionView::morph(int32_t offset) {
-	if (offset != 0 && isMorphingPossible()) {
+void PerformanceSessionView::receivedMorphCCFromMidiFollow(int32_t value) {
+	int32_t offset = value - morphPosition;
+	morph(offset);
+}
+
+void PerformanceSessionView::morph(int32_t offset, bool isMIDICommand) {
+	if (offset != 0 && (isMIDICommand || isMorphingPossible())) {
 		int32_t currentMorphPosition = morphPosition;
 		adjustMorphPosition(offset);
 
@@ -2444,6 +2455,7 @@ void PerformanceSessionView::adjustMorphPosition(int32_t offset) {
 	else if (morphPosition > kMaxKnobPos) {
 		morphPosition = kMaxKnobPos;
 	}
+
 	char buffer[10];
 	intToString(morphPosition, buffer);
 	display->displayPopup(buffer);
@@ -2451,49 +2463,52 @@ void PerformanceSessionView::adjustMorphPosition(int32_t offset) {
 }
 
 void PerformanceSessionView::updateMorphLedStates() {
-	if (morphPosition == 0) {
-		indicator_leds::setLedState(IndicatorLED::SYNTH, true);
-		indicator_leds::setLedState(IndicatorLED::KIT, false);
-		indicator_leds::setLedState(IndicatorLED::MIDI, false);
-		indicator_leds::setLedState(IndicatorLED::CV, false);
+	// this could get called by the morph midi command, so only refresh if we're in performance view
+	if (morphMode && getCurrentUI() == this) {
+		if (morphPosition == 0) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, true);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition > 0) && (morphPosition < 32)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, true);
+			indicator_leds::setLedState(IndicatorLED::KIT, true);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition >= 32) && (morphPosition < 64)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, true);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if (morphPosition == 64) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, true);
+			indicator_leds::setLedState(IndicatorLED::MIDI, true);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition > 64) && (morphPosition < 96)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, true);
+			indicator_leds::setLedState(IndicatorLED::CV, false);
+		}
+		else if ((morphPosition >= 96) && (morphPosition < kMaxKnobPos)) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, true);
+			indicator_leds::setLedState(IndicatorLED::CV, true);
+		}
+		else if (morphPosition == kMaxKnobPos) {
+			indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+			indicator_leds::setLedState(IndicatorLED::KIT, false);
+			indicator_leds::setLedState(IndicatorLED::MIDI, false);
+			indicator_leds::setLedState(IndicatorLED::CV, true);
+		}
+		setKnobIndicatorLevels();
 	}
-	else if ((morphPosition > 0) && (morphPosition < 32)) {
-		indicator_leds::setLedState(IndicatorLED::SYNTH, true);
-		indicator_leds::setLedState(IndicatorLED::KIT, true);
-		indicator_leds::setLedState(IndicatorLED::MIDI, false);
-		indicator_leds::setLedState(IndicatorLED::CV, false);
-	}
-	else if ((morphPosition >= 32) && (morphPosition < 64)) {
-		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-		indicator_leds::setLedState(IndicatorLED::KIT, true);
-		indicator_leds::setLedState(IndicatorLED::MIDI, false);
-		indicator_leds::setLedState(IndicatorLED::CV, false);
-	}
-	else if (morphPosition == 64) {
-		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-		indicator_leds::setLedState(IndicatorLED::KIT, true);
-		indicator_leds::setLedState(IndicatorLED::MIDI, true);
-		indicator_leds::setLedState(IndicatorLED::CV, false);
-	}
-	else if ((morphPosition > 64) && (morphPosition < 96)) {
-		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-		indicator_leds::setLedState(IndicatorLED::KIT, false);
-		indicator_leds::setLedState(IndicatorLED::MIDI, true);
-		indicator_leds::setLedState(IndicatorLED::CV, false);
-	}
-	else if ((morphPosition >= 96) && (morphPosition < kMaxKnobPos)) {
-		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-		indicator_leds::setLedState(IndicatorLED::KIT, false);
-		indicator_leds::setLedState(IndicatorLED::MIDI, true);
-		indicator_leds::setLedState(IndicatorLED::CV, true);
-	}
-	else if (morphPosition == kMaxKnobPos) {
-		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-		indicator_leds::setLedState(IndicatorLED::KIT, false);
-		indicator_leds::setLedState(IndicatorLED::MIDI, false);
-		indicator_leds::setLedState(IndicatorLED::CV, true);
-	}
-	setKnobIndicatorLevels();
 }
 
 void PerformanceSessionView::setKnobIndicatorLevels() {

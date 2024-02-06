@@ -117,6 +117,7 @@ public:
 
 	// public so midi follow can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
+	void receivedMorphCCFromMidiFollow(int32_t value);
 
 	// public so view.modEncoderAction and midi follow can access it
 	PadPress lastPadPress;
@@ -218,7 +219,7 @@ private:
 	void displayLayoutVariant(int32_t variant);
 	void loadSelectedLayoutVariant(int32_t variant);
 	void enterMorphMode();
-	void morph(int32_t offset);
+	void morph(int32_t offset, bool isMIDICommand = false);
 	void adjustMorphPosition(int32_t offset);
 	void updateMorphLedStates();
 	void setKnobIndicatorLevels();

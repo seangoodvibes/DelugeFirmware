@@ -228,6 +228,8 @@ MidiEngine::MidiEngine() {
 	midiTakeover = MIDITakeoverMode::JUMP;
 	midiSelectKitRow = false;
 
+	performanceViewMorphModeFaderCCNumber = MIDI_CC_NONE;
+
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {

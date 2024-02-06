@@ -807,6 +807,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_VIEW, "Performance View"},
         {STRING_FOR_PERFORM_FX, "Perform FX"},
         {STRING_FOR_PERFORM_EDITOR, "Editing Mode"},
+        {STRING_FOR_PERFORM_LEARN_MORPH, "Learn Morph"},
         {STRING_FOR_PERFORM_EDIT_PARAM, "Param"},
         {STRING_FOR_PERFORM_EDIT_VALUE, "Value"},
         {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},

@@ -70,6 +70,8 @@ public:
 	MIDITakeoverMode midiTakeover;
 	bool midiSelectKitRow;
 
+	int32_t performanceViewMorphModeFaderCCNumber;
+
 	// shared buffer for formatting sysex messages.
 	// Not safe for use in interrupts.
 	uint8_t sysex_fmt_buffer[1024];
