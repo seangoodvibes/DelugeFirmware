@@ -124,10 +124,12 @@ public:
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
+	// pink mode related
 	// public so Grid View can access it
 	bool gridModeActive;
 	uint32_t timeGridModePress;
 
+	// morph mode
 	// public so soundEditor && view.setModLedStates can access it
 	bool morphMode;
 	void exitMorphMode();
@@ -159,6 +161,10 @@ private:
 	                      int32_t paramID, int32_t xDisplay, bool renderDisplay = true);
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
+
+	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
+	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
+	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
 
 	/// write/load default values
 	void getLayoutFilePath(char* filePath);
@@ -194,13 +200,12 @@ private:
 	ParamsForPerformance morphBLayoutForPerformance[kDisplayWidth];
 	int32_t morphBFXValues[kDisplayWidth][kDisplayHeight];
 
-	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
-	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
-	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
-
 	PadPress firstPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
+
+	// saving layouts
+
 	int32_t layoutBank; // 0, 1, 2
 	// 0 = default
 	// 1 = Bank A
@@ -210,6 +215,9 @@ private:
 	// 0 = Default - Load + Keyboard button
 	// 1-4 = Bank A, layout A, B, C, D - Load + Synth/Kit/Midi/CV buttons
 	// 5-8 = Bank B, layout E, F, G, H - Load + Synth/Kit/Midi/CV buttons
+
+	// morph mode
+
 	int32_t morphLayoutAVariant; // assign layoutVariant above to morph layout A
 	int32_t morphLayoutBVariant; // assign layoutVariant above to morph Layout B
 	bool backupMorphALayout;
@@ -220,10 +228,10 @@ private:
 	void loadSelectedLayoutVariant(int32_t variant);
 	void enterMorphMode();
 	void morph(int32_t offset, bool isMIDICommand = false);
+	bool isMorphingPossible();
 	void adjustMorphPosition(int32_t offset);
 	void updateMorphLedStates();
 	void setKnobIndicatorLevels();
-	bool isMorphingPossible();
 	int32_t getCurrentParameterValue(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void morphTowardsTarget(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
 	                        int32_t targetKnobPosition, int32_t offset);

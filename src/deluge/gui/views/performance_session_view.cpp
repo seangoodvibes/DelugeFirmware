@@ -2283,11 +2283,11 @@ void PerformanceSessionView::selectLayoutVariant(int32_t offset, int32_t& varian
 }
 
 void PerformanceSessionView::displayLayoutVariant(int32_t variant) {
-	if (variant == 0) {
-		display->displayPopup("Default");
+	if (variant == kNoSelection) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NONE));
 	}
-	else if (variant == kNoSelection) {
-		display->displayPopup("Unassigned");
+	else if (variant == 0) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULT_LAYOUT));
 	}
 	else {
 		char buffer[10];
@@ -2403,8 +2403,116 @@ void PerformanceSessionView::morph(int32_t offset, bool isMIDICommand) {
 		}
 	}
 	else {
-		display->displayPopup("Can't Morph");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_CANT_MORPH));
 	}
+}
+
+bool PerformanceSessionView::isMorphingPossible() {
+	if ((morphLayoutAVariant != kNoSelection) && (morphLayoutBVariant != kNoSelection)) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			if ((morphALayoutForPerformance[xDisplay].paramKind == params::Kind::NONE)
+			    || (morphALayoutForPerformance[xDisplay].paramID == kNoSelection)) {
+				return false;
+			}
+
+			if ((morphBLayoutForPerformance[xDisplay].paramKind == params::Kind::NONE)
+			    || (morphBLayoutForPerformance[xDisplay].paramID == kNoSelection)) {
+				return false;
+			}
+
+			// no morphing stutter
+			if ((layoutForPerformance[xDisplay].paramKind == params::Kind::UNPATCHED_GLOBAL)
+			    && (layoutForPerformance[xDisplay].paramID == UNPATCHED_STUTTER_RATE)) {
+				continue;
+			}
+
+			// let's make sure the layout's are compatible for morphing
+			if ((morphALayoutForPerformance[xDisplay].paramKind == morphBLayoutForPerformance[xDisplay].paramKind)
+			    && (morphALayoutForPerformance[xDisplay].paramID == morphBLayoutForPerformance[xDisplay].paramID)) {
+				// if they're compatible, is there a held value in either layout?
+				if (morphAFXPress[xDisplay].padPressHeld || morphBFXPress[xDisplay].padPressHeld) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void PerformanceSessionView::adjustMorphPosition(int32_t offset) {
+	morphPosition += offset;
+	if (morphPosition < 0) {
+		morphPosition = 0;
+	}
+	else if (morphPosition > kMaxKnobPos) {
+		morphPosition = kMaxKnobPos;
+	}
+
+	char buffer[10];
+	intToString(morphPosition, buffer);
+	display->displayPopup(buffer);
+	updateMorphLedStates();
+}
+
+void PerformanceSessionView::morphTowardsTarget(params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
+                                                int32_t targetKnobPosition, int32_t offset) {
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			float floatMorphPosition = static_cast<float>(morphPosition);
+			float floatKnobPositionDifference =
+			    static_cast<float>(targetKnobPosition) - static_cast<float>(sourceKnobPosition);
+			float floatMorphKnobPosition;
+
+			// morphing towards B
+			if (offset > 0) {
+				floatMorphKnobPosition =
+				    sourceKnobPosition + std::round(((floatMorphPosition / kMaxKnobPos) * floatKnobPositionDifference));
+			}
+			// morphing towards A
+			else if (offset < 0) {
+				floatMorphKnobPosition =
+				    sourceKnobPosition
+				    + std::round((((kMaxKnobPos - floatMorphPosition) / kMaxKnobPos) * floatKnobPositionDifference));
+			}
+
+			int32_t morphKnobPosition = static_cast<int32_t>(floatMorphKnobPosition);
+
+			int32_t newParameterValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+			    morphKnobPosition - kKnobPosOffset, modelStackWithParam);
+
+			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
+			                                                          view.modPos, view.modLength);
+		}
+	}
+}
+
+int32_t PerformanceSessionView::getCurrentParameterValue(params::Kind paramKind, int32_t paramID) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+
+			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+
+			return knobPos;
+		}
+	}
+	return kNoSelection;
 }
 
 void PerformanceSessionView::loadMorphALayout() {
@@ -2445,21 +2553,6 @@ void PerformanceSessionView::loadMorphBLayout() {
 		layoutUpdated();
 		updateMorphLedStates();
 	}
-}
-
-void PerformanceSessionView::adjustMorphPosition(int32_t offset) {
-	morphPosition += offset;
-	if (morphPosition < 0) {
-		morphPosition = 0;
-	}
-	else if (morphPosition > kMaxKnobPos) {
-		morphPosition = kMaxKnobPos;
-	}
-
-	char buffer[10];
-	intToString(morphPosition, buffer);
-	display->displayPopup(buffer);
-	updateMorphLedStates();
 }
 
 void PerformanceSessionView::updateMorphLedStates() {
@@ -2534,98 +2627,5 @@ void PerformanceSessionView::setKnobIndicatorLevels() {
 	}
 	else {
 		view.setKnobIndicatorLevels();
-	}
-}
-
-bool PerformanceSessionView::isMorphingPossible() {
-	if ((morphLayoutAVariant != kNoSelection) && (morphLayoutBVariant != kNoSelection)) {
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-			if ((morphALayoutForPerformance[xDisplay].paramKind == params::Kind::NONE)
-			    || (morphALayoutForPerformance[xDisplay].paramID == kNoSelection)) {
-				return false;
-			}
-
-			if ((morphBLayoutForPerformance[xDisplay].paramKind == params::Kind::NONE)
-			    || (morphBLayoutForPerformance[xDisplay].paramID == kNoSelection)) {
-				return false;
-			}
-
-			// no morphing stutter
-			if ((layoutForPerformance[xDisplay].paramKind == params::Kind::UNPATCHED_GLOBAL)
-			    && (layoutForPerformance[xDisplay].paramID == UNPATCHED_STUTTER_RATE)) {
-				continue;
-			}
-
-			// let's make sure the layout's are compatible for morphing
-			if ((morphALayoutForPerformance[xDisplay].paramKind == morphBLayoutForPerformance[xDisplay].paramKind)
-			    && (morphALayoutForPerformance[xDisplay].paramID == morphBLayoutForPerformance[xDisplay].paramID)) {
-				// if they're compatible, is there a held value in either layout?
-				if (morphAFXPress[xDisplay].padPressHeld || morphBFXPress[xDisplay].padPressHeld) {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
-int32_t PerformanceSessionView::getCurrentParameterValue(params::Kind paramKind, int32_t paramID) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
-
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
-
-			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-
-			return knobPos;
-		}
-	}
-	return kNoSelection;
-}
-
-void PerformanceSessionView::morphTowardsTarget(params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
-                                                int32_t targetKnobPosition, int32_t offset) {
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
-
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			float floatMorphPosition = static_cast<float>(morphPosition);
-			float floatKnobPositionDifference =
-			    static_cast<float>(targetKnobPosition) - static_cast<float>(sourceKnobPosition);
-			float floatMorphKnobPosition;
-
-			// morphing towards B
-			if (offset > 0) {
-				floatMorphKnobPosition =
-				    sourceKnobPosition + std::round(((floatMorphPosition / kMaxKnobPos) * floatKnobPositionDifference));
-			}
-			// morphing towards A
-			else if (offset < 0) {
-				floatMorphKnobPosition =
-				    sourceKnobPosition
-				    + std::round((((kMaxKnobPos - floatMorphPosition) / kMaxKnobPos) * floatKnobPositionDifference));
-			}
-
-			int32_t morphKnobPosition = static_cast<int32_t>(floatMorphKnobPosition);
-
-			int32_t newParameterValue = modelStackWithParam->paramCollection->knobPosToParamValue(
-			    morphKnobPosition - kKnobPosOffset, modelStackWithParam);
-
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
-			                                                          view.modPos, view.modLength);
-		}
 	}
 }

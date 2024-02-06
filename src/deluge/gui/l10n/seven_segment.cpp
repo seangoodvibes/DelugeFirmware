@@ -404,6 +404,8 @@ PLACE_SDRAM_DATA Language seven_segment{
          */
 
         {STRING_FOR_PERFORM_LEARN_MORPH, "MORPH"},
+        {STRING_FOR_PERFORM_CANT_MORPH, "CANT"},
+        {STRING_FOR_PERFORM_DEFAULT_LAYOUT, "DEFA"},
 
         /* Strings for Midi Learning View
          * midi_follow.cpp
@@ -424,7 +426,6 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MODEL, "MODE"},
         {STRING_FOR_FREEVERB, "FVRB"},
         {STRING_FOR_MUTABLE, "MTBL"},
-
     },
     &built_in::english,
 };
