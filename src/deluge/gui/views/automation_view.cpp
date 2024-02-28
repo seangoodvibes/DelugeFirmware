@@ -475,8 +475,9 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+	int32_t yZoom = 2;
 
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < (kDisplayHeight / yZoom); yDisplay++) {
 
 		if (whichRows & (1 << yDisplay)) {
 			uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
@@ -632,6 +633,8 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
                                int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll,
                                int32_t xZoom) {
 
+	int32_t yZoom = 2;
+
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
 		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
@@ -651,7 +654,7 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 
 		if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
 
-			if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
+			if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay * yZoom)) {
 				pixel = rowBlurColour[yDisplay];
 			}
 			else {
@@ -3479,15 +3482,16 @@ void AutomationView::handleParameterAutomationChange(ModelStackWithAutoParam* mo
 // calculates what the new parameter value is when you press a single pad
 int32_t AutomationView::calculateKnobPosForSinglePadPress(OutputType outputType, int32_t yDisplay) {
 
+	int32_t yZoom = 2;
 	int32_t newKnobPos = 0;
 
 	// if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
-	if (yDisplay < 7) {
+	if (yDisplay < (7 / yZoom)) {
 		if (middlePadPressSelected) {
-			newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
+			newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay * yZoom);
 		}
 		else {
-			newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+			newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress * yZoom;
 		}
 	}
 	// if you are pressing the top pad, set the value to max (128)
@@ -3505,7 +3509,7 @@ int32_t AutomationView::calculateKnobPosForSinglePadPress(OutputType outputType,
 			newKnobPos = newKnobPos / 2;
 		}
 		else {
-			newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
+			newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay * yZoom) + 1)) / 2;
 		}
 	}
 
