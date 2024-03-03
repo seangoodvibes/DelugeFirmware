@@ -103,7 +103,9 @@ public:
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset);
-	void getLastSelectedParamShortcut(Clip* clip);
+	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
+	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it
+	bool multiPadPressSelected;                         // public so menu can access it
 
 	// called by melodic_instrument.cpp or kit.cpp
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
@@ -133,6 +135,13 @@ public:
 	// public so uiTimerManager can access it
 	void blinkInterpolationShortcut();
 
+	// public so menu can access it
+	bool onMenuView;
+	UI* previousUI; // previous UI so you can swap back UI after exiting menu
+	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
+	void setKnobIndicatorLevels(int32_t knobPos);
+	void resetInterpolationShortcutBlinking();
+
 private:
 	// button action functions
 	bool handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on);
@@ -148,6 +157,7 @@ private:
 	bool handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on);
 	void handleVerticalEncoderButtonAction(bool on);
 	void handleSelectEncoderButtonAction(bool on);
+	void handleAffectEntireButtonAction(bool on);
 
 	// audition pad action
 	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
@@ -202,6 +212,10 @@ private:
 	void selectGlobalParam(int32_t offset, Clip* clip);
 	void selectNonGlobalParam(int32_t offset, Clip* clip);
 	void selectMIDICC(int32_t offset, Clip* clip);
+	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
+	                                          int32_t numParams);
+	void getLastSelectedNonGlobalParamArrayPosition(Clip* clip);
+	void getLastSelectedGlobalParamArrayPosition(Clip* clip);
 
 	// Automation Lanes Functions
 	void initPadSelection();
@@ -211,13 +225,11 @@ private:
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
 	void getParameterName(Clip* clip, OutputType outputType, char* parameterName);
-	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                 bool modEncoderAction = false);
-	void setKnobIndicatorLevels(int32_t knobPos);
 	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay = true,
 	                       bool updateIndicatorLevels = true);
 
@@ -243,7 +255,6 @@ private:
 	void blinkShortcuts();
 	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();
-	void resetInterpolationShortcutBlinking();
 
 	bool encoderAction;
 	bool parameterShortcutBlinking;
@@ -253,7 +264,6 @@ private:
 	uint8_t interpolationShortcutY;
 
 	bool padSelectionOn;
-	bool multiPadPressSelected;
 	bool multiPadPressActive;
 	bool middlePadPressSelected;
 	int32_t leftPadSelectedX;
