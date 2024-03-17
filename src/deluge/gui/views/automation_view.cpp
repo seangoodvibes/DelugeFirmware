@@ -1309,11 +1309,11 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			if (modelStackWithParam->getTimelineCounter()
 			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-				int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
+				int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos) + kKnobPosOffset;
 
 				// update value on the screen when playing back automation
 				if (updateDisplay && !playbackStopped) {
-					renderDisplay(knobPos + kKnobPosOffset);
+					renderDisplay(knobPos);
 				}
 				// on 7SEG re-render parameter name under certain circumstances
 				// e.g. when entering pad selection mode, when stopping playback
@@ -1322,7 +1322,6 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 					playbackStopped = false;
 				}
 
-				knobPos = knobPos + kKnobPosOffset;
 				setKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 		}
