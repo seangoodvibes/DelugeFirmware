@@ -46,6 +46,7 @@ void LearnedMIDI::clear() {
 	device = NULL;
 	channelOrZone = MIDI_CHANNEL_NONE;
 	noteOrCC = 255;
+	isEuclidean = false;
 }
 
 char const* getTagNameFromMIDIMessageType(int32_t midiMessageType) {

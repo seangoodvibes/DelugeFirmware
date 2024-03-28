@@ -71,6 +71,8 @@ public:
 	                                           ModelStackWithTimelineCounter* modelStack) override;
 
 	// drums don't receive other CCs
+	void receivedEuclideanForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+	                              MIDIMatchType match, uint8_t channel, uint8_t value);
 	void receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                         MIDIMatchType match, uint8_t channel, uint8_t value);
 

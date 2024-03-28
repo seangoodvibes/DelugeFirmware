@@ -5441,6 +5441,122 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
+void InstrumentClipView::midiEditNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t ccValue) {
+
+	int32_t newNumNotes = 0;
+
+	int32_t effectiveLength = modelStack->getLoopLength();
+
+	uint32_t squareWidth = getSquareWidth(0, kMaxSequenceLength);
+	int32_t numStepsAvailable = (uint32_t)(effectiveLength - 1) / squareWidth + 1; // Round up
+
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	if (!noteRow) {
+		return;
+	}
+
+	{
+		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+		float ccValuePercentage = (float)ccValue / (float)kMaxMIDIValue;
+		newNumNotes = static_cast<int32_t>(ccValuePercentage * numStepsAvailable);
+
+		{
+			// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
+			NoteVector newNotes;
+			if (newNumNotes) {
+				Error error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
+				if (error != Error::NONE) {
+					display->displayError(error);
+					return;
+				}
+			}
+
+			// Record Action
+			//	Action* action =
+			//	    actionLogger.getNewAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT, ActionAddition::ALLOWED);
+			//	if (action) {
+			//		action->offset = offset;
+			//	}
+
+			// Create the Notes
+			for (int32_t n = 0; n < newNumNotes; n++) {
+				Note* note = newNotes.getElement(n);
+				note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
+				note->length = squareWidth;
+				note->probability = noteRow->getDefaultProbability(modelStack);
+				note->velocity = ((Instrument*)clip->output)->defaultVelocity;
+				note->lift = kDefaultLiftValue;
+			}
+
+			// Just make sure final note isn't too long
+			if (newNumNotes) {
+				Note* note = newNotes.getElement(newNumNotes - 1);
+				int32_t maxLength = effectiveLength - note->pos;
+				if (note->length > maxLength) {
+					note->length = maxLength;
+				}
+			}
+
+			// Delete / steal / consequence-ize the MPE data first, because in order for partial undos to work,
+			// this has to be further down the linked list of Consequences than the note-array-change that we do
+			// next, below.
+			ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
+			ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
+			if (mpeParams) {
+				ModelStackWithParamCollection* modelStackWithParamCollection =
+				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams,
+				                                                                                 mpeParamsSummary);
+				Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
+				mpeParams->deleteAllAutomation(action, modelStackWithParamCollection);
+			}
+
+			// Record change, stealing the old note data
+			//		if (action) {
+			//			// We "definitely" store the change, because unusually, we may want to revert individual
+			//			// Consequences in the Action one by one
+			//			action->recordNoteArrayChangeDefinitely(clip, modelStack->noteRowId, &noteRow->notes, true);
+			//		}
+
+			// Swap the new temporary note data into the permanent place
+			noteRow->notes.swapStateWith(&newNotes);
+
+#if ENABLE_SEQUENTIALITY_TESTS
+			noteRow->notes.testSequentiality("E376");
+#endif
+		}
+
+noteRowChanged:
+		// Play it
+		clip->expectEvent();
+
+		if (getRootUI() == this) {
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		}
+		//	}
+	}
+displayNewNumNotes:
+	if (getCurrentUI() == this) {
+		// Tell the user about it in text
+		if (display->haveOLED()) {
+			char buffer[34];
+			strcpy(buffer, "Events: ");
+			char* pos = strchr(buffer, 0);
+			intToString(newNumNotes, pos);
+			pos = strchr(buffer, 0);
+			strcpy(pos, " of ");
+			pos = strchr(buffer, 0);
+			intToString(numStepsAvailable, pos);
+			display->popupTextTemporary(buffer);
+		}
+		else {
+			char buffer[12];
+			intToString(newNumNotes, buffer);
+			display->displayPopup(buffer, 0, true);
+		}
+	}
+}
+
 // Check UI mode is appropriate before calling this
 void InstrumentClipView::editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay) {
 

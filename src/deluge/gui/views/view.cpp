@@ -794,6 +794,18 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 			}
 		}
 
+		else if (thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
+			display->displayPopup("cc learned");
+			// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
+			//	if (highestMIDIChannelSeenWhileLearning < lowestMIDIChannelSeenWhileLearning) {
+			learnedThing->device = fromDevice;
+			learnedThing->channelOrZone = channel;
+			learnedThing->noteOrCC = cc;
+			learnedThing->isEuclidean = true;
+			getCurrentInstrument()->beenEdited(false);
+			//	}
+		}
+
 		// Or, for all other types of things the user might be holding down...
 		else {
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes

@@ -1285,6 +1285,17 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 	}
 }
 
+void Kit::receivedEuclideanForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                                   MIDIMatchType match, uint8_t channel, uint8_t value) {
+
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    instrumentClip->getNoteRowForDrum(modelStackWithTimelineCounter, thisDrum);
+
+	instrumentClipView.midiEditNumEuclideanEvents(modelStackWithNoteRow, value);
+}
+
 void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
                               MIDIMatchType match, uint8_t channel, uint8_t value) {
 
@@ -1321,18 +1332,17 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		                 instrumentClip);
 		return;
 	}
-	if (ccNumber != 74) {
-		return;
-	}
-	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
-		return;
-	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
-		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
+		if ((ccNumber == 74) && (fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel))
+		    && ((match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER))) {
 			// this will make sure that the channel matches the drums last received one
 			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+		}
+		if (match != MIDIMatchType::NO_MATCH && thisDrum->midiInput.noteOrCC == ccNumber
+		    && thisDrum->midiInput.isEuclidean) {
+			receivedEuclideanForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 		}
 	}
 }

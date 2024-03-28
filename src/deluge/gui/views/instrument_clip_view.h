@@ -191,6 +191,8 @@ public:
 	// ui
 	UIType getUIType() { return UIType::INSTRUMENT_CLIP_VIEW; }
 
+	void midiEditNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t ccValue);
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;

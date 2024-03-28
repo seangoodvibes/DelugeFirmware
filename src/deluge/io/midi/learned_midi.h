@@ -91,4 +91,6 @@ public:
 	// constant IS_A_CC
 	uint8_t channelOrZone;
 	uint8_t noteOrCC;
+
+	bool isEuclidean;
 };
