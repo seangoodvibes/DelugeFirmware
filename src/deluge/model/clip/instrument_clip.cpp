@@ -2340,13 +2340,13 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 	if (output->type != OutputType::KIT) {
 		if (arpSettings.mode != ArpMode::OFF) {
 			bdsm.writeOpeningTagBeginning("arpeggiator");
-			bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-			bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-			bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+			bdsm.writeAttribute("arpMode", arpModeToString(arpSettings.mode));
+			bdsm.writeAttribute("noteMode", arpNoteModeToString(arpSettings.noteMode));
+			bdsm.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings.octaveMode));
+			bdsm.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings.mpeVelocity));
 			bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
-			bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-			bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
-			bdsm.writeAttribute("syncType", arpSettings.syncType);
+			bdsm.writeSyncTypeToFile(currentSong, "syncType", arpSettings.syncType);
+			bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings.syncLevel);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				bdsm.writeAttribute("gate", arpeggiatorGate);
@@ -2645,11 +2645,11 @@ someError:
 					bdsm.exitTag("numOctaves");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
-					arpSettings.syncLevel = (SyncLevel)bdsm.readTagOrAttributeValueInt();
+					arpSettings.syncLevel = bdsm.readAbsoluteSyncLevelFromFile(song);
 					bdsm.exitTag("syncLevel");
 				}
 				else if (!strcmp(tagName, "syncType")) {
-					arpSettings.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
+					arpSettings.syncType = bdsm.readSyncTypeFromFile(song);
 					bdsm.exitTag("syncType");
 				}
 				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {

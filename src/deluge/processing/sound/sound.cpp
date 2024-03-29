@@ -633,9 +633,9 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 
 		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
-			if (!strcmp(tagName,
-			            "rate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
-				                   // firmware in September 2016
+			if (!strcmp(tagName, "rate")) {
+				// This is here for compatibility only for people (Lou and Ian) who saved songs with
+				// firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
 				bdsm.exitTag("rate");
@@ -696,9 +696,9 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 				}
 				bdsm.exitTag("mode");
 			}
-			else if (!strcmp(tagName,
-			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
-				                        // with firmware in September 2016
+			else if (!strcmp(tagName, "gate")) {
+				// This is here for compatibility only for people (Lou and Ian) who saved songs
+				// with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE,
 				                           readAutomationUpToPos);
@@ -750,9 +750,9 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		storageManager.exitTag("rhythm");
 	}
 
-	else if (!strcmp(tagName,
-	                 "portamento")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
-		                              // with firmware in September 2016
+	else if (!strcmp(tagName, "portamento")) {
+		// This is here for compatibility only for people (Lou and Ian) who saved songs
+		// with firmware in September 2016
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		bdsm.exitTag("portamento");
