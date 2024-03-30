@@ -236,6 +236,15 @@ enum class ThingType {
 	NONE,
 };
 
+enum class InstrumentClipRowControlType : uint8_t {
+	EUCLIDEAN,
+	PROBABILITY,
+	REPEAT,
+	ROTATE,
+	LENGTH,
+	NONE,
+};
+
 constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
 constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
