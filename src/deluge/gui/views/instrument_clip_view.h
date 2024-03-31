@@ -74,7 +74,9 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
-	void adjustVelocity(int32_t velocityChange);
+	int32_t getAverageVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t xDisplay,
+	                           uint8_t& squareType);
+	void adjustVelocity(int32_t velocityChange, int32_t xDisplay = kNoSelection);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();
@@ -189,17 +191,19 @@ public:
 	uint32_t timeHorizontalKnobLastReleased;
 	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
+	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
+	// that shortcut into the SoundEditor!
+	bool editedAnyPerNoteRowStuffSinceAuditioningBegan;
 	// made these public so they can be accessed by the automation clip view
 
 	// ui
 	UIType getUIType() { return UIType::INSTRUMENT_CLIP_VIEW; }
 
+	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
-	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
-	// that shortcut into the SoundEditor!
-	bool editedAnyPerNoteRowStuffSinceAuditioningBegan;
 
 	uint8_t flashScaleModeLedErrorCount;
 
@@ -232,7 +236,6 @@ private:
 
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 
-	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 

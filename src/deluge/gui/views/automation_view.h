@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 
 class Action;
@@ -115,6 +116,7 @@ public:
 
 	bool onAutomationOverview();
 	bool inAutomationEditor();
+	bool inNoteEditor();
 
 	bool interpolation;
 	bool interpolationBefore;
@@ -129,9 +131,11 @@ public:
 	// public so instrument clip view can access it
 	void initParameterSelection();
 	bool onArrangerView;
+	bool noteRowFlashOn;
 
 	// public so uiTimerManager can access it
 	void blinkInterpolationShortcut();
+	void blinkSelectedNoteRow(int32_t whichMainRows = 0);
 
 	// public so menu can access it
 	bool onMenuView;
@@ -139,6 +143,8 @@ public:
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft, int32_t knobPosRight);
 	void resetInterpolationShortcutBlinking();
+	void resetSelectedNoteRowBlinking();
+	AutomationParamType automationParamType;
 	bool getAffectEntire();
 
 private:
@@ -159,7 +165,8 @@ private:
 	void handleAffectEntireButtonAction(bool on);
 
 	// edit pad action
-	ActionResult handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
+	ActionResult handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam,
+	                                 ModelStackWithNoteRow* modelStackWithNoteRow, Clip* clip, Output* output,
 	                                 OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y,
 	                                 int32_t velocity);
 	bool shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
@@ -169,6 +176,16 @@ private:
 	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
 	                                      int32_t xScroll, int32_t xZoom);
 	bool handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
+	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t x, int32_t y,
+	                       int32_t velocity);
+	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t x, int32_t y,
+	                           int32_t velocity);
+	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
+	void adjustNoteVelocity(int32_t x, int32_t velocity, int32_t newVelocity, int32_t averageVelocity);
+	void adjustNotePadPressVelocity(int32_t x, int32_t newVelocity, int32_t averageVelocity);
+	void removeNote(int32_t x, int32_t velocity);
+	int32_t getNewVelocity(int32_t y);
+	void recordNoteEditPadAction(int32_t x, int32_t velocity);
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
 	                             int32_t xZoom);
@@ -212,8 +229,18 @@ private:
 	                         RGB image[][kDisplayWidth + kSideBarWidth],
 	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
 	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
-	void renderLove(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                int32_t xDisplay);
+	void renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
+	                      RGB image[][kDisplayWidth + kSideBarWidth],
+	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll,
+	                      uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea,
+	                      SquareInfo& squareInfo);
+	void renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
+	                      RGB image[][kDisplayWidth + kSideBarWidth],
+	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t xScroll,
+	                      int32_t xZoom, SquareInfo& squareInfo);
+	void renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t yDisplay,
+	                      uint8_t squareType, int32_t value);
 	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
@@ -294,6 +321,8 @@ private:
 	bool parameterShortcutBlinking;
 
 	bool interpolationShortcutBlinking;
+
+	bool noteRowBlinking;
 
 	bool padSelectionOn;
 	bool multiPadPressActive;
