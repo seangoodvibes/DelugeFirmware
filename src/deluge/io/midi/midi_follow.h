@@ -62,6 +62,8 @@ public:
 	uint32_t timeLastCCSent[kMaxMIDIValue + 1];
 	uint32_t timeAutomationFeedbackLastSent;
 
+	bool isChannelMIDIFollowParamActiveClipChannel(uint8_t channel);
+
 private:
 	// initialize
 	void init();

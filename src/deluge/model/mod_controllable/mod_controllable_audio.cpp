@@ -1451,7 +1451,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 					// obtain the model stack for the parameter the ccNumber received is learned to
 					ModelStackWithAutoParam* modelStackWithParam = midiFollow.getModelStackWithParam(
 					    modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip, xDisplay, yDisplay,
-					    ccNumber, midiEngine.midiFollowDisplayParam);
+					    ccNumber, midiEngine.midiFollowParamDisplay);
 					// check if model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()
@@ -1511,7 +1511,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								// check if you should display name of the parameter that was changed and the value that
 								// has been set if you're in the automation view editor or performance view non-editing
 								// mode don't display popup if you're currently editing the same param
-								if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
+								if (midiEngine.midiFollowParamDisplay && !editingParamInAutomationOrPerformanceView) {
 									params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 									view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 								}
@@ -1538,7 +1538,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	// obtain clip for active context
-	Clip* clip = getSelectedClip();
+	Clip* clip = getSelectedClip(midiFollow.isChannelMIDIFollowParamActiveClipChannel(channel));
 
 	// setup model stack for the active context
 	if (!clip) {

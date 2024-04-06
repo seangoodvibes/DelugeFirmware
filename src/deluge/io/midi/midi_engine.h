@@ -65,7 +65,8 @@ public:
 	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypes]; // A, B, C
 	MIDIFollowChannelType midiFollowFeedbackChannelType;           // A, B, C, NONE
 	uint8_t midiFollowKitRootNote;
-	bool midiFollowDisplayParam;
+	MIDIFollowChannelType midiFollowParamActiveClipChannelType; // A, B, C, NONE
+	bool midiFollowParamDisplay;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
 	bool midiFollowFeedbackFilter;
 	MIDITakeoverMode midiTakeover;

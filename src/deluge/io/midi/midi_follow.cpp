@@ -427,7 +427,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context (for params that's only for the active mod controllable stack)
-		Clip* clip = getSelectedClip();
+		Clip* clip = getSelectedClip(isChannelMIDIFollowParamActiveClipChannel(channel));
 		// clip is allowed to be null here because there may not be an active clip
 		// e.g. you want to control the song level parameters
 		bool isMIDIClip = false;
@@ -556,6 +556,17 @@ bool MidiFollow::isFeedbackEnabled() {
 		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
 		        .channelOrZone;
 		if (channel != MIDI_CHANNEL_NONE) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool MidiFollow::isChannelMIDIFollowParamActiveClipChannel(uint8_t channel) {
+	if (midiEngine.midiFollowParamActiveClipChannelType != MIDIFollowChannelType::NONE) {
+		if (channel
+		    == midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowParamActiveClipChannelType)]
+		           .channelOrZone) {
 			return true;
 		}
 	}

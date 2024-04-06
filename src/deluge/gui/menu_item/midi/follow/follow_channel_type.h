@@ -23,13 +23,15 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::midi {
-class FollowFeedbackChannelType final : public Selection {
+class FollowChannelType final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(midiEngine.midiFollowFeedbackChannelType); }
-	void writeCurrentValue() override {
-		midiEngine.midiFollowFeedbackChannelType = this->getValue<MIDIFollowChannelType>();
-	}
+
+	FollowChannelType(l10n::String newName, l10n::String title, MIDIFollowChannelType& type)
+	    : Selection(newName, title), channelType(type) {}
+
+	void readCurrentValue() override { this->setValue(channelType); }
+	void writeCurrentValue() override { channelType = this->getValue<MIDIFollowChannelType>(); }
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
@@ -39,5 +41,8 @@ public:
 		    l10n::getView(STRING_FOR_NONE),
 		};
 	}
+
+private:
+	MIDIFollowChannelType& channelType;
 };
 } // namespace deluge::gui::menu_item::midi

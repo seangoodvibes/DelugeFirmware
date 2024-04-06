@@ -74,8 +74,8 @@
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
+#include "gui/menu_item/midi/follow/follow_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
-#include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
@@ -867,9 +867,12 @@ midi::FollowChannel midiFollowChannelBMenu{STRING_FOR_FOLLOW_CHANNEL_B, STRING_F
 midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_FOR_FOLLOW_CHANNEL_C,
                                            MIDIFollowChannelType::C};
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
-ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
-                                      midiEngine.midiFollowDisplayParam};
-midi::FollowFeedbackChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL};
+midi::FollowChannelType midiFollowParamActiveClipChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL,
+                                                             midiEngine.midiFollowParamActiveClipChannelType};
+ToggleBool midiFollowParamDisplayPopupMenu{STRING_FOR_FOLLOW_PARAM_DISPLAY, STRING_FOR_FOLLOW_PARAM_DISPLAY,
+                                           midiEngine.midiFollowParamDisplay};
+midi::FollowChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL,
+                                                      midiEngine.midiFollowFeedbackChannelType};
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
@@ -894,6 +897,15 @@ Submenu midiFollowFeedbackSubmenu{
     },
 };
 
+Submenu midiFollowParamSubmenu{
+    STRING_FOR_FOLLOW_PARAM,
+    STRING_FOR_FOLLOW_PARAM,
+    {
+        &midiFollowParamActiveClipChannelMenu,
+        &midiFollowParamDisplayPopupMenu,
+    },
+};
+
 Submenu midiFollowSubmenu{
     STRING_FOR_FOLLOW_TITLE,
     STRING_FOR_FOLLOW_TITLE,
@@ -901,7 +913,7 @@ Submenu midiFollowSubmenu{
         &midiFollowChannelSubmenu,
         &midiFollowKitRootNoteMenu,
         &midiFollowFeedbackSubmenu,
-        &midiFollowDisplayParamMenu,
+        &midiFollowParamSubmenu,
     },
 };
 

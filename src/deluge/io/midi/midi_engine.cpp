@@ -221,7 +221,8 @@ MidiEngine::MidiEngine() {
 		midiChannelType.clear();
 	}
 	midiFollowKitRootNote = 36;
-	midiFollowDisplayParam = false;
+	midiFollowParamActiveClipChannelType = MIDIFollowChannelType::NONE;
+	midiFollowParamDisplay = false;
 	midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;

@@ -172,6 +172,7 @@ enum Entries {
 165: "fill" colour
 166: "once" colour
 167: defaultSliceMode
+168: midiFollow set param active clip channel type (A/B/C/NONE)
 */
 
 uint8_t defaultScale;
@@ -303,7 +304,8 @@ void resetMidiFollowSettings() {
 		midiChannelType.clear();
 	}
 	midiEngine.midiFollowKitRootNote = 36;
-	midiEngine.midiFollowDisplayParam = false;
+	midiEngine.midiFollowParamActiveClipChannelType = MIDIFollowChannelType::NONE;
+	midiEngine.midiFollowParamDisplay = false;
 	midiEngine.midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
 	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiEngine.midiFollowFeedbackFilter = false;
@@ -567,7 +569,8 @@ void readSettings() {
 			buffer[144]   device reference above occupies 4 bytes
 			buffer[145] */
 			midiEngine.midiFollowKitRootNote = buffer[129];
-			midiEngine.midiFollowDisplayParam = !!buffer[130];
+			midiEngine.midiFollowParamActiveClipChannelType = static_cast<MIDIFollowChannelType>(buffer[168]);
+			midiEngine.midiFollowParamDisplay = !!buffer[130];
 			midiEngine.midiFollowFeedbackChannelType = static_cast<MIDIFollowChannelType>(buffer[131]);
 			midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
 			midiEngine.midiFollowFeedbackFilter = !!buffer[133];
@@ -667,7 +670,11 @@ static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 	else if (buffer[129] < 0 || buffer[129] > kMaxMIDIValue) {
 		return false;
 	}
-	// midiEngine.midiFollowDisplayParam
+	// midiEngine.midiFollowParamActiveClipChannelType
+	else if (buffer[168] < 0 || buffer[168] > util::to_underlying(MIDIFollowChannelType::NONE)) {
+		return false;
+	}
+	// midiEngine.midiFollowParamDisplay
 	else if (buffer[130] != false && buffer[130] != true) {
 		return false;
 	}
@@ -867,7 +874,8 @@ void writeSettings() {
 	   buffer[144]   device reference above occupies 4 bytes
 	   buffer[145] */
 	buffer[129] = midiEngine.midiFollowKitRootNote;
-	buffer[130] = midiEngine.midiFollowDisplayParam;
+	buffer[168] = util::to_underlying(midiEngine.midiFollowParamActiveClipChannelType);
+	buffer[130] = midiEngine.midiFollowParamDisplay;
 	buffer[131] = util::to_underlying(midiEngine.midiFollowFeedbackChannelType);
 	buffer[132] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
 	buffer[133] = midiEngine.midiFollowFeedbackFilter;
