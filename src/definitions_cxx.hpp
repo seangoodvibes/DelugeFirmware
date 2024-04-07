@@ -294,6 +294,10 @@ enum class PatchSource : uint8_t {
 	VELOCITY,
 	NOTE,
 	RANDOM,
+	BREATH,
+	EXPRESSION_1,
+	EXPRESSION_2,
+	EXPRESSION_3,
 	NONE,
 
 	// Used for shortcuts

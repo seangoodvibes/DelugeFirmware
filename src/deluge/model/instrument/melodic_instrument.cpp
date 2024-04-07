@@ -363,6 +363,10 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
                                    bool* doingMidiThru) {
 	// ideally this would be configurable
 	int yCC = 1;
+	int breathCC = 2;
+	int expression1CC = 4;
+	int expression2CC = 8;
+	int expression3CC = 9;
 	int32_t value32 = 0;
 	switch (match) {
 
@@ -395,6 +399,18 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			// Don't also pass to ccReveived since it will now be handled by output mono expression in midi clips
 			// instead
 			return;
+		}
+		else if (ccNumber == breathCC) {
+
+		}
+		else if (ccNumber == expression1CC) {
+
+		}
+		else if (ccNumber == expression2CC) {
+
+		}
+		else if (ccNumber == expression3CC) {
+			
 		}
 
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
