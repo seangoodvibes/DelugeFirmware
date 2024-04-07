@@ -400,18 +400,10 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			// instead
 			return;
 		}
-		else if (ccNumber == breathCC) {
-
-		}
-		else if (ccNumber == expression1CC) {
-
-		}
-		else if (ccNumber == expression2CC) {
-
-		}
-		else if (ccNumber == expression3CC) {
-			
-		}
+		else if (ccNumber == breathCC) {}
+		else if (ccNumber == expression1CC) {}
+		else if (ccNumber == expression2CC) {}
+		else if (ccNumber == expression3CC) {}
 
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);

@@ -169,6 +169,11 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 		sourceValues[util::to_underlying(PatchSource::X) + m] = combineExpressionValues(sound, m);
 	}
 
+	for (int32_t m = 0; m < kNumMonoExpressionDimensions; m++) {
+		localExpressionSourceValuesBeforeSmoothing[m] = mpeValues[m] << 16;
+		sourceValues[util::to_underlying(PatchSource::BREATH) + m] = combineExpressionValues(sound, m);
+	}
+
 	if (resetEnvelopes) {
 		memset(sourceAmplitudesLastTime, 0, sizeof(sourceAmplitudesLastTime));
 		memset(modulatorAmplitudeLastTime, 0, sizeof(modulatorAmplitudeLastTime));

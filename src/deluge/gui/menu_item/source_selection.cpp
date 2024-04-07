@@ -129,16 +129,16 @@ void SourceSelection::drawValue() {
 		break;
 
 	case PatchSource::EXPRESSION_1:
-		text = STRING_FOR_PATCH_SOURCE_EXPRESSION_1;	
-		break;	
+		text = STRING_FOR_PATCH_SOURCE_EXPRESSION_1;
+		break;
 
 	case PatchSource::EXPRESSION_2:
-		text = STRING_FOR_PATCH_SOURCE_EXPRESSION_2;	
+		text = STRING_FOR_PATCH_SOURCE_EXPRESSION_2;
 		break;
 
 	case PatchSource::EXPRESSION_3:
-		text = STRING_FOR_PATCH_SOURCE_EXPRESSION_3;	
-		break;							
+		text = STRING_FOR_PATCH_SOURCE_EXPRESSION_3;
+		break;
 	}
 
 	uint8_t drawDot = shouldDrawDotOnValue();

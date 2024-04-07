@@ -570,7 +570,7 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 
 			NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 
-			if (noteRow) {
+			if (noteRow && modelStack->paramId < Expression::BREATH) {
 				modelStack->modControllable->polyphonicExpressionEventOnChannelOrNote(
 				    currentValue, modelStack->paramId, modelStack->getNoteRow()->y, MIDICharacteristic::NOTE);
 			}

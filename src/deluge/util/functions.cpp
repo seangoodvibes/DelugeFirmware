@@ -301,13 +301,13 @@ char const* sourceToString(PatchSource source) {
 		return "breath";
 
 	case PatchSource::EXPRESSION_1:
-		return "expression1";	
+		return "expression1";
 
 	case PatchSource::EXPRESSION_2:
-		return "expression2";					
+		return "expression2";
 
 	case PatchSource::EXPRESSION_3:
-		return "expression3";	
+		return "expression3";
 
 	default:
 		return "none";
@@ -356,13 +356,13 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 		return l10n::get(STRING_FOR_PATCH_SOURCE_BREATH);
 
 	case PatchSource::EXPRESSION_1:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_EXPRESSION_1);		
+		return l10n::get(STRING_FOR_PATCH_SOURCE_EXPRESSION_1);
 
 	case PatchSource::EXPRESSION_2:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_EXPRESSION_2);	
+		return l10n::get(STRING_FOR_PATCH_SOURCE_EXPRESSION_2);
 
 	case PatchSource::EXPRESSION_3:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_EXPRESSION_3);			
+		return l10n::get(STRING_FOR_PATCH_SOURCE_EXPRESSION_3);
 
 	default:
 		return "none";
@@ -422,10 +422,10 @@ char const* sourceToStringShort(PatchSource source) {
 		return "exp1";
 
 	case PatchSource::EXPRESSION_2:
-		return "exp2";	
+		return "exp2";
 
 	case PatchSource::EXPRESSION_3:
-		return "exp3";								
+		return "exp3";
 
 	default:
 		return "----";
