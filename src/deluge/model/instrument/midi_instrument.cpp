@@ -240,6 +240,58 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		midiEngine.sendChannelAftertouch(masterChannel, newValue, channel);
 		break;
 	}
+	case BREATH: {
+		// mono breath expression is limited to positive values
+		// this means that without sending CC2 on the master channel poly expression below 64 will
+		// send as breath 0. However this is better than the alternative of sending erroneous values
+		// because the sound engine initializes MPE-Breath as 0 (e.g. a CC value of 64)
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
+		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
+		// send CC2 for monophonic expression
+
+		midiEngine.sendCC(masterChannel, CC_NUMBER_BREATH, newValue, channel);
+		break;
+	}
+	case EXPRESSION_1: {
+		// mono expression 1 is limited to positive values
+		// this means that without sending CC4 on the master channel poly expression below 64 will
+		// send as expression 1 0. However this is better than the alternative of sending erroneous values
+		// because the sound engine initializes MPE-Expression 1 as 0 (e.g. a CC value of 64)
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
+		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
+		// send CC4 for monophonic expression
+
+		midiEngine.sendCC(masterChannel, CC_NUMBER_EXPRESSION_1, newValue, channel);
+		break;
+	}
+	case EXPRESSION_2: {
+		// mono expression 2 is limited to positive values
+		// this means that without sending CC8 on the master channel poly expression below 64 will
+		// send as expression 2 0. However this is better than the alternative of sending erroneous values
+		// because the sound engine initializes MPE-Expression 2 as 0 (e.g. a CC value of 64)
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
+		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
+		// send CC8 for monophonic expression
+
+		midiEngine.sendCC(masterChannel, CC_NUMBER_EXPRESSION_2, newValue, channel);
+		break;
+	}
+	case EXPRESSION_3: {
+		// mono expression 3 is limited to positive values
+		// this means that without sending CC9 on the master channel poly expression below 64 will
+		// send as expression 3 0. However this is better than the alternative of sending erroneous values
+		// because the sound engine initializes MPE-Expression 3 as 0 (e.g. a CC value of 64)
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
+		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
+		// send CC9 for monophonic expression
+
+		midiEngine.sendCC(masterChannel, CC_NUMBER_EXPRESSION_3, newValue, channel);
+		break;
+	}
 	default:
 		__builtin_unreachable();
 	}
@@ -793,6 +845,10 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 			combineMPEtoMono(0, X_PITCH_BEND);
 			// This is CC74 value of 0
 			combineMPEtoMono(0, Y_SLIDE_TIMBRE);
+			combineMPEToMono(0, BREATH);
+			combineMPEToMono(0, EXPRESSION_1);
+			combineMPEToMono(0, EXPRESSION_2);
+			combineMPEToMono(0, EXPRESSION_3);
 		}
 	}
 

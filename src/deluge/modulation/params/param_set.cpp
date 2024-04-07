@@ -607,7 +607,8 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 	return knobPos;
 }
 
-char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
+char const* expressionParamNames[] = {"pitchBend",    "yExpression",  "pressure",    "breath",
+                                      "expression_1", "expression_2", "expression_3"};
 
 bool ExpressionParamSet::writeToFile(StorageManager& bdsm, bool mustWriteOpeningTagEndFirst) {
 
@@ -650,9 +651,8 @@ doReadParam:
 			}
 		}
 
-		if (!strcmp(tagName,
-		            "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this - not sure if
-			                              // anyone even did.
+		// Alpha testers had 2 weeks or so to create files like this - not sure if anyone even did.
+		if (!strcmp(tagName, "channelPressure")) {
 			p = 2;
 			goto doReadParam;
 		}
@@ -665,7 +665,7 @@ finishedTag:
 void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length,
                                                 int32_t offset, int32_t lengthBeforeLoop, Action* action) {
 
-	// Because this is just for ExpressionParamSet, which only has 3 params, let's just do it for all of them rather
+	// Because this is just for ExpressionParamSet, which only has 7 params, let's just do it for all of them rather
 	// than our other optimization.
 	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
 		AutoParam* param = &params[p];

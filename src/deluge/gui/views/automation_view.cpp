@@ -1338,6 +1338,18 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_BREATH) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_BREATH));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_EXPRESSION_1) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_EXPRESSION_1));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_EXPRESSION_2) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_EXPRESSION_2));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_EXPRESSION_3) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_EXPRESSION_3));
+		}
 		else {
 			parameterName[0] = 'C';
 			parameterName[1] = 'C';

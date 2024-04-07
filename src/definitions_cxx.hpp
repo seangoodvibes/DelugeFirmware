@@ -677,6 +677,10 @@ enum class ExistenceChangeType {
 enum CCNumber {
 	/// note - only for incoming/outgoing midi. Internally use CC_NUMBER_Y_AXIS
 	CC_NUMBER_MOD_WHEEL = 1,
+	CC_NUMBER_BREATH = 2,
+	CC_NUMBER_EXPRESSION_1 = 4,
+	CC_NUMBER_EXPRESSION_2 = 8,
+	CC_NUMBER_EXPRESSION_3 = 9,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
 	CC_NUMBER_Y_AXIS = 122,
@@ -879,12 +883,16 @@ constexpr int32_t kWavetableMaxCycleSize = 65536; // TODO: work out what this sh
 
 constexpr int32_t kMaxImageStoreWidth = kDisplayWidth;
 
-constexpr int32_t kNumExpressionDimensions = 3;
+constexpr int32_t kNumExpressionDimensions = 7;
 
 enum Expression {
 	X_PITCH_BEND,
 	Y_SLIDE_TIMBRE,
 	Z_PRESSURE,
+	BREATH,
+	EXPRESSION_1,
+	EXPRESSION_2,
+	EXPRESSION_3,
 };
 
 constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;

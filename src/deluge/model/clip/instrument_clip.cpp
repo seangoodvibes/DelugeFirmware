@@ -3057,7 +3057,7 @@ expressionParam:
 					else {
 						paramId = stringToInt(contents);
 						if (paramId < kNumRealCCNumbers) {
-							if (paramId == CC_NUMBER_MOD_WHEEL) {
+							if (paramId == CCNumber::MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
 								if (bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
