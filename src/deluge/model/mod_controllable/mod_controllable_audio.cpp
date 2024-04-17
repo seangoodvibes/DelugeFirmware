@@ -1664,12 +1664,15 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 
 		// calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
 		int32_t midiKnobPosChange = 0;
+		int32_t previousKnobPosition = knobPos;
 		if (knob != nullptr) {
-			midiKnobPosChange = midiKnobPos - knob->previousPosition;
+			previousKnobPosition = knob->previousPosition;
+			midiKnobPosChange = midiKnobPos - previousKnobPosition;
 		}
 		else if (doingMidiFollow) {
-			midiKnobPosChange = midiKnobPos - midiFollow.previousKnobPos[ccNumber];
-		}		
+			previousKnobPosition = midiFollow.previousKnobPos[ccNumber];
+			midiKnobPosChange = midiKnobPos - previousKnobPosition;
+		}
 
 		// adjust previous knob position saved
 
@@ -1700,9 +1703,15 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 		int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
 
 		if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) {
-			if (((midiKnobPosChange > 0) && (midiKnobPos > knobPos))
-			    || ((midiKnobPosChange < 0) && (midiKnobPos < knobPos))) {
-				newKnobPos = midiKnobPos;
+			if ((midiKnobPosChange > 0) && (midiKnobPos >= knobPos)) {
+				if (previousKnobPosition < knobPos) { // this means midi controller started below current knob pos
+					newKnobPos = midiKnobPos;
+				}
+			}
+			else if ((midiKnobPosChange < 0) && (midiKnobPos <= knobPos)) {
+				if (previousKnobPosition > knobPos) { // this means midi controller started above current knob pos
+					newKnobPos = midiKnobPos;
+				}
 			}
 		}
 		// if value scaling mode is enabled, then the Deluge Knob Position is
