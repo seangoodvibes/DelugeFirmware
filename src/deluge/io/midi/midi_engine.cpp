@@ -225,6 +225,7 @@ MidiEngine::MidiEngine() {
 	midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
+	midiFollowControlSongParam = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
 	midiSelectKitRow = false;
 
