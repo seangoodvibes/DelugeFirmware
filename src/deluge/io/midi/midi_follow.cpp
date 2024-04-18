@@ -441,6 +441,13 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		Clip* clip = getSelectedClip();
 		// clip is allowed to be null here because there may not be an active clip
 		// e.g. you want to control the song level parameters
+
+		// if clip is null and you do not want to control song params
+		// control the active clip
+		if (!clip && !midiEngine.midiFollowControlSongParam) {
+			clip = getCurrentClip()->output->activeClip;
+		}
+
 		bool isMIDIClip = false;
 		bool isCVClip = false;
 		if (clip) {
