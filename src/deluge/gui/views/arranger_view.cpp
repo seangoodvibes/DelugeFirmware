@@ -520,6 +520,9 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 	if (view.potentiallyRenderVUMeter(image)) {
 		return true;
 	}
+	else {
+		view.renderedVUMeter = false;
+	}
 
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {

@@ -1390,6 +1390,9 @@ bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 	if (view.potentiallyRenderVUMeter(image)) {
 		return true;
 	}
+	else {
+		view.renderedVUMeter = false;
+	}
 
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridRenderSidebar(whichRows, image, occupancyMask);

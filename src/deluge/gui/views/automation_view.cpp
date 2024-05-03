@@ -597,11 +597,11 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 		instrumentClipView.recalculateColours();
 	}
 
-	// erase current image as it will be refreshed
-	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+	// erase current main pads as they will be refreshed
+	memset(image, 0, sizeof(RGB) * kDisplayHeight * kDisplayWidth);
 
-	// erase current occupancy mask as it will be refreshed
-	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+	// erase current main pads occupancy masks as they will be refreshed
+	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * kDisplayWidth);
 
 	performActualRender(whichRows, &image[0][0], occupancyMask, currentSong->xScroll[navSysId],
 	                    currentSong->xZoom[navSysId], kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
@@ -835,7 +835,7 @@ bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::mod
 		}
 	}
 	if (doRefreshGrid) {
-		uiNeedsRendering(this);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		return true;
 	}
 	return false;
@@ -1536,7 +1536,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	else {
 passToOthers:
-		uiNeedsRendering(this);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 		if (on && (b == PLAY) && display->have7SEG() && playbackHandler.isEitherClockActive()
 		    && !isOnAutomationOverview() && !padSelectionOn) {
@@ -1561,7 +1561,7 @@ passToOthers:
 	}
 
 	if (on && (b != KEYBOARD && b != CLIP_VIEW && b != SESSION_VIEW)) {
-		uiNeedsRendering(this);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -1584,7 +1584,7 @@ bool AutomationView::handleScaleButtonAction(InstrumentClip* instrumentClip, Out
 		if (Buttons::isShiftButtonPressed() && instrumentClip->inScaleMode) {
 			cycleThroughScales();
 			instrumentClipView.recalculateColours();
-			uiNeedsRendering(this);
+			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 		else if (instrumentClip->inScaleMode) {
 			exitScaleMode();
@@ -1646,7 +1646,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	if (on && currentUIMode == UI_MODE_NONE) {
 		if (Buttons::isShiftButtonPressed()) {
 			initParameterSelection();
-			uiNeedsRendering(this);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		else {
 			if (isAudioClip) {
@@ -1661,7 +1661,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	else if (on && currentUIMode == UI_MODE_AUDITIONING) {
 		initParameterSelection();
 		resetParameterShortcutBlinking();
-		uiNeedsRendering(this);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 }
 
@@ -1849,7 +1849,7 @@ void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 void AutomationView::handleSelectEncoderButtonAction(bool on) {
 	if (on) {
 		initParameterSelection();
-		uiNeedsRendering(this);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
@@ -2013,7 +2013,7 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 
 			instrumentClipView.mutePadPress(y);
 
-			uiNeedsRendering(this); // re-render mute pads
+			uiNeedsRendering(this, 0, 0xFFFFFFFF); // re-render mute pads
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -2124,7 +2124,7 @@ void AutomationView::editPadAction(ModelStackWithAutoParam* modelStackWithParam,
 						                    rightPadSelectedX, rightPadSelectedY, effectiveLength, xScroll, xZoom);
 					}
 					else {
-						uiNeedsRendering(this);
+						uiNeedsRendering(this, 0xFFFFFFFF, 0);
 					}
 
 					// set led indicators to left / right pad selection values
@@ -2183,7 +2183,7 @@ singlePadPressAction:
 			leftPadSelectedX = xDisplay;
 			rightPadSelectedX = kNoSelection;
 
-			uiNeedsRendering(this);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 
 		if (!isOnAutomationOverview() && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
@@ -2493,7 +2493,8 @@ getOut:
 
 	if (selectedDrumChanged && !getAffectEntire()) {
 		initParameterSelection();
-		uiNeedsRendering(this); // need to redraw automation grid squares cause selected drum may have changed
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		; // need to redraw automation grid squares cause selected drum may have changed
 	}
 	else {
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
@@ -2585,7 +2586,7 @@ wantToEditNoteRowLength:
 			instrumentClipView.editNoteRowLength(modelStackWithNoteRow, offset,
 			                                     instrumentClipView.lastAuditionedYDisplay);
 			// instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-			uiNeedsRendering(this);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 
 		// Unlike for all other cases where we protect against the user accidentally turning the encoder more after
@@ -2603,7 +2604,7 @@ wantToEditNoteRowLength:
 	// Or, let parent deal with it
 	else {
 		ActionResult result = ClipView::horizontalEncoderAction(offset);
-		uiNeedsRendering(this);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		return result;
 	}
 }
@@ -2617,7 +2618,7 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 // vertical encoder action
@@ -2721,7 +2722,7 @@ shiftAllColour:
 		}
 
 		if (whichRowsToRender) {
-			uiNeedsRendering(this, whichRowsToRender, whichRowsToRender);
+			uiNeedsRendering(this, 0, whichRowsToRender);
 		}
 	}
 
@@ -2878,7 +2879,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 		instrumentClipView.someAuditioningHasEnded(true);
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	return ActionResult::DEALT_WITH;
 }
 
@@ -2934,7 +2935,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		}
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	return;
 
 followOnAction:
@@ -3175,13 +3176,13 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		goto followOnAction;
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	return;
 
 followOnAction: // it will come here when you are on the automation overview iscreen
 
 	view.modEncoderButtonAction(whichModEncoder, on);
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 void AutomationView::copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xScroll,
@@ -3362,7 +3363,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	}
 	resetParameterShortcutBlinking();
 	view.setModLedStates();
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 // used with SelectEncoderAction to get the next arranger / audio clip / kit affect entire parameter
@@ -4012,7 +4013,7 @@ void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWit
 		                                xScroll, xZoom);
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 // called by handle single pad press when it is determined that you are selecting a parameter on automation overview
@@ -4321,7 +4322,7 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 		initInterpolation();
 
 		// render the multi pad press
-		uiNeedsRendering(this);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 }
 
