@@ -2418,6 +2418,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		if (((InstrumentClip*)clip)->onKeyboardScreen) {
 
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			keyboardScreen.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight;
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
@@ -3710,7 +3711,8 @@ void SessionView::gridTransitionToSessionView() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
+	// clear sidebar for instrumentClipView, automationClipView, and keyboardScreen
+	if (getCurrentUI() != &audioClipView) {
 		PadLEDs::clearSideBar();
 	}
 
@@ -3767,9 +3769,9 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 
 		// If going to KeyboardView...
 		if (((InstrumentClip*)clip)->onKeyboardScreen) {
-			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
-			memset(PadLEDs::occupancyMaskStore[kDisplayHeight], 0, kDisplayWidth + kSideBarWidth);
+			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -3777,8 +3779,6 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 			instrumentClipView.recalculateColours();
 			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-			instrumentClipView.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-
 			instrumentClipView.fillOffScreenImageStores();
 		}
 	}

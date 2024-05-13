@@ -739,10 +739,13 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 		return true;
 	}
 
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+		return true;
+	}
+
 	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
-	memset(occupancyMask, 64,
-	       sizeof(uint8_t) * kDisplayHeight
-	           * (kDisplayWidth + kSideBarWidth)); // We assume the whole screen is occupied
+	// We assume the whole screen is occupied
+	memset(occupancyMask, 64, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->renderPads(image);
 
@@ -752,6 +755,10 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
+		return true;
+	}
+
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
 		return true;
 	}
 

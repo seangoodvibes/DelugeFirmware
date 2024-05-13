@@ -776,76 +776,70 @@ void timerRoutine() {
 	}
 
 	else if (isUIModeActive(UI_MODE_EXPLODE_ANIMATION)) {
+		Clip* clip = getCurrentClip();
+
 		progress = getTransitionProgress();
 		if (progress >= 65536) { // If finished transitioning...
-
-			// If going to keyboard screen, no sidebar or anything to fade in
-			if (explodeAnimationDirection == 1 && getCurrentClip()->type == ClipType::INSTRUMENT
-			    && getCurrentInstrumentClip()->onKeyboardScreen) {
-				currentUIMode = UI_MODE_NONE;
-				changeRootUI(&keyboardScreen);
+			// there's stuff we want to fade in / to
+			int32_t explodedness = (explodeAnimationDirection == 1) ? 65536 : 0;
+			if ((clip->type == ClipType::INSTRUMENT) || (clip->onAutomationClipView)) {
+				renderExplodeAnimation(explodedness, false);
 			}
-
-			// Otherwise, there's stuff we want to fade in / to
 			else {
-				int32_t explodedness = (explodeAnimationDirection == 1) ? 65536 : 0;
-				if ((getCurrentClip()->type == ClipType::INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
-					renderExplodeAnimation(explodedness, false);
-				}
-				else {
-					renderAudioClipExplodeAnimation(explodedness, false);
-				}
-				memcpy(PadLEDs::imageStore, PadLEDs::image,
-				       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
-
-				currentUIMode = UI_MODE_ANIMATION_FADE;
-				if (explodeAnimationDirection == 1) {
-					if (getCurrentClip()->onAutomationClipView) {
-						changeRootUI(&automationView); // We want to fade the sidebar in
-						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
-						if (anyZoomingDone) {
-							uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
-						}
-					}
-					else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
-						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
-						if (anyZoomingDone) {
-							uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-						}
-					}
-					else {
-						changeRootUI(&audioClipView);
-						goto stopFade; // No need for fade since no sidebar, and also if we tried it'd get glitchy cos
-						               // we're not set up for it
-					}
-				}
-				else {
-					UI* nextUI = &arrangerView;
-					if (explodeAnimationTargetUI != nullptr) {
-						nextUI = explodeAnimationTargetUI;
-						explodeAnimationTargetUI = nullptr;
-					}
-
-					changeRootUI(nextUI);
-
-					if (nextUI == &arrangerView && arrangerView.doingAutoScrollNow) {
-						goto stopFade; // If we suddenly just started doing an auto-scroll, there's no time to fade
-					}
-					else if (nextUI == &sessionView) {
-						sessionView.finishedTransitioningHere();
-					}
-				}
-
-				recordTransitionBegin(130);
-				renderFade(0);
+				renderAudioClipExplodeAnimation(explodedness, false);
 			}
+			memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
+
+			currentUIMode = UI_MODE_ANIMATION_FADE;
+			if (explodeAnimationDirection == 1) {
+				if ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen) {
+					changeRootUI(&keyboardScreen); // We want to fade the sidebar in
+				}
+				else if (clip->onAutomationClipView) {
+					changeRootUI(&automationView); // We want to fade the sidebar in
+					bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+					if (anyZoomingDone) {
+						uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
+					}
+				}
+				else if (clip->type == ClipType::INSTRUMENT) {
+					changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+					bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+					if (anyZoomingDone) {
+						uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+					}
+				}
+				else {
+					changeRootUI(&audioClipView);
+					goto stopFade; // No need for fade since no sidebar, and also if we tried it'd get glitchy cos
+					               // we're not set up for it
+				}
+			}
+			else {
+				UI* nextUI = &arrangerView;
+				if (explodeAnimationTargetUI != nullptr) {
+					nextUI = explodeAnimationTargetUI;
+					explodeAnimationTargetUI = nullptr;
+				}
+
+				changeRootUI(nextUI);
+
+				if (nextUI == &arrangerView && arrangerView.doingAutoScrollNow) {
+					goto stopFade; // If we suddenly just started doing an auto-scroll, there's no time to fade
+				}
+				else if (nextUI == &sessionView) {
+					sessionView.finishedTransitioningHere();
+				}
+			}
+
+			recordTransitionBegin(130);
+			renderFade(0);
 		}
 		else {
 			int32_t explodedness = (explodeAnimationDirection == 1) ? 0 : 65536;
 			explodedness += progress * explodeAnimationDirection;
 
-			if ((getCurrentClip()->type == ClipType::INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
+			if ((clip->type == ClipType::INSTRUMENT) || (clip->onAutomationClipView)) {
 				renderExplodeAnimation(explodedness);
 			}
 			else {

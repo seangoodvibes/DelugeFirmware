@@ -331,10 +331,6 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 		return true;
 	}
 
-	if (!occupancyMask) {
-		return true;
-	}
-
 	PadLEDs::renderingLock = true;
 
 	// erase current image as it will be refreshed

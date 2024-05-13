@@ -590,10 +590,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 		return true;
 	}
 
-	if (!occupancyMask) {
-		return true;
-	}
-
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
 		return true;
 	}

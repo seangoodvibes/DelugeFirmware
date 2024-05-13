@@ -1739,9 +1739,9 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 		// If going to KeyboardView...
 		if (((InstrumentClip*)clip)->onKeyboardScreen) {
-			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-			memset(PadLEDs::occupancyMaskStore, 0, kDisplayWidth + kSideBarWidth);
-			memset(PadLEDs::occupancyMaskStore[kDisplayHeight], 0, kDisplayWidth + kSideBarWidth);
+			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
+			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -1878,7 +1878,8 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
+	// clear sidebar for instrumentClipView, automationClipView, and keyboardScreen
+	if (getCurrentUI() != &audioClipView) {
 		PadLEDs::clearSideBar();
 	}
 
