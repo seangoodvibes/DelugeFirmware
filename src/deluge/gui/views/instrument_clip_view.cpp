@@ -1528,7 +1528,7 @@ doRegularEditPadActionProbably:
 		else {
 maybeRegularMutePress:
 			if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
-				mutePadPress(y);
+				mutePadPress(y, this);
 			}
 		}
 	}
@@ -2416,7 +2416,7 @@ multiplePresses:
 	}
 }
 
-void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
+void InstrumentClipView::mutePadPress(uint8_t yDisplay, UI* ui) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2457,7 +2457,7 @@ fail:
 		setSelectedDrum(noteRow->drum);
 	}
 
-	uiNeedsRendering(this, 0, 1 << yDisplay);
+	uiNeedsRendering(ui, 0, 1 << yDisplay);
 }
 
 NoteRow* InstrumentClipView::createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
