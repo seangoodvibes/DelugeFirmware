@@ -2645,7 +2645,8 @@ getOut:
 
 	if (selectedDrumChanged && !getAffectEntire()) {
 		initParameterSelection();
-		uiNeedsRendering(this, 0xFFFFFFFF, 0); // need to redraw automation grid squares cause selected drum may have changed
+		// need to redraw automation grid squares cause selected drum may have changed
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	else {
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
