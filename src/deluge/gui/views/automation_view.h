@@ -181,8 +181,9 @@ private:
 	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t x, int32_t y,
 	                           int32_t velocity);
 	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
-	void adjustNoteVelocity(int32_t x, int32_t velocity, int32_t newVelocity, int32_t averageVelocity);
-	void adjustNotePadPressVelocity(int32_t x, int32_t newVelocity, int32_t averageVelocity);
+	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
+	                        int32_t newVelocity, uint8_t squareType);
+	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
 	void removeNote(int32_t x, int32_t velocity);
 	int32_t getNewVelocity(int32_t y);
 	void recordNoteEditPadAction(int32_t x, int32_t velocity);

@@ -74,8 +74,6 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
-	int32_t getAverageVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t xDisplay,
-	                           uint8_t& squareType);
 	void adjustVelocity(int32_t velocityChange, int32_t xDisplay = kNoSelection);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);

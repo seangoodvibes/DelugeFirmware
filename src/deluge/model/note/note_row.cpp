@@ -222,9 +222,8 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	squareInfo.averageVelocity = 0;
 }
 
-// get info about squares for display at current zoom level
-void NoteRow::getRowSquareInfoForDisplay(int32_t effectiveLength, SquareInfo rowSquareInfo[kDisplayWidth]) {
-
+/// get info about squares for display at current zoom level
+void NoteRow::getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo[kDisplayWidth]) {
 	bool anyNotes = notes.getNumElements();
 
 	initRowSquareInfo(rowSquareInfo, anyNotes);
@@ -236,146 +235,123 @@ void NoteRow::getRowSquareInfoForDisplay(int32_t effectiveLength, SquareInfo row
 		// find the end position of the last square at current xZoom and xScroll resolution
 		// it will be the minimum of the width of the grid (kDisplayWidth) or the note row length
 		int32_t lastNoteSquareEndPos = std::min(instrumentClipView.getPosFromSquare(kDisplayWidth), effectiveLength);
+
 		// find the last square that we will iterate from
 		int32_t lastSquare =
 		    instrumentClipView.getSquareFromPos(lastNoteSquareEndPos - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]);
 
-		// Start by finding the last note to begin *before the right-edge* note row displayed
+		// Start by finding the last note to begin *before the right-edge* of the note row displayed
 		int32_t i = notes.search(lastNoteSquareEndPos, LESS);
 
 		// Get that last note
 		Note* note = notes.getElement(i);
 
 		// now we're going to iterate backwards from right edge
+		// in order to update all squares in the note row with the note info
 		for (int32_t x = lastSquare; x >= 0; x--) {
-			if (note && note->pos >= rowSquareInfo[x].squareStartPos) {
-				// does the note fall within the square we're looking at
-				while ((i >= 0)
-				       && (note && (note->pos >= rowSquareInfo[x].squareStartPos)
-				           && (note->pos < rowSquareInfo[x].squareEndPos))) {
-					rowSquareInfo[x].numNotes += 1;
-
-					if (rowSquareInfo[x].numNotes == 1 && note->pos == rowSquareInfo[x].squareStartPos) {
-						rowSquareInfo[x].squareType = SQUARE_NOTE_HEAD;
-					}
-					else {
-						rowSquareInfo[x].squareType = SQUARE_BLURRED;
-					}
-
-					// we'll convert this to an average once we're done counting the number of notes
-					// and summing all note probabilities and velocities in this square
-					rowSquareInfo[x].averageProbability += note->getProbability();
-					rowSquareInfo[x].averageVelocity += note->getVelocity();
-
-					// ok we've used this note, so let's move to next one
-					i--;
-					note = notes.getElement(i);
-				}
-			}
-			// Or if the note starts left of this square, or there's no note there which means we'll look at the final
-			// one wrapping around...
-			else if ((note && note->pos < rowSquareInfo[x].squareStartPos) || (i == -1)) {
-				bool wrapping = (i == -1);
-				if (wrapping) {
-					note = notes.getLast();
-				}
-				int32_t noteEnd = note->pos + note->getLength();
-				if (wrapping) {
-					noteEnd -= effectiveLength;
-				}
-
-				// If that note's tail does overlap into this square...
-				if (noteEnd > rowSquareInfo[x].squareStartPos) {
-					rowSquareInfo[x].numNotes += 1;
-					rowSquareInfo[x].squareType = SQUARE_NOTE_TAIL;
-					rowSquareInfo[x].averageProbability += note->getProbability();
-					rowSquareInfo[x].averageVelocity += note->getVelocity();
-				}
-			}
+			addNotesToSquareInfo(effectiveLength, rowSquareInfo[x], i, &note);
 		}
 
 		// calculate average probability and velocity for each square
-		// for the notes found above, cumulatize probability and velocity info was saved
+		// for the notes found above, cumulative probability and velocity info was saved
 		// now we'll convert those cumulative probability and velocity totals into averages
 		// based on the number of notes in each square
 		// this is only required if there is more than one note in a square
 		for (int32_t x = 0; x <= lastSquare; x++) {
-			if (rowSquareInfo[x].numNotes > 1) {
-				rowSquareInfo[x].averageProbability = rowSquareInfo[x].averageProbability / rowSquareInfo[x].numNotes;
-				rowSquareInfo[x].averageVelocity = rowSquareInfo[x].averageVelocity / rowSquareInfo[x].numNotes;
-			}
+			calculateSquareAverages(rowSquareInfo[x]);
 		}
 	}
 }
 
+/// get info about the notes in this square at current zoom level
+void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squareInfo) {
+	bool anyNotes = notes.getNumElements();
+
+	initSquareInfo(squareInfo, anyNotes, x);
+
+	if (anyNotes) {
+		// don't process this square if the note row is shorter
+		if (squareInfo.squareStartPos < effectiveLength) {
+			// Start by finding the last note to begin *before the right-edge* of the square
+			int32_t i = notes.search(squareInfo.squareEndPos, LESS);
+
+			// Get that last note
+			Note* note = notes.getElement(i);
+
+			// Update square info with note info found
+			addNotesToSquareInfo(effectiveLength, squareInfo, i, &note);
+
+			// calculate average probability and velocity for this square
+			// for the notes found above, cumulative probability and velocity info was saved
+			// now we'll convert those cumulative probability and velocity totals into an average
+			// based on the number of notes in this square
+			// this is only required if there is more than one note in a square
+			calculateSquareAverages(squareInfo);
+		}
+	}
+}
+
+/// iterate through a specific square
 /// returns whether a note square on the grid is:
 /// 1) empty (SQUARE_NO_NOTE)
 ///	2) has one note which is aligned to the very first position in the square (SQUARE_NOTE_HEAD)
 /// 3) has multiple notes or one note which is not aligned to the very first position (SQUARE_BLURRED)
 /// 4) the square is part of a tail of a previous note (SQUARE_NOTE_TAIL)
-/// Note: no action required here because we are not creating any notes if they do not exist
-uint8_t NoteRow::getSquareTypeWithoutAction(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
-                                            ModelStackWithNoteRow* modelStack) {
+/// returns number of notes in a square
+/// returns average probability and average velocity for a square
+void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareInfo, int32_t& noteIndex, Note** note) {
+	if (*note && (*note)->pos >= squareInfo.squareStartPos) {
+		// does the note fall within the square we're looking at
+		while ((noteIndex >= 0)
+		       && (*note && ((*note)->pos >= squareInfo.squareStartPos) && ((*note)->pos < squareInfo.squareEndPos))) {
+			squareInfo.numNotes += 1;
 
-	int32_t effectiveLength = modelStack->getLoopLength();
-
-	if (!notes.getNumElements()) {
-		return SQUARE_NO_NOTE;
-	}
-
-	// Start by finding the last note to begin *before the right-edge* of this square
-
-	int32_t squareEndPos = squareStart + squareWidth;
-	int32_t i = notes.search(squareEndPos, LESS);
-
-	Note* note = notes.getElement(i);
-
-	// If Note starts somewhere within this square...
-	if (note && note->pos >= squareStart) {
-		*firstNote = *lastNote = note;
-
-		// See if there were any other previous notes in that square
-		while (true) {
-			i--;
-			if (i < 0) {
-				break;
-			}
-			Note* thisNote = notes.getElement(i);
-			if (thisNote->pos >= squareStart) {
-				*firstNote = thisNote;
+			if (squareInfo.numNotes == 1 && (*note)->pos == squareInfo.squareStartPos) {
+				squareInfo.squareType = SQUARE_NOTE_HEAD;
 			}
 			else {
-				break;
+				squareInfo.squareType = SQUARE_BLURRED;
 			}
-		}
 
-		// And return whether it was multiple notes or just one
-		return (((*firstNote)->pos == squareStart) && (*firstNote == *lastNote)) ? SQUARE_NOTE_HEAD : SQUARE_BLURRED;
+			// we'll convert this to an average once we're done counting the number of notes
+			// and summing all note probabilities and velocities in this square
+			squareInfo.averageProbability += (*note)->getProbability();
+			squareInfo.averageVelocity += (*note)->getVelocity();
+
+			// ok we've used this note, so let's move to next one
+			noteIndex--;
+			*note = notes.getElement(noteIndex);
+		}
 	}
-
-	// Or if the note starts left of this square, or there's no note there which means we'll look at the final one
-	// wrapping around...
-	else {
-		bool wrapping = (i == -1);
+	// Or if the note starts left of this square, or there's no note there which means we'll look at the final
+	// one wrapping around...
+	else if ((*note && (*note)->pos < squareInfo.squareStartPos) || (noteIndex == -1)) {
+		bool wrapping = (noteIndex == -1);
 		if (wrapping) {
-			note = notes.getLast();
+			*note = notes.getLast();
 		}
-		int32_t noteEnd = note->pos + note->getLength();
+		int32_t noteEnd = (*note)->pos + (*note)->getLength();
 		if (wrapping) {
 			noteEnd -= effectiveLength;
 		}
 
-		*firstNote = *lastNote = note;
-
 		// If that note's tail does overlap into this square...
-		if (noteEnd > squareStart) {
-			return SQUARE_NOTE_TAIL;
+		if (noteEnd > squareInfo.squareStartPos) {
+			squareInfo.numNotes += 1;
+			squareInfo.squareType = SQUARE_NOTE_TAIL;
+			squareInfo.averageProbability += (*note)->getProbability();
+			squareInfo.averageVelocity += (*note)->getVelocity();
 		}
+	}
+}
 
-		// Or if note's tail does not overlap this square, making this square completely empty...
-		else {
-			return SQUARE_NO_NOTE;
-		}
+/// calculate average probability and velocity for this square based on info on notes
+/// previously obtained by calling NoteRow::getRowSquareInfo or NoteRow::getSquareInfo
+/// and NoteRow::addNotesToSquareInfo
+void NoteRow::calculateSquareAverages(SquareInfo& squareInfo) {
+	if (squareInfo.numNotes > 1) {
+		squareInfo.averageProbability = squareInfo.averageProbability / squareInfo.numNotes;
+		squareInfo.averageVelocity = squareInfo.averageVelocity / squareInfo.numNotes;
 	}
 }
 
@@ -1786,6 +1762,10 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 			case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
 				int32_t newVelocity = std::clamp<int32_t>(thisNote->getVelocity() + changeValue, 1, 127);
 				thisNote->setVelocity(newVelocity);
+			} break;
+
+			case CORRESPONDING_NOTES_SET_VELOCITY: {
+				thisNote->setVelocity(changeValue);
 			} break;
 
 			case CORRESPONDING_NOTES_SET_PROBABILITY: {

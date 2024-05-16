@@ -709,7 +709,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 			}
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 			effectiveLength = modelStackWithNoteRow->getLoopLength();
-			noteRow->getRowSquareInfoForDisplay(effectiveLength, rowSquareInfo);
+			noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
 		}
 	}
 
@@ -764,88 +764,86 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 		RGB& pixel = image[yDisplay][xDisplay];
 
-		if (outputType != OutputType::CV) {
-			ModelStackWithAutoParam* modelStackWithParam = nullptr;
+		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-			if (!onArrangerView
-			    && ((outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
-			        && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-			            || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)))) {
+		if (!onArrangerView
+		    && ((outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
+		        && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+		            || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)))) {
 
-				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam =
-					    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
-					                                  patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
+			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				modelStackWithParam =
+				    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+				                                  patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
+			}
+
+			else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				// don't make portamento available for automation in kit rows
+				if ((outputType == OutputType::KIT)
+				    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+					pixel = colours::black; // erase pad
+					continue;
 				}
 
-				else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					// don't make portamento available for automation in kit rows
-					if ((outputType == OutputType::KIT)
-					    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+				modelStackWithParam = getModelStackWithParamForClip(
+				    modelStackWithTimelineCounter, clip, unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
+				    params::Kind::UNPATCHED_SOUND);
+			}
+
+			else if ((onArrangerView || (outputType == OutputType::AUDIO)
+			          || (outputType == OutputType::KIT && getAffectEntire()))
+			         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+				int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+				if (onArrangerView) {
+					// don't make pitch adjust or sidechain available for automation in arranger
+					if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
+					    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 						pixel = colours::black; // erase pad
 						continue;
 					}
-
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
-					    params::Kind::UNPATCHED_SOUND);
+					modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 				}
-
-				else if ((onArrangerView || (outputType == OutputType::AUDIO)
-				          || (outputType == OutputType::KIT && getAffectEntire()))
-				         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
-					int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-					if (onArrangerView) {
-						// don't make pitch adjust or sidechain available for automation in arranger
-						if ((paramID == params::UNPATCHED_PITCH_ADJUST)
-						    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-						    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
-							pixel = colours::black; // erase pad
-							continue;
-						}
-						modelStackWithParam =
-						    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
-					}
-					else {
-						modelStackWithParam =
-						    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
-					}
-				}
-
-				else if (outputType == OutputType::MIDI_OUT
-				         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
-				}
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					// highlight pad white if the parameter it represents is currently automated
-					if (modelStackWithParam->autoParam->isAutomated()) {
-						pixel = {
-						    .r = 130,
-						    .g = 120,
-						    .b = 130,
-						};
-					}
-
-					else {
-						pixel = colours::grey;
-					}
-
-					occupancyMask[yDisplay][xDisplay] = 64;
+				else {
+					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
 				}
 			}
 
-			if (!onArrangerView && clip->type == ClipType::INSTRUMENT) {
-				// highlight velocity pad
-				if (xDisplay == 15 && yDisplay == 1) {
-					pixel = colours::grey;
-					occupancyMask[yDisplay][xDisplay] = 64;
+			else if (outputType == OutputType::MIDI_OUT
+			         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+				                                                    midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+			}
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				// highlight pad white if the parameter it represents is currently automated
+				if (modelStackWithParam->autoParam->isAutomated()) {
+					pixel = {
+					    .r = 130,
+					    .g = 120,
+					    .b = 130,
+					};
 				}
+
+				else {
+					pixel = colours::grey;
+				}
+
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
+			else {
+				pixel = colours::black; // erase pad
 			}
 		}
 		else {
 			pixel = colours::black; // erase pad
+		}
+
+		if (!onArrangerView && clip->type == ClipType::INSTRUMENT) {
+			// highlight velocity pad
+			if (xDisplay == 15 && yDisplay == 1) {
+				pixel = colours::grey;
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
 		}
 	}
 }
@@ -1062,11 +1060,9 @@ void AutomationView::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteR
 		value = squareInfo.averageVelocity;
 	}
 
-	if (value) {
-		// iterate through each square
-		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, value);
-		}
+	// iterate through each square
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, value);
 	}
 }
 
@@ -1076,18 +1072,26 @@ void AutomationView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth]
                                       int32_t yDisplay, uint8_t squareType, int32_t value) {
 	RGB& pixel = image[yDisplay][xDisplay];
 
-	// render square
-	if (value >= nonPatchCableMinPadDisplayValues[yDisplay]) {
-		if (squareType == SQUARE_NOTE_HEAD) {
-			pixel = velocityRowColour[yDisplay];
+	if (squareType == SQUARE_NO_NOTE) {
+		pixel = colours::black; // erase pad
+	}
+	else {
+		// render square
+		if (value >= nonPatchCableMinPadDisplayValues[yDisplay]) {
+			if (squareType == SQUARE_NOTE_HEAD) {
+				pixel = velocityRowColour[yDisplay];
+			}
+			else if (squareType == SQUARE_NOTE_TAIL) {
+				pixel = velocityRowTailColour[yDisplay];
+			}
+			else if (squareType == SQUARE_BLURRED) {
+				pixel = velocityRowBlurColour[yDisplay];
+			}
+			occupancyMask[yDisplay][xDisplay] = 64;
 		}
-		else if (squareType == SQUARE_NOTE_TAIL) {
-			pixel = velocityRowTailColour[yDisplay];
+		else {
+			pixel = colours::black; // erase pad
 		}
-		else if (squareType == SQUARE_BLURRED) {
-			pixel = velocityRowBlurColour[yDisplay];
-		}
-		occupancyMask[yDisplay][xDisplay] = 64;
 	}
 }
 
@@ -2367,8 +2371,12 @@ void AutomationView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNote
 void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
                                            int32_t x, int32_t y, int32_t velocity) {
 	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-		uint8_t squareType;
-		int32_t averageVelocity = instrumentClipView.getAverageVelocity(modelStackWithNoteRow, clip, x, squareType);
+		SquareInfo squareInfo;
+
+		NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+		int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+		noteRow->getSquareInfo(x, effectiveLength, squareInfo);
+
 		int32_t newVelocity = getNewVelocity(y);
 		bool refreshVelocityEditor = false;
 
@@ -2391,30 +2399,31 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 
 		if (middlePadPressSelected) {
 			if (velocity) {
-				if (y != 0 && averageVelocity != 0) {
-					adjustNotePadPressVelocity(x, newVelocity, averageVelocity);
+				if (y != 0 && squareInfo.numNotes != 0) {
+					setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
 					refreshVelocityEditor = true;
 				}
 			}
 		}
 		else {
-			// if averageVelocity == 0, it means no note exists
-			if (y != 0 && averageVelocity == 0) {
+			// no existing notes in square pressed
+			// add note and set velocity
+			if (y != 0 && squareInfo.numNotes == 0) {
 				addNoteWithNewVelocity(x, velocity, newVelocity);
 				refreshVelocityEditor = true;
 			}
-			// if averageVelocity != 0, it means a note exists
-			else if (y != 0 && averageVelocity != 0) {
-				adjustNoteVelocity(x, velocity, newVelocity, averageVelocity);
+			// note exists, potentially add another note and adjust velocity of existing notes
+			else if (y != 0 && squareInfo.numNotes != 0) {
+				adjustNoteVelocity(modelStackWithNoteRow, noteRow, x, velocity, newVelocity, squareInfo.squareType);
 				refreshVelocityEditor = true;
 			}
 			// if y == 0, it means you're trying to remove a note
-			else if (y == 0 && averageVelocity != 0) {
+			else if (y == 0 && squareInfo.numNotes != 0) {
 				removeNote(x, velocity);
 				refreshVelocityEditor = true;
 			}
 		}
-		// if no note exists and you're trying to remove a note (y == 0 && averageVelocity == 0),
+		// if no note exists and you're trying to remove a note (y == 0 && squareInfo.numNotes == 0),
 		// well no need to do anything
 
 		if (velocity) {
@@ -2441,13 +2450,14 @@ void AutomationView::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t
 	recordNoteEditPadAction(x, velocity);
 }
 
-void AutomationView::adjustNoteVelocity(int32_t x, int32_t velocity, int32_t newVelocity, int32_t averageVelocity) {
+void AutomationView::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
+                                        int32_t velocity, int32_t newVelocity, uint8_t squareType) {
 	if (velocity) {
 		// record pad press
 		recordNoteEditPadAction(x, velocity);
 
 		// adjust pad press velocity
-		adjustNotePadPressVelocity(x, newVelocity, averageVelocity);
+		setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
 
 		// don't delete notes on pad release
 		instrumentClipView.dontDeleteNotesOnDepress();
@@ -2458,10 +2468,102 @@ void AutomationView::adjustNoteVelocity(int32_t x, int32_t velocity, int32_t new
 	}
 }
 
-void AutomationView::adjustNotePadPressVelocity(int32_t x, int32_t newVelocity, int32_t averageVelocity) {
-	// adjust velocity of notes that existed by calculating change in velocity
-	int32_t velocityChange = newVelocity - averageVelocity;
-	instrumentClipView.adjustVelocity(velocityChange, x);
+void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
+                                 int32_t newVelocity) {
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	if (!action) {
+		return;
+	}
+
+	int32_t velocityValue = 0;
+
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		bool foundPadPress = instrumentClipView.editPadPresses[i].isActive;
+
+		// if we found an active pad press and we're looking for a pad press with a specific xDisplay
+		// see if the active pad press is the one we are looking for
+		if (foundPadPress && (x != kNoSelection)) {
+			foundPadPress = (instrumentClipView.editPadPresses[i].xDisplay == x);
+		}
+
+		if (foundPadPress) {
+			instrumentClipView.editPadPresses[i].deleteOnDepress = false;
+
+			// Multiple notes in square
+			if (instrumentClipView.editPadPresses[i].isBlurredSquare) {
+
+				uint32_t velocitySumThisSquare = 0;
+				uint32_t numNotesThisSquare = 0;
+
+				int32_t noteI =
+				    noteRow->notes.search(instrumentClipView.editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+				Note* note = noteRow->notes.getElement(noteI);
+				while (note
+				       && note->pos - instrumentClipView.editPadPresses[i].intendedPos
+				              < instrumentClipView.editPadPresses[i].intendedLength) {
+					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
+					                                     CORRESPONDING_NOTES_SET_VELOCITY, newVelocity);
+
+					if (velocityValue == 0) {
+						velocityValue = note->getVelocity();
+					}
+					else {
+						if (velocityValue != note->getVelocity()) {
+							velocityValue = 255; // Means "multiple"
+						}
+					}
+					numNotesThisSquare++;
+					velocitySumThisSquare += note->getVelocity();
+
+					noteI++;
+					note = noteRow->notes.getElement(noteI);
+				}
+
+				instrumentClipView.editPadPresses[i].intendedVelocity =
+				    velocitySumThisSquare / numNotesThisSquare; // Get the average. Ideally we'd have done this when
+				                                                // first selecting the note too, but I didn't
+			}
+
+			// Only one note in square
+			else {
+				instrumentClipView.editPadPresses[i].intendedVelocity = newVelocity;
+				noteRow->changeNotesAcrossAllScreens(instrumentClipView.editPadPresses[i].intendedPos,
+				                                     modelStackWithNoteRow, action, CORRESPONDING_NOTES_SET_VELOCITY,
+				                                     newVelocity);
+
+				if (velocityValue == 0) {
+					velocityValue = instrumentClipView.editPadPresses[i].intendedVelocity;
+				}
+				else {
+					if (velocityValue != instrumentClipView.editPadPresses[i].intendedVelocity) {
+						velocityValue = 255; // Means "multiple"
+					}
+				}
+			}
+		}
+	}
+
+	if (velocityValue) {
+		char buffer[22];
+		char const* displayString;
+		if (velocityValue == 255) {
+			if (newVelocity >= 0) {
+				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_INCREASED);
+			}
+			else {
+				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_DECREASED);
+			}
+
+			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated
+			// when user releases last press.
+		}
+		else {
+			getCurrentInstrument()->defaultVelocity = velocityValue;
+			automationView.renderDisplay();
+		}
+
+		instrumentClipView.reassessAllAuditionStatus();
+	}
 }
 
 void AutomationView::removeNote(int32_t x, int32_t velocity) {

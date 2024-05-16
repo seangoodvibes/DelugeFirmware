@@ -2047,49 +2047,6 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 	}
 }
 
-// returns the average velocity for a grid square
-// returns square type the grid square to indicate whether the square has any notes
-// and if there are notes, whether to render the square with the full, tail or blur colour
-int32_t InstrumentClipView::getAverageVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
-                                               int32_t xDisplay, uint8_t& squareType) {
-	int32_t averageVelocity = 0;
-
-	uint32_t squareStart = getPosFromSquare(xDisplay);
-	int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
-	uint32_t squareWidth = getSquareWidth(xDisplay, effectiveLength);
-
-	NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-
-	Note* firstNote;
-	Note* lastNote;
-
-	squareType =
-	    noteRow->getSquareTypeWithoutAction(squareStart, squareWidth, &firstNote, &lastNote, modelStackWithNoteRow);
-
-	// multiple notes in square
-	if (squareType == SQUARE_BLURRED) {
-		uint32_t velocitySumThisSquare = 0;
-		uint32_t numNotesThisSquare = 0;
-
-		int32_t noteI = noteRow->notes.search(squareStart, GREATER_OR_EQUAL);
-		Note* note = noteRow->notes.getElement(noteI);
-		while (note && note->pos - squareStart < squareWidth) {
-			numNotesThisSquare++;
-			velocitySumThisSquare += note->getVelocity();
-
-			noteI++;
-			note = noteRow->notes.getElement(noteI);
-		}
-
-		averageVelocity = velocitySumThisSquare / numNotesThisSquare;
-	}
-	// only one note in square
-	else if (squareType != SQUARE_NO_NOTE) {
-		averageVelocity = firstNote->getVelocity();
-	}
-	return averageVelocity;
-}
-
 void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay) {
 
 	int32_t velocityValue = 0;
