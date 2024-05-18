@@ -2439,6 +2439,14 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 	}
 }
 
+int32_t AutomationView::getNewVelocity(int32_t y) {
+	int32_t newVelocity = nonPatchCablePadPressValues[y];
+	if (newVelocity > 127) {
+		newVelocity = 127;
+	}
+	return newVelocity;
+}
+
 void AutomationView::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity) {
 	if (velocity) {
 		// we change the instrument default velocity because it is used for new notes
@@ -2456,11 +2464,8 @@ void AutomationView::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNot
 		// record pad press
 		recordNoteEditPadAction(x, velocity);
 
-		// adjust pad press velocity
+		// adjust velocities of notes within pressed pad square
 		setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
-
-		// don't delete notes on pad release
-		//instrumentClipView.dontDeleteNotesOnDepress();
 	}
 	else {
 		// record pad release
@@ -2573,14 +2578,6 @@ void AutomationView::removeNote(int32_t x, int32_t velocity) {
 		// record pad release
 		recordNoteEditPadAction(x, 0);
 	}
-}
-
-int32_t AutomationView::getNewVelocity(int32_t y) {
-	int32_t newVelocity = nonPatchCablePadPressValues[y];
-	if (newVelocity > 127) {
-		newVelocity = 127;
-	}
-	return newVelocity;
 }
 
 void AutomationView::recordNoteEditPadAction(int32_t x, int32_t velocity) {
