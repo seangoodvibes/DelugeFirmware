@@ -2112,12 +2112,20 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 				}
 
 				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I didn't
+
+				// Sean: not sure how getting the average when first selecting the note would help because the average
+				// will change based on the velocity adjustment happening here.
+
+				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+				// the pad press note so you can hear the velocity changes as you're holding the note down
 				editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
 			}
 
 			// Only one note in square
 			else {
 				if (display->hasPopup() || getCurrentUI() == &automationView) {
+					// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+					// the pad press note so you can hear the velocity changes as you're holding the note down
 					editPadPresses[i].intendedVelocity =
 					    std::clamp<int32_t>((int32_t)editPadPresses[i].intendedVelocity + velocityChange, 1, 127);
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
@@ -2129,10 +2137,27 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 		}
 	}
 
+	displayVelocity(velocityValue, velocityChange);
+}
+
+void InstrumentClipView::getVelocityValue(int32_t& velocityValue, int32_t velocity) {
+	if (velocityValue == 0) {
+		velocityValue = velocity;
+	}
+	else {
+		if (velocityValue != velocity) {
+			velocityValue = 255; // Means "multiple"
+		}
+	}
+}
+
+void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocityChange) {
 	if (velocityValue) {
 		char buffer[22];
 		char const* displayString;
 		if (velocityValue == 255) {
+			// this happens when you're holding two or more notes that have two different velocities, so it can't show
+			// the the current velocity value (so it just says note velocities have increased or decreased)
 			if (velocityChange >= 0) {
 				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_INCREASED);
 			}
@@ -2140,8 +2165,10 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_DECREASED);
 			}
 
-			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated
-			// when user releases last press.
+			popupVelocity(displayString);
+
+			// Rohan: Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get
+			// updated when user releases last press.
 		}
 		else {
 			getCurrentInstrument()->defaultVelocity = velocityValue;
@@ -2159,12 +2186,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 
 				displayString = buffer;
 
-				if (display->haveOLED()) {
-					display->popupText(displayString);
-				}
-				else {
-					display->displayPopup(displayString, 0, true);
-				}
+				popupVelocity(displayString);
 			}
 		}
 
@@ -2172,14 +2194,12 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 	}
 }
 
-void InstrumentClipView::getVelocityValue(int32_t& velocityValue, int32_t velocity) {
-	if (velocityValue == 0) {
-		velocityValue = velocity;
+void InstrumentClipView::popupVelocity(char const* displayString) {
+	if (display->haveOLED()) {
+		display->popupText(displayString);
 	}
 	else {
-		if (velocityValue != velocity) {
-			velocityValue = 255; // Means "multiple"
-		}
+		display->displayPopup(displayString, 0, true);
 	}
 }
 

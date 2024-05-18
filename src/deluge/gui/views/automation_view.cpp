@@ -2519,11 +2519,19 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 				}
 
 				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I didn't
+
+				// Sean: not sure how getting the average when first selecting the note would help because the average
+				// will change based on the velocity adjustment happening here.
+
+				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+				// the pad press note so you can hear the velocity changes as you're holding the note down
 				instrumentClipView.editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
 			}
 
 			// Only one note in square
 			else {
+				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+				// the pad press note so you can hear the velocity changes as you're holding the note down
 				instrumentClipView.editPadPresses[i].intendedVelocity = newVelocity;
 				noteRow->changeNotesAcrossAllScreens(instrumentClipView.editPadPresses[i].intendedPos,
 				                                     modelStackWithNoteRow, action, CORRESPONDING_NOTES_SET_VELOCITY,
@@ -2535,27 +2543,7 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 		}
 	}
 
-	if (velocityValue) {
-		char buffer[22];
-		char const* displayString;
-		if (velocityValue == 255) {
-			if (newVelocity >= 0) {
-				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_INCREASED);
-			}
-			else {
-				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_DECREASED);
-			}
-
-			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated
-			// when user releases last press.
-		}
-		else {
-			getCurrentInstrument()->defaultVelocity = velocityValue;
-			automationView.renderDisplay();
-		}
-
-		instrumentClipView.reassessAllAuditionStatus();
-	}
+	instrumentClipView.displayVelocity(velocityValue, 0);
 }
 
 void AutomationView::removeNote(int32_t x, int32_t velocity) {
