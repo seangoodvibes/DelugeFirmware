@@ -2047,12 +2047,16 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 	}
 }
 
+// adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>
+// this function is also called from the automation velocity editing view
 void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay) {
 
 	int32_t velocityValue = 0;
 
 	Action* action;
-	if (display->haveOLED() || display->hasPopup() || getCurrentUI() == &automationView) {
+	// we're only going to adjust velocity when there's a pop-up or we're in automation velocity editing view
+	// so no need to get an action otherwise
+	if (display->hasPopup() || getCurrentUI() == &automationView) {
 		action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		if (!action) {
 			return; // Necessary why?
@@ -2090,6 +2094,9 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 				int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 				Note* note = noteRow->notes.getElement(noteI);
 				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+					// check for pop-up so that you don't change encoder turn (cause you may just want to see the value)
+					// in automation view we change it right away because you see the value on the display when pressing
+					// pad
 					if (display->hasPopup() || getCurrentUI() == &automationView) {
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
