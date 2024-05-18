@@ -75,6 +75,7 @@ public:
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 	void adjustVelocity(int32_t velocityChange, int32_t xDisplay = kNoSelection);
+	void getVelocityValue(int32_t& velocityValue, int32_t velocity);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();

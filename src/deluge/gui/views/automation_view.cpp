@@ -2509,14 +2509,8 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_SET_VELOCITY, newVelocity);
 
-					if (velocityValue == 0) {
-						velocityValue = note->getVelocity();
-					}
-					else {
-						if (velocityValue != note->getVelocity()) {
-							velocityValue = 255; // Means "multiple"
-						}
-					}
+					instrumentClipView.getVelocityValue(velocityValue, note->getVelocity());
+
 					numNotesThisSquare++;
 					velocitySumThisSquare += note->getVelocity();
 
@@ -2524,9 +2518,8 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 					note = noteRow->notes.getElement(noteI);
 				}
 
-				instrumentClipView.editPadPresses[i].intendedVelocity =
-				    velocitySumThisSquare / numNotesThisSquare; // Get the average. Ideally we'd have done this when
-				                                                // first selecting the note too, but I didn't
+				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I didn't
+				instrumentClipView.editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
 			}
 
 			// Only one note in square
@@ -2536,14 +2529,8 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 				                                     modelStackWithNoteRow, action, CORRESPONDING_NOTES_SET_VELOCITY,
 				                                     newVelocity);
 
-				if (velocityValue == 0) {
-					velocityValue = instrumentClipView.editPadPresses[i].intendedVelocity;
-				}
-				else {
-					if (velocityValue != instrumentClipView.editPadPresses[i].intendedVelocity) {
-						velocityValue = 255; // Means "multiple"
-					}
-				}
+				instrumentClipView.getVelocityValue(velocityValue,
+				                                    instrumentClipView.editPadPresses[i].intendedVelocity);
 			}
 		}
 	}

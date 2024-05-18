@@ -2095,14 +2095,8 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
 
-					if (velocityValue == 0) {
-						velocityValue = note->getVelocity();
-					}
-					else {
-						if (velocityValue != note->getVelocity()) {
-							velocityValue = 255; // Means "multiple"
-						}
-					}
+					getVelocityValue(velocityValue, note->getVelocity());
+
 					numNotesThisSquare++;
 					velocitySumThisSquare += note->getVelocity();
 
@@ -2110,9 +2104,8 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 					note = noteRow->notes.getElement(noteI);
 				}
 
-				editPadPresses[i].intendedVelocity =
-				    velocitySumThisSquare / numNotesThisSquare; // Get the average. Ideally we'd have done this when
-				                                                // first selecting the note too, but I didn't
+				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I didn't
+				editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
 			}
 
 			// Only one note in square
@@ -2124,14 +2117,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 					                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 				}
 
-				if (velocityValue == 0) {
-					velocityValue = editPadPresses[i].intendedVelocity;
-				}
-				else {
-					if (velocityValue != editPadPresses[i].intendedVelocity) {
-						velocityValue = 255; // Means "multiple"
-					}
-				}
+				getVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
 			}
 		}
 	}
@@ -2176,6 +2162,17 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay
 		}
 
 		reassessAllAuditionStatus();
+	}
+}
+
+void InstrumentClipView::getVelocityValue(int32_t& velocityValue, int32_t velocity) {
+	if (velocityValue == 0) {
+		velocityValue = velocity;
+	}
+	else {
+		if (velocityValue != velocity) {
+			velocityValue = 255; // Means "multiple"
+		}
 	}
 }
 
