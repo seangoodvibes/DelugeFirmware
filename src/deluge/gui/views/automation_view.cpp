@@ -2460,7 +2460,7 @@ void AutomationView::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNot
 		setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
 
 		// don't delete notes on pad release
-		instrumentClipView.dontDeleteNotesOnDepress();
+		//instrumentClipView.dontDeleteNotesOnDepress();
 	}
 	else {
 		// record pad release
