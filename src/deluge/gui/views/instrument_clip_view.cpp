@@ -2050,7 +2050,6 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 // adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>
 // this function is also called from the automation velocity editing view
 void InstrumentClipView::adjustVelocity(int32_t velocityChange, int32_t xDisplay) {
-
 	int32_t velocityValue = 0;
 
 	Action* action;

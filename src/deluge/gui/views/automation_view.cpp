@@ -2371,39 +2371,37 @@ void AutomationView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNote
 void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
                                            int32_t x, int32_t y, int32_t velocity) {
 	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-		SquareInfo squareInfo;
-
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 		int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+
+		// we're going to get squareInfo so that we can use the note info to determine what actions
+		// should be taken below - e.g. don't even try to remove a note if there aren't any notes
+		SquareInfo squareInfo;
 		noteRow->getSquareInfo(x, effectiveLength, squareInfo);
 
-		int32_t newVelocity = getNewVelocity(y);
+		int32_t newVelocity = getVelocity(y);
 		bool refreshVelocityEditor = false;
 
-		if (velocity) {
-			// If this is a middle pad press...
-			if (instrumentClipView.numEditPadPressesPerNoteRowOnScreen[y] == 1) {
-				// Find that original press
-				int32_t i;
-				for (i = 0; i < kEditPadPressBufferSize; i++) {
-					if (instrumentClipView.editPadPresses[i].isActive
-					    && instrumentClipView.editPadPresses[i].yDisplay != y
-					    && instrumentClipView.editPadPresses[i].xDisplay == x) {
-						newVelocity = (newVelocity + getNewVelocity(instrumentClipView.editPadPresses[i].yDisplay)) / 2;
-						middlePadPressSelected = true;
-						break;
-					}
+		middlePadPressSelected = false;
+
+		// check for middle pad press
+		if (velocity && squareInfo.numNotes != 0 && instrumentClipView.numEditPadPresses == 1) {
+			// Find that original press
+			int32_t i;
+			for (i = 0; i < kEditPadPressBufferSize; i++) {
+				if (instrumentClipView.editPadPresses[i].isActive
+				    && instrumentClipView.editPadPresses[i].xDisplay == x) {
+					int32_t previousVelocity = getVelocity(instrumentClipView.editPadPresses[i].yDisplay);
+					newVelocity = (newVelocity + previousVelocity) / 2;
+					middlePadPressSelected = true;
+					break;
 				}
 			}
 		}
 
 		if (middlePadPressSelected) {
-			if (velocity) {
-				if (y != 0 && squareInfo.numNotes != 0) {
-					setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
-					refreshVelocityEditor = true;
-				}
-			}
+			setVelocity(modelStackWithNoteRow, noteRow, x, newVelocity);
+			refreshVelocityEditor = true;
 		}
 		else {
 			// no existing notes in square pressed
@@ -2412,7 +2410,7 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 				addNoteWithNewVelocity(x, velocity, newVelocity);
 				refreshVelocityEditor = true;
 			}
-			// note exists, potentially add another note and adjust velocity of existing notes
+			// note(s) exists, adjust velocity of existing notes
 			else if (y != 0 && squareInfo.numNotes != 0) {
 				adjustNoteVelocity(modelStackWithNoteRow, noteRow, x, velocity, newVelocity, squareInfo.squareType);
 				refreshVelocityEditor = true;
@@ -2426,20 +2424,15 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 		// if no note exists and you're trying to remove a note (y == 0 && squareInfo.numNotes == 0),
 		// well no need to do anything
 
-		if (velocity) {
-			if (refreshVelocityEditor) {
-				// refresh grid and update default velocity on the display
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
-				renderDisplay();
-			}
-		}
-		else {
-			middlePadPressSelected = false;
+		if (velocity && refreshVelocityEditor) {
+			// refresh grid and update default velocity on the display
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			renderDisplay();
 		}
 	}
 }
 
-int32_t AutomationView::getNewVelocity(int32_t y) {
+int32_t AutomationView::getVelocity(int32_t y) {
 	int32_t newVelocity = nonPatchCablePadPressValues[y];
 	if (newVelocity > 127) {
 		newVelocity = 127;
@@ -2546,6 +2539,7 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 	instrumentClipView.displayVelocity(velocityValue, 0);
 }
 
+// removes a note by sending pad press and release actions
 void AutomationView::removeNote(int32_t x, int32_t velocity) {
 	if (velocity) {
 		// record pad press

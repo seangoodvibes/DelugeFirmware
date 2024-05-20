@@ -180,7 +180,7 @@ private:
 	                       int32_t velocity);
 	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t x, int32_t y,
 	                           int32_t velocity);
-	int32_t getNewVelocity(int32_t y);
+	int32_t getVelocity(int32_t y);
 	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
 	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
 	                        int32_t newVelocity, uint8_t squareType);
