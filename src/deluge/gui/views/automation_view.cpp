@@ -2387,7 +2387,7 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 			for (i = 0; i < kEditPadPressBufferSize; i++) {
 				if (instrumentClipView.editPadPresses[i].isActive
 				    && instrumentClipView.editPadPresses[i].xDisplay == x) {
-					int32_t previousVelocity = getVelocity(instrumentClipView.editPadPresses[i].yDisplay);
+					int32_t previousVelocity = getCurrentInstrument()->defaultVelocity;
 					newVelocity = (newVelocity + previousVelocity) / 2;
 					middlePadPressSelected = true;
 					break;
@@ -2429,11 +2429,8 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 }
 
 int32_t AutomationView::getVelocity(int32_t y) {
-	int32_t newVelocity = nonPatchCablePadPressValues[y];
-	if (newVelocity > 127) {
-		newVelocity = 127;
-	}
-	return newVelocity;
+	int32_t velocity = std::clamp<int32_t>(nonPatchCablePadPressValues[y], 1, 127);
+	return velocity;
 }
 
 void AutomationView::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity) {
