@@ -2144,7 +2144,7 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	}
 
 	// regular automation / note editing action
-	if (isUIModeWithinRange(editPadActionUIModes)) {
+	if (isUIModeWithinRange(editPadActionUIModes) && isSquareDefined(x, xScroll, xZoom)) {
 		if (automationParamType == AutomationParamType::NON_NOTE) {
 			automationEditPadAction(modelStackWithParam, clip, x, y, velocity, effectiveLength, xScroll, xZoom);
 		}
@@ -2555,10 +2555,6 @@ void AutomationView::automationEditPadAction(ModelStackWithAutoParam* modelStack
                                              int32_t xScroll, int32_t xZoom) {
 	// If button down
 	if (velocity) {
-		if (!isSquareDefined(xDisplay, xScroll, xZoom)) {
-
-			return;
-		}
 		// If this is a automation-length-edit press...
 		// needed for Automation
 		if (inAutomationEditor() && instrumentClipView.numEditPadPresses == 1) {
