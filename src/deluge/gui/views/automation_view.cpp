@@ -789,50 +789,46 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				    modelStackWithTimelineCounter, clip, unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
 				    params::Kind::UNPATCHED_SOUND);
 			}
+		}
 
-			else if ((onArrangerView || (outputType == OutputType::AUDIO)
-			          || (outputType == OutputType::KIT && getAffectEntire()))
-			         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
-				int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-				if (onArrangerView) {
-					// don't make pitch adjust or sidechain available for automation in arranger
-					if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-					    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
-						pixel = colours::black; // erase pad
-						continue;
-					}
-					modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+		else if ((onArrangerView || (outputType == OutputType::AUDIO)
+		          || (outputType == OutputType::KIT && getAffectEntire()))
+		         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+			int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+			if (onArrangerView) {
+				// don't make pitch adjust or sidechain available for automation in arranger
+				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
+				    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+					pixel = colours::black; // erase pad
+					continue;
 				}
-				else {
-					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
-				}
-			}
-
-			else if (outputType == OutputType::MIDI_OUT
-			         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
-				                                                    midiCCShortcutsForAutomation[xDisplay][yDisplay]);
-			}
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				// highlight pad white if the parameter it represents is currently automated
-				if (modelStackWithParam->autoParam->isAutomated()) {
-					pixel = {
-					    .r = 130,
-					    .g = 120,
-					    .b = 130,
-					};
-				}
-
-				else {
-					pixel = colours::grey;
-				}
-
-				occupancyMask[yDisplay][xDisplay] = 64;
+				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 			}
 			else {
-				pixel = colours::black; // erase pad
+				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
 			}
+		}
+
+		else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+			                                                    midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+		}
+
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			// highlight pad white if the parameter it represents is currently automated
+			if (modelStackWithParam->autoParam->isAutomated()) {
+				pixel = {
+				    .r = 130,
+				    .g = 120,
+				    .b = 130,
+				};
+			}
+
+			else {
+				pixel = colours::grey;
+			}
+
+			occupancyMask[yDisplay][xDisplay] = 64;
 		}
 		else {
 			pixel = colours::black; // erase pad
