@@ -2420,7 +2420,9 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 // called by shortcutPadAction when it is determined that you are selecting a parameter on automation
 // overview or by using a grid shortcut combo
 void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
-	if (xDisplay == 15 && yDisplay == 1) { // PatchSource::Velocity shortcut
+	// PatchSource::Velocity shortcut
+	// Enter Velocity Note Editor
+	if (xDisplay == 15 && yDisplay == 1) {
 		if (clip->type == ClipType::INSTRUMENT) {
 			initParameterSelection();
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
@@ -2433,6 +2435,7 @@ void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 			return;
 		}
 	}
+	// potentially select a regular automatable parameter
 	else if (!onArrangerView
 	         && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
 	         && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
