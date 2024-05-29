@@ -591,6 +591,25 @@ AutomationSubType AutomationView::getAutomationSubType() {
 }
 
 // rendering
+bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+                                                         int32_t paramID) {
+	bool doRefreshGrid = false;
+	if (clip && !automationView.onArrangerView) {
+		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
+			doRefreshGrid = true;
+		}
+	}
+	else if (automationView.onArrangerView) {
+		if ((currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind)) {
+			doRefreshGrid = true;
+		}
+	}
+	if (doRefreshGrid) {
+		uiNeedsRendering(this);
+		return true;
+	}
+	return false;
+}
 
 // called whenever you call uiNeedsRendering(this) somewhere else
 // used to render automation overview, automation editor
@@ -626,57 +645,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	PadLEDs::renderingLock = false;
 
 	return true;
-}
-
-void AutomationView::blinkShortcuts() {
-	if (!encoderAction) {
-		if (getCurrentUI() == this) {
-			int32_t lastSelectedParamShortcutX = kNoSelection;
-			int32_t lastSelectedParamShortcutY = kNoSelection;
-			if (onArrangerView) {
-				lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
-				lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
-			}
-			else {
-				Clip* clip = getCurrentClip();
-				lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
-				lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
-			}
-			// if a Param has been selected for editing, blink its shortcut pad
-			if (lastSelectedParamShortcutX != kNoSelection) {
-				if (!parameterShortcutBlinking) {
-					soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
-					soundEditor.blinkShortcut();
-
-					parameterShortcutBlinking = true;
-				}
-			}
-			// unset previously set blink timers if not editing a parameter
-			else {
-				resetParameterShortcutBlinking();
-			}
-		}
-		if (interpolation && !inNoteEditor()) {
-			if (!interpolationShortcutBlinking) {
-				blinkInterpolationShortcut();
-			}
-		}
-		else {
-			resetInterpolationShortcutBlinking();
-		}
-		if (inNoteEditor()) {
-			if (!noteRowBlinking) {
-				blinkSelectedNoteRow();
-			}
-		}
-		else {
-			resetSelectedNoteRowBlinking();
-		}
-	}
-	else {
-		// doing this so the shortcut doesn't blink like crazy while turning knobs that refresh UI
-		encoderAction = false;
-	}
 }
 
 // determines whether you should render the automation editor, automation overview or just render some love <3
@@ -858,26 +826,6 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			}
 		}
 	}
-}
-
-bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
-                                                         int32_t paramID) {
-	bool doRefreshGrid = false;
-	if (clip && !automationView.onArrangerView) {
-		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
-			doRefreshGrid = true;
-		}
-	}
-	else if (automationView.onArrangerView) {
-		if ((currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind)) {
-			doRefreshGrid = true;
-		}
-	}
-	if (doRefreshGrid) {
-		uiNeedsRendering(this);
-		return true;
-	}
-	return false;
 }
 
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
@@ -5268,6 +5216,57 @@ bool AutomationView::getAffectEntire() {
 	}
 	// otherwise if you're not in the kit sound menu, use the clip affect entire state
 	return getCurrentInstrumentClip()->affectEntire;
+}
+
+void AutomationView::blinkShortcuts() {
+	if (!encoderAction) {
+		if (getCurrentUI() == this) {
+			int32_t lastSelectedParamShortcutX = kNoSelection;
+			int32_t lastSelectedParamShortcutY = kNoSelection;
+			if (onArrangerView) {
+				lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
+				lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
+			}
+			else {
+				Clip* clip = getCurrentClip();
+				lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
+				lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
+			}
+			// if a Param has been selected for editing, blink its shortcut pad
+			if (lastSelectedParamShortcutX != kNoSelection) {
+				if (!parameterShortcutBlinking) {
+					soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
+					soundEditor.blinkShortcut();
+
+					parameterShortcutBlinking = true;
+				}
+			}
+			// unset previously set blink timers if not editing a parameter
+			else {
+				resetParameterShortcutBlinking();
+			}
+		}
+		if (interpolation && !inNoteEditor()) {
+			if (!interpolationShortcutBlinking) {
+				blinkInterpolationShortcut();
+			}
+		}
+		else {
+			resetInterpolationShortcutBlinking();
+		}
+		if (inNoteEditor()) {
+			if (!noteRowBlinking) {
+				blinkSelectedNoteRow();
+			}
+		}
+		else {
+			resetSelectedNoteRowBlinking();
+		}
+	}
+	else {
+		// doing this so the shortcut doesn't blink like crazy while turning knobs that refresh UI
+		encoderAction = false;
+	}
 }
 
 void AutomationView::resetShortcutBlinking() {
