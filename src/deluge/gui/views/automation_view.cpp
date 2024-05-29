@@ -2016,8 +2016,8 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 
 // called by button action if b == back and UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
 bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on) {
-	// only allow clearing of a clip if you're in the automation overview or note editor
-	if (on && !inAutomationEditor()) {
+	// only allow clearing of a clip if you're on the automation overview
+	if (on && onAutomationOverview()) {
 		if (clip->type == ClipType::AUDIO || onArrangerView) {
 			// clear all arranger automation
 			if (onArrangerView) {
@@ -2072,6 +2072,25 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
 			displayAutomation(padSelectionOn, !display->have7SEG());
+		}
+	}
+	else if (on && inNoteEditor()) {
+		Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+		// don't create note row if it doesn't exist
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    ((InstrumentClip*)clip)->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
+
+		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+			// don't clear automation, do clear notes and mpe
+			noteRow->clear(action, modelStackWithNoteRow, false, true);
+
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
 		}
 	}
 	return false;
@@ -2198,7 +2217,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
-		if (clip->type == ClipType::INSTRUMENT) {
+		if (inNoteEditor()) {
 			modelStackWithNoteRow = ((InstrumentClip*)clip)
 			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 			                                                 modelStackWithTimelineCounter); // don't create
@@ -2206,7 +2225,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 				// if you're in note editor and note row doesn't exist, create it
 				// don't create note rows that don't exist in kits because those are empty kit rows
-				if (inNoteEditor() && outputType != OutputType::KIT) {
+				if (outputType != OutputType::KIT) {
 					modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
 					    modelStackWithTimelineCounter, instrumentClipView.lastAuditionedYDisplay);
 				}
