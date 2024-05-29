@@ -321,7 +321,7 @@ private:
 
 	int32_t calculateAutomationKnobPosForModEncoderTurn(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
 	                                                    int32_t offset);
-	
+
 	void blinkShortcuts();
 	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();

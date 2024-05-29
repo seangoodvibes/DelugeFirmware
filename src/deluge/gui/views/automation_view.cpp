@@ -1268,7 +1268,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 				strncpy(noteRowName, "(Select Note)", 49);
 			}
 
-			canvas.drawStringCentred(noteRowName, yPos, kTextSpacingX, kTextSpacingY);											  
+			canvas.drawStringCentred(noteRowName, yPos, kTextSpacingX, kTextSpacingY);
 		}
 		else {
 			char const* isAutomated;
