@@ -502,6 +502,7 @@ void AutomationView::focusRegained() {
 		// blink timer got reset by view.focusRegained() above
 		parameterShortcutBlinking = false;
 		interpolationShortcutBlinking = false;
+		noteRowBlinking = false;
 		// remove patch cable blink frequencies
 		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
