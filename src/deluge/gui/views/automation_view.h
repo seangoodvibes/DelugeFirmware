@@ -341,6 +341,7 @@ private:
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
 	int32_t numNotesSelected;
+	int32_t selectedPadPressed;
 
 	bool playbackStopped;
 

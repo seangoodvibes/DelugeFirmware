@@ -360,6 +360,7 @@ AutomationView::AutomationView() {
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	numNotesSelected = 0;
+	selectedPadPressed = 0;
 	playbackStopped = false;
 	onArrangerView = false;
 	onMenuView = false;
@@ -1270,7 +1271,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 				}
 			}
 			else {
-				strncpy(noteRowName, "(Select Note)", 49);
+				strncpy(noteRowName, "(Select Row)", 49);
 			}
 
 			canvas.drawStringCentred(noteRowName, yPos, kTextSpacingX, kTextSpacingY);
@@ -1297,7 +1298,10 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 
 		if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 			char buffer[5];
-			if ((isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) && leftPadSelectedX != kNoSelection) {
+			if (knobPosLeft != kNoSelection) {
+				intToString(knobPosLeft, buffer);
+			}
+			else if ((isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) && leftPadSelectedX != kNoSelection) {
 				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 					NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 					int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -1355,7 +1359,21 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 		display->setScrollingText(overviewText);
 	}
 	else {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = nullptr;
+		if (inNoteEditor()) {
+			modelStackWithNoteRow = ((InstrumentClip*)clip)
+			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+			                                                 modelStack); // don't create
+			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+				if (clip->output->type != OutputType::KIT) {
+					modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
+					    modelStack, instrumentClipView.lastAuditionedYDisplay);
+				}
+			}
+		}
+
 		/* check if you're holding a pad
 		 * if yes, store pad press knob position in lastPadSelectedKnobPos
 		 * so that it can be used next time as the knob position if returning here
@@ -1383,30 +1401,16 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 			}
 		}
 		else if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
-			if ((knobPosLeft == kNoSelection)
-			    && (isUIModeActive(UI_MODE_NOTES_PRESSED) || (padSelectionOn && leftPadSelectedX != kNoSelection))) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-
-				ModelStackWithTimelineCounter* modelStack =
-				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    ((InstrumentClip*)clip)
-				        ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-				                             modelStack); // don't create
-				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-					if (clip->output->type != OutputType::KIT) {
-						modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
-						    modelStack, instrumentClipView.lastAuditionedYDisplay);
+			if (knobPosLeft == kNoSelection && isUIModeActive(UI_MODE_NOTES_PRESSED)
+			    && leftPadSelectedX != kNoSelection) {
+				if (!padSelectionOn || (padSelectionOn && selectedPadPressed)) {
+					if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+						NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+						int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+						SquareInfo squareInfo;
+						noteRow->getSquareInfo(leftPadSelectedX, effectiveLength, squareInfo);
+						knobPosLeft = squareInfo.averageVelocity;
 					}
-				}
-
-				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-					NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-					int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
-					SquareInfo squareInfo;
-					noteRow->getSquareInfo(leftPadSelectedX, effectiveLength, squareInfo);
-					knobPosLeft = squareInfo.averageVelocity;
 				}
 			}
 		}
@@ -1417,7 +1421,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 
 			intToString(knobPosLeft, buffer);
 
-			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			if ((!padSelectionOn && isUIModeActive(UI_MODE_NOTES_PRESSED)) || (padSelectionOn && selectedPadPressed)) {
 				display->setText(buffer, true, 255, false);
 			}
 			else if (modEncoderAction || padSelectionOn) {
@@ -1433,7 +1437,6 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 			}
 			else if (inNoteEditor()) {
 				char noteRowName[50];
-
 				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 					if (clip->output->type == OutputType::KIT) {
 						DEF_STACK_STRING_BUF(drumName, 50);
@@ -1446,7 +1449,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 					}
 				}
 				else {
-					strncpy(noteRowName, "(Select Note)", 49);
+					strncpy(noteRowName, "(Select Row)", 49);
 				}
 				display->setScrollingText(noteRowName);
 			}
@@ -2092,15 +2095,23 @@ void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 			}
 		}
 		else if (inNoteEditor()) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    ((InstrumentClip*)modelStack->getTimelineCounter())
-			        ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
+			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
+				// Just pop up number - don't do anything
+				instrumentClipView.editNoteRepeat(0);
+			}
+			else if ((currentUIMode == UI_MODE_NONE || isUIModeActiveExclusively(UI_MODE_AUDITIONING))
+			         && !padSelectionOn) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    ((InstrumentClip*)modelStack->getTimelineCounter())
+				        ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
 
-			// Just pop up number - don't do anything
-			instrumentClipView.editNumEuclideanEvents(modelStackWithNoteRow, 0,
-			                                          instrumentClipView.lastAuditionedYDisplay);
+				// Just pop up number - don't do anything
+				instrumentClipView.editNumEuclideanEvents(modelStackWithNoteRow, 0,
+				                                          instrumentClipView.lastAuditionedYDisplay);
+			}
 		}
 	}
 }
@@ -2540,6 +2551,9 @@ void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	if (inNoteEditor()) {
 		automationParamType = AutomationParamType::NON_NOTE;
 		resetSelectedNoteRowBlinking();
+		if (padSelectionOn) {
+			initPadSelection();
+		}
 	}
 	blinkShortcuts();
 	displayAutomation(true);
@@ -2594,8 +2608,9 @@ void AutomationView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStac
 
 		// refresh grid and display
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-		renderDisplay();
 	}
+	selectedPadPressed = velocity;
+	renderDisplay();
 }
 
 // velocity edit pad action
@@ -2780,6 +2795,9 @@ void AutomationView::recordNoteEditPadAction(int32_t x, int32_t velocity) {
 void AutomationView::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
                                              int32_t yDisplay, int32_t velocity, int32_t effectiveLength,
                                              int32_t xScroll, int32_t xZoom) {
+	if (padSelectionOn) {
+		selectedPadPressed = velocity;
+	}
 	// If button down
 	if (velocity) {
 		// If this is a automation-length-edit press...
@@ -3374,7 +3392,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	// or if in pad selection mode, create note or adjust velocity
 	else if (inNoteEditor()
 	         && (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
-	             || (padSelectionOn && leftPadSelectedX != kNoSelection))) {
+	             || (currentUIMode == UI_MODE_NONE && padSelectionOn && leftPadSelectedX != kNoSelection))) {
 		if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 			if (!instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
 				// adjust velocity faster in pad selection mode while holding shift
@@ -3395,7 +3413,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 				else {
 					instrumentClipView.adjustVelocity(offset);
 				}
-				renderDisplay();
+				renderDisplay(getCurrentInstrument()->defaultVelocity);
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
 		}
@@ -3459,10 +3477,13 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		// thus, pressing and turning vertical encoder should engage euclidean instead
 		// of transpose because transpose affects all note rows
 		if (inNoteEditor()) {
+			// only allow editing note repeats when selecting a note
 			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 				instrumentClipView.editNoteRepeat(offset);
 			}
-			else {
+			// don't enable euclidean while in pad selection mode (pad selection mode is for selecting notes)
+			else if ((currentUIMode == UI_MODE_NONE || isUIModeActiveExclusively(UI_MODE_AUDITIONING))
+			         && !padSelectionOn) {
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 				                             modelStack); // don't create
@@ -4622,6 +4643,7 @@ void AutomationView::initPadSelection() {
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	numNotesSelected = 0;
+	selectedPadPressed = 0;
 
 	// make sure no active presses remain when exiting pad selection mode
 	if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
@@ -4657,7 +4679,7 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 	return modelStackWithParam;
 }
 
-// calculates the length of the clip or the length of the kit row
+// calculates the length of the arrangement timeline, clip or the length of the kit row
 // if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
 // if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
 int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
