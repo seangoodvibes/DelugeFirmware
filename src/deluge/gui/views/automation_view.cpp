@@ -2765,7 +2765,13 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 		if (multiPadPressActive) {
 			int32_t leftPadSelectedVelocity = getVelocityFromY(leftPadSelectedY);
 			int32_t rightPadSelectedVelocity = getVelocityFromY(rightPadSelectedY);
-			renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
+			if (display->haveOLED()) {
+				renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
+			}
+			else {
+				// for 7seg, render value of last pad pressed
+				renderDisplay(leftPadSelectedX == x ? leftPadSelectedVelocity : rightPadSelectedVelocity);
+			}
 		}
 		else {
 			renderDisplay();
