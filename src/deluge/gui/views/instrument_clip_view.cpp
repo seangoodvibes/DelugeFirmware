@@ -2116,9 +2116,9 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 				int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 				Note* note = noteRow->notes.getElement(noteI);
 				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
-					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the value)
-					// in automation view we change it right away because you see the value on the display when pressing
-					// pad
+					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the
+					// value) in automation view we change it right away because you see the value on the display when
+					// pressing pad
 					if (display->hasPopup() || getCurrentUI() == &automationView) {
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);

@@ -2891,7 +2891,7 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 				                                     newVelocity);
 
 				instrumentClipView.updateVelocityValue(velocityValue,
-				                                    instrumentClipView.editPadPresses[i].intendedVelocity);
+				                                       instrumentClipView.editPadPresses[i].intendedVelocity);
 			}
 		}
 	}
