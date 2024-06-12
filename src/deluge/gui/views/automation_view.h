@@ -136,6 +136,7 @@ public:
 
 	// public so uiTimerManager can access it
 	void blinkInterpolationShortcut();
+	void blinkPadSelectionShortcut();
 	void blinkSelectedNoteRow(int32_t whichMainRows = 0);
 
 	// public so menu can access it
@@ -145,6 +146,7 @@ public:
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);
 	void resetInterpolationShortcutBlinking();
+	void resetPadSelectionShortcutBlinking();
 	void resetSelectedNoteRowBlinking();
 	AutomationParamType automationParamType;
 	bool getAffectEntire();
@@ -331,6 +333,7 @@ private:
 	bool parameterShortcutBlinking;
 
 	bool interpolationShortcutBlinking;
+	bool padSelectionShortcutBlinking;
 
 	bool noteRowBlinking;
 

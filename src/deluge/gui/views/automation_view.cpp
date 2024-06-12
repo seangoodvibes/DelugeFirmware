@@ -350,6 +350,8 @@ AutomationView::AutomationView() {
 	parameterShortcutBlinking = false;
 	// used to set interpolation shortcut blinking
 	interpolationShortcutBlinking = false;
+	// used to set pad selection shortcut blinking
+	padSelectionShortcutBlinking = false;
 	// used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -511,6 +513,7 @@ void AutomationView::focusRegained() {
 		// blink timer got reset by view.focusRegained() above
 		parameterShortcutBlinking = false;
 		interpolationShortcutBlinking = false;
+		padSelectionShortcutBlinking = false;
 		noteRowBlinking = false;
 		// remove patch cable blink frequencies
 		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
@@ -559,6 +562,7 @@ void AutomationView::openedInBackground() {
 	if (onMenuView && interpolation) {
 		blinkInterpolationShortcut();
 	}
+	
 }
 
 // used for the play cursor
@@ -2369,19 +2373,19 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 
 /// toggle automation interpolation on / off
 bool AutomationView::toggleAutomationInterpolation() {
-	if (!interpolation) {
-		interpolation = true;
-		blinkInterpolationShortcut();
-
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
-	}
-	else {
+	if (interpolation) {
 		interpolation = false;
 		initInterpolation();
 		resetInterpolationShortcutBlinking();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
 	}
+	else {
+		interpolation = true;
+		blinkInterpolationShortcut();
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
+	}	
 	return true;
 }
 
@@ -2392,11 +2396,13 @@ bool AutomationView::toggleVelocityPadSelectionMode(SquareInfo& squareInfo) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
+		resetPadSelectionShortcutBlinking();
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
 
 		padSelectionOn = true;
+		blinkPadSelectionShortcut();
 
 		// display only left cursor
 		leftPadSelectedX = 0;
@@ -2426,6 +2432,7 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
+		resetPadSelectionShortcutBlinking();
 		if (!playbackHandler.isEitherClockActive()) {
 			displayAutomation(true, !display->have7SEG());
 		}
@@ -2434,6 +2441,8 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
 
 		padSelectionOn = true;
+		blinkPadSelectionShortcut();
+
 		multiPadPressSelected = false;
 		multiPadPressActive = false;
 
@@ -5542,6 +5551,12 @@ void AutomationView::blinkShortcuts() {
 		else {
 			resetInterpolationShortcutBlinking();
 		}
+		if (padSelectionOn) {
+			blinkPadSelectionShortcut();
+		}
+		else {
+			resetPadSelectionShortcutBlinking();
+		}
 		if (inNoteEditor()) {
 			if (!noteRowBlinking) {
 				blinkSelectedNoteRow();
@@ -5561,6 +5576,7 @@ void AutomationView::resetShortcutBlinking() {
 	memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
+	resetPadSelectionShortcutBlinking();
 	resetSelectedNoteRowBlinking();
 }
 
@@ -5584,6 +5600,17 @@ void AutomationView::blinkInterpolationShortcut() {
 	PadLEDs::flashMainPad(kInterpolationShortcutX, kInterpolationShortcutY);
 	uiTimerManager.setTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK, 3000);
 	interpolationShortcutBlinking = true;
+}
+
+void AutomationView::resetPadSelectionShortcutBlinking() {
+	uiTimerManager.unsetTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK);
+	padSelectionShortcutBlinking = false;	
+}
+
+void AutomationView::blinkPadSelectionShortcut() {
+	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
+	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
+	padSelectionShortcutBlinking = true;
 }
 
 // used to blink selected noted row when using the velocity or MPE note row view

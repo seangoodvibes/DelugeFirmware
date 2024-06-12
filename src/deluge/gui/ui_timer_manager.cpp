@@ -119,6 +119,10 @@ void UITimerManager::routine() {
 					automationView.blinkInterpolationShortcut();
 					break;
 
+				case TimerName::PAD_SELECTION_SHORTCUT_BLINK:
+					automationView.blinkPadSelectionShortcut();
+					break;
+
 				case TimerName::NOTE_ROW_BLINK:
 					automationView.blinkSelectedNoteRow();
 					break;
