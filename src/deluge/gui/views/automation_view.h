@@ -347,6 +347,11 @@ private:
 	int32_t numNotesSelected;
 	int32_t selectedPadPressed;
 
+	int32_t numSquaresSelected;
+	int32_t leftPadSelectedVelocity;
+	int32_t rightPadSelectedVelocity;
+	//int32_t multiPadPressVelocityIncrement;
+
 	bool playbackStopped;
 
 	// grid sized array to assign midi cc values to each pad on the grid

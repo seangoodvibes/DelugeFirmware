@@ -360,7 +360,11 @@ AutomationView::AutomationView() {
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	numNotesSelected = 0;
+	numSquaresSelected = 0;
 	selectedPadPressed = 0;
+	leftPadSelectedVelocity = 0;
+	rightPadSelectedVelocity = 0;
+	//multiPadPressVelocityIncrement = 0;
 	playbackStopped = false;
 	onArrangerView = false;
 	onMenuView = false;
@@ -2187,7 +2191,7 @@ void AutomationView::exitScaleMode() {
 
 // pad action
 // handles shortcut pad action for automation (e.g. when you press shift + pad on the grid)
-// everything else is pretty much the same as instrument clip view
+// handles interacting with the automation and velocity editor grid pads
 ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -2624,8 +2628,10 @@ void AutomationView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStac
 void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                            InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
                                            int32_t effectiveLength, SquareInfo& squareInfo) {
-	// save pad selected
-	leftPadSelectedX = x;
+	if (velocity) {
+		// save pad selected
+		leftPadSelectedX = x;
+	}
 
 	// calculate new velocity based on Y of pad pressed
 	int32_t newVelocity = getVelocityFromY(y);
@@ -2674,23 +2680,24 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 					leftPadSelectedX = firstPadX > x ? x : firstPadX;
 					rightPadSelectedX = firstPadX > x ? firstPadX : x;
 
-					int32_t numSquares = 0;
+					//int32_t numSquares = 0;
+					numSquaresSelected = 0;
 					// find total number of notes in note row (excluding the first note)
 					for (int32_t i = leftPadSelectedX; i <= rightPadSelectedX; i++) {
 						// don't include note tails in note count
 						if (rowSquareInfo[i].numNotes != 0 && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
-							numSquares++;
+							numSquaresSelected++;//numSquares++;
 						}
 					}
 
-					//	DEF_STACK_STRING_BUF(numSquare, 50);
-					//	numSquare.append("Squares: ");
-					//	numSquare.appendInt(numSquares);
-					//	numSquare.append("\n");
+					DEF_STACK_STRING_BUF(numSquare, 50);
+					numSquare.append("Squares: ");
+					numSquare.appendInt(numSquaresSelected);
+					numSquare.append("\n");
 
 					// calculate start and end velocity for long press
-					int32_t leftPadSelectedVelocity;
-					int32_t rightPadSelectedVelocity;
+					//int32_t leftPadSelectedVelocity;
+					//int32_t rightPadSelectedVelocity;
 
 					if (leftPadSelectedX == firstPadX) { // then left pad is the first press
 						leftPadSelectedVelocity = rowSquareInfo[leftPadSelectedX].averageVelocity;
@@ -2705,23 +2712,25 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 						rightPadSelectedY = getYFromVelocity(rightPadSelectedVelocity);
 					}
 
-					//	numSquare.append("L: ");
-					//	numSquare.appendInt(leftPadSelectedVelocity);
-					//	numSquare.append(" R: ");
-					//	numSquare.appendInt(rightPadSelectedVelocity);
-					//	numSquare.append("\n");
+					numSquare.append("L: ");
+					numSquare.appendInt(leftPadSelectedVelocity);
+					numSquare.append(" R: ");
+					numSquare.appendInt(rightPadSelectedVelocity);
+					numSquare.append("\n");
 
 					// calculate increment from first pad to last pad
+					float multiPadPressVelocityIncrementFloat =
+					    static_cast<float>((rightPadSelectedVelocity - leftPadSelectedVelocity)) / (numSquaresSelected - 1);
 					multiPadPressVelocityIncrement =
-					    (rightPadSelectedVelocity - leftPadSelectedVelocity) / (numSquares - 1);
+					    static_cast<int32_t>(std::round(multiPadPressVelocityIncrementFloat));
 					// if ramp is upwards, make increment positive
 					if (leftPadSelectedVelocity < rightPadSelectedVelocity) {
 						multiPadPressVelocityIncrement = std::abs(multiPadPressVelocityIncrement);
 					}
 
-					//	numSquare.append("Inc: ");
-					//	numSquare.appendInt(multiPadPressVelocityIncrement);
-					//	display->displayPopup(numSquare.c_str());
+					numSquare.append("Inc: ");
+					numSquare.appendInt(multiPadPressVelocityIncrement);
+					display->displayPopup(numSquare.c_str());
 
 					// update multi pad press selection indicator
 					multiPadPressSelected = true;
@@ -2919,7 +2928,7 @@ void AutomationView::setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRo
 		return;
 	}
 
-	int32_t startVelocity = getVelocityFromY(leftPadSelectedY);
+	int32_t startVelocity = leftPadSelectedVelocity;//getVelocityFromY(leftPadSelectedY);
 	int32_t velocityValue = 0;
 	int32_t squaresProcessed = 0;
 
@@ -3987,6 +3996,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	Clip* clip = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -3998,7 +4008,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = getCurrentClip();
+		clip = getCurrentClip();
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
@@ -4013,6 +4023,66 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			if (automationModEncoderActionForSelectedPad(modelStackWithParam, whichModEncoder, offset,
 			                                             effectiveLength)) {
 				return;
+			}
+		}
+		else if (inNoteEditor() && multiPadPressActive && leftPadSelectedX != kNoSelection
+		         && rightPadSelectedX != kNoSelection) {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    ((InstrumentClip*)clip)
+			        ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+			                             modelStackWithTimelineCounter); // don't create
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+				SquareInfo rowSquareInfo[kDisplayWidth];
+				noteRow->getRowSquareInfo(modelStackWithNoteRow->getLoopLength(), rowSquareInfo);
+
+			//	int32_t numSquares = 0;
+			//	// find total number of notes in note row (excluding the first note)
+			//	for (int32_t i = leftPadSelectedX; i <= rightPadSelectedX; i++) {
+			//		// don't include note tails in note count
+			//		if (rowSquareInfo[i].numNotes != 0 && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
+			//			numSquares++;
+			//		}
+			//	}
+
+				DEF_STACK_STRING_BUF(numSquare, 50);
+				numSquare.append("Squares: ");
+				numSquare.appendInt(numSquaresSelected);
+				numSquare.append("\n");
+
+			//	int32_t leftPadSelectedVelocity = rowSquareInfo[leftPadSelectedX].averageVelocity;
+			//	int32_t rightPadSelectedVelocity = rowSquareInfo[rightPadSelectedX].averageVelocity;
+
+				// calculate start and end velocity for long press
+				if (whichModEncoder == 0) { // adjust left side of ramp
+					leftPadSelectedVelocity = std::clamp<int32_t>(leftPadSelectedVelocity + offset, 1, 127);
+					leftPadSelectedY = getYFromVelocity(leftPadSelectedVelocity);
+				}
+				else { // adjust right side of ramp
+					rightPadSelectedVelocity = std::clamp<int32_t>(rightPadSelectedVelocity + offset, 1, 127);
+					rightPadSelectedY = getYFromVelocity(rightPadSelectedVelocity);
+				}
+
+				numSquare.append("L: ");
+				numSquare.appendInt(leftPadSelectedX);
+				numSquare.append(" R: ");
+				numSquare.appendInt(rightPadSelectedX);
+				numSquare.append("\n");
+
+				// calculate increment from first pad to last pad
+				float multiPadPressVelocityIncrementFloat =
+				    static_cast<float>((rightPadSelectedVelocity - leftPadSelectedVelocity)) / (numSquaresSelected - 1);
+				int32_t multiPadPressVelocityIncrement = static_cast<int32_t>(std::round(multiPadPressVelocityIncrementFloat));
+				// if ramp is upwards, make increment positive
+				if (leftPadSelectedVelocity < rightPadSelectedVelocity) {
+					multiPadPressVelocityIncrement = std::abs(multiPadPressVelocityIncrement);
+				}
+
+				numSquare.append("Inc: ");
+				numSquare.appendInt(multiPadPressVelocityIncrement);
+				display->displayPopup(numSquare.c_str());
+
+				setVelocityRamp(modelStackWithNoteRow, noteRow, rowSquareInfo, multiPadPressVelocityIncrement);
 			}
 		}
 		else {
@@ -4833,6 +4903,7 @@ void AutomationView::initPadSelection() {
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	numNotesSelected = 0;
+	numSquaresSelected = 0;
 	selectedPadPressed = 0;
 
 	// make sure no active presses remain when exiting pad selection mode
