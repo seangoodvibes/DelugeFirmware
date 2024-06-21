@@ -68,6 +68,7 @@ class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
 public:
 	InstrumentClipView();
 	bool opened() override;
+	void initializePadPresses();
 	void focusRegained() override;
 	void displayOrLanguageChanged() final;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;

@@ -106,7 +106,12 @@ constexpr uint8_t kVelocityShortcutY = 1;
 InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() {
+	initializePadPresses();
+	// newDrumOptionSelected = false;
+	firstCopiedNoteRow = NULL;
+}
 
+void InstrumentClipView::initializePadPresses() {
 	numEditPadPresses = 0;
 
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -121,8 +126,6 @@ InstrumentClipView::InstrumentClipView() {
 
 	auditioningSilently = false;
 	timeLastEditPadPress = 0;
-	// newDrumOptionSelected = false;
-	firstCopiedNoteRow = NULL;
 }
 
 bool InstrumentClipView::opened() {
