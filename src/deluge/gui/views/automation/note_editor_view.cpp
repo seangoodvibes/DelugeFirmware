@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/automation/velocity_view.h"
+#include "gui/views/automation/note_editor_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
@@ -116,65 +116,15 @@ const RGB velocityRowTailColour[kDisplayHeight] = {{2, 2, 53},  {9, 2, 46},  {17
 const RGB velocityRowBlurColour[kDisplayHeight] = {{71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80},
                                                    {76, 53, 70},  {77, 48, 60},  {78, 44, 49}, {79, 39, 39}};
 
-AutomationVelocityView automationVelocityView{};
+AutomationNoteEditorView automationNoteEditorView{};
 
-AutomationVelocityView::AutomationVelocityView() {
+AutomationNoteEditorView::AutomationNoteEditorView() {
 
-	instrumentClipView.numEditPadPresses = 0;
-
-	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-		instrumentClipView.editPadPresses[i].isActive = false;
-	}
-
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay] = 0;
-		instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = 255;
-		instrumentClipView.auditionPadIsPressed[yDisplay] = 0;
-	}
-
-	instrumentClipView.auditioningSilently = false;
-	instrumentClipView.timeLastEditPadPress = 0;
-
-	// initialize automation view specific variables
-	interpolation = true;
-	interpolationBefore = false;
-	interpolationAfter = false;
-	// used to set parameter shortcut blinking
-	parameterShortcutBlinking = false;
-	// used to set interpolation shortcut blinking
-	interpolationShortcutBlinking = false;
-	// used to set pad selection shortcut blinking
-	padSelectionShortcutBlinking = false;
-	// used to enter pad selection mode
-	padSelectionOn = false;
-	multiPadPressSelected = false;
-	multiPadPressActive = false;
-	leftPadSelectedX = kNoSelection;
-	leftPadSelectedY = kNoSelection;
-	rightPadSelectedX = kNoSelection;
-	rightPadSelectedY = kNoSelection;
-	lastPadSelectedKnobPos = kNoSelection;
-	numNotesSelected = 0;
-	selectedPadPressed = 0;
-	playbackStopped = false;
-	onArrangerView = false;
-	onMenuView = false;
-	navSysId = NAVIGATION_CLIP;
-
-	initMIDICCShortcutsForAutomation();
-	midiCCShortcutsLoaded = false;
-
-	automationParamType = AutomationParamType::PER_SOUND;
-	noteRowBlinking = false;
-	noteRowFlashOn = false;
-
-	probabilityChanged = false;
-	timeSelectKnobLastReleased = 0;
 }
 
 // gets the length of the note row, renders the pads corresponding to current note parameter values set up to the
 // note row length renders the undefined area of the note row that the user can't interact with
-void AutomationVelocityView::renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
+void AutomationNoteEditorView::renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
                                               RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                               int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
@@ -184,13 +134,13 @@ void AutomationVelocityView::renderNoteEditor(ModelStackWithNoteRow* modelStackW
 		renderNoteColumn(modelStackWithNoteRow, clip, image, occupancyMask, xDisplay, xScroll, xZoom, squareInfo);
 	}
 	if (drawUndefinedArea) {
-		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
+		AutomationView::renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
 		                    currentSong->tripletsOn, xDisplay);
 	}
 }
 
 /// render each square in each column of the note editor grid
-void AutomationVelocityView::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
+void AutomationNoteEditorView::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
                                               RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
                                               int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo) {
@@ -207,7 +157,7 @@ void AutomationVelocityView::renderNoteColumn(ModelStackWithNoteRow* modelStackW
 }
 
 /// render column for note parameter
-void AutomationVelocityView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+void AutomationNoteEditorView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
                                               int32_t yDisplay, uint8_t squareType, int32_t value) {
 	RGB& pixel = image[yDisplay][xDisplay];
@@ -248,7 +198,7 @@ void AutomationVelocityView::renderNoteSquare(RGB image[][kDisplayWidth + kSideB
 }
 
 /// toggle velocity pad selection mode on / off
-bool AutomationVelocityView::toggleVelocityPadSelectionMode(SquareInfo& squareInfo) {
+bool AutomationNoteEditorView::toggleVelocityPadSelectionMode(SquareInfo& squareInfo) {
 	// enter/exit pad selection mode
 	if (padSelectionOn) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
@@ -284,7 +234,7 @@ bool AutomationVelocityView::toggleVelocityPadSelectionMode(SquareInfo& squareIn
 // note edit pad action
 // handles single and multi pad presses for note parameter editing (e.g. velocity)
 // stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationVelocityView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+void AutomationNoteEditorView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                                InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
                                                int32_t effectiveLength, SquareInfo& squareInfo) {
 	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
@@ -298,7 +248,7 @@ void AutomationVelocityView::noteEditPadAction(ModelStackWithNoteRow* modelStack
 }
 
 // handle's what happens when you select columns in velocity pad selection mode
-void AutomationVelocityView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStackWithNoteRow,
+void AutomationNoteEditorView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStackWithNoteRow,
                                                         InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
                                                         SquareInfo& squareInfo) {
 
@@ -338,7 +288,7 @@ void AutomationVelocityView::velocityPadSelectionAction(ModelStackWithNoteRow* m
 }
 
 // velocity edit pad action
-void AutomationVelocityView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+void AutomationNoteEditorView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                                    InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
                                                    int32_t effectiveLength, SquareInfo& squareInfo) {
 	// save pad selected
@@ -511,13 +461,13 @@ void AutomationVelocityView::velocityEditPadAction(ModelStackWithNoteRow* modelS
 }
 
 // convert y of pad press into velocity value between 1 and 127
-int32_t AutomationVelocityView::getVelocityFromY(int32_t y) {
+int32_t AutomationNoteEditorView::getVelocityFromY(int32_t y) {
 	int32_t velocity = std::clamp<int32_t>(nonPatchCablePadPressValues[y], 1, 127);
 	return velocity;
 }
 
 // convert velocity of a square into y
-int32_t AutomationVelocityView::getYFromVelocity(int32_t velocity) {
+int32_t AutomationNoteEditorView::getYFromVelocity(int32_t velocity) {
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (nonPatchCableMinPadDisplayValues[i] <= velocity && velocity <= nonPatchCableMaxPadDisplayValues[i]) {
 			return i;
@@ -527,7 +477,7 @@ int32_t AutomationVelocityView::getYFromVelocity(int32_t velocity) {
 }
 
 // add note and set velocity
-void AutomationVelocityView::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity) {
+void AutomationNoteEditorView::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity) {
 	if (velocity) {
 		// we change the instrument default velocity because it is used for new notes
 		getCurrentInstrument()->defaultVelocity = newVelocity;
@@ -539,7 +489,7 @@ void AutomationVelocityView::addNoteWithNewVelocity(int32_t x, int32_t velocity,
 }
 
 // adjust velocity of existing notes
-void AutomationVelocityView::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+void AutomationNoteEditorView::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                                 int32_t x, int32_t velocity, int32_t newVelocity, uint8_t squareType) {
 	if (velocity) {
 		// record pad press
@@ -555,7 +505,7 @@ void AutomationVelocityView::adjustNoteVelocity(ModelStackWithNoteRow* modelStac
 }
 
 // set velocity of notes within pressed pad square
-void AutomationVelocityView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
+void AutomationNoteEditorView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
                                          int32_t newVelocity) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 	if (!action) {
@@ -631,7 +581,7 @@ void AutomationVelocityView::setVelocity(ModelStackWithNoteRow* modelStackWithNo
 }
 
 // set velocity of notes between pressed squares
-void AutomationVelocityView::setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+void AutomationNoteEditorView::setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                              SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 	if (!action) {
@@ -684,7 +634,7 @@ void AutomationVelocityView::setVelocityRamp(ModelStackWithNoteRow* modelStackWi
 }
 
 // call instrument clip view edit pad action function to process velocity pad press actions
-void AutomationVelocityView::recordNoteEditPadAction(int32_t x, int32_t velocity) {
+void AutomationNoteEditorView::recordNoteEditPadAction(int32_t x, int32_t velocity) {
 	instrumentClipView.editPadAction(velocity, instrumentClipView.lastAuditionedYDisplay, x,
 	                                 currentSong->xZoom[NAVIGATION_CLIP]);
 }

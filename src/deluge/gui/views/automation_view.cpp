@@ -252,23 +252,6 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_THRESHOLD},
 }};
 
-// VU meter style colours for the automation editor
-
-const RGB rowColour[kDisplayHeight] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
-                                       {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
-
-const RGB rowTailColour[kDisplayHeight] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
-                                           {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
-
-const RGB rowBlurColour[kDisplayHeight] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
-                                           {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
-
-const RGB rowBipolarDownColour[kDisplayHeight / 2] = {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
-
-const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
-
-const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
-
 // colours for the velocity editor
 
 const RGB velocityRowColour[kDisplayHeight] = {{0, 0, 255},   {36, 0, 219}, {73, 0, 182}, {109, 0, 146},
@@ -1130,7 +1113,7 @@ DisplayParameterName */
 void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	// don't refresh display if we're not current in the automation view UI
 	// (e.g. if you're editing automation while in the menu)
-	if (getCurrentUI() != this) {
+	if (getCurrentUI()->getUIType() != UIType::AUTOMATION_VIEW) {
 		return;
 	}
 
@@ -3683,9 +3666,21 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		else if (!currentUIMode && outputType != OutputType::KIT) {
 			actionLogger.deleteAllLogs();
 
-			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
-			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
+			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
 
+			// If shift button not pressed, transpose whole octave
+			if (!Buttons::isShiftButtonPressed()) {
+				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes
+				// 12 rows
+				clip->nudgeNotesVertically(offset * (clip->isScaleModeClip() ? modelStack->song->numModeNotes : 12),
+				                           modelStack);
+			}
+			// Otherwise, transpose single row position
+			else {
+				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if
+				// in scale mode, it's the next note in the scale)¬
+				clip->nudgeNotesVertically(offset, modelStack);
+			}
 			instrumentClipView.recalculateColours();
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 			if (inNoteEditor()) {
@@ -4751,7 +4746,8 @@ void AutomationView::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
 
 // called by melodic_instrument.cpp or kit.cpp
 void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
-	instrumentClipView.noteRowChanged(clip, noteRow);
+	return;
+	//instrumentClipView.noteRowChanged(clip, noteRow);
 }
 
 // called by playback_handler.cpp
@@ -4821,12 +4817,6 @@ void AutomationView::initPadSelection() {
 	}
 
 	resetPadSelectionShortcutBlinking();
-}
-
-void AutomationView::initInterpolation() {
-
-	automationView.interpolationBefore = false;
-	automationView.interpolationAfter = false;
 }
 
 // get's the modelstack for the parameters that are being edited

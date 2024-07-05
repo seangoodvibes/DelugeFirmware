@@ -151,6 +151,12 @@ public:
 	AutomationParamType automationParamType;
 	bool getAffectEntire();
 
+	// Automation View Render Functions
+	void renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
+	                         RGB image[][kDisplayWidth + kSideBarWidth],
+	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
+	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
+
 private:
 	// button action functions
 	bool handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on);
@@ -248,10 +254,6 @@ private:
 	void renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
 	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t yDisplay,
 	                      uint8_t squareType, int32_t value);
-	void renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
-	                         RGB image[][kDisplayWidth + kSideBarWidth],
-	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
-	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
 	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,

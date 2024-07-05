@@ -48,9 +48,9 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
-class AutomationVelocityView final : public AutomationView {
+class AutomationSoundEditorView final : public AutomationView {
 public:
-	AutomationVelocityView();
+	AutomationSoundEdtorView();
 	bool opened();
 	void initializeView();
 	void openedInBackground();
@@ -114,112 +114,17 @@ public:
 	// used to identify the UI as a clip UI or not.
 	ClipMinder* toClipMinder() { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
 
-	void setAutomationParamType();
-
-	bool onAutomationOverview();
-	bool inAutomationEditor();
-	bool inNoteEditor();
-
-	bool interpolation;
-	bool interpolationBefore;
-	bool interpolationAfter;
-
-	// public to midi follow can access it
-	ModelStackWithAutoParam*
-	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                              int32_t paramID = deluge::modulation::params::kNoParamID,
-	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
-
-	// public so instrument clip view can access it
-	void initParameterSelection(bool updateDisplay = true);
-	bool onArrangerView;
-	bool noteRowFlashOn;
-
-	// public so uiTimerManager can access it
-	void blinkInterpolationShortcut();
-	void blinkPadSelectionShortcut();
-	void blinkSelectedNoteRow(int32_t whichMainRows = 0);
-
-	// public so menu can access it
-	bool onMenuView;
-	UI* previousUI; // previous UI so you can swap back UI after exiting menu
-	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
-	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
-	                                      int32_t knobPosRight);
-	void resetInterpolationShortcutBlinking();
-	void resetPadSelectionShortcutBlinking();
-	void resetSelectedNoteRowBlinking();
-	AutomationParamType automationParamType;
-	bool getAffectEntire();
-
 private:
-	// button action functions
-	bool handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on);
-	void handleSessionButtonAction(Clip* clip, bool on);
-	void handleKeyboardButtonAction(bool on);
-	void handleClipButtonAction(bool on, bool isAudioClip);
-	void handleCrossScreenButtonAction(bool on);
-	void handleKitButtonAction(OutputType outputType, bool on);
-	void handleSynthButtonAction(OutputType outputType, bool on);
-	void handleMidiButtonAction(OutputType outputType, bool on);
-	void handleCVButtonAction(OutputType outputType, bool on);
-	bool handleHorizontalEncoderButtonAction(bool on, bool isAudioClip);
-	bool handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on);
-	void handleVerticalEncoderButtonAction(bool on);
-	void handleSelectEncoderButtonAction(bool on);
-	void handleAffectEntireButtonAction(bool on);
-
 	// edit pad action
-	ActionResult handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam,
-	                                 ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, Clip* clip,
-	                                 Output* output, OutputType outputType, int32_t effectiveLength, int32_t x,
-	                                 int32_t y, int32_t velocity, SquareInfo& squareInfo);
-	bool shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
-	                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
-	                       int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo);
 	bool toggleAutomationInterpolation();
-	bool toggleVelocityPadSelectionMode(SquareInfo& squareInfo);
 	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
 	                                      int32_t xScroll, int32_t xZoom);
-	void handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
-	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
-	                       int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
-	void velocityPadSelectionAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t x,
-	                                int32_t y, int32_t velocity, SquareInfo& squareInfo);
-	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
-	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
-	int32_t getVelocityFromY(int32_t y);
-	int32_t getYFromVelocity(int32_t velocity);
-	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
-	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
-	                        int32_t newVelocity, uint8_t squareType);
-	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
-	void setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
-	                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement);
-	void recordNoteEditPadAction(int32_t x, int32_t velocity);
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
 	                             int32_t xZoom);
 	bool recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 
-	// mute pad action
-	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,
-	                                 int32_t velocity);
-
-	// audition pad action
-	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
-	                                     int32_t y, int32_t velocity);
-	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
-
 	// Automation View Render Functions
-	void performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],
-	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll, uint32_t xZoom,
-	                         int32_t renderWidth, int32_t imageWidth, bool drawUndefinedArea = true);
-	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                              ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
-	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
-	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay);
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                            RGB image[][kDisplayWidth + kSideBarWidth],
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
@@ -237,30 +142,6 @@ private:
 	void renderAutomationUnipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
 	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
 	                                    int32_t yDisplay, bool isAutomated, int32_t knobPos);
-	void renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
-	                      RGB image[][kDisplayWidth + kSideBarWidth],
-	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll,
-	                      uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea,
-	                      SquareInfo& squareInfo);
-	void renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
-	                      RGB image[][kDisplayWidth + kSideBarWidth],
-	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t xScroll,
-	                      int32_t xZoom, SquareInfo& squareInfo);
-	void renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
-	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t yDisplay,
-	                      uint8_t squareType, int32_t value);
-	void renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
-	                         RGB image[][kDisplayWidth + kSideBarWidth],
-	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
-	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
-	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
-	                       int32_t knobPosRight = kNoSelection);
-	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
-	                       bool modEncoderAction = false);
-
-	// Enter/Exit Scale Mode
-	void enterScaleMode(uint8_t yDisplay = 255);
-	void exitScaleMode();
 
 	// Horizontal Encoder Action
 	void shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
@@ -289,7 +170,6 @@ private:
 	void getLastSelectedGlobalParamArrayPosition(Clip* clip);
 
 	// Automation Lanes Functions
-	void initPadSelection();
 	void initInterpolation();
 	ParamManagerForTimeline* getParamManagerForClip(Clip* clip);
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
@@ -359,4 +239,4 @@ private:
 	uint32_t timeSelectKnobLastReleased;
 };
 
-extern AutomationVelocityView automationVelocityView;
+extern AutomationSoundEditorView automationSoundEditorView;
