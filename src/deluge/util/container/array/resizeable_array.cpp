@@ -135,6 +135,14 @@ bool ResizeableArray::cloneFrom(ResizeableArray const* other) {
 	return error == Error::NONE;
 }
 
+void ResizeableArray::copyBetweenElements(int32_t iFrom, int32_t iTo) {
+	LOCK_ENTRY
+
+	memcpy(getElementAddress(iTo), getElementAddress(iFrom), elementSize);
+
+	LOCK_EXIT
+}
+
 // Returns error
 Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int32_t otherMemorySize,
                                                  int32_t otherMemoryStart) {

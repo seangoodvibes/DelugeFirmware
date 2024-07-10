@@ -42,6 +42,7 @@ public:
 	Error beenCloned();
 	void setMemory(void* newMemory, int32_t newMemorySize);
 	void setStaticMemory(void* newMemory, int32_t newMemorySize);
+	void copyBetweenElements(int32_t iFrom, int32_t iTo);
 
 	void moveElementsLeft(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 	void moveElementsRight(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
