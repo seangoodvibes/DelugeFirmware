@@ -123,6 +123,10 @@ InstrumentClipView::InstrumentClipView() {
 	timeLastEditPadPress = 0;
 	// newDrumOptionSelected = false;
 	firstCopiedNoteRow = NULL;
+
+	lastSelectedNoteRow = nullptr;
+	lastSelectedModelStackWithNoteRow = nullptr;
+	lastSelectedYDisplay = 255;
 }
 
 bool InstrumentClipView::opened() {
@@ -1509,6 +1513,39 @@ doRegularEditPadActionProbably:
 
 	// If mute pad action
 	else if (x == kDisplayWidth) {
+		if (Buttons::isShiftButtonPressed()) {
+			if (velocity) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+				InstrumentClip* clip = getCurrentInstrumentClip();
+				if (lastSelectedNoteRow == nullptr || lastSelectedModelStackWithNoteRow == nullptr) {
+					lastSelectedModelStackWithNoteRow = clip->getNoteRowOnScreen(y,
+					                                                             modelStack); // don't create
+					if (lastSelectedModelStackWithNoteRow->getNoteRowAllowNull()) {
+						lastSelectedNoteRow = lastSelectedModelStackWithNoteRow->getNoteRow();
+					}
+				}
+				else {
+					ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(y,
+					                                                                        modelStack); // don't create
+					if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+						modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, y);
+					}
+					NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+					if (lastSelectedNoteRow != noteRow) {
+						lastSelectedNoteRow->clone(clip, noteRow, modelStackWithNoteRow, false);
+						uiNeedsRendering(this);
+
+						lastSelectedNoteRow = nullptr;
+						lastSelectedModelStackWithNoteRow = nullptr;
+					}
+				}
+			}
+			return ActionResult::DEALT_WITH;
+		}
+
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;

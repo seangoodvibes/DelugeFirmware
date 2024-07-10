@@ -82,6 +82,43 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 	}
 }
 
+Error NoteRow::clone(InstrumentClip* clip, NoteRow* newNoteRow, ModelStackWithNoteRow* newModelStack,
+                     bool shouldFlattenReversing) {
+	int32_t reverseWithLength = 0;
+	if (shouldFlattenReversing && sequenceDirectionMode == SequenceDirection::REVERSE) {
+		reverseWithLength = clip->loopLength;
+	}
+
+	Error error = newNoteRow->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	int32_t iFrom = this->getElementIndex(clip);
+	int32_t iTo = newNoteRow->getElementIndex(clip);
+
+	if (iFrom == -1 || iTo == -1) {
+		return Error::BUG;
+	}
+
+	clip->noteRows.copyBetweenElements(iFrom, iTo);
+	error = newNoteRow->beenCloned(newModelStack, shouldFlattenReversing);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	return Error::NONE;
+}
+
+int32_t NoteRow::getElementIndex(InstrumentClip* clip) {
+	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
+		if (clip->noteRows.getElement(i) == this) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
 	// No need to clone much stuff - it's been automatically copied already as a block of memory.
 

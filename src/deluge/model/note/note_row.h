@@ -192,6 +192,8 @@ public:
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
+	Error clone(InstrumentClip* clip, NoteRow* newNoteRow, ModelStackWithNoteRow* newModelStack,
+	            bool shouldFlattenReversing);
 	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
@@ -238,4 +240,5 @@ private:
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);
+	int32_t getElementIndex(InstrumentClip* clip);
 };

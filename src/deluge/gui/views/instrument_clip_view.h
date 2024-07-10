@@ -212,6 +212,10 @@ public:
 	void setRowProbability(int32_t offset);
 	void editNoteRepeat(int32_t offset);
 
+	int32_t lastSelectedYDisplay;
+	NoteRow* lastSelectedNoteRow;
+	ModelStackWithNoteRow* lastSelectedModelStackWithNoteRow;
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
