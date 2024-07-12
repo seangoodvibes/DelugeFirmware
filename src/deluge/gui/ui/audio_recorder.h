@@ -53,7 +53,8 @@ public:
 
 private:
 	void finishRecording();
-	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID);
+	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
+	                          bool writeLoopPoints);
 };
 
 extern AudioRecorder audioRecorder;

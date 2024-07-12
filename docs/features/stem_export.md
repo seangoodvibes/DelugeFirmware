@@ -33,8 +33,21 @@ Stem's are given a meaningful name in the following format:
 
 - Hold `SAVE` + Press `RECORD` while Playback and Record are disabled to launch Stem Export process
 - When the stem export is finished, a dialog will appear on the display that tells you that the stem export process has finished. Press `SELECT`, `BACK` or any `PAD` on the grid to exit the dialog.
-- Note 1: In Arranger View, any Instruments that are `MUTED` will be excluded from the stem export.
-- Note 2: Stems are exported without Master (Song) FX applied
+- Note 1: Stems are exported without Master (Song) FX applied
+- Note 2: MIDI and CV Instruments and Clips are excluded from the stem export
+- Note 3: Instruments and Clips that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the stem export
+- Note 4: In Arranger View, any Instruments that are `MUTED` are excluded from the stem export
+
+## Recording Length and Silence
+
+- Stems are recorded until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured
+- In terms of the length of each stem recording:
+  - In Arranger, a track is played until the end of the arrangement's length is reached, at which point tails will be allowed to ring out and recording will continue until silence
+  - In Song, a clip is played until the end of the longest note row with notes in it is reached, at which point tails will be allowed to ring out and recording will continue until silence
+
+## Clip Stem Loop Points
+
+- For clip stems, a loop point marker is saved with the stem file to mark the clip's loop length. This makes it easy to reload your stems and they will play back and loop as if you were playing those clip's on the deluge.
 
 ### Cancelling Stem Export
 
