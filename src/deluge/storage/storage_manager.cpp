@@ -548,16 +548,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, i
 }
 
 Drum* StorageManager::createNewDrum(DrumType drumType) {
-	int32_t memorySize;
-	if (drumType == DrumType::SOUND) {
-		memorySize = sizeof(SoundDrum);
-	}
-	else if (drumType == DrumType::MIDI) {
-		memorySize = sizeof(MIDIDrum);
-	}
-	else if (drumType == DrumType::GATE) {
-		memorySize = sizeof(GateDrum);
-	}
+	int32_t memorySize = getDrumMemorySize(drumType);
 
 	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
 	if (!drumMemory) {
@@ -573,6 +564,26 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		newDrum = new (drumMemory) GateDrum();
 
 	return newDrum;
+}
+
+int32_t StorageManager::getDrumMemorySize(DrumType drumType) {
+	int32_t memorySize = 0;
+
+	if (drumType == DrumType::SOUND) {
+		memorySize = sizeof(SoundDrum);
+	}
+	else if (drumType == DrumType::MIDI) {
+		memorySize = sizeof(MIDIDrum);
+	}
+	else if (drumType == DrumType::GATE) {
+		memorySize = sizeof(GateDrum);
+	}
+
+	return memorySize;
+}
+
+void StorageManager::copyBetweenDrums(Drum* fromDrum, Drum* toDrum, DrumType drumType) {
+	memcpy((char* __restrict__)toDrum, (char* __restrict__)fromDrum, getDrumMemorySize(drumType));
 }
 
 /*******************************************************************************

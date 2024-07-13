@@ -124,8 +124,6 @@ InstrumentClipView::InstrumentClipView() {
 	// newDrumOptionSelected = false;
 	firstCopiedNoteRow = NULL;
 
-	lastSelectedNoteRow = nullptr;
-	lastSelectedModelStackWithNoteRow = nullptr;
 	lastSelectedYDisplay = 255;
 }
 
@@ -1513,34 +1511,20 @@ doRegularEditPadActionProbably:
 
 	// If mute pad action
 	else if (x == kDisplayWidth) {
-		if (Buttons::isShiftButtonPressed()) {
+		if (getCurrentKit()) {
 			if (velocity) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack =
-				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-				InstrumentClip* clip = getCurrentInstrumentClip();
-				if (lastSelectedNoteRow == nullptr || lastSelectedModelStackWithNoteRow == nullptr) {
-					lastSelectedModelStackWithNoteRow = clip->getNoteRowOnScreen(y,
-					                                                             modelStack); // don't create
-					if (lastSelectedModelStackWithNoteRow->getNoteRowAllowNull()) {
-						lastSelectedNoteRow = lastSelectedModelStackWithNoteRow->getNoteRow();
-					}
+				if (lastSelectedYDisplay == 255) {
+					lastSelectedYDisplay = y;
 				}
-				else {
-					ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(y,
-					                                                                        modelStack); // don't create
-					if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-						modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, y);
-					}
-					NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-					if (lastSelectedNoteRow != noteRow) {
-						lastSelectedNoteRow->clone(clip, noteRow, modelStackWithNoteRow, false);
-						uiNeedsRendering(this);
-
-						lastSelectedNoteRow = nullptr;
-						lastSelectedModelStackWithNoteRow = nullptr;
-					}
+				if (lastSelectedYDisplay != 255 && y != lastSelectedYDisplay) {
+					actionLogger.deleteAllLogs();
+					cloneKitRow(lastSelectedYDisplay, y);
+					lastSelectedYDisplay = 255;
+				}
+			}
+			else {
+				if (y == lastSelectedYDisplay) {
+					lastSelectedYDisplay = 255;
 				}
 			}
 			return ActionResult::DEALT_WITH;
@@ -2135,7 +2119,7 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 
 void InstrumentClipView::cloneKitRow(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
-	
+
 	// Just don't allow cloning if clip is linearly recording
 	if (clip->getCurrentlyRecordingLinearly()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_IN_PROGRESS));
@@ -2143,49 +2127,51 @@ void InstrumentClipView::cloneKitRow(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 	}
 
 	int32_t noteRowIndex;
-			NoteRow* noteRowToClone =
-			    clip->getNoteRowOnScreen(yDisplayFrom, currentSong, &noteRowIndex);
+	NoteRow* noteRowToClone = clip->getNoteRowOnScreen(yDisplayFrom, currentSong, &noteRowIndex);
 	if (!noteRowToClone) {
 		return;
 	}
 
 	bool enoughSpace = clip->noteRows.ensureEnoughSpaceAllocated(1);
 	if (!enoughSpace) {
+		//	display->displayPopup("AAAA");
 ramError:
-		display->displayError(Error::INSUFFICIENT_RAM);
+		//	display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack =
-	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	Error error = clipToClone->clone(modelStack);
-	if (error != Error::NONE) {
-		goto ramError;
-	}
-
-	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
-
-	newClip->section = (uint8_t)(newClip->section + 1) % kMaxNumSections;
-
-	int32_t newIndex = yDisplayTo + currentSong->songViewYScroll;
+	int32_t newIndex = yDisplayTo + clip->yScroll;
 
 	if (yDisplayTo < yDisplayFrom) {
-		currentSong->songViewYScroll++;
+		clip->yScroll++;
 		newIndex++;
 	}
 
 	if (newIndex < 0) {
 		newIndex = 0;
 	}
-	else if (newIndex > currentSong->sessionClips.getNumElements()) {
-		newIndex = currentSong->sessionClips.getNumElements();
+	else if (newIndex > clip->noteRows.getNumElements()) {
+		newIndex = clip->noteRows.getNumElements();
 	}
 
-	currentSong->sessionClips.insertClipAtIndex(newClip, newIndex); // Can't fail - we ensured enough space in advance
+	NoteRow* newNoteRow;
 
-	redrawClipsOnScreen();
+	Error error = noteRowToClone->clone(clip, modelStack, &newNoteRow, newIndex);
+	if (error != Error::NONE) {
+		//	display->displayPopup("BBBB");
+		goto ramError;
+	}
+
+	// Adjust colour offset, because colour offset is relative to the lowest NoteRow, and we just made a new lowest
+	// one
+//	clip->colourOffset--;
+//	setSelectedDrum(newNoteRow->drum, false);
+//	((Kit*)clip->output)->beenEdited();
+
+//	uiNeedsRendering(this);
 }
 
 // adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>

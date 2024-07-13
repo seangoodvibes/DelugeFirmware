@@ -41,6 +41,15 @@ NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
 	return new (memory) NoteRow();
 }
 
+Error NoteRowVector::insertNoteRowAtIndex(NoteRow* noteRow, int32_t index) {
+	Error error = insertAtIndex(index);
+	if (error != Error::NONE) {
+		return error;
+	}
+	*(void**)getElementAddress(index) = noteRow;
+	return Error::NONE;
+}
+
 void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
 	for (int32_t i = startIndex; i < startIndex + numToDelete; i++) {
 		getElement(i)->~NoteRow();

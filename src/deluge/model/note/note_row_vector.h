@@ -28,6 +28,7 @@ public:
 
 	NoteRow* getElement(int32_t index);
 	NoteRow* insertNoteRowAtIndex(int32_t index);
+	Error insertNoteRowAtIndex(NoteRow* noteRow, int32_t index);
 	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = NULL);
 	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
 };

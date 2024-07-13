@@ -213,8 +213,7 @@ public:
 	void editNoteRepeat(int32_t offset);
 
 	int32_t lastSelectedYDisplay;
-	NoteRow* lastSelectedNoteRow;
-	ModelStackWithNoteRow* lastSelectedModelStackWithNoteRow;
+	void cloneKitRow(uint8_t yDisplayFrom, uint8_t yDisplayTo);
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;

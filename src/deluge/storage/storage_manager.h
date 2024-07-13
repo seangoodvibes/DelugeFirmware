@@ -227,6 +227,8 @@ public:
 	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
 	Drum* createNewDrum(DrumType drumType);
+	int32_t getDrumMemorySize(DrumType drumType);
+	void copyBetweenDrums(Drum* fromDrum, Drum* toDrum, DrumType drumType);
 	Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
 	                      FilePointer* filePointer, String* name, String* dirPath);
 	void openFilePointer(FilePointer* fp);
