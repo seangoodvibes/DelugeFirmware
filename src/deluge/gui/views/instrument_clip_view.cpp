@@ -2133,6 +2133,61 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 	}
 }
 
+void InstrumentClipView::cloneKitRow(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	
+	// Just don't allow cloning if clip is linearly recording
+	if (clip->getCurrentlyRecordingLinearly()) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_IN_PROGRESS));
+		return;
+	}
+
+	int32_t noteRowIndex;
+			NoteRow* noteRowToClone =
+			    clip->getNoteRowOnScreen(yDisplayFrom, currentSong, &noteRowIndex);
+	if (!noteRowToClone) {
+		return;
+	}
+
+	bool enoughSpace = clip->noteRows.ensureEnoughSpaceAllocated(1);
+	if (!enoughSpace) {
+ramError:
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
+
+	Error error = clipToClone->clone(modelStack);
+	if (error != Error::NONE) {
+		goto ramError;
+	}
+
+	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
+
+	newClip->section = (uint8_t)(newClip->section + 1) % kMaxNumSections;
+
+	int32_t newIndex = yDisplayTo + currentSong->songViewYScroll;
+
+	if (yDisplayTo < yDisplayFrom) {
+		currentSong->songViewYScroll++;
+		newIndex++;
+	}
+
+	if (newIndex < 0) {
+		newIndex = 0;
+	}
+	else if (newIndex > currentSong->sessionClips.getNumElements()) {
+		newIndex = currentSong->sessionClips.getNumElements();
+	}
+
+	currentSong->sessionClips.insertClipAtIndex(newClip, newIndex); // Can't fail - we ensured enough space in advance
+
+	redrawClipsOnScreen();
+}
+
 // adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>
 // this function is also called from the automation velocity editing view
 void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
