@@ -110,56 +110,20 @@ deleteNoteRowAndGetOut:
 		return error;
 	}
 
-	int32_t clonedNoteRowIndex = getElementIndex(clip);
+	int32_t clonedNoteRowIndex = this->getElementIndex(clip);
 	if (clonedNoteRowIndex == -1) {
-		display->displayPopup("GGGG");
+		display->displayPopup("CANT FIND");
 		// clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
 		error = Error::INSUFFICIENT_RAM;
 		goto deleteNoteRowAndGetOut;
 	}
-
-	return Error::NONE;
-
-
-	// clip->noteRows.copyBetweenElements(clonedNoteRowIndex, newNoteRowIndex);
-
-	memcpy(*newNoteRow, this, sizeof(NoteRow));
-
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(newNoteRowIndex, *newNoteRow);
-	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		display->displayPopup("HHHH");
+	else {
+		char buffer[12];
+		intToString(clonedNoteRowIndex, buffer, 1);
+		display->displayPopup(buffer);
 		// clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
-		error = Error::INSUFFICIENT_RAM;
-		goto deleteNoteRowAndGetOut;
-	}
-
-	error = (*newNoteRow)->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
-	if (error != Error::NONE) {
-		display->displayPopup("IIII");
-		// clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
-		goto deleteNoteRowAndGetOut;
-	}
-
-	if (clip->output->type == OutputType::KIT && drum) {
-		// create a new drum of the same type as the drum we're cloning
-		Drum* newDrum = storageManager.createNewDrum(drum->type);
-		if (newDrum) {
-			storageManager.copyBetweenDrums(drum, newDrum, drum->type);
-
-			Kit* kit = (Kit*)clip->output;
-
-			kit->addDrum(newDrum);
-
-			//(*newNoteRow)->drum = newDrum;
-
-			(*newNoteRow)->setDrum(newDrum, kit, modelStackWithNoteRow);
-		}
-		else {
-			display->displayPopup("JJJJ");
-			// clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
-			error = Error::INSUFFICIENT_RAM;
-			goto deleteNoteRowAndGetOut;
-		}
+		// error = Error::INSUFFICIENT_RAM;
+		// goto deleteNoteRowAndGetOut;
 	}
 
 	error = clip->noteRows.insertNoteRowAtIndex(*newNoteRow, newNoteRowIndex);
@@ -167,6 +131,55 @@ deleteNoteRowAndGetOut:
 		display->displayPopup("KKKK");
 		goto deleteNoteRowAndGetOut;
 	}
+
+	clip->noteRows.copyBetweenElements(clonedNoteRowIndex, newNoteRowIndex);
+
+	// memcpy(*newNoteRow, this, sizeof(NoteRow));
+
+	//	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(newNoteRowIndex, *newNoteRow);
+	//	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+	//		display->displayPopup("HHHH");
+	//		clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
+	//		delugeDealloc(noteRowMemory);
+	//		error = Error::INSUFFICIENT_RAM;
+	//		return error;
+	// goto deleteNoteRowAndGetOut;
+	//	}
+
+	//	error = (*newNoteRow)->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+	//	if (error != Error::NONE) {
+	//		display->displayPopup("IIII");
+	// clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
+	//		goto deleteNoteRowAndGetOut;
+	//	}
+
+	/*	if (clip->output->type == OutputType::KIT && drum) {
+	        // create a new drum of the same type as the drum we're cloning
+	        Drum* newDrum = storageManager.createNewDrum(drum->type);
+	        if (newDrum) {
+	            storageManager.copyBetweenDrums(drum, newDrum, drum->type);
+
+	            Kit* kit = (Kit*)clip->output;
+
+	            kit->addDrum(newDrum);
+
+	            //(*newNoteRow)->drum = newDrum;
+
+	            (*newNoteRow)->setDrum(newDrum, kit, modelStackWithNoteRow);
+	        }
+	        else {
+	            display->displayPopup("JJJJ");
+	            clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
+	            delugeDealloc(noteRowMemory);
+	            error = Error::INSUFFICIENT_RAM;
+	            return error;
+	        }
+	    }*/
+
+	//	clip->noteRows.deleteNoteRowAtIndex(newNoteRowIndex);
+	//	error = Error::INSUFFICIENT_RAM;
+	//	delugeDealloc(noteRowMemory);
+	//	return error;
 
 	return Error::NONE;
 }

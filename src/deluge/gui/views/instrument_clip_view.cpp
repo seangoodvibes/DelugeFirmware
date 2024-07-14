@@ -1516,10 +1516,9 @@ doRegularEditPadActionProbably:
 				if (lastSelectedYDisplay == 255) {
 					lastSelectedYDisplay = y;
 				}
-				if (lastSelectedYDisplay != 255 && y != lastSelectedYDisplay) {
+				else if (lastSelectedYDisplay != 255 && y != lastSelectedYDisplay) {
 					actionLogger.deleteAllLogs();
 					cloneKitRow(lastSelectedYDisplay, y);
-					lastSelectedYDisplay = 255;
 				}
 			}
 			else {
@@ -2126,12 +2125,6 @@ void InstrumentClipView::cloneKitRow(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 		return;
 	}
 
-	int32_t noteRowIndex;
-	NoteRow* noteRowToClone = clip->getNoteRowOnScreen(yDisplayFrom, currentSong, &noteRowIndex);
-	if (!noteRowToClone) {
-		return;
-	}
-
 	bool enoughSpace = clip->noteRows.ensureEnoughSpaceAllocated(1);
 	if (!enoughSpace) {
 		//	display->displayPopup("AAAA");
@@ -2142,6 +2135,21 @@ ramError:
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplayFrom, modelStack);
+	NoteRow* noteRowToClone = nullptr;
+	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+		noteRowToClone = modelStackWithNoteRow->getNoteRow();
+	}
+	else {
+		return;
+	}
+
+	//	int32_t noteRowIndex;
+	//	NoteRow* noteRowToClone = clip->getNoteRowOnScreen(yDisplayFrom, currentSong, &noteRowIndex);
+	//	if (!noteRowToClone) {
+	//		return;
+	//	}
 
 	int32_t newIndex = yDisplayTo + clip->yScroll;
 
@@ -2167,11 +2175,10 @@ ramError:
 
 	// Adjust colour offset, because colour offset is relative to the lowest NoteRow, and we just made a new lowest
 	// one
-//	clip->colourOffset--;
-//	setSelectedDrum(newNoteRow->drum, false);
-//	((Kit*)clip->output)->beenEdited();
-
-//	uiNeedsRendering(this);
+	//	clip->colourOffset--;
+	//	setSelectedDrum(newNoteRow->drum, false);
+	//	((Kit*)clip->output)->beenEdited();
+	uiNeedsRendering(this);
 }
 
 // adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>

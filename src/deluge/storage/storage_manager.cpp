@@ -583,7 +583,7 @@ int32_t StorageManager::getDrumMemorySize(DrumType drumType) {
 }
 
 void StorageManager::copyBetweenDrums(Drum* fromDrum, Drum* toDrum, DrumType drumType) {
-	memcpy((char* __restrict__)toDrum, (char* __restrict__)fromDrum, getDrumMemorySize(drumType));
+	memcpy(toDrum, fromDrum, getDrumMemorySize(drumType));
 }
 
 /*******************************************************************************

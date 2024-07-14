@@ -227,6 +227,7 @@ public:
 	                                     int32_t whichExpressionDimension, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
+	int32_t getElementIndex(InstrumentClip* clip);
 
 private:
 	void noteOn();
@@ -240,5 +241,4 @@ private:
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);
-	int32_t getElementIndex(InstrumentClip* clip);
 };
