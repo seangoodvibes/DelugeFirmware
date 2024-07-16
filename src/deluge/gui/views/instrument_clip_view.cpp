@@ -2147,6 +2147,10 @@ ramError:
 		return;
 	}
 
+	if (!noteRowToClone->drum) {
+		return;
+	}
+
 	int32_t newIndex = clip->noteRows.getIndexForNoteRow(noteRowToClone);
 
 	if (yDisplayTo < yDisplayFrom) {
@@ -2161,9 +2165,61 @@ ramError:
 	}
 
 	NoteRow* newNoteRow = clip->createNewNoteRowForKitAtIndex(modelStack, newIndex, &newIndex);
-	memcpy(newNoteRow, noteRowToClone, sizeof(NoteRow));
-	((Kit*)clip->output)->beenEdited();
-	uiNeedsRendering(this);
+	if (newNoteRow) {
+		memcpy(newNoteRow, noteRowToClone, sizeof(NoteRow));
+		
+		Error error = newNoteRow->paramManager.cloneParamCollectionsFrom(&noteRowToClone->paramManager, true, true, 0);
+		if (error != Error::NONE) {
+			clip->noteRows.deleteNoteRowAtIndex(newIndex);
+		}
+
+		int32_t noteRowId = clip->getNoteRowId(newNoteRow, newIndex);
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, newNoteRow);
+		error = newNoteRow->beenCloned(modelStackWithNoteRow, false);	
+		if (error != Error::NONE) {
+			clip->noteRows.deleteNoteRowAtIndex(newIndex);
+		}	
+
+		Drum* drumToClone = noteRowToClone->drum;
+		DrumType drumType = drumToClone->type;
+
+		Drum* newDrum = storageManager.createNewDrum(drumType);
+		if (!newDrum) {
+			clip->noteRows.deleteNoteRowAtIndex(newIndex);
+			return;
+		}
+
+		Kit* kit = ((Kit*)clip->output);
+
+		kit->addDrum(newDrum);
+		
+		memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));	
+		
+		if (drumType == DrumType::SOUND) {
+			ModControllable* modControllableToClone = drumToClone->toModControllable();
+			ModControllable* newModControllable = newDrum->toModControllable();
+			memcpy(newModControllable, modControllableToClone, sizeof(ModControllable));
+
+			Sound* soundToClone = (Sound*)(modControllableToClone);
+			Sound* newSound = (Sound*)(newModControllable);
+			memcpy(newSound, soundToClone, sizeof(Sound));
+
+		//	SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
+		//	SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
+		//	int32_t sizeOfSources = sizeof(Source) * kNumSources;
+		//	memcpy(newSoundDrum->sources, soundDrumToClone->sources, sizeOfSources);
+		}		
+
+	//	newNoteRow->
+
+	//	addNoteRow(0, NULL)->addModControllable(newModControllable);
+
+		newNoteRow->drum = newDrum;
+		
+		//memcpy(newNoteRow, noteRowToClone, sizeof(NoteRow));
+		kit->beenEdited();
+		uiNeedsRendering(this);
+	}
 	return;
 
 	int32_t yScrollBackup = clip->yScroll;
