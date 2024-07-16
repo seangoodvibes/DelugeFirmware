@@ -1213,18 +1213,23 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 
 	int32_t index = atStart ? 0 : noteRows.getNumElements();
 
+	return createNewNoteRowForKitAtIndex(modelStack, index, getIndex);
+}
+
+NoteRow* InstrumentClip::createNewNoteRowForKitAtIndex(ModelStackWithTimelineCounter* modelStack, int32_t newNoteRowIndex,
+                                                       int32_t* getIndex) {
 	Drum* newDrum = ((Kit*)output)->getFirstUnassignedDrum(this);
 
-	NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(index);
+	NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(newNoteRowIndex);
 	if (!newNoteRow) {
 		return NULL;
 	}
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(index, newNoteRow);
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(newNoteRowIndex, newNoteRow);
 
 	newNoteRow->setDrum(newDrum, (Kit*)output, modelStackWithNoteRow); // It might end up NULL. That's fine
 
-	if (atStart) {
+	if (newNoteRowIndex == 0) {
 		yScroll++;
 
 		// Adjust colour offset, because colour offset is relative to the lowest NoteRow, and we just made a new lowest
@@ -1233,7 +1238,7 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	}
 
 	if (getIndex) {
-		*getIndex = index;
+		*getIndex = newNoteRowIndex;
 	}
 	return newNoteRow;
 }

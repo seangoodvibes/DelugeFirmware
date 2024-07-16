@@ -227,7 +227,6 @@ public:
 	                                     int32_t whichExpressionDimension, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
-	int32_t getElementIndex(InstrumentClip* clip);
 
 private:
 	void noteOn();

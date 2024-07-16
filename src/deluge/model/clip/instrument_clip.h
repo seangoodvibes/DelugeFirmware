@@ -256,6 +256,9 @@ public:
 		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 	};
 
+	NoteRow* createNewNoteRowForKitAtIndex(ModelStackWithTimelineCounter* modelStack, int32_t newNoteRowIndex,
+	                                       int32_t* getIndex);
+
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack) override;
 	bool wantsToBeginLinearRecording(Song* song) override;

@@ -1519,15 +1519,17 @@ doRegularEditPadActionProbably:
 				else if (lastSelectedYDisplay != 255 && y != lastSelectedYDisplay) {
 					actionLogger.deleteAllLogs();
 					cloneKitRow(lastSelectedYDisplay, y);
-				}
-			}
-			else {
-				if (y == lastSelectedYDisplay) {
 					lastSelectedYDisplay = 255;
 				}
 			}
-			return ActionResult::DEALT_WITH;
+			else {
+				lastSelectedYDisplay = 255;
+			}
+			//	if (y == lastSelectedYDisplay) {
+			//		lastSelectedYDisplay = 255;
+			//	}
 		}
+		return ActionResult::DEALT_WITH;
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (sdRoutineLock) {
@@ -2145,18 +2147,53 @@ ramError:
 		return;
 	}
 
+	int32_t newIndex = clip->noteRows.getIndexForNoteRow(noteRowToClone);
+
+	if (yDisplayTo < yDisplayFrom) {
+		if (newIndex == 1) {
+			newIndex = 0;
+		}
+	}
+	else {
+		if (newIndex == (clip->noteRows.getNumElements() - 1)) {
+			newIndex = clip->noteRows.getNumElements();
+		}
+	}
+
+	NoteRow* newNoteRow = clip->createNewNoteRowForKitAtIndex(modelStack, newIndex, &newIndex);
+	memcpy(newNoteRow, noteRowToClone, sizeof(NoteRow));
+	((Kit*)clip->output)->beenEdited();
+	uiNeedsRendering(this);
+	return;
+
+	int32_t yScrollBackup = clip->yScroll;
+
+	if (yDisplayTo < yDisplayFrom) {
+		clip->yScroll++;
+		newIndex--;
+	}
+	//	else {
+	//		newIndex++;
+	//	}
+
 	//	int32_t noteRowIndex;
 	//	NoteRow* noteRowToClone = clip->getNoteRowOnScreen(yDisplayFrom, currentSong, &noteRowIndex);
 	//	if (!noteRowToClone) {
 	//		return;
 	//	}
 
-	int32_t newIndex = yDisplayTo + clip->yScroll;
+	//	int32_t newIndex = yDisplayTo + clip->yScroll;
 
-	if (yDisplayTo < yDisplayFrom) {
-		clip->yScroll++;
-		newIndex++;
-	}
+	//	int32_t yScrollBackup = clip->yScroll;
+
+	//	if (yDisplayTo < yDisplayFrom) {
+	//		clip->yScroll++;
+	//		newIndex++;
+	//	}
+	//	else {
+	//		clip->yScroll--;
+	//		newIndex--;
+	//	}
 
 	if (newIndex < 0) {
 		newIndex = 0;
@@ -2165,19 +2202,21 @@ ramError:
 		newIndex = clip->noteRows.getNumElements();
 	}
 
-	NoteRow* newNoteRow;
+	//NoteRow* newNoteRow;
 
 	Error error = noteRowToClone->clone(clip, modelStack, &newNoteRow, newIndex);
 	if (error != Error::NONE) {
-		//	display->displayPopup("BBBB");
+		display->displayPopup("BBBB");
+		clip->yScroll = yScrollBackup;
 		goto ramError;
 	}
 
 	// Adjust colour offset, because colour offset is relative to the lowest NoteRow, and we just made a new lowest
 	// one
-	//	clip->colourOffset--;
+	clip->colourOffset--;
+
 	//	setSelectedDrum(newNoteRow->drum, false);
-	//	((Kit*)clip->output)->beenEdited();
+	((Kit*)clip->output)->beenEdited();
 	uiNeedsRendering(this);
 }
 

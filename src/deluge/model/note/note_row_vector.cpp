@@ -41,13 +41,14 @@ NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
 	return new (memory) NoteRow();
 }
 
-Error NoteRowVector::insertNoteRowAtIndex(NoteRow* noteRow, int32_t index) {
-	Error error = insertAtIndex(index);
+NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index, NoteRow* noteRow) {
+	Error error = insertAtIndex(index, 1, static_cast<void*>(noteRow));
 	if (error != Error::NONE) {
-		return error;
+		return NULL;
 	}
-	*(void**)getElementAddress(index) = noteRow;
-	return Error::NONE;
+	void* memory = getElementAddress(index);
+
+	return new (memory) NoteRow();
 }
 
 void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
@@ -72,4 +73,16 @@ NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
 // Function could theoretically be gotten rid of
 NoteRow* NoteRowVector::getElement(int32_t index) {
 	return (NoteRow*)getElementAddress(index);
+}
+
+int32_t NoteRowVector::getIndexForNoteRow(NoteRow* noteRow) {
+	// For each NoteRow
+	for (int32_t n = 0; n < numElements; n++) {
+		NoteRow* thisNoteRow = getElement(n);
+		if (thisNoteRow == noteRow) {
+			return n;
+		}
+	}
+
+	return -1;
 }
