@@ -169,7 +169,7 @@ void Sound::cloneFrom(Sound* other) {
 
 	numVoicesAssigned = other->numVoicesAssigned;
 
-	sideChainSendLevel = other->numVoicesAssigned;
+	sideChainSendLevel = other->sideChainSendLevel;
 	polyphonic = other->polyphonic;
 	lastNoteCode = other->lastNoteCode;
 
@@ -239,6 +239,7 @@ void Sound::cloneFrom(Sound* other) {
 	calculateEffectiveVolume();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
+//		//memcpy(&sources[s], &other->sources[s], sizeof(Source));
 		sources[s].cloneFrom(&other->sources[s]);
 	}
 
@@ -1616,6 +1617,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
 	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648))))
 	    [[unlikely]] {
+
+		display->displayPopup("test 2");
+
 		return;
 	}
 
@@ -1632,6 +1636,8 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) [[likely]] {
+		display->displayPopup("test 3");
+
 		noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp, velocity,
 		                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate, fromMIDIChannel);
 	}
@@ -1684,6 +1690,8 @@ justUnassign:
 				else {
 					for (int32_t s = 0; s < kNumSources; s++) {
 						if (isSourceActiveCurrently(s, paramManager) && sources[s].oscType != OscType::SAMPLE) {
+							display->displayPopup("test 4");
+
 							goto justUnassign;
 						}
 					}
@@ -1743,6 +1751,8 @@ justUnassign:
 		}
 
 		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(newVoice);
+
+		display->displayPopup("test 10");
 
 		bool success =
 		    newVoice->noteOn(modelStackWithVoice, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,

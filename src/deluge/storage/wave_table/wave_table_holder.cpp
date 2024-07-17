@@ -20,3 +20,10 @@
 WaveTableHolder::WaveTableHolder() {
 	audioFileType = AudioFileType::WAVETABLE;
 }
+
+void WaveTableHolder::cloneFrom(WaveTableHolder* other, bool reversed) {
+	filePath.set(&other->filePath);
+	if (other->audioFile) {
+		setAudioFile(other->audioFile, reversed);
+	}
+}

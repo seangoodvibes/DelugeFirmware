@@ -66,18 +66,119 @@ void Source::cloneFrom(Source* other) {
 	repeatMode = other->repeatMode;
 
 	// Synth stuff
-	oscType = other->oscType;
+	setOscType(other->oscType);
 
 	timeStretchAmount = other->timeStretchAmount;
 
 	defaultRangeI = other->defaultRangeI;
 	dxPatch = other->dxPatch;
 
-	if (oscType == OscType::SAMPLE) {
-		ranges.cloneFrom(&other->ranges);
+	memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));
+
+	beenClonedFrom(other);
+
+/*	if (oscType == OscType::SAMPLE) {
+		int32_t multiRangeSize = sizeof(MultisampleRange);
+		possiblyDeleteMultiRanges(multiRangeSize);
+
+		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
+			MultiRange* range = (MultisampleRange*)ranges.getElement(e);
+			MultiRange* otherRange = (MultisampleRange*)other->ranges.getElement(e);
+			if (!range) {
+				range = ranges.insertMultiRange(e);
+				if (!range) {
+					break;
+				}
+			}
+
+			SampleHolderForVoice* holder = (SampleHolderForVoice*)range->getAudioFileHolder();
+			SampleHolderForVoice* otherHolder = (SampleHolderForVoice*)otherRange->getAudioFileHolder();
+
+			holder->cloneFrom(otherHolder, sampleControls.reversed);
+		}
 	}
+	else if (oscType == OscType::WAVETABLE) {
+		int32_t multiRangeSize = sizeof(MultiWaveTableRange);
+		possiblyDeleteMultiRanges(multiRangeSize);
+
+		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
+			MultiRange* range = (MultiWaveTableRange*)ranges.getElement(e);
+			MultiRange* otherRange = (MultiWaveTableRange*)other->ranges.getElement(e);
+			if (!range) {
+				range = ranges.insertMultiRange(e);
+				if (!range) {
+					break;
+				}
+			}
+
+			WaveTableHolder* holder = (WaveTableHolder*)range->getAudioFileHolder();
+			WaveTableHolder* otherHolder = (WaveTableHolder*)otherRange->getAudioFileHolder();
+
+			holder->cloneFrom(otherHolder, sampleControls.reversed);
+		}
+	}*/
 
 	recalculateFineTuner();
+}
+
+void Source::beenClonedFrom(Source* other) {
+	if (oscType == OscType::SAMPLE) {
+		destructAllMultiRanges();
+		ranges.empty();
+		getOrCreateFirstRange();
+
+		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
+			MultiRange* range = (MultisampleRange*)ranges.getElement(e);
+			MultiRange* otherRange = (MultisampleRange*)other->ranges.getElement(e);
+			if (!range) {
+				range = ranges.insertMultiRange(e);
+				if (!range) {
+					break;
+				}
+			}
+
+			SampleHolderForVoice* holder = (SampleHolderForVoice*)range->getAudioFileHolder();
+			SampleHolderForVoice* otherHolder = (SampleHolderForVoice*)otherRange->getAudioFileHolder();
+
+			holder->cloneFrom(otherHolder, sampleControls.reversed);
+		}
+	}
+	else if (oscType == OscType::WAVETABLE) {
+		destructAllMultiRanges();
+		ranges.empty();
+		getOrCreateFirstRange();
+
+		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
+			MultiRange* range = (MultiWaveTableRange*)ranges.getElement(e);
+			MultiRange* otherRange = (MultiWaveTableRange*)other->ranges.getElement(e);
+			if (!range) {
+				range = ranges.insertMultiRange(e);
+				if (!range) {
+					break;
+				}
+			}
+
+			WaveTableHolder* holder = (WaveTableHolder*)range->getAudioFileHolder();
+			WaveTableHolder* otherHolder = (WaveTableHolder*)otherRange->getAudioFileHolder();
+
+			holder->cloneFrom(otherHolder, sampleControls.reversed);
+		}
+	}
+}
+
+void Source::possiblyDeleteMultiRanges(int32_t multiRangeSize) {
+	if (ranges.elementSize != multiRangeSize) {
+doChangeType:
+		Error error = ranges.changeType(multiRangeSize);
+		if (error != Error::NONE) {
+			destructAllMultiRanges();
+			ranges.empty();
+			goto doChangeType; // Can't fail now it's empty.
+		}
+
+		getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
+		                         // something, we're screwed.
+	}
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
@@ -98,7 +199,8 @@ void Source::recalculateFineTuner() {
 	fineTuner.setup((int32_t)cents * 42949672);
 }
 
-// This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
+// This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for
+// optimization.
 bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) {
 		return false;
@@ -187,9 +289,10 @@ int32_t Source::getRangeIndex(int32_t note) {
 
 MultiRange* Source::getOrCreateFirstRange() {
 	if (!ranges.getNumElements()) {
-		MultiRange* newRange = ranges.insertMultiRange(
-		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
-		        // before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
+		MultiRange* newRange =
+		    ranges.insertMultiRange(0); // Default option - allowed e.g. for a new Sound where the current
+		                                // process is the Ranges get set up before oscType is switched over to
+		                                // SAMPLE - but this can't happen for WAVETABLE so that's ok
 		if (!newRange) {
 			return NULL;
 		}
@@ -259,8 +362,8 @@ bool Source::hasAnyLoopEndPoint() {
 	return false;
 }
 
-// If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get
-// emptied.
+// If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to
+// get emptied.
 void Source::setOscType(OscType newType) {
 
 	int32_t multiRangeSize;
@@ -288,8 +391,8 @@ doChangeType:
 
 			oscType = newType;
 
-			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
-			                         // something, we're screwed.
+			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the
+			                         // SoundEditor or something, we're screwed.
 
 			if (soundEditor.currentMultiRangeIndex >= 0
 			    && soundEditor.currentMultiRangeIndex < ranges.getNumElements()) {

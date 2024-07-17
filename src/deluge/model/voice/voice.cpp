@@ -218,6 +218,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	// Make all VoiceUnisonPartSources "active" by default
 	for (int32_t s = 0; s < kNumSources; s++) {
 
+		display->displayPopup("AAA");
+
 		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in
 		// other cases.
 		guides[s].audioFileHolder = NULL;
@@ -230,6 +232,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 			if (sound->getSynthMode() != SynthMode::FM
 			    && (sound->sources[s].oscType == OscType::SAMPLE || sound->sources[s].oscType == OscType::WAVETABLE)) {
 
+				display->displayPopup("BBB");
+
 				// Set up MultiRange
 				MultiRange* range = sound->sources[s].getRange(noteCodeAfterArpeggiation + sound->transpose);
 				if (!range) { // There could be no Range for a SAMPLE or WAVETABLE Source that just hasn't had a file
@@ -241,6 +245,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
 				// VoiceSource's range definitely has a sample
 				if (!holder->audioFile) {
+					display->displayPopup("CCC");
 					goto gotInactive;
 				}
 
@@ -256,6 +261,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 						                 // And yes, this is supposed to use lastSwungTickActioned, not
 						                 // getActualSwungTickCount(). ticksLate is relative to that.
 					}
+
+					display->displayPopup("DDD");
 				}
 			}
 		}
@@ -280,6 +287,7 @@ activenessDetermined:
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
 		if (!sourceEverActive) [[unlikely]] {
+			display->displayPopup("FFF");
 			continue;
 		}
 
@@ -308,10 +316,12 @@ activenessDetermined:
 			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
 			// the osc is set to SAMPLE, there actually is a sample loaded.
 			if (unisonParts[u].sources[s].active) {
+				display->displayPopup("LLL");
 				bool success =
 				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound->oscRetriggerPhase[s],
 				                                     resetEnvelopes, sound->synthMode, velocity);
 				if (!success) [[unlikely]] {
+					display->displayPopup("ZZZ");
 					return false; // This shouldn't really ever happen I don't think really...
 				}
 			}

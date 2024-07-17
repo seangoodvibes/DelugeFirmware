@@ -2195,9 +2195,9 @@ ramError:
 		if (drumType == DrumType::SOUND) {
 			SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
 			SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
-			newSoundDrum->name.set(soundDrumToClone->name.get());
+			newSoundDrum->cloneFrom(soundDrumToClone);
 
-			ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
+		/*	ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
 			ModControllableAudio* newModControllableAudio = (ModControllableAudio*)newDrum;
 			newModControllableAudio->cloneFrom(modControllableAudioToClone);
 
@@ -2207,8 +2207,15 @@ ramError:
 
 			Sound* soundToClone = (Sound*)(modControllableToClone);
 			Sound* newSound = (Sound*)(newModControllable);
-			newSound->cloneFrom(soundToClone);
-			// memcpy(newSound, soundToClone, sizeof(Sound));
+			newSound->cloneFrom(soundToClone);*/
+			// newSound->loadAllAudioFiles(true);
+		//	memcpy(newSound, soundToClone, sizeof(Sound));
+
+			//	newSound->sources[s].ranges()
+
+			//	for (int32_t s = 0; s < kNumSources; s++) {
+			//		newSound->sources[s].beenClonedFrom(&soundToClone->sources[s]);
+			//	}
 		}
 		//	else {
 		//		memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));
@@ -4200,6 +4207,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 }
 
 void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
+	return;
 	// Might not want to actually do this...
 	if (!getCurrentUI()->toClipMinder()) {
 		return;

@@ -49,6 +49,21 @@ Drum* SoundDrum::clone() {
 }
 */
 
+void SoundDrum::cloneFrom(SoundDrum* other) {
+	name.set(other->name.get());
+
+	ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)other;
+	ModControllableAudio* newModControllableAudio = (ModControllableAudio*)this;
+	newModControllableAudio->cloneFrom(modControllableAudioToClone);
+
+	ModControllable* modControllableToClone = other->toModControllable();
+	ModControllable* newModControllable = toModControllable();
+
+	Sound* soundToClone = (Sound*)(modControllableToClone);
+	Sound* newSound = (Sound*)(newModControllable);
+	newSound->cloneFrom(soundToClone);
+}
+
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "name")) {
 		reader.readTagOrAttributeValueString(&name);
@@ -97,6 +112,8 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 	if (polyphonic == PolyphonyMode::CHOKE) {
 		kit->choke();
 	}
+
+	display->displayPopup("test");
 
 	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
 	              fromMIDIChannel);

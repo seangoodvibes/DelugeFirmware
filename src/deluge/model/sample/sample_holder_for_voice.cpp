@@ -50,6 +50,26 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 	}
 }
 
+void SampleHolderForVoice::cloneFrom(SampleHolderForVoice* other, bool reversed) {
+	loopStartPos = other->loopStartPos;
+	loopEndPos = other->loopEndPos;
+
+	transpose = other->transpose;
+	cents = other->cents;
+
+	loopLocked = other->loopLocked;
+
+	// For backwards compatibility
+	startMSec = other->startMSec;
+	endMSec = other->endMSec;
+
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+		clustersForLoopStart[l] = other->clustersForLoopStart[l];
+	}
+
+	SampleHolder::beenClonedFrom(other, reversed);
+}
+
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {

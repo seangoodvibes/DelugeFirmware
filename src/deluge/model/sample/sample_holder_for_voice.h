@@ -26,6 +26,7 @@ class SampleHolderForVoice final : public SampleHolder {
 public:
 	SampleHolderForVoice();
 	~SampleHolderForVoice();
+	void cloneFrom(SampleHolderForVoice* other, bool reversed);
 	void unassignAllClusterReasons(bool beingDestructed = false);
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();

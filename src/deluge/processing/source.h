@@ -33,6 +33,8 @@ public:
 	Source();
 	~Source();
 	void cloneFrom(Source* other);
+	void beenClonedFrom(Source* other);
+	void possiblyDeleteMultiRanges(int32_t multiRangeSize);
 
 	SampleControls sampleControls;
 
