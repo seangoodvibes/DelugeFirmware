@@ -2192,16 +2192,12 @@ ramError:
 		        return;
 		    }
 
-		    kit->addDrum(newDrum);
-			newNoteRow->drum = newDrum;
-
-
-		    /*memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));*/
+		    //memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));
 
 		    if (drumType == DrumType::SOUND) {
-				SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
-				SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
-				newSoundDrum->name.set(soundDrumToClone->name.get());
+			//	SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
+			//	SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
+			//	newSoundDrum->name.set(soundDrumToClone->name.get());
 			   
 			    ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
 		        ModControllableAudio* newModControllableAudio = (ModControllableAudio*)newDrum;
@@ -2209,12 +2205,15 @@ ramError:
 
 		        ModControllable* modControllableToClone = drumToClone->toModControllable();
 		        ModControllable* newModControllable = newDrum->toModControllable();
-		        // memcpy(newModControllable, modControllableToClone, sizeof(ModControllable));
+		        memcpy(newModControllable, modControllableToClone, sizeof(ModControllable));
 
 		        Sound* soundToClone = (Sound*)(modControllableToClone);
 		        Sound* newSound = (Sound*)(newModControllable);
 		        memcpy(newSound, soundToClone, sizeof(Sound));
 		    }
+
+			kit->addDrum(newDrum);
+			newNoteRow->drum = newDrum;
 
 		//	newNoteRow->
 
