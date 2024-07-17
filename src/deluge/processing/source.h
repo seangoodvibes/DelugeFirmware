@@ -32,6 +32,7 @@ class Source {
 public:
 	Source();
 	~Source();
+	void cloneFrom(Source* other);
 
 	SampleControls sampleControls;
 

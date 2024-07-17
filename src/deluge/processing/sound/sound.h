@@ -68,6 +68,8 @@ class Sound : public ModControllableAudio {
 public:
 	Sound();
 
+	void cloneFrom(Sound* other);
+
 	Patcher patcher;
 
 	ParamLPF paramLPF;

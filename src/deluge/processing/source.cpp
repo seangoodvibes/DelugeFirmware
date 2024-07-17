@@ -60,6 +60,32 @@ void Source::destructAllMultiRanges() {
 	}
 }
 
+void Source::cloneFrom(Source* other) {
+	transpose = other->transpose;
+	cents = other->cents;
+	repeatMode = other->repeatMode;
+
+	// Synth stuff
+	oscType = other->oscType;
+
+	timeStretchAmount = other->timeStretchAmount;
+
+	defaultRangeI = other->defaultRangeI;
+	dxPatch = other->dxPatch;
+
+	// derived from Source::doneReadingFromFile(Sound* sound)
+
+	if (oscType == OscType::SAMPLE) {
+		for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
+			MultisampleRange* otherRange = (MultisampleRange*)other->ranges.getElement(e);
+			range->sampleHolder = otherRange->sampleHolder;
+		}
+	}
+
+	recalculateFineTuner();
+}
+
 // Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);

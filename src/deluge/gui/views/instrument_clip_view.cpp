@@ -2172,7 +2172,7 @@ ramError:
 		memcpy(newNoteRow, noteRowToClone, sizeof(NoteRow));
 
 		//	Error error = newNoteRow->paramManager.cloneParamCollectionsFrom(&noteRowToClone->paramManager, true, true,
-		//0); 	if (error != Error::NONE) { 		clip->noteRows.deleteNoteRowAtIndex(newIndex);
+		// 0); 	if (error != Error::NONE) { 		clip->noteRows.deleteNoteRowAtIndex(newIndex);
 		//	}
 
 		int32_t noteRowId = clip->getNoteRowId(newNoteRow, newIndex);
@@ -2182,39 +2182,40 @@ ramError:
 			clip->noteRows.deleteNoteRowAtIndex(newIndex);
 		}
 
-			Kit* kit = (Kit*)clip->output;
+		Kit* kit = (Kit*)clip->output;
 
-		    DrumType drumType = drumToClone->type;
+		DrumType drumType = drumToClone->type;
 
-		    Drum* newDrum = storageManager.createNewDrum(drumType);
-		    if (!newDrum) {
-		        clip->noteRows.deleteNoteRowAtIndex(newIndex);
-		        return;
-		    }
+		Drum* newDrum = storageManager.createNewDrum(drumType);
+		if (!newDrum) {
+			clip->noteRows.deleteNoteRowAtIndex(newIndex);
+			return;
+		}
 
-		    if (drumType == DrumType::SOUND) {
-				SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
-				SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
-				newSoundDrum->name.set(soundDrumToClone->name.get());
-			   
-			    ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
-		        ModControllableAudio* newModControllableAudio = (ModControllableAudio*)newDrum;
-		        newModControllableAudio->cloneFrom(modControllableAudioToClone);
+		if (drumType == DrumType::SOUND) {
+			SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
+			SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
+			newSoundDrum->name.set(soundDrumToClone->name.get());
 
-		        ModControllable* modControllableToClone = drumToClone->toModControllable();
-		        ModControllable* newModControllable = newDrum->toModControllable();
-		        memcpy(newModControllable, modControllableToClone, sizeof(ModControllable));
+			ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
+			ModControllableAudio* newModControllableAudio = (ModControllableAudio*)newDrum;
+			newModControllableAudio->cloneFrom(modControllableAudioToClone);
 
-		        Sound* soundToClone = (Sound*)(modControllableToClone);
-		        Sound* newSound = (Sound*)(newModControllable);
-		        memcpy(newSound, soundToClone, sizeof(Sound));
-		    }
+			ModControllable* modControllableToClone = drumToClone->toModControllable();
+			ModControllable* newModControllable = newDrum->toModControllable();
+			//    memcpy(newModControllable, modControllableToClone, sizeof(ModControllable));
+
+			Sound* soundToClone = (Sound*)(modControllableToClone);
+			Sound* newSound = (Sound*)(newModControllable);
+			newSound->cloneFrom(soundToClone);
+			// memcpy(newSound, soundToClone, sizeof(Sound));
+		}
 		//	else {
 		//		memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));
 		//	}
 
-			kit->addDrum(newDrum);
-			newNoteRow->drum = newDrum;
+		kit->addDrum(newDrum);
+		newNoteRow->drum = newDrum;
 
 		//	newNoteRow->
 
@@ -2228,9 +2229,9 @@ ramError:
 		kit->beenEdited();
 		uiNeedsRendering(this);
 	}
-//	else {
-//		kit->removeDrum(newDrum);
-//	}
+	//	else {
+	//		kit->removeDrum(newDrum);
+	//	}
 	return;
 
 	int32_t yScrollBackup = clip->yScroll;

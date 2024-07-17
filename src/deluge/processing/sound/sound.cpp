@@ -155,6 +155,101 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	doneReadingFromFile();
 }
 
+void Sound::cloneFrom(Sound* other) {
+	for (int32_t s = 0; s < kNumSources; s++) {
+		oscRetriggerPhase[s] = other->oscRetriggerPhase[s];
+	}
+	for (int32_t m = 0; m < kNumModulators; m++) {
+		modulatorRetriggerPhase[m] = other->modulatorRetriggerPhase[m];
+	}
+
+	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
+		monophonicExpressionValues[i] = other->monophonicExpressionValues[i];
+	}
+
+	numVoicesAssigned = other->numVoicesAssigned;
+
+	sideChainSendLevel = other->numVoicesAssigned;
+	polyphonic = other->polyphonic;
+	lastNoteCode = other->lastNoteCode;
+
+	modulatorTranspose[0] = other->modulatorTranspose[0];
+	modulatorCents[0] = other->modulatorCents[0];
+	modulatorTranspose[1] = other->modulatorTranspose[1];
+	modulatorCents[1] = other->modulatorCents[1];
+
+	transpose = other->transpose;
+	modFXType = other->modFXType;
+
+	oscillatorSync = other->oscillatorSync;
+
+	numUnison = other->numUnison;
+	unisonDetune = other->unisonDetune;
+	unisonStereoSpread = other->unisonStereoSpread;
+
+	synthMode = other->synthMode;
+	modulator1ToModulator0 = other->modulator1ToModulator0;
+
+	lpfMode = other->lpfMode;
+
+	postReverbVolumeLastTime = other->postReverbVolumeLastTime;
+
+	// params::GLOBAL_VOLUME_POST_FX
+	memcpy(&modKnobs[0][1], &other->modKnobs[0][1], sizeof(ModKnob));
+	// params::LOCAL_PAN
+	memcpy(&modKnobs[0][0], &other->modKnobs[0][0], sizeof(ModKnob));
+	// params::LOCAL_LPF_FREQ
+	memcpy(&modKnobs[1][1], &other->modKnobs[1][1], sizeof(ModKnob));
+	// params::LOCAL_LPF_RESONANCE
+	memcpy(&modKnobs[1][0], &other->modKnobs[1][0], sizeof(ModKnob));
+	// params::LOCAL_ENV_0_ATTACK
+	memcpy(&modKnobs[2][1], &other->modKnobs[2][1], sizeof(ModKnob));
+	// params::LOCAL_ENV_0_RELEASE
+	memcpy(&modKnobs[2][0], &other->modKnobs[2][0], sizeof(ModKnob));
+	// params::GLOBAL_DELAY_RATE
+	memcpy(&modKnobs[3][1], &other->modKnobs[3][1], sizeof(ModKnob));
+	// params::GLOBAL_DELAY_FEEDBACK
+	memcpy(&modKnobs[3][0], &other->modKnobs[3][0], sizeof(ModKnob));
+	// params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN
+	memcpy(&modKnobs[4][1], &other->modKnobs[4][1], sizeof(ModKnob));
+	// params::GLOBAL_REVERB_AMOUNT
+	memcpy(&modKnobs[4][0], &other->modKnobs[4][0], sizeof(ModKnob));
+	// params::GLOBAL_LFO_FREQ
+	memcpy(&modKnobs[5][1], &other->modKnobs[5][1], sizeof(ModKnob));
+	// params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL
+	memcpy(&modKnobs[5][0], &other->modKnobs[5][0], sizeof(ModKnob));
+	// params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE
+	memcpy(&modKnobs[6][1], &other->modKnobs[6][1], sizeof(ModKnob));
+	// params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO
+	memcpy(&modKnobs[6][0], &other->modKnobs[6][0], sizeof(ModKnob));
+	// params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION
+	memcpy(&modKnobs[7][1], &other->modKnobs[7][1], sizeof(ModKnob));
+	// params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING
+	memcpy(&modKnobs[7][0], &other->modKnobs[7][0], sizeof(ModKnob));
+
+	voicePriority = other->voicePriority;
+	whichExpressionSourcesChangedAtSynthLevel = other->whichExpressionSourcesChangedAtSynthLevel;
+
+	skippingRendering = other->skippingRendering;
+	startSkippingRenderingAtTime = other->startSkippingRenderingAtTime;
+
+	paramLPF.p = other->paramLPF.p;
+
+	// done initial setup (derived from Sound::doneReadingFromFile())
+	calculateEffectiveVolume();
+
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].cloneFrom(&other->sources[s]);
+	}
+
+	setupUnisonDetuners(NULL);
+	setupUnisonStereoSpread();
+
+	for (int32_t m = 0; m < kNumModulators; m++) {
+		recalculateModulatorTransposer(m, NULL);
+	}
+}
+
 void Sound::initParams(ParamManager* paramManager) {
 
 	ModControllableAudio::initParams(paramManager);
