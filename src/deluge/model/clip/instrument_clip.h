@@ -257,7 +257,7 @@ public:
 	};
 
 	NoteRow* createNewNoteRowForKitAtIndex(ModelStackWithTimelineCounter* modelStack, int32_t newNoteRowIndex,
-	                                       int32_t* getIndex);
+	                                       int32_t* getIndex, bool setNewDrum = true);
 
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack) override;

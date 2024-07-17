@@ -41,6 +41,7 @@
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -1216,18 +1217,20 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	return createNewNoteRowForKitAtIndex(modelStack, index, getIndex);
 }
 
-NoteRow* InstrumentClip::createNewNoteRowForKitAtIndex(ModelStackWithTimelineCounter* modelStack, int32_t newNoteRowIndex,
-                                                       int32_t* getIndex) {
-	Drum* newDrum = ((Kit*)output)->getFirstUnassignedDrum(this);
-
+NoteRow* InstrumentClip::createNewNoteRowForKitAtIndex(ModelStackWithTimelineCounter* modelStack,
+                                                       int32_t newNoteRowIndex, int32_t* getIndex, bool setNewDrum) {
 	NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(newNoteRowIndex);
 	if (!newNoteRow) {
 		return NULL;
 	}
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(newNoteRowIndex, newNoteRow);
+	if (setNewDrum) {
+		Drum* newDrum = ((Kit*)output)->getFirstUnassignedDrum(this);
 
-	newNoteRow->setDrum(newDrum, (Kit*)output, modelStackWithNoteRow); // It might end up NULL. That's fine
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(newNoteRowIndex, newNoteRow);
+
+		newNoteRow->setDrum(newDrum, (Kit*)output, modelStackWithNoteRow); // It might end up NULL. That's fine
+	}
 
 	if (newNoteRowIndex == 0) {
 		yScroll++;
