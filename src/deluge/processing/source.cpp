@@ -73,14 +73,8 @@ void Source::cloneFrom(Source* other) {
 	defaultRangeI = other->defaultRangeI;
 	dxPatch = other->dxPatch;
 
-	// derived from Source::doneReadingFromFile(Sound* sound)
-
 	if (oscType == OscType::SAMPLE) {
-		for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
-			MultisampleRange* otherRange = (MultisampleRange*)other->ranges.getElement(e);
-			range->sampleHolder = otherRange->sampleHolder;
-		}
+		ranges.cloneFrom(&other->ranges);
 	}
 
 	recalculateFineTuner();
