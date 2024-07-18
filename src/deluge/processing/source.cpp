@@ -84,6 +84,8 @@ void Source::cloneFrom(Source* other) {
 			return;
 		}
 
+		memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));		
+
 		if (oscType == OscType::SAMPLE) {
 			SampleHolderForVoice* holder = (SampleHolderForVoice*)range->getAudioFileHolder();
 			SampleHolderForVoice* otherHolder = (SampleHolderForVoice*)otherRange->getAudioFileHolder();
@@ -94,8 +96,6 @@ void Source::cloneFrom(Source* other) {
 			WaveTableHolder* otherHolder = (WaveTableHolder*)otherRange->getAudioFileHolder();
 			holder->cloneFrom(otherHolder, sampleControls.reversed);
 		}
-
-		// memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));
 	}
 
 	// ranges.cloneFrom(&other->ranges);

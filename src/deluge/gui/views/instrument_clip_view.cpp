@@ -2138,10 +2138,10 @@ ramError:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplayFrom, modelStack);
+	ModelStackWithNoteRow* modelStackForNoteRowToClone = clip->getNoteRowOnScreen(yDisplayFrom, modelStack);
 	NoteRow* noteRowToClone = nullptr;
-	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-		noteRowToClone = modelStackWithNoteRow->getNoteRow();
+	if (modelStackForNoteRowToClone->getNoteRowAllowNull()) {
+		noteRowToClone = modelStackForNoteRowToClone->getNoteRow();
 	}
 	else {
 		return;
@@ -2169,72 +2169,145 @@ ramError:
 	// don't set new drum, we'll do that below
 	NoteRow* newNoteRow = clip->createNewNoteRowForKitAtIndex(modelStack, newIndex, &newIndex, false);
 	if (newNoteRow) {
-		memcpy(newNoteRow, noteRowToClone, sizeof(NoteRow));
+		//	Sound::initParams(&newNoteRow->paramManager);
+
+		// bool noteRowToCloneMuted = noteRowToClone->muted;
+		// noteRowToClone->muted = true;
+		//	memcpy(newNoteRow, noteRowToClone, sizeof(NoteRow));
+		// noteRowToClone->muted = noteRowToCloneMuted;
+
+		newNoteRow->copyBasicsFrom(noteRowToClone);
+		//	newNoteRow->paramManager.
+		//	newNoteRow->notes.cloneFrom(&noteRowToClone->notes);
+		//	newNoteRow->notes.beenCloned();
+
+		// not touched yet
+		/*
+		ParamManagerForTimeline paramManager;
+
+		Drum* drum;
+		DrumName* firstOldDrumName;
+		NoteVector notes;
+
+		LearnedMIDI muteMIDICommand;
+		LearnedMIDI midiInput;
+
+		int8_t colourOffset;
+		*/
 
 		//	Error error = newNoteRow->paramManager.cloneParamCollectionsFrom(&noteRowToClone->paramManager, true, true,
-		// 0); 	if (error != Error::NONE) { 		clip->noteRows.deleteNoteRowAtIndex(newIndex);
+		//0); 	if (error != Error::NONE) { 		clip->noteRows.deleteNoteRowAtIndex(newIndex);
 		//	}
 
-		int32_t noteRowId = clip->getNoteRowId(newNoteRow, newIndex);
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, newNoteRow);
-		Error error = newNoteRow->beenCloned(modelStackWithNoteRow, false);
-		if (error != Error::NONE) {
-			clip->noteRows.deleteNoteRowAtIndex(newIndex);
-		}
+		//	int32_t noteRowId = clip->getNoteRowId(newNoteRow, newIndex);
+		//	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, newNoteRow);
+		//	Error error = newNoteRow->beenCloned(modelStackWithNoteRow, false);
+		//	if (error != Error::NONE) {
+		//		clip->noteRows.deleteNoteRowAtIndex(newIndex);
+		//	}
 
 		Kit* kit = (Kit*)clip->output;
 
 		DrumType drumType = drumToClone->type;
 
-		Drum* newDrum = storageManager.createNewDrum(drumType);
-		if (!newDrum) {
+		//	Drum* newDrum = storageManager.createNewDrum(drumType);
+		//	if (!newDrum) {
+		//		clip->noteRows.deleteNoteRowAtIndex(newIndex);
+		//		return;
+		//	}
+
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
+		if (!memory) {
 			clip->noteRows.deleteNoteRowAtIndex(newIndex);
 			return;
 		}
 
-		if (drumType == DrumType::SOUND) {
-			//	SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
-			SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
-			newSoundDrum->unassignAllVoices();
-			//	newSoundDrum->cloneFrom(soundDrumToClone);
-			ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
-			ModControllableAudio* newModControllableAudio = (ModControllableAudio*)newDrum;
-			//    newModControllableAudio->cloneFrom(modControllableAudioToClone);
-
-			ModControllable* modControllableToClone = drumToClone->toModControllable();
-			ModControllable* newModControllable = newDrum->toModControllable();
-			//    memcpy(newModControllable, modControllableToClone, sizeof(ModControllable));
-
-			Sound* soundToClone = (Sound*)(modControllableToClone);
-			Sound* newSound = (Sound*)(newModControllable);
-			//    newSound->cloneFrom(soundToClone);
-			// newSound->loadAllAudioFiles(true);
-			memcpy(newSound, soundToClone, sizeof(Sound));
-
-			if (soundToClone->modFXGrainBuffer) {
-				newSound->modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(
-				    kModFXGrainBufferSize * sizeof(StereoSample));
-			}
-
-			if (soundToClone->modFXBuffer) {
-				newSound->modFXBuffer =
-				    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
-			}
-
-			newSoundDrum->unassignAllVoices();
-
-			//	newSound->sources[s].ranges()
-
-		//	for (int32_t s = 0; s < kNumSources; s++) {
-		//		newSound->sources[s].beenClonedFrom(&soundToClone->sources[s]);
-		//	}
+		ParamManagerForTimeline paramManager;
+		Error error = paramManager.setupWithPatching();
+		if (error != Error::NONE) {
+			delugeDealloc(memory);
+			clip->noteRows.deleteNoteRowAtIndex(newIndex);
+			return;
 		}
-		//	else {
-		//		memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));
-		//	}
+
+		Sound::initParams(&paramManager);
+		SoundDrum* newDrum = new (memory) SoundDrum();
+		newDrum->setupAsSample(&paramManager);
+
+		int32_t noteRowId = clip->getNoteRowId(newNoteRow, newIndex);
+		ModelStackWithNoteRow* modelStackForNewNoteRow = modelStack->addNoteRow(noteRowId, newNoteRow);
+
+		modelStackForNewNoteRow->song->backUpParamManager(newDrum, clip, &paramManager, true);
 
 		kit->addDrum(newDrum);
-		newNoteRow->drum = newDrum;
+
+			if (drumType == DrumType::SOUND) {
+		        //	SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
+		        //SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
+		        //newSoundDrum->unassignAllVoices();
+		        //	newSoundDrum->cloneFrom(soundDrumToClone);
+		        ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
+		        ModControllableAudio* newModControllableAudio = (ModControllableAudio*)newDrum;
+		        newModControllableAudio->cloneFrom(modControllableAudioToClone);
+
+		        ModControllable* modControllableToClone = drumToClone->toModControllable();
+		        ModControllable* newModControllable = newDrum->toModControllable();
+		        //    memcpy(newModControllable, modControllableToClone, sizeof(ModControllable));
+
+		        Sound* soundToClone = (Sound*)(modControllableToClone);
+		        Sound* newSound = (Sound*)(newModControllable);
+		        newSound->cloneFrom(soundToClone);
+		        // newSound->loadAllAudioFiles(true);
+		        //memcpy(newSound, soundToClone, sizeof(Sound));
+
+		        if (soundToClone->modFXGrainBuffer) {
+		            newSound->modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(
+		                kModFXGrainBufferSize * sizeof(StereoSample));
+		        }
+
+		        if (soundToClone->modFXBuffer) {
+		            newSound->modFXBuffer =
+		                (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize *
+		   sizeof(StereoSample));
+		        }
+
+		        //newSoundDrum->unassignAllVoices();
+
+		        //MultiRange* range = newSoundDrum->sources[0].range;
+
+		        //	newSound->sources[s].ranges()
+
+		   // 	for (int32_t s = 0; s < kNumSources; s++) {
+		    //		newSound->sources[s].beenClonedFrom(&soundToClone->sources[s]);
+		    //	}
+		    }
+		    //	else {
+		    //		memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));
+		    //	}*/
+
+		newNoteRow->setDrum(newDrum, kit, modelStackForNewNoteRow);
+
+		//	kit->addDrum(newDrum);
+
+		//	Error error = newNoteRow->paramManager.cloneParamCollectionsFrom(&noteRowToClone->paramManager, true, true,
+		//0); 	if (error != Error::NONE) { 		clip->noteRows.deleteNoteRowAtIndex(newIndex);
+		//	}
+
+		//	newNoteRow->paramManager.forgetParamCollections();
+
+		//	if (noteRowToClone->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		// newNoteRow->paramManager
+		//	newNoteRow->drum = newDrum;
+
+		//	newNoteRow->paramManager.stealParamCollectionsFrom(&noteRowToClone->paramManager, true);
+		//	if (newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		//		newNoteRow->trimParamManager(modelStackWithNoteRow);
+		//	}
+		//	}
+
+		// newNoteRow->setDrum(newDrum, kit, modelStackWithNoteRow);
+
+		// newNoteRow->muted = noteRowToCloneMuted;
 
 		//	newNoteRow->
 

@@ -192,6 +192,7 @@ public:
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
+	void copyBasicsFrom(NoteRow* other);
 	Error clone(InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack, NoteRow** newNoteRow,
 	            int32_t newNoteRowIndex, bool shouldFlattenReversing = false);
 	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);

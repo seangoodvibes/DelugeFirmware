@@ -65,6 +65,30 @@ NoteRow::~NoteRow() {
 	deleteOldDrumNames(false);
 }
 
+void NoteRow::copyBasicsFrom(NoteRow* other) {
+	muted = true;
+	loopLengthIfIndependent = other->loopLengthIfIndependent;
+	lastProcessedPosIfIndependent = other->lastProcessedPosIfIndependent;
+	repeatCountIfIndependent = other->repeatCountIfIndependent;
+	currentlyPlayingReversedIfIndependent = other->currentlyPlayingReversedIfIndependent;
+	sequenceDirectionMode = other->sequenceDirectionMode;
+	probabilityValue = other->probabilityValue;
+
+	// not touched yet
+	/*
+	ParamManagerForTimeline paramManager;
+
+	Drum* drum;
+	DrumName* firstOldDrumName;
+	NoteVector notes;
+
+	LearnedMIDI muteMIDICommand;
+	LearnedMIDI midiInput;
+
+	int8_t colourOffset;
+	*/
+}
+
 void NoteRow::deleteParamManager(bool shouldUpdatePointer) {
 	paramManager.destructAndForgetParamCollections();
 }

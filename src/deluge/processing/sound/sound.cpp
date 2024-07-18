@@ -238,9 +238,9 @@ void Sound::cloneFrom(Sound* other) {
 	// done initial setup (derived from Sound::doneReadingFromFile())
 	calculateEffectiveVolume();
 
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].cloneFrom(&other->sources[s]);
-	}
+		for (int32_t s = 0; s < kNumSources; s++) {
+			sources[s].beenClonedFrom(&other->sources[s]);
+		}
 
 	setupUnisonDetuners(NULL);
 	setupUnisonStereoSpread();
