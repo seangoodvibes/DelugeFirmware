@@ -73,50 +73,68 @@ void Source::cloneFrom(Source* other) {
 	defaultRangeI = other->defaultRangeI;
 	dxPatch = other->dxPatch;
 
-	memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));
+	if (oscType == OscType::SAMPLE || oscType == OscType::WAVETABLE) {
+		MultiRange* range = getOrCreateFirstRange();
+		if (!range) {
+			return;
+		}
 
-	beenClonedFrom(other);
+		MultiRange* otherRange = getOrCreateFirstRange();
+		if (!otherRange) {
+			return;
+		}
 
-/*	if (oscType == OscType::SAMPLE) {
-		int32_t multiRangeSize = sizeof(MultisampleRange);
-		possiblyDeleteMultiRanges(multiRangeSize);
-
-		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
-			MultiRange* range = (MultisampleRange*)ranges.getElement(e);
-			MultiRange* otherRange = (MultisampleRange*)other->ranges.getElement(e);
-			if (!range) {
-				range = ranges.insertMultiRange(e);
-				if (!range) {
-					break;
-				}
-			}
-
+		if (oscType == OscType::SAMPLE) {
 			SampleHolderForVoice* holder = (SampleHolderForVoice*)range->getAudioFileHolder();
 			SampleHolderForVoice* otherHolder = (SampleHolderForVoice*)otherRange->getAudioFileHolder();
-
 			holder->cloneFrom(otherHolder, sampleControls.reversed);
 		}
-	}
-	else if (oscType == OscType::WAVETABLE) {
-		int32_t multiRangeSize = sizeof(MultiWaveTableRange);
-		possiblyDeleteMultiRanges(multiRangeSize);
-
-		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
-			MultiRange* range = (MultiWaveTableRange*)ranges.getElement(e);
-			MultiRange* otherRange = (MultiWaveTableRange*)other->ranges.getElement(e);
-			if (!range) {
-				range = ranges.insertMultiRange(e);
-				if (!range) {
-					break;
-				}
-			}
-
+		else {
 			WaveTableHolder* holder = (WaveTableHolder*)range->getAudioFileHolder();
 			WaveTableHolder* otherHolder = (WaveTableHolder*)otherRange->getAudioFileHolder();
-
 			holder->cloneFrom(otherHolder, sampleControls.reversed);
 		}
-	}*/
+
+		// memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));
+	}
+
+	// ranges.cloneFrom(&other->ranges);
+	// other->ranges.beenCloned();
+
+	// memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));
+
+	// beenClonedFrom(other);
+
+	/*	if (oscType == OscType::SAMPLE) {
+	        //	int32_t multiRangeSize = sizeof(MultisampleRange);
+
+	        for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	            MultiRange* range = (MultisampleRange*)ranges.getElement(e);
+	            MultiRange* otherRange = (MultisampleRange*)other->ranges.getElement(e);
+
+	            if (range && otherRange) {
+	                SampleHolderForVoice* holder = (SampleHolderForVoice*)range->getAudioFileHolder();
+	                SampleHolderForVoice* otherHolder = (SampleHolderForVoice*)otherRange->getAudioFileHolder();
+
+	                holder->cloneFrom(otherHolder, sampleControls.reversed);
+	            }
+	        }
+	    }
+	    else if (oscType == OscType::WAVETABLE) {
+	        //	int32_t multiRangeSize = sizeof(MultiWaveTableRange);
+
+	        for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	            MultiRange* range = (MultiWaveTableRange*)ranges.getElement(e);
+	            MultiRange* otherRange = (MultiWaveTableRange*)other->ranges.getElement(e);
+
+	            if (range && otherRange) {
+	                WaveTableHolder* holder = (WaveTableHolder*)range->getAudioFileHolder();
+	                WaveTableHolder* otherHolder = (WaveTableHolder*)otherRange->getAudioFileHolder();
+
+	                holder->cloneFrom(otherHolder, sampleControls.reversed);
+	            }
+	        }
+	    }*/
 
 	recalculateFineTuner();
 }

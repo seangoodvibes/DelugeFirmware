@@ -27,6 +27,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_vector.h"
+#include "modulation/arpeggiator.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -48,21 +49,6 @@ Drum* SoundDrum::clone() {
     return newDrum;
 }
 */
-
-void SoundDrum::cloneFrom(SoundDrum* other) {
-	name.set(other->name.get());
-
-	ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)other;
-	ModControllableAudio* newModControllableAudio = (ModControllableAudio*)this;
-	newModControllableAudio->cloneFrom(modControllableAudioToClone);
-
-	ModControllable* modControllableToClone = other->toModControllable();
-	ModControllable* newModControllable = toModControllable();
-
-	Sound* soundToClone = (Sound*)(modControllableToClone);
-	Sound* newSound = (Sound*)(newModControllable);
-	newSound->cloneFrom(soundToClone);
-}
 
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "name")) {

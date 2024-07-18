@@ -2193,13 +2193,13 @@ ramError:
 		}
 
 		if (drumType == DrumType::SOUND) {
-			SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
+			//	SoundDrum* soundDrumToClone = (SoundDrum*)drumToClone;
 			SoundDrum* newSoundDrum = (SoundDrum*)newDrum;
-			newSoundDrum->cloneFrom(soundDrumToClone);
-
-		/*	ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
+			newSoundDrum->unassignAllVoices();
+			//	newSoundDrum->cloneFrom(soundDrumToClone);
+			ModControllableAudio* modControllableAudioToClone = (ModControllableAudio*)drumToClone;
 			ModControllableAudio* newModControllableAudio = (ModControllableAudio*)newDrum;
-			newModControllableAudio->cloneFrom(modControllableAudioToClone);
+			//    newModControllableAudio->cloneFrom(modControllableAudioToClone);
 
 			ModControllable* modControllableToClone = drumToClone->toModControllable();
 			ModControllable* newModControllable = newDrum->toModControllable();
@@ -2207,15 +2207,27 @@ ramError:
 
 			Sound* soundToClone = (Sound*)(modControllableToClone);
 			Sound* newSound = (Sound*)(newModControllable);
-			newSound->cloneFrom(soundToClone);*/
+			//    newSound->cloneFrom(soundToClone);
 			// newSound->loadAllAudioFiles(true);
-		//	memcpy(newSound, soundToClone, sizeof(Sound));
+			memcpy(newSound, soundToClone, sizeof(Sound));
+
+			if (soundToClone->modFXGrainBuffer) {
+				newSound->modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(
+				    kModFXGrainBufferSize * sizeof(StereoSample));
+			}
+
+			if (soundToClone->modFXBuffer) {
+				newSound->modFXBuffer =
+				    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
+			}
+
+			newSoundDrum->unassignAllVoices();
 
 			//	newSound->sources[s].ranges()
 
-			//	for (int32_t s = 0; s < kNumSources; s++) {
-			//		newSound->sources[s].beenClonedFrom(&soundToClone->sources[s]);
-			//	}
+		//	for (int32_t s = 0; s < kNumSources; s++) {
+		//		newSound->sources[s].beenClonedFrom(&soundToClone->sources[s]);
+		//	}
 		}
 		//	else {
 		//		memcpy(newDrum, drumToClone, storageManager.getDrumMemorySize(drumType));

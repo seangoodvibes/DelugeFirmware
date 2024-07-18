@@ -34,7 +34,6 @@ public:
 	ArpeggiatorSettings arpSettings;
 
 	SoundDrum();
-	void cloneFrom(SoundDrum* other);
 	bool isDrum() { return true; }
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 	bool anyNoteIsOn();

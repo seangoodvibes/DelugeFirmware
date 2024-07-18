@@ -239,7 +239,6 @@ void Sound::cloneFrom(Sound* other) {
 	calculateEffectiveVolume();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-//		//memcpy(&sources[s], &other->sources[s], sizeof(Source));
 		sources[s].cloneFrom(&other->sources[s]);
 	}
 
