@@ -69,6 +69,7 @@ public:
 	Sound();
 
 	void cloneFrom(Sound* other);
+	void beenClonedFrom(Sound* other);
 
 	Patcher patcher;
 

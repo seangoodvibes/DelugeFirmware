@@ -33,7 +33,6 @@ class SampleHolder : public AudioFileHolder {
 public:
 	SampleHolder();
 	~SampleHolder() override;
-	void cloneFrom(SampleHolder* other);
 	void unassignAllClusterReasons(bool beingDestructed = false);
 	int64_t getEndPos(bool forTimeStretching = false);
 	int64_t getDurationInSamples(bool forTimeStretching = false);

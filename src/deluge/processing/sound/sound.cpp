@@ -155,6 +155,28 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	doneReadingFromFile();
 }
 
+void Sound::beenClonedFrom(Sound* other) {
+	if (other->modFXGrainBuffer) {
+		if (!modFXGrainBuffer) {
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
+			                                                                              * sizeof(StereoSample));
+		}
+		memcpy(&modFXGrainBuffer, &other->modFXGrainBuffer, kModFXGrainBufferSize * sizeof(StereoSample));
+	}
+
+	if (other->modFXBuffer) {
+		if (!modFXBuffer) {
+			modFXBuffer =
+			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
+		}
+		memcpy(&modFXBuffer, &other->modFXBuffer, kModFXGrainBufferSize * sizeof(StereoSample));
+	}
+
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].beenClonedFrom(&other->sources[s]);
+	}
+}
+
 void Sound::cloneFrom(Sound* other) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		oscRetriggerPhase[s] = other->oscRetriggerPhase[s];
@@ -180,6 +202,22 @@ void Sound::cloneFrom(Sound* other) {
 
 	transpose = other->transpose;
 	modFXType = other->modFXType;
+
+	if (other->modFXGrainBuffer) {
+		if (!modFXGrainBuffer) {
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
+			                                                                              * sizeof(StereoSample));
+		}
+		memcpy(&modFXGrainBuffer, &other->modFXGrainBuffer, kModFXGrainBufferSize * sizeof(StereoSample));
+	}
+
+	if (other->modFXBuffer) {
+		if (!modFXBuffer) {
+			modFXBuffer =
+			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
+		}
+		memcpy(&modFXBuffer, &other->modFXBuffer, kModFXGrainBufferSize * sizeof(StereoSample));
+	}
 
 	oscillatorSync = other->oscillatorSync;
 
@@ -238,9 +276,9 @@ void Sound::cloneFrom(Sound* other) {
 	// done initial setup (derived from Sound::doneReadingFromFile())
 	calculateEffectiveVolume();
 
-		for (int32_t s = 0; s < kNumSources; s++) {
-			sources[s].beenClonedFrom(&other->sources[s]);
-		}
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].beenClonedFrom(&other->sources[s]);
+	}
 
 	setupUnisonDetuners(NULL);
 	setupUnisonStereoSpread();

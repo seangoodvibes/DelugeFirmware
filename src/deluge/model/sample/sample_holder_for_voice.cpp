@@ -50,7 +50,7 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 	}
 }
 
-void SampleHolderForVoice::cloneFrom(SampleHolderForVoice* other, bool reversed) {
+void SampleHolderForVoice::beenClonedFrom(SampleHolderForVoice* other, bool reversed) {
 	loopStartPos = other->loopStartPos;
 	loopEndPos = other->loopEndPos;
 
@@ -67,7 +67,18 @@ void SampleHolderForVoice::cloneFrom(SampleHolderForVoice* other, bool reversed)
 		clustersForLoopStart[l] = other->clustersForLoopStart[l];
 	}
 
-	SampleHolder::beenClonedFrom(other, reversed);
+	filePath.set(&other->filePath);
+	if (other->audioFile) {
+		audioFile = nullptr;
+		AudioFileHolder::setAudioFile(NULL);
+		// SampleHolder::setAudioFile(other->audioFile, reversed);
+		AudioFileHolder::loadFile(reversed, true, true, CLUSTER_ENQUEUE, 0);
+	}
+
+	startPos = other->startPos;
+	endPos = other->endPos;
+	waveformViewScroll = other->waveformViewScroll;
+	waveformViewZoom = other->waveformViewZoom;
 }
 
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {

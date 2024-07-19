@@ -84,17 +84,17 @@ void Source::cloneFrom(Source* other) {
 			return;
 		}
 
-		memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));		
+		memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));
 
 		if (oscType == OscType::SAMPLE) {
 			SampleHolderForVoice* holder = (SampleHolderForVoice*)range->getAudioFileHolder();
 			SampleHolderForVoice* otherHolder = (SampleHolderForVoice*)otherRange->getAudioFileHolder();
-			holder->cloneFrom(otherHolder, sampleControls.reversed);
+			holder->beenClonedFrom(otherHolder, sampleControls.reversed);
 		}
 		else {
 			WaveTableHolder* holder = (WaveTableHolder*)range->getAudioFileHolder();
 			WaveTableHolder* otherHolder = (WaveTableHolder*)otherRange->getAudioFileHolder();
-			holder->cloneFrom(otherHolder, sampleControls.reversed);
+			holder->beenClonedFrom(otherHolder, sampleControls.reversed);
 		}
 	}
 
@@ -140,10 +140,24 @@ void Source::cloneFrom(Source* other) {
 }
 
 void Source::beenClonedFrom(Source* other) {
+	transpose = other->transpose;
+	cents = other->cents;
+	repeatMode = other->repeatMode;
+
+	// Synth stuff
+	// setOscType(other->oscType);
+
+	timeStretchAmount = other->timeStretchAmount;
+
+	defaultRangeI = other->defaultRangeI;
+	dxPatch = other->dxPatch;
+
+	memcpy(&sampleControls, &other->sampleControls, sizeof(sampleControls));
+
 	if (oscType == OscType::SAMPLE) {
-		destructAllMultiRanges();
-		ranges.empty();
-		getOrCreateFirstRange();
+		//	destructAllMultiRanges();
+		//	ranges.empty();
+		//	getOrCreateFirstRange();
 
 		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
 			MultiRange* range = (MultisampleRange*)ranges.getElement(e);
@@ -158,13 +172,13 @@ void Source::beenClonedFrom(Source* other) {
 			SampleHolderForVoice* holder = (SampleHolderForVoice*)range->getAudioFileHolder();
 			SampleHolderForVoice* otherHolder = (SampleHolderForVoice*)otherRange->getAudioFileHolder();
 
-			holder->cloneFrom(otherHolder, sampleControls.reversed);
+			holder->beenClonedFrom(otherHolder, sampleControls.reversed);
 		}
 	}
 	else if (oscType == OscType::WAVETABLE) {
-		destructAllMultiRanges();
-		ranges.empty();
-		getOrCreateFirstRange();
+		//	destructAllMultiRanges();
+		//	ranges.empty();
+		//	getOrCreateFirstRange();
 
 		for (int32_t e = 0; e < other->ranges.getNumElements(); e++) {
 			MultiRange* range = (MultiWaveTableRange*)ranges.getElement(e);
@@ -179,9 +193,11 @@ void Source::beenClonedFrom(Source* other) {
 			WaveTableHolder* holder = (WaveTableHolder*)range->getAudioFileHolder();
 			WaveTableHolder* otherHolder = (WaveTableHolder*)otherRange->getAudioFileHolder();
 
-			holder->cloneFrom(otherHolder, sampleControls.reversed);
+			holder->beenClonedFrom(otherHolder, sampleControls.reversed);
 		}
 	}
+
+	recalculateFineTuner();
 }
 
 void Source::possiblyDeleteMultiRanges(int32_t multiRangeSize) {

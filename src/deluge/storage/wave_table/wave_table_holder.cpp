@@ -21,9 +21,11 @@ WaveTableHolder::WaveTableHolder() {
 	audioFileType = AudioFileType::WAVETABLE;
 }
 
-void WaveTableHolder::cloneFrom(WaveTableHolder* other, bool reversed) {
+void WaveTableHolder::beenClonedFrom(WaveTableHolder* other, bool reversed) {
 	filePath.set(&other->filePath);
 	if (other->audioFile) {
-		setAudioFile(other->audioFile, reversed);
+		AudioFileHolder::setAudioFile(NULL);
+		// audioFile = nullptr;
+		AudioFileHolder::loadFile(reversed, true, true, CLUSTER_ENQUEUE, 0, true);
 	}
 }

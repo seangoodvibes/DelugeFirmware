@@ -24,5 +24,5 @@ class WaveTable;
 class WaveTableHolder final : public AudioFileHolder {
 public:
 	WaveTableHolder();
-	void cloneFrom(WaveTableHolder* other, bool reversed);
+	void beenClonedFrom(WaveTableHolder* other, bool reversed);
 };
