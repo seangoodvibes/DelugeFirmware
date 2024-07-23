@@ -34,6 +34,9 @@ public:
 	void stopOutputRecordingAndPlayback();
 	bool processStarted;
 
+	// export config variables
+	bool enableSongFX;
+
 	// export instruments
 	void disarmAllInstrumentsForStemExport();
 	void exportInstrumentStems(StemExportType stemExportType);

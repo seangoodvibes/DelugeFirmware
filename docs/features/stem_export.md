@@ -36,6 +36,8 @@ Stem's are given a meaningful name in the following format:
 - Note 1: In Arranger View, any Instruments that are `MUTED` will be excluded from the stem export.
 - Note 2: Stems are exported without Master (Song) FX applied
 
+- You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+
 ### Cancelling Stem Export
 
 - Press `BACK` to cancel Stem Export process

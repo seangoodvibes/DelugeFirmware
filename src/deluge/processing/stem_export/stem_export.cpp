@@ -54,6 +54,8 @@ StemExport::StemExport() {
 
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
+
+	enableSongFX = false;
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
