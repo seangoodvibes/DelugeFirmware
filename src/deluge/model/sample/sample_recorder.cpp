@@ -110,7 +110,12 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 	}
 
 	keepingReasonsForFirstClusters = newKeepingReasons;
-	recordingExtraMargins = shouldRecordExtraMargins;
+	if (stemExport.processStarted) {
+		recordingExtraMargins = true;
+	}
+	else {
+		recordingExtraMargins = shouldRecordExtraMargins;
+	}
 	folderID = newFolderID;
 
 	// Didn't seem to make a difference forcing this into local RAM
@@ -275,9 +280,14 @@ gotError:
 		writeInt32(&writePos, 0);                            // Cue point ID
 		writeInt32(&writePos, 0);                            // Type - 0 means loop forward
 		writeInt32(&writePos, sample->fileLoopStartSamples); // Start point
-		writeInt32(&writePos, loopEndSampleAsWrittenToFile); // End point
-		writeInt32(&writePos, 0);                            // Loop point sample fraction
-		writeInt32(&writePos, 0);                            // Play count - 0 means continuous
+		if (stemExport.processStarted) {
+			writeInt32(&writePos, stemExport.loopEndPointInSamplesForAudioFile); // End point
+		}
+		else {
+			writeInt32(&writePos, loopEndSampleAsWrittenToFile); // End point
+		}
+		writeInt32(&writePos, 0); // Loop point sample fraction
+		writeInt32(&writePos, 0); // Play count - 0 means continuous
 	}
 
 	// Data chunk ------------------------------------------------------
@@ -736,7 +746,7 @@ void SampleRecorder::updateDataLengthInFirstCluster(Cluster* cluster) {
 	// Write data chunk size
 	*(uint32_t*)&cluster->data[sample->audioDataStartPosBytes - 4] = audioDataLengthBytesAsWrittenToFile;
 
-	if (recordingExtraMargins) {
+	if (recordingExtraMargins && !stemExport.processStarted) {
 		// Write loop end point
 		*(uint32_t*)&cluster->data[92] = loopEndSampleAsWrittenToFile;
 	}

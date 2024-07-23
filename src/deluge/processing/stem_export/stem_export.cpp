@@ -344,6 +344,10 @@ void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
 	}
 }
 
+void StemExport::getLoopEndPointInSamplesForAudioFile(int32_t loopLength) {
+	loopEndPointInSamplesForAudioFile = loopLength * playbackHandler.getTimePerInternalTick();
+}
+
 /// iterates through all clips, arming one clip at a time for recording
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the clip's loop length
@@ -357,6 +361,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 			if (clip) {
 				getLoopLengthOfLongestNotEmptyNoteRow(clip);
+				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
 
 				bool started = startCurrentStemExport(stemExportType, clip->output, clip->activeIfNoSolo, idxClip,
 				                                      clip->exportStem);
