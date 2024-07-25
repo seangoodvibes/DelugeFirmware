@@ -30,5 +30,7 @@ public:
 		openUI(&gui::context_menu::audioInputSelector);
 		return (MenuItem*)0xFFFFFFFF; // no navigation
 	}
+
+	bool shouldEnterSubmenu() override { return false; }
 };
 } // namespace deluge::gui::menu_item::audio_clip

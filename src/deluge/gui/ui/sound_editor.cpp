@@ -274,11 +274,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				MenuItem* newItem = currentMenuItem->selectButtonPress();
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
-						if (newItem == &audioSourceSelectorMenu || newItem == &startStemExportMenu) {
-							newItem->selectButtonPress();
-							return ActionResult::DEALT_WITH;
-						}
-						else {
+						if (newItem->shouldEnterSubmenu()) {
 							MenuPermission result = newItem->checkPermissionToBeginSession(
 							    currentModControllable, currentSourceIndex, &currentMultiRange);
 
@@ -291,6 +287,10 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 								enterSubmenu(newItem);
 							}
+						}
+						else {
+							newItem->selectButtonPress();
+							return ActionResult::DEALT_WITH;
 						}
 					}
 				}
@@ -1628,6 +1628,7 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 }
 
 void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
