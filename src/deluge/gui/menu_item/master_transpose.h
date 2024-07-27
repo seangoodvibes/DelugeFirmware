@@ -55,5 +55,10 @@ public:
 
 	[[nodiscard]] int32_t getMinValue() const override { return -96; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 96; }
+
+	int32_t getParamValue() override {
+		readCurrentValue();
+		return this->getValue();
+	}
 };
 } // namespace deluge::gui::menu_item

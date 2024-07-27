@@ -55,4 +55,9 @@ int32_t Integer::getFinalValue() {
 	return computeFinalValueForStandardMenuItem(this->getValue());
 }
 
+int32_t Integer::getParamValue() {
+	readCurrentValue();
+	return this->getValue();
+}
+
 } // namespace deluge::gui::menu_item::patched_param

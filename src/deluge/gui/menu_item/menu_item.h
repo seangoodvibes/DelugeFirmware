@@ -109,6 +109,7 @@ public:
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
+	virtual int32_t readValue() { return 255; }
 
 	/// @}
 	/// @name Patching support
@@ -248,9 +249,13 @@ public:
 	/// @brief Check if selecting this menu item (with select encoder) should enter a submenu
 	virtual bool shouldEnterSubmenu() { return true; }
 
-	/// @brief Used with toggle menu's to display currently toggle value on same line as submenu name
+	/// @brief Used with toggle menu's to display the current toggle value on same line as submenu name
 	virtual bool shouldDisplayToggle() { return false; }
 	virtual bool getToggleValue() { return false; }
+
+	/// @brief Used with param menu's to display the current param value on same line as submenu name
+	virtual bool shouldDisplayParam() { return false; }
+	virtual int32_t getParamValue() { return 255; }
 
 	/// @}
 };

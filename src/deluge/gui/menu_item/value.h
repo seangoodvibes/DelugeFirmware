@@ -46,6 +46,10 @@ public:
 		return static_cast<E>(value_);
 	}
 
+	int32_t readValue() override {
+		return value_;
+	}
+
 protected:
 	virtual void readCurrentValue() {}
 	virtual void writeCurrentValue() {}

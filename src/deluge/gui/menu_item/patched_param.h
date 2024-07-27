@@ -51,6 +51,10 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false);
 	ModelStackWithAutoParam* getModelStack(void* memory) override;
 
+	// display param value
+	virtual bool shouldDisplayParam() { return true; }
+	virtual int32_t getParamValue();
+
 protected:
 	ParamSet* getParamSet() override;
 };

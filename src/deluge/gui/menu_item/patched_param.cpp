@@ -19,12 +19,14 @@
 #include "gui/menu_item/patch_cable_strength/regular.h"
 #include "gui/menu_item/source_selection/regular.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "gui/menu_item/value_scaling.h"
 #include "source_selection.h"
 
 namespace deluge::gui::menu_item {
@@ -84,6 +86,13 @@ MenuItem* PatchedParam::patchingSourceShortcutPress(PatchSource s, bool previous
 ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	return modelStack->getPatchedAutoParamFromId(getP());
+}
+
+int32_t PatchedParam::getParamValue() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory);
+	int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+	return computeCurrentValueForStandardMenuItem(value);
 }
 
 } // namespace deluge::gui::menu_item

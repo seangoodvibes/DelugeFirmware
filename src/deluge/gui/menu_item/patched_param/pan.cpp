@@ -51,4 +51,9 @@ int32_t Pan::getFinalValue() {
 void Pan::readCurrentValue() {
 	this->setValue(computeCurrentValueForPan(soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
 }
+
+int32_t Pan::getParamValue() {
+	readCurrentValue();
+	return this->getValue();
+}
 } // namespace deluge::gui::menu_item::patched_param

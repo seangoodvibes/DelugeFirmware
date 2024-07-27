@@ -28,9 +28,9 @@ namespace deluge::gui::menu_item {
 class UnpatchedParam : public Param, public IntegerContinuous, public MenuItemWithCCLearning {
 public:
 	UnpatchedParam(l10n::String newName, l10n::String title, int32_t newP)
-	    : Param(newP), IntegerContinuous(newName, title) {}
+	    : Param(newP), IntegerContinuous(newName, title), id(newP) {}
 
-	UnpatchedParam(l10n::String newName, int32_t newP) : Param(newP), IntegerContinuous(newName) {}
+	UnpatchedParam(l10n::String newName, int32_t newP) : Param(newP), IntegerContinuous(newName), id(newP) {}
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
@@ -56,6 +56,16 @@ public:
 	uint32_t getParamIndex();
 	ParamSet* getParamSet() final;
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
+
+	int32_t id;
+
+	// display param value
+	bool shouldDisplayParam() override { return true; }
+	int32_t getParamValue() override {
+	//	readCurrentValue();
+	//	return this->getValue();
+		return id;
+	}
 
 protected:
 	virtual int32_t getFinalValue();

@@ -54,7 +54,27 @@ void Submenu::drawPixelsForOled() {
 			nextItemNames.push_back(menuItem->getName());
 			std::string_view stringForNextItemType;
 			if (menuItem->shouldEnterSubmenu()) {
-				stringForNextItemType = "  >";
+				if (menuItem->shouldDisplayParam()) {
+					DEF_STACK_STRING_BUF(paramValue, 10);
+					int32_t value = menuItem->getParamValue();
+					if (value > -10) {
+						if (value < 0 || value >= 10) {
+							// value is -1 to -9 or 10 to 50 (2 characters),
+							// so pad 1 space in front to make it 3
+							paramValue.append(" ");
+						}
+						else if (value < 10) {
+							// value is 0 to 9 (1 character),
+							// so pad 2 spaces in front to make it 3
+							paramValue.append("  ");
+						}
+					}
+					paramValue.appendInt(value);
+					stringForNextItemType = paramValue.c_str();
+				}
+				else {
+					stringForNextItemType = "  >";
+				}
 			}
 			else {
 				if (menuItem->shouldDisplayToggle()) {
@@ -80,7 +100,28 @@ void Submenu::drawPixelsForOled() {
 			prevItemNames.push_back(menuItem->getName());
 			std::string_view stringForPrevItemType;
 			if (menuItem->shouldEnterSubmenu()) {
-				stringForPrevItemType = "  >";
+				if (menuItem->shouldDisplayParam()) {
+					DEF_STACK_STRING_BUF(paramValue, 10);
+					int32_t value = menuItem->getParamValue();
+					// check value size to determine how many spaces to pad to the front of the number
+					if (value > -10) {
+						if (value < 0 || value >= 10) {
+							// value is -1 to -9 or 10 to 50 (2 characters),
+							// so pad 1 space in front to make it 3
+							paramValue.append(" ");
+						}
+						else if (value < 10) {
+							// value is 0 to 9 (1 character),
+							// so pad 2 spaces in front to make it 3
+							paramValue.append("  ");
+						}
+					}
+					paramValue.appendInt(value);
+					stringForPrevItemType = paramValue.c_str();
+				}
+				else {
+					stringForPrevItemType = "  >";
+				}
 			}
 			else {
 				if (menuItem->shouldDisplayToggle()) {

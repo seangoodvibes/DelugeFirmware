@@ -25,6 +25,8 @@ public:
 	using UnpatchedParam::UnpatchedParam;
 	virtual void drawValue();
 
+	int32_t getParamValue() override;
+
 protected:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
