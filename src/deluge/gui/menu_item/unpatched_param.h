@@ -65,6 +65,8 @@ public:
 		return getValue();
 	}
 
+	void renderInBox(int32_t startX, int32_t width, int32_t startY, int32_t height) final override;
+
 protected:
 	virtual int32_t getFinalValue();
 };
