@@ -416,10 +416,7 @@ gotErrorAfterCreatingSong:
 		AudioEngine::logAction("waiting for samples");
 #ifdef USE_TASK_MANAGER
 		// make sure we don't get stuck
-		yield([]() {
-			return currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
-			       && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
-		});
+		yield([]() { return currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED; });
 #else
 		// If any more waiting required before the song swap actually happens, do that
 		while (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {

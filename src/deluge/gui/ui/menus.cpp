@@ -15,6 +15,7 @@
 #include "gui/menu_item/arpeggiator/rhythm.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
+#include "gui/menu_item/quad_menu.h"
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
@@ -473,16 +474,9 @@ Submenu kitClipMasterMenu{
 // LPF Menu
 UnpatchedParam globalLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::UNPATCHED_LPF_FREQ};
 UnpatchedParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::UNPATCHED_LPF_RES};
-UnpatchedParam globalLPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, params::UNPATCHED_LPF_MORPH};
-Submenu globalLPFMenu{
-    STRING_FOR_LPF,
-    {
-        &globalLPFFreqMenu,
-        &globalLPFResMenu,
-        &globalLPFMorphMenu,
-        &lpfModeMenu,
-    },
-};
+menu_item::filter::UnpatchedFilterMorph globalLPFMorphMenu{STRING_FOR_MORPH, params::UNPATCHED_LPF_MORPH, false};
+
+QuadMenu globalLPFMenu{STRING_FOR_LOW_PASS_FILTER, &globalLPFFreqMenu, &globalLPFResMenu, &globalLPFMorphMenu, &lpfModeMenu};
 
 // HPF Menu
 UnpatchedParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::UNPATCHED_HPF_FREQ};

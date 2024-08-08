@@ -261,6 +261,10 @@ public:
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 
+	virtual void renderInBox(int32_t startX, int32_t width, int32_t startY, int32_t height) {}
+
+	virtual bool hasInputAction() { return false; }
+
 	/// @}
 };
 
