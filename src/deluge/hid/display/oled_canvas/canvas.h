@@ -139,12 +139,17 @@ public:
 	/// @param textHeight The height of the character
 	int32_t getCharWidthInPixels(uint8_t theChar, int32_t textHeight);
 
+	int32_t getCharSpacingAdjustment(int32_t textHeight, uint8_t currentChar, uint8_t nextChar);
+	int32_t getCharSpacingAdjustmentFor9pxFont(uint8_t currentChar, uint8_t nextChar);
+	int32_t getCharSpacingAdjustmentFor13pxFont(uint8_t currentChar, uint8_t nextChar);
+
 	/// Returns spacing in pixels between characters drawn in a string
 	///
-	/// @param theChar A single character
+	/// @param theChar The current single character we're looking at
+	/// @param nextChar The next single character that follows the current character we're looking at
 	/// @param textHeight The height of the character (to distinguish between non-bold and bold characters)
 	/// @param isLastChar a boolean to specify whether any char's follow this char
-	int32_t getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar);
+	int32_t getCharSpacingInPixels(uint8_t theChar, uint8_t nextChar, int32_t textHeight, bool isLastChar);
 
 	/// Returns width of a string in pixels
 	///

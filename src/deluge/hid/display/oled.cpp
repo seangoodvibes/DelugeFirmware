@@ -458,10 +458,11 @@ bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int
 	// increase line width for the character added
 	lineWidth += charWidth;
 
+	// Sean: Aug 11/24 commenting this out for now since it's not used for monospace fonts
 	// add spacing (not relevant if you're using a monospaced font, which we are here, but keep it anyway in case we
 	// don't)
-	charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, textHeight, false);
-	lineWidth += charSpacing;
+	// charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, 0, textHeight, false);
+	// lineWidth += charSpacing;
 
 	// increment the number of characters in this line
 	lineLength++;
@@ -848,12 +849,15 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 
 	scroller->stringLengthPixels = 0;
 
-	int32_t charIdx = 0;
-	for (char const c : text) {
-		int32_t charSpacing = main.getCharSpacingInPixels(c, textSizeY, charIdx == scroller->textLength);
-		int32_t charWidth = main.getCharWidthInPixels(c, textSizeY) + charSpacing;
+	for (int i = 0; i < scroller->textLength; i++) {
+		uint8_t currentChar = text[i];
+		uint8_t nextChar = 0;
+		if (i < scroller->textLength) {
+			nextChar = text[i + 1];
+		}
+		int32_t charSpacing = main.getCharSpacingInPixels(currentChar, nextChar, textSizeY, i == scroller->textLength);
+		int32_t charWidth = main.getCharWidthInPixels(currentChar, textSizeY) + charSpacing;
 		scroller->stringLengthPixels += charWidth;
-		charIdx++;
 	}
 
 	scroller->boxLengthPixels = endX - startX;

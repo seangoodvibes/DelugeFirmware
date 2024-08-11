@@ -122,7 +122,6 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX) {
 	int32_t stringLength = string.length();
-	int32_t charIdx = 0;
 	// if the string is currently scrolling we want to identify the number of characters
 	// that should be visible on the screen based on the current scroll position
 	// to do iterate through each character in the string, based on its size in pixels
@@ -132,9 +131,15 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		int32_t numCharsToChopOff = 0;
 		int32_t widthOfCharsToChopOff = 0;
 		int32_t charStartX = 0;
-		for (char const c : string) {
-			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
-			int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+
+		for (int i = 0; i < stringLength; i++) {
+			uint8_t currentChar = string[i];
+			uint8_t nextChar = 0;
+			if (i < stringLength) {
+				nextChar = string[i + 1];
+			}
+			int32_t charSpacing = getCharSpacingInPixels(currentChar, nextChar, textHeight, i == stringLength);
+			int32_t charWidth = getCharWidthInPixels(currentChar, textHeight) + charSpacing;
 			charStartX += charWidth;
 			// are we past the scroll position?
 			// if so no more characters to chop off
@@ -146,7 +151,6 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 				numCharsToChopOff++;
 				widthOfCharsToChopOff += charWidth;
 			}
-			charIdx++;
 		}
 
 		// chop off the characters before the scroll position
@@ -155,16 +159,19 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		scrollPos -= widthOfCharsToChopOff;
 		// calculate new string length
 		stringLength = string.length();
-		// reset index
-		charIdx = 0;
 	}
 
 	// if we scrolled above, then the string, ScrollPos, stringLength will have been adjusted
 	// here we're going to draw the remaining characters in the string
-	for (char const c : string) {
-		int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
-		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
-		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
+	for (int i = 0; i < stringLength; i++) {
+		uint8_t currentChar = string[i];
+		uint8_t nextChar = 0;
+		if (i < stringLength) {
+			nextChar = string[i + 1];
+		}
+		int32_t charSpacing = getCharSpacingInPixels(currentChar, nextChar, textHeight, i == stringLength);
+		int32_t charWidth = getCharWidthInPixels(currentChar, textHeight) + charSpacing;
+		drawChar(currentChar, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
 
 		// calculate the X coordinate to draw the next character
 		pixelX += (charWidth - scrollPos);
@@ -176,7 +183,6 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 
 		// no more scrolling
 		scrollPos = 0;
-		charIdx++;
 	}
 }
 
@@ -345,7 +351,122 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 	return descriptor->w_px;
 }
 
-int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar) {
+int32_t Canvas::getCharSpacingAdjustment(int32_t textHeight, uint8_t currentChar, uint8_t nextChar) {
+	if (textHeight == 10) {
+		return getCharSpacingAdjustmentFor9pxFont(currentChar, nextChar);
+	}
+	else if (textHeight == 13) {
+		return getCharSpacingAdjustmentFor13pxFont(currentChar, nextChar);
+	}
+	return 0;
+}
+
+int32_t Canvas::getCharSpacingAdjustmentFor9pxFont(uint8_t currentChar, uint8_t nextChar) {
+	int32_t adjustment = 0;
+
+	/*
+	D then O: -1
+	A then O: -1
+	T then O: -1
+	W then O: -1
+	*/
+	if (nextChar == 'O' && (currentChar == 'D' || currentChar == 'A' || currentChar == 'T' || currentChar == 'W')) {
+		adjustment = -1;
+	}
+	// (any char) then Y: -1
+	else if (nextChar == 'Y') {
+		adjustment = -1;
+	}
+	// Y then (any char): -1
+	else if (currentChar == 'Y') {
+		adjustment = -1;
+	}
+	// (any char) then A: -1
+	else if (nextChar == 'A') {
+		adjustment = -1;
+		// I then A: +2 (negates above)
+		if (currentChar == 'I') {
+			adjustment += 2;
+		}
+		// W then A: -1 (additional)
+		// Y then A: -1 (additional)
+		else if (currentChar == 'W' || currentChar == 'Y') {
+			adjustment--;
+		}
+	}
+	// T then H: -1
+	else if (nextChar == 'H' && currentChar == 'T') {
+		adjustment = -1;
+	}
+	/*
+	E then T: -1
+	T then T: -1
+	L then T: -1
+	O then T: -1
+	S then T: -1
+	' then T: -1 (' = 0x27)
+	" then T: -1 (" = 0x22)
+	4 then T: -1
+	6 then T: -1
+	*/
+	else if (nextChar == 'T'
+	         && (currentChar == 'E' || currentChar == 'T' || currentChar == 'L' || currentChar == 'O'
+	             || currentChar == 'S' || currentChar == 0x27 || currentChar == 0x22 || currentChar == '4'
+	             || currentChar == '6')) {
+		adjustment = -1;
+	}
+	// T then E: -1
+	else if (nextChar == 'E' && currentChar == 'T') {
+		adjustment = -1;
+	}
+	// O then W: -1
+	// D then W: -1
+	else if (nextChar == 'W' && (currentChar == 'O' || currentChar == 'D')) {
+		adjustment = -1;
+	}
+	/*
+	A then C: -1
+	A then M: -1
+	A then N: -1
+	A then S: -1
+	A then T: -1
+	A then V: -1 (possibly -2?)
+	A then W: -2
+	A then Y: -1
+	A then ": -2 (" = 0x22)
+	*/
+	else if (currentChar == 'A') {
+		if (nextChar == 'C' || nextChar == 'M' || nextChar == 'N' || nextChar == 'S' || nextChar == 'T' || nextChar == 'Y') {
+			adjustment = -1;
+		}
+		else if (nextChar == 'W' || nextChar == 'V' || nextChar == 0x22) {
+			adjustment = -2;
+		}
+	}
+	// 1 then (any char): +1
+	else if (currentChar == '1') {
+		adjustment = 1;
+	}
+	else if (currentChar == '7' && (nextChar == 'J' || nextChar == '4')) {
+		adjustment = -1;
+	}
+	// W then .: -2 (. = 0x2E)
+	// F then .: -2 (. = 0x2E)
+	else if (nextChar == 0x2E && (currentChar == 'W' || currentChar == 'F')) {
+		adjustment = -2;
+	}
+	// L then ": -2 (" = 0x22)
+	else if (nextChar == 0x22 && currentChar == 'L') {
+		adjustment = -2;
+	}
+	return adjustment;
+}
+
+int32_t Canvas::getCharSpacingAdjustmentFor13pxFont(uint8_t currentChar, uint8_t nextChar) {
+	return 0;
+}
+
+int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, uint8_t nextChar, int32_t textHeight, bool isLastChar) {
 	bool monospacedFont = (textHeight <= 9);
 	// don't add space to the last character
 	if (isLastChar) {
@@ -370,7 +491,7 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 		}
 		// default spacing is 2 pixels for bold fonts
 		else {
-			return 2;
+			return (2 + getCharSpacingAdjustment(textHeight, theChar, nextChar));
 		}
 	}
 }
@@ -379,12 +500,15 @@ int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 	std::string_view str{string};
 	int32_t stringLength = str.length();
 	int32_t stringWidth = 0;
-	int32_t charIdx = 0;
-	for (char const c : str) {
-		int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
-		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+	for (int i = 0; i < stringLength; i++) {
+		uint8_t currentChar = str[i];
+		uint8_t nextChar = 0;
+		if (i < stringLength) {
+			nextChar = str[i + 1];
+		}
+		int32_t charSpacing = getCharSpacingInPixels(currentChar, nextChar, textHeight, i == stringLength);
+		int32_t charWidth = getCharWidthInPixels(currentChar, textHeight) + charSpacing;
 		stringWidth += charWidth;
-		charIdx++;
 	}
 	return stringWidth;
 }
