@@ -1963,8 +1963,14 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 		if (isNoUIModeActive()) {
 			// Zoom to max if we weren't already there...
 			if (!zoomToMax()) {
-				// Or if we didn't need to do that, double Clip length
-				instrumentClipView.doubleClipLengthAction();
+				if (inAutomationEditor()) {
+					// Or if we didn't need to do that, double Clip length
+					instrumentClipView.doubleClipLengthAction();
+				}
+				// velocity editor, double note row length
+				else {
+					
+				}
 			}
 			else {
 				displayZoomLevel();

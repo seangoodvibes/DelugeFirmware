@@ -46,10 +46,12 @@ New Note Velocity Editing View that has been added as part of the existing Autom
 - Change selected note row length by:
    - Holding Audition pad + Turning horizontal encoder <>
    - Note: does not work if you have selected a note
+- Double selected note row length:
+   - Hold Shift + press down on horiontal encoder <>
 - Clear notes in selected note row by: 
    - Holding horizontal encoder <> + pressing Back
    - Note: does not work if you have selected a note
-- Rotate Note Row by:
+- Rotate selected note row by:
    - Holding vertical encoder + turning horizontal encoder <>
    - Holding audition pad + pressing and turning horizontal encoder <>
    - Note: does not work if you have selected a note

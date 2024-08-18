@@ -1329,6 +1329,57 @@ void InstrumentClipView::doubleClipLengthAction() {
 	}
 }
 
+void InstrumentClipView::doubleNoteRowLengthAction() {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
+
+NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	if (!noteRow) {
+		return;
+	}
+	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	int32_t oldLength = modelStack->getLoopLength();
+
+	// If too big...
+	if (noteRow->loopLength > (kMaxSequenceLength >> 1)) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MAXIMUM_LENGTH_REACHED));
+		return;
+	}
+
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_MULTIPLY, ActionAddition::NOT_ALLOWED);
+
+	// Add the ConsequenceClipMultiply to the Action. This must happen before calling doubleClipLength(), which may add
+	// note changes and deletions, because when redoing, those have to happen after (and they'll have no effect at all,
+	// but who cares)
+	if (action) {
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceInstrumentClipMultiply));
+
+		if (consMemory) {
+			ConsequenceInstrumentClipMultiply* newConsequence = new (consMemory) ConsequenceInstrumentClipMultiply();
+			action->addConsequence(newConsequence);
+		}
+	}
+
+	// Double the length, and duplicate the Clip content too
+	currentSong->doubleClipLength(getCurrentInstrumentClip(), action);
+
+	zoomToMax(false);
+
+	if (action) {
+		action->xZoomClip[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
+		action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+	}
+
+	displayZoomLevel();
+
+	if (display->haveOLED()) {
+		display->consoleText("Clip multiplied");
+	}
+}
+
 void InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx) {
 
 	if (InstrumentClipMinder::createNewInstrument(newOutputType, is_dx)) {
