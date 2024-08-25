@@ -631,7 +631,7 @@ void StemExport::displayStemExportProgress7SEG() {
 Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder) {
 	const auto folderID = util::to_underlying(folder);
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -688,7 +688,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 	const auto folderID = util::to_underlying(folder);
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
