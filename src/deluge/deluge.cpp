@@ -62,6 +62,7 @@
 #include "processing/engines/cv_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
+#include "storage/smsysex.h"
 #include "storage/storage_manager.h"
 #include "task_scheduler.h"
 #include "util/misc.h"
@@ -263,7 +264,7 @@ bool readButtonsAndPads() {
 
 		QwertyUI::enteredText.set("T001");
 
-		saveSongUI.performSave(storageManager, true);
+		saveSongUI.performSave(true);
 	}
 #endif
 
@@ -472,7 +473,7 @@ void setupStartupSong() {
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
 	failSafePath.concatenate(replace_char(filename, '/', '_'));
-	if (storageManager.fileExists(failSafePath.get())) {
+	if (StorageManager::fileExists(failSafePath.get())) {
 		String msgReason;
 		msgReason.concatenate("STARTUP OFF, reason: ");
 		msgReason.concatenate(filename);
@@ -481,7 +482,7 @@ void setupStartupSong() {
 	}
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE: {
-		if (!storageManager.fileExists(defaultSongFullPath)) {
+		if (!StorageManager::fileExists(defaultSongFullPath)) {
 			currentSong->writeTemplateSong(defaultSongFullPath);
 		}
 	}
@@ -497,9 +498,9 @@ void setupStartupSong() {
 			// something wrong creating canary file, failsafe.
 			return;
 		}
-		if (!storageManager.fileExists(filename)) {
+		if (!StorageManager::fileExists(filename)) {
 			filename = defaultSongFullPath;
-			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
+			if (startupSongMode == StartupSongMode::TEMPLATE || !StorageManager::fileExists(filename)) {
 				return;
 			}
 		}
@@ -507,7 +508,7 @@ void setupStartupSong() {
 
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
-			loadSongUI.performLoad(storageManager);
+			loadSongUI.performLoad();
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
 				// Wipe the name so the Save action asks you for a new song
 				currentSong->name.clear();
@@ -591,6 +592,9 @@ void registerTasks() {
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI");
 	// this one actually actions them
 	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow");
+
+	// Check for and handle queued SysEx traffic
+	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.");
 
 	// 21-29: Low priority (30 for dyn tasks)
 	p = 21;
@@ -855,9 +859,9 @@ extern "C" int32_t deluge_main(void) {
 	usbLock = 0;
 
 	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile(storageManager);
-	MIDIDeviceManager::readDevicesFromFile(storageManager);
-	midiFollow.readDefaultsFromFile(storageManager);
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
+	midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
