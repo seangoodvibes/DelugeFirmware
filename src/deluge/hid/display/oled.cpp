@@ -1286,6 +1286,7 @@ void OLED::displayError(Error error) {
 		break;
 	}
 	displayPopup(message);
+	D_PRINTLN(message);
 }
 
 } // namespace deluge::hid::display
