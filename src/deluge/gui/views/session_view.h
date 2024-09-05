@@ -157,6 +157,12 @@ public:
 
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
+	
+	// display elapsed time since playback start
+	void getElapsedTimeStringForOLED(StringBuf& elapsedTime);
+	void displayElapsedTimeSincePlaybackStart();
+	void displayElapsedTime(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& elapsedTime, bool clearArea);
+	float elapsedMsSincePlaybackStart = 0;
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain

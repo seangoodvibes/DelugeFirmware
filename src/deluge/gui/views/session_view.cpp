@@ -2018,6 +2018,10 @@ void SessionView::renderViewDisplay() {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
+	DEF_STACK_STRING_BUF(elapsedTime, 40);
+	getElapsedTimeStringForOLED(elapsedTime);
+	displayElapsedTime(canvas, elapsedTime, false);
+
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
@@ -2085,6 +2089,18 @@ void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_
 	}
 
 	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
+}
+
+void SessionView::displayElapsedTime(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& elapsedTime,
+                                     bool clearArea) {
+
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+
+	if (clearArea) {
+		canvas.clearAreaExact(0, yPos, (elapsedTime.size() * kTextSpacingX - 1), yPos + kTextSpacingY);
+	}
+
+	canvas.drawString(elapsedTime.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
 }
 
 // This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to
@@ -2186,6 +2202,7 @@ void SessionView::graphicsRoutine() {
 
 	if (display->haveOLED()) {
 		displayPotentialTempoChange(this);
+		displayElapsedTimeSincePlaybackStart();
 	}
 
 	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
@@ -2346,6 +2363,45 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 			deluge::hid::display::OLED::markChanged();
 			lastDisplayedTempo = tempo;
 		}
+	}
+}
+
+void SessionView::getElapsedTimeStringForOLED(StringBuf& elapsedTime) {
+	float msPerSecond = 1000;
+	float secondsPerMinute = 60;
+	float minutesPerHour = 60;
+
+	float elapsedMs;
+	if (playbackHandler.isEitherClockActive()) {
+		elapsedMsSincePlaybackStart = elapsedMs =
+		    (float)((AudioEngine::audioSampleTimer - playbackHandler.timeLastPlaybackStart) / (kSampleRate / 1000));
+	}
+	else {
+		elapsedMs = elapsedMsSincePlaybackStart;
+	}
+
+	float elapsedHours = (elapsedMs / (msPerSecond * secondsPerMinute * minutesPerHour));
+	int32_t elapsedHoursRoundedDown = static_cast<int32_t>(elapsedHours);
+
+	float elapsedMinutes = (elapsedHours - elapsedHoursRoundedDown) * minutesPerHour;
+	int32_t elapsedMinutesRoundedDown = static_cast<int32_t>(elapsedMinutes);
+
+	float elapsedSeconds = std::round((elapsedMinutes - elapsedMinutesRoundedDown) * secondsPerMinute);
+	int32_t elapsedSecondsRoundedUp = static_cast<int32_t>(elapsedSeconds);
+
+	elapsedTime.appendInt(elapsedHoursRoundedDown, 2);
+	elapsedTime.append(":");
+	elapsedTime.appendInt(elapsedMinutesRoundedDown, 2);
+	elapsedTime.append(":");
+	elapsedTime.appendInt(elapsedSecondsRoundedUp, 2);
+}
+
+void SessionView::displayElapsedTimeSincePlaybackStart() {
+	if (playbackHandler.isEitherClockActive()) {
+		DEF_STACK_STRING_BUF(elapsedTime, 40);
+		getElapsedTimeStringForOLED(elapsedTime);
+		displayElapsedTime(deluge::hid::display::OLED::main, elapsedTime, true);
+		deluge::hid::display::OLED::markChanged();
 	}
 }
 

@@ -114,6 +114,7 @@ PlaybackHandler::PlaybackHandler() {
 	currentVisualCountForCountIn = 0;
 	skipAnalogClocks = 0;
 	skipMidiClocks = 0;
+	timeLastPlaybackStart = 0;
 }
 
 extern "C" uint32_t triggerClockRisingEdgeTimes[];
@@ -532,6 +533,8 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	// when starting playback send updated feedback values for the current clip
 	// or active clip selected for midi follow control
 	view.sendMidiFollowFeedback();
+
+	timeLastPlaybackStart = AudioEngine::audioSampleTimer;
 }
 
 void PlaybackHandler::endPlayback() {
