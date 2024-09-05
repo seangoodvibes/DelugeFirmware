@@ -101,6 +101,7 @@ public:
 	bool usingAnalogClockInput; // Value is only valid if usingInternalClock is false
 	RecordingMode recording;
 	bool ignoringMidiClockInput;
+	uint32_t timeLastPlaybackStart;
 
 	int32_t posToNextContinuePlaybackFrom; // This will then have 1 subtracted from it when actually physically set
 	uint32_t timeLastMIDIStartOrContinueMessageSent;
