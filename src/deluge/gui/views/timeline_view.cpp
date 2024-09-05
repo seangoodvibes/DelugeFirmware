@@ -255,7 +255,7 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 
 	if (display->haveOLED()) {
 		char buffer[15];
-		sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
+		sprintf(buffer, "%d:%d:%d", whichBar, whichBeat, whichSubBeat);
 		display->popupTextTemporary(buffer);
 	}
 	else {

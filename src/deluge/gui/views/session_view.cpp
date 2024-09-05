@@ -2394,6 +2394,26 @@ void SessionView::getElapsedTimeStringForOLED(StringBuf& elapsedTime) {
 	elapsedTime.appendInt(elapsedMinutesRoundedDown, 2);
 	elapsedTime.append(":");
 	elapsedTime.appendInt(elapsedSecondsRoundedUp, 2);
+
+	float elapsedTicks = std::round((elapsedMs * (kSampleRate / 1000)) / playbackHandler.getTimePerInternalTickFloat());
+
+	uint32_t oneBar = currentSong->getBarLength();
+
+	uint32_t whichBar = elapsedTicks / oneBar;
+
+	uint32_t posWithinBar = elapsedTicks - whichBar * oneBar;
+
+	uint32_t whichBeat = posWithinBar / (oneBar >> 2);
+
+	uint32_t posWithinBeat = posWithinBar - whichBeat * (oneBar >> 2);
+
+	uint32_t whichSubBeat = posWithinBeat / (oneBar >> 4);
+
+	elapsedTime.appendInt(whichBar);
+	elapsedTime.append(":");
+	elapsedTime.appendInt(whichBeat);
+	elapsedTime.append(":");
+	elapsedTime.appendInt(whichSubBeat);		
 }
 
 void SessionView::displayElapsedTimeSincePlaybackStart() {
