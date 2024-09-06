@@ -280,6 +280,17 @@ const RGB velocityRowTailColour[kDisplayHeight] = {{2, 2, 53},  {9, 2, 46},  {17
 const RGB velocityRowBlurColour[kDisplayHeight] = {{71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80},
                                                    {76, 53, 70},  {77, 48, 60},  {78, 44, 49}, {79, 39, 39}};
 
+// colours for the probability editor
+
+const RGB probabilityRowColour[kDisplayHeight] = {{255, 255, 0}, {219, 255, 0}, {182, 255, 0}, {146, 255, 0},
+                                                  {109, 255, 0}, {73, 255, 0},  {36, 255, 0},  {0, 255, 0}};
+
+const RGB probabilityRowTailColour[kDisplayHeight] = {{53, 53, 2}, {46, 53, 2}, {38, 53, 2}, {31, 53, 2},
+                                                      {24, 53, 2}, {17, 53, 2}, {9, 53, 2},  {2, 53, 2}};
+
+const RGB probabilityRowBlurColour[kDisplayHeight] = {{79, 111, 39}, {78, 111, 44}, {77, 111, 48}, {76, 111, 53},
+                                                      {74, 111, 57}, {73, 111, 62}, {72, 111, 66}, {71, 111, 71}};
+
 // lookup tables for the values that are set when you press the pads in each row of the grid
 const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
 const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
@@ -320,6 +331,8 @@ constexpr uint8_t kPadSelectionShortcutX = 0;
 constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
+constexpr uint8_t kProbabilityShortcutX = 15;
+constexpr uint8_t kProbabilityShortcutY = 2;
 
 AutomationView automationView{};
 
@@ -862,6 +875,11 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				pixel = colours::grey;
 				occupancyMask[yDisplay][xDisplay] = 64;
 			}
+			// highlight random pad
+			if (xDisplay == kProbabilityShortcutX && yDisplay == kProbabilityShortcutY) {
+				pixel = colours::grey;
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
 		}
 	}
 }
@@ -1056,17 +1074,21 @@ void AutomationView::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteR
 	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 		value = squareInfo.averageVelocity;
 	}
+	else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+		value = squareInfo.averageProbability;
+	}
 
 	// iterate through each square
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, value);
+		renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, value, automationParamType);
 	}
 }
 
 /// render column for note parameter
 void AutomationView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-                                      int32_t yDisplay, uint8_t squareType, int32_t value) {
+                                      int32_t yDisplay, uint8_t squareType, int32_t value,
+                                      AutomationParamType automationParamType) {
 	RGB& pixel = image[yDisplay][xDisplay];
 	bool doRender = false;
 
@@ -1078,13 +1100,28 @@ void AutomationView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth]
 		if (value >= nonPatchCableMinPadDisplayValues[yDisplay]) {
 			doRender = true;
 			if (squareType == SQUARE_NOTE_HEAD) {
-				pixel = velocityRowColour[yDisplay];
+				if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+					pixel = velocityRowColour[yDisplay];
+				}
+				else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+					pixel = probabilityRowColour[yDisplay];
+				}
 			}
 			else if (squareType == SQUARE_NOTE_TAIL) {
-				pixel = velocityRowTailColour[yDisplay];
+				if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+					pixel = velocityRowTailColour[yDisplay];
+				}
+				else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+					pixel = probabilityRowTailColour[yDisplay];
+				}
 			}
 			else if (squareType == SQUARE_BLURRED) {
-				pixel = velocityRowBlurColour[yDisplay];
+				if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+					pixel = velocityRowBlurColour[yDisplay];
+				}
+				else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+					pixel = probabilityRowBlurColour[yDisplay];
+				}
 			}
 			occupancyMask[yDisplay][xDisplay] = 64;
 		}
@@ -1095,7 +1132,12 @@ void AutomationView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth]
 	// pad selection mode, render cursor
 	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
 		if (doRender) {
-			pixel = velocityRowBlurColour[yDisplay];
+			if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+				pixel = velocityRowBlurColour[yDisplay];
+			}
+			else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+				pixel = probabilityRowBlurColour[yDisplay];
+			}
 		}
 		else {
 			pixel = colours::grey;
@@ -1331,6 +1373,9 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
 	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 		parameterName.append("Velocity");
 	}
+	else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+		parameterName.append("Probability");
+	}
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -1407,6 +1452,35 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
 			char buffer[5];
 			intToString(getCurrentInstrument()->defaultVelocity, buffer);
 			canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+		}
+	}
+	else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+		if (knobPosRight != kNoSelection) {
+			char bufferLeft[10];
+			bufferLeft[0] = 'L';
+			bufferLeft[1] = ':';
+			bufferLeft[2] = ' ';
+			intToString(knobPosLeft, &bufferLeft[3]);
+			canvas.drawString(bufferLeft, 0, yPos, kTextSpacingX, kTextSpacingY);
+
+			char bufferRight[10];
+			bufferRight[0] = 'R';
+			bufferRight[1] = ':';
+			bufferRight[2] = ' ';
+			intToString(knobPosRight, &bufferRight[3]);
+			canvas.drawStringAlignRight(bufferRight, yPos, kTextSpacingX, kTextSpacingY);
+		}
+		else if (knobPosLeft != kNoSelection) {
+			char buffer[5];
+			intToString(knobPosLeft, buffer);
+			canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+		}
+		else {
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+				char buffer[5];
+				intToString(modelStackWithNoteRow->getNoteRow()->getDefaultProbability(modelStackWithNoteRow), buffer);
+				canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+			}
 		}
 	}
 }
@@ -2566,6 +2640,30 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 			return;
 		}
 	}
+	// PatchSource::Random shortcut
+	// Enter Probability Note Editor
+	if (xDisplay == kProbabilityShortcutX && yDisplay == kProbabilityShortcutY) {
+		if (clip->type == ClipType::INSTRUMENT) {
+			// don't enter if we're in a kit with affect entire enabled
+			if (!(outputType == OutputType::KIT && getAffectEntire())) {
+				if (outputType == OutputType::KIT) {
+					potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
+				}
+				initParameterSelection(false);
+				automationParamType = AutomationParamType::NOTE_PROBABILITY;
+				clip->lastSelectedParamShortcutX = xDisplay;
+				clip->lastSelectedParamShortcutY = yDisplay;
+				blinkShortcuts();
+				renderDisplay();
+				uiNeedsRendering(this);
+				// if you're in note editor, turn led on
+				if (((InstrumentClip*)clip)->wrapEditing) {
+					indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+				}
+			}
+			return;
+		}
+	}
 	// potentially select a regular automatable parameter
 	else if (!onArrangerView
 	         && (outputType == OutputType::SYNTH
@@ -2672,7 +2770,7 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 }
 
 // note edit pad action
-// handles single and multi pad presses for note parameter editing (e.g. velocity)
+// handles single and multi pad presses for note parameter editing (e.g. velocity, probability)
 // stores pad presses in the EditPadPresses struct of the instrument clip view
 void AutomationView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                        InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
@@ -2685,6 +2783,9 @@ void AutomationView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNote
 			velocityEditPadAction(modelStackWithNoteRow, noteRow, clip, x, y, velocity, effectiveLength, squareInfo);
 		}
 	}
+	//	else if (automationParamType == AutomationParamType::NOTE_PROBABILITY) {
+	//		probabilityEditPadAction(modelStackWithNoteRow, noteRow, clip, x, y, velocity, effectiveLength, squareInfo);
+	//	}
 }
 
 // handle's what happens when you select columns in velocity pad selection mode
@@ -5606,6 +5707,10 @@ void AutomationView::setAutomationParamType() {
 		if ((clip->lastSelectedParamShortcutX == kVelocityShortcutX)
 		    && (clip->lastSelectedParamShortcutY == kVelocityShortcutY)) {
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
+		}
+		else if ((clip->lastSelectedParamShortcutX == kProbabilityShortcutX)
+		         && (clip->lastSelectedParamShortcutY == kProbabilityShortcutY)) {
+			automationParamType = AutomationParamType::NOTE_PROBABILITY;
 		}
 	}
 }

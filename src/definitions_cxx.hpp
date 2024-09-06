@@ -227,6 +227,7 @@ enum class AutomationSubType : uint8_t {
 enum class AutomationParamType : uint8_t {
 	PER_SOUND,
 	NOTE_VELOCITY,
+	NOTE_PROBABILITY,
 };
 
 // BEWARE! Something in Kit loading or InstrumentClip::changeOutputType() is sensitive to output type order. There's a

@@ -198,6 +198,10 @@ private:
 	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
 	void setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
 	                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement);
+	// void probabilityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip*
+	// clip,
+	//                            int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo&
+	//                            squareInfo);
 	void recordNoteEditPadAction(int32_t x, int32_t velocity);
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
@@ -251,7 +255,7 @@ private:
 	                      int32_t xZoom, SquareInfo& squareInfo);
 	void renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
 	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t yDisplay,
-	                      uint8_t squareType, int32_t value);
+	                      uint8_t squareType, int32_t value, AutomationParamType automationParamType);
 	void renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
 	                         RGB image[][kDisplayWidth + kSideBarWidth],
 	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
