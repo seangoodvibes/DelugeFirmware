@@ -876,7 +876,7 @@ doNewProbability:
 				int32_t iterance = pendingNoteOnList.pendingNoteOns[i].iterance & 127;
 
 				// If it's an iteration dependence...
-				if (iterance > kNumProbabilityValues) [[unlikely]] {
+				if (iterance > kDefaultIteranceValue) [[unlikely]] {
 
 					int32_t divisor, iterationWithinDivisor;
 					dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
@@ -892,11 +892,12 @@ doNewProbability:
 				// we'll check if that note should be sounded based on fill state
 				if (conditionPassed) {
 					// check if it's a FILL note and SYNC_SCALING is *not* pressed
-					if (pendingNoteOnList.pendingNoteOns[i].fill == kFillValue && !currentSong->isFillModeActive()) {
+					if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::FILL
+					    && !currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}
 					// check if it's a NOT FILL note and SYNC_SCALING is pressed
-					else if (!pendingNoteOnList.pendingNoteOns[i].fill == kNotFillValue
+					else if (!pendingNoteOnList.pendingNoteOns[i].fill == FillMode::NOT_FILL
 					         && currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}

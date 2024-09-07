@@ -57,7 +57,7 @@ NoteRow::NoteRow(int16_t newY) {
 	ignoreNoteOnsBefore_ = 0;
 	probabilityValue = kNumProbabilityValues;
 	iteranceValue = kDefaultIteranceValue;
-	fillValue = kDefaultFillValue;
+	fillValue = FillMode::OFF;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
@@ -1978,10 +1978,10 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 			}
 			if (drewNote && currentSong->isFillModeActive()) {
-				if (note->fill == kFillValue) {
+				if (note->fill == FillMode::FILL) {
 					pixel = deluge::gui::colours::blue;
 				}
-				else if (note->fill == kNotFillValue) {
+				else if (note->fill == FillMode::NOT_FILL) {
 					pixel = deluge::gui::colours::red;
 				}
 			}
@@ -2968,7 +2968,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
-		if (iterance > kNumProbabilityValues) {
+		if (iterance > kDefaultIteranceValue) {
 			int32_t divisor, iterationWithinDivisor;
 			dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
 
@@ -3287,7 +3287,7 @@ finishedNormalStuff:
 						newNote->setLift(kDefaultLiftValue);
 						newNote->setProbability(kNumProbabilityValues);
 						newNote->setIterance(kDefaultIteranceValue);
-						newNote->setFill(kDefaultFillValue);
+						newNote->setFill(FillMode::OFF);
 					}
 
 					reader.exitTag("note");
@@ -3356,18 +3356,23 @@ doReadNoteData:
 				else if (noteHexLength == 22) { // If reading lift...
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 
-					if (probability == 0 || probability == 128) {
-						fill = probability;
+					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
+						if (probability == kOldFillProbabilityValue) {
+							fill = FillMode::FILL;
+						}
+						else {
+							fill = FillMode::NOT_FILL;
+						}
 						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else if (probability > kNumProbabilityValues) {
-						fill = kDefaultFillValue; // off
-						iterance = probability;
+						fill = FillMode::OFF;
+						iterance = probability - kNumProbabilityValues;
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
-						fill = kDefaultFillValue;         // fill off
+						fill = FillMode::OFF;
 						iterance = kDefaultIteranceValue; // iterance off
 					}
 					lift = hexToIntFixedLength(&hexChars[18], 2);
@@ -3378,18 +3383,23 @@ doReadNoteData:
 				else { // Or if no lift here to read
 					probability = hexToIntFixedLength(&hexChars[18], 2);
 
-					if (probability == 0 || probability == 128) {
-						fill = probability;
+					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
+						if (probability == kOldFillProbabilityValue) {
+							fill = FillMode::FILL;
+						}
+						else {
+							fill = FillMode::NOT_FILL;
+						}
 						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else if (probability > kNumProbabilityValues) {
-						fill = kDefaultFillValue; // fill off
-						iterance = probability;
+						fill = FillMode::OFF;
+						iterance = probability - kNumProbabilityValues;
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
-						fill = kDefaultFillValue;         // fill off
+						fill = FillMode::OFF;
 						iterance = kDefaultIteranceValue; // iterance off
 					}
 
@@ -3415,12 +3425,11 @@ useDefaultLift:
 				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
 				}
-				if ((iterance & 127) > (kNumProbabilityValues + kNumIterationValues)
-				    || iterance >= ((kNumProbabilityValues + kNumIterationValues) | 128)) {
+				if ((iterance & 127) > kNumIterationValues || iterance >= (kNumIterationValues | 128)) {
 					iterance = kDefaultIteranceValue;
 				}
-				if (fill != kDefaultFillValue && fill != kFillValue && fill != kNotFillValue) {
-					fill = kDefaultFillValue;
+				if (fill < FillMode::OFF || fill > FillMode::FILL) {
+					fill = FillMode::OFF;
 				}
 
 				minPos = pos + length;
