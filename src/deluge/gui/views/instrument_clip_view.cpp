@@ -1125,6 +1125,8 @@ ramError:
 					newNote->velocity = noteToCopy->velocity;
 					newNote->probability = noteToCopy->probability;
 					newNote->lift = noteToCopy->lift;
+					newNote->iterance = noteToCopy->iterance;
+					newNote->fill = noteToCopy->fill;
 				}
 			}
 		}
@@ -2030,6 +2032,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					editPadPresses[i].isBlurredSquare = (squareType == SQUARE_BLURRED);
 					editPadPresses[i].intendedVelocity = firstNote->getVelocity();
 					editPadPresses[i].intendedProbability = firstNote->getProbability();
+					editPadPresses[i].intendedIterance = firstNote->getIterance();
+					editPadPresses[i].intendedFill = firstNote->getFill();
 					editPadPresses[i].isActive = true;
 					editPadPresses[i].yDisplay = yDisplay;
 					editPadPresses[i].xDisplay = xDisplay;
@@ -2392,20 +2396,18 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 					// Incrementing
 					if (offset == 1) {
-						if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+						if (probabilityValue < kNumProbabilityValues) {
 							if (prevBase) {
 								probabilityValue++;
 								prevBase = false;
 							}
 							else {
-								// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128, that is prob=0 +
-								// prevBase=true) And for percentage-probabilities we set preBase if there are
+								// For percentage-probabilities we set prevBase if there are
 								// previous notes with the same probability
-								if (probabilityValue == 0
-								    || (probabilityValue < kNumProbabilityValues
-								        && getCurrentInstrumentClip()->doesProbabilityExist(
-								            editPadPresses[i].intendedPos, probabilityValue,
-								            kNumProbabilityValues - probabilityValue))) {
+								if (probabilityValue < kNumProbabilityValues
+								    && getCurrentInstrumentClip()->doesProbabilityExist(
+								        editPadPresses[i].intendedPos, probabilityValue,
+								        kNumProbabilityValues - probabilityValue)) {
 									prevBase = true;
 								}
 								else {
@@ -2423,14 +2425,12 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								probabilityValue--;
-								// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128, that is prob=0 +
-								// prevBase=true) From any other percentage-probability we set prevBase if there are
+								// From any other percentage-probability we set prevBase if there are
 								// previous notes with the same probability
-								prevBase = (probabilityValue == 0
-								            || probabilityValue < kNumProbabilityValues
-								                   && getCurrentInstrumentClip()->doesProbabilityExist(
-								                       editPadPresses[i].intendedPos, probabilityValue,
-								                       kNumProbabilityValues - probabilityValue));
+								prevBase = (probabilityValue < kNumProbabilityValues
+								            && getCurrentInstrumentClip()->doesProbabilityExist(
+								                editPadPresses[i].intendedPos, probabilityValue,
+								                kNumProbabilityValues - probabilityValue));
 							}
 						}
 					}
@@ -2507,19 +2507,8 @@ multiplePresses:
 
 			// Incrementing
 			if (offset == 1) {
-				if (probabilityValue == 0) {
-					// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
-					if (prevBase) {
-						probabilityValue = 1;
-						prevBase = false;
-					}
-					// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
-					else {
-						prevBase = true;
-					}
-				}
-				// In any other case we just increment probability value
-				else if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+				// increment probability value
+				if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
 					probabilityValue++;
 					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
 					// for leftMostNote
@@ -2528,17 +2517,8 @@ multiplePresses:
 			}
 			// Decrementing
 			else {
-				if (probabilityValue == 1) {
-					// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
-					prevBase = true;
-					probabilityValue = 0;
-				}
-				else if (probabilityValue == 0 && prevBase) {
-					// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
-					prevBase = false;
-				}
-				// In any other case we just increment probability value
-				else if (probabilityValue > 1) {
+				// decrement probability value
+				if (probabilityValue > 1) {
 					probabilityValue--;
 					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
 					// for leftMostNote
@@ -2574,8 +2554,7 @@ multiplePresses:
 
 							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
 							// percentage probabilities
-							if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-							    && note->pos != leftMostPos) {
+							if (probabilityValue < kNumProbabilityValues && note->pos != leftMostPos) {
 								editPadPresses[i].intendedProbability |= 128;
 							}
 							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
@@ -2590,8 +2569,7 @@ multiplePresses:
 					else {
 						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
 						// percentage probabilities
-						if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-						    && editPadPresses[i].intendedPos != leftMostPos) {
+						if (probabilityValue < kNumProbabilityValues && editPadPresses[i].intendedPos != leftMostPos) {
 							editPadPresses[i].intendedProbability |= 128;
 						}
 						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
@@ -3024,7 +3002,8 @@ cancelPress:
 
 				bool success =
 				    noteRow->attemptNoteAdd(pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
-				                            editPadPresses[i].intendedProbability, modelStackWithNoteRow, action);
+				                            editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
+				                            editPadPresses[i].intendedFill, modelStackWithNoteRow, action);
 
 				editPadPresses[i].deleteOnDepress = false;
 				editPadPresses[i].deleteOnScroll = success;
@@ -3233,22 +3212,10 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
 		                                                     false); // Snapshot for undoability. Don't steal data.
 
-		// Covers the probabilities and iterations and the special case of Not Fill
+		// Covers probabilities
 		// Incrementing
 		if (offset == 1) {
-			if (probabilityValue == 0) {
-				// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
-				if (prevBase) {
-					probabilityValue = 1;
-					prevBase = false;
-				}
-				// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
-				else {
-					prevBase = true;
-				}
-			}
-			// In any other case we just increment probability value
-			else if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+			if (probabilityValue < kNumProbabilityValues) {
 				probabilityValue++;
 				// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for
 				// leftMostNote
@@ -3257,17 +3224,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		}
 		// Decrementing
 		else {
-			if (probabilityValue == 1) {
-				// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
-				prevBase = true;
-				probabilityValue = 0;
-			}
-			else if (probabilityValue == 0 && prevBase) {
-				// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
-				prevBase = false;
-			}
-			// In any other case we just increment probability value
-			else if (probabilityValue > 1) {
+			if (probabilityValue > 1) {
 				probabilityValue--;
 				// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for
 				// leftMostNote
@@ -3299,17 +3256,17 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 	sprintf(buffer, "P %d %d", probability, prevBase);
 	// FILL mode
-	if (probability == kFillProbabilityValue && !prevBase) {
-		strcpy(buffer, "FILL");
-	}
+	//	if (probability == kFillProbabilityValue && !prevBase) {
+	//		strcpy(buffer, "FILL");
+	//	}
 
 	// NO-FILL mode
-	else if (probability == kFillProbabilityValue && prevBase) {
-		strcpy(buffer, "NOT FILL");
-	}
+	//	else if (probability == kFillProbabilityValue && prevBase) {
+	//		strcpy(buffer, "NOT FILL");
+	//	}
 
 	// Probability dependence
-	else if (probability <= kNumProbabilityValues) {
+	if (probability <= kNumProbabilityValues) {
 		if (display->haveOLED()) {
 			sprintf(buffer, "Probability %d%%", probability * 5);
 			if (prevBase) {
@@ -3322,16 +3279,16 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 
 	// Iteration dependence
-	else {
+	//	else {
+	//
+	//		int32_t divisor, iterationWithinDivisor;
+	//		dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
 
-		int32_t divisor, iterationWithinDivisor;
-		dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
+	//		int32_t charPos = 0;
 
-		int32_t charPos = 0;
-
-		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
-		        iterationWithinDivisor + 1, divisor);
-	}
+	//		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
+	//		        iterationWithinDivisor + 1, divisor);
+	//	}
 
 	if (display->haveOLED()) {
 		display->popupText(buffer, PopupType::PROBABILITY);
@@ -5843,9 +5800,11 @@ justDisplayOldNumNotes:
 						Note* note = newNotes.getElement(n);
 						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
 						note->length = squareWidth;
-						note->probability = noteRow->getDefaultProbability(modelStack);
+						note->probability = noteRow->getDefaultProbability();
 						note->velocity = ((Instrument*)clip->output)->defaultVelocity;
 						note->lift = kDefaultLiftValue;
+						note->iterance = noteRow->getDefaultIterance();
+						note->fill = noteRow->getDefaultFill(modelStack);
 					}
 
 					// Just make sure final note isn't too long
