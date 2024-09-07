@@ -56,8 +56,8 @@ NoteRow::NoteRow(int16_t newY) {
 	soundingStatus = STATUS_OFF;
 	ignoreNoteOnsBefore_ = 0;
 	probabilityValue = kNumProbabilityValues;
-	iteranceValue = kNumProbabilityValues;
-	fillValue = false;
+	iteranceValue = kDefaultIteranceValue;
+	fillValue = kDefaultFillValue;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
@@ -708,7 +708,7 @@ bool NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, int32_t iterance,
-                                bool fill, ModelStackWithNoteRow* modelStack, Action* action) {
+                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 
@@ -1071,7 +1071,7 @@ modifyNote:
 		if (wrapping && reversed) {
 			int32_t probability = note->getProbability();
 			int32_t iterance = note->getIterance();
-			bool fill = note->getFill();
+			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
@@ -1978,10 +1978,10 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 			}
 			if (drewNote && currentSong->isFillModeActive()) {
-				if (note->fill) {
+				if (note->fill == kFillValue) {
 					pixel = deluge::gui::colours::blue;
 				}
-				else {
+				else if (note->fill == kNotFillValue) {
 					pixel = deluge::gui::colours::red;
 				}
 			}
@@ -3045,7 +3045,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					}
 					else {
 switchOff:
-						newIterance = kNumProbabilityValues; // Switch off iteration dependence
+						newIterance = kDefaultIteranceValue; // Switch off iteration dependence
 					}
 
 					thisRepeatedNote->setIterance(newIterance);
@@ -3342,8 +3342,7 @@ doReadNoteData:
 				int32_t pos = hexToIntFixedLength(hexChars, 8);
 				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
-				uint8_t lift, probability, iterance;
-				bool fill;
+				uint8_t lift, probability, iterance, fill;
 
 				if (noteHexLength == 26) { // if reading iterance and fill
 					fill = hexToIntFixedLength(&hexChars[24], 2);
@@ -3358,19 +3357,18 @@ doReadNoteData:
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 
 					if (probability == 0 || probability == 128) {
-						iterance = kNumProbabilityValues;    // iterance off
+						fill = probability;
+						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
-						if (probability == 0) {
-							fill = true;
-						}
-						else { // 128
-							fill = false;
-						}
 					}
 					else if (probability > kNumProbabilityValues) {
+						fill = kDefaultFillValue; // off
 						iterance = probability;
 						probability = kNumProbabilityValues; // 100% probability
-						fill = kDefaultFillValue;
+					}
+					else {
+						fill = kDefaultFillValue;         // fill off
+						iterance = kDefaultIteranceValue; // iterance off
 					}
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3381,19 +3379,18 @@ doReadNoteData:
 					probability = hexToIntFixedLength(&hexChars[18], 2);
 
 					if (probability == 0 || probability == 128) {
-						iterance = kNumProbabilityValues;    // iterance off
+						fill = probability;
+						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
-						if (probability == 0) {
-							fill = true;
-						}
-						else { // 128
-							fill = false;
-						}
 					}
 					else if (probability > kNumProbabilityValues) {
+						fill = kDefaultFillValue; // fill off
 						iterance = probability;
 						probability = kNumProbabilityValues; // 100% probability
-						fill = kDefaultFillValue;
+					}
+					else {
+						fill = kDefaultFillValue;         // fill off
+						iterance = kDefaultIteranceValue; // iterance off
 					}
 
 					lift = hexToIntFixedLength(&hexChars[18], 2);
@@ -3420,10 +3417,10 @@ useDefaultLift:
 				}
 				if ((iterance & 127) > (kNumProbabilityValues + kNumIterationValues)
 				    || iterance >= ((kNumProbabilityValues + kNumIterationValues) | 128)) {
-					iterance = kNumProbabilityValues;
+					iterance = kDefaultIteranceValue;
 				}
-				if (fill != false && fill != true) {
-					fill = false;
+				if (fill != kDefaultFillValue && fill != kFillValue && fill != kNotFillValue) {
+					fill = kDefaultFillValue;
 				}
 
 				minPos = pos + length;

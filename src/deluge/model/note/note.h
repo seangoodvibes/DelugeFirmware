@@ -45,16 +45,16 @@ public:
 
 	inline int32_t getIterance() { return iterance; }
 
-	inline void setFill(bool newFill) { fill = newFill; }
+	inline void setFill(int32_t newFill) { fill = newFill; }
 
-	inline bool getFill() { return fill; }
+	inline int32_t getFill() { return fill; }
 
 	//	void writeToFile();
 	int32_t length;
 	uint8_t velocity;
 	uint8_t probability;
 	uint8_t iterance;
-	bool fill;
+	uint8_t fill;
 	/// Lift is noteOff velocity.
 	uint8_t lift;
 

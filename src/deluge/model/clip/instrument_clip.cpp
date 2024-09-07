@@ -466,7 +466,7 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 					int32_t probability = noteRow->getDefaultProbability();
 					int32_t iterance = noteRow->getDefaultIterance();
-					bool fill = noteRow->getDefaultFill(modelStackWithNoteRow);
+					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
 						D_PRINTLN("skipping next note");
@@ -496,7 +496,7 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 				if (noteRow) {
 					int32_t probability = noteRow->getDefaultProbability();
 					int32_t iterance = noteRow->getDefaultIterance();
-					bool fill = noteRow->getDefaultFill(modelStackWithNoteRow);
+					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, iterance, fill,
 					                        modelStackWithNoteRow, action);
 					if (!basicNote->stillActive) {
@@ -892,7 +892,12 @@ doNewProbability:
 				// we'll check if that note should be sounded based on fill state
 				if (conditionPassed) {
 					// check if it's a FILL note and SYNC_SCALING is *not* pressed
-					if (pendingNoteOnList.pendingNoteOns[i].fill && !currentSong->isFillModeActive()) {
+					if (pendingNoteOnList.pendingNoteOns[i].fill == kFillValue && !currentSong->isFillModeActive()) {
+						conditionPassed = false;
+					}
+					// check if it's a NOT FILL note and SYNC_SCALING is pressed
+					else if (!pendingNoteOnList.pendingNoteOns[i].fill == kNotFillValue
+					         && currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}
 				}
@@ -4618,7 +4623,7 @@ doNormal: // Wrap it back to the start.
 	else {
 		int32_t probability = noteRow->getDefaultProbability();
 		int32_t iterance = noteRow->getDefaultIterance();
-		bool fill = noteRow->getDefaultFill(modelStack);
+		int32_t fill = noteRow->getDefaultFill(modelStack);
 		// Don't supply Action, cos we've done our own thing, above
 		distanceToNextNote =
 		    noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, iterance, fill, modelStack, nullptr);

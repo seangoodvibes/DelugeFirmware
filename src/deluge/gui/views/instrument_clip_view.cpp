@@ -3254,8 +3254,8 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
-	sprintf(buffer, "P %d %d", probability, prevBase);
-	// FILL mode
+	// sprintf(buffer, "P %d %d", probability, prevBase);
+	//  FILL mode
 	//	if (probability == kFillProbabilityValue && !prevBase) {
 	//		strcpy(buffer, "FILL");
 	//	}

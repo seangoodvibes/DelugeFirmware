@@ -74,7 +74,7 @@ struct PendingNoteOn {
 	uint8_t probability;
 	uint8_t velocity;
 	uint8_t iterance;
-	bool fill;
+	uint8_t fill;
 };
 
 struct PendingNoteOnList {
@@ -144,7 +144,7 @@ public:
 	// value for whole row
 	uint8_t probabilityValue;
 	uint8_t iteranceValue;
-	bool fillValue;
+	uint8_t fillValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;
 	LearnedMIDI midiInput;
@@ -167,7 +167,7 @@ public:
 	int32_t getDefaultIterance();
 	bool getDefaultFill(ModelStackWithNoteRow* modelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, int32_t iterance,
-	                       bool fill, ModelStackWithNoteRow* modelStack, Action* action);
+	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,

@@ -36,7 +36,7 @@ public:
 	int8_t probability;
 	uint8_t lift;
 	int8_t iterance;
-	bool fill;
+	int8_t fill;
 
 	ExistenceChangeType type;
 };
