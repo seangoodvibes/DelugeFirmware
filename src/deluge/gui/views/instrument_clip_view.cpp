@@ -124,6 +124,12 @@ InstrumentClipView::InstrumentClipView() {
 	timeLastEditPadPress = 0;
 	// newDrumOptionSelected = false;
 	firstCopiedNoteRow = NULL;
+
+	noteRowBlinking = false;
+	noteRowFlashOn = false;
+
+	noteBlinking = false;
+	noteFlashOn = false;
 }
 
 bool InstrumentClipView::opened() {
@@ -2586,6 +2592,133 @@ multiplePresses:
 	}
 }
 
+// if you've selected a single note and pressed the select encoder, you can enter the note editor menu
+// we'll need to pass all the relevant press info to the note editor menu
+/*InstrumentClipView::enterNoteEditor() {
+    if (numEditPadPressesPerNoteRowOnScreen[lastAuditionedYDisplay] == 1) {
+        for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+            bool foundPadPress = editPadPresses[i].isActive;
+
+            if (foundPadPress) {
+                noteEditor.pressIndex = i;
+
+            }
+        }
+    }
+    else {
+        display->displayPopup("Please select only one note");
+    }
+}*/
+
+// set's value for a variety of note parameters based on the following changeType's
+// CORRESPONDING_NOTES_SET_PROBABILITY 1
+// CORRESPONDING_NOTES_SET_VELOCITY 2
+// CORRESPONDING_NOTES_SET_ITERANCE 3
+// CORRESPONDING_NOTES_SET_FILL 4
+void InstrumentClipView::setNoteParameterValue(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+                                               int32_t x, int32_t changeType, int32_t changeValue) {
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	if (!action) {
+		return;
+	}
+
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		bool foundPadPress = editPadPresses[i].isActive;
+
+		// if we found an active pad press and we're looking for a pad press with a specific xDisplay
+		// see if the active pad press is the one we are looking for
+		if (foundPadPress && (x != kNoSelection)) {
+			foundPadPress = (editPadPresses[i].xDisplay == x);
+		}
+
+		if (foundPadPress) {
+			editPadPresses[i].deleteOnDepress = false;
+
+			// Multiple notes in square
+			if (editPadPresses[i].isBlurredSquare) {
+
+				uint32_t parameterSumThisSquare = 0;
+				uint32_t numNotesThisSquare = 0;
+
+				int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+				Note* note = noteRow->notes.getElement(noteI);
+				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action, changeType,
+					                                     changeValue);
+
+					int32_t currentValue;
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						currentValue = note->getProbability();
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_VELOCITY) {
+						currentValue = note->getVelocity();
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						currentValue = note->getIterance();
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+						currentValue = note->getFill();
+					}
+
+					numNotesThisSquare++;
+					parameterSumThisSquare += currentValue;
+
+					noteI++;
+					note = noteRow->notes.getElement(noteI);
+				}
+
+				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I
+				// didn't
+
+				// Sean: not sure how getting the average when first selecting the note would help because the
+				// average will change based on the *param* adjustment happening here.
+
+				// We're adjusting the intended*Param* here because this is the value that is used to audition
+				// the pad press note so you can hear the parameter changes as you're holding the note down
+
+				int32_t intendedValue = parameterSumThisSquare / numNotesThisSquare;
+
+				if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+					editPadPresses[i].intendedProbability = intendedValue;
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_VELOCITY) {
+					editPadPresses[i].intendedVelocity = intendedValue;
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+					editPadPresses[i].intendedIterance = intendedValue;
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+					editPadPresses[i].intendedFill = intendedValue;
+				}
+			}
+
+			// Only one note in square
+			else {
+				// We're adjusting the intended*Param* here because this is the fill that is used to audition
+				// the pad press note so you can hear the *param* changes as you're holding the note down
+
+				if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+					editPadPresses[i].intendedProbability = changeValue;
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_VELOCITY) {
+					editPadPresses[i].intendedVelocity = changeValue;
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+					editPadPresses[i].intendedIterance = changeValue;
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+					editPadPresses[i].intendedFill = changeValue;
+				}
+
+				noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
+				                                     changeType, changeValue);
+			}
+		}
+	}
+
+	reassessAllAuditionStatus();
+}
+
 void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -4514,7 +4647,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 
 	else if (getRootUI() == &automationView && automationView.inNoteEditor()) {
-		if (automationView.noteRowFlashOn && yDisplay == lastAuditionedYDisplay) {
+		if (noteRowFlashOn && yDisplay == lastAuditionedYDisplay) {
 			thisColour = rowColour[yDisplay].forBlur();
 		}
 		else {
@@ -6205,4 +6338,32 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 
 		dontDeleteNotesOnDepress();
 	}
+}
+
+// used to blink selected noted row when using the note row view or the note row menu
+void InstrumentClipView::resetSelectedNoteRowBlinking() {
+	uiTimerManager.unsetTimer(TimerName::NOTE_ROW_BLINK);
+	noteRowBlinking = false;
+	noteRowFlashOn = false;
+}
+
+void InstrumentClipView::blinkSelectedNote(int32_t whichMainRows) {
+	noteRowBlinking = true;
+	noteRowFlashOn = !noteRowFlashOn;
+	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
+	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
+}
+
+// used to blink selected note when using the note menu
+void InstrumentClipView::resetSelectedNoteBlinking() {
+	uiTimerManager.unsetTimer(TimerName::NOTE_BLINK);
+	noteBlinking = false;
+	noteFlashOn = false;
+}
+
+void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
+	noteBlinking = true;
+	noteFlashOn = !noteFlashOn;
+	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
+	uiTimerManager.setTimer(TimerName::NOTE_BLINK, 180);
 }

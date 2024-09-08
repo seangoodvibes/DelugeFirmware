@@ -229,7 +229,17 @@ public:
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void adjustProbability(int32_t offset);
 	void setRowProbability(int32_t offset);
+	void setNoteParameterValue(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
+	                           int32_t changeType, int32_t changeValue);
 	void editNoteRepeat(int32_t offset);
+	void blinkSelectedNoteRow(int32_t whichMainRows = 0);
+	void resetSelectedNoteRowBlinking();
+	bool noteRowFlashOn;
+	bool noteRowBlinking;
+	void blinkSelectedNote(int32_t whichMainRows = 0);
+	void resetSelectedNoteBlinking();
+	bool noteFlashOn;
+	bool noteBlinking;
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
