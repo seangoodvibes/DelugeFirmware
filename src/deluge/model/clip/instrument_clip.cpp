@@ -897,7 +897,7 @@ doNewProbability:
 						conditionPassed = false;
 					}
 					// check if it's a NOT FILL note and SYNC_SCALING is pressed
-					else if (!pendingNoteOnList.pendingNoteOns[i].fill == FillMode::NOT_FILL
+					else if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::NOT_FILL
 					         && currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}
