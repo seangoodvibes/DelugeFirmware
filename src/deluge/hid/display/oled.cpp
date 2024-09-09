@@ -140,6 +140,17 @@ const uint8_t OLED::metronomeIcon[] = {
     0b11100100, //<
 };
 
+uint8_t OLED::gridRenderIcon[] = {
+    0b00000000, //<
+    0b00000000, //<
+    0b00000000, //<
+    0b00000000, //<
+    0b00000000, //<
+    0b00000000, //<
+    0b00000000, //<
+    0b00000000, //<
+};
+
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
 #endif

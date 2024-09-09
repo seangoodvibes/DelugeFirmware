@@ -222,7 +222,7 @@ void TimelineView::displayScrollPos() {
 		quantization *= kDisplayWidth;
 	}
 
-	displayNumberOfBarsAndBeats(currentSong->xScroll[navSysId], quantization, true, "FAR");
+	//displayNumberOfBarsAndBeats(currentSong->xScroll[navSysId], quantization, true, "FAR");
 }
 
 void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,

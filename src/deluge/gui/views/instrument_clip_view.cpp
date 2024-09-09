@@ -5671,6 +5671,15 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
 				                   renderWidth, false);
+
+				for (int32_t xDisplay = 0; xDisplay < (kDisplayWidth / 2); xDisplay++) {
+					if (occupancyMaskOfRow[xDisplay] == 64) {
+						deluge::hid::display::OLED::gridRenderIcon[xDisplay] |= (1u << (7 - yDisplay));
+					}
+					else {
+						deluge::hid::display::OLED::gridRenderIcon[xDisplay] &= ~(1u << (7 - yDisplay));
+					}					
+				}
 			}
 
 			if (drawUndefinedArea) {
@@ -5682,7 +5691,12 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 		}
 
 		image += imageWidth;
-	}
+	}	
+					deluge::hid::display::OLED::clearMainImage();
+					deluge::hid::display::oled_canvas::Canvas& mainImage = deluge::hid::display::OLED::main;
+					mainImage.drawGraphicMultiLine(deluge::hid::display::OLED::gridRenderIcon, (OLED_MAIN_WIDTH_PIXELS / 2 - 4),
+											OLED_MAIN_HEIGHT_PIXELS / 2, 8);
+					deluge::hid::display::OLED::sendMainImage();	
 }
 
 void InstrumentClipView::playbackEnded() {

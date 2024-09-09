@@ -164,7 +164,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		uint32_t newLength = changeClipLength(offset, oldLength, action);
 
-		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+		//displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
 
 		if (action) {
 			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];

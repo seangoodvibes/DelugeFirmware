@@ -102,6 +102,7 @@ public:
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
 	static const uint8_t metronomeIcon[];
+	static uint8_t gridRenderIcon[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
