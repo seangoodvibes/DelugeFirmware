@@ -190,7 +190,11 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 		bool accessibility = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts)
 		                     == RuntimeFeatureStateToggle::On;
 
-		bool isArrangerView = getCurrentUI() == &arrangerView;
+		RootUI* rootUI = getRootUI();
+
+		bool isArrangerView =
+		    rootUI == &arrangerView
+		    || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1);
 
 		bool isRestartShortcutPressed =
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
@@ -322,7 +326,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	RootUI* rootUI = getRootUI();
 
-	bool isArrangerView = rootUI == &arrangerView;
+	bool isArrangerView = rootUI == &arrangerView
+	                      || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1);
 
 	bool alternativePlaybackStartBehaviour =
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
