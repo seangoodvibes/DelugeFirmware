@@ -62,8 +62,8 @@ public:
 	                                     bool restartingPlayback = false);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
 	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
-	                   bool shouldShiftAccordingToClipInstance = true, int32_t buttonPressLatencyForTempolessRecord = 0,
-	                   bool isResettingPlaybackPosition = false);
+	                   bool shouldShiftAccordingToClipInstance = true,
+	                   int32_t buttonPressLatencyForTempolessRecord = 0);
 	void endPlayback();
 	void inputTick(bool fromTriggerClock = false, uint32_t time = 0);
 	void startMessageReceived();

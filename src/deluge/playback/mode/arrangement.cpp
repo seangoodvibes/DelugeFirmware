@@ -112,9 +112,9 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	bool anyChangeToSessionClipsPlaying = false;
 
-	if (((!arrangerView.stoppingPlayback) || (playbackHandler.isInternalClockActive())) && arrangerView.isLooping
-	    && (lastProcessedPos >= arrangerView.loopEndPos)) {
-		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+	if (playbackHandler.isInternalClockActive() && arrangerView.isLooping
+	    && (lastProcessedPos >= (arrangerView.loopEndPos - 1))) {
+		playbackHandler.forceResetPlayPos(currentSong);
 		return;
 	}
 
