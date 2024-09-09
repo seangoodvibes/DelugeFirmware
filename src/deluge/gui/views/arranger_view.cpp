@@ -422,7 +422,7 @@ doActualSimpleChange:
 
 	else {
 		if (on && b == PLAY) {
-			if (playbackHandler.isEitherClockActive()) {
+			if (playbackHandler.isInternalClockActive()) {
 				stoppingPlayback = true;
 			}
 			else {

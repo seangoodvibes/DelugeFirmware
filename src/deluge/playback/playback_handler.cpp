@@ -347,7 +347,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// isSongPadPressed = restart playhead in song view
 	// isClipPadPressed = restart playhead in clip view
 
-	bool isArrangementLooping = isArrangerView && arrangerView.isLooping;
+	bool isArrangementLooping = (currentSong->lastClipInstanceEnteredStartPos != -1) && arrangerView.isLooping;
 
 	bool useScrollPosition = isRestartShortcutPressed || useArrangementScrollPosition;
 
