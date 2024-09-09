@@ -354,6 +354,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	bool useSpecificPosition =
 	    isArrangementPadPressed || isArrangementLooping; // add isSongPadPressed and isClipPadPressed here
 
+	bool isResettingPlaybackPosition = useScrollPosition || useSpecificPosition;
+
 	// 	  Allow playback to start from current scroll if:
 	//    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour
 	//		 is disabled or restarting playback;
@@ -364,8 +366,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// 	  Allow playback to start from specific position if:
 	//	  1) you're in arranger view and holding a pad in the arrangement
 
-	if (useScrollPosition || useSpecificPosition) {
-
+	if (isResettingPlaybackPosition) {
 		int32_t navSys;
 		if (rootUI) {
 			if (auto* timelineView = rootUI->toTimelineView()) {
@@ -432,7 +433,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// reads from this.
 	nextTimerTickScheduled = 0;
 
-	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
+	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency, isResettingPlaybackPosition);
 
 	// Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
 	timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
@@ -488,12 +489,18 @@ useArranger:
 // Call decideOnCurrentPlaybackMode() before this
 void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall,
                                     bool shouldShiftAccordingToClipInstance,
-                                    int32_t buttonPressLatencyForTempolessRecord) {
+                                    int32_t buttonPressLatencyForTempolessRecord, bool isResettingPlaybackPosition) {
 
 	actionLogger.closeAction(ActionType::RECORD);
 
 	if (shouldShiftAccordingToClipInstance && currentPlaybackMode == &arrangement && rootUIIsClipMinderScreen()) {
-		playFromPos += currentSong->lastClipInstanceEnteredStartPos;
+		if (isResettingPlaybackPosition
+		    && (currentSong->xScroll[NAVIGATION_ARRANGEMENT] > currentSong->lastClipInstanceEnteredStartPos)) {
+			playFromPos += currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		}
+		else {
+			playFromPos += currentSong->lastClipInstanceEnteredStartPos;
+		}
 	}
 
 	ignoringMidiClockInput = false;
