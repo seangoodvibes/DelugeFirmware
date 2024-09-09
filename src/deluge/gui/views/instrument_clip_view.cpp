@@ -5678,7 +5678,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 					}
 					else {
 						deluge::hid::display::OLED::gridRenderIcon[xDisplay] &= ~(1u << (7 - yDisplay));
-					}					
+					}
 				}
 			}
 
@@ -5691,12 +5691,12 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 		}
 
 		image += imageWidth;
-	}	
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::oled_canvas::Canvas& mainImage = deluge::hid::display::OLED::main;
-					mainImage.drawGraphicMultiLine(deluge::hid::display::OLED::gridRenderIcon, (OLED_MAIN_WIDTH_PIXELS / 2 - 4),
-											OLED_MAIN_HEIGHT_PIXELS / 2, 8);
-					deluge::hid::display::OLED::sendMainImage();	
+	}
+	deluge::hid::display::OLED::clearMainImage();
+	deluge::hid::display::oled_canvas::Canvas& mainImage = deluge::hid::display::OLED::main;
+	mainImage.drawGraphicMultiLine(deluge::hid::display::OLED::gridRenderIcon, (OLED_MAIN_WIDTH_PIXELS / 2 - 4),
+	                               OLED_MAIN_HEIGHT_PIXELS / 2, 8);
+	deluge::hid::display::OLED::sendMainImage();
 }
 
 void InstrumentClipView::playbackEnded() {
