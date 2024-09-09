@@ -51,7 +51,7 @@ struct EditPadPress {
 	uint8_t intendedVelocity;
 	uint8_t intendedProbability;
 	uint8_t intendedIterance;
-	bool intendedFill;
+	uint8_t intendedFill;
 	bool deleteOnScroll;
 	bool isBlurredSquare;
 	bool mpeCachedYet;

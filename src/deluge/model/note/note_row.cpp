@@ -228,6 +228,8 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	squareInfo.numNotes = 0;
 	squareInfo.averageProbability = 0;
 	squareInfo.averageVelocity = 0;
+	squareInfo.averageIterance = 0;
+	squareInfo.averageFill = 0;
 	squareInfo.isValid = true;
 }
 
@@ -365,6 +367,8 @@ void NoteRow::calculateSquareAverages(SquareInfo& squareInfo) {
 	if (squareInfo.numNotes > 1) {
 		squareInfo.averageProbability = squareInfo.averageProbability / squareInfo.numNotes;
 		squareInfo.averageVelocity = squareInfo.averageVelocity / squareInfo.numNotes;
+		squareInfo.averageIterance = squareInfo.averageIterance / squareInfo.numNotes;
+		squareInfo.averageFill = squareInfo.averageFill / squareInfo.numNotes;
 	}
 }
 
