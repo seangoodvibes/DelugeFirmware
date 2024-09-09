@@ -99,6 +99,10 @@ ArrangerView::ArrangerView() {
 	lastInteractedClipInstance = nullptr;
 
 	lastInteractedArrangementPos = -1;
+
+	isLooping = false;
+	loopStartPos = -1;
+	loopEndPos = -1;
 }
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
@@ -387,7 +391,15 @@ doActualSimpleChange:
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			clearArrangement();
+			if (isLooping) {
+				isLooping = false;
+				loopStartPos = -1;
+				loopEndPos = -1;
+				uiNeedsRendering(this);
+			}
+			else {
+				clearArrangement();
+			}
 		}
 	}
 
@@ -409,6 +421,15 @@ doActualSimpleChange:
 	}
 
 	else {
+		if (on && b == PLAY) {
+			if (playbackHandler.isEitherClockActive()) {
+				stoppingPlayback = true;
+			}
+			else {
+				stoppingPlayback = false;
+			}
+		}
+
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
@@ -1237,6 +1258,58 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 		}
 	}
 
+	else if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
+		if (on) {
+			int32_t squareStart = getPosFromSquare(x, xScroll);
+			int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
+
+			if (squareStart >= squareEnd) {
+				FREEZE_WITH_ERROR("E210");
+			}
+
+			Buttons::considerCrossScreenReleaseForCrossScreenMode = false;
+
+			bool looping = true;
+
+			if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
+				if (squareEnd > lastInteractedArrangementPos) {
+					loopEndPos = squareEnd;
+					if (loopStartPos != lastInteractedArrangementPos) {
+						loopStartPos = lastInteractedArrangementPos;
+					}
+				}
+				else {
+					looping = false;
+				}
+			}
+			else {
+				if (loopEndPos >= squareStart && loopEndPos <= squareEnd) { // exit looping
+					loopEndSelected = true;
+					loopStartSelected = false;
+				}
+				else if (loopStartPos >= squareStart && loopStartPos <= squareEnd) { // remove start marker
+					loopStartSelected = true;
+					loopEndSelected = false;
+				}
+				else {
+					if (loopStartSelected) {
+						loopStartPos = squareStart;
+					}
+					else if (loopEndSelected) {
+						loopEndPos = squareEnd;
+					}
+					else {
+						loopStartPos = squareStart;
+						loopEndPos = getPosFromSquare(kDisplayWidth, xScroll);
+					}
+				}
+			}
+
+			isLooping = looping;
+
+			uiNeedsRendering(this);
+		}
+	}
 	else {
 
 		if (on) {
@@ -2259,6 +2332,20 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 			for (auto* it = &imageThisRow[newStartSquare];
 			     it != &imageThisRow[newStartSquare] + (newEndSquare - newStartSquare); it++) {
 				*it = colours::black;
+			}
+		}
+	}
+
+	if (isLooping) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			int32_t squareStart = getPosFromSquare(xDisplay, xScroll);
+			int32_t squareEnd = getPosFromSquare(xDisplay + 1, xScroll);
+
+			if (squareStart == loopStartPos) {
+				imageThisRow[xDisplay] = colours::cyan;
+			}
+			else if (squareEnd == loopEndPos) {
+				imageThisRow[xDisplay] = colours::magenta;
 			}
 		}
 	}

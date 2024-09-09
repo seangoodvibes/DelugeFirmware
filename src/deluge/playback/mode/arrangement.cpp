@@ -112,6 +112,12 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	bool anyChangeToSessionClipsPlaying = false;
 
+	if (((!arrangerView.stoppingPlayback) || (playbackHandler.isEitherClockActive())) && arrangerView.isLooping
+	    && (lastProcessedPos >= arrangerView.loopEndPos)) {
+		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+		return;
+	}
+
 	lastProcessedPos += posIncrement;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

@@ -116,6 +116,13 @@ public:
 
 	int32_t lastInteractedArrangementPos;
 
+	bool isLooping;
+	int32_t loopStartPos;
+	int32_t loopEndPos;
+	bool loopStartSelected = false;
+	bool loopEndSelected = false;
+	bool stoppingPlayback = false;
+
 	int32_t lastTickSquare;
 
 	int32_t xScrollWhenPlaybackStarted;

@@ -201,15 +201,20 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 		// isSongPadPressed = restart playhead in song view
 		// isClipPadPressed = restart playhead in clip view
 
+		bool isArrangementLooping = isArrangerView && arrangerView.isLooping;
+
 		bool isSequencerPadPressed = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
 
 		// If holding restart shortcut down...
 		// or holding pad in arranger view (and eventually song and clip views)
-		if (isRestartShortcutPressed || isSequencerPadPressed) {
+		if (isRestartShortcutPressed || isSequencerPadPressed || isArrangementLooping) {
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && isArrangerView) {
 				if (isArrangementPadPressed) {
 					arrangementPosToStartAtOnSwitch = arrangerView.lastInteractedArrangementPos;
+				}
+				else if (isArrangementLooping) {
+					arrangementPosToStartAtOnSwitch = arrangerView.loopStartPos;
 				}
 				else {
 					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
@@ -337,9 +342,12 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// isSongPadPressed = restart playhead in song view
 	// isClipPadPressed = restart playhead in clip view
 
+	bool isArrangementLooping = isArrangerView && arrangerView.isLooping;
+
 	bool useScrollPosition = isRestartShortcutPressed || useArrangementScrollPosition;
 
-	bool useSpecificPosition = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
+	bool useSpecificPosition =
+	    isArrangementPadPressed || isArrangementLooping; // add isSongPadPressed and isClipPadPressed here
 
 	// 	  Allow playback to start from current scroll if:
 	//    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour
@@ -365,6 +373,9 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 		if (isArrangementPadPressed) {
 			newPos = arrangerView.lastInteractedArrangementPos;
+		}
+		else if (isArrangementLooping) {
+			newPos = arrangerView.loopStartPos;
 		}
 		else {
 			newPos = currentSong->xScroll[navSys];
