@@ -100,6 +100,9 @@
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
 #include "gui/menu_item/note/probability.h"
+#include "gui/menu_item/note/velocity.h"
+#include "gui/menu_item/note/iterance.h"
+#include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
 #include "gui/menu_item/osc/retrigger_phase.h"
@@ -1152,13 +1155,19 @@ menu_item::Submenu soundEditorRootMenu{
     },
 };
 
+menu_item::note::Velocity velocityMenu{STRING_FOR_NOTE_EDITOR_VELOCITY};
 menu_item::note::Probability probabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
+menu_item::note::Iterance iteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
+menu_item::note::Fill fillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 
 // Root menu for Note Editor
 menu_item::Submenu noteEditorRootMenu{
     STRING_FOR_NOTE_EDITOR,
     {
+        &velocityMenu,
         &probabilityMenu,
+        &iteranceMenu,
+        &fillMenu,
     },
 };
 

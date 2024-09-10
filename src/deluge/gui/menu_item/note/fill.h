@@ -27,12 +27,12 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::note {
-class Probability final : public SelectedNote {
+class Fill final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return (kNumProbabilityValues | 127); }
-	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 2; }
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 
 	/// @brief Begin an editing session with this menu item.
 	///
@@ -45,7 +45,7 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageProbability);
+			this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageFill);
 		}
 	}
 

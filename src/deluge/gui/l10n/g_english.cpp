@@ -793,7 +793,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_NOTE_EDITOR, "Note Editor"},
         {STRING_FOR_NOTE_EDITOR_VELOCITY, "Velocity"},
         {STRING_FOR_NOTE_EDITOR_PROBABILITY, "Probability"},
-        {STRING_FOR_NOTE_EDITOR_ITERANCE, "ITERANCE"},
+        {STRING_FOR_NOTE_EDITOR_ITERANCE, "Iterance"},
         {STRING_FOR_NOTE_EDITOR_FILL, "Fill"},
     },
 };
