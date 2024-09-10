@@ -790,6 +790,11 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ACTIONS, "Actions"},
         {STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH, "Set Clip Length Equal to Sample Length"},
         {STRING_FOR_CLIP_LENGTH_ADJUSTED, "Clip Length Adjusted"},
+        {STRING_FOR_NOTE_EDITOR, "Note Editor"},
+        {STRING_FOR_NOTE_EDITOR_VELOCITY, "Velocity"},
+        {STRING_FOR_NOTE_EDITOR_PROBABILITY, "Probability"},
+        {STRING_FOR_NOTE_EDITOR_ITERANCE, "ITERANCE"},
+        {STRING_FOR_NOTE_EDITOR_FILL, "Fill"},
     },
 };
 } // namespace deluge::l10n::built_in

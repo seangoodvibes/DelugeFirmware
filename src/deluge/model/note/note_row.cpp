@@ -372,6 +372,18 @@ void NoteRow::calculateSquareAverages(SquareInfo& squareInfo) {
 	}
 }
 
+void NoteRow::cloneSquareInfo(SquareInfo& to, SquareInfo& from) {
+	to.squareStartPos = from.squareStartPos;
+	to.squareEndPos = from.squareEndPos;
+	to.numNotes = from.numNotes;
+	to.squareType = from.squareType;
+	to.averageProbability = from.averageProbability;
+	to.averageVelocity = from.averageVelocity;
+	to.averageIterance = from.averageIterance;
+	to.averageFill = from.averageFill;
+	to.isValid = from.isValid;
+}
+
 uint8_t NoteRow::getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
                                ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
                                Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible) {

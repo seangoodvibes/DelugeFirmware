@@ -46,7 +46,6 @@ enum class TimerName {
 	INTERPOLATION_SHORTCUT_BLINK,
 	PAD_SELECTION_SHORTCUT_BLINK,
 	NOTE_ROW_BLINK,
-	NOTE_BLINK,
 	/// Total number of timers
 	NUM_TIMERS
 };

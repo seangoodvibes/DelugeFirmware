@@ -254,7 +254,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Encoder button
 	if (b == SELECT_ENC) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
+		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -295,7 +296,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Back button
 	else if (b == BACK) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
+		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -506,6 +508,9 @@ void SoundEditor::exitCompletely() {
 		runtimeFeatureSettings.writeSettingsToFile();
 		display->removeWorkingAnimation();
 	}
+	else if (inNoteEditor()) {
+		instrumentClipView.exitNoteEditor();
+	}
 	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
@@ -573,7 +578,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		renderUIsForOled();
 	}
 
-	if (!inSettingsMenu() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
+	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
 	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
 
@@ -761,7 +766,8 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
-		    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+		    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && currentUIMode != UI_MODE_NOTES_PRESSED) {
 			return;
 		}
 
@@ -1102,9 +1108,15 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// Audition pads
+	// Audition pads or Main Grid Pads (while in Note Editor)
 	else if (rootUI == &instrumentClipView) {
-		if (x == kDisplayWidth + 1) {
+		if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+			if (x < kDisplayWidth) {
+				instrumentClipView.handleNoteEditorPadAction(x, y, on);
+				return ActionResult::DEALT_WITH;
+			}
+		}
+		else if (x == kDisplayWidth + 1) {
 			instrumentClipView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
@@ -1381,7 +1393,10 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == ClipType::INSTRUMENT) {
-				if (outputType == OutputType::MIDI_OUT) {
+				if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+					newItem = &noteEditorRootMenu;
+				}
+				else if (outputType == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
@@ -1490,6 +1505,10 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
+}
+
+bool SoundEditor::inNoteEditor() {
+	return (menuItemNavigationRecord[0] == &noteEditorRootMenu);
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {

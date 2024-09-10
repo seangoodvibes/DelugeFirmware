@@ -128,8 +128,8 @@ InstrumentClipView::InstrumentClipView() {
 	noteRowBlinking = false;
 	noteRowFlashOn = false;
 
-	noteBlinking = false;
-	noteFlashOn = false;
+	lastSelectedNoteXDisplay = kNoSelection;
+	lastSelectedNoteYDisplay = kNoSelection;
 }
 
 bool InstrumentClipView::opened() {
@@ -874,6 +874,14 @@ doCancelPopup:
 		}
 	}
 
+	else if (b == SELECT_ENC) {
+		if (on && (currentUIMode == UI_MODE_NOTES_PRESSED)) {
+			if (enterNoteEditor()) {
+				return ActionResult::DEALT_WITH;
+			}
+			goto passToOthers;
+		}
+	}
 	else {
 passToOthers:
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -2091,6 +2099,10 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					mpeRecordLastUpdateTime = AudioEngine::audioSampleTimer;
 
 					reassessAuditionStatus(yDisplay);
+
+					noteRow->getSquareInfo(xDisplay, effectiveLength, lastSelectedNoteSquareInfo);
+					lastSelectedNoteXDisplay = xDisplay;
+					lastSelectedNoteYDisplay = yDisplay;
 				}
 
 				// Might need to re-render row, if it was changed
@@ -2215,6 +2227,8 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		exitUIMode(UI_MODE_NOTES_PRESSED);
 		actionLogger.closeAction(ActionType::NOTE_EDIT);
 		quantizeAmount = 0;
+		lastSelectedNoteXDisplay = kNoSelection;
+		lastSelectedNoteYDisplay = kNoSelection;
 	}
 }
 
@@ -2594,21 +2608,73 @@ multiplePresses:
 
 // if you've selected a single note and pressed the select encoder, you can enter the note editor menu
 // we'll need to pass all the relevant press info to the note editor menu
-/*InstrumentClipView::enterNoteEditor() {
-    if (numEditPadPressesPerNoteRowOnScreen[lastAuditionedYDisplay] == 1) {
-        for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-            bool foundPadPress = editPadPresses[i].isActive;
+bool InstrumentClipView::enterNoteEditor() {
+	if (numEditPadPresses == 1 && lastSelectedNoteXDisplay != kNoSelection
+	    && lastSelectedNoteYDisplay != kNoSelection) {
+		dontDeleteNotesOnDepress();
+		display->setNextTransitionDirection(1);
+		if (soundEditor.setup(getCurrentInstrumentClip())) {
+			openUI(&soundEditor);
+			blinkSelectedNote();
+			return true;
+		}
+	}
+	else {
+		display->displayPopup("Please select only one note");
+	}
+	return false;
+}
 
-            if (foundPadPress) {
-                noteEditor.pressIndex = i;
+void InstrumentClipView::exitNoteEditor() {
+	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+		editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
+	}
+	lastSelectedNoteXDisplay = kNoSelection;
+	lastSelectedNoteYDisplay = kNoSelection;
+	resetSelectedNoteBlinking();
+}
 
-            }
-        }
-    }
-    else {
-        display->displayPopup("Please select only one note");
-    }
-}*/
+void InstrumentClipView::handleNoteEditorPadAction(int32_t x, int32_t y, int32_t on) {
+	if (on) {
+		// did you press a different pad?
+		// if no, ignore press
+		if (x != lastSelectedNoteXDisplay || y != lastSelectedNoteYDisplay) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    getCurrentInstrumentClip()->getNoteRowOnScreen(y,
+			                                                   modelStackWithTimelineCounter); // don't create
+			// does note row exist?
+			// if it doesn't exist, ignore press because there's no notes there
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+				int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+				SquareInfo squareInfo;
+				noteRow->getSquareInfo(x, effectiveLength, squareInfo);
+				// are there any notes where we are pressing?
+				// if no, ignore press
+				if (squareInfo.numNotes) {
+					// if there are notes, update note selection and refresh menu
+					// but first, release previous press and make new press
+					if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+						editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay,
+						              currentSong->xZoom[NAVIGATION_CLIP]);
+					}
+
+					// now make new press for new note selection
+					editPadAction(1, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+					dontDeleteNotesOnDepress();
+
+					// update menu selection
+					soundEditor.getCurrentMenuItem()->readValueAgain();
+					resetSelectedNoteBlinking();
+					blinkSelectedNote();
+				}
+			}
+		}
+	}
+}
 
 // set's value for a variety of note parameters based on the following changeType's
 // CORRESPONDING_NOTES_SET_PROBABILITY 1
@@ -6348,22 +6414,18 @@ void InstrumentClipView::resetSelectedNoteRowBlinking() {
 }
 
 void InstrumentClipView::blinkSelectedNote(int32_t whichMainRows) {
-	noteRowBlinking = true;
-	noteRowFlashOn = !noteRowFlashOn;
-	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
-	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
+	soundEditor.setupShortcutBlink(lastSelectedNoteXDisplay, lastSelectedNoteYDisplay, 10);
+	soundEditor.blinkShortcut();
 }
 
 // used to blink selected note when using the note menu
 void InstrumentClipView::resetSelectedNoteBlinking() {
-	uiTimerManager.unsetTimer(TimerName::NOTE_BLINK);
-	noteBlinking = false;
-	noteFlashOn = false;
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 }
 
 void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
-	noteBlinking = true;
-	noteFlashOn = !noteFlashOn;
+	noteRowBlinking = true;
+	noteRowFlashOn = !noteRowFlashOn;
 	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
-	uiTimerManager.setTimer(TimerName::NOTE_BLINK, 180);
+	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
 }

@@ -178,6 +178,7 @@ public:
 	void initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x);
 	void getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo[kDisplayWidth]);
 	void getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squareInfo);
+	void cloneSquareInfo(SquareInfo& to, SquareInfo& from);
 	void addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareInfo, int32_t& noteIndex, Note** note);
 	void calculateSquareAverages(SquareInfo& squareInfo);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,

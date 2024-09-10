@@ -99,6 +99,7 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
 #include "gui/menu_item/osc/retrigger_phase.h"
@@ -1148,6 +1149,16 @@ menu_item::Submenu soundEditorRootMenu{
         &drumBendRangeMenu,
         &patchCablesMenu,
         &sequenceDirectionMenu,
+    },
+};
+
+menu_item::note::Probability probabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
+
+// Root menu for Note Editor
+menu_item::Submenu noteEditorRootMenu{
+    STRING_FOR_NOTE_EDITOR,
+    {
+        &probabilityMenu,
     },
 };
 

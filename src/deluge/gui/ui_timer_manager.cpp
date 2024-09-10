@@ -124,10 +124,6 @@ void UITimerManager::routine() {
 					instrumentClipView.blinkSelectedNoteRow();
 					break;
 
-				case TimerName::NOTE_BLINK:
-					instrumentClipView.blinkSelectedNote();
-					break;
-
 				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;

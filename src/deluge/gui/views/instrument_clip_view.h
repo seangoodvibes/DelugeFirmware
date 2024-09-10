@@ -21,6 +21,7 @@
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 #include "util/d_string.h"
@@ -238,8 +239,13 @@ public:
 	bool noteRowBlinking;
 	void blinkSelectedNote(int32_t whichMainRows = 0);
 	void resetSelectedNoteBlinking();
-	bool noteFlashOn;
-	bool noteBlinking;
+
+	bool enterNoteEditor();
+	void exitNoteEditor();
+	void handleNoteEditorPadAction(int32_t x, int32_t y, int32_t on);
+	SquareInfo lastSelectedNoteSquareInfo;
+	int32_t lastSelectedNoteXDisplay;
+	int32_t lastSelectedNoteYDisplay;
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
