@@ -90,8 +90,8 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!
-	// Exception for performanceSessionView where the view can interact with soundEditor UI
-	if ((getCurrentUI() != getRootUI()) && (getRootUI() != &performanceSessionView)) {
+	// Exception for sound editor note editor UI which can edit notes on the grid
+	if ((getCurrentUI() != getRootUI()) && (!(getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()))) {
 		return NULL;
 	}
 

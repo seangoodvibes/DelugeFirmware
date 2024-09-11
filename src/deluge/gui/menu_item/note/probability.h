@@ -45,7 +45,18 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageProbability);
+			this->setValue(instrumentClipView.editPadPresses[0].intendedProbability);
+		}
+	}
+
+	void selectEncoderAction(int32_t offset) final override {
+		instrumentClipView.adjustProbability(offset);
+		this->setValue(instrumentClipView.editPadPresses[0].intendedProbability);
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
 		}
 	}
 

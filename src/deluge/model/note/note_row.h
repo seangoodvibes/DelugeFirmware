@@ -59,10 +59,10 @@ struct SquareInfo {
 	int32_t squareEndPos;
 	int32_t numNotes;
 	uint8_t squareType;
-	int32_t averageProbability;
 	int32_t averageVelocity;
-	int32_t averageIterance;
-	int32_t averageFill;
+	int32_t probability;
+	int32_t iterance;
+	int32_t fill;
 	bool isValid{false};
 };
 

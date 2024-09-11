@@ -45,7 +45,7 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageIterance);
+			this->setValue(instrumentClipView.editPadPresses[0].intendedIterance);
 		}
 	}
 

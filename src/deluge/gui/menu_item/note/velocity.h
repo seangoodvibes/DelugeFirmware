@@ -49,6 +49,17 @@ public:
 		}
 	}
 
+	void selectEncoderAction(int32_t offset) final override {
+		instrumentClipView.adjustVelocity(offset);
+		this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageVelocity);
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
+	}
+
 	void writeCurrentValue() override { ; }
 };
 } // namespace deluge::gui::menu_item::note

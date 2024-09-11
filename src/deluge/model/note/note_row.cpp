@@ -226,10 +226,10 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	}
 	squareInfo.squareType = SQUARE_NO_NOTE;
 	squareInfo.numNotes = 0;
-	squareInfo.averageProbability = 0;
 	squareInfo.averageVelocity = 0;
-	squareInfo.averageIterance = 0;
-	squareInfo.averageFill = 0;
+	squareInfo.probability = 0;
+	squareInfo.iterance = 0;
+	squareInfo.fill = 0;
 	squareInfo.isValid = true;
 }
 
@@ -263,9 +263,9 @@ void NoteRow::getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo
 			addNotesToSquareInfo(effectiveLength, rowSquareInfo[x], i, &note);
 		}
 
-		// calculate average probability and velocity for each square
-		// for the notes found above, cumulative probability and velocity info was saved
-		// now we'll convert those cumulative probability and velocity totals into averages
+		// calculate average velocity for each square
+		// for the notes found above, cumulative velocity info was saved
+		// now we'll convert those cumulative velocity totals into averages
 		// based on the number of notes in each square
 		// this is only required if there is more than one note in a square
 		for (int32_t x = 0; x <= lastSquare; x++) {
@@ -292,10 +292,10 @@ void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squa
 			// Update square info with note info found
 			addNotesToSquareInfo(effectiveLength, squareInfo, i, &note);
 
-			// calculate average probability and velocity for this square
-			// for the notes found above, cumulative probability and velocity info was saved
-			// now we'll convert those cumulative probability and velocity totals into an average
-			// based on the number of notes in this square
+			// calculate average velocity for each square
+			// for the notes found above, cumulative velocity info was saved
+			// now we'll convert those cumulative velocity totals into averages
+			// based on the number of notes in each square
 			// this is only required if there is more than one note in a square
 			calculateSquareAverages(squareInfo);
 		}
@@ -309,8 +309,9 @@ void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squa
 /// 3) has multiple notes or one note which is not aligned to the very first position (SQUARE_BLURRED)
 /// 4) the square is part of a tail of a previous note (SQUARE_NOTE_TAIL)
 /// returns number of notes in a square
-/// returns average probability and average velocity for a square
+/// returns average velocity for a square
 void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareInfo, int32_t& noteIndex, Note** note) {
+	bool gotFirstNoteParams = false;
 	// does the note fall within the square we're looking at
 	if (*note && ((*note)->pos >= squareInfo.squareStartPos) && ((*note)->pos < squareInfo.squareEndPos)) {
 		while ((noteIndex >= 0)
@@ -325,11 +326,14 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 			}
 
 			// we'll convert this to an average once we're done counting the number of notes
-			// and summing all note probabilities and velocities in this square
-			squareInfo.averageProbability += (*note)->getProbability();
+			// and summing all note velocities in this square
 			squareInfo.averageVelocity += (*note)->getVelocity();
-			squareInfo.averageIterance += (*note)->getIterance();
-			squareInfo.averageFill += (*note)->getFill();
+			if (!gotFirstNoteParams) {
+				squareInfo.probability = (*note)->getProbability();
+				squareInfo.iterance = (*note)->getIterance();
+				squareInfo.fill = (*note)->getFill();
+				gotFirstNoteParams = true;
+			}
 
 			// ok we've used this note, so let's move to next one
 			noteIndex--;
@@ -352,23 +356,20 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 		if (noteEnd > squareInfo.squareStartPos) {
 			squareInfo.numNotes += 1;
 			squareInfo.squareType = SQUARE_NOTE_TAIL;
-			squareInfo.averageProbability += (*note)->getProbability();
 			squareInfo.averageVelocity += (*note)->getVelocity();
-			squareInfo.averageIterance += (*note)->getIterance();
-			squareInfo.averageFill += (*note)->getFill();
+			squareInfo.probability = (*note)->getProbability();
+			squareInfo.iterance = (*note)->getIterance();
+			squareInfo.fill = (*note)->getFill();
 		}
 	}
 }
 
-/// calculate average probability and velocity for this square based on info on notes
+/// calculate average velocity for this square based on info on notes
 /// previously obtained by calling NoteRow::getRowSquareInfo or NoteRow::getSquareInfo
 /// and NoteRow::addNotesToSquareInfo
 void NoteRow::calculateSquareAverages(SquareInfo& squareInfo) {
 	if (squareInfo.numNotes > 1) {
-		squareInfo.averageProbability = squareInfo.averageProbability / squareInfo.numNotes;
 		squareInfo.averageVelocity = squareInfo.averageVelocity / squareInfo.numNotes;
-		squareInfo.averageIterance = squareInfo.averageIterance / squareInfo.numNotes;
-		squareInfo.averageFill = squareInfo.averageFill / squareInfo.numNotes;
 	}
 }
 
@@ -377,10 +378,10 @@ void NoteRow::cloneSquareInfo(SquareInfo& to, SquareInfo& from) {
 	to.squareEndPos = from.squareEndPos;
 	to.numNotes = from.numNotes;
 	to.squareType = from.squareType;
-	to.averageProbability = from.averageProbability;
 	to.averageVelocity = from.averageVelocity;
-	to.averageIterance = from.averageIterance;
-	to.averageFill = from.averageFill;
+	to.probability = from.probability;
+	to.iterance = from.iterance;
+	to.fill = from.fill;
 	to.isValid = from.isValid;
 }
 

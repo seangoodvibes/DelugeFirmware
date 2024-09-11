@@ -2239,8 +2239,9 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 	Action* action;
 	// Sean: we're only going to adjust velocity when there's a pop-up or we're in automation velocity editing view
-	// so no need to get an action otherwise
-	if (display->hasPopup() || getCurrentUI() == &automationView) {
+	// or we're in the sound editor note editor
+	// no need to get an action otherwise
+	if (display->hasPopup() || getCurrentUI() == &automationView || getCurrentUI() == &soundEditor) {
 		action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		if (!action) {
 			return; // Necessary why?
@@ -2273,7 +2274,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the
 					// value) in automation view we change it right away because you see the value on the display when
 					// pressing pad
-					if (display->hasPopup() || getCurrentUI() == &automationView) {
+					if (display->hasPopup() || getCurrentUI() == &automationView || getCurrentUI() == &soundEditor) {
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
@@ -2294,7 +2295,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 			// Only one note in square
 			else {
-				if (display->hasPopup() || getCurrentUI() == &automationView) {
+				if (display->hasPopup() || getCurrentUI() == &automationView || getCurrentUI() == &soundEditor) {
 					// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to
 					// audition the pad press note so you can hear the velocity changes as you're holding the note down
 					editPadPresses[i].intendedVelocity =
@@ -2305,6 +2306,8 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 				updateVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
 			}
+
+			instrumentClipView.lastSelectedNoteSquareInfo.averageVelocity = editPadPresses[i].intendedVelocity;
 		}
 	}
 
@@ -2355,7 +2358,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 		}
 		else {
 			getCurrentInstrument()->defaultVelocity = velocityValue;
-			if (getCurrentUI() != &automationView) {
+			if ((getCurrentUI() != &automationView) && (getCurrentUI() != &soundEditor)) {
 				if (display->haveOLED()) {
 					strcpy(buffer, "Velocity: ");
 					intToString(velocityValue, buffer + strlen(buffer));
@@ -2408,11 +2411,16 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 				prevBase = (probability & 128);
 
 				// If editing, continue edit
-				if (display->hasPopup()) {
+				if (display->hasPopup() || getCurrentUI() == &soundEditor) {
+					//display->displayPopup("test 1");
+
 					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 					if (!action) {
+						//display->displayPopup("test 2");
 						return;
 					}
+
+					//display->displayPopup("test 3");
 
 					// Incrementing
 					if (offset == 1) {
@@ -2469,6 +2477,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_SET_PROBABILITY,
 					                                     editPadPresses[i].intendedProbability);
+					// lastSelectedNoteSquareInfo.probability = editPadPresses[i].intendedProbability;
 				}
 				break;
 			}
@@ -2519,7 +2528,7 @@ multiplePresses:
 		prevBase = (probability & 128);
 
 		// If editing, continue edit
-		if (display->hasPopupOfType(PopupType::PROBABILITY)) {
+		if (display->hasPopupOfType(PopupType::PROBABILITY) || getCurrentUI() == &soundEditor) {
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (!action) {
 				return;
@@ -2601,7 +2610,7 @@ multiplePresses:
 		}
 	}
 
-	if (probabilityValue != -1) {
+	if ((probabilityValue != -1) && (getCurrentUI() != &soundEditor)) {
 		displayProbability(probabilityValue, prevBase);
 	}
 }

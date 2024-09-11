@@ -31,8 +31,8 @@ class Fill final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return 2; }
-	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return FillMode::FILL; }
+	[[nodiscard]] int32_t getMinValue() const override { return FillMode::OFF; }
 
 	/// @brief Begin an editing session with this menu item.
 	///
@@ -45,7 +45,7 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageFill);
+			this->setValue(instrumentClipView.editPadPresses[0].intendedFill);
 		}
 	}
 
