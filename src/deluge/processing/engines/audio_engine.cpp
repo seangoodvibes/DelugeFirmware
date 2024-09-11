@@ -991,9 +991,7 @@ void routine() {
 			renderAudioForStemExport(numSamples);
 			audioSampleTimer += numSamples;
 			doSomeOutputting();
-			if (!sdRoutineLock) {
-				doRecorderCardRoutines();
-			}
+			slowRoutine();
 		}
 	}
 	audioRoutineLocked = false;
