@@ -2447,7 +2447,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 					// Decrementing
 					else {
-						if (probabilityValue > 0 || prevBase) {
+						if (probabilityValue > 1 || prevBase) {
 							if (prevBase) {
 								prevBase = false;
 							}
