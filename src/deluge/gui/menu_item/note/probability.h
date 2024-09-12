@@ -52,12 +52,46 @@ public:
 	void selectEncoderAction(int32_t offset) final override {
 		instrumentClipView.adjustProbability(offset);
 		this->setValue(instrumentClipView.editPadPresses[0].intendedProbability);
-		if (display->haveOLED()) {
-			renderUIsForOled();
+		updateDisplay();
+	}
+
+	void drawPixelsForOled() {
+		char buffer[20];
+
+		int32_t probability = this->getValue();
+		bool latching = false;
+
+		// if it's a latching probability, remove latching from value
+		if (probability > kNumProbabilityValues) {
+			probability &= 127;
+			latching = true;
 		}
-		else {
-			drawValue();
+
+		sprintf(buffer, "%d%%", probability * 5);
+
+		if (latching) {
+			strcat(buffer, " (L)");
 		}
+
+		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+		                                                   kTextHugeSizeY);
+	}
+
+	void drawValue() final override {
+		char buffer[20];
+
+		int32_t probability = this->getValue();
+		bool latching = false;
+
+		// if it's a latching probability, remove latching from value
+		if (probability > kNumProbabilityValues) {
+			probability &= 127;
+			latching = true;
+		}
+
+		intToString(probability * 5, buffer);
+
+		display->setText(buffer, true, latching ? 3 : 255);
 	}
 
 	void writeCurrentValue() override { ; }

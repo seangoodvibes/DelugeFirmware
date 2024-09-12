@@ -2311,7 +2311,9 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 		}
 	}
 
-	displayVelocity(velocityValue, velocityChange);
+	if (getCurrentUI() != &soundEditor) {
+		displayVelocity(velocityValue, velocityChange);
+	}
 
 	reassessAllAuditionStatus();
 }
