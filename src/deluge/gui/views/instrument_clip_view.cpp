@@ -2399,6 +2399,7 @@ void InstrumentClipView::adjustFill(int32_t offset) {
 	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
 }
 
+// adjusts note probability, iterance, fill
 void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                   int32_t parameterMaxValue) {
 
@@ -2692,6 +2693,53 @@ multiplePresses:
 		}
 	}
 }
+
+// GCC is fine with 29 or 5 for the size, but does not like that it could be either
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
+
+void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	// Probability dependence
+	if (probability <= kNumProbabilityValues) {
+		if (display->haveOLED()) {
+			sprintf(buffer, "Probability %d%%", probability * 5);
+			if (prevBase) {
+				strcat(buffer, " latching");
+			}
+		}
+		if (display->have7SEG()) {
+			intToString(probability * 5, buffer);
+		}
+	}
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::PROBABILITY);
+	}
+	if (display->have7SEG()) {
+		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
+	}
+}
+
+const char* InstrumentClipView::getFillString(uint8_t fill) {
+	// FILL mode
+	if (fill == FillMode::FILL) {
+		return "FILL";
+	}
+
+	// NO-FILL mode
+	else if (fill == FillMode::NOT_FILL) {
+		return "NOT FILL";
+	}
+
+	// OFF
+	else {
+		return "OFF";
+	}
+}
+
+#pragma gcc pop
 
 // if you've selected a single note and pressed the select encoder, you can enter the note editor menu
 // we'll need to pass all the relevant press info to the note editor menu
@@ -3532,91 +3580,6 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	}
 	displayProbability(probabilityValue, prevBase);
 }
-
-// GCC is fine with 29 or 5 for the size, but does not like that it could be either
-#pragma GCC push
-#pragma GCC diagnostic ignored "-Wstack-usage="
-
-void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
-
-	// Probability dependence
-	if (probability <= kNumProbabilityValues) {
-		if (display->haveOLED()) {
-			sprintf(buffer, "Probability %d%%", probability * 5);
-			if (prevBase) {
-				strcat(buffer, " latching");
-			}
-		}
-		if (display->have7SEG()) {
-			intToString(probability * 5, buffer);
-		}
-	}
-
-	if (display->haveOLED()) {
-		display->popupText(buffer, PopupType::PROBABILITY);
-	}
-	if (display->have7SEG()) {
-		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
-	}
-}
-
-/*void InstrumentClipView::displayIterance(uint8_t iterance) {
-    char buffer[(display->haveOLED()) ? 29 : 5];
-
-    // Iterance dependence
-    if (iterance == 0) {
-        strcpy(buffer, "OFF");
-    }
-    else if (iterance <= kNumIterationValues) {
-        int32_t divisor, iterationWithinDivisor;
-        dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
-
-        int32_t charPos = 0;
-
-        sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
-                iterationWithinDivisor + 1, divisor);
-    }
-
-    if (display->haveOLED()) {
-        display->popupText(buffer, PopupType::PROBABILITY);
-    }
-    if (display->have7SEG()) {
-        display->displayPopup(buffer, 0, true, 255, 1, PopupType::PROBABILITY);
-    }
-}*/
-
-const char* InstrumentClipView::getFillString(uint8_t fill) {
-	// FILL mode
-	if (fill == FillMode::FILL) {
-		return "FILL";
-	}
-
-	// NO-FILL mode
-	else if (fill == FillMode::NOT_FILL) {
-		return "NOT FILL";
-	}
-
-	// OFF
-	else {
-		return "OFF";
-	}
-}
-
-/*void InstrumentClipView::displayFill(uint8_t fill) {
-    char buffer[(display->haveOLED()) ? 29 : 5];
-
-    strcpy(buffer, getFillString(fill));
-
-    if (display->haveOLED()) {
-        display->popupText(buffer, PopupType::PROBABILITY);
-    }
-    if (display->have7SEG()) {
-        display->displayPopup(buffer, 0, true, 255, 1, PopupType::PROBABILITY);
-    }
-}*/
-
-#pragma gcc pop
 
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
 
