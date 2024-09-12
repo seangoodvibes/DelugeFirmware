@@ -52,12 +52,44 @@ public:
 	void selectEncoderAction(int32_t offset) final override {
 		instrumentClipView.adjustIterance(offset);
 		this->setValue(instrumentClipView.editPadPresses[0].intendedIterance);
-		if (display->haveOLED()) {
-			renderUIsForOled();
+		updateDisplay();
+	}
+
+	void drawPixelsForOled() {
+		char buffer[20];
+
+		int32_t iterance = this->getValue();
+
+		int32_t divisor, iterationWithinDivisor;
+		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+
+		if (iterance == 0) {
+			strcpy(buffer, "OFF");
 		}
 		else {
-			drawValue();
+			sprintf(buffer, "%d of %d", iterationWithinDivisor + 1, divisor);
 		}
+
+		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+		                                                   kTextHugeSizeY);
+	}
+
+	void drawValue() final override {
+		char buffer[20];
+
+		int32_t iterance = this->getValue();
+
+		int32_t divisor, iterationWithinDivisor;
+		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+
+		if (iterance == 0) {
+			strcpy(buffer, "OFF");
+		}
+		else {
+			sprintf(buffer, "%dof%d", iterationWithinDivisor + 1, divisor);
+		}
+
+		display->setText(buffer);
 	}
 
 	void writeCurrentValue() override { ; }

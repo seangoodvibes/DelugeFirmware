@@ -653,6 +653,8 @@ enum FillMode : uint8_t {
 	FILL,
 };
 
+constexpr int32_t kNumFillValues = FillMode::FILL;
+
 enum Navigation {
 	NAVIGATION_CLIP,
 	NAVIGATION_ARRANGEMENT,

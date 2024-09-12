@@ -49,6 +49,20 @@ public:
 		}
 	}
 
+	void selectEncoderAction(int32_t offset) final override {
+		instrumentClipView.adjustFill(offset);
+		this->setValue(instrumentClipView.editPadPresses[0].intendedFill);
+		updateDisplay();
+	}
+
+	void drawPixelsForOled() final override {
+		deluge::hid::display::OLED::main.drawStringCentred(instrumentClipView.getFillString(this->getValue()),
+		                                                   18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+		                                                   kTextHugeSizeY);
+	}
+
+	void drawValue() final override { display->setText(instrumentClipView.getFillString(this->getValue())); }
+
 	void writeCurrentValue() override { ; }
 };
 } // namespace deluge::gui::menu_item::note
