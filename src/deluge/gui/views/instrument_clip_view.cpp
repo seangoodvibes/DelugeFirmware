@@ -2412,15 +2412,15 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 				// If editing, continue edit
 				if (display->hasPopup() || getCurrentUI() == &soundEditor) {
-					//display->displayPopup("test 1");
+					// display->displayPopup("test 1");
 
 					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 					if (!action) {
-						//display->displayPopup("test 2");
+						// display->displayPopup("test 2");
 						return;
 					}
 
-					//display->displayPopup("test 3");
+					// display->displayPopup("test 3");
 
 					// Incrementing
 					if (offset == 1) {
@@ -2537,7 +2537,7 @@ multiplePresses:
 			// Incrementing
 			if (offset == 1) {
 				// increment probability value
-				if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+				if (probabilityValue < kNumProbabilityValues) {
 					probabilityValue++;
 					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
 					// for leftMostNote
@@ -2612,6 +2612,230 @@ multiplePresses:
 
 	if ((probabilityValue != -1) && (getCurrentUI() != &soundEditor)) {
 		displayProbability(probabilityValue, prevBase);
+	}
+}
+
+void InstrumentClipView::adjustIterance(int32_t offset) {
+
+	int32_t iteranceValue = -1;
+
+	bool prevBase = false;
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	// If just one press...
+	if (numEditPadPresses == 1) {
+		// Find it
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+				editPadPresses[i].deleteOnDepress = false;
+
+				if (editPadPresses[i].isBlurredSquare) {
+					goto multiplePresses;
+				}
+
+				int32_t iterance = editPadPresses[i].intendedIterance;
+
+				iteranceValue = iterance & 127;
+				prevBase = (iterance & 128);
+
+				// If editing, continue edit
+				if (display->hasPopup() || getCurrentUI() == &soundEditor) {
+					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+					if (!action) {
+						return;
+					}
+
+					// Incrementing
+					if (offset == 1) {
+						if (iteranceValue < kNumIterationValues) {
+							if (prevBase) {
+								iteranceValue++;
+								prevBase = false;
+							}
+							else {
+								// For iterations we set prevBase if there are
+								// previous notes with the same iterance
+								if (iteranceValue < kNumIterationValues
+								    && getCurrentInstrumentClip()->doesIteranceExist(
+								        editPadPresses[i].intendedPos, iteranceValue,
+								        kNumIterationValues - iteranceValue)) {
+									prevBase = true;
+								}
+								else {
+									iteranceValue++;
+								}
+							}
+						}
+					}
+
+					// Decrementing
+					else {
+						if (iteranceValue > 0 || prevBase) {
+							if (prevBase) {
+								prevBase = false;
+							}
+							else {
+								iteranceValue--;
+								// From any other iterations we set prevBase if there are
+								// previous notes with the same iterance
+								prevBase = (iteranceValue < kNumIterationValues
+								            && getCurrentInstrumentClip()->doesIteranceExist(
+								                editPadPresses[i].intendedPos, iteranceValue,
+								                kNumIterationValues - iteranceValue));
+							}
+						}
+					}
+
+					editPadPresses[i].intendedIterance = iteranceValue;
+					if (prevBase) {
+						editPadPresses[i].intendedIterance |= 128;
+					}
+
+					int32_t noteRowIndex;
+					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
+					                                                                  currentSong, &noteRowIndex);
+					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
+					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+
+					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
+					                                     CORRESPONDING_NOTES_SET_ITERANCE,
+					                                     editPadPresses[i].intendedIterance);
+				}
+				break;
+			}
+		}
+	}
+
+	// Or if multiple presses...
+	else {
+multiplePresses:
+
+		int32_t leftMostPos = 2147483647;
+		int32_t leftMostIndex;
+		// Find the leftmost one. There may be more than one...
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+				editPadPresses[i].deleteOnDepress = false;
+
+				// "blurred square" with multiple notes
+				if (editPadPresses[i].isBlurredSquare) {
+					NoteRow* noteRow =
+					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
+					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+					Note* note = noteRow->notes.getElement(noteI);
+					if (note) {
+						editPadPresses[i].intendedIterance =
+						    note->iterance; // This might not have been grabbed properly initially
+						if (note->pos < leftMostPos) {
+							leftMostPos = note->pos;
+							leftMostIndex = i;
+						}
+					}
+				}
+
+				// Or, just 1 note in square
+				else {
+
+					if (editPadPresses[i].intendedPos < leftMostPos) {
+						leftMostPos = editPadPresses[i].intendedPos;
+						leftMostIndex = i;
+					}
+				}
+			}
+		}
+
+		// Decide the iterance, based on the existing iterance of the leftmost note
+		uint8_t iterance = editPadPresses[leftMostIndex].intendedIterance;
+		iteranceValue = iterance & 127;
+		prevBase = (iterance & 128);
+
+		// If editing, continue edit
+		if (display->hasPopupOfType(PopupType::PROBABILITY) || getCurrentUI() == &soundEditor) {
+			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+			if (!action) {
+				return;
+			}
+
+			// Incrementing
+			if (offset == 1) {
+				// increment iterance value
+				if (iteranceValue < kNumIterationValues) {
+					iteranceValue++;
+					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
+					// for leftMostNote
+					prevBase = false;
+				}
+			}
+			// Decrementing
+			else {
+				// decrement iterance value
+				if (iteranceValue > 1) {
+					iteranceValue--;
+					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
+					// for leftMostNote
+					prevBase = false;
+				}
+			}
+
+			uint8_t iteranceForMultipleNotes = iteranceValue;
+			if (prevBase) {
+				iteranceForMultipleNotes |= 128;
+			}
+
+			// Set the iterance of the other presses, and update all iterations with the actual notes
+			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+				if (editPadPresses[i].isActive) {
+
+					// Update iterance
+					editPadPresses[i].intendedIterance = iteranceForMultipleNotes;
+
+					int32_t noteRowIndex;
+					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
+					                                                                  currentSong, &noteRowIndex);
+					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
+
+					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+
+					// "blurred square" with multiple notes
+					if (editPadPresses[i].isBlurredSquare) {
+
+						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+						Note* note = noteRow->notes.getElement(noteI);
+						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+
+							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
+							// iterations
+							if (iteranceValue < kNumIterationValues && note->pos != leftMostPos) {
+								editPadPresses[i].intendedIterance |= 128;
+							}
+							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
+							                                     CORRESPONDING_NOTES_SET_ITERANCE,
+							                                     editPadPresses[i].intendedIterance);
+
+							noteI++;
+							note = noteRow->notes.getElement(noteI);
+						}
+					}
+					// Or, just 1 note in square
+					else {
+						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
+						// iterations
+						if (iteranceValue < kNumIterationValues && editPadPresses[i].intendedPos != leftMostPos) {
+							editPadPresses[i].intendedIterance |= 128;
+						}
+						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
+						                                     action, CORRESPONDING_NOTES_SET_ITERANCE,
+						                                     editPadPresses[i].intendedIterance);
+					}
+				}
+			}
+		}
+	}
+
+	if ((iteranceValue != -1) && (getCurrentUI() != &soundEditor)) {
+		displayIterance(iteranceValue, prevBase);
 	}
 }
 
@@ -3505,6 +3729,29 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
 	}
 }
+
+void InstrumentClipView::displayIterance(uint8_t iterance, bool prevBase) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	// Iterance dependence
+	if (iterance <= kNumIterationValues) {
+		int32_t divisor, iterationWithinDivisor;
+		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+
+		int32_t charPos = 0;
+
+		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
+		        iterationWithinDivisor + 1, divisor);
+	}
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::PROBABILITY);
+	}
+	if (display->have7SEG()) {
+		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
+	}
+}
+
 #pragma gcc pop
 
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {

@@ -49,6 +49,17 @@ public:
 		}
 	}
 
+	void selectEncoderAction(int32_t offset) final override {
+		instrumentClipView.adjustIterance(offset);
+		this->setValue(instrumentClipView.editPadPresses[0].intendedIterance);
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
+	}
+
 	void writeCurrentValue() override { ; }
 };
 } // namespace deluge::gui::menu_item::note

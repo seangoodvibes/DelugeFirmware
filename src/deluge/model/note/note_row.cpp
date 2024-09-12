@@ -3956,7 +3956,6 @@ justEmpty:
 	}
 }
 
-// what is this
 bool NoteRow::doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability) {
 
 	for (int32_t n = 0; n < notes.getNumElements(); n++) {
@@ -3966,6 +3965,23 @@ bool NoteRow::doesProbabilityExist(int32_t apartFromPos, int32_t probability, in
 				return true;
 			}
 			if (secondProbability != -1 && note->getProbability() == secondProbability) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool NoteRow::doesIteranceExist(int32_t apartFromPos, int32_t iterance, int32_t secondIterance) {
+
+	for (int32_t n = 0; n < notes.getNumElements(); n++) {
+		Note* note = notes.getElement(n);
+		if (note->pos != apartFromPos) {
+			if (note->getIterance() == iterance) {
+				return true;
+			}
+			if (secondIterance != -1 && note->getIterance() == secondIterance) {
 				return true;
 			}
 		}

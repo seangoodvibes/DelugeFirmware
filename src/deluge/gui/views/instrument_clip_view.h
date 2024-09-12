@@ -230,6 +230,7 @@ public:
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void adjustProbability(int32_t offset);
 	void setRowProbability(int32_t offset);
+	void adjustIterance(int32_t offset);
 	void setNoteParameterValue(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
 	                           int32_t changeType, int32_t changeValue);
 	void editNoteRepeat(int32_t offset);
@@ -271,6 +272,7 @@ private:
 	                                int32_t* getIndex = NULL);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 	void displayProbability(uint8_t probability, bool prevBase);
+	void displayIterance(uint8_t iterance, bool prevBase);
 	void copyNotes();
 	void pasteNotes(bool overwriteExisting);
 	void deleteCopiedNoteRows();
