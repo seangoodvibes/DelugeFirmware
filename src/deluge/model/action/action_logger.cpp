@@ -91,7 +91,9 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 	// If not on a View, not allowed!
 	// Exception for sound editor note editor UI which can edit notes on the grid
-	if ((getCurrentUI() != getRootUI()) && (!(getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()))) {
+	// Exception for sound editor note row editor UI which can edit note rows on the grid
+	if ((getCurrentUI() != getRootUI())
+	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))) {
 		return NULL;
 	}
 

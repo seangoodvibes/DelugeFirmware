@@ -454,6 +454,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_NOTE_EDITOR_PROBABILITY, "PROB"},
         {STRING_FOR_NOTE_EDITOR_ITERANCE, "ITER"},
         {STRING_FOR_NOTE_EDITOR_FILL, "FILL"},
+        {STRING_FOR_NOTE_ROW_EDITOR, "ROW"},
     },
     &built_in::english,
 };

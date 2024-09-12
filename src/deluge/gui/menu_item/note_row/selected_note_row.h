@@ -25,8 +25,8 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 
-namespace deluge::gui::menu_item::note {
-class SelectedNote : public Integer {
+namespace deluge::gui::menu_item::note_row {
+class SelectedNoteRow : public Integer {
 public:
 	using Integer::Integer;
 
@@ -48,7 +48,7 @@ public:
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    clip->getNoteRowOnScreen(instrumentClipView.lastSelectedNoteYDisplay,
+		    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 		                             modelStack); // don't create
 		return modelStackWithNoteRow;
 	}
@@ -62,4 +62,4 @@ public:
 		}
 	}
 };
-} // namespace deluge::gui::menu_item::note
+} // namespace deluge::gui::menu_item::note_row

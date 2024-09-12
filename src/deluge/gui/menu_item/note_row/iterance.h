@@ -17,7 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
-#include "gui/menu_item/note/selected_note.h"
+#include "gui/menu_item/note_row/selected_note_row.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
@@ -26,13 +26,13 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 
-namespace deluge::gui::menu_item::note {
-class Probability final : public SelectedNote {
+namespace deluge::gui::menu_item::note_row {
+class Iterance final : public SelectedNoteRow {
 public:
-	using SelectedNote::SelectedNote;
+	using SelectedNoteRow::SelectedNoteRow;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return (kNumProbabilityValues | 127); }
-	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationValues; }
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 
 	/// @brief Begin an editing session with this menu item.
 	///
@@ -45,32 +45,32 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->setValue(instrumentClipView.editPadPresses[0].intendedProbability);
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			this->setValue(noteRow->iteranceValue);
 		}
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustNoteProbability(offset);
-		this->setValue(instrumentClipView.editPadPresses[0].intendedProbability);
-		updateDisplay();
+		int32_t newValue = instrumentClipView.setNoteRowIterance(offset);
+		if (newValue != -1) {
+			this->setValue(newValue);
+			updateDisplay();
+		}
 	}
 
 	void drawPixelsForOled() {
 		char buffer[20];
 
-		int32_t probability = this->getValue();
-		bool latching = false;
+		int32_t iterance = this->getValue();
 
-		// if it's a latching probability, remove latching from value
-		if (probability > kNumProbabilityValues) {
-			probability &= 127;
-			latching = true;
+		int32_t divisor, iterationWithinDivisor;
+		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+
+		if (iterance == 0) {
+			strcpy(buffer, "OFF");
 		}
-
-		sprintf(buffer, "%d%%", probability * 5);
-
-		if (latching) {
-			strcat(buffer, " (L)");
+		else {
+			sprintf(buffer, "%d of %d", iterationWithinDivisor + 1, divisor);
 		}
 
 		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
@@ -80,20 +80,21 @@ public:
 	void drawValue() final override {
 		char buffer[20];
 
-		int32_t probability = this->getValue();
-		bool latching = false;
+		int32_t iterance = this->getValue();
 
-		// if it's a latching probability, remove latching from value
-		if (probability > kNumProbabilityValues) {
-			probability &= 127;
-			latching = true;
+		int32_t divisor, iterationWithinDivisor;
+		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+
+		if (iterance == 0) {
+			strcpy(buffer, "OFF");
+		}
+		else {
+			sprintf(buffer, "%dof%d", iterationWithinDivisor + 1, divisor);
 		}
 
-		intToString(probability * 5, buffer);
-
-		display->setText(buffer, true, latching ? 3 : 255);
+		display->setText(buffer);
 	}
 
 	void writeCurrentValue() override { ; }
 };
-} // namespace deluge::gui::menu_item::note
+} // namespace deluge::gui::menu_item::note_row

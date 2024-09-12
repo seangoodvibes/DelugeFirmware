@@ -228,29 +228,40 @@ public:
 
 	// public so they can be accessed by the velocity note editor in automation view
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
-	void adjustProbability(int32_t offset);
-	void setRowProbability(int32_t offset);
-	void adjustIterance(int32_t offset);
-	void adjustFill(int32_t offset);
+
+	bool enterNoteEditor();
+	void exitNoteEditor();
+	void handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on);
+	SquareInfo lastSelectedNoteSquareInfo;
+	int32_t lastSelectedNoteXDisplay;
+	int32_t lastSelectedNoteYDisplay;
+
+	void adjustNoteProbability(int32_t offset);
+	void adjustNoteIterance(int32_t offset);
+	void adjustNoteFill(int32_t offset);
 	void adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
 	                              int32_t parameterMaxValue);
+
+	bool enterNoteRowEditor();
+	void exitNoteRowEditor();
+	void handleNoteRowEditorAuditionPadAction(int32_t y, int32_t on);
+
+	int32_t setNoteRowProbability(int32_t offset);
+	int32_t setNoteRowIterance(int32_t offset);
+	int32_t setNoteRowFill(int32_t offset);
+	int32_t setNoteRowParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
+	                                 int32_t parameterMaxValue);
+
 	const char* getFillString(uint8_t fill);
-	void setNoteParameterValue(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
-	                           int32_t changeType, int32_t changeValue);
+
 	void editNoteRepeat(int32_t offset);
+
 	void blinkSelectedNoteRow(int32_t whichMainRows = 0);
 	void resetSelectedNoteRowBlinking();
 	bool noteRowFlashOn;
 	bool noteRowBlinking;
 	void blinkSelectedNote(int32_t whichMainRows = 0);
 	void resetSelectedNoteBlinking();
-
-	bool enterNoteEditor();
-	void exitNoteEditor();
-	void handleNoteEditorPadAction(int32_t x, int32_t y, int32_t on);
-	SquareInfo lastSelectedNoteSquareInfo;
-	int32_t lastSelectedNoteXDisplay;
-	int32_t lastSelectedNoteYDisplay;
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
@@ -275,9 +286,6 @@ private:
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
 	                                int32_t* getIndex = NULL);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
-	void displayProbability(uint8_t probability, bool prevBase);
-	void displayIterance(uint8_t iterance);
-	void displayFill(uint8_t fill);
 	void copyNotes();
 	void pasteNotes(bool overwriteExisting);
 	void deleteCopiedNoteRows();
@@ -289,6 +297,8 @@ private:
 
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
+
+	void displayProbability(uint8_t probability, bool prevBase);
 
 	// TEMPO encoder commands
 	void commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode);

@@ -17,7 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
-#include "gui/menu_item/note/selected_note.h"
+#include "gui/menu_item/note_row/selected_note_row.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
@@ -26,10 +26,10 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 
-namespace deluge::gui::menu_item::note {
-class Probability final : public SelectedNote {
+namespace deluge::gui::menu_item::note_row {
+class Probability final : public SelectedNoteRow {
 public:
-	using SelectedNote::SelectedNote;
+	using SelectedNoteRow::SelectedNoteRow;
 
 	[[nodiscard]] int32_t getMaxValue() const override { return (kNumProbabilityValues | 127); }
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
@@ -45,14 +45,17 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->setValue(instrumentClipView.editPadPresses[0].intendedProbability);
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			this->setValue(noteRow->probabilityValue);
 		}
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustNoteProbability(offset);
-		this->setValue(instrumentClipView.editPadPresses[0].intendedProbability);
-		updateDisplay();
+		int32_t newValue = instrumentClipView.setNoteRowProbability(offset);
+		if (newValue != -1) {
+			this->setValue(newValue);
+			updateDisplay();
+		}
 	}
 
 	void drawPixelsForOled() {
@@ -96,4 +99,4 @@ public:
 
 	void writeCurrentValue() override { ; }
 };
-} // namespace deluge::gui::menu_item::note
+} // namespace deluge::gui::menu_item::note_row

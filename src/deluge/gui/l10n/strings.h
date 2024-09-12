@@ -904,6 +904,9 @@ enum class String : size_t {
 	STRING_FOR_NOTE_EDITOR_ITERANCE,
 	STRING_FOR_NOTE_EDITOR_FILL,
 
+	// string for note row editor menu
+	STRING_FOR_NOTE_ROW_EDITOR,
+
 	STRING_LAST
 };
 

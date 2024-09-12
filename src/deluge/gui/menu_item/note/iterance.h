@@ -50,7 +50,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustIterance(offset);
+		instrumentClipView.adjustNoteIterance(offset);
 		this->setValue(instrumentClipView.editPadPresses[0].intendedIterance);
 		updateDisplay();
 	}
