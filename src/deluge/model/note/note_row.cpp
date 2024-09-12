@@ -3973,23 +3973,6 @@ bool NoteRow::doesProbabilityExist(int32_t apartFromPos, int32_t probability, in
 	return false;
 }
 
-bool NoteRow::doesIteranceExist(int32_t apartFromPos, int32_t iterance, int32_t secondIterance) {
-
-	for (int32_t n = 0; n < notes.getNumElements(); n++) {
-		Note* note = notes.getElement(n);
-		if (note->pos != apartFromPos) {
-			if (note->getIterance() == iterance) {
-				return true;
-			}
-			if (secondIterance != -1 && note->getIterance() == secondIterance) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNoteRow, float scaleFactor,
                     int32_t screenEndPos, Action* action) {
 

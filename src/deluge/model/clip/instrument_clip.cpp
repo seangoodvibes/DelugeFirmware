@@ -3631,17 +3631,6 @@ bool InstrumentClip::doesProbabilityExist(int32_t apartFromPos, int32_t probabil
 	return false;
 }
 
-bool InstrumentClip::doesIteranceExist(int32_t apartFromPos, int32_t iterance, int32_t secondIterance) {
-
-	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-		if (thisNoteRow->doesIteranceExist(apartFromPos, iterance, secondIterance)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 void InstrumentClip::clearArea(ModelStackWithTimelineCounter* modelStack, int32_t startPos, int32_t endPos,
                                Action* action) {
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {

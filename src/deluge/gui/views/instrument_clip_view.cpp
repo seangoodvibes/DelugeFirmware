@@ -2388,410 +2388,26 @@ void InstrumentClipView::popupVelocity(char const* displayString) {
 }
 
 void InstrumentClipView::adjustProbability(int32_t offset) {
-
-	int32_t probabilityValue = -1;
-
-	bool prevBase = false;
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	// If just one press...
-	if (numEditPadPresses == 1) {
-		// Find it
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
-
-				if (editPadPresses[i].isBlurredSquare) {
-					goto multiplePresses;
-				}
-
-				int32_t probability = editPadPresses[i].intendedProbability;
-
-				probabilityValue = probability & 127;
-				prevBase = (probability & 128);
-
-				// If editing, continue edit
-				if (display->hasPopup() || getCurrentUI() == &soundEditor) {
-					// display->displayPopup("test 1");
-
-					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-					if (!action) {
-						// display->displayPopup("test 2");
-						return;
-					}
-
-					// display->displayPopup("test 3");
-
-					// Incrementing
-					if (offset == 1) {
-						if (probabilityValue < kNumProbabilityValues) {
-							if (prevBase) {
-								probabilityValue++;
-								prevBase = false;
-							}
-							else {
-								// For percentage-probabilities we set prevBase if there are
-								// previous notes with the same probability
-								if (probabilityValue < kNumProbabilityValues
-								    && getCurrentInstrumentClip()->doesProbabilityExist(
-								        editPadPresses[i].intendedPos, probabilityValue,
-								        kNumProbabilityValues - probabilityValue)) {
-									prevBase = true;
-								}
-								else {
-									probabilityValue++;
-								}
-							}
-						}
-					}
-
-					// Decrementing
-					else {
-						if (probabilityValue > 1 || prevBase) {
-							if (prevBase) {
-								prevBase = false;
-							}
-							else {
-								probabilityValue--;
-								// From any other percentage-probability we set prevBase if there are
-								// previous notes with the same probability
-								prevBase = (probabilityValue < kNumProbabilityValues
-								            && getCurrentInstrumentClip()->doesProbabilityExist(
-								                editPadPresses[i].intendedPos, probabilityValue,
-								                kNumProbabilityValues - probabilityValue));
-							}
-						}
-					}
-
-					editPadPresses[i].intendedProbability = probabilityValue;
-					if (prevBase) {
-						editPadPresses[i].intendedProbability |= 128;
-					}
-
-					int32_t noteRowIndex;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
-					                                                                  currentSong, &noteRowIndex);
-					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-
-					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_PROBABILITY,
-					                                     editPadPresses[i].intendedProbability);
-					// lastSelectedNoteSquareInfo.probability = editPadPresses[i].intendedProbability;
-				}
-				break;
-			}
-		}
-	}
-
-	// Or if multiple presses...
-	else {
-multiplePresses:
-
-		int32_t leftMostPos = 2147483647;
-		int32_t leftMostIndex;
-		// Find the leftmost one. There may be more than one...
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
-
-				// "blurred square" with multiple notes
-				if (editPadPresses[i].isBlurredSquare) {
-					NoteRow* noteRow =
-					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
-					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-					Note* note = noteRow->notes.getElement(noteI);
-					if (note) {
-						editPadPresses[i].intendedProbability =
-						    note->probability; // This might not have been grabbed properly initially
-						if (note->pos < leftMostPos) {
-							leftMostPos = note->pos;
-							leftMostIndex = i;
-						}
-					}
-				}
-
-				// Or, just 1 note in square
-				else {
-
-					if (editPadPresses[i].intendedPos < leftMostPos) {
-						leftMostPos = editPadPresses[i].intendedPos;
-						leftMostIndex = i;
-					}
-				}
-			}
-		}
-
-		// Decide the probability, based on the existing probability of the leftmost note
-		uint8_t probability = editPadPresses[leftMostIndex].intendedProbability;
-		probabilityValue = probability & 127;
-		prevBase = (probability & 128);
-
-		// If editing, continue edit
-		if (display->hasPopupOfType(PopupType::PROBABILITY) || getCurrentUI() == &soundEditor) {
-			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-			if (!action) {
-				return;
-			}
-
-			// Incrementing
-			if (offset == 1) {
-				// increment probability value
-				if (probabilityValue < kNumProbabilityValues) {
-					probabilityValue++;
-					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
-					// for leftMostNote
-					prevBase = false;
-				}
-			}
-			// Decrementing
-			else {
-				// decrement probability value
-				if (probabilityValue > 1) {
-					probabilityValue--;
-					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
-					// for leftMostNote
-					prevBase = false;
-				}
-			}
-
-			uint8_t probabilityForMultipleNotes = probabilityValue;
-			if (prevBase) {
-				probabilityForMultipleNotes |= 128;
-			}
-
-			// Set the probability of the other presses, and update all probabilities with the actual notes
-			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-				if (editPadPresses[i].isActive) {
-
-					// Update probability
-					editPadPresses[i].intendedProbability = probabilityForMultipleNotes;
-
-					int32_t noteRowIndex;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
-					                                                                  currentSong, &noteRowIndex);
-					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
-
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-
-					// "blurred square" with multiple notes
-					if (editPadPresses[i].isBlurredSquare) {
-
-						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-						Note* note = noteRow->notes.getElement(noteI);
-						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
-
-							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
-							// percentage probabilities
-							if (probabilityValue < kNumProbabilityValues && note->pos != leftMostPos) {
-								editPadPresses[i].intendedProbability |= 128;
-							}
-							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-							                                     CORRESPONDING_NOTES_SET_PROBABILITY,
-							                                     editPadPresses[i].intendedProbability);
-
-							noteI++;
-							note = noteRow->notes.getElement(noteI);
-						}
-					}
-					// Or, just 1 note in square
-					else {
-						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
-						// percentage probabilities
-						if (probabilityValue < kNumProbabilityValues && editPadPresses[i].intendedPos != leftMostPos) {
-							editPadPresses[i].intendedProbability |= 128;
-						}
-						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-						                                     action, CORRESPONDING_NOTES_SET_PROBABILITY,
-						                                     editPadPresses[i].intendedProbability);
-					}
-				}
-			}
-		}
-	}
-
-	if ((probabilityValue != -1) && (getCurrentUI() != &soundEditor)) {
-		displayProbability(probabilityValue, prevBase);
-	}
+	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_PROBABILITY, 1, kNumProbabilityValues);
 }
 
 void InstrumentClipView::adjustIterance(int32_t offset) {
-
-	int32_t iteranceValue = -1;
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	// If just one press...
-	if (numEditPadPresses == 1) {
-		// Find it
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
-
-				if (editPadPresses[i].isBlurredSquare) {
-					goto multiplePresses;
-				}
-
-				int32_t iterance = editPadPresses[i].intendedIterance;
-
-				iteranceValue = iterance & 127;
-
-				// If editing, continue edit
-				if (display->hasPopup() || getCurrentUI() == &soundEditor) {
-					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-					if (!action) {
-						return;
-					}
-
-					// Incrementing
-					if (offset == 1) {
-						if (iteranceValue < kNumIterationValues) {
-							iteranceValue++;
-						}
-					}
-
-					// Decrementing
-					else {
-						if (iteranceValue > 0) {
-							iteranceValue--;
-						}
-					}
-
-					editPadPresses[i].intendedIterance = iteranceValue;
-
-					int32_t noteRowIndex;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
-					                                                                  currentSong, &noteRowIndex);
-					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-
-					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_ITERANCE,
-					                                     editPadPresses[i].intendedIterance);
-				}
-				break;
-			}
-		}
-	}
-
-	// Or if multiple presses...
-	else {
-multiplePresses:
-
-		int32_t leftMostPos = 2147483647;
-		int32_t leftMostIndex;
-		// Find the leftmost one. There may be more than one...
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
-
-				// "blurred square" with multiple notes
-				if (editPadPresses[i].isBlurredSquare) {
-					NoteRow* noteRow =
-					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
-					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-					Note* note = noteRow->notes.getElement(noteI);
-					if (note) {
-						editPadPresses[i].intendedIterance =
-						    note->iterance; // This might not have been grabbed properly initially
-						if (note->pos < leftMostPos) {
-							leftMostPos = note->pos;
-							leftMostIndex = i;
-						}
-					}
-				}
-
-				// Or, just 1 note in square
-				else {
-
-					if (editPadPresses[i].intendedPos < leftMostPos) {
-						leftMostPos = editPadPresses[i].intendedPos;
-						leftMostIndex = i;
-					}
-				}
-			}
-		}
-
-		// Decide the iterance, based on the existing iterance of the leftmost note
-		uint8_t iterance = editPadPresses[leftMostIndex].intendedIterance;
-		iteranceValue = iterance & 127;
-
-		// If editing, continue edit
-		if (display->hasPopupOfType(PopupType::PROBABILITY) || getCurrentUI() == &soundEditor) {
-			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-			if (!action) {
-				return;
-			}
-
-			// Incrementing
-			if (offset == 1) {
-				// increment iterance value
-				if (iteranceValue < kNumIterationValues) {
-					iteranceValue++;
-				}
-			}
-			// Decrementing
-			else {
-				// decrement iterance value
-				if (iteranceValue > 1) {
-					iteranceValue--;
-				}
-			}
-
-			uint8_t iteranceForMultipleNotes = iteranceValue;
-
-			// Set the iterance of the other presses, and update all iterations with the actual notes
-			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-				if (editPadPresses[i].isActive) {
-
-					// Update iterance
-					editPadPresses[i].intendedIterance = iteranceForMultipleNotes;
-
-					int32_t noteRowIndex;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
-					                                                                  currentSong, &noteRowIndex);
-					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
-
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-
-					// "blurred square" with multiple notes
-					if (editPadPresses[i].isBlurredSquare) {
-
-						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-						Note* note = noteRow->notes.getElement(noteI);
-						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
-							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-							                                     CORRESPONDING_NOTES_SET_ITERANCE,
-							                                     editPadPresses[i].intendedIterance);
-
-							noteI++;
-							note = noteRow->notes.getElement(noteI);
-						}
-					}
-					// Or, just 1 note in square
-					else {
-						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-						                                     action, CORRESPONDING_NOTES_SET_ITERANCE,
-						                                     editPadPresses[i].intendedIterance);
-					}
-				}
-			}
-		}
-	}
-
-	if ((iteranceValue != -1) && (getCurrentUI() != &soundEditor)) {
-		displayIterance(iteranceValue);
-	}
+	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterationValues);
 }
 
 void InstrumentClipView::adjustFill(int32_t offset) {
+	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
+}
+
+void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
+                                                  int32_t parameterMaxValue) {
+
+	int32_t parameterValue = -1;
+
+	bool prevBase = false; // only used by probability parameter for latching states
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	int32_t fillValue = -1;
 
 	// If just one press...
 	if (numEditPadPresses == 1) {
@@ -2804,7 +2420,20 @@ void InstrumentClipView::adjustFill(int32_t offset) {
 					goto multiplePresses;
 				}
 
-				fillValue = editPadPresses[i].intendedFill;
+				int32_t parameter;
+
+				if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+					parameter = editPadPresses[i].intendedProbability;
+					prevBase = (parameter & 128);
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+					parameter = editPadPresses[i].intendedIterance;
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+					parameter = editPadPresses[i].intendedFill;
+				}
+
+				parameterValue = parameter & 127;
 
 				// If editing, continue edit
 				if (display->hasPopup() || getCurrentUI() == &soundEditor) {
@@ -2815,21 +2444,69 @@ void InstrumentClipView::adjustFill(int32_t offset) {
 
 					// Incrementing
 					if (offset == 1) {
-						// From OFF (value: 0), we go up to FILL (value: 1)
-						// From FILL (value: 1), we go up to NOT FILL (value: 2)
-						if (fillValue < kNumFillValues) {
-							fillValue++;
+						if (parameterValue < parameterMaxValue) {
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								if (prevBase) {
+									parameterValue++;
+									prevBase = false;
+								}
+								else {
+									// For percentage-probabilities we set prevBase if there are
+									// previous notes with the same probability
+									if (parameterValue < parameterMaxValue
+									    && getCurrentInstrumentClip()->doesProbabilityExist(
+									        editPadPresses[i].intendedPos, parameterValue,
+									        parameterMaxValue - parameterValue)) {
+										prevBase = true;
+									}
+									else {
+										parameterValue++;
+									}
+								}
+							}
+							else {
+								parameterValue++;
+							}
 						}
 					}
 
 					// Decrementing
 					else {
-						if (fillValue > 0) {
-							fillValue--;
+						if (parameterValue > parameterMinValue || prevBase) {
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								if (prevBase) {
+									prevBase = false;
+								}
+								else {
+									parameterValue--;
+									// From any other percentage-probability we set prevBase if there are
+									// previous notes with the same probability
+									prevBase = (parameterValue < parameterMaxValue
+									            && getCurrentInstrumentClip()->doesProbabilityExist(
+									                editPadPresses[i].intendedPos, parameterValue,
+									                parameterMaxValue - parameterValue));
+								}
+							}
+							else {
+								parameterValue--;
+							}
 						}
 					}
 
-					editPadPresses[i].intendedFill = fillValue;
+					int32_t changeValue = parameterValue;
+
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						if (prevBase) {
+							changeValue |= 128;
+						}
+						editPadPresses[i].intendedProbability = changeValue;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						editPadPresses[i].intendedIterance = changeValue;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+						editPadPresses[i].intendedFill = changeValue;
+					}
 
 					int32_t noteRowIndex;
 					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
@@ -2838,7 +2515,7 @@ void InstrumentClipView::adjustFill(int32_t offset) {
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_FILL, editPadPresses[i].intendedFill);
+					                                     changeType, changeValue);
 				}
 				break;
 			}
@@ -2863,8 +2540,17 @@ multiplePresses:
 					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 					Note* note = noteRow->notes.getElement(noteI);
 					if (note) {
-						editPadPresses[i].intendedFill =
-						    note->fill; // This might not have been grabbed properly initially
+						// re-get parameters as they might not have been grabbed properly initially
+						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+							editPadPresses[i].intendedProbability = note->getProbability();
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							editPadPresses[i].intendedIterance = note->getIterance();
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+							editPadPresses[i].intendedFill = note->getFill();
+						}
+
 						if (note->pos < leftMostPos) {
 							leftMostPos = note->pos;
 							leftMostIndex = i;
@@ -2883,8 +2569,21 @@ multiplePresses:
 			}
 		}
 
-		// Decide the fill, based on the existing fill of the leftmost note
-		fillValue = editPadPresses[leftMostIndex].intendedFill;
+		int32_t parameter;
+
+		// decide the parameter value, based on the existing parameter value of the leftmost note
+		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+			parameter = editPadPresses[leftMostIndex].intendedProbability;
+			prevBase = (parameter & 128);
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			parameter = editPadPresses[leftMostIndex].intendedIterance;
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			parameter = editPadPresses[leftMostIndex].intendedFill;
+		}
+
+		parameterValue = parameter & 127;
 
 		// If editing, continue edit
 		if (display->hasPopupOfType(PopupType::PROBABILITY) || getCurrentUI() == &soundEditor) {
@@ -2895,26 +2594,49 @@ multiplePresses:
 
 			// Incrementing
 			if (offset == 1) {
-				// From OFF (value: 0), we go up to FILL (value: 1)
-				// From FILL (value: 1), we go up to NOT FILL (value: 2)
-				if (fillValue < kNumFillValues) {
-					fillValue++;
+				// increment parameter value
+				if (parameterValue < parameterMaxValue) {
+					parameterValue++;
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
+						// for leftMostNote
+						prevBase = false;
+					}
 				}
 			}
-
 			// Decrementing
 			else {
-				if (fillValue > 0) {
-					fillValue--;
+				// decrement parameter value
+				if (parameterValue > 1) {
+					parameterValue--;
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
+						// for leftMostNote
+						prevBase = false;
+					}
 				}
 			}
 
-			// Set the fill of the other presses, and update all fills with the actual notes
+			int32_t parameterValueForMultipleNotes = parameterValue;
+			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+				if (prevBase) {
+					parameterValueForMultipleNotes |= 128;
+				}
+			}
+
+			// Set the parameter value of the other presses, and update all parameter values with the actual notes
 			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 				if (editPadPresses[i].isActive) {
 
-					// Update fill
-					editPadPresses[i].intendedFill = fillValue;
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						editPadPresses[i].intendedProbability = parameterValueForMultipleNotes;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						editPadPresses[i].intendedIterance = parameterValueForMultipleNotes;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+						editPadPresses[i].intendedFill = parameterValueForMultipleNotes;
+					}
 
 					int32_t noteRowIndex;
 					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
@@ -2929,9 +2651,17 @@ multiplePresses:
 						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 						Note* note = noteRow->notes.getElement(noteI);
 						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
-							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-							                                     CORRESPONDING_NOTES_SET_FILL,
-							                                     editPadPresses[i].intendedFill);
+							int32_t changeValue = parameterValueForMultipleNotes;
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
+								// percentage probabilities
+								if (parameterValue < parameterMaxValue && note->pos != leftMostPos) {
+									editPadPresses[i].intendedProbability |= 128;
+									changeValue = editPadPresses[i].intendedProbability;
+								}
+							}
+							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action, changeType,
+							                                     changeValue);
 
 							noteI++;
 							note = noteRow->notes.getElement(noteI);
@@ -2939,17 +2669,27 @@ multiplePresses:
 					}
 					// Or, just 1 note in square
 					else {
+						int32_t changeValue = parameterValueForMultipleNotes;
+						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
+							// percentage probabilities
+							if (parameterValue < parameterMaxValue && editPadPresses[i].intendedPos != leftMostPos) {
+								editPadPresses[i].intendedProbability |= 128;
+								changeValue = editPadPresses[i].intendedProbability;
+							}
+						}
 						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-						                                     action, CORRESPONDING_NOTES_SET_FILL,
-						                                     editPadPresses[i].intendedFill);
+						                                     action, changeType, changeValue);
 					}
 				}
 			}
 		}
 	}
 
-	if (fillValue != -1 && getCurrentUI() != &soundEditor) {
-		displayFill(fillValue);
+	if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+		if ((parameterValue != -1) && (getCurrentUI() != &soundEditor)) {
+			displayProbability(parameterValue, prevBase);
+		}
 	}
 }
 
@@ -3821,30 +3561,30 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 }
 
-void InstrumentClipView::displayIterance(uint8_t iterance) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
+/*void InstrumentClipView::displayIterance(uint8_t iterance) {
+    char buffer[(display->haveOLED()) ? 29 : 5];
 
-	// Iterance dependence
-	if (iterance == 0) {
-		strcpy(buffer, "OFF");
-	}
-	else if (iterance <= kNumIterationValues) {
-		int32_t divisor, iterationWithinDivisor;
-		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+    // Iterance dependence
+    if (iterance == 0) {
+        strcpy(buffer, "OFF");
+    }
+    else if (iterance <= kNumIterationValues) {
+        int32_t divisor, iterationWithinDivisor;
+        dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
 
-		int32_t charPos = 0;
+        int32_t charPos = 0;
 
-		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
-		        iterationWithinDivisor + 1, divisor);
-	}
+        sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
+                iterationWithinDivisor + 1, divisor);
+    }
 
-	if (display->haveOLED()) {
-		display->popupText(buffer, PopupType::PROBABILITY);
-	}
-	if (display->have7SEG()) {
-		display->displayPopup(buffer, 0, true, 255, 1, PopupType::PROBABILITY);
-	}
-}
+    if (display->haveOLED()) {
+        display->popupText(buffer, PopupType::PROBABILITY);
+    }
+    if (display->have7SEG()) {
+        display->displayPopup(buffer, 0, true, 255, 1, PopupType::PROBABILITY);
+    }
+}*/
 
 const char* InstrumentClipView::getFillString(uint8_t fill) {
 	// FILL mode
@@ -3863,18 +3603,18 @@ const char* InstrumentClipView::getFillString(uint8_t fill) {
 	}
 }
 
-void InstrumentClipView::displayFill(uint8_t fill) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
+/*void InstrumentClipView::displayFill(uint8_t fill) {
+    char buffer[(display->haveOLED()) ? 29 : 5];
 
-	strcpy(buffer, getFillString(fill));
+    strcpy(buffer, getFillString(fill));
 
-	if (display->haveOLED()) {
-		display->popupText(buffer, PopupType::PROBABILITY);
-	}
-	if (display->have7SEG()) {
-		display->displayPopup(buffer, 0, true, 255, 1, PopupType::PROBABILITY);
-	}
-}
+    if (display->haveOLED()) {
+        display->popupText(buffer, PopupType::PROBABILITY);
+    }
+    if (display->have7SEG()) {
+        display->displayPopup(buffer, 0, true, 255, 1, PopupType::PROBABILITY);
+    }
+}*/
 
 #pragma gcc pop
 

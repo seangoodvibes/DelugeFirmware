@@ -232,6 +232,8 @@ public:
 	void setRowProbability(int32_t offset);
 	void adjustIterance(int32_t offset);
 	void adjustFill(int32_t offset);
+	void adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
+	                              int32_t parameterMaxValue);
 	const char* getFillString(uint8_t fill);
 	void setNoteParameterValue(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x,
 	                           int32_t changeType, int32_t changeValue);

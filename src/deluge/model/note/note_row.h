@@ -195,7 +195,6 @@ public:
 	                       bool shiftSequenceAndMPE);
 	void clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation, bool clearSequenceAndMPE);
 	bool doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability = -1);
-	bool doesIteranceExist(int32_t apartFromPos, int32_t iterance, int32_t secondIterance = -1);
 	bool paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNoteRow, float scaleFactor, int32_t screenEndPos,
 	           Action* action);
 	void giveMidiCommandsToDrum();
