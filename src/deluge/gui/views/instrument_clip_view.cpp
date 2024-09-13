@@ -2848,6 +2848,7 @@ bool InstrumentClipView::enterNoteRowEditor() {
 			display->setNextTransitionDirection(1);
 			if (soundEditor.setup(getCurrentInstrumentClip())) {
 				openUI(&soundEditor);
+				sendAuditionNote(false, lastAuditionedYDisplay, 127, 0); // turn off auditioned note
 				blinkSelectedNoteRow();
 				return true;
 			}
@@ -2881,14 +2882,13 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y, int32_t
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    clip->getNoteRowOnScreen(lastAuditionedYDisplay,
+			    clip->getNoteRowOnScreen(y,
 			                             modelStackWithTimelineCounter); // don't create
 
 			// if note row does not exist and we're not in a kit, create it
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 				if (clip->output->type != OutputType::KIT) {
-					modelStackWithNoteRow =
-					    createNoteRowForYDisplay(modelStackWithTimelineCounter, lastAuditionedYDisplay);
+					modelStackWithNoteRow = createNoteRowForYDisplay(modelStackWithTimelineCounter, y);
 				}
 			}
 
@@ -2896,13 +2896,12 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y, int32_t
 			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 				// update note row selection and refresh menu
 				// but first, release previous press and make new press
-			//	if (currentUIMode == UI_MODE_AUDITIONING) {
-			//		auditionPadAction(0, lastAuditionedYDisplay, false);
-			//	}
-				cancelAllAuditioning();
+				if (currentUIMode == UI_MODE_AUDITIONING) {
+					auditionPadAction(0, lastAuditionedYDisplay, false);
+				}
 
 				// now make new press for new note row selection
-				auditionPadAction(1, y, false);
+				auditionPadAction(1, y, true);
 
 				// update menu selection
 				soundEditor.getCurrentMenuItem()->readValueAgain();
@@ -3555,10 +3554,6 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 
 		if (on) {
-		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor()) {
-			display->displayPopup("test 2");
-		}
-
 			((MelodicInstrument*)instrument)
 			    ->beginAuditioningForNote(modelStack, yNote, velocity, zeroMPEValues, MIDI_CHANNEL_NONE,
 			                              sampleSyncLength);
@@ -4153,11 +4148,6 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	}
 	else {
 		if (!auditioningSilently) {
-
-		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor()) {
-			display->displayPopup("test 1");
-		}			
-
 			fileBrowserShouldNotPreview = false;
 
 			sendAuditionNote(true, yDisplay, velocityToSound, 0);
