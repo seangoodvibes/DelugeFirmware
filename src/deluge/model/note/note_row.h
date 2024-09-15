@@ -80,6 +80,7 @@ constexpr int32_t kQuantizationPrecision = 10;
 
 #define STATUS_OFF 0
 #define STATUS_SEQUENCED_NOTE 1
+#define STATUS_SUSTAINED_NOTE 2
 
 /// An ordered list of notes which all share the same nominal y value.
 ///
@@ -225,6 +226,10 @@ public:
 	                                     int32_t whichExpressionDimension, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
+
+	bool justRecordedDrone(ModelStackWithNoteRow* modelStack);
+	bool justDidSomeRecording;
+	bool anyNotesBeforeRecording;
 
 private:
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,

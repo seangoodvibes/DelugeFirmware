@@ -1582,6 +1582,13 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 // rare cases. You must supply noteRow if there is an activeClip with a NoteRow for that Drum. The TimelineCounter
 // should be the activeClip.
 void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity) {
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+
+	// here we check if we recorded a drone note
+	// in which case we don't want to stop it from sounding
+	if (noteRow && noteRow->justRecordedDrone(modelStack)) {
+		return;
+	}
 
 	drum->auditioned = false;
 	drum->lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE; // So it won't record any more MPE
@@ -1590,9 +1597,6 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 	ParamManager* paramManagerForDrum = NULL;
 
 	if (drum->type == DrumType::SOUND) {
-
-		NoteRow* noteRow = modelStack->getNoteRowAllowNull();
-
 		if (noteRow) {
 			paramManagerForDrum = &noteRow->paramManager;
 			goto gotParamManager;

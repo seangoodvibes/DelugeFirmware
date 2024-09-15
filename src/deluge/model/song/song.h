@@ -450,6 +450,8 @@ public:
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
 
+	bool isSustainingNotes = false;
+
 private:
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;

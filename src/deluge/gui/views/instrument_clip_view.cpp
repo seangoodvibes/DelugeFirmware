@@ -873,6 +873,13 @@ doCancelPopup:
 		}
 	}
 
+	else if (b == TRIPLETS) {
+		if (on) {
+			currentSong->isSustainingNotes = !currentSong->isSustainingNotes;
+			indicator_leds::setLedState(IndicatorLED::TRIPLETS, currentSong->isSustainingNotes);
+		}
+	}
+
 	else {
 passToOthers:
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -2933,7 +2940,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 				if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 					if (modelStackWithNoteRow->getNoteRowAllowNull()
-					    && modelStackWithNoteRow->getNoteRow()->soundingStatus == STATUS_SEQUENCED_NOTE) {}
+					    && modelStackWithNoteRow->getNoteRow()->soundingStatus != STATUS_OFF) {}
 					else {
 
 						// Record note-on if we're recording
@@ -3873,7 +3880,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (noteRowOnActiveClip) {
 		// Ensure our auditioning doesn't override a note playing in the sequence
-		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus != STATUS_OFF) {
 			doSilentAudition = true;
 		}
 	}

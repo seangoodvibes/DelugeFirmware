@@ -539,7 +539,9 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
                                                 int16_t const* mpeValues, int32_t fromMIDIChannel,
                                                 uint32_t sampleSyncLength) {
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(activeClip)->addNoteRow(0, NULL);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
 		notesAuditioned.insertElementIfNonePresent(note, velocity);
 	}
@@ -552,6 +554,21 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 }
 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
+	// here we check if we recorded a sustained note
+	// in which case we don't want to stop it from sounding
+	if (noteRow && noteRow->justRecordedDrone(modelStackWithNoteRow)) {
+		return;
+	}
+
+	if (currentSong->isSustainingNotes) {
+		return;
+	}
+
 	notesAuditioned.deleteAtKey(note);
 	earlyNotes.noteNoLongerActive(note);
 	if (activeClip) {

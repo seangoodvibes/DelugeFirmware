@@ -58,6 +58,8 @@ NoteRow::NoteRow(int16_t newY) {
 	probabilityValue = kNumProbabilityValues;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	justDidSomeRecording = false;
+	anyNotesBeforeRecording = false;
 }
 
 NoteRow::~NoteRow() {
@@ -2104,12 +2106,27 @@ noFurtherNotes:
 		bool alreadySearchedBackwards = false;
 		Note* thisNote = NULL;
 
-		// If user is auditioning note...
-		if (isAuditioning(modelStack)) {
+		bool anyNotes = notes.getNumElements();
 
+		// If user is auditioning / sustaining note...
+		if (isAuditioning(modelStack) || (soundingStatus == STATUS_SUSTAINED_NOTE) || currentSong->isSustainingNotes) {
+			// if an auditioned note is droning / sustaining
+			if (soundingStatus == STATUS_SUSTAINED_NOTE && !currentSong->isSustainingNotes) {
+				// if you since deleted a note...stop droning / sustaining
+				if (anyNotes) {
+					goto noFurtherNotes;
+				}
+				else {
+					goto stopNote;
+				}
+			}
+			else if (currentSong->isSustainingNotes) {
+				soundingStatus == STATUS_SUSTAINED_NOTE;
+				goto noFurtherNotes;
+			}
 			// If they've also just recorded a note and it was quantized later, we do need to keep an eye out for it,
 			// despite the fact that we're auditioning.
-			if (effectiveForwardPos < ignoreNoteOnsBefore_) {
+			else if (effectiveForwardPos < ignoreNoteOnsBefore_) {
 				goto currentlyOff;
 			}
 
@@ -2117,14 +2134,17 @@ noFurtherNotes:
 			goto noFurtherNotes;
 		}
 
+		if (!currentSong->isSustainingNotes && soundingStatus == STATUS_SUSTAINED_NOTE) {
+			goto stopNote;
+		}
+
 		// If a note is currently playing, all we can do is see if it's stopped yet.
 		if (soundingStatus == STATUS_SEQUENCED_NOTE) {
 
-			if (!notes.getNumElements()) {
+			if (!anyNotes) {
 stopNote:
-				stopCurrentlyPlayingNote(
-				    modelStack, true,
-				    thisNote); // Ideally (but optionally) supply the note, so lift-velocity can be used
+				// Ideally (but optionally) supply the note, so lift-velocity can be used
+				stopCurrentlyPlayingNote(modelStack, true, thisNote);
 			}
 			else {
 
@@ -4123,7 +4143,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
                                                  ModelStackWithNoteRow* modelStackClone) {
 
-	bool wasSounding = (!muted && soundingStatus == STATUS_SEQUENCED_NOTE);
+	bool wasSounding = (!muted && soundingStatus != STATUS_OFF);
 
 	NoteRow* originalNoteRow =
 	    modelStackOriginal->getNoteRowAllowNull(); // It might be NULL - we'll check for that below.
@@ -4132,8 +4152,7 @@ void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelSta
 		originalNoteRow->silentlyResumePlayback(modelStackOriginal);
 	}
 
-	bool stillSounding =
-	    (originalNoteRow && !originalNoteRow->muted && originalNoteRow->soundingStatus == STATUS_SEQUENCED_NOTE);
+	bool stillSounding = (originalNoteRow && !originalNoteRow->muted && originalNoteRow->soundingStatus != STATUS_OFF);
 
 	bool shouldSoundNoteOffNow = (wasSounding && !stillSounding);
 
@@ -4319,6 +4338,38 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 			}
 		}
 	}
+}
+
+bool NoteRow::justRecordedDrone(ModelStackWithNoteRow* modelStack) {
+	bool isDroning = false;
+	// if playback is off, don't drone
+	// if still recording, don't drone
+	if (playbackHandler.isEitherClockActive() && !playbackHandler.shouldRecordNotesNow()) {
+		// did we just record a note?
+		// were there any notes before recording? if there were, then we didn't record a drone
+		if (justDidSomeRecording && !anyNotesBeforeRecording) {
+			// how many notes were created?
+			int32_t numNotesAfterRecording = notes.getNumElements();
+			// if we created more than one note, it's not a drone
+			if (numNotesAfterRecording == 1) {
+				// how long is the note row?
+				int32_t effectiveLength = modelStack->getLoopLength();
+				Note* note = notes.getElement(0);
+				// is the note's length longer or equal to the note row's length
+				// if it is, then it's a drone
+				if (note->getLength() >= effectiveLength) {
+					// don't finish auditioning
+					isDroning = true;
+					// set note row sounding status so that drone can be stopped when turning playback off
+					soundingStatus = STATUS_SUSTAINED_NOTE;
+				}
+			}
+		}
+	}
+	justDidSomeRecording = false;
+	anyNotesBeforeRecording = false;
+
+	return isDroning;
 }
 
 /*

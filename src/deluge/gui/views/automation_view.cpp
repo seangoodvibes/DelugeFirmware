@@ -3519,8 +3519,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 
 			if (noteRowOnActiveClip) {
 				// Ensure our auditioning doesn't override a note playing in the sequence
-				if (playbackHandler.isEitherClockActive()
-				    && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
+				if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus != STATUS_OFF) {
 					goto doSilentAudition;
 				}
 			}
@@ -4052,7 +4051,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 			if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 				if (modelStackWithNoteRow->getNoteRowAllowNull()
-				    && modelStackWithNoteRow->getNoteRow()->soundingStatus == STATUS_SEQUENCED_NOTE) {}
+				    && modelStackWithNoteRow->getNoteRow()->soundingStatus != STATUS_OFF) {}
 				else {
 
 					// Record note-on if we're recording

@@ -4467,6 +4467,8 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
                                   int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
 
 	NoteRow* noteRow = modelStack->getNoteRow();
+	noteRow->anyNotesBeforeRecording = noteRow->notes.getNumElements();
+	noteRow->justDidSomeRecording = true;
 
 	// Rounded position in sequencer ticks of the note-on event.
 	int32_t quantizedPos = 0;
