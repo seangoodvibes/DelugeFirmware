@@ -449,6 +449,7 @@ public:
 	}
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
+	bool isSustaining = false;
 
 private:
 	ScaleMapper scaleMapper;

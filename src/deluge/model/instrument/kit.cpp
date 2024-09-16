@@ -1554,7 +1554,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 
 	// don't audition this note row if there is a drone note that is currently sounding
 	if (noteRow) {
-		if (noteRow && noteRow->isDroning(modelStack->getLoopLength())
+		if (noteRow->isDroning(modelStack->getLoopLength() || currentSong->isSustaining)
 		    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
 			return;
 		}
@@ -1598,7 +1598,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 
 	// here we check if this note row has a drone note that is currently sounding
 	// in which case we don't want to stop it from sounding
-	if (noteRow && noteRow->isDroning(modelStack->getLoopLength())
+	if (noteRow && (noteRow->isDroning(modelStack->getLoopLength()) || currentSong->isSustaining)
 	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
 		return;
 	}

@@ -2176,7 +2176,7 @@ stopNote:
 				if (ticksTilNextNoteEvent <= 0) {
 
 					// If it's a droning, full-length note...
-					if (thisNote->isDrone(effectiveLength)) {
+					if (thisNote->isDrone(effectiveLength) || currentSong->isSustaining) {
 
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered again from
 						// the start. Same for time-stretching - although those can loop themselves, caching comes along
@@ -2202,8 +2202,10 @@ stopNote:
 							}
 						}
 
-						justStoppedConstantNote = true;
-						soundingStatus = STATUS_OFF;
+						if (!currentSong->isSustaining) {
+							justStoppedConstantNote = true;
+							soundingStatus = STATUS_OFF;
+						}
 					}
 
 					// Or normal case - just stop sounding the Note.
