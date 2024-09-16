@@ -7,6 +7,8 @@
 ### User Interface
 
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Enabled seamless linear recording of drone notes using audition pads or external midi.
+  - When linear recording to a clip, you can seamlessly record a drone note using the audition pads or from external midi by continuing to audition / send a note until the linear recording stops. After linear recording stops, you can stop auditioning / send a note off and the drone note will persist without any breaks or re-triggering.
 
 ## c1.2.0 Chopin
 
