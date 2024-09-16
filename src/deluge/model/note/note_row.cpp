@@ -2228,7 +2228,7 @@ stopNote:
 				if (ticksTilNextNoteEvent <= 0) {
 
 					// If it's a droning, full-length note...
-					if (thisNote->isDrone(effectiveLength)) {
+					if (thisNote->isDrone(effectiveLength) || currentSong->isSustaining) {
 
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered
 						// again from the start. Same for time-stretching - although those can loop themselves,
@@ -2355,7 +2355,23 @@ gotValidNoteIndex:
 				// If we've arrived at a Note right now...
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
-						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						if (currentSong->isSustaining) {
+							if (!thisNote->isDrone(effectiveLength) ) {
+								if (!justStoppedConstantNote) {
+									playNote(false, modelStack, thisNote);
+									playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+								}
+							
+							//	justStoppedConstantNote = true;
+							//	soundingStatus = STATUS_OFF;
+							}
+						}
+						else {
+						//	if (!justStoppedConstantNote) {
+						//		
+						//	}
+							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						}
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're

@@ -180,6 +180,7 @@ void InstrumentClipView::displayOrLanguageChanged() {
 
 void InstrumentClipView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+	indicator_leds::setLedState(IndicatorLED::TRIPLETS, currentSong->isSustaining);
 	InstrumentClipMinder::setLedStates();
 }
 
@@ -836,6 +837,14 @@ doCancelPopup:
 			goto passToOthers;
 		}
 	}
+	
+	else if (b == TRIPLETS) {
+		if (on) {
+			currentSong->isSustaining = !currentSong->isSustaining;
+			indicator_leds::setLedState(IndicatorLED::TRIPLETS, currentSong->isSustaining);
+		}
+	}
+
 	else {
 passToOthers:
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -4538,7 +4547,7 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 		// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
 		// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
 		if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF
-		    || noteRowOnActiveClip->isDroning(modelStack->getLoopLength())) {
+		    || noteRowOnActiveClip->isDroning(modelStack->getLoopLength()) || currentSong->isSustaining) {
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
 	}
