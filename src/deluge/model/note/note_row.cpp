@@ -2202,10 +2202,8 @@ stopNote:
 							}
 						}
 
-						if (!currentSong->isSustaining) {
-							justStoppedConstantNote = true;
-							soundingStatus = STATUS_OFF;
-						}
+						justStoppedConstantNote = true;
+						soundingStatus = STATUS_OFF;
 					}
 
 					// Or normal case - just stop sounding the Note.
@@ -2281,9 +2279,8 @@ currentlyOff:
 				// Or if still here, we've decided on a valid note index
 gotValidNoteIndex:
 				Note* nextNote = (Note*)notes.getElementAddress(nextNoteI);
-				int32_t newTicksTil =
-				    nextNote->pos
-				    - effectiveCurrentPos; // Assumes we're playing forwards - it'll get modified just below otherwise
+				// Assumes we're playing forwards - it'll get modified just below otherwise
+				int32_t newTicksTil = nextNote->pos - effectiveCurrentPos;
 
 				// If playing reversed...
 				if (playingReversedNow) {
@@ -2305,7 +2302,23 @@ gotValidNoteIndex:
 				// If we've arrived at a Note right now...
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
-						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						if (currentSong->isSustaining) {
+							if (!thisNote->isDrone(effectiveLength) ) {
+								if (!justStoppedConstantNote) {
+									playNote(false, modelStack, thisNote);
+									playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+								}
+							
+							//	justStoppedConstantNote = true;
+							//	soundingStatus = STATUS_OFF;
+							}
+						}
+						else {
+						//	if (!justStoppedConstantNote) {
+						//		
+						//	}
+							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						}
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're already at the
