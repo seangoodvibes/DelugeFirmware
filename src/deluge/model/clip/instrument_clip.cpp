@@ -4286,6 +4286,10 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 					// front than any previous Clip-lengthening that took place.
 
 					lastNote->setLength(loopLength - lastNote->pos);
+
+					if (thisNoteRow->isDroning(loopLength)) {
+						thisNoteRow->soundingStatus = STATUS_SEQUENCED_NOTE;
+					}
 				}
 
 				// And, that'll be the last Note we need to deal with

@@ -3664,7 +3664,7 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 
 	// Or if auditioning this NoteRow just finished...
 	else {
-		finishAuditioningRow(yDisplay, noteRowOnActiveClip);
+		finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
 	}
 
 	if (doRender) {
@@ -3958,13 +3958,15 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 
 // sub-function of AuditionPadAction
 // pad is released, end previous audition pad press
-void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, NoteRow* noteRowOnActiveClip) {
+void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
+                                              NoteRow* noteRowOnActiveClip) {
 	if (auditionPadIsPressed[yDisplay]) {
 		auditionPadIsPressed[yDisplay] = 0;
 		lastAuditionedVelocityOnScreen[yDisplay] = 255;
 
 		// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
-		if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF) {
+		if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF
+		    || noteRowOnActiveClip->isDroning(modelStack->getLoopLength())) {
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
 	}

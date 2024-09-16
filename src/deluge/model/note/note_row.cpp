@@ -2109,33 +2109,15 @@ noFurtherNotes:
 		bool anyNotes = notes.getNumElements();
 
 		// If user is auditioning / sustaining note...
-		if (isAuditioning(modelStack) || (soundingStatus == STATUS_SUSTAINED_NOTE) || currentSong->isSustainingNotes) {
-			// if an auditioned note is droning / sustaining
-			if (soundingStatus == STATUS_SUSTAINED_NOTE && !currentSong->isSustainingNotes) {
-				// if you since deleted a note...stop droning / sustaining
-				if (anyNotes) {
-					goto noFurtherNotes;
-				}
-				else {
-					goto stopNote;
-				}
-			}
-			else if (currentSong->isSustainingNotes) {
-				soundingStatus == STATUS_SUSTAINED_NOTE;
-				goto noFurtherNotes;
-			}
+		if (isAuditioning(modelStack)) {
 			// If they've also just recorded a note and it was quantized later, we do need to keep an eye out for it,
 			// despite the fact that we're auditioning.
-			else if (effectiveForwardPos < ignoreNoteOnsBefore_) {
+			if (effectiveForwardPos < ignoreNoteOnsBefore_) {
 				goto currentlyOff;
 			}
 
 			// There's nothing else we can do.
 			goto noFurtherNotes;
-		}
-
-		if (!currentSong->isSustainingNotes && soundingStatus == STATUS_SUSTAINED_NOTE) {
-			goto stopNote;
 		}
 
 		// If a note is currently playing, all we can do is see if it's stopped yet.
@@ -2198,7 +2180,7 @@ stopNote:
 				if (ticksTilNextNoteEvent <= 0) {
 
 					// If it's a droning, full-length note...
-					if (thisNote->pos == 0 && thisNote->length == effectiveLength) {
+					if (thisNote->isDrone(effectiveLength)) {
 
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered again from
 						// the start. Same for time-stretching - although those can loop themselves, caching comes along
@@ -4340,6 +4322,17 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 	}
 }
 
+bool NoteRow::isDroning(int32_t effectiveLength) {
+	int32_t numNotes = notes.getNumElements();
+	if (numNotes == 1) {
+		Note* note = notes.getElement(0);
+		if (note->isDrone(effectiveLength)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool NoteRow::justRecordedDrone(ModelStackWithNoteRow* modelStack) {
 	bool isDroning = false;
 	// if playback is off, don't drone
@@ -4355,13 +4348,12 @@ bool NoteRow::justRecordedDrone(ModelStackWithNoteRow* modelStack) {
 				// how long is the note row?
 				int32_t effectiveLength = modelStack->getLoopLength();
 				Note* note = notes.getElement(0);
-				// is the note's length longer or equal to the note row's length
-				// if it is, then it's a drone
-				if (note->getLength() >= effectiveLength) {
+				// is the note a drone note?
+				if (note->isDrone(effectiveLength)) {
 					// don't finish auditioning
 					isDroning = true;
 					// set note row sounding status so that drone can be stopped when turning playback off
-					soundingStatus = STATUS_SUSTAINED_NOTE;
+					soundingStatus = STATUS_SEQUENCED_NOTE;
 				}
 			}
 		}

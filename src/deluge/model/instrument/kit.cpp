@@ -1550,8 +1550,15 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	}
 	ParamManager* paramManagerForDrum = NULL;
 
-	if (modelStack->getNoteRowAllowNull()) {
-		paramManagerForDrum = &modelStack->getNoteRow()->paramManager;
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+
+	if (noteRow) {
+		if (noteRow && noteRow->isDroning(modelStack->getLoopLength())
+		    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+			return;
+		}
+
+		paramManagerForDrum = &noteRow->paramManager;
 		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DrumType::SOUND) {
 			FREEZE_WITH_ERROR("E313"); // Vinz got this!
 		}
@@ -1584,9 +1591,15 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity) {
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 
-	// here we check if we recorded a drone note
+	// here we check if this note row has a drone note
 	// in which case we don't want to stop it from sounding
-	if (noteRow && noteRow->justRecordedDrone(modelStack)) {
+	if (noteRow && noteRow->isDroning(modelStack->getLoopLength())
+	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+
+		drum->auditioned = false;
+		drum->lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE; // So it won't record any more MPE
+		drum->earlyNoteStillActive = false;
+
 		return;
 	}
 

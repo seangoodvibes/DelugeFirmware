@@ -227,6 +227,7 @@ public:
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
+	bool isDroning(int32_t effectiveLength);
 	bool justRecordedDrone(ModelStackWithNoteRow* modelStack);
 	bool justDidSomeRecording;
 	bool anyNotesBeforeRecording;

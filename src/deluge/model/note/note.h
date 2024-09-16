@@ -41,6 +41,8 @@ public:
 
 	inline int32_t getProbability() { return probability; }
 
+	inline bool isDrone(int32_t effectiveLength) { return (pos == 0 && length == effectiveLength); }
+
 	//	void writeToFile();
 	int32_t length;
 	uint8_t velocity;
