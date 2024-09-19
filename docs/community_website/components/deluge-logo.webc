@@ -1,0 +1,3 @@
+<template webc:root>
+	<deluge-dots></deluge-dots> deluge
+</template>

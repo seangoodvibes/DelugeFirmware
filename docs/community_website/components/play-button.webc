@@ -1,0 +1,3 @@
+<circle-button color="green" @attributes>
+	play
+</circle-button>

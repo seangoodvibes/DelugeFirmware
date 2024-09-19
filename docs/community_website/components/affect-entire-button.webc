@@ -1,0 +1,3 @@
+<circle-button	color="orange" @attributes>
+	affect entire
+</circle-button>

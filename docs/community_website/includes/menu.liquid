@@ -1,0 +1,19 @@
+<ol>
+	{% for item in menu %}
+		{% capture seg %}
+			{% if item.7seg %}{{item.7seg}}{% else %}{{item.text}}{% endif %}
+		{% endcapture %}
+		{% capture title %}
+			<menu-item seg="{{seg}}">{{item.text}}</menu-item>
+		{% endcapture %}
+		<li>
+			{% if item.items %}
+				<details open>
+					<summary>{{title}}</summary>
+					{% include "menu" with item.items as menu %}
+				</details>
+			{% else %}
+				{{title}}
+			{% endif %}
+	{% endfor -%}
+</ol>

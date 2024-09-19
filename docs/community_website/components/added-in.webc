@@ -1,0 +1,3 @@
+<span class="added-in">
+	added in <b><slot></slot></b>
+</span>

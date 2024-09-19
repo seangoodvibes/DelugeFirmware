@@ -1,0 +1,3 @@
+<circle-button color="blue" @attributes alt="delete">
+	save
+</circle-button>

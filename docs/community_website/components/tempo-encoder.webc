@@ -1,0 +1,6 @@
+<template webc:root title="TEMPO" class="encoder encoder--black">
+	<svg viewBox="0 0 100 100">
+		<circle cx="50" cy="50" r="40"/>
+		<text x="14" y="60">TEMPO</text>
+	</svg>
+</template>

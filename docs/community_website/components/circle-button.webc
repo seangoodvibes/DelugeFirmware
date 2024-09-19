@@ -1,0 +1,10 @@
+<template webc:root>
+	<span
+		:class="`circle-button-button ${on == 'blinking' ? 'blinking' : ''}`"
+		:style="`background: var(--${attr(on) ? color : 'grey'})`">
+	</span>
+	<span class="labels">
+		<span class="label"><slot></slot></span>
+		<span class="alt-label" @text="alt"><slot name="alt"></slot></span>
+	</span>
+</template>

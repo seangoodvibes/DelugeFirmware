@@ -1,0 +1,3 @@
+<circle-button color="blue" @attributes>
+	sync-scaling
+</circle-button>

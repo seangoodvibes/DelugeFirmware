@@ -1,0 +1,3 @@
+<circle-button color="blue" @attributes>
+	triplets view
+</circle-button>

@@ -1,0 +1,3 @@
+<circle-button color="red" @attributes alt="resample">
+	record
+</circle-button>

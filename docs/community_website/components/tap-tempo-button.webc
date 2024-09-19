@@ -1,0 +1,9 @@
+<circle-button color="blue" @attributes>
+	tap tempo
+
+	<svg slot="alt" width="1em" height="1em" viewBox="0 0 200 200">
+		<polygon points="100,10 200,190 0,190" style="fill:white;stroke:black;stroke-width:10"/>
+		<polygon points="30,140 0,200 200,200, 170,140" style="fill:black;stroke:black;stroke-width:10"/>
+		<line x1="100" y1="140" x2="140" y2="100" stroke="black" stroke-width="10"/>
+	</svg>
+</circle-button>

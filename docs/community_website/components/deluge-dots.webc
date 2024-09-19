@@ -1,0 +1,36 @@
+<svg webc:root="override" viewBox="0 0 11 10" class="deluge-dots">
+	<rect y="0" x="1"  width="1" height="1"></rect>
+	<rect y="0" x="4" width="1" height="1"></rect>
+
+	<rect y="1" x="2" width="1" height="1"></rect>
+	<rect y="1" x="5" width="1" height="1"></rect>
+
+	<rect y="2" x="0" width="1" height="1"></rect>
+	<rect y="2" x="3" width="1" height="1"></rect>
+	<rect y="2" x="6" width="1" height="1"></rect>
+
+	<rect y="3" x="1" width="1" height="1"></rect>
+	<rect y="3" x="4" width="1" height="1"></rect>
+	<rect y="3" x="7" width="1" height="1"></rect>
+
+	<rect y="4" x="2" width="1" height="1"></rect>
+
+	<rect y="5" x="3" width="1" height="1"></rect>
+	<rect y="5" x="5" width="1" height="1"></rect>
+	<rect y="5" x="8" width="1" height="1"></rect>
+
+	<rect y="6" x="1" width="1" height="1"></rect>
+	<rect y="6" x="6"  width="1" height="1"></rect>
+	<rect y="6" x="9" width="1" height="1"></rect>
+
+	<rect y="7" x="2" width="1" height="1"></rect>
+	<rect y="7" x="5" width="1" height="1"></rect>
+	<rect y="7" x="7" width="1" height="1"></rect>
+	<rect y="7" x="10" width="1" height="1"></rect>
+
+	<rect y="8" x="3" width="1" height="1"></rect>
+	<rect y="8" x="6" width="1" height="1"></rect>
+
+	<rect y="9" x="4" width="1" height="1"></rect>
+	<rect y="9" x="7" width="1" height="1"></rect>
+</svg>

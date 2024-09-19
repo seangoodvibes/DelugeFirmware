@@ -1,0 +1,47 @@
+[
+	{
+		"text": "ui",
+		"items": [
+			{
+				"text": "song",
+				"items": [
+					{
+						"text": "layout",
+						"7seg": "layt",
+						"items": [{"text": "rows"}, {"text": "grid"}]
+					},
+					{
+						"text": "grid",
+						"items": [
+							{
+								"text": "default active mode",
+								"7seg": "defm",
+								"items": [
+									{"text": "selection", "7seg": "sele"},
+									{"text": "green", "7seg": "gree"},
+									{"text": "blue"}
+								]
+							},
+							{
+								"text": "select in green mode",
+								"7seg": "gree",
+								"items": [
+									{"text": "disabled", "7seg": "off"},
+									{"text": "enabled", "7seg": "on"}
+								]
+							},
+							{
+								"text": "empty pads",
+								"7seg": "empt",
+								"items": [
+									{"text": "unarm", "7seg": "unar"},
+									{"text": "create + record", "7seg": "crea"}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+]

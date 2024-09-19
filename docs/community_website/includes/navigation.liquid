@@ -1,0 +1,24 @@
+<ol>
+	{% assign items = navigation | sortByOrder %}
+	{% for item in items %}
+		{% capture title %}
+			{% if item.url and item.link %}
+				<a {% if item.url == page.url %}aria-current="page"{% endif %} href="{{item.url}}">
+					<span>{{item.name}}</span>
+				</a>
+			{% else %}
+				<span>{{item.name}}</span>
+			{% endif -%}
+		{% endcapture %}
+		<li>
+			{% if item.children %}
+				<details open>
+					<summary>{{title}}</summary>
+					{% include "navigation" with item.children as navigation %}
+				</details>
+			{% else %}
+				{{title}}
+			{% endif %}
+		</li>
+	{% endfor -%}
+</ol>

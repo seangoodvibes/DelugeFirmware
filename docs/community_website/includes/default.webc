@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<title webc:if="title" @raw="`${title} | Deluge Community Manual`"></title>
+<title webc:else>Deluge Community Manual</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" :href="getBundleFileUrl('css')" webc:keep>
+<link rel="icon" href="/images/dots.png">
+<script webc:setup>
+	const allNavigation = navigation.create($data.collections.all)[0].children
+</script>
+
+<header class="main-header">
+	<a href="/">
+		<deluge-logo></deluge-logo>
+		<span>community manual</span>
+	</a>
+</header>
+
+<div class="main-wrapper">
+	<aside class="sidebar">
+		<nav id="navigation" class="sidebar-content">
+			<label id="navigation-toggle">
+				<input type="checkbox">
+				Menu
+			</label>
+			<div id="navigation-items" class="sidebar-items">
+				<template webc:type="11ty" 11ty:type="liquid">
+					{% include "navigation" with allNavigation as navigation %}
+				</template>
+			</div>
+		</nav>
+	</aside>
+	<main>
+		<nav class="breadcrumbs">
+			<script webc:type="js" webc:is="template">
+				eleventyNavigationToHtml(
+					eleventyNavigationBreadcrumb(
+						$data.collections.all,
+						$data.eleventyNavigation.key,
+						{allowMissing: true}
+					)
+				)
+			</script>
+		</nav>
+		<header webc:if="title">
+			<h1 @text="title"></h1>
+		</header>
+		<article @raw="content">
+		</article>
+	</main>
+</div>
+
+<link rel="stylesheet" href="/syntax-highlighting.css">
+<link rel="stylesheet" href="/styles.css">
