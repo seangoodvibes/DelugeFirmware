@@ -33,6 +33,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -45,6 +46,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -90,6 +92,7 @@
 #include "storage/storage_manager.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include <limits>
 #include <new>
 #include <stdint.h>
@@ -124,6 +127,12 @@ InstrumentClipView::InstrumentClipView() {
 	timeLastEditPadPress = 0;
 	// newDrumOptionSelected = false;
 	firstCopiedNoteRow = NULL;
+
+	noteRowBlinking = false;
+	noteRowFlashOn = false;
+
+	lastSelectedNoteXDisplay = kNoSelection;
+	lastSelectedNoteYDisplay = kNoSelection;
 }
 
 bool InstrumentClipView::opened() {
@@ -813,6 +822,21 @@ doCancelPopup:
 		}
 	}
 
+	else if (b == SELECT_ENC) {
+		if (on) {
+			if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+				if (enterNoteEditor()) {
+					return ActionResult::DEALT_WITH;
+				}
+			}
+			else if (currentUIMode == UI_MODE_AUDITIONING) {
+				if (enterNoteRowEditor()) {
+					return ActionResult::DEALT_WITH;
+				}
+			}
+			goto passToOthers;
+		}
+	}
 	else {
 passToOthers:
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -1138,6 +1162,8 @@ ramError:
 					newNote->velocity = noteToCopy->velocity;
 					newNote->probability = noteToCopy->probability;
 					newNote->lift = noteToCopy->lift;
+					newNote->iterance = noteToCopy->iterance;
+					newNote->fill = noteToCopy->fill;
 				}
 			}
 		}
@@ -1388,7 +1414,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 			offsetNoteCodeAction(offset);
 		}
 		else {
-			setRowProbability(offset);
+			handleProbabilityOrIteranceEditing(offset, true);
 		}
 	}
 
@@ -1402,9 +1428,9 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user is holding a note(s) down, we'll adjust probability instead
+	// Or, if user is holding a note(s) down, we'll adjust probability / iterance instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-		adjustProbability(offset);
+		handleProbabilityOrIteranceEditing(offset, false);
 	}
 	// Or, normal option - trying to change Instrument presets
 	else {
@@ -1416,6 +1442,37 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
 			exitScaleMode();
 			clip->inScaleMode = false;
+		}
+	}
+}
+
+void InstrumentClipView::handleProbabilityOrIteranceEditing(int8_t offset, bool editNoteRow) {
+	bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
+	bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+	// if there's a probability pop-up, continue editing probability
+	bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+	// if there's an iterance pop-up, continue editing iterance
+	bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+	if (shouldEditProbability) {
+		if (editNoteRow) {
+			setNoteRowProbabilityWithOffset(offset);
+		}
+		else {
+			adjustNoteProbabilityWithOffset(offset);
+		}
+	}
+	else if (shouldEditIterance) {
+		if (editNoteRow) {
+			setNoteRowIteranceWithOffset(offset, false);
+		}
+		else {
+			adjustNoteIteranceWithOffset(offset, false);
 		}
 	}
 }
@@ -1835,6 +1892,13 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				return;
 			}
 
+			bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
+			// if you're in note row editor, don't create new note row's for kit's
+			if (inNoteRowEditor && instrument->type == OutputType::KIT) {
+				return;
+			}
+
 			// And create the new NoteRow
 			modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, yDisplay);
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
@@ -1954,6 +2018,10 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				if (instrument->type == OutputType::KIT) {
 					setSelectedDrum(noteRow->drum);
 				}
+
+				noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
+				lastSelectedNoteXDisplay = xDisplay;
+				lastSelectedNoteYDisplay = yDisplay;
 			}
 		}
 
@@ -2089,6 +2157,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					editPadPresses[i].isBlurredSquare = (squareType == SQUARE_BLURRED);
 					editPadPresses[i].intendedVelocity = firstNote->getVelocity();
 					editPadPresses[i].intendedProbability = firstNote->getProbability();
+					editPadPresses[i].intendedIterance = firstNote->getIterance();
+					editPadPresses[i].intendedFill = firstNote->getFill();
 					editPadPresses[i].isActive = true;
 					editPadPresses[i].yDisplay = yDisplay;
 					editPadPresses[i].xDisplay = xDisplay;
@@ -2140,6 +2210,10 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					mpeRecordLastUpdateTime = AudioEngine::audioSampleTimer;
 
 					reassessAuditionStatus(yDisplay);
+
+					noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
+					lastSelectedNoteXDisplay = xDisplay;
+					lastSelectedNoteYDisplay = yDisplay;
 				}
 
 				// Might need to re-render row, if it was changed
@@ -2173,8 +2247,14 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			// here
 			endEditPadPress(i);
 
+			// if you're holding multiple notes across multiple rows, we don't want to delete any of them
+			// because you might be trying to, for example, edit the probability of multiple notes
+			// or just view their values in the note row editor
+			// removing the chance of any of the notes being deleted ensures no accidents
+			bool shouldDeleteOnDepress = numEditPadPressesPerNoteRowOnScreen[yDisplay] == numEditPadPresses;
+
 			// If we're meant to be deleting it on depress...
-			if (editPadPresses[i].deleteOnDepress
+			if (shouldDeleteOnDepress && editPadPresses[i].deleteOnDepress
 			    && AudioEngine::audioSampleTimer - timeLastEditPadPress < kShortPressTime) {
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -2264,6 +2344,11 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		exitUIMode(UI_MODE_NOTES_PRESSED);
 		actionLogger.closeAction(ActionType::NOTE_EDIT);
 		quantizeAmount = 0;
+		if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
+			gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
+			lastSelectedNoteXDisplay = kNoSelection;
+			lastSelectedNoteYDisplay = kNoSelection;
+		}
 	}
 }
 
@@ -2272,10 +2357,15 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 	int32_t velocityValue = 0;
 
+	UI* currentUI = getCurrentUI();
+	bool inAutomationView = currentUI == &automationView;
+	bool inSoundEditor = currentUI == &soundEditor;
+
 	Action* action;
 	// Sean: we're only going to adjust velocity when there's a pop-up or we're in automation velocity editing view
-	// so no need to get an action otherwise
-	if (display->hasPopup() || getCurrentUI() == &automationView) {
+	// or we're in the sound editor note editor
+	// no need to get an action otherwise
+	if (display->hasPopup() || inAutomationView || inSoundEditor) {
 		action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		if (!action) {
 			return; // Necessary why?
@@ -2308,7 +2398,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the
 					// value) in automation view we change it right away because you see the value on the display when
 					// pressing pad
-					if (display->hasPopup() || getCurrentUI() == &automationView) {
+					if (display->hasPopup() || inAutomationView || inSoundEditor) {
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
@@ -2329,7 +2419,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 			// Only one note in square
 			else {
-				if (display->hasPopup() || getCurrentUI() == &automationView) {
+				if (display->hasPopup() || inAutomationView || inSoundEditor) {
 					// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to
 					// audition the pad press note so you can hear the velocity changes as you're holding the note down
 					editPadPresses[i].intendedVelocity =
@@ -2340,10 +2430,17 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 				updateVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
 			}
+
+			gridSquareInfo[editPadPresses[i].yDisplay][editPadPresses[i].xDisplay].averageVelocity =
+			    editPadPresses[i].intendedVelocity;
 		}
 	}
 
-	displayVelocity(velocityValue, velocityChange);
+	bool inNoteEditor = inSoundEditor && soundEditor.inNoteEditor();
+
+	if (!inNoteEditor) {
+		displayVelocity(velocityValue, velocityChange);
+	}
 
 	reassessAllAuditionStatus();
 }
@@ -2389,8 +2486,11 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 			// updated when user releases last press.
 		}
 		else {
+			UI* currentUI = getCurrentUI();
+			bool inAutomationView = currentUI == &automationView;
+			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
 			getCurrentInstrument()->defaultVelocity = velocityValue;
-			if (getCurrentUI() != &automationView) {
+			if (!inAutomationView && !inNoteEditor) {
 				if (display->haveOLED()) {
 					strcpy(buffer, "Velocity: ");
 					intToString(velocityValue, buffer + strlen(buffer));
@@ -2417,14 +2517,74 @@ void InstrumentClipView::popupVelocity(char const* displayString) {
 	}
 }
 
-void InstrumentClipView::adjustProbability(int32_t offset) {
+void InstrumentClipView::adjustNoteProbabilityWithOffset(int32_t offset) {
+	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1, kNumProbabilityValues);
+}
 
-	int32_t probabilityValue = -1;
+void InstrumentClipView::adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom) {
+	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1,
+	                         allowTogglingBetweenPresetsAndCustom);
+}
 
-	bool prevBase = false;
+void InstrumentClipView::adjustNoteIteranceWithFinalValue(Iterance finalValue) {
+	adjustNoteParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1);
+}
+
+void InstrumentClipView::adjustNoteFillWithOffset(int32_t offset) {
+	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
+}
+
+// used with the note probability, iterance and fill note editing menu
+// when adjusting multiple notes, the value displayed is the value of the left most note
+Note* InstrumentClipView::getLeftMostNotePressed() {
+	Note* leftMostNote = nullptr;
+	if (numEditPadPresses != 0) {
+		int32_t leftMostPos = 2147483647;
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+				int32_t xDisplay = editPadPresses[i].xDisplay;
+				int32_t yDisplay = editPadPresses[i].yDisplay;
+				bool isValid = gridSquareInfo[yDisplay][xDisplay].isValid;
+				if (isValid) {
+					Note* firstNote = gridSquareInfo[yDisplay][xDisplay].firstNote;
+					if (firstNote && firstNote->pos < leftMostPos) {
+						leftMostPos = firstNote->pos;
+						leftMostNote = firstNote;
+					}
+				}
+				// if there's no more pad presses, we're done
+				if (numEditPadPresses == 1) {
+					break;
+				}
+			}
+		}
+	}
+	return leftMostNote;
+}
+
+// adjusts note probability, iterance, fill for notes
+//  - either via offset, providing values -1 or 1 (provide 0 if you don't want to use this parameter)
+//  - or via finalValue, providing value 0 or up (provide -1 if you don't want to use this parameter)
+void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
+                                                  int32_t parameterMinValue, int32_t parameterMaxValue,
+                                                  bool allowTogglingBetweenPresetsAndCustom) {
+	// ensure offset is valid (offset acceleration not permitted here)
+	if (withOffset < 0) {
+		withOffset = -1;
+	}
+	else if (withOffset > 0) {
+		withOffset = 1;
+	}
+	int32_t parameterValue = -1;
+
+	bool prevBase = false; // only used by probability parameter for latching states
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
 
 	// If just one press...
 	if (numEditPadPresses == 1) {
@@ -2437,66 +2597,155 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 					goto multiplePresses;
 				}
 
-				int32_t probability = editPadPresses[i].intendedProbability;
+				int32_t originalParameter;
+				bool parameterHasBeenEdited = false;
 
-				probabilityValue = probability & 127;
-				prevBase = (probability & 128);
+				if (withOffset != 0) {
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						originalParameter = editPadPresses[i].intendedProbability;
+						parameterValue = originalParameter & 127; // probability param is 8 bits
+						prevBase = (originalParameter & 128);
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						originalParameter = editPadPresses[i].intendedIterance.toInt();
+						parameterValue = originalParameter; // iterance param is 16 bits
+						// transform into preset index temporarily, to inc/dec offset
+						parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+						originalParameter = editPadPresses[i].intendedFill;
+						parameterValue = originalParameter & 127; // fill param is 8 bits
+					}
+				}
+				else if (withFinalValue >= 0) {
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						originalParameter = editPadPresses[i].intendedProbability;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						originalParameter = editPadPresses[i].intendedIterance.toInt();
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+						originalParameter = editPadPresses[i].intendedFill;
+					}
+					parameterValue = withFinalValue;
+					parameterHasBeenEdited = originalParameter != withFinalValue;
+				}
 
 				// If editing, continue edit
-				if (display->hasPopup()) {
+				if (hasPopup || inNoteEditor) {
 					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 					if (!action) {
 						return;
 					}
 
-					// Incrementing
-					if (offset == 1) {
-						if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
-							if (prevBase) {
-								probabilityValue++;
-								prevBase = false;
-							}
-							else {
-								// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128, that is prob=0 +
-								// prevBase=true) And for percentage-probabilities we set preBase if there are
-								// previous notes with the same probability
-								if (probabilityValue == 0
-								    || (probabilityValue < kNumProbabilityValues
-								        && getCurrentInstrumentClip()->doesProbabilityExist(
-								            editPadPresses[i].intendedPos, probabilityValue,
-								            kNumProbabilityValues - probabilityValue))) {
-									prevBase = true;
+					// Covers probabily, iterance, and fill (set based on offset)
+					if (withOffset != 0) {
+						// Incrementing
+						if (withOffset == 1) {
+							if (parameterValue < parameterMaxValue) {
+								if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+									if (prevBase) {
+										parameterValue++;
+										prevBase = false;
+										parameterHasBeenEdited = true;
+									}
+									else {
+										// For percentage-probabilities we set prevBase if there are
+										// previous notes with the same probability
+										if (parameterValue < parameterMaxValue
+										    && getCurrentInstrumentClip()->doesProbabilityExist(
+										        editPadPresses[i].intendedPos, parameterValue,
+										        parameterMaxValue - parameterValue)) {
+											prevBase = true;
+											parameterHasBeenEdited = true;
+										}
+										else {
+											parameterValue++;
+											parameterHasBeenEdited = true;
+										}
+									}
+								}
+								else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+									bool isLastPreset = parameterValue == kNumIterancePresets;
+									if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
+										parameterValue++;
+										parameterHasBeenEdited = true;
+									}
 								}
 								else {
-									probabilityValue++;
+									parameterValue++;
+									parameterHasBeenEdited = true;
 								}
 							}
 						}
-					}
-
-					// Decrementing
-					else {
-						if (probabilityValue > 0 || prevBase) {
-							if (prevBase) {
-								prevBase = false;
-							}
-							else {
-								probabilityValue--;
-								// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128, that is prob=0 +
-								// prevBase=true) From any other percentage-probability we set prevBase if there are
-								// previous notes with the same probability
-								prevBase = (probabilityValue == 0
-								            || probabilityValue < kNumProbabilityValues
-								                   && getCurrentInstrumentClip()->doesProbabilityExist(
-								                       editPadPresses[i].intendedPos, probabilityValue,
-								                       kNumProbabilityValues - probabilityValue));
+						// Decrementing
+						else {
+							if (parameterValue > parameterMinValue || prevBase) {
+								if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+									if (prevBase) {
+										prevBase = false;
+										parameterHasBeenEdited = true;
+									}
+									else {
+										parameterValue--;
+										// From any other percentage-probability we set prevBase if there are
+										// previous notes with the same probability
+										prevBase = (parameterValue < parameterMaxValue
+										            && getCurrentInstrumentClip()->doesProbabilityExist(
+										                editPadPresses[i].intendedPos, parameterValue,
+										                parameterMaxValue - parameterValue));
+										parameterHasBeenEdited = true;
+									}
+								}
+								else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+									bool isCustom = parameterValue == kCustomIterancePreset;
+									if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
+										parameterValue--;
+										parameterHasBeenEdited = true;
+									}
+								}
+								else {
+									parameterValue--;
+									parameterHasBeenEdited = true;
+								}
 							}
 						}
-					}
 
-					editPadPresses[i].intendedProbability = probabilityValue;
-					if (prevBase) {
-						editPadPresses[i].intendedProbability |= 128;
+						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+							if (prevBase) {
+								parameterValue |= 128;
+							}
+							editPadPresses[i].intendedProbability = parameterValue;
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							// transform back from preset to real value (only if not CUSTOM)
+							if (parameterHasBeenEdited) {
+								parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+							}
+							else {
+								// Respect the original iterance (could be a Custom one)
+								parameterValue = originalParameter;
+							}
+							editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValue);
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+							editPadPresses[i].intendedFill = parameterValue;
+						}
+					}
+					// Covers probability, iterance, and fill (set based on final value)
+					else if (withFinalValue >= 0) {
+						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+							if (prevBase) {
+								parameterValue |= 128;
+							}
+							editPadPresses[i].intendedProbability = parameterValue;
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValue);
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+							editPadPresses[i].intendedFill = parameterValue;
+						}
 					}
 
 					int32_t noteRowIndex;
@@ -2506,8 +2755,14 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_PROBABILITY,
-					                                     editPadPresses[i].intendedProbability);
+					                                     changeType, parameterValue);
+				}
+				else {
+					// In the case the operation didn't change anything, we need to transform Iterance back from preset
+					// to real value anyway, for the Popup code at the end of this method
+					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+					}
 				}
 				break;
 			}
@@ -2532,8 +2787,17 @@ multiplePresses:
 					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 					Note* note = noteRow->notes.getElement(noteI);
 					if (note) {
-						editPadPresses[i].intendedProbability =
-						    note->probability; // This might not have been grabbed properly initially
+						// re-get parameters as they might not have been grabbed properly initially
+						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+							editPadPresses[i].intendedProbability = note->getProbability();
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							editPadPresses[i].intendedIterance = note->getIterance();
+						}
+						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+							editPadPresses[i].intendedFill = note->getFill();
+						}
+
 						if (note->pos < leftMostPos) {
 							leftMostPos = note->pos;
 							leftMostIndex = i;
@@ -2552,70 +2816,128 @@ multiplePresses:
 			}
 		}
 
-		// Decide the probability, based on the existing probability of the leftmost note
-		uint8_t probability = editPadPresses[leftMostIndex].intendedProbability;
-		probabilityValue = probability & 127;
-		prevBase = (probability & 128);
+		int32_t originalParameter;
+		bool parameterHasBeenEdited = false;
+
+		// decide the parameter value, based on the existing parameter value of the leftmost note
+		if (withOffset != 0) {
+			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+				originalParameter = editPadPresses[leftMostIndex].intendedProbability;
+				parameterValue = originalParameter & 127; // probability param is 8 bits
+				prevBase = (originalParameter & 128);
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+				originalParameter = editPadPresses[leftMostIndex].intendedIterance.toInt();
+				parameterValue = originalParameter; // iterance param is 16 bits
+				// transform into preset index temporarily, to inc/dec offset
+				parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+				originalParameter = editPadPresses[leftMostIndex].intendedFill;
+				parameterValue = originalParameter & 127; // fill param is 8 bits
+			}
+		}
+		else if (withFinalValue >= 0) {
+			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+				originalParameter = editPadPresses[leftMostIndex].intendedProbability;
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+				originalParameter = editPadPresses[leftMostIndex].intendedIterance.toInt();
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+				originalParameter = editPadPresses[leftMostIndex].intendedFill;
+			}
+			parameterValue = withFinalValue;
+			parameterHasBeenEdited = originalParameter != withFinalValue;
+		}
 
 		// If editing, continue edit
-		if (display->hasPopupOfType(PopupType::PROBABILITY)) {
+		if (hasPopup || inNoteEditor) {
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (!action) {
 				return;
 			}
 
-			// Incrementing
-			if (offset == 1) {
-				if (probabilityValue == 0) {
-					// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
+			// Covers probabily, iterance, and fill (set based on offset)
+			if (withOffset != 0) {
+				// Incrementing
+				if (withOffset == 1) {
+					// increment parameter value
+					if (parameterValue < parameterMaxValue) {
+						if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							bool isLastPreset = parameterValue == kNumIterancePresets;
+							if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
+								parameterValue++;
+								parameterHasBeenEdited = true;
+							}
+						}
+						else {
+							parameterValue++;
+							parameterHasBeenEdited = true;
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								// As we are treating multiple notes, we need to reset prevBase and remove the
+								// "latching" state for leftMostNote
+								prevBase = false;
+							}
+						}
+					}
+				}
+				// Decrementing
+				else {
+					// decrement parameter value
+					if (parameterValue > parameterMinValue) {
+						if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							bool isCustom = parameterValue == kCustomIterancePreset;
+							if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
+								parameterValue--;
+								parameterHasBeenEdited = true;
+							}
+						}
+						else {
+							parameterValue--;
+							parameterHasBeenEdited = true;
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								// As we are treating multiple notes, we need to reset prevBase and remove the
+								// "latching" state for leftMostNote
+								prevBase = false;
+							}
+						}
+					}
+				}
+			}
+
+			int32_t parameterValueForMultipleNotes = parameterValue;
+			if (withOffset != 0) {
+				if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 					if (prevBase) {
-						probabilityValue = 1;
-						prevBase = false;
+						parameterValueForMultipleNotes |= 128;
 					}
-					// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
+				}
+				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+					// transform back from preset to real value (only if not CUSTOM)
+					if (parameterHasBeenEdited) {
+						parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+					}
 					else {
-						prevBase = true;
+						// Respect the original iterance (could be a Custom one)
+						parameterValue = originalParameter;
 					}
-				}
-				// In any other case we just increment probability value
-				else if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
-					probabilityValue++;
-					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
-					// for leftMostNote
-					prevBase = false;
-				}
-			}
-			// Decrementing
-			else {
-				if (probabilityValue == 1) {
-					// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
-					prevBase = true;
-					probabilityValue = 0;
-				}
-				else if (probabilityValue == 0 && prevBase) {
-					// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
-					prevBase = false;
-				}
-				// In any other case we just increment probability value
-				else if (probabilityValue > 1) {
-					probabilityValue--;
-					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state
-					// for leftMostNote
-					prevBase = false;
+					parameterValueForMultipleNotes = parameterValue;
 				}
 			}
 
-			uint8_t probabilityForMultipleNotes = probabilityValue;
-			if (prevBase) {
-				probabilityForMultipleNotes |= 128;
-			}
-
-			// Set the probability of the other presses, and update all probabilities with the actual notes
+			// Set the parameter value of the other presses, and update all parameter values with the actual notes
 			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 				if (editPadPresses[i].isActive) {
-
-					// Update probability
-					editPadPresses[i].intendedProbability = probabilityForMultipleNotes;
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						editPadPresses[i].intendedProbability = parameterValueForMultipleNotes;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValueForMultipleNotes);
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+						editPadPresses[i].intendedFill = parameterValueForMultipleNotes;
+					}
 
 					int32_t noteRowIndex;
 					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
@@ -2630,16 +2952,17 @@ multiplePresses:
 						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 						Note* note = noteRow->notes.getElement(noteI);
 						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
-
-							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
-							// percentage probabilities
-							if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-							    && note->pos != leftMostPos) {
-								editPadPresses[i].intendedProbability |= 128;
+							int32_t changeValue = parameterValueForMultipleNotes;
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
+								// percentage probabilities
+								if (parameterValue < parameterMaxValue && note->pos != leftMostPos) {
+									editPadPresses[i].intendedProbability |= 128;
+									changeValue = editPadPresses[i].intendedProbability;
+								}
 							}
-							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-							                                     CORRESPONDING_NOTES_SET_PROBABILITY,
-							                                     editPadPresses[i].intendedProbability);
+							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action, changeType,
+							                                     changeValue);
 
 							noteI++;
 							note = noteRow->notes.getElement(noteI);
@@ -2647,24 +2970,690 @@ multiplePresses:
 					}
 					// Or, just 1 note in square
 					else {
-						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
-						// percentage probabilities
-						if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-						    && editPadPresses[i].intendedPos != leftMostPos) {
-							editPadPresses[i].intendedProbability |= 128;
+						int32_t changeValue = parameterValueForMultipleNotes;
+						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual
+							// percentage probabilities
+							if (parameterValue < parameterMaxValue && editPadPresses[i].intendedPos != leftMostPos) {
+								editPadPresses[i].intendedProbability |= 128;
+								changeValue = editPadPresses[i].intendedProbability;
+							}
 						}
 						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-						                                     action, CORRESPONDING_NOTES_SET_PROBABILITY,
-						                                     editPadPresses[i].intendedProbability);
+						                                     action, changeType, changeValue);
 					}
 				}
 			}
 		}
+		else {
+			// In the case the operation didn't change anything, we need to transform Iterance back from preset to real
+			// value anyway, for the Popup code at the end of this method
+			if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+				parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+			}
+		}
 	}
 
-	if (probabilityValue != -1) {
-		displayProbability(probabilityValue, prevBase);
+	if (!inNoteEditor && parameterValue != -1) {
+		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+			displayProbability(parameterValue, prevBase);
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			displayIterance(Iterance::fromInt(parameterValue));
+		}
 	}
+}
+
+// GCC is fine with 29 or 5 for the size, but does not like that it could be either
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
+
+void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	// if it's a latching probability, remove latching from value
+	if (probability > kNumProbabilityValues) {
+		probability &= 127;
+	}
+
+	if (display->haveOLED()) {
+		sprintf(buffer, "Probability %d%%", probability * 5);
+		if (prevBase) {
+			strcat(buffer, " latching");
+		}
+		display->popupText(buffer, PopupType::PROBABILITY);
+	}
+	else {
+		intToString(probability * 5, buffer);
+		display->setText(buffer, true, prevBase ? 3 : 255);
+	}
+}
+
+void InstrumentClipView::displayIterance(Iterance iterance) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	// Iteration dependence
+	int32_t iterancePreset = iterance.toPresetIndex();
+
+	if (iterancePreset == kDefaultIterancePreset) {
+		strcpy(buffer, display->haveOLED() ? "Iterance: OFF" : "OFF");
+	}
+	else if (iterancePreset == kCustomIterancePreset) {
+		strcpy(buffer, display->haveOLED() ? "Iterance: CUSTOM" : "CUSTOM");
+	}
+	else {
+		Iterance iterance = iterancePresets[iterancePreset - 1];
+		int32_t i = iterance.divisor;
+		for (; i >= 0; i--) {
+			// try to find which iteration step index is active
+			if (iterance.iteranceStep[i]) {
+				break;
+			}
+		}
+		sprintf(buffer, display->haveOLED() ? "Iterance: %d of %d" : "%dof%d", i + 1, iterance.divisor);
+	}
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::ITERANCE);
+	}
+	else {
+		display->displayPopup(buffer, 0, true, 255, 1, PopupType::ITERANCE);
+	}
+}
+
+const char* InstrumentClipView::getFillString(uint8_t fill) {
+	// FILL mode
+	if (fill == FillMode::FILL) {
+		return "FILL";
+	}
+
+	// NO-FILL mode
+	else if (fill == FillMode::NOT_FILL) {
+		return "NOT FILL";
+	}
+
+	// OFF
+	else {
+		return "OFF";
+	}
+}
+
+#pragma gcc pop
+
+// if you've selected a single note and pressed the select encoder, you can enter the note editor menu
+bool InstrumentClipView::enterNoteEditor() {
+	if (numEditPadPresses == 1 && lastSelectedNoteXDisplay != kNoSelection
+	    && lastSelectedNoteYDisplay != kNoSelection) {
+		dontDeleteNotesOnDepress();
+		display->setNextTransitionDirection(1);
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (soundEditor.setup(clip, &noteEditorRootMenu)) {
+			// if it's a kit with affect entire enabled, toggle it off when entering note editor
+			if (clip->output->type == OutputType::KIT) {
+				if (clip->affectEntire) {
+					clip->affectEntire = false;
+					view.setActiveModControllableTimelineCounter(clip);
+				}
+			}
+			openUI(&soundEditor);
+			blinkSelectedNote();
+			return true;
+		}
+	}
+	else {
+		display->displayPopup("Please select only one note");
+	}
+	return false;
+}
+
+void InstrumentClipView::exitNoteEditor() {
+	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
+		}
+		gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
+		lastSelectedNoteXDisplay = kNoSelection;
+		lastSelectedNoteYDisplay = kNoSelection;
+	}
+	resetSelectedNoteBlinking();
+}
+
+void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
+	if (on) {
+		// did you press a different pad?
+		// if no, we'll toggle auditioning the note on / off
+		if (x != lastSelectedNoteXDisplay || y != lastSelectedNoteYDisplay) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    getCurrentInstrumentClip()->getNoteRowOnScreen(y,
+			                                                   modelStackWithTimelineCounter); // don't create
+			// does note row exist?
+			// if it doesn't exist, ignore press because there's no notes there
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+				int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+				SquareInfo squareInfo;
+				noteRow->getSquareInfo(x, effectiveLength, squareInfo);
+				// are there any notes where we are pressing?
+				// if no, ignore press
+				if (squareInfo.numNotes) {
+					// if there are notes, update note selection and refresh menu
+					// but first, release previous press and make new press
+					exitNoteEditor();
+
+					// now make new press for new note selection
+					editPadAction(1, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+					dontDeleteNotesOnDepress();
+
+					// update menu selection
+					soundEditor.getCurrentMenuItem()->readValueAgain();
+					blinkSelectedNote();
+				}
+			}
+		}
+		// pressing the same pad as the note selected toggles auditioning on / off
+		else {
+			// Switch note off if it was on
+			if (lastAuditionedVelocityOnScreen[y] != 255) {
+				sendAuditionNote(false, y, 127, 0);
+				lastAuditionedVelocityOnScreen[y] = 255;
+				// set the intendedVelocity to 255 as well so that if reassessAuditionStatus gets called elsewhere
+				// it won't send another note on
+				editPadPresses[0].intendedVelocity = 255;
+			}
+			// Switch note on if it was off
+			else {
+				// intendedVelocity is used by reassessAuditionStatus so if we turned the note off previously
+				// then we need to reset intendedVelocity to the velocity of the left most note in the pad we selected
+				if (editPadPresses[0].intendedVelocity == 255) {
+					Note* leftMostNotePressed = getLeftMostNotePressed();
+					if (leftMostNotePressed) {
+						editPadPresses[0].intendedVelocity = leftMostNotePressed->getVelocity();
+					}
+				}
+				reassessAuditionStatus(y);
+			}
+		}
+	}
+}
+
+// before scrolling, we need to reset the note selection
+// if we're in a submenu, we'll need to go up a level
+void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
+	exitNoteEditor();
+	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
+		soundEditor.goUpOneLevel();
+	}
+}
+
+ActionResult InstrumentClipView::handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	// if you're holding down vertical encoder, don't de-select because that lets you edit
+	// note repeats
+	if (!Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		deselectNoteAndGoUpOneLevel();
+	}
+
+	return verticalEncoderAction(offset, inCardRoutine);
+}
+
+ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t offset) {
+	deselectNoteAndGoUpOneLevel();
+
+	return horizontalEncoderAction(offset);
+}
+
+ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
+
+	// to allow you to zoom in / out
+	// to allow you to toggle fill
+	if (b == X_ENC || b == SYNC_SCALING) {
+		return buttonAction(b, on, inCardRoutine);
+	}
+	// to allow you to toggle playback on / off
+	// to allow you to toggle shift on / off
+	// to allow you to toggle mod encoders on / off
+	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+// if you've selected a single note row and pressed the select encoder, you can enter the note row editor menu
+bool InstrumentClipView::enterNoteRowEditor() {
+	if (getNumNoteRowsAuditioning() == 1) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+		    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    clip->getNoteRowOnScreen(lastAuditionedYDisplay,
+		                             modelStackWithTimelineCounter); // don't create
+
+		// if note row does not exist and we're not in a kit, create it
+		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+			if (clip->output->type != OutputType::KIT) {
+				modelStackWithNoteRow = createNoteRowForYDisplay(modelStackWithTimelineCounter, lastAuditionedYDisplay);
+			}
+		}
+
+		// does note row exist?
+		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+			display->setNextTransitionDirection(1);
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (soundEditor.setup(clip, &noteRowEditorRootMenu)) {
+				// if it's a kit with affect entire enabled, toggle it off when entering note row editor
+				if (clip->output->type == OutputType::KIT) {
+					if (clip->affectEntire) {
+						clip->affectEntire = false;
+						view.setActiveModControllableTimelineCounter(clip);
+					}
+				}
+				openUI(&soundEditor);
+				// if we weren't auditioning silently when we entered note row editor
+				// let's cancel the previous audition and re-audition silently
+				// this prevents any re-auditioning from happening
+				if (!auditioningSilently) {
+					auditionPadAction(0, lastAuditionedYDisplay, true);
+					auditionPadAction(1, lastAuditionedYDisplay, true);
+				}
+				blinkSelectedNoteRow();
+				return true;
+			}
+		}
+		else {
+			display->displayPopup("Select valid row");
+		}
+	}
+	else {
+		display->displayPopup("Please select only one row");
+	}
+
+	return false;
+}
+
+void InstrumentClipView::exitNoteRowEditor() {
+	if (isUIModeActive(UI_MODE_AUDITIONING)) {
+		auditionPadAction(0, lastAuditionedYDisplay, true);
+	}
+	resetSelectedNoteRowBlinking();
+}
+
+bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on) {
+	// main pad action
+	if (x < kDisplayWidth) {
+		return handleNoteRowEditorMainPadAction(x, y, on);
+	}
+	// sidebar pad action
+	else {
+		if (on) {
+			if (x == kDisplayWidth) {
+				mutePadPress(y);
+			}
+			else {
+				handleNoteRowEditorAuditionPadAction(y);
+			}
+		}
+	}
+	return true;
+}
+
+// handles editing notes on the grid
+bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
+	bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
+
+	editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+
+	bool nowHoldingNote = isUIModeActive(UI_MODE_NOTES_PRESSED);
+
+	// toggle note menu if you weren't holding note and now you are
+	// or if you were holding note and now you aren't
+	bool toggleMenu = (wasntHoldingNote && nowHoldingNote) || (!wasntHoldingNote && !nowHoldingNote);
+
+	// if we selected a note / created a note
+	// update the row selection
+	// so that menu can be potentially refreshed
+	if (lastSelectedNoteYDisplay != kNoSelection) {
+		handleNoteRowEditorAuditionPadAction(lastSelectedNoteYDisplay);
+	}
+
+	if (toggleMenu) {
+		// toggle showing note editor param menu while holding / release note pad
+		soundEditor.toggleNoteEditorParamMenu(on);
+	}
+	else {
+		// if you were holding a note and are still holding a note
+		// it means you were holding more than one note and released one
+		// so refresh parameter menu so it reflects the note remaining
+		soundEditor.getCurrentMenuItem()->readValueAgain();
+	}
+
+	return true;
+}
+
+void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
+	// did you press a different pad?
+	// if no, ignore press
+	if (!isUIModeActive(UI_MODE_AUDITIONING) || y != lastAuditionedYDisplay) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+		    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    clip->getNoteRowOnScreen(y,
+		                             modelStackWithTimelineCounter); // don't create
+
+		// if note row does not exist and we're not in a kit, create it
+		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+			if (clip->output->type != OutputType::KIT) {
+				modelStackWithNoteRow = createNoteRowForYDisplay(modelStackWithTimelineCounter, y);
+			}
+		}
+
+		// does note row exist?
+		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+			// update note row selection and refresh menu
+			// but first, release previous press and make new press
+			exitNoteRowEditor();
+
+			// now make new press for new note row selection
+			auditionPadAction(1, y, true);
+
+			// update menu selection
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+			blinkSelectedNoteRow();
+		}
+	}
+}
+
+ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	bool isHoldingVerticalEncoder = Buttons::isButtonPressed(deluge::hid::button::Y_ENC);
+
+	// if you haven't selected a row and you are holding down vertical encoder
+	// ignore this action because it makes it too easy to transpose by mistake
+	if (!isUIModeActive(UI_MODE_AUDITIONING) && isHoldingVerticalEncoder) {
+		return ActionResult::DEALT_WITH;
+	}
+	else if (!isHoldingVerticalEncoder) {
+		shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
+		actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
+	}
+
+	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
+
+	// if you're not pressing vertical encoder, then you did some vertical scrolling
+	// if you're in a parameter menu, update value displayed
+	if (!isHoldingVerticalEncoder) {
+		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
+		if (currentMenuItem != &noteRowEditorRootMenu) {
+			currentMenuItem->readValueAgain();
+		}
+	}
+	return result;
+}
+
+ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int32_t offset) {
+	if (!isUIModeActive(UI_MODE_AUDITIONING)) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+	}
+
+	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
+		// nudge notes
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			nudgeNotes(offset);
+			return ActionResult::DEALT_WITH;
+		}
+		// rotate row
+		else if (!matrixDriver.isPadPressed(kDisplayWidth + 1, lastAuditionedYDisplay)) {
+			rotateNoteRowHorizontally(offset);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+	else {
+		// adjust velocity
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			adjustVelocity(offset);
+			return ActionResult::DEALT_WITH;
+		}
+		// edit note row length
+		else if (matrixDriver.isPadPressed(kDisplayWidth + 1, lastAuditionedYDisplay)) {
+			editNoteRowLength(offset);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
+	// horizontal scroll / zoom
+	return ClipView::horizontalEncoderAction(offset);
+}
+
+ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
+
+	// to allow you to zoom in / out
+	// to allow you to toggle fill
+	if (b == X_ENC || b == SYNC_SCALING) {
+		return buttonAction(b, on, inCardRoutine);
+	}
+	// to allow you to toggle affect entire on / off in kits
+	else if (on && b == AFFECT_ENTIRE) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip->output->type == OutputType::KIT) {
+			clip->affectEntire = !clip->affectEntire;
+			view.setActiveModControllableTimelineCounter(clip);
+		}
+	}
+	// to allow you to toggle playback on / off
+	// to allow you to toggle shift on / off
+	// to allow you to toggle mod encoders on / off
+	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+int32_t InstrumentClipView::setNoteRowProbabilityWithOffset(int32_t offset) {
+	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1, kNumProbabilityValues);
+}
+
+int32_t InstrumentClipView::setNoteRowIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom) {
+	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1,
+	                                allowTogglingBetweenPresetsAndCustom);
+}
+
+int32_t InstrumentClipView::setNoteRowIteranceWithFinalValue(Iterance finalValue) {
+	return setNoteRowParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0,
+	                                kNumIterancePresets + 1);
+}
+
+int32_t InstrumentClipView::setNoteRowFillWithOffset(int32_t offset) {
+	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, FillMode::FILL);
+}
+
+// adjusts note probability, iterance, fill for note rows
+//  - either via offset, providing values -1 or 1 (provide 0 if you don't want to use this parameter)
+//  - or via finalValue, providing value 0 or up (provide -1 if you don't want to use this parameter)
+int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
+                                                     int32_t parameterMinValue, int32_t parameterMaxValue,
+                                                     bool allowTogglingBetweenPresetsAndCustom) {
+	// ensure offset is valid (offset acceleration not permitted here)
+	if (withOffset < 0) {
+		withOffset = -1;
+	}
+	else if (withOffset > 0) {
+		withOffset = 1;
+	}
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
+
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
+	// If we're in Kit mode, the NoteRow will exist, or else we wouldn't be auditioning it. But if in other mode, we
+	// need to do this
+	if (!noteRow) {
+		return -1; // Get out if NoteRow doesn't exist and can't be created
+	}
+
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+
+	uint16_t originalParameter;
+	bool parameterHasBeenEdited = false;
+	int32_t parameterValue;
+
+	if (withOffset != 0) {
+		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+			originalParameter = noteRow->probabilityValue;
+			parameterValue = originalParameter & 127; // probability param is 8 bits
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			originalParameter = noteRow->iteranceValue.toInt();
+			parameterValue = originalParameter; // iterance param is 16 bits
+			// transform into preset index temporarily, to inc/dec offset
+			parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			originalParameter = noteRow->fillValue;
+			parameterValue = originalParameter & 127; // fill param is 8 bits
+		}
+	}
+	else if (withFinalValue >= 0) {
+		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+			originalParameter = noteRow->probabilityValue;
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			originalParameter = noteRow->iteranceValue.toInt();
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			originalParameter = noteRow->fillValue;
+		}
+		parameterValue = withFinalValue;
+		parameterHasBeenEdited = originalParameter != withFinalValue;
+	}
+
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
+	// If editing, continue edit
+	if (hasPopup || inNoteRowEditor) {
+		ActionAddition actionAddition =
+		    inNoteRowEditor ? ActionAddition::ALLOWED : ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED;
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, actionAddition);
+		if (!action) {
+			return -1;
+		}
+
+		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
+		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
+		                                                     false); // Snapshot for undoability. Don't steal data.
+
+		// Covers probabily, iterance, and fill (set based on offset)
+		if (withOffset != 0) {
+			// Incrementing
+			if (withOffset == 1) {
+				if (parameterValue < parameterMaxValue) {
+					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						bool isLastPreset = parameterValue == kNumIterancePresets;
+						if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
+							parameterValue++;
+							parameterHasBeenEdited = true;
+						}
+					}
+					else {
+						parameterValue++;
+						parameterHasBeenEdited = true;
+					}
+				}
+			}
+			// Decrementing
+			else {
+				if (parameterValue > parameterMinValue) {
+					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						bool isCustom = parameterValue == kCustomIterancePreset;
+						if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
+							parameterValue--;
+							parameterHasBeenEdited = true;
+						}
+					}
+					else {
+						parameterValue--;
+						parameterHasBeenEdited = true;
+					}
+				}
+			}
+			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+				noteRow->probabilityValue = parameterValue;
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+				// transform back from preset to real value (only if not CUSTOM)
+				if (parameterHasBeenEdited) {
+					parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+				}
+				else {
+					// Respect the original iterance (could be a Custom one)
+					parameterValue = originalParameter;
+				}
+				noteRow->iteranceValue = Iterance::fromInt(parameterValue);
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+				noteRow->fillValue = parameterValue;
+			}
+		}
+		// Covers probability, iterance, and fill (set based on final value)
+		else if (withFinalValue >= 0) {
+			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+				noteRow->probabilityValue = parameterValue;
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+				noteRow->iteranceValue = Iterance::fromInt(parameterValue);
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+				noteRow->fillValue = parameterValue;
+			}
+		}
+
+		uint32_t numNotes = noteRow->notes.getNumElements();
+		for (int i = 0; i < numNotes; i++) {
+			Note* note = noteRow->notes.getElement(i);
+			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+				note->setProbability(parameterValue);
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+				note->setIterance(Iterance::fromInt(parameterValue));
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+				note->setFill(parameterValue);
+			}
+		}
+	}
+	else {
+		// In the case the operation didn't change anything, we need to transform Iterance back from preset
+		// to real value anyway, for the Popup code at the end of this method
+		if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+		}
+	}
+
+	if (!inNoteRowEditor) {
+		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+			displayProbability(parameterValue, false);
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			displayIterance(Iterance::fromInt(parameterValue));
+		}
+	}
+
+	return parameterValue;
 }
 
 void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
@@ -2681,7 +3670,9 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 	// We do not want to change the selected drum if we're in the automation view note editor
 	// because the selected drum for note editing is the last auditioned note row and we don't want
 	// these two to get out of sync.
-	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
+	// Same if you're in the note row editor menu
+	bool inNoteEditor = (getRootUI() == &automationView && automationView.inNoteEditor())
+	                    || (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor());
 
 	// Try getting existing NoteRow.
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
@@ -2816,35 +3807,59 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 }
 
 ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
 	int32_t noteRowToShiftI;
 	int32_t noteRowToSwapWithI;
 
 	bool isKit = getCurrentOutputType() == OutputType::KIT;
 
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
 	// If a Kit...
 	if (isKit) {
 		// Limit scrolling
 		if (scrollAmount >= 0) {
-			if ((int16_t)(getCurrentInstrumentClip()->yScroll + scrollAmount)
-			    > (int16_t)(getCurrentInstrumentClip()->getNumNoteRows() - 1)) {
+			if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
 				return ActionResult::DEALT_WITH;
 			}
 		}
 		else {
-			if (getCurrentInstrumentClip()->yScroll + scrollAmount < 1 - kDisplayHeight) {
+			if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
 				return ActionResult::DEALT_WITH;
+			}
+		}
+
+		// if we're in the note row editor we don't want to over-scroll so that selected row is not a valid note row
+		if (inNoteRowEditor) {
+			int32_t lastAuditionedYDisplayScrolled = lastAuditionedYDisplay + scrollAmount;
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, modelStack);
+			// over-scrolled, no valid note row, so return and don't do the actual scrolling
+			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+				return ActionResult::DEALT_WITH;
+			}
+			// we have a valid note row, so let's set selected drum equal to previous auditioned y display
+			else {
+				NoteRow* noteRow = clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, currentSong);
+				if (noteRow) {
+					setSelectedDrum(noteRow->drum, true);
+				}
 			}
 		}
 
 		// Limit how far we can shift a NoteRow
 		if (draggingNoteRow) {
-			noteRowToShiftI = lastAuditionedYDisplay + getCurrentInstrumentClip()->yScroll;
-			if (noteRowToShiftI < 0 || noteRowToShiftI >= getCurrentInstrumentClip()->noteRows.getNumElements()) {
+			noteRowToShiftI = lastAuditionedYDisplay + clip->yScroll;
+			if (noteRowToShiftI < 0 || noteRowToShiftI >= clip->noteRows.getNumElements()) {
 				return ActionResult::DEALT_WITH;
 			}
 
 			if (scrollAmount >= 0) {
-				if (noteRowToShiftI >= getCurrentInstrumentClip()->noteRows.getNumElements() - 1) {
+				if (noteRowToShiftI >= clip->noteRows.getNumElements() - 1) {
 					return ActionResult::DEALT_WITH;
 				}
 				noteRowToSwapWithI = noteRowToShiftI + 1;
@@ -2862,13 +3877,13 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	else {
 		int32_t newYNote;
 		if (scrollAmount > 0) {
-			newYNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(kDisplayHeight - 1 + scrollAmount, currentSong);
+			newYNote = clip->getYNoteFromYDisplay(kDisplayHeight - 1 + scrollAmount, currentSong);
 		}
 		else {
-			newYNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(scrollAmount, currentSong);
+			newYNote = clip->getYNoteFromYDisplay(scrollAmount, currentSong);
 		}
 
-		if (!getCurrentInstrumentClip()->isScrollWithinRange(scrollAmount, newYNote)) {
+		if (!clip->isScrollWithinRange(scrollAmount, newYNote)) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -2877,10 +3892,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	bool currentClipIsActive = currentSong->isClipActive(getCurrentClip());
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	bool currentClipIsActive = currentSong->isClipActive(clip);
 
 	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -2888,14 +3900,13 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		    && (!draggingNoteRow || lastAuditionedYDisplay != yDisplay)) {
 			sendAuditionNote(false, yDisplay, 127, 0);
 
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
 			if (noteRow) {
 				// If recording, record a note-off for this NoteRow, if one exists
 				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-					getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRow);
+					clip->recordNoteOff(modelStackWithNoteRow);
 				}
 			}
 		}
@@ -2917,7 +3928,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 					if (editPadPresses[i].deleteOnScroll) {
 						int32_t pos = editPadPresses[i].intendedPos;
 						ModelStackWithNoteRow* modelStackWithNoteRow =
-						    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+						    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
 						NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
 						thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
 
@@ -2957,14 +3968,13 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
-		getCurrentInstrumentClip()->noteRows.getElement(noteRowToShiftI)->y =
-		    -32768; // Need to remember not to try and use the yNote value of this NoteRow if we switch back out of
-		            // Kit mode
-		getCurrentInstrumentClip()->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
+		clip->noteRows.getElement(noteRowToShiftI)->y = -32768; // Need to remember not to try and use the yNote value
+		                                                        // of this NoteRow if we switch back out of Kit mode
+		clip->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
 	}
 
 	// Do actual scroll
-	getCurrentInstrumentClip()->yScroll += scrollAmount;
+	clip->yScroll += scrollAmount;
 
 	recalculateColours(); // Don't render - we'll do that after we've dealt with presses (potentially creating
 	                      // Notes)
@@ -2979,10 +3989,10 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 			if (draggingNoteRow && lastAuditionedYDisplay == yDisplay) {}
 
 			// Otherwise, switch its audition back on
-			else {
+			// don't switch audition back on if we're in note row editor (we want to scroll silently)
+			else if (!inNoteRowEditor) {
 				// Check NoteRow exists, incase we've got a Kit
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
 				if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
 
@@ -2999,8 +4009,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 							}
 
 							if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-								getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRow,
-								                                         getCurrentInstrument()->defaultVelocity);
+								clip->recordNoteOn(modelStackWithNoteRow, getCurrentInstrument()->defaultVelocity);
 							}
 						}
 
@@ -3021,7 +4030,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 				drawNoteCode(yDisplay);
 				if (isKit) {
 					Drum* newSelectedDrum = NULL;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
+					NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong);
 					if (noteRow) {
 						newSelectedDrum = noteRow->drum;
 					}
@@ -3033,7 +4042,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 					if (getCurrentUI() == &soundEditor
 					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 						menu_item::multiRangeMenu.noteOnToChangeRange(
-						    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
+						    clip->getYNoteFromYDisplay(yDisplay, currentSong)
 						    + ((SoundInstrument*)getCurrentOutput())->transpose);
 					}
 				}
@@ -3052,14 +4061,14 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		// if (!action) return; // Couldn't happen?
 
-		action->updateYScrollClipViewAfter(getCurrentInstrumentClip());
+		action->updateYScrollClipViewAfter(clip);
 
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
 
 				// Try getting existing NoteRow. If none...
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+				    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
 				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 					if (isKit) {
@@ -3083,7 +4092,8 @@ cancelPress:
 
 				bool success =
 				    noteRow->attemptNoteAdd(pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
-				                            editPadPresses[i].intendedProbability, modelStackWithNoteRow, action);
+				                            editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
+				                            editPadPresses[i].intendedFill, modelStackWithNoteRow, action);
 
 				editPadPresses[i].deleteOnDepress = false;
 				editPadPresses[i].deleteOnScroll = success;
@@ -3262,145 +4272,6 @@ uint8_t InstrumentClipView::oneNoteAuditioning() {
 	return (currentUIMode == UI_MODE_AUDITIONING && getNumNoteRowsAuditioning() == 1);
 }
 
-void InstrumentClipView::setRowProbability(int32_t offset) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
-
-	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-
-	// If we're in Kit mode, the NoteRow will exist, or else we wouldn't be auditioning it. But if in other mode, we
-	// need to do this
-	if (!noteRow) {
-		return; // Get out if NoteRow doesn't exist and can't be created
-	}
-
-	uint8_t probability = noteRow->probabilityValue;
-	int32_t probabilityValue = probability & 127;
-	bool prevBase = (probability & 128);
-
-	// If editing, continue edit
-	if (display->hasPopupOfType(PopupType::PROBABILITY)) {
-		Action* action =
-		    actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED);
-		if (!action) {
-			return;
-		}
-
-		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
-		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
-		                                                     false); // Snapshot for undoability. Don't steal data.
-
-		// Covers the probabilities and iterations and the special case of Not Fill
-		// Incrementing
-		if (offset == 1) {
-			if (probabilityValue == 0) {
-				// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
-				if (prevBase) {
-					probabilityValue = 1;
-					prevBase = false;
-				}
-				// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
-				else {
-					prevBase = true;
-				}
-			}
-			// In any other case we just increment probability value
-			else if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
-				probabilityValue++;
-				// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for
-				// leftMostNote
-				prevBase = false;
-			}
-		}
-		// Decrementing
-		else {
-			if (probabilityValue == 1) {
-				// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
-				prevBase = true;
-				probabilityValue = 0;
-			}
-			else if (probabilityValue == 0 && prevBase) {
-				// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
-				prevBase = false;
-			}
-			// In any other case we just increment probability value
-			else if (probabilityValue > 1) {
-				probabilityValue--;
-				// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for
-				// leftMostNote
-				prevBase = false;
-			}
-		}
-
-		uint8_t probabilityForFow = probabilityValue;
-		if (prevBase) {
-			probabilityForFow |= 128;
-		}
-		noteRow->probabilityValue = probabilityForFow;
-
-		uint32_t numNotes = noteRow->notes.getNumElements();
-		for (int i = 0; i < numNotes; i++) {
-			Note* note = noteRow->notes.getElement(i);
-			note->setProbability(probabilityForFow);
-		}
-	}
-	displayProbability(probabilityValue, prevBase);
-}
-
-// GCC is fine with 29 or 5 for the size, but does not like that it could be either
-#pragma GCC push
-#pragma GCC diagnostic ignored "-Wstack-usage="
-
-void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
-
-	sprintf(buffer, "P %d %d", probability, prevBase);
-	// FILL mode
-	if (probability == kFillProbabilityValue && !prevBase) {
-		strcpy(buffer, "FILL");
-	}
-
-	// NO-FILL mode
-	else if (probability == kFillProbabilityValue && prevBase) {
-		strcpy(buffer, "NOT FILL");
-	}
-
-	// Probability dependence
-	else if (probability <= kNumProbabilityValues) {
-		if (display->haveOLED()) {
-			sprintf(buffer, "Probability %d%%", probability * 5);
-			if (prevBase) {
-				strcat(buffer, " latching");
-			}
-		}
-		if (display->have7SEG()) {
-			intToString(probability * 5, buffer);
-		}
-	}
-
-	// Iteration dependence
-	else {
-
-		int32_t divisor, iterationWithinDivisor;
-		dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
-
-		int32_t charPos = 0;
-
-		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
-		        iterationWithinDivisor + 1, divisor);
-	}
-
-	if (display->haveOLED()) {
-		display->popupText(buffer, PopupType::PROBABILITY);
-	}
-	if (display->have7SEG()) {
-		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
-	}
-}
-#pragma gcc pop
-
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
@@ -3571,12 +4442,15 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 	bool drumSelectionChanged = false;
 
+	bool inNoteOrNoteRowEditor =
+	    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+
 	// is the drum the same as the currently selected drum in the kit?
 	// if so, no need to reselect it or redraw the clip or resend midi feedback
 	// if no, update selected drum
 	if (kit->selectedDrum != drum) {
-		if (currentUI != &soundEditor && currentUI != &sampleBrowser && currentUI != &sampleMarkerEditor
-		    && currentUI != &renameDrumUI) {
+		if ((currentUI != &soundEditor || inNoteOrNoteRowEditor) && currentUI != &sampleBrowser
+		    && currentUI != &sampleMarkerEditor && currentUI != &renameDrumUI) {
 
 			kit->selectedDrum = drum;
 			drumSelectionChanged = true;
@@ -3593,7 +4467,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 			if (clip->output->type == OutputType::KIT) {
 				// are we currently in the instrument clip UI?
 				// if yes, we may need to refresh it (main pads and / or sidebar)
-				if (currentUI == &instrumentClipView || currentUI == &automationView || currentUI == &keyboardScreen) {
+				if (currentUI == &instrumentClipView || currentUI == &automationView || currentUI == &keyboardScreen
+				    || inNoteOrNoteRowEditor) {
 					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
 
 					// don't reset mod controllable when affect entire is enabled because mod controllable is
@@ -3941,7 +4816,6 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	}
 	else {
 		if (!auditioningSilently) {
-
 			fileBrowserShouldNotPreview = false;
 
 			sendAuditionNote(true, yDisplay, velocityToSound, 0);
@@ -4644,8 +5518,9 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		}
 	}
 
-	else if (getRootUI() == &automationView && automationView.inNoteEditor()) {
-		if (automationView.noteRowFlashOn && yDisplay == lastAuditionedYDisplay) {
+	else if ((getRootUI() == &automationView && automationView.inNoteEditor())
+	         || (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor())) {
+		if (noteRowFlashOn && yDisplay == lastAuditionedYDisplay) {
 			thisColour = rowColour[yDisplay].forBlur();
 		}
 		else {
@@ -4762,6 +5637,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
 	// If encoder button pressed
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		// User may be trying to move a noteCode...
@@ -4797,7 +5674,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 		}
 
 		// Or note repeat...
-		else if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
+		else if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+		         || (inNoteRowEditor && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
 			editNoteRepeat(offset);
 		}
 
@@ -4823,7 +5701,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	}
 
 	// Or, if shift key is pressed
-	else if (Buttons::isShiftButtonPressed()) {
+	// no colour shifting in note row editor
+	else if (Buttons::isShiftButtonPressed() && !inNoteRowEditor) {
 		uint32_t whichRowsToRender = 0;
 
 		// If NoteRow(s) auditioned, shift its colour (Kits only)
@@ -5253,6 +6132,9 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 // Supply offset as 0 to just popup number, not change anything
 void InstrumentClipView::nudgeNotes(int32_t offset) {
 
+	// if we're in note row editor and we nudge a note we're holding
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
 	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 
 	// If just popping up number, but multiple presses, we're quite limited with what intelligible stuff we can
@@ -5376,6 +6258,20 @@ doCompareNote:
 				if (error != Error::NONE) {
 					display->displayError(error);
 					return;
+				}
+
+				// if you do any nudging, the square info we saved previously will be out of date
+				if (inNoteRowEditor) {
+					int32_t yDisplay = editPadPresses[i].yDisplay;
+					noteRow->getRowSquareInfo(modelStackWithNoteRow->getLoopLength(), gridSquareInfo[yDisplay]);
+					if (soundEditor.getCurrentMenuItem() != &noteRowEditorRootMenu) {
+						int32_t xDisplay = editPadPresses[i].xDisplay;
+						// if the note is no longer in the square we're pressing,
+						// go back up a level to row editor
+						if (!gridSquareInfo[yDisplay][xDisplay].firstNote) {
+							soundEditor.goUpOneLevel();
+						}
+					}
 				}
 
 				// Nudge automation with notes and MPE when default setting is false
@@ -5581,8 +6477,8 @@ void InstrumentClipView::graphicsRoutine() {
 	}
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		// if you're not in the note editor, iterate through all note row's displayed so we can render independent note
-		// row playheads (if required)
+		// if you're not in the note editor, iterate through all note row's displayed so we can render independent
+		// note row playheads (if required)
 		if (!inNoteEditor) {
 			noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong, &noteRowIndex);
 		}
@@ -5931,9 +6827,11 @@ justDisplayOldNumNotes:
 						Note* note = newNotes.getElement(n);
 						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
 						note->length = squareWidth;
-						note->probability = noteRow->getDefaultProbability(modelStack);
+						note->probability = noteRow->getDefaultProbability();
 						note->velocity = ((Instrument*)clip->output)->defaultVelocity;
 						note->lift = kDefaultLiftValue;
+						note->iterance = noteRow->getDefaultIterance();
+						note->fill = noteRow->getDefaultFill(modelStack);
 					}
 
 					// Just make sure final note isn't too long
@@ -5975,12 +6873,6 @@ justDisplayOldNumNotes:
 noteRowChanged:
 				// Play it
 				clip->expectEvent();
-
-				// Render it
-				if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
-					// this could be called from automation view velocity editor
-					uiNeedsRendering(getCurrentUI(), 1 << yDisplay, 0);
-				}
 			}
 		}
 	}
@@ -6001,6 +6893,13 @@ displayNewNumNotes:
 		char buffer[12];
 		intToString(newNumNotes, buffer);
 		display->displayPopup(buffer, 0, true);
+	}
+
+	// Render it
+	if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
+		// this could be called from automation view velocity editor
+		// or the note row editor
+		uiNeedsRendering(getRootUI(), 1 << yDisplay, 0);
 	}
 }
 
@@ -6334,4 +7233,28 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 
 		dontDeleteNotesOnDepress();
 	}
+}
+
+// used to blink selected noted row when using the note row view or the note row menu
+void InstrumentClipView::resetSelectedNoteRowBlinking() {
+	uiTimerManager.unsetTimer(TimerName::NOTE_ROW_BLINK);
+	noteRowBlinking = false;
+	noteRowFlashOn = false;
+}
+
+void InstrumentClipView::blinkSelectedNote(int32_t whichMainRows) {
+	soundEditor.setupShortcutBlink(lastSelectedNoteXDisplay, lastSelectedNoteYDisplay, 10);
+	soundEditor.blinkShortcut();
+}
+
+// used to blink selected note when using the note menu
+void InstrumentClipView::resetSelectedNoteBlinking() {
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+}
+
+void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
+	noteRowBlinking = true;
+	noteRowFlashOn = !noteRowFlashOn;
+	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
+	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
 }
