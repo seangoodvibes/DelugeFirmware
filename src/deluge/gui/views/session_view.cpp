@@ -4115,7 +4115,12 @@ ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, in
 		return ActionResult::DEALT_WITH;
 	}
 
-	gridHandlePadsLaunchToggleArming(clip, Buttons::isShiftButtonPressed());
+	if (clip->launchStyle == LaunchStyle::ONE_SHOT && !Buttons::isShiftButtonPressed()) {
+		session.armClipsWithNothingToSyncTo(clip->section, clip);
+	}
+	else {
+		gridHandlePadsLaunchToggleArming(clip, Buttons::isShiftButtonPressed());
+	}
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 

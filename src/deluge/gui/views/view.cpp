@@ -2511,6 +2511,8 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 			case LaunchStyle::FILL:
 				thisColour = menu_item::fillColourMenu.getRGB(); // colours::red_orange;
 				break;
+			case LaunchStyle::ONE_SHOT:
+				[[fallthrough]];
 			case LaunchStyle::ONCE:
 				thisColour = menu_item::onceColourMenu.getRGB(); // colours::red_orange;
 				break;

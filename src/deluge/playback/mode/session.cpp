@@ -593,9 +593,10 @@ doNormalLaunch:
 			}
 		}
 
-		// Arm it again if a ONCE clip, so it stops at the launchEvent
+		// Arm it again if a ONCE / ONE SHOT clip, so it stops at the launchEvent
 		if (!isFillLaunch && (clip->activeIfNoSolo || clip->soloingInSessionMode)
-		    && clip->launchStyle == LaunchStyle::ONCE && clip->armState == ArmState::OFF) {
+		    && (clip->launchStyle == LaunchStyle::ONCE || clip->launchStyle == LaunchStyle::ONE_SHOT)
+		    && clip->armState == ArmState::OFF) {
 			clip->armState = ArmState::ON_NORMAL;
 			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
 		}
@@ -1411,6 +1412,10 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 	}
 
 	else { // LaunchStatus::LAUNCH_USING_QUANTIZATION
+		   //	if (clip->launchStyle == LaunchStyle::ONE_SHOT) {
+		   //		currentPosWithinQuantization = 0;
+		   //	}
+
 		armClipsToStartOrSoloWithQuantization(currentPosWithinQuantization, quantization, section, stopAllOtherClips,
 		                                      clip, forceLateStart, allowLateStart, newNumRepeatsTilLaunch, armState);
 
@@ -1575,7 +1580,10 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
 	if (clip) {
-		if (clip->launchStyle == LaunchStyle::DEFAULT || !doLateStart) {
+		if (clip->launchStyle == LaunchStyle::ONE_SHOT) {
+			armClipToStartOrSoloUsingQuantization(clip, false, 0, armState);
+		}
+		else if (clip->launchStyle == LaunchStyle::DEFAULT || !doLateStart) {
 			if (!doLateStart && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's
 				                                  // not that useful, and tricky to implement
 
@@ -1642,7 +1650,8 @@ wantActive:
 					// If it's already active (less common)...
 					if (thisClip->activeIfNoSolo) {
 						// If it's armed to stop, cancel that
-						if (thisClip->armState != ArmState::OFF && thisClip->launchStyle != LaunchStyle::ONCE) {
+						if (thisClip->armState != ArmState::OFF && thisClip->launchStyle != LaunchStyle::ONCE
+						    && thisClip->launchStyle != LaunchStyle::ONE_SHOT) {
 							thisClip->armState = ArmState::OFF;
 						}
 						output->nextClipFoundShouldGetArmed = true;
@@ -1709,7 +1718,10 @@ weWantThisClipInactive:
 		}
 	}
 
-	if (!doLateStart) {
+	if (clip->launchStyle == LaunchStyle::ONE_SHOT) {
+		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount(), 0, quantization);
+	}
+	else if (!doLateStart) {
 		uint32_t ticksTilStart = quantization - pos;
 		int64_t launchTime = playbackHandler.getActualSwungTickCount() + ticksTilStart;
 

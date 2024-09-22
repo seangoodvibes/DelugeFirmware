@@ -1281,6 +1281,9 @@ char const* launchStyleToString(LaunchStyle launchStyle) {
 	case LaunchStyle::ONCE:
 		return "once";
 
+	case LaunchStyle::ONE_SHOT:
+		return "oneshot";
+
 	default:
 		__builtin_unreachable();
 		return "";
@@ -1293,6 +1296,9 @@ LaunchStyle stringToLaunchStyle(char const* string) {
 	}
 	else if (!strcmp(string, "once")) {
 		return LaunchStyle::ONCE;
+	}
+	else if (!strcmp(string, "oneshot")) {
+		return LaunchStyle::ONE_SHOT;
 	}
 	else {
 		return LaunchStyle::DEFAULT;

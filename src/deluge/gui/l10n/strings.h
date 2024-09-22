@@ -129,6 +129,7 @@ enum class String : size_t {
 	STRING_FOR_DEFAULT_LAUNCH,
 	STRING_FOR_FILL_LAUNCH,
 	STRING_FOR_ONCE_LAUNCH,
+	STRING_FOR_ONE_SHOT_LAUNCH,
 
 	// gui/context_menu/sample_browser/kit.cpp
 	STRING_FOR_LOAD_ALL,

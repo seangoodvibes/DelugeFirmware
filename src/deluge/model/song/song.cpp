@@ -3141,7 +3141,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		clip->soloingInSessionMode = false;
 
 		if (getRidOfArmingToo) {
-			if (clip->launchStyle != LaunchStyle::FILL && clip->launchStyle != LaunchStyle::ONCE) {
+			if (clip->launchStyle != LaunchStyle::FILL && clip->launchStyle != LaunchStyle::ONCE
+			    && clip->launchStyle != LaunchStyle::ONE_SHOT) {
 				clip->armState = ArmState::OFF;
 			}
 		}

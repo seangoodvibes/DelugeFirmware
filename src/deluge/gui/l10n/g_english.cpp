@@ -153,6 +153,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_LAUNCH, "Infinite"},
         {STRING_FOR_FILL_LAUNCH, "Fill"},
         {STRING_FOR_ONCE_LAUNCH, "Once"},
+        {STRING_FOR_ONE_SHOT_LAUNCH, "One Shot"},
         {STRING_FOR_LOAD_ALL, "Load all"},
         {STRING_FOR_SLICE, "Slice"},
         {STRING_FOR_MULTISAMPLES, "Multisamples"},
