@@ -3205,7 +3205,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 			continue; // Should never happen but theoretically global output list can diverge from clip pointers
 		}
 
-		auto x = gridXFromTrack(trackIndex);
+		auto x = gridXFromTrack(clip->output, trackIndex);
 		auto y = gridYFromSection(clip->section);
 
 		// Render colour for every valid clip
@@ -4336,7 +4336,7 @@ void SessionView::gridTransitionToSessionView() {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 
-	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
+	auto clipX = std::clamp<int32_t>(gridXFromTrack(getCurrentOutput(), gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
@@ -4370,7 +4370,7 @@ void SessionView::gridTransitionToSessionView() {
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
+	auto clipX = std::clamp<int32_t>(gridXFromTrack(getCurrentOutput(), gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
@@ -4528,8 +4528,18 @@ int32_t SessionView::gridSectionFromY(uint32_t y) {
 	return result;
 }
 
-int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
-	int32_t result = trackIndex - currentSong->songGridScrollX;
+int32_t SessionView::gridXFromTrack(Output* track, uint32_t trackIndex) {
+	int32_t result;
+	if (track->songGridViewColumnIndex == -1) {
+		result = trackIndex - currentSong->songGridScrollX;
+		if (result < kDisplayWidth) {
+			track->songGridViewColumnIndex = result;
+		}
+	}
+	else {
+		result = track->songGridViewColumnIndex - currentSong->songGridScrollX;
+	}
+
 	if (result >= kDisplayWidth) {
 		return -1;
 	}
@@ -4537,7 +4547,7 @@ int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
 	return result;
 }
 
-int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
+int32_t SessionView::gridTrackIndexFromX(Output* track, uint32_t x, uint32_t maxTrack) {
 	if (maxTrack <= 0) {
 		return 0;
 	}

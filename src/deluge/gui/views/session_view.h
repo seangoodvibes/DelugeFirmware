@@ -258,8 +258,8 @@ private:
 	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
 	int32_t gridYFromSection(uint32_t section);
 	int32_t gridSectionFromY(uint32_t y);
-	int32_t gridXFromTrack(uint32_t trackIndex);
-	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
+	int32_t gridXFromTrack(Output* track, uint32_t trackIndex);
+	int32_t gridTrackIndexFromX(Output* track, uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
 

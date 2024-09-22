@@ -99,6 +99,7 @@ public:
 	bool wasCreatedForAutoOverdub;
 	bool armedForRecording;
 	int16_t colour{0};
+	int32_t songGridViewColumnIndex;
 
 	uint8_t modKnobMode;
 

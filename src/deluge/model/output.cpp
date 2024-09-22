@@ -39,6 +39,7 @@ Output::Output(OutputType newType) : type(newType) {
 	recordingInArrangement = false;
 	wasCreatedForAutoOverdub = false;
 	armedForRecording = false;
+	songGridViewColumnIndex = -1;
 
 	modKnobMode = 1;
 }
@@ -273,6 +274,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		}
 
 		writer.writeAttribute("colour", colour);
+		writer.writeAttribute("songGridViewColumnIndex", songGridViewColumnIndex);
 	}
 
 	return false;
@@ -314,6 +316,10 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	else if (!strcmp(tagName, "colour")) {
 		colour = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (!strcmp(tagName, "songGridViewColumnIndex")) {
+		songGridViewColumnIndex = reader.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {
