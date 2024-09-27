@@ -53,6 +53,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "util/comparison.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -102,7 +103,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modulatorCents[1] = 0;
 
 	transpose = 0;
-	modFXType = ModFXType::NONE;
+	modFXType_ = ModFXType::NONE;
 
 	oscillatorSync = false;
 
@@ -355,51 +356,27 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 }
 
 ModFXType Sound::getModFXType() {
-	return modFXType;
+	return modFXType_;
 }
 
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
-	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
-		if (!modFXBuffer) {
-			// TODO: should give an error here if no free ram
-			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
-			if (!modFXBuffer) {
-				return false;
-			}
-		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+
+	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE,
+	                           ModFXType::DIMENSION})) {
+		modfx.setupBuffer();
+		disableGrain();
 	}
 	else if (newType == ModFXType::GRAIN) {
-		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
-			                                                                              * sizeof(StereoSample));
-			if (!modFXGrainBuffer) {
-				return false;
-			}
-		}
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		enableGrain();
+		modfx.disableBuffer();
 	}
 	else {
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		modfx.disableBuffer();
+		disableGrain();
 	}
 
-	modFXType = newType;
-	clearModFXMemory();
+	modFXType_ = newType;
 	return true;
 }
 
@@ -2030,7 +2007,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modFXType != ModFXType::NONE) || compressor.getThreshold() > 0) {
+			if ((modFXType_ != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -2043,14 +2020,14 @@ doCutModFXTail:
 					}
 
 					int32_t waitSamplesModfx = 0;
-					switch (modFXType) {
+					switch (modFXType_) {
 					case ModFXType::CHORUS:
 						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
 						waitSamplesModfx = 20 * 44;
 						break;
 					case ModFXType::GRAIN:
-						waitSamplesModfx = 350 * 441;
+						waitSamplesModfx = grainFX->getSamplesToShutdown();
 						break;
 					default:
 						waitSamplesModfx = (90 * 441);
@@ -2431,8 +2408,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
-	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
-	          &postFXVolume, paramManager);
+	processFX((StereoSample*)soundBuffer, numSamples, modFXType_, modFXRate, modFXDepth, delayWorkingState,
+	          &postFXVolume, paramManager, numVoicesAssigned != 0, reverbSendAmount >> 1);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,
@@ -2485,7 +2462,7 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	// reversible without doing anything
 
 	setSkippingRendering(true);
-
+	grainFX->startSkippingRendering();
 	stopParamLPF(modelStack);
 }
 
@@ -2504,7 +2481,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			               getGlobalLFOPhaseIncrement());
 
 			// Do Mod FX
-			modFXLFO.tick(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			modfx.tickLFO(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
