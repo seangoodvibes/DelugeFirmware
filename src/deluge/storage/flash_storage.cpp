@@ -747,7 +747,6 @@ void readSettings() {
 	else {
 		defaultUseLastClipType = buffer[177];
 	}
-
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -1013,6 +1012,9 @@ void writeSettings() {
 
 	buffer[174] = accessibilityShortcuts;
 	buffer[175] = accessibilityMenuHighlighting;
+	buffer[176] = util::to_underlying(defaultNewClipType);
+	buffer[177] = defaultUseLastClipType;
+
 	buffer[176] = util::to_underlying(defaultNewClipType);
 	buffer[177] = defaultUseLastClipType;
 

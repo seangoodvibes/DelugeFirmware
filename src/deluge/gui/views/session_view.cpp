@@ -94,6 +94,7 @@ SessionView sessionView{};
 
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+	createClip = false;
 }
 
 bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -819,10 +820,27 @@ startHoldingDown:
 					// if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return
 					// ActionResult::DEALT_WITH;
 
-					clip = createNewInstrumentClip(OutputType::SYNTH, yDisplay);
+					OutputType toCreate;
+					if (FlashStorage::defaultUseLastClipType && lastTypeCreated != OutputType::NONE) {
+						toCreate = lastTypeCreated;
+					}
+					else {
+						toCreate = FlashStorage::defaultNewClipType;
+					}
+
+					// we can't create CV or Audio Clip's first because audio clips can't be subsequently converted
+					// to other clip types (yet) and CV clips will block creating any other clips after two CV clips are
+					// created
+					if (toCreate == OutputType::NONE || toCreate == OutputType::CV || toCreate == OutputType::AUDIO) {
+						toCreate = OutputType::SYNTH;
+					}
+					clip = createNewInstrumentClip(toCreate, yDisplay);
 					if (!clip) {
 						return ActionResult::DEALT_WITH;
 					}
+
+					lastTypeCreated = clip->output->type;
+					createClip = true;
 
 					int32_t numClips = currentSong->sessionClips.getNumElements();
 					if (clipIndex < 0) {
@@ -920,6 +938,7 @@ midiLearnMelodicInstrumentAction:
 					// Enter Clip
 					Clip* clip = getClipOnScreen(selectedClipYDisplay);
 					transitionToViewForClip(clip);
+					createClip = false;
 				}
 
 				// If doing nothing, at least exit the submode - if this was that initial press
@@ -931,6 +950,17 @@ justEndClipPress:
 							                                                     // it's still loading an Instrument
 							                                                     // they selected,
 						}
+
+						// check if we just created a clip and whether we changed the clip type before releasing the
+						// press
+						if (createClip) {
+							OutputType thisType = getClipForLayout()->output->type;
+							if (thisType != lastTypeCreated) {
+								lastTypeCreated = thisType;
+							}
+							createClip = false;
+						}
+
 						// and we don't want the loading animation or anything to get stuck onscreen
 						clipPressEnded();
 					}
