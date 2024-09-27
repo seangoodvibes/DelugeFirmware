@@ -350,13 +350,23 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
-### 3.30 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
+#### 3.30 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
 - ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
 #### 3.31 Added Song New Midi Learn Menu
 - ([#2645]) Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
+
+#### 3.32 - Alternative Delay Types for Param Encoders (Gold encoders)
+
+- ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`
+  -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
+  and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
+  the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
+
+    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
 
 ## 4. New Features Added
 
@@ -588,44 +598,48 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
 - ([#120]) New Stereo Chorus type added to Mod FX. `MOD FX DEPTH` will adjust the amount of stereo widening the effect
   has.
 
-#### 4.2.3 - MIDI Takeover Mode
+#### 4.2.3 - Dimension
+- ([#2882]) Boss/roland style dimension effect. Controls are the same as for chorus
 
-This mode affects how the Deluge handles MIDI input for learned CC controls.
+#### 4.2.4 - Warbler Effect
 
-- ([#170]) A new `TAKEOVER` submenu was created in the `MIDI` settings menu which consists of three modes that can be
-  selected from:
+- ([#2712]) New Warble fx, which provides randomly warbling pitch shifting and delays to simulate things from a tape reel
+warbling up to getting chewed up by the machine and spat back out. It's essentially a flanger/chorus/whatever based modulation
+abomination that makes super cool lofi warbley noises. It essentially consists of two things, a randomly drifting vibrato
+and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
-  **1. `JUMP`:** This is the default mode for the Deluge. As soon as a MIDI encoder/Fader position is changed, the
-  Deluge's internal encoder position/Parameter value jumps to the position of the MIDI encoder/Fader.
+    - To make a tape warble type thing set rate to 15ish, depth to 5-10, feedback 0-2 and offset at 25
 
-  **2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the MIDI
-  encoder/Fader's position is equal to the Deluge encoder position. After which the MIDI encoder/Fader will move in sync
-  with the Deluge.
+    - With depth at 0 and feedback at 0 it's not doing anything. If you turn up feedback you'll start to comb filter the signal, offset controls the length of the comb filter. Turning depth up adds modulation to that delay time (like a chorus or flanger) but since the modulation is unpredictable it sounds more "warm" "analog" "chewy" "lofi"
 
-  **3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change
-  of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI
-  controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
-  Deluge value will always decrease/increase in the same direction as the MIDI controller.
+    - Turning rate up makes it go faster
 
-  **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
+    - Turning feedback up makes it get super weird
 
-#### 4.2.4 - Alternative Delay Types for Param Encoders (Gold encoders)
+    - Turning offset up adds phasing (unless feedback is 0, in which case it does nothing)
 
-- ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`
-  -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
-  and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
-  the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
+#### 4.2.5 - Grain FX
 
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
 
-#### 4.2.5 - Patchable Wavefolding Distortion
+    - Parameters:
+        - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
+        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
+        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates
+          unison and octaves, higher values add 5ths and multi octave jumps.
+        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
+
+#### 4.2.6 - Warble LFO
+- ([#2712]) The randomly varying wave at the center of the warbler, but made into an LFO
+
+#### 4.2.7 - Patchable Wavefolding Distortion
 
 - ([#349]) Adds a pre filter `WAVEFOLDE` distortion, and the depth is patchable/automatable. The depth is accessible in
   both the menu and on the un-labeled pad between `SATURATION` and `LPF FREQ`. The fold has no effect when set to 0 and
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.6 - Quantized Stutter
+#### 4.2.8 - Quantized Stutter
 
 - ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
   you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
@@ -636,25 +650,17 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
 
 #### 4.2.7 - Grain FX
 
-- ([#363]) New `GRAIN` added to Mod FX. This effect is resource-intensive, so it's suggested to use only one instance
-  per song and/or resample and remove the clip or effect afterwards. As such it is turned `OFF` by default for now.
+- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
 
     - Parameters:
         - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
-        - **`MOD DEPTH`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK`:** Selects Grain Type (See below for values)
-        - **`MOD OFFSET`:** Adjusts Grain Size (10ms - 800ms)
+        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
+        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates
+      unison and octaves, higher values add 5ths and multi octave jumps.
+        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
 
-    - Grain Type (Presets):
-        - **`0-10`:** Unison and +1 Octave (Reversed)
-        - **`11-20`** Unison and -1 Octave
-        - **`21-30`:** Unison and +1 Octave (Defalut)
-        - **`31-40`:** 5th and +1 Octave
-        - **`41-50`:** Unison and +1/-1 Octave (Tempo Sync)
 
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-#### 4.2.8 - Reverb Improvements
+#### 4.2.9 - Reverb Improvements
 
 - ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
     - Freeverb (the original Deluge reverb)

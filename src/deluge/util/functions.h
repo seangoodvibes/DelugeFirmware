@@ -211,7 +211,7 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
-class StereoSample;
+struct StereoSample;
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
@@ -350,6 +350,14 @@ int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
 
 [[gnu::always_inline]] inline int32_t getNoise() {
 	return CONG;
+}
+
+/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
+inline q31_t sampleTriangleDistribution() {
+	auto u1 = getNoise();
+	auto u2 = getNoise();
+	auto s = add_saturation(u1, u2);
+	return s;
 }
 
 void seedRandom();

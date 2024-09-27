@@ -109,6 +109,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ## c1.3.0
 
+### Sound Engine
+- Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
+- Added a boss/roland style Dimension effect
+- Made grain much faster and updated controls
+- Added LPF to Mutable Instruments Reverb
+
 ### User Interface
 
 #### <ins>Accessibility</ins>

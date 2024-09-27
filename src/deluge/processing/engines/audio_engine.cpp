@@ -761,6 +761,10 @@ startAgain:
 		}
 	}
 }
+
+void feedReverbBackdoorForGrain(int index, q31_t value) {
+	reverbBuffer[index] += value;
+}
 void renderReverb(size_t numSamples) {
 	if (currentSong && mustUpdateReverbParamsBeforeNextRender) {
 		updateReverbParams();
