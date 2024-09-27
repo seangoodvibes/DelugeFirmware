@@ -1024,24 +1024,22 @@ Submenu defaultUI{
     {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
-ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
-                                            STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
+ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
+                                            STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
                                             FlashStorage::automationInterpolate};
 
-ToggleBool defaultAutomationClearMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR, FlashStorage::automationClear};
+ToggleBool defaultAutomationClearMenu{STRING_FOR_DEFAULT_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_AUTOMATION_CLEAR,
+                                      FlashStorage::automationClear};
 
-ToggleBool defaultAutomationShiftMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT, FlashStorage::automationShift};
+ToggleBool defaultAutomationShiftMenu{STRING_FOR_DEFAULT_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_AUTOMATION_SHIFT,
+                                      FlashStorage::automationShift};
 
-ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          FlashStorage::automationNudgeNote};
+ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE,
+                                          STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, FlashStorage::automationNudgeNote};
 
 ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    FlashStorage::automationDisableAuditionPadShortcuts};
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS, FlashStorage::automationDisableAuditionPadShortcuts};
 
 Submenu defaultAutomationMenu{
     STRING_FOR_AUTOMATION,

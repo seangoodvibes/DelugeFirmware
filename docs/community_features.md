@@ -265,7 +265,7 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
-#### 3.19 - Sample Slice Default Mode
+#### 3.20 - Sample Slice Default Mode
 
 - ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get.
 -  To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
@@ -274,18 +274,18 @@ which track to record from. To run the instrument through the audio clip's FX ch
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
-#### 3.20 Default Hold Press Time
+#### 3.21 Default Hold Press Time
 
 - ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 
-#### 3.21 Eased Timeline Zoom Level Restrictions
+#### 3.22 Eased Timeline Zoom Level Restrictions
 
 - ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - This allows for more flexibility when entering long notes and chord progressions.
 - While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
-#### 3.22 Exit menus by holding back
+#### 3.23 Exit menus by holding back
 
 - ([#2166]) Holding back will now fully exit your current menu
 
@@ -296,20 +296,20 @@ which track to record from. To run the instrument through the audio clip's FX ch
 - ([#2327]) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - ([#2330]) You can configure settings for the audio export via the `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT EXPORT\CONFIGURE EXPORT\` to configure various export settings.
 
-#### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
+#### 3.25 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
 - ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 
-#### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
+#### 3.26 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
 - ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
-#### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
+#### 3.27 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 - ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
  - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
-#### 3.27 Updated UI for Creating New Clips in New Tracks in Song Grid View
+#### 3.28 Updated UI for Creating New Clips in New Tracks in Song Grid View
 - ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
@@ -336,13 +336,13 @@ which track to record from. To run the instrument through the audio clip's FX ch
   - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
 
-#### 3.29 UI Accessibility Defaults Menu
+#### 3.30 UI Accessibility Defaults Menu
 - ([#2537]) Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes included:
   - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
-#### 3.30 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
+#### 3.31 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
 - ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
@@ -350,15 +350,11 @@ which track to record from. To run the instrument through the audio clip's FX ch
 - ([#2645]) Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
 
-#### 3.32 - Alternative Delay Types for Param Encoders (Gold encoders)
-
-- ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`
-  -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
-  and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
-  the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
+#### 3.33 Updated UI for Creating New Clips in Song Row View
+- ([#2716]) The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - NOTE: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default.
+        - This is because Audio Clips cannot currently be converted to other clip types and thus you will be stuck with only being able to create Audio Clips (unless you change the default and/or disable use of last clip type). The same applies to CV clips, which after two CV clips created, would prevent you from creating other clips (unless you change the default and/or disable use of last clip type).
 
 ## 4. New Features Added
 
