@@ -3013,10 +3013,18 @@ bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int3
 	return true;
 }
 
+void InstrumentClipView::euclideanEditPadAction(int32_t x, int32_t y, int32_t on) {
+	
+}
+
 // handles editing notes if shift is pressed
 bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
+	// handle euclidean view pad action
+	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+
+	}
 	// if shift is active, allow editing notes on the grid
-	if (Buttons::isShiftButtonPressed()) {
+	else if (Buttons::isShiftButtonPressed()) {
 		bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
 
 		editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);

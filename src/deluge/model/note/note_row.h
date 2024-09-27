@@ -164,6 +164,10 @@ public:
 	/// compared with the time since this NoteRow started (i.e., time from the end during reversed playback).
 	uint32_t ignoreNoteOnsBefore_;
 
+	/// parent note row index
+	int32_t parentNoteRowIndex = -1;
+	
+
 	int32_t getDefaultProbability();
 	int32_t getDefaultIterance();
 	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
