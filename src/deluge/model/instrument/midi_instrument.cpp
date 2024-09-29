@@ -40,7 +40,20 @@ MIDIInstrument::MIDIInstrument()
       ratio(float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN])),
       modKnobCCAssignments() {
 	modKnobMode = 0;
-	modKnobCCAssignments.fill(CC_NUMBER_NONE);
+
+	for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
+		modKnobCCAssignments[m].cc = CC_NUMBER_NONE;
+		modKnobCCAssignments[m].name.clear();
+	}
+}
+
+void MIDIInstrument::cloneModKnobAssignmentsFrom(MIDIInstrument* other) {
+	modKnobMode = other->modKnobMode;
+
+	for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
+		modKnobCCAssignments[m].cc = other->modKnobCCAssignments[m].cc;
+		modKnobCCAssignments[m].name.set(other->modKnobCCAssignments[m].name.get());
+	}
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -53,11 +66,13 @@ bool MIDIInstrument::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (getCurrentUI()->toClipMinder()) {
 				currentUIMode = UI_MODE_SELECTING_MIDI_CC;
 
-				int32_t cc = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
+				int32_t cc = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder].cc;
+				char const* ccName =
+				    modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder].name.get();
 
 				bool automationExists = doesAutomationExistOnMIDIParam(modelStack, cc);
 				InstrumentClipMinder::editingMIDICCForWhichModKnob = whichModEncoder;
-				InstrumentClipMinder::drawMIDIControlNumber(cc, automationExists);
+				InstrumentClipMinder::drawMIDIControlNumber(cc, ccName, automationExists);
 				return true;
 			}
 			else {
@@ -118,7 +133,7 @@ noParam:
 		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
 	}
 
-	int32_t paramId = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
+	int32_t paramId = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder].cc;
 
 	return getParamToControlFromInputMIDIChannel(paramId, modelStack);
 }
@@ -303,7 +318,14 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
 
-			int32_t cc = modKnobCCAssignments[m];
+			int32_t cc = modKnobCCAssignments[m].cc;
+			String ccName;
+			if (modKnobCCAssignments[m].name.isEmpty()) {
+				ccName.concatenateInt(cc);
+			}
+			else {
+				ccName.set(modKnobCCAssignments[m].name.get());
+			}
 
 			writer.writeOpeningTagBeginning("modKnob");
 			if (cc == CC_NUMBER_NONE) {
@@ -317,6 +339,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 			}
 			else {
 				writer.writeAttribute("cc", cc);
+				writer.writeAttribute("name", ccName.get());
 			}
 			writer.closeTag();
 		}
@@ -415,8 +438,8 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
-			Error error =
-			    readMIDIParamFromFile(reader, readAutomationUpToPos, midiParamCollection, &modKnobCCAssignments[m]);
+			Error error = readMIDIParamFromFile(reader, readAutomationUpToPos, midiParamCollection,
+			                                    modKnobCCAssignments[m]);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -439,10 +462,11 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 // -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the
 // param.
 Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
-                                            MIDIParamCollection* midiParamCollection, int8_t* getCC) {
+                                            MIDIParamCollection* midiParamCollection, ModKnobAssignments& modKnobAssignments) {
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
+	String ccName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = reader.readTagOrAttributeValue();
@@ -480,20 +504,36 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 			}
 			reader.exitTag("value");
 		}
+		else if (!strcmp(tagName, "name")) {
+			if (cc == CC_NUMBER_PITCH_BEND) {
+				ccName.set(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+			}
+			else if (cc == CC_NUMBER_Y_AXIS) {
+				ccName.set(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+			}
+			else if (cc == CC_NUMBER_AFTERTOUCH) {
+				ccName.set(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+			}
+			else if (cc == CC_NUMBER_NONE) {
+				ccName.set(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NONE));
+			}
+			else {
+				ccName.set(reader.readTagOrAttributeValue());
+			}
+		}
 		else {
 			reader.exitTag(tagName);
 		}
 	}
 
-	if (getCC) {
-		*getCC = cc;
-	}
+	modKnobAssignments.cc = cc;
+	modKnobAssignments.name.set(ccName.get());
 
 	return Error::NONE;
 }
 
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
-	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
+	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder].cc;
 
 	int32_t newCC = *cc;
 
@@ -510,6 +550,8 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 	}
 
 	*cc = newCC;
+
+	modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder].name.clear();
 
 	editedByUser = true;
 	return newCC;
@@ -594,7 +636,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
                                                     ModelStackWithThreeMainThings* modelStack) {
 
-	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
+	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder].cc;
 
 	if (*cc >= CC_NUMBER_NONE) {
 		return *cc;

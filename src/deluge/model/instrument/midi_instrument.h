@@ -32,9 +32,16 @@ struct MPEOutputMemberChannel {
 	int8_t lastYAndZValuesSent[2]{0}; // The actual 7-bit numbers. Y goes both positive and negative.
 };
 
+struct ModKnobAssignments {
+	int8_t cc;
+	String name;
+};
+
 class MIDIInstrument final : public NonAudioInstrument {
 public:
 	MIDIInstrument();
+
+	void cloneModKnobAssignmentsFrom(MIDIInstrument* other);
 
 	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack);
 
@@ -84,7 +91,7 @@ public:
 	CCNumber outputMPEY{CC_EXTERNAL_MPE_Y};
 	float ratio; // for combining per finger and global bend
 
-	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;
+	ModKnobAssignments modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
@@ -114,5 +121,5 @@ private:
 	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
-	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
+	                            MIDIParamCollection* midiParamCollection, ModKnobAssignments& modKnobAssignments);
 };

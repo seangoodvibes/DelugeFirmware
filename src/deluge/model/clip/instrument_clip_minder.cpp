@@ -90,7 +90,9 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 
 			bool automationExists = instrument->doesAutomationExistOnMIDIParam(modelStackWithThreeMainThings, newCC);
 
-			drawMIDIControlNumber(newCC, automationExists);
+			char const* ccName = "";
+
+			drawMIDIControlNumber(newCC, ccName, automationExists);
 		}
 	}
 	else {
@@ -113,7 +115,7 @@ void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas&
 // GCC is fine with 29 or 5 for the size, but does not like that it could be either
 #pragma GCC push
 #pragma GCC diagnostic ignored "-Wstack-usage="
-void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
+void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, char const* ccName, bool automationExists) {
 
 	char buffer[display->haveOLED() ? 30 : 5];
 	bool finish = false;
@@ -131,15 +133,20 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 	}
 	else {
-		buffer[0] = 'C';
-		buffer[1] = 'C';
-		if (display->haveOLED()) {
-			buffer[2] = ' ';
-			intToString(controlNumber, &buffer[3]);
+		if (ccName) {
+			strcpy(buffer, ccName);
 		}
 		else {
-			char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
-			intToString(controlNumber, numberStartPos);
+			buffer[0] = 'C';
+			buffer[1] = 'C';
+			if (display->haveOLED()) {
+				buffer[2] = ' ';
+				intToString(controlNumber, &buffer[3]);
+			}
+			else {
+				char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
+				intToString(controlNumber, numberStartPos);
+			}
 		}
 	}
 
