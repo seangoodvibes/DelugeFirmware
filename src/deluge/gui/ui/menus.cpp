@@ -92,6 +92,7 @@
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
 #include "gui/menu_item/midi/transpose.h"
+#include "gui/menu_item/midi/device_definition/linked.h"
 #include "gui/menu_item/mod_fx/depth_patched.h"
 #include "gui/menu_item/mod_fx/depth_unpatched.h"
 #include "gui/menu_item/mod_fx/feedback.h"
@@ -449,6 +450,14 @@ Submenu soundDistortionMenu{
 };
 
 // MIDIInstrument menu ----------------------------------------------------------------------
+midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED, STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
+
+Submenu midiDeviceDefinitionMenu{
+    STRING_FOR_MIDI_DEVICE_DEFINITION,
+    {
+        &midiDeviceLinkedMenu,
+    },
+};
 
 midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
 midi::Sub midiSubMenu{STRING_FOR_SUB_BANK, STRING_FOR_MIDI_SUB_BANK};
@@ -1295,6 +1304,7 @@ menu_item::Submenu noteRowEditorRootMenu{
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &midiDeviceDefinitionMenu,
         &midiPGMMenu,
         &midiBankMenu,
         &midiSubMenu,

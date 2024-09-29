@@ -73,6 +73,13 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Press `SELECT` to enter the `CV Instrument Menu`
   - Enter the  `CV 2 Source (CV2)` submenu
   - Select from `OFF, Y, Aftertouch, Velocity`
+  
+##### MIDI Clips
+- Added ability to rename MIDI CC's in MIDI clips. Changed are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a MIDI preset and with the song.
+  - To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the `Select Encoder`.
+  - With the `MIDI CC` selected, press down either `Gold (Mod) Encoder` and then press the `Name` grid shortcut to open the `MIDI CC Renaming UI`. Enter a new name and press `Select` or `Enter`.
+  - The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press down on the `Gold (Mod) Encoder`.
+- Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
 
 ### MIDI
 

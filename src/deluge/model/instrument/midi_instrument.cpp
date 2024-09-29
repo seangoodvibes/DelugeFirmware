@@ -27,6 +27,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "modulation/midi/label/midi_label.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
@@ -328,6 +329,8 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("mpe", (int32_t)collapseMPE);
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
+
+		writeDeviceDefinitionFile(writer);
 	}
 	else {
 		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
@@ -341,6 +344,41 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 	return true;
+}
+
+void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFileName) {
+	writer.writeOpeningTagBeginning("midiDevice");
+	writer.writeOpeningTagEnd();
+
+	writeCCLabelsToFile(writer, false);
+
+	writer.writeClosingTag("midiDevice");
+}
+
+void MIDIInstrument::writeCCLabelsToFile(Serializer& writer, bool writeFileName) {
+	writer.writeOpeningTagBeginning("ccLabels");
+	if (writeFileName) {
+		if (deviceDefinitionFileName.isEmpty()) {
+			writer.writeAttribute("fileName", "");
+		}
+		else {
+			writer.writeAttribute("fileName", deviceDefinitionFileName.get());
+		}
+	}
+	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+		if (i != CC_EXTERNAL_MOD_WHEEL) {
+			MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(i);
+			char ccNumber[10];
+			intToString(i, ccNumber, 1);
+			if (midiLabel) {
+				writer.writeAttribute(ccNumber, midiLabel->name.get());
+			}
+			else {
+				writer.writeAttribute(ccNumber, "");
+			}
+		}
+	}
+	writer.closeTag();
 }
 
 bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
@@ -392,6 +430,9 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
+	else if (!strcmp(tagName, "midiDevice")) {
+		readDeviceDefinitionFile(reader);
+	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
 	}
@@ -432,6 +473,63 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 
 	editedByUser = true;
 	return Error::NONE;
+}
+
+Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readLabels) {
+	Error error = Error::FILE_UNREADABLE;
+	loadDeviceDefinitionFile = false;
+
+	char const* tagName;
+
+	// step into any subtags
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "ccLabels")) {
+			error = readCCLabelsFromFile(reader);
+		}
+		reader.exitTag();
+	}
+
+	editedByUser = true;
+	return error;
+}
+
+Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader, bool readLabels) {
+	Error error = Error::FILE_UNREADABLE;
+
+	int32_t cc = 0;
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (deviceDefinitionFileName.isEmpty() || readLabels) {
+			if (!strcmp(tagName, "fileName")) {
+				reader.readTagOrAttributeValueString(&deviceDefinitionFileName);
+				if (!readLabels) {
+					loadDeviceDefinitionFile = true;
+				}
+			}
+			else {
+				char ccNumber[10];
+				cc = stringToInt(tagName);
+
+				if (cc < 0 || cc >= kNumRealCCNumbers) {
+					reader.exitTag();
+					continue;
+				}
+
+				midiLabelCollection.labels.setOrCreateLabelForCC(cc, reader.readTagOrAttributeValue());
+
+				error = Error::NONE;
+			}
+		}
+		else {
+			loadDeviceDefinitionFile = true;
+			reader.exitTag();
+			continue;
+		}
+
+		reader.exitTag();
+	}
+
+	return error;
 }
 
 // This has now mostly been replaced by an equivalent-ish function in InstrumentClip.
@@ -1122,5 +1220,22 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 	switch (channel) {
 	case MIDI_CHANNEL_TRANSPOSE:
 		MIDITranspose::doTranspose(on, note);
+	}
+}
+
+String* MIDIInstrument::getNameFromCC(int32_t cc) {
+	if (cc >= 0 && cc < kNumRealCCNumbers) {
+		MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(cc);
+
+		if (midiLabel) {
+			return &midiLabel->name;
+		}
+	}
+	return nullptr;
+}
+
+void MIDIInstrument::setNameForCC(int32_t cc, String* name) {
+	if (cc >= 0 && cc < kNumRealCCNumbers) {
+		midiLabelCollection.labels.setOrCreateLabelForCC(cc, name->get());
 	}
 }
