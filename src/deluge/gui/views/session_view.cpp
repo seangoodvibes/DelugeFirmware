@@ -75,6 +75,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "task_scheduler.h"
 #include "util/cfunctions.h"
@@ -674,7 +675,8 @@ void SessionView::beginEditingSectionRepeatsNum() {
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
-	if (xDisplay >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
+	bool xDisplayForVUMeter = FlashStorage::defaultStereoVUMeter ? kDisplayWidth : kDisplayWidth + 1;
+	if (xDisplay >= xDisplayForVUMeter && view.displayVUMeter && (view.getModKnobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
 	}
 

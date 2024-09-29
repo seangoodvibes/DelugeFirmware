@@ -30,6 +30,9 @@
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
     - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
 
+#### <ins>VU Meter</ins>
+- You can now configure whether the VU meter is rendered in Stereo or Mono by going to `SETTINGS > DEFAULTS > STEREO VU METER`
+
 #### <ins>Instrument Clip View</ins>
 
 ##### Automation View

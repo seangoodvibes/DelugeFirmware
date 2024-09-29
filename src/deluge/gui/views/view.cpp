@@ -1642,18 +1642,27 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 
 			// erase current image as it will be refreshed
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				RGB* const start = &image[y][kDisplayWidth];
-				std::fill(start, start + kSideBarWidth, colours::black);
+				int32_t x = FlashStorage::defaultStereoVUMeter ? kDisplayWidth : kDisplayWidth + 1;
+				RGB* const start = &image[y][x];
+				std::fill(start, start + x, colours::black);
 			}
 
-			// render left VU meter
-			if (maxYDisplayForVUMeterL != 255) {
-				renderVUMeter(maxYDisplayForVUMeterL, kDisplayWidth, image);
-			}
+			if (FlashStorage::defaultStereoVUMeter) {
+				// render left VU meter
+				if (maxYDisplayForVUMeterL != 255) {
+					renderVUMeter(maxYDisplayForVUMeterL, kDisplayWidth, image);
+				}
 
-			// render right VU meter
-			if (maxYDisplayForVUMeterR != 255) {
-				renderVUMeter(maxYDisplayForVUMeterR, kDisplayWidth + 1, image);
+				// render right VU meter
+				if (maxYDisplayForVUMeterR != 255) {
+					renderVUMeter(maxYDisplayForVUMeterR, kDisplayWidth + 1, image);
+				}
+			}
+			else {
+				int32_t maxYDisplayForVUMeter = std::max(maxYDisplayForVUMeterL, maxYDisplayForVUMeterR);
+				if (maxYDisplayForVUMeter != 255) {
+					renderVUMeter(maxYDisplayForVUMeter, kDisplayWidth + 1, image);
+				}
 			}
 			// save the VU meter rendering status so that grid can be refreshed later if required
 			// (e.g. if you switch mod buttons or turn off affect entire)

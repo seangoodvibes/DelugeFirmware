@@ -537,6 +537,7 @@ Here is a list of features that have been added to the firmware as a list, group
             - y2 = -22.0 to -17.7
             - y1 = -26.4 to -22.1
             - y0 = -30.8 to -26.5
+- You can configure whether the VU meter is rendered in Stereo or Mono by going to `SETTINGS > DEFAULTS > STEREO VU METER`
 
 ### 4.1.9 - Song macros
 

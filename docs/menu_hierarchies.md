@@ -231,6 +231,9 @@ The Settings menu contains the following menu hierarchy:
 		- Disabled (OFF)
 		- Enabled (ON)
 	- Hold Press Time (HOLD)
+	- Stereo VU Meter (STVU)
+		- Disabled (OFF) - MONO
+		- Enabled (ON) - STEREO
 </details>
 
 <details><summary>Swing Interval (SWII)</summary>

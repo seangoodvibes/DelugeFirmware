@@ -1075,6 +1075,9 @@ Submenu defaultScalesSubmenu{STRING_FOR_SCALE,
                                  &defaultActiveScaleMenu,
                              }};
 
+ToggleBool defaultStereoVUMeter{STRING_FOR_DEFAULT_STEREO_VU_METER, STRING_FOR_DEFAULT_STEREO_VU_METER,
+                                FlashStorage::defaultStereoVUMeter};
+
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1094,6 +1097,7 @@ Submenu defaultsSubmenu{
         &defaultSliceMode,
         &defaultHighCPUUsageIndicatorMode,
         &defaultHoldTimeMenu,
+        &defaultStereoVUMeter,
     },
 };
 
