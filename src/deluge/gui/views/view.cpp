@@ -1854,7 +1854,7 @@ char const* View::getReverbPresetDisplayName(int32_t preset) {
 }
 
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
-	int32_t channel, channelSuffix;
+	int32_t channel{0}, channelSuffix{0};
 	bool editedByUser = true;
 	if (output->type != OutputType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
@@ -1868,6 +1868,9 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 			channel = ((NonAudioInstrument*)instrument)->channel;
 			break;
 		}
+	}
+	else {
+		channel = static_cast<int32_t>(((AudioOutput*)output)->mode);
 	}
 
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), output->name.isEmpty(),
