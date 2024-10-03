@@ -221,6 +221,15 @@ void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 	memcpy(newMemory, oldMemory, size);
 }
 
+int32_t ModelStackWithAutoParam::getLoopLength() const {
+	if (autoParam && autoParam->loopLengthIfIndependent) {
+		return autoParam->loopLengthIfIndependent;
+	}
+	else {
+		return getTimelineCounter()->getLoopLength();
+	}
+}
+
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
@@ -259,3 +268,4 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFr
 	}
 	return modelStackWithParam;
 }
+

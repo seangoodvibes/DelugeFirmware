@@ -55,6 +55,8 @@ AutoParam::AutoParam() {
 	currentValue = 0;
 	valueIncrementPerHalfTick = 0;
 	renewedOverridingAtTime = 0;
+	loopLengthIfIndependent = 0;
+	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;	
 }
 
 void AutoParam::init() {

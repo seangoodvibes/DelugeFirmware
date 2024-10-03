@@ -132,6 +132,17 @@ public:
 	// "Latching" happens when you start recording values, but then stops if you arrive at any pre-existing values. So
 	// it only works in empty stretches of time.
 
+	int32_t loopLengthIfIndependent; // 0 means obeying parent
+	int32_t lastProcessedPosIfIndependent;
+	int32_t repeatCountIfIndependent;
+
+	// Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
+	bool currentlyPlayingReversedIfIndependent;
+
+	SequenceDirection sequenceDirectionMode;
+	//uint32_t getLivePos(ModelStackWithAutoParam const* modelStack);
+	//bool hasIndependentPlayPos();	
+
 private:
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);

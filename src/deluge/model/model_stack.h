@@ -271,6 +271,7 @@ public:
 	/// AutoParam attached to the ParamID. If this is null, none of the other param related members can be trusted
 	/// (e.g. the paramcollection, summary, or paramId)
 	AutoParam* autoParam;
+	int32_t getLoopLength() const;
 };
 
 #define SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE 0
