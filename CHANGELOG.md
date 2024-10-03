@@ -126,6 +126,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>Instrument Clip View</ins>
 
+##### Pad Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part) 
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official, 
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+
 ##### Automation View
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 - Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
