@@ -90,7 +90,7 @@ int32_t ModelStackWithNoteRow::getLastProcessedPos() const {
 
 	if (noteRow && noteRow->hasIndependentPlayPos()) {
 		return noteRow->lastProcessedPosIfIndependent;
-		// I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's
+		// Rohan: I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's
 		// usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
 		// investigate further.
 	}
@@ -227,6 +227,111 @@ int32_t ModelStackWithAutoParam::getLoopLength() const {
 	}
 	else {
 		return getTimelineCounter()->getLoopLength();
+	}
+}
+
+int32_t ModelStackWithAutoParam::getRepeatCount() const {
+	if (autoParam && autoParam->hasIndependentPlayPos()) {
+		return autoParam->repeatCountIfIndependent;
+	}
+	else {
+		return ((Clip*)getTimelineCounter())->repeatCount;
+	}
+}
+
+int32_t ModelStackWithAutoParam::getLastProcessedPos() const {
+
+	if (autoParam && autoParam->hasIndependentPlayPos()) {
+		return autoParam->lastProcessedPosIfIndependent;
+		// Rohan: I have a feeling I should sort of be taking autoParamsNumTicksBehindClip into account here - but I know it's
+		// usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
+		// investigate further.
+	}
+	else {
+		return getTimelineCounter()->getLastProcessedPos();
+	}
+}
+
+int32_t ModelStackWithAutoParam::getLivePos() const {
+	if (autoParam) {
+		return autoParam->getLivePos(this);
+	}
+	else {
+		return getTimelineCounter()->getLivePos();
+	}
+}
+
+bool ModelStackWithAutoParam::isCurrentlyPlayingReversed() const {
+
+	// Under a few different conditions, we just use the parent Clip's reversing status.
+	if (!autoParam
+	    || (autoParam->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
+	        && (!autoParam->loopLengthIfIndependent
+	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
+		return ((Clip*)getTimelineCounter())->currentlyPlayingReversed;
+	}
+
+	// Otherwise, we use the AutoParam's local one.
+	else {
+		return autoParam->currentlyPlayingReversedIfIndependent;
+	}
+}
+
+// That's *cut* - as in, cut out abruptly. If it's looping, and the user isn't stopping it, that's not a cut.
+// A cut could be if the Session-Clip is armed to stop, or if we're getting to the end of a ClipInstance in Arranger
+int32_t ModelStackWithAutoParam::getPosAtWhichPlaybackWillCut() const {
+	if (autoParam && autoParam->hasIndependentPlayPos()) {
+		if (currentPlaybackMode == &session) {
+
+			// Might need Arrangement-recording logic here, like in Session::getPosAtWhichClipWillCut()...
+			// FYI that function's code basically mirrors this one - you should look at them together.
+
+			bool reversed = isCurrentlyPlayingReversed();
+
+			int32_t cutPos;
+
+			if (session.willClipContinuePlayingAtEnd(toWithTimelineCounter())) {
+				cutPos = reversed ? (-2147483648) : 2147483647; // If it's gonna loop, it's not gonna cut
+			}
+
+			else {
+				int32_t ticksTilLaunchEvent =
+				    session.launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;
+				if (reversed) {
+					ticksTilLaunchEvent = -ticksTilLaunchEvent;
+				}
+				cutPos =
+				    autoParam->lastProcessedPosIfIndependent
+				    + ticksTilLaunchEvent; // Might return a pos beyond the loop length - maybe that's what we want?
+			}
+
+			// If pingponging, that's actually going to get referred to as a cut.
+			if (autoParam->getEffectiveSequenceDirectionMode(this) == SequenceDirection::PINGPONG) {
+				if (reversed) {
+					if (cutPos < 0) {
+						cutPos = autoParam->lastProcessedPosIfIndependent
+						             ? 0
+						             : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when
+						                                 // we pingpong at the right-hand end of the Clip/etc.
+					}
+				}
+				else {
+					int32_t loopLength = getLoopLength();
+					if (cutPos > loopLength) {
+						cutPos = loopLength;
+					}
+				}
+			}
+
+			return cutPos;
+		}
+		else {
+			// TODO: this
+			return 2147483647;
+		}
+	}
+	else {
+		return getTimelineCounter()->getPosAtWhichPlaybackWillCut(toWithTimelineCounter());
 	}
 }
 

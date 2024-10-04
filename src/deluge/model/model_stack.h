@@ -271,7 +271,14 @@ public:
 	/// AutoParam attached to the ParamID. If this is null, none of the other param related members can be trusted
 	/// (e.g. the paramcollection, summary, or paramId)
 	AutoParam* autoParam;
+
+	// all these functions were cloned from the ModelStackWithNoteRow class
 	int32_t getLoopLength() const;
+	int32_t getRepeatCount() const;
+	int32_t getLastProcessedPos() const;	
+	int32_t getLivePos() const;
+	bool isCurrentlyPlayingReversed() const;
+	int32_t getPosAtWhichPlaybackWillCut() const;
 };
 
 #define SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE 0

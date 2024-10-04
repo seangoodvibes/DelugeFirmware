@@ -214,6 +214,9 @@ public:
 	int32_t lastSelectedParamArrayPosition;
 	OutputType lastSelectedOutputType;
 	PatchSource lastSelectedPatchSource;
+
+	int32_t ticksTilNextAutoParamEvent{};
+	int32_t autoParamsNumTicksBehindClip{};
 	// END ~ new Automation Clip View Variables
 
 	virtual bool isEmpty(bool displayPopup = true) = 0;

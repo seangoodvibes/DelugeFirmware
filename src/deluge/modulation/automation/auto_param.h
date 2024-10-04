@@ -139,9 +139,10 @@ public:
 	// Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
 	bool currentlyPlayingReversedIfIndependent;
 
+	SequenceDirection getEffectiveSequenceDirectionMode(ModelStackWithAutoParam const* modelStack);
 	SequenceDirection sequenceDirectionMode;
-	//uint32_t getLivePos(ModelStackWithAutoParam const* modelStack);
-	//bool hasIndependentPlayPos();	
+	uint32_t getLivePos(ModelStackWithAutoParam const* modelStack);
+	bool hasIndependentPlayPos();	
 
 private:
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,

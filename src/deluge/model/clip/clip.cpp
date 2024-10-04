@@ -386,6 +386,8 @@ void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, boo
 	lastProcessedPos = newPos;
 
 	expectEvent(); // Remember, this is a virtual function call - extended in InstrumentClip
+
+	autoParamsNumTicksBehindClip = 0;
 }
 
 // Returns whether it was actually begun
@@ -1171,6 +1173,25 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
+	ticksTilNextAutoParamEvent -= numTicks;
+	autoParamsNumTicksBehindClip += numTicks;
+
+	if (ticksTilNextNoteRowEvent <= 0) {
+
+		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = noteRows.getElement(i);
+			if (thisNoteRow->hasIndependentPlayPos()) {
+				int32_t movement = noteRowsNumTicksBehindClip;
+
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+				if (modelStackWithNoteRow->isCurrentlyPlayingReversed()) {
+					movement = -movement;
+				}
+				thisNoteRow->lastProcessedPosIfIndependent += movement;
+			}
+		}
+	}	
 }
 void Clip::setupOverdubInPlace(OverDubType type) {
 	originalLength = loopLength;

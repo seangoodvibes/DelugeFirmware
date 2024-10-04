@@ -703,7 +703,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	}
 
 	if (!inNoteEditor()) {
-		effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+		effectiveLength = modelStackWithParam->getLoopLength();//getEffectiveLength(modelStackWithTimelineCounter);
 	}
 
 	params::Kind kind = params::Kind::NONE;
@@ -2346,7 +2346,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	}
 
 	if (!inNoteEditor()) {
-		effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+		effectiveLength = modelStackWithParam->getLoopLength();//getEffectiveLength(modelStackWithTimelineCounter);
 	}
 
 	// Edit pad action...
@@ -3682,7 +3682,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 			}
 
-			int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+			int32_t effectiveLength = modelStackWithParam->getLoopLength();//getEffectiveLength(modelStackWithTimelineCounter);
 
 			shiftAutomationHorizontally(modelStackWithParam, shiftAmount, effectiveLength);
 
@@ -3764,7 +3764,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
                                                  int32_t effectiveLength) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
+		modelStackWithParam->autoParam->shiftHorizontally(offset, modelStackWithParam->getLoopLength());
 	}
 
 	uiNeedsRendering(this);
@@ -4138,7 +4138,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		Clip* clip = getCurrentClip();
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
-	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+	int32_t effectiveLength = modelStackWithParam->getLoopLength();//getEffectiveLength(modelStackWithTimelineCounter);
 
 	// if user holding a node down, we'll adjust the value of the selected parameter being automated
 	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
@@ -4335,7 +4335,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
-	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+	int32_t effectiveLength = modelStackWithParam->getLoopLength();//getEffectiveLength(modelStackWithTimelineCounter);
 
 	int32_t xScroll = currentSong->xScroll[navSysId];
 	int32_t xZoom = currentSong->xZoom[navSysId];
@@ -4581,7 +4581,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 		}
-		int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+		int32_t effectiveLength = modelStackWithParam->getLoopLength();//getEffectiveLength(modelStackWithTimelineCounter);
 		int32_t xScroll = currentSong->xScroll[navSysId];
 		int32_t xZoom = currentSong->xZoom[navSysId];
 		renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength, xScroll, xZoom);

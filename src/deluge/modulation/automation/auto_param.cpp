@@ -407,6 +407,8 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		return 2147483647;
 	}
 
+	if (modelStack->getTimelineCounter())
+
 	int32_t currentPos = modelStack->getLastProcessedPos();
 	int32_t effectiveLength = modelStack->getLoopLength();
 
@@ -2902,3 +2904,43 @@ int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelSta
 
     }
  */
+
+bool AutoParam::hasIndependentPlayPos() {
+	return (loopLengthIfIndependent || sequenceDirectionMode != SequenceDirection::OBEY_PARENT);
+}
+
+SequenceDirection AutoParam::getEffectiveSequenceDirectionMode(ModelStackWithAutoParam const* modelStack) {
+	if (sequenceDirectionMode == SequenceDirection::OBEY_PARENT) {
+		return ((Clip*)modelStack->getTimelineCounter())->sequenceDirectionMode;
+	}
+	else {
+		return sequenceDirectionMode;
+	}
+}
+
+uint32_t AutoParam::getLivePos(ModelStackWithAutoParam const* modelStack) {
+
+	Clip* clip = (Clip*)modelStack->getTimelineCounter();
+
+	// Often this is up to the parent Clip
+	if (!hasIndependentPlayPos()) {
+		return clip->getLivePos();
+	}
+
+	int32_t effectiveLastProcessedPos = lastProcessedPosIfIndependent; // We established this, above
+
+	int32_t numSwungTicksInSinceLastActioned =
+	    playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick() + clip->autoParamsNumTicksBehindClip;
+
+	if (modelStack->isCurrentlyPlayingReversed()) {
+		numSwungTicksInSinceLastActioned = -numSwungTicksInSinceLastActioned;
+	}
+
+	int32_t livePos = effectiveLastProcessedPos + numSwungTicksInSinceLastActioned;
+
+	if (livePos < 0) {
+		livePos += modelStack->getLoopLength(); // Could happen if reversing and currentPosHere is 0.
+	}
+
+	return livePos;
+}
