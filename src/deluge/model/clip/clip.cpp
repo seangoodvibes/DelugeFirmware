@@ -1176,7 +1176,7 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 	ticksTilNextAutoParamEvent -= numTicks;
 	autoParamsNumTicksBehindClip += numTicks;
 
-	if (ticksTilNextNoteRowEvent <= 0) {
+/*	if (ticksTilNextNoteRowEvent <= 0) {
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1191,7 +1191,7 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 				thisNoteRow->lastProcessedPosIfIndependent += movement;
 			}
 		}
-	}	
+	}*/	
 }
 void Clip::setupOverdubInPlace(OverDubType type) {
 	originalLength = loopLength;

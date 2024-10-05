@@ -407,8 +407,6 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		return 2147483647;
 	}
 
-	if (modelStack->getTimelineCounter())
-
 	int32_t currentPos = modelStack->getLastProcessedPos();
 	int32_t effectiveLength = modelStack->getLoopLength();
 
