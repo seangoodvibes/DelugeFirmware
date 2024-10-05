@@ -56,7 +56,7 @@ AutoParam::AutoParam() {
 	valueIncrementPerHalfTick = 0;
 	renewedOverridingAtTime = 0;
 	loopLengthIfIndependent = 0;
-	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;	
+	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
 
 void AutoParam::init() {
@@ -132,7 +132,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 			if (livePos == -1) {
-				livePos = modelStack->getLivePos();
+				livePos = getLivePos(modelStack);
 			}
 
 			// We're going to clear 0.2s of time ahead of the current play pos. Why?
@@ -1019,7 +1019,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		}
 
 		// If we're in the region right now...
-		mostRecentI = nodes.search(modelStack->getLivePos() + !modelStack->isCurrentlyPlayingReversed(), LESS);
+		mostRecentI = nodes.search(getLivePos(modelStack) + !modelStack->isCurrentlyPlayingReversed(), LESS);
 		if (mostRecentI == -1) {
 			mostRecentI = nodes.getNumElements() - 1;
 		}
@@ -1843,6 +1843,9 @@ addNewNodeAt0IfNecessary:
 		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
 		valueIncrementPerHalfTick = 0; // In case we were interpolating.
 	}
+
+	Clip* clip = (Clip*)modelStack->getTimelineCounter();
+	loopLengthIfIndependent = (newLength == clip->loopLength) ? 0 : newLength;
 }
 
 void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride) {

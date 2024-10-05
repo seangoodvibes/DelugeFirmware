@@ -658,7 +658,17 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	AutoParam* param = &patchCables[c].param;
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
-	param->trimToLength(newLength, action, modelStackWithAutoParam);
+
+	// only if AutoParam doesn't have independent length set, then trim it and stuff
+	if (!param->loopLengthIfIndependent) {
+		param->trimToLength(newLength, action, modelStackWithAutoParam);
+	}
+	// Or if it does have independent length, are we now the same length as it?
+	else {
+		if (param->loopLengthIfIndependent == newLength) {
+			param->loopLengthIfIndependent = 0;
+		}
+	}
 
 	if (!param->valueIncrementPerHalfTick) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);

@@ -275,8 +275,7 @@ public:
 	// all these functions were cloned from the ModelStackWithNoteRow class
 	int32_t getLoopLength() const;
 	int32_t getRepeatCount() const;
-	int32_t getLastProcessedPos() const;	
-	int32_t getLivePos() const;
+	int32_t getLastProcessedPos() const;
 	bool isCurrentlyPlayingReversed() const;
 	int32_t getPosAtWhichPlaybackWillCut() const;
 };

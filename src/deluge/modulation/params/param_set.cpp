@@ -242,7 +242,17 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 	AutoParam* param = &params[p];
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
-	params[p].trimToLength(newLength, action, modelStackWithAutoParam);
+	// only if AutoParam doesn't have independent length set, then trim it and stuff
+	if (!params[p].loopLengthIfIndependent) {
+		params[p].trimToLength(newLength, action, modelStackWithAutoParam);
+	}
+	// Or if it does have independent length, are we now the same length as it?
+	else {
+		if (params[p].loopLengthIfIndependent == newLength) {
+			params[p].loopLengthIfIndependent = 0;
+		}
+	}
+
 	if (!params[p].isAutomated()) {
 		paramHasNoAutomationNow(modelStack, p);
 	}

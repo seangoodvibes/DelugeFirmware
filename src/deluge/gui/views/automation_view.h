@@ -85,6 +85,7 @@ public:
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset) override;
+	void editAutomationLength(ModelStackWithAutoParam* modelStack, Clip* clip, int32_t offset);
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 	[[nodiscard]] int32_t getNavSysId() const override;

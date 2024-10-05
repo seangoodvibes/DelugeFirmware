@@ -90,8 +90,8 @@ int32_t ModelStackWithNoteRow::getLastProcessedPos() const {
 
 	if (noteRow && noteRow->hasIndependentPlayPos()) {
 		return noteRow->lastProcessedPosIfIndependent;
-		// Rohan: I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's
-		// usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
+		// Rohan: I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know
+		// it's usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
 		// investigate further.
 	}
 	else {
@@ -243,21 +243,12 @@ int32_t ModelStackWithAutoParam::getLastProcessedPos() const {
 
 	if (autoParam && autoParam->hasIndependentPlayPos()) {
 		return autoParam->lastProcessedPosIfIndependent;
-		// Rohan: I have a feeling I should sort of be taking autoParamsNumTicksBehindClip into account here - but I know it's
-		// usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
-		// investigate further.
+		// Rohan: I have a feeling I should sort of be taking autoParamsNumTicksBehindClip into account here - but I
+		// know it's usually zero when this gets called, and perhaps the other times I want to ignore it? Should
+		// probably investigate further.
 	}
 	else {
 		return getTimelineCounter()->getLastProcessedPos();
-	}
-}
-
-int32_t ModelStackWithAutoParam::getLivePos() const {
-	if (autoParam) {
-		return autoParam->getLivePos(this);
-	}
-	else {
-		return getTimelineCounter()->getLivePos();
 	}
 }
 
@@ -373,4 +364,3 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFr
 	}
 	return modelStackWithParam;
 }
-

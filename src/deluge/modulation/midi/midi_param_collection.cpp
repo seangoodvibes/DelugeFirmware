@@ -116,7 +116,9 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 		AutoParam* param = &midiParam->param;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
-		param->trimToLength(newLength, action, modelStackWithAutoParam);
+		if (!param->loopLengthIfIndependent) {
+			param->trimToLength(newLength, action, modelStackWithAutoParam);
+		}
 	}
 	ticksTilNextEvent = 0;
 }
