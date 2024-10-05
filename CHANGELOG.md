@@ -111,6 +111,43 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ### User Interface
 
+#### <ins>Accessibility</ins>
+- Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
+  - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
+    - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+  - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
+
+#### <ins>Arranger View</ins>
+- Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
+  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+
+#### <ins>Song Grid View</ins>
+
+##### Entering Clips
+- Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
+
+##### Creating New Clips
+- Updated mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and `SONG ROW VIEW`.
+  - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default.
+
+#### <ins>Audio Clips</ins>
+- Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
+when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
+
+#### <ins>Instrument Clip View</ins>
+
+##### Pad Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part)
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official,
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+
+##### Scale Mode
+- If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
+- Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
+
+##### Automation View
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 
 ## c1.2.0 Chopin
