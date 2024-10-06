@@ -628,14 +628,13 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
 #### 4.2.7 - Grain FX
 
-- ([#363]) New `GRAIN` added to Mod FX. This effect is resource-intensive, so it's suggested to use only one instance
-  per song and/or resample and remove the clip or effect afterwards. As such it is turned `OFF` by default for now.
+- ([#363]) New `GRAIN` added to Mod FX.
 
     - Parameters:
         - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
-        - **`MOD DEPTH`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK`:** Selects Grain Type (See below for values)
-        - **`MOD OFFSET`:** Adjusts Grain Size (10ms - 800ms)
+        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
+        - **`MOD FEEDBACK - GRAIN TYPE (GRTY)`:** Selects Grain Type (See below for values)
+        - **`MOD OFFSET - GRAIN SIZE (SIZE)`:** Adjusts Grain Size (10ms - 800ms)
 
     - Grain Type (Presets):
         - **`0-10`:** Unison and +1 Octave (Reversed)
@@ -643,8 +642,6 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
         - **`21-30`:** Unison and +1 Octave (Defalut)
         - **`31-40`:** 5th and +1 Octave
         - **`41-50`:** Unison and +1/-1 Octave (Tempo Sync)
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 4.2.8 - Reverb Improvements
 
