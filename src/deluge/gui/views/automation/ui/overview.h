@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_view.h"
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -47,9 +48,9 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
-class AutomationView : public ClipView, public InstrumentClipMinder {
+class AutomationOverview final : public AutomationView {
 public:
-	AutomationView();
+	AutomationOverview();
 	bool opened() override;
 	void initializeView();
 	void openedInBackground();
@@ -362,4 +363,4 @@ private:
 	uint32_t timeSelectKnobLastReleased;
 };
 
-extern AutomationView automationView;
+extern AutomationOverview automationOverview;
