@@ -367,8 +367,6 @@ AutomationView::AutomationView() {
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	numNotesSelected = 0;
-	selectedPadPressed = 0;
-	playbackStopped = false;
 	onArrangerView = false;
 	onMenuView = false;
 	navSysId = NAVIGATION_CLIP;
@@ -2677,7 +2675,6 @@ void AutomationView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStac
 		// refresh grid and display
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
-	selectedPadPressed = velocity;
 	renderDisplay();
 }
 
@@ -3047,9 +3044,6 @@ void AutomationView::recordNoteEditPadAction(int32_t x, int32_t velocity) {
 void AutomationView::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
                                              int32_t yDisplay, int32_t velocity, int32_t effectiveLength,
                                              int32_t xScroll, int32_t xZoom) {
-	if (padSelectionOn) {
-		selectedPadPressed = velocity;
-	}
 	// If button down
 	if (velocity) {
 		// If this is a automation-length-edit press...
@@ -4925,7 +4919,6 @@ void AutomationView::initPadSelection() {
 	resetPadSelectionShortcutBlinking();
 
 	numNotesSelected = 0;
-	selectedPadPressed = 0;
 
 	// make sure no active presses remain when exiting pad selection mode
 	if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
