@@ -18,6 +18,25 @@
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
+#### <ins>Horizontal Menus</ins>
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
+  - LPF and HPF.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
+    - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
+  - If you're not holding an audition pad or sticky shift is disabled, then the following select behaviours apply.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Turn select encoder` to change the selected menu item
+    - `Press + Turn select encoder` to change the value of the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Turn select encoder` to change the value of the selected menu item
+    - `Press + Turn select encoder` to change the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
+
 #### <ins>Tempo</ins>
 - Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of `TAP TEMPO` button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
 
@@ -31,97 +50,22 @@
   - You can also view and temporarily change the current threshold recording setting as follows:
     - Press and hold `RECORD` + turn  `SELECT`
     - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+- Easier loop recording in `SONG VIEW` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `SONG VIEW` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
+  - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
 
-#### <ins>Arranger View</ins>
-- Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
-  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+#### <ins>Audio Export</ins>
+- Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+- Added Tempo, Root Note and Scale Information to file names
 
-#### <ins>Song Grid View</ins>
 
-##### Entering Clips
-- Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
+#### <ins>Save/Load Patterns</ins>
+- Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
 
-##### Creating New Clips
-- Updated mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and `SONG ROW VIEW`.
-  - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
-    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
-    - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default.
+#### <ins>Favourites</ins>
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`.
 
-#### <ins>Audio Clips</ins>
-- Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
-when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
-
-#### <ins>Instrument Clip View</ins>
-
-##### Pad Rendering
-- Note velocity is now displayed in clips using colour intensities. The note head (the bright part)
-now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official,
-at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
-
-##### Scale Mode
-- If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
-- Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
-
-##### Note / Note Row Probability, Iterance, Fill
-- Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
-  - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
-  - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
-  - To edit fill, you need to access the new note and note row editor menu's.
-- Added new note and note row editor menu's to edit note and note row parameters.
-  - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
-  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
-  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the selected note row's audition pad will blink. You can select other note row's by pressing the note row audition pad or by scrolling with the vertical encoder.
-  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
-
-##### Synth/Kit Clips
-- Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
-
-##### CV Clips
-- Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
-  - Turn `SELECT` to choose `1 AND 2 (BOTH)` CV / Gate channel.
-  - Press `SELECT` to enter the `CV Instrument Menu`
-  - Enter the  `CV 2 Source (CV2)` submenu
-  - Select from `OFF, Y, Aftertouch, Velocity`
-
-##### MIDI Clips
-- Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`.
-- Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
-
-#### <ins>Automation View</ins>
-
-##### Parameters
-- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
-- Added ability to automate all Monophonic (Channel) Expression parameters (X - Pitch Bend, Y - Mod Wheel, Z - Channel Pressure / Aftertouch) in Synth / Kit Row (with Affect Entire Off) / MIDI / CV
-
-##### Copy/Paste
-- Added same shortcut that is used for copy / pasting notes in Instrument Clip View to Automation View to copy / paste automation. While in the Automation Editor, Copy with `Learn + <>`. Paste with `Shift + Learn + <>`.
-
-### MIDI
-- Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
-  - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
-- Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Secti
-
-## c1.2.1 Chopin
-
-### Sound Engine
-
-- Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in song row view and the audio waveform renderer.
-
-## c1.3.0
-
-### Sound Engine
-- Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
-- Added a boss/roland style Dimension effect
-- Made grain much faster and updated controls
-- Added LPF to Mutable Instruments Reverb
-
-### User Interface
-
-#### <ins>Accessibility</ins>
-- Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
-  - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
-    - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
-  - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
+#### <ins>Favourites</ins>
+- Added a Favourites to Load Screens of different Filetypes displayed abote the QWERTY Keyboard.
 
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
@@ -177,7 +121,13 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ### MIDI
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
-- Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
+- Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Secti
+
+## c1.2.1 Chopin
+
+### Sound Engine
+
+- Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in song row view and the audio waveform renderer.
 
 ## c1.2.0 Chopin
 

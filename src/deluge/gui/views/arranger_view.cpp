@@ -103,7 +103,12 @@ ArrangerView::ArrangerView() {
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
-		stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+		if (stemExport.exportMixdown) {
+			stemExport.displayStemExportProgressOLED(StemExportType::MIXDOWN);
+		}
+		else {
+			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+		}
 		return;
 	}
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
@@ -258,7 +263,12 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					if (inCardRoutine) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
-					stemExport.startStemExportProcess(StemExportType::TRACK);
+					if (stemExport.exportMixdown) {
+						stemExport.startStemExportProcess(StemExportType::MIXDOWN);
+					}
+					else {
+						stemExport.startStemExportProcess(StemExportType::TRACK);
+					}
 					return ActionResult::DEALT_WITH;
 				}
 			}

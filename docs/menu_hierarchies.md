@@ -596,6 +596,9 @@ The Song menu contains the following menu hierarchy:
 		- Offline Rendering (OFFR)
 			- Disabled (OFF)
 			- Enabled (ON)
+		- Export Mixdown (MIXD)
+			- Disabled (OFF)
+			- Enabled (ON)
 </details>
 </details>
 
