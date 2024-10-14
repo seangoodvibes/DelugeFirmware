@@ -1680,6 +1680,8 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
   		- HPF (if Mutable is Selected)
 		- Pan
+		- HPF (if Mutable is selected)
+		- LPF (if Mutable is selected)
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
 

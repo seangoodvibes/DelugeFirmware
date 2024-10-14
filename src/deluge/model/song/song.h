@@ -397,6 +397,7 @@ public:
 	dsp::Reverb::Model model;
 	float reverbRoomSize;
 	float reverbHPF;
+	float reverbLPF;
 	float reverbDamp;
 	float reverbWidth;
 	int32_t reverbPan;

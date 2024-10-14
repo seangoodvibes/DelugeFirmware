@@ -174,6 +174,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbRoomSize = (float)30 / 50;
 	reverbDamp = (float)36 / 50;
 	reverbHPF = 0;
+	reverbLPF = (float)50 / 50;
 	reverbWidth = 1;
 	reverbPan = 0;
 	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
@@ -1147,16 +1148,19 @@ weAreInArrangementEditorOrInClipInstance:
 	uint32_t damping = AudioEngine::reverb.getDamping() * (uint32_t)2147483648u;
 	uint32_t width = AudioEngine::reverb.getWidth() * (uint32_t)2147483648u;
 	uint32_t hpf = AudioEngine::reverb.getHPF() * (uint32_t)2147483648u;
+	uint32_t lpf = AudioEngine::reverb.getLPF() * (uint32_t)2147483648u;
 
 	roomSize = std::min(roomSize, (uint32_t)2147483647);
 	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 	hpf = std::min(hpf, (uint32_t)2147483647);
+	lpf = std::min(lpf, (uint32_t)2147483647);
 
 	writer.writeAttribute("roomSize", roomSize);
 	writer.writeAttribute("dampening", damping);
 	writer.writeAttribute("width", width);
 	writer.writeAttribute("hpf", hpf);
+	writer.writeAttribute("lpf", lpf);
 	writer.writeAttribute("pan", AudioEngine::reverbPan);
 	writer.writeAttribute("model", util::to_underlying(model));
 	writer.writeOpeningTagEnd();
@@ -1371,6 +1375,10 @@ Error Song::readFromFile(Deserializer& reader) {
 					else if (!strcmp(tagName, "hpf")) {
 						reverbHPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
 						reader.exitTag("hpf");
+					}
+					else if (!strcmp(tagName, "lpf")) {
+						reverbLPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
+						reader.exitTag("lpf");
 					}
 					else if (!strcmp(tagName, "pan")) {
 						reverbPan = reader.readTagOrAttributeValueInt();
