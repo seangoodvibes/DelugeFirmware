@@ -424,7 +424,7 @@ Error StorageManager::openMidiCCLabelFile(FilePointer* filePointer) {
 	if (!filePointer->sclust) {
 		return Error::FILE_NOT_FOUND;
 	}
-	char const* firstTagName = "ccLabels";
+	char const* firstTagName = "midiDevice";
 	char const* altTagName = "";
 
 	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
@@ -446,12 +446,22 @@ Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, F
 	}
 
 	AudioEngine::logAction("readMidiCCLabelsFromFile 2");
-	error = midiInstrument->readCCLabelsFromFile(smDeserializer);
+
+	char const* tagName;
+
+	while (*(tagName = smDeserializer.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "ccLabels")) {
+			display->displayPopup("readCCLabelsFromFile");
+			error = midiInstrument->readCCLabelsFromFile(smDeserializer);
+		}
+		smDeserializer.exitTag();
+	}
 
 	FRESULT fileSuccess = activeDeserializer->closeFIL();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
+		display->displayPopup("failed");
 		D_PRINTLN("reading midi cc label file failed -  %s", name->get());
 		if (!fileSuccess) {
 			error = Error::SD_CARD;

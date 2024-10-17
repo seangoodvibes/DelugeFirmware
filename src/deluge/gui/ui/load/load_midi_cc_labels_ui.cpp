@@ -163,13 +163,13 @@ void LoadMidiCCLabelsUI::enterKeyPress() {
 
 	else {
 
-		if (currentLabelLoadError != Error::NONE) {
+	//	if (currentLabelLoadError != Error::NONE) {
 			currentLabelLoadError = performLoad();
 			if (currentLabelLoadError != Error::NONE) {
 				display->displayError(currentLabelLoadError);
 				return;
 			}
-		}
+	//	}
 
 		close();
 	}
@@ -217,6 +217,9 @@ Error LoadMidiCCLabelsUI::performLoad(bool doClone) {
 	                                                       &currentFileItem->filePointer, &enteredText, &currentDir);
 
 	if (error != Error::NONE) {
+
+		display->displayPopup("fail 3");
+
 		return error;
 	}
 
