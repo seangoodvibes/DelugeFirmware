@@ -27,6 +27,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "modulation/midi/label/midi_label.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
@@ -41,9 +42,6 @@ MIDIInstrument::MIDIInstrument()
       modKnobCCAssignments() {
 	modKnobMode = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
-	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
-		ccNames[i].clear();
-	}
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -331,16 +329,23 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
 
-		writer.writeOpeningTagBeginning("ccNames");
+		writer.writeOpeningTagBeginning("ccLabels");
+		if (midiLabelFileName.isEmpty()) {
+			writer.writeAttribute("fileName", "");
+		}
+		else {
+			writer.writeAttribute("fileName", midiLabelFileName.get());
+		}
 		for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
 			if (i != CC_EXTERNAL_MOD_WHEEL) {
+				MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(i);
 				char ccNumber[10];
 				intToString(i, ccNumber, 1);
-				if (ccNames[i].isEmpty()) {
-					writer.writeAttribute(ccNumber, "");
+				if (midiLabel) {
+					writer.writeAttribute(ccNumber, midiLabel->name.get());
 				}
 				else {
-					writer.writeAttribute(ccNumber, ccNames[i].get());
+					writer.writeAttribute(ccNumber, "");
 				}
 			}
 		}
@@ -409,8 +414,8 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "ccNames")) {
-		readCCNamesFromFile();
+	else if (!strcmp(tagName, "ccLabels")) {
+		readCCLabelsFromFile();
 	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
@@ -454,20 +459,31 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 	return Error::NONE;
 }
 
-Error MIDIInstrument::readCCNamesFromFile() {
+Error MIDIInstrument::readCCLabelsFromFile() {
 	int32_t cc = 0;
 	char const* tagName;
 	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		char ccNumber[10];
-		cc = stringToInt(tagName);
+		if (midiLabelFileName.isEmpty()) {
+			if (!strcmp(tagName, "fileName")) {
+				reader.readTagOrAttributeValueString(&midiLabelFileName);
+			}
+			else {
+				char ccNumber[10];
+				cc = stringToInt(tagName);
 
-		if (cc < 0 || cc >= kNumRealCCNumbers) {
+				if (cc < 0 || cc >= kNumRealCCNumbers) {
+					reader.exitTag();
+					continue;
+				}
+
+				midiLabelCollection.labels.setOrCreateLabelForCC(cc, reader.readTagOrAttributeValue());
+			}
+		}
+		else {
 			reader.exitTag();
 			continue;
 		}
-
-		ccNames[cc].concatenate(reader.readTagOrAttributeValue());
 
 		reader.exitTag();
 	}
@@ -1165,28 +1181,26 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 	}
 }
 
-// used with the renameMidiCCUI class to check if you're renaming a MIDI CC to the same name as
-// another midi CC
-int32_t MIDIInstrument::getCCFromName(String* name) {
-	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
-		if (ccNames[i].equalsCaseIrrespective(name)) {
-			return i;
-		}
-	}
-	return 255;
-}
-
 String* MIDIInstrument::getNameFromCC(int32_t cc) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		return &ccNames[cc];
+		MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(cc);
+
+		if (midiLabel) {
+			return &midiLabel->name;
+		}
 	}
-	else {
-		return nullptr;
-	}
+	return nullptr;
+
+	//	if (cc >= 0 && cc < kNumRealCCNumbers) {
+	//		return &ccNames[cc];
+	//	}
+	//	else {
+	//		return nullptr;
+	//	}
 }
 
 void MIDIInstrument::setNameForCC(int32_t cc, String* name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		ccNames[cc].set(name);
+		midiLabelCollection.labels.setOrCreateLabelForCC(cc, name->get());
 	}
 }

@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
+#include "modulation/midi/label/midi_label_collection.h"
 #include <array>
 
 class ModelStack;
@@ -47,10 +48,10 @@ public:
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 
 	// cc names
-	Error readCCNamesFromFile();
-	int32_t getCCFromName(String* name);
+	Error readCCLabelsFromFile();
 	String* getNameFromCC(int32_t cc);
 	void setNameForCC(int32_t cc, String* name);
+	String midiLabelFileName;
 
 	void sendMIDIPGM();
 
@@ -122,5 +123,5 @@ private:
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
-	String ccNames[kNumRealCCNumbers];
+	MIDILabelCollection midiLabelCollection;
 };

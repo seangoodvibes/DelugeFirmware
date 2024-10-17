@@ -107,18 +107,9 @@ void RenameMidiCCUI::enterKeyPress() {
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
 
-	// If actually changing it...
-	String* name = midiInstrument->getNameFromCC(cc);
-
-	if (name && !name->equalsCaseIrrespective(&enteredText)) {
-		// don't let user set a name that is a duplicate of another name that has been set for another cc
-		if (midiInstrument->getCCFromName(&enteredText) != 255) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
-			return;
-		}
-	}
 	midiInstrument->setNameForCC(cc, &enteredText);
 	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
+
 	exitUI();
 }
 
