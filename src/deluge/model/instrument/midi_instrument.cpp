@@ -415,7 +415,7 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
 	else if (!strcmp(tagName, "ccLabels")) {
-		readCCLabelsFromFile();
+		readCCLabelsFromFile(reader);
 	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
@@ -459,10 +459,9 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 	return Error::NONE;
 }
 
-Error MIDIInstrument::readCCLabelsFromFile() {
+Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
 	int32_t cc = 0;
 	char const* tagName;
-	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (midiLabelFileName.isEmpty()) {
 			if (!strcmp(tagName, "fileName")) {

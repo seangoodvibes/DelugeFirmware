@@ -418,6 +418,51 @@ paramManagersMissing:
 	return Error::NONE;
 }
 
+Error StorageManager::openMidiCCLabelFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openMidiCCLabelFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "ccLabels";
+	char const* altTagName = "";
+
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+// Returns error status
+Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, String* name,
+                                               String* dirPath) {
+
+	AudioEngine::logAction("loadMidiCCLabelsFromFile 1");
+	D_PRINTLN("opening midi cc label file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
+	          (int32_t)filePointer->sclust);
+
+	Error error = openMidiCCLabelFile(filePointer);
+	if (error != Error::NONE) {
+		D_PRINTLN("opening midi cc label file failed -  %s", name->get());
+		return error;
+	}
+
+	AudioEngine::logAction("readMidiCCLabelsFromFile 2");
+	error = midiInstrument->readCCLabelsFromFile(smDeserializer);
+
+	FRESULT fileSuccess = activeDeserializer->closeFIL();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		D_PRINTLN("reading midi cc label file failed -  %s", name->get());
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
+	}
+
+	return Error::NONE;
+}
+
 /**
  * Special function to read a synth preset into a sound drum
  */

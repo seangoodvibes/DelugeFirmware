@@ -20,6 +20,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_midi_cc_labels_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
@@ -28,6 +29,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
 #include "io/midi/midi_engine.h"
@@ -383,27 +385,32 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-		OutputType newOutputType;
-		if (b == SYNTH) {
-			newOutputType = OutputType::SYNTH;
+		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
+			openUI(&loadMidiCCLabelsUI);
 		}
-		else if (b == KIT) {
-			newOutputType = OutputType::KIT;
-		}
-		else if (b == MIDI) {
-			newOutputType = OutputType::MIDI_OUT;
-		}
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		Output* output = clip->output;
-		OutputType oldOutputType = output->type;
-		Instrument* instrument = (Instrument*)output;
-		// don't allow clip type change if clip is not empty
-		// only impose this restriction if switching to/from kit clip
-		if (!((oldOutputType != newOutputType)
-		      && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
-		      && (!clip->isEmpty() || !clip->output->isEmpty()))) {
-			loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, clip);
-			openUI(&loadInstrumentPresetUI);
+		else {
+			OutputType newOutputType;
+			if (b == SYNTH) {
+				newOutputType = OutputType::SYNTH;
+			}
+			else if (b == KIT) {
+				newOutputType = OutputType::KIT;
+			}
+			else if (b == MIDI) {
+				newOutputType = OutputType::MIDI_OUT;
+			}
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			Output* output = clip->output;
+			OutputType oldOutputType = output->type;
+			Instrument* instrument = (Instrument*)output;
+			// don't allow clip type change if clip is not empty
+			// only impose this restriction if switching to/from kit clip
+			if (!((oldOutputType != newOutputType)
+			      && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+			      && (!clip->isEmpty() || !clip->output->isEmpty()))) {
+				loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, clip);
+				openUI(&loadInstrumentPresetUI);
+			}
 		}
 	}
 

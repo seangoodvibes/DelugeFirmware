@@ -48,7 +48,7 @@ public:
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 
 	// cc names
-	Error readCCLabelsFromFile();
+	Error readCCLabelsFromFile(Deserializer& reader);
 	String* getNameFromCC(int32_t cc);
 	void setNameForCC(int32_t cc, String* name);
 	String midiLabelFileName;
