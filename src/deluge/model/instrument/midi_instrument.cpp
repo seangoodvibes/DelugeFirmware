@@ -329,27 +329,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
 
-		writer.writeOpeningTagBeginning("ccLabels");
-		if (midiLabelFileName.isEmpty()) {
-			writer.writeAttribute("fileName", "");
-		}
-		else {
-			writer.writeAttribute("fileName", midiLabelFileName.get());
-		}
-		for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
-			if (i != CC_EXTERNAL_MOD_WHEEL) {
-				MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(i);
-				char ccNumber[10];
-				intToString(i, ccNumber, 1);
-				if (midiLabel) {
-					writer.writeAttribute(ccNumber, midiLabel->name.get());
-				}
-				else {
-					writer.writeAttribute(ccNumber, "");
-				}
-			}
-		}
-		writer.closeTag();
+		writeMidiCCLabelsToFile(writer);
 	}
 	else {
 		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
@@ -363,6 +343,32 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 	return true;
+}
+
+void MIDIInstrument::writeMidiCCLabelsToFile(Serializer& writer, bool writeFileName) {
+	writer.writeOpeningTagBeginning("ccLabels");
+	if (writeFileName) {
+		if (midiLabelFileName.isEmpty()) {
+			writer.writeAttribute("fileName", "");
+		}
+		else {
+			writer.writeAttribute("fileName", midiLabelFileName.get());
+		}
+	}
+	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+		if (i != CC_EXTERNAL_MOD_WHEEL) {
+			MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(i);
+			char ccNumber[10];
+			intToString(i, ccNumber, 1);
+			if (midiLabel) {
+				writer.writeAttribute(ccNumber, midiLabel->name.get());
+			}
+			else {
+				writer.writeAttribute(ccNumber, "");
+			}
+		}
+	}
+	writer.closeTag();
 }
 
 bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
@@ -1198,13 +1204,6 @@ String* MIDIInstrument::getNameFromCC(int32_t cc) {
 		}
 	}
 	return nullptr;
-
-	//	if (cc >= 0 && cc < kNumRealCCNumbers) {
-	//		return &ccNames[cc];
-	//	}
-	//	else {
-	//		return nullptr;
-	//	}
 }
 
 void MIDIInstrument::setNameForCC(int32_t cc, String* name) {

@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_midi_cc_labels_ui.h"
+#include "gui/ui/save/save_midi_cc_labels_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
@@ -374,7 +375,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
-		if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
+		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
+			openUI(&saveMidiCCLabelsUI);
+		}
+		else if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
 		    || b == KIT && getCurrentOutputType() == OutputType::KIT
 		    || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
 			openUI(&saveInstrumentPresetUI);

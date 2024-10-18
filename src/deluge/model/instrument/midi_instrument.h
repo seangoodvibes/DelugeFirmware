@@ -49,6 +49,7 @@ public:
 
 	// cc names
 	Error readCCLabelsFromFile(Deserializer& reader, bool readLabels = false);
+	void writeMidiCCLabelsToFile(Serializer& writer, bool writeFileName = true);
 	String* getNameFromCC(int32_t cc);
 	void setNameForCC(int32_t cc, String* name);
 	String midiLabelFileName;
