@@ -432,16 +432,15 @@ Error StorageManager::openMidiCCLabelFile(FilePointer* filePointer) {
 }
 
 // Returns error status
-Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, String* name,
-                                               String* dirPath) {
+Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, FilePointer* filePointer,
+                                               String* fileName, bool updateFileName) {
 
 	AudioEngine::logAction("loadMidiCCLabelsFromFile 1");
-	D_PRINTLN("opening midi cc label file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
-	          (int32_t)filePointer->sclust);
+	D_PRINTLN("opening midi cc label file -  %s %s  from FP  %lu", fileName->get(), (int32_t)filePointer->sclust);
 
 	Error error = openMidiCCLabelFile(filePointer);
 	if (error != Error::NONE) {
-		D_PRINTLN("opening midi cc label file failed -  %s", name->get());
+		D_PRINTLN("opening midi cc label file failed -  %s", fileName->get());
 		return error;
 	}
 
@@ -452,7 +451,7 @@ Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, F
 	while (*(tagName = smDeserializer.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "ccLabels")) {
 			display->displayPopup("readCCLabelsFromFile");
-			error = midiInstrument->readCCLabelsFromFile(smDeserializer);
+			error = midiInstrument->readCCLabelsFromFile(smDeserializer, true);
 		}
 		smDeserializer.exitTag();
 	}
@@ -462,12 +461,15 @@ Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, F
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		display->displayPopup("failed");
-		D_PRINTLN("reading midi cc label file failed -  %s", name->get());
+		D_PRINTLN("reading midi cc label file failed -  %s", fileName->get());
 		if (!fileSuccess) {
 			error = Error::SD_CARD;
 		}
 
 		return error;
+	}
+	else if (updateFileName) {
+		midiInstrument->midiLabelFileName.set(fileName->get());
 	}
 
 	return Error::NONE;

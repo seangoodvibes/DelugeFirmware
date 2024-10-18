@@ -163,13 +163,13 @@ void LoadMidiCCLabelsUI::enterKeyPress() {
 
 	else {
 
-	//	if (currentLabelLoadError != Error::NONE) {
-			currentLabelLoadError = performLoad();
-			if (currentLabelLoadError != Error::NONE) {
-				display->displayError(currentLabelLoadError);
-				return;
-			}
-	//	}
+		//	if (currentLabelLoadError != Error::NONE) {
+		currentLabelLoadError = performLoad();
+		if (currentLabelLoadError != Error::NONE) {
+			display->displayError(currentLabelLoadError);
+			return;
+		}
+		//	}
 
 		close();
 	}
@@ -213,8 +213,14 @@ Error LoadMidiCCLabelsUI::performLoad(bool doClone) {
 		return Error::NONE;
 	}
 
+	String fileName;
+	fileName.set(currentDir.get());
+	fileName.concatenate("/");
+	fileName.concatenate(enteredText.get());
+	fileName.concatenate(".XML");
+
 	Error error = StorageManager::loadMidiCCLabelsFromFile((MIDIInstrument*)getCurrentOutput(),
-	                                                       &currentFileItem->filePointer, &enteredText, &currentDir);
+	                                                       &currentFileItem->filePointer, &fileName);
 
 	if (error != Error::NONE) {
 

@@ -459,13 +459,19 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 	return Error::NONE;
 }
 
-Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
+Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader, bool readLabels) {
+	Error error = Error::FILE_UNREADABLE;
+	reloadMidiLabels = false;
+
 	int32_t cc = 0;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (midiLabelFileName.isEmpty()) {
+		if (midiLabelFileName.isEmpty() || readLabels) {
 			if (!strcmp(tagName, "fileName")) {
 				reader.readTagOrAttributeValueString(&midiLabelFileName);
+				if (!readLabels) {
+					reloadMidiLabels = true;
+				}
 			}
 			else {
 				char ccNumber[10];
@@ -477,9 +483,12 @@ Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
 				}
 
 				midiLabelCollection.labels.setOrCreateLabelForCC(cc, reader.readTagOrAttributeValue());
+
+				error = Error::NONE;
 			}
 		}
 		else {
+			reloadMidiLabels = true;
 			reader.exitTag();
 			continue;
 		}
@@ -488,7 +497,7 @@ Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
 	}
 
 	editedByUser = true;
-	return Error::NONE;
+	return error;
 }
 
 // This has now mostly been replaced by an equivalent-ish function in InstrumentClip.

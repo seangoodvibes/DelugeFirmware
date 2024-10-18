@@ -354,7 +354,8 @@ Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType output
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
 Error openMidiCCLabelFile(FilePointer* filePointer);
-Error loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, String* name, String* dirPath);
+Error loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, String* fileName,
+                               bool updateFileName = true);
 
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
