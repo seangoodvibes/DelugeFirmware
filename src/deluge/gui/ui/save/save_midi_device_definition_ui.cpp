@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/save/save_midi_cc_labels_ui.h"
+#include "gui/ui/save/save_midi_device_definition_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/l10n/l10n.h"
@@ -40,12 +40,12 @@
 
 using namespace deluge;
 
-SaveMidiCCLabelsUI saveMidiCCLabelsUI{};
+SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
 
-SaveMidiCCLabelsUI::SaveMidiCCLabelsUI() {
+SaveMidiDeviceDefinitionUI::SaveMidiDeviceDefinitionUI() {
 }
 
-bool SaveMidiCCLabelsUI::opened() {
+bool SaveMidiDeviceDefinitionUI::opened() {
 	if (getRootUI() != &instrumentClipView || getCurrentOutputType() != OutputType::MIDI_OUT) {
 		return false;
 	}
@@ -60,11 +60,11 @@ doReturnFalse:
 
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 
-	enteredText.set(&midiInstrument->midiLabelFileName);
+	enteredText.set(&midiInstrument->midiDeviceDefinitionFileName);
 	enteredTextEditPos = enteredText.getLength();
 	currentFolderIsEmpty = false;
 
-	char const* defaultDir = "MIDI/Labels";
+	char const* defaultDir = "MIDI/DEVICES";
 
 	// is empty we just start with nothing. currentSlot etc remain set to "zero" from before
 	if (enteredText.isEmpty()) {
@@ -88,7 +88,7 @@ doReturnFalse:
 		currentDir.set(dir);
 	}
 
-	title = "Save midi labels";
+	title = "Save midi device";
 	fileIcon = deluge::hid::display::OLED::midiIcon;
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 1;
@@ -105,7 +105,7 @@ gotError:
 	return true;
 }
 
-bool SaveMidiCCLabelsUI::performSave(bool mayOverwrite) {
+bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
@@ -146,24 +146,26 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	// insert saving code here
-
 	Serializer& writer = GetSerializer();
-	writer.writeOpeningTagBeginning("midiDevice", true);
+
+	writer.writeOpeningTagBeginning("midiDevice");
+	writer.writeOpeningTagEnd();
+
 	instrumentToSave->writeMidiCCLabelsToFile(writer, false);
 
-	char const* endString = "\n</midiDevice>\n";
+	writer.writeClosingTag("midiDevice");
 
-	error = writer.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	writer.closeFileAfterWriting();
+
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;
 	}
 
-	// Give the Instrument in memory its new slot
-	instrumentToSave->midiLabelFileName.set(filePath.get());
+	// Link the instrument with the definition file saved
+	instrumentToSave->midiDeviceDefinitionFileName.set(filePath.get());
 
-	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
+	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_SAVED));
 	close();
 	return true;
 }

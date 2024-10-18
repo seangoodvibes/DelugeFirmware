@@ -21,9 +21,9 @@
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 
-class LoadMidiCCLabelsUI final : public LoadUI {
+class LoadMidiDeviceDefinitionUI final : public LoadUI {
 public:
-	LoadMidiCCLabelsUI();
+	LoadMidiDeviceDefinitionUI();
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool opened();
@@ -44,16 +44,16 @@ public:
 	Error performLoad(bool doClone = false);
 
 	// ui
-	UIType getUIType() { return UIType::LOAD_MIDI_CC_LABELS; }
-	const char* getName() { return "load_midi_cc_labels"; }
+	UIType getUIType() { return UIType::LOAD_MIDI_DEVICE; }
+	const char* getName() { return "load_midi_device"; }
 
 protected:
 	void folderContentsReady(int32_t entryDirection);
 	void enterKeyPress();
 
 private:
-	Error setupForMidiLabels();
+	Error setupForLoadingMidiDeviceDefinition();
 	Error currentLabelLoadError = Error::NONE;
 };
 
-extern LoadMidiCCLabelsUI loadMidiCCLabelsUI;
+extern LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI;

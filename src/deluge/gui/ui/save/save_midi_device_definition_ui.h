@@ -19,11 +19,10 @@
 #include "gui/ui/save/save_ui.h"
 
 class Song;
-class Instrument;
 
-class SaveMidiCCLabelsUI final : public SaveUI {
+class SaveMidiDeviceDefinitionUI final : public SaveUI {
 public:
-	SaveMidiCCLabelsUI();
+	SaveMidiDeviceDefinitionUI();
 
 	bool opened();
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
@@ -34,10 +33,7 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
-	const char* getName() { return "save_midi_cc_labels_ui"; }
-
-protected:
-	// int32_t arrivedInNewFolder(int32_t direction);
+	const char* getName() { return "save_midi_device_definition_ui"; }
 };
 
-extern SaveMidiCCLabelsUI saveMidiCCLabelsUI;
+extern SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI;

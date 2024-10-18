@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/load/load_midi_cc_labels_ui.h"
+#include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/root_ui.h"
@@ -33,17 +33,17 @@
 
 using namespace deluge;
 
-LoadMidiCCLabelsUI loadMidiCCLabelsUI{};
+LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI{};
 
-LoadMidiCCLabelsUI::LoadMidiCCLabelsUI() {
+LoadMidiDeviceDefinitionUI::LoadMidiDeviceDefinitionUI() {
 }
 
-bool LoadMidiCCLabelsUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+bool LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;
 }
 
-bool LoadMidiCCLabelsUI::opened() {
+bool LoadMidiDeviceDefinitionUI::opened() {
 	if (getRootUI() != &instrumentClipView || getCurrentOutputType() != OutputType::MIDI_OUT) {
 		return false;
 	}
@@ -56,10 +56,10 @@ bool LoadMidiCCLabelsUI::opened() {
 
 	actionLogger.deleteAllLogs();
 
-	error = setupForMidiLabels(); // Sets currentDir.
+	error = setupForLoadingMidiDeviceDefinition(); // Sets currentDir.
 	if (error != Error::NONE) {
 		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on
-		                                 // the pads, in call to setupForMidiLabels().
+		                                 // the pads, in call to setupForLoadingMidiDeviceDefinition().
 		display->displayError(error);
 		return false;
 	}
@@ -70,13 +70,13 @@ bool LoadMidiCCLabelsUI::opened() {
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
-Error LoadMidiCCLabelsUI::setupForMidiLabels() {
+Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 	// reset
 	fileIconPt2 = nullptr;
 	fileIconPt2Width = 0;
 
 	if (display->haveOLED()) {
-		title = "Load midi labels";
+		title = "Load midi device";
 		fileIcon = deluge::hid::display::OLED::midiIcon;
 		fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 		fileIconPt2Width = 1;
@@ -84,21 +84,21 @@ Error LoadMidiCCLabelsUI::setupForMidiLabels() {
 
 	enteredText.clear();
 
-	char const* defaultDir = "MIDI/Labels";
+	char const* defaultDir = "MIDI/DEVICES";
 
 	String searchFilename;
 
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 
 	// is empty we just start with nothing. currentSlot etc remain set to "zero" from before
-	if (midiInstrument->midiLabelFileName.isEmpty()) {
+	if (midiInstrument->midiDeviceDefinitionFileName.isEmpty()) {
 		Error error = currentDir.set(defaultDir);
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
 	else {
-		char const* fullPath = midiInstrument->midiLabelFileName.get();
+		char const* fullPath = midiInstrument->midiDeviceDefinitionFileName.get();
 
 		// locate last occurence of "/" in string
 		char* filename = strrchr((char*)fullPath, '/');
@@ -139,10 +139,10 @@ Error LoadMidiCCLabelsUI::setupForMidiLabels() {
 	return Error::NONE;
 }
 
-void LoadMidiCCLabelsUI::folderContentsReady(int32_t entryDirection) {
+void LoadMidiDeviceDefinitionUI::folderContentsReady(int32_t entryDirection) {
 }
 
-void LoadMidiCCLabelsUI::enterKeyPress() {
+void LoadMidiDeviceDefinitionUI::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
@@ -163,19 +163,19 @@ void LoadMidiCCLabelsUI::enterKeyPress() {
 
 	else {
 
-		//	if (currentLabelLoadError != Error::NONE) {
 		currentLabelLoadError = performLoad();
 		if (currentLabelLoadError != Error::NONE) {
 			display->displayError(currentLabelLoadError);
 			return;
 		}
-		//	}
+
+		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED));
 
 		close();
 	}
 }
 
-ActionResult LoadMidiCCLabelsUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -190,7 +190,7 @@ ActionResult LoadMidiCCLabelsUI::buttonAction(deluge::hid::Button b, bool on, bo
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult LoadMidiCCLabelsUI::padAction(int32_t x, int32_t y, int32_t on) {
+ActionResult LoadMidiDeviceDefinitionUI::padAction(int32_t x, int32_t y, int32_t on) {
 	if (x < kDisplayWidth) {
 		return LoadUI::padAction(x, y, on);
 	}
@@ -200,7 +200,7 @@ ActionResult LoadMidiCCLabelsUI::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 }
 
-Error LoadMidiCCLabelsUI::performLoad(bool doClone) {
+Error LoadMidiDeviceDefinitionUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {

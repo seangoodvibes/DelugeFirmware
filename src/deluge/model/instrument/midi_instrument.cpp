@@ -329,7 +329,10 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
 
+		writer.writeOpeningTagBeginning("midiDevice");
+		writer.writeOpeningTagEnd();
 		writeMidiCCLabelsToFile(writer);
+		writer.writeClosingTag("midiDevice");
 	}
 	else {
 		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
@@ -348,11 +351,11 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 void MIDIInstrument::writeMidiCCLabelsToFile(Serializer& writer, bool writeFileName) {
 	writer.writeOpeningTagBeginning("ccLabels");
 	if (writeFileName) {
-		if (midiLabelFileName.isEmpty()) {
+		if (midiDeviceDefinitionFileName.isEmpty()) {
 			writer.writeAttribute("fileName", "");
 		}
 		else {
-			writer.writeAttribute("fileName", midiLabelFileName.get());
+			writer.writeAttribute("fileName", midiDeviceDefinitionFileName.get());
 		}
 	}
 	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
@@ -420,8 +423,14 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "ccLabels")) {
-		readCCLabelsFromFile(reader);
+	else if (!strcmp(tagName, "midiDevice")) {
+		// step into any subtags
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "ccLabels")) {
+				readCCLabelsFromFile(reader);
+			}
+			reader.exitTag();
+		}
 	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
@@ -472,9 +481,9 @@ Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader, bool readLabels
 	int32_t cc = 0;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (midiLabelFileName.isEmpty() || readLabels) {
+		if (midiDeviceDefinitionFileName.isEmpty() || readLabels) {
 			if (!strcmp(tagName, "fileName")) {
-				reader.readTagOrAttributeValueString(&midiLabelFileName);
+				reader.readTagOrAttributeValueString(&midiDeviceDefinitionFileName);
 				if (!readLabels) {
 					reloadMidiLabels = true;
 				}

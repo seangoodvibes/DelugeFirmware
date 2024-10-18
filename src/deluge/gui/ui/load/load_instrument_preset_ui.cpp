@@ -1025,9 +1025,9 @@ giveUsedError:
 		MIDIInstrument* midiInstrument = (MIDIInstrument*)newInstrument;
 		if (midiInstrument->reloadMidiLabels) {
 			FilePointer tempfp;
-			bool fileExists = StorageManager::fileExists(midiInstrument->midiLabelFileName.get(), &tempfp);
+			bool fileExists = StorageManager::fileExists(midiInstrument->midiDeviceDefinitionFileName.get(), &tempfp);
 			if (fileExists) {
-				StorageManager::loadMidiCCLabelsFromFile(midiInstrument, &tempfp, &midiInstrument->midiLabelFileName,
+				StorageManager::loadMidiCCLabelsFromFile(midiInstrument, &tempfp, &midiInstrument->midiDeviceDefinitionFileName,
 				                                         false);
 			}
 		}

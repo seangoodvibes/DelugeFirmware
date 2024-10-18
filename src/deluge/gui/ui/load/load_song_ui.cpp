@@ -525,10 +525,10 @@ swapDone:
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
 			if (midiInstrument->reloadMidiLabels) {
 				FilePointer tempfp;
-				bool fileExists = StorageManager::fileExists(midiInstrument->midiLabelFileName.get(), &tempfp);
+				bool fileExists = StorageManager::fileExists(midiInstrument->midiDeviceDefinitionFileName.get(), &tempfp);
 				if (fileExists) {
 					StorageManager::loadMidiCCLabelsFromFile(midiInstrument, &tempfp,
-					                                         &midiInstrument->midiLabelFileName, false);
+					                                         &midiInstrument->midiDeviceDefinitionFileName, false);
 				}
 			}
 		}

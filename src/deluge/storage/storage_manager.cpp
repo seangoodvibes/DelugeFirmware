@@ -450,7 +450,6 @@ Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, F
 
 	while (*(tagName = smDeserializer.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "ccLabels")) {
-			display->displayPopup("readCCLabelsFromFile");
 			error = midiInstrument->readCCLabelsFromFile(smDeserializer, true);
 		}
 		smDeserializer.exitTag();
@@ -460,7 +459,6 @@ Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, F
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		display->displayPopup("failed");
 		D_PRINTLN("reading midi cc label file failed -  %s", fileName->get());
 		if (!fileSuccess) {
 			error = Error::SD_CARD;
@@ -469,7 +467,7 @@ Error StorageManager::loadMidiCCLabelsFromFile(MIDIInstrument* midiInstrument, F
 		return error;
 	}
 	else if (updateFileName) {
-		midiInstrument->midiLabelFileName.set(fileName->get());
+		midiInstrument->midiDeviceDefinitionFileName.set(fileName->get());
 	}
 
 	return Error::NONE;

@@ -215,7 +215,7 @@ enum class UIType : uint8_t {
 	TIMELINE,
 	RENAME_CLIP,
 	RENAME_MIDI_CC,
-	LOAD_MIDI_CC_LABELS,
+	LOAD_MIDI_DEVICE,
 	NONE = 255,
 };
 

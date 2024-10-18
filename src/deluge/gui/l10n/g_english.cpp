@@ -253,6 +253,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ERROR_LOADING_SONG, "Error loading song"},
         {STRING_FOR_DUPLICATE_NAMES, "Duplicate names"},
         {STRING_FOR_PRESET_SAVED, "Preset saved"},
+        {STRING_FOR_MIDI_DEVICE_SAVED, "Midi Device saved"},
+        {STRING_FOR_MIDI_DEVICE_LOADED, "Midi Device loaded"},
         {STRING_FOR_SAME_NAME, "Another instrument in the song has the same name / number"},
         {STRING_FOR_SONG_SAVED, "Song saved"},
         {STRING_FOR_ERROR_MOVING_TEMP_FILES, "Song saved, but error moving temp files"},
