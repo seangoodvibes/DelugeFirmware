@@ -626,19 +626,42 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeSyncTypeToFile(currentSong, "syncType", delay.syncType, true);
 	writer.closeTag();
 
+	writeMidiKnobsToFile(writer);
+
+	// Sidechain (renamed from "compressor" from the official firmware)
+	writer.writeOpeningTagBeginning("sidechain");
+	writer.writeAttribute("attack", sidechain.attack);
+	writer.writeAttribute("release", sidechain.release);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel, true);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType, true);
+	writer.closeTag();
+
+	// Audio compressor (this section is all new so we write it at the end)
+	writer.writeOpeningTagBeginning("audioCompressor");
+	writer.writeAttribute("attack", compressor.getAttack());
+	writer.writeAttribute("release", compressor.getRelease());
+	writer.writeAttribute("thresh", compressor.getThreshold());
+	writer.writeAttribute("ratio", compressor.getRatio());
+	writer.writeAttribute("compHPF", compressor.getSidechain());
+	writer.writeAttribute("compBlend", compressor.getBlend());
+	writer.closeTag();
+}
+
+void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer) {
 	// MIDI knobs
 	if (midiKnobArray.getNumElements()) {
 		writer.writeArrayStart("midiKnobs");
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
 			writer.writeOpeningTagBeginning("midiKnob", true);
-			knob->midiInput.writeAttributesToFile(
-			    writer,
-			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
+			// Writes channel and CC, but not device - we do that below.
+			knob->midiInput.writeAttributesToFile(writer, MIDI_MESSAGE_CC);
 			writer.writeAttribute("relative", knob->relative);
 			writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedParamKind_,
 			                                                                knob->paramDescriptor.getJustTheParam()));
-			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
+			// TODO: this only applies to Sounds
+			if (!knob->paramDescriptor.isJustAParam()) {
 				writer.writeAttribute("patchAmountFromSource",
 				                      sourceToString(knob->paramDescriptor.getTopLevelSource()));
 
@@ -661,25 +684,6 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 		}
 		writer.writeArrayEnding("midiKnobs");
 	}
-
-	// Sidechain (renamed from "compressor" from the official firmware)
-	writer.writeOpeningTagBeginning("sidechain");
-	writer.writeAttribute("attack", sidechain.attack);
-	writer.writeAttribute("release", sidechain.release);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel, true);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType, true);
-	writer.closeTag();
-
-	// Audio compressor (this section is all new so we write it at the end)
-	writer.writeOpeningTagBeginning("audioCompressor");
-	writer.writeAttribute("attack", compressor.getAttack());
-	writer.writeAttribute("release", compressor.getRelease());
-	writer.writeAttribute("thresh", compressor.getThreshold());
-	writer.writeAttribute("ratio", compressor.getRatio());
-	writer.writeAttribute("compHPF", compressor.getSidechain());
-	writer.writeAttribute("compBlend", compressor.getBlend());
-	writer.closeTag();
 }
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
@@ -945,74 +949,7 @@ doReadPatchedParam:
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
-		reader.match('[');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
-
-				MIDIDevice* device = nullptr;
-				uint8_t channel;
-				uint8_t ccNumber;
-				bool relative;
-				uint8_t p = params::GLOBAL_NONE;
-				PatchSource s = PatchSource::NOT_AVAILABLE;
-				PatchSource s2 = PatchSource::NOT_AVAILABLE;
-
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "device")) {
-						device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
-					}
-					else if (!strcmp(tagName, "channel")) {
-						channel = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "ccNumber")) {
-						ccNumber = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "relative")) {
-						relative = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "controlsParam")) {
-						// if the unpatched kind for the current mod controllable is sound then we also want to check
-						// against patched params. Otherwise skip them to avoid a bug from patched volume params having
-						// the same name in files as unpatched global volumes
-						p = params::fileStringToParam(unpatchedParamKind_, reader.readTagOrAttributeValue(),
-						                              unpatchedParamKind_
-						                                  == deluge::modulation::params::Kind::UNPATCHED_SOUND);
-					}
-					else if (!strcmp(tagName, "patchAmountFromSource")) {
-						s = stringToSource(reader.readTagOrAttributeValue());
-					}
-					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
-						s2 = stringToSource(reader.readTagOrAttributeValue());
-					}
-					reader.exitTag();
-				}
-				reader.match('}'); // close value object.
-				reader.match('}'); // close box.
-
-				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
-					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
-					if (newKnob) {
-						newKnob->midiInput.device = device;
-						newKnob->midiInput.channelOrZone = channel;
-						newKnob->midiInput.noteOrCC = ccNumber;
-						newKnob->relative = relative;
-
-						if (s == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamOnly(p);
-						}
-						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
-						}
-						else {
-							newKnob->paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
-						}
-					}
-				}
-			}
-			reader.exitTag();
-		}
-		reader.match(']'); // close array.
-		reader.exitTag("midiKnobs");
+		readMidiKnobsFromFile(reader);
 	}
 
 	else {
@@ -1020,6 +957,78 @@ doReadPatchedParam:
 	}
 
 	return Error::NONE;
+}
+
+void ModControllableAudio::readMidiKnobsFromFile(Deserializer& reader) {
+	const char* tagName;
+	reader.match('[');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
+
+			MIDIDevice* device = nullptr;
+			uint8_t channel;
+			uint8_t ccNumber;
+			bool relative;
+			uint8_t p = params::GLOBAL_NONE;
+			PatchSource s = PatchSource::NOT_AVAILABLE;
+			PatchSource s2 = PatchSource::NOT_AVAILABLE;
+
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "device")) {
+					device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+				}
+				else if (!strcmp(tagName, "channel")) {
+					channel = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "ccNumber")) {
+					ccNumber = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "relative")) {
+					relative = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "controlsParam")) {
+					// if the unpatched kind for the current mod controllable is sound then we also want to check
+					// against patched params. Otherwise skip them to avoid a bug from patched volume params having
+					// the same name in files as unpatched global volumes
+					p = params::fileStringToParam(unpatchedParamKind_, reader.readTagOrAttributeValue(),
+					                              unpatchedParamKind_
+					                                  == deluge::modulation::params::Kind::UNPATCHED_SOUND);
+				}
+				else if (!strcmp(tagName, "patchAmountFromSource")) {
+					s = stringToSource(reader.readTagOrAttributeValue());
+				}
+				else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
+					s2 = stringToSource(reader.readTagOrAttributeValue());
+				}
+				reader.exitTag();
+			}
+			reader.match('}'); // close value object.
+			reader.match('}'); // close box.
+
+			if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
+				MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
+				if (newKnob) {
+					newKnob->midiInput.device = device;
+					newKnob->midiInput.channelOrZone = channel;
+					newKnob->midiInput.noteOrCC = ccNumber;
+					newKnob->relative = relative;
+
+					if (s == PatchSource::NOT_AVAILABLE) {
+						newKnob->paramDescriptor.setToHaveParamOnly(p);
+					}
+					else if (s2 == PatchSource::NOT_AVAILABLE) {
+						newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
+					}
+					else {
+						newKnob->paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+					}
+				}
+			}
+		}
+		reader.exitTag();
+	}
+	reader.match(']'); // close array.
+	reader.exitTag("midiKnobs");
 }
 
 ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* knob,

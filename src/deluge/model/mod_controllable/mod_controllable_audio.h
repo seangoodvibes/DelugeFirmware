@@ -54,8 +54,10 @@ public:
 	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
+	void writeMidiKnobsToFile(Serializer& writer);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, Song* song);
+	void readMidiKnobsFromFile(Deserializer& reader);				  
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
