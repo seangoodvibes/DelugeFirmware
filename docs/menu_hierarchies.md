@@ -338,6 +338,12 @@ NOTE: These options can change depending on how your default resolution is set
 		- Conditional (COND)
 		- Enabled (ON)
 		- Disabled (OFF)
+	- Threshold Recording (THRE)
+		- Mode
+			- Disabled (OFF)
+			- Low
+			- Medium
+			- High
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
@@ -558,7 +564,6 @@ The Song menu contains the following menu hierarchy:
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
 <details><summary>Active Scales</summary>
-
 	- Major (MAJO)
 	- Minor (MINO)
 	- Dorian (DORI)
