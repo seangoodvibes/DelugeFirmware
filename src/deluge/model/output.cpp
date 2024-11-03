@@ -55,7 +55,7 @@ Output::~Output() {
 
 Clip* Output::getClipFromName(String* name) {
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
-		if (clip->output == this && clip->clipName.equalsCaseIrrespective(name)) {
+		if (clip->output == this && clip->name.equalsCaseIrrespective(name)) {
 			return clip;
 		}
 	}

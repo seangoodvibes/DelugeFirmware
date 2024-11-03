@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
+#include "modulation/midi/label/midi_label_collection.h"
 #include <array>
+#include <string_view>
 
 class ModelStack;
 class ModelStackWithThreeMainThings;
@@ -45,6 +47,23 @@ public:
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
 	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
+
+	// midi device definition file
+	/// reading
+	Error readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong);
+	void readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader);
+	Error readCCLabelsFromFile(Deserializer& reader);
+	/// writing
+	void writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong);
+	void writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer);
+	void writeCCLabelsToFile(Serializer& writer);
+	/// getting / updating cc labels
+	std::string_view getNameFromCC(int32_t cc);
+	void setNameForCC(int32_t cc, std::string_view name);
+	/// definition file
+	String deviceDefinitionFileName;
+	bool loadDeviceDefinitionFile = false;
+
 	void sendMIDIPGM();
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
@@ -116,5 +135,7 @@ private:
 	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
-	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
+	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = nullptr);
+
+	MIDILabelCollection midiLabelCollection;
 };
