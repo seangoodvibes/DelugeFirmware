@@ -1745,11 +1745,6 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 			return ActionResult::DEALT_WITH;
 		}
 	}
-	if (onArrangerView) {
-		if (b == CLIP_VIEW) {
-			return ActionResult::DEALT_WITH;
-		}
-	}
 
 	OutputType outputType = clip->output->type;
 
@@ -1946,6 +1941,9 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 		}
 		if (isAudioClip) {
 			changeRootUI(&audioClipView);
+		}
+		else if (onArrangerView) {
+			changeRootUI(&arrangerView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);

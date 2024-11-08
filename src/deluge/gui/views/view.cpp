@@ -1530,6 +1530,7 @@ void View::setModLedStates() {
 			case UIType::AUTOMATION:
 				if (automationSubType == AutomationSubType::ARRANGER) {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
+					indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 				}
 				break;
 			case UIType::PERFORMANCE_SESSION:

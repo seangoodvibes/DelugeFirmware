@@ -65,9 +65,9 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	bool arrangerView = !clipMinder && (currentSong->lastClipInstanceEnteredStartPos != -1);
 	RootUI* rootUI = getRootUI();
 
-	// Clip or Song button
+	// Clip
 	// Used to enter automation view from sound editor
-	if ((b == CLIP_VIEW && clipMinder) || (b == SESSION_VIEW && arrangerView)) {
+	if (b == CLIP_VIEW && (clipMinder || arrangerView)) {
 		if (on) {
 			// if we're not in automation view yet
 			// save current UI so you can switch back to it once we exit out of current menu
