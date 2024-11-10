@@ -82,10 +82,30 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Press `SELECT` to enter the `CV Instrument Menu`
   - Enter the  `CV 2 Source (CV2)` submenu
   - Select from `OFF, Y, Aftertouch, Velocity`
-  
+
 ##### MIDI Clips
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
+
+#### <ins>Automation View</ins>
+
+##### Parameters
+- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Added ability to automate all Monophonic (Channel) Expression parameters (X - Pitch Bend, Y - Mod Wheel, Z - Channel Pressure / Aftertouch) in Synth / Kit Row (with Affect Entire Off) / MIDI / CV
+
+##### Copy/Paste
+- Added same shortcut that is used for copy / pasting notes in Instrument Clip View to Automation View to copy / paste automation. While in the Automation Editor, Copy with `Learn + <>`. Paste with `Shift + Learn + <>`.
+
+#### <ins>Keyboard View</ins>
+
+##### Kits
+- `KIT VELOCITY KEYBOARD VIEW` Changes:
+  - Additional shortcut of `Pressing + Turning <>` to change the pad size using the Zoom In/Out.
+  - Went from 8 zoom levels to 13, with mostly smaller jumps in size and number of drum pads between levels.
+  - Rectangular pads of various sizes are used where needed to fully cover the screen without any partial pads. This means you can now have six or four pads, or even the entire screen as a single pad.
+  - Zoom level 1 pads play the system-level default velocity (64 by default out of a maximum 127, but it is user defineable), and levels 2 and 3 have a slightly lowered max velocity of 100 to make them more useable.
+  - Pad colors are calculated to avoid having adjacent pads of the same color as much as possible.
+  - Default pad brightness is set to match the default brightness value, so they will be more visible if needed. They will dim when pressed instead of getting brighter. The brightness gradient over the drum pads, going from dim on the low velocity pads to bright on the highest, is now much more apparent, due to the max brightness being higher, the lowest brightness being lower, and using a quadratic curve for the brightness ratio rather than linear. The amount that the drum pads dim when pressed depends on the pad area, so that smaller pad presses will be more visible, and larger pad presses won't be TOO visible, i.e. they won't have a potentially unpleasant strobe light flashing behavior.
 
 ### MIDI
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
