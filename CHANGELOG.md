@@ -35,6 +35,9 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
+#### <ins>Song View</ins>
+- You can now trigger a loop recording in `Song View` by holding a `Pressing a Clip Pad` + `Pressing the Record button`. You can also trigger a layering loop recording by `Pressing Shift` + `Pressing a Clip Pad` + `Pressing the Record button`.
+
 #### <ins>Song Grid View</ins>
 
 ##### Entering Clips

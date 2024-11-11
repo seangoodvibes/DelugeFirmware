@@ -380,6 +380,21 @@ moveAfterClipInstance:
 		}
 	}
 
+	// use loop and layer commands with pressed clip
+	else if (b == RECORD && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+		if (on) {
+			clipPressEnded();
+			if (Buttons::isShiftButtonPressed()) {
+				
+				playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING);
+			}
+			else {
+				playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP);
+			}
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
 	// Record button - adds to what MatrixDriver does with it
 	else if (b == RECORD) {
 		if (on) {
