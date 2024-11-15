@@ -4507,6 +4507,21 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 			return ActionResult::DEALT_WITH;
 			; // don't continue auditioning if drum is null
 		}
+
+		if (drum->auditioned && drum->type == DrumType::SOUND) {
+			SoundDrum* soundDrum = static_cast<SoundDrum*>(drum);
+			// if you released auditioned pad
+			for (int32_t s = 0; s < kNumSources; s++) {
+				if (soundDrum->sources[s].repeatMode == SampleRepeatMode::LOOP) {
+					if (velocity) {
+						velocity = 0; // stop auditioning
+					}
+					else {
+						return ActionResult::DEALT_WITH; // don't stop auditioning, let it loop
+					}
+				}
+			}
+		}
 	}
 
 	// Or if synth
