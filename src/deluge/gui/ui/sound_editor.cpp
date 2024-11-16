@@ -21,7 +21,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -1199,10 +1199,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-		// used in performanceSessionView to ignore pad presses when you just exited soundEditor
+		// used in performanceView to ignore pad presses when you just exited soundEditor
 		// with a padAction
-		if (rootUI == &performanceSessionView) {
-			performanceSessionView.justExitedSoundEditor = true;
+		if (rootUI == &performanceView) {
+			performanceView.justExitedSoundEditor = true;
 		}
 
 		exitCompletely();
