@@ -444,9 +444,8 @@ Error StorageManager::reloadInstrumentFromFile(Song* song, InstrumentClip* clip,
 	clip->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
 	actionLogger.deleteAllLogs();
 
-	if (outputType == OutputType::SYNTH) {
-		Sound::initParams(&clip->paramManager);
-	}
+	clip->paramManager.forgetParamCollections();
+	Sound::createParamManagerForLoading(&clip->paramManager);
 
 	error = currentInstrument->readFromFile(smDeserializer, song, clip, kMaxSequenceLength);
 
