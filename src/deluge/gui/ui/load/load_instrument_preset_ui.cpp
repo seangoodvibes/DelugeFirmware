@@ -840,6 +840,28 @@ addNumber:
 	return true;
 }
 
+Error LoadInstrumentPresetUI::performReload() {
+
+	FileItem* currentFileItem = getCurrentFileItem();
+	if (currentFileItem == nullptr) {
+		// Make it say "NONE" on numeric Deluge, for
+		// consistency with old times.
+		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
+	}
+
+	if (currentFileItem->isFolder) {
+		return Error::NONE;
+	}
+
+	if (currentFileItem->instrument != instrumentToReplace) {
+		return Error::NONE;
+	}
+
+	return StorageManager::reloadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
+	                                                instrumentToReplace, &currentFileItem->filePointer, &enteredText,
+	                                                &currentDir);
+}
+
 // I thiiink you're supposed to check currentFileExists before calling this?
 Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 

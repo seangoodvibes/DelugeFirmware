@@ -31,19 +31,23 @@ char const* LoadInstrumentPreset::getTitle() {
 
 Sized<char const**> LoadInstrumentPreset::getOptions() {
 	using enum l10n::String;
-	static char const* options[] = {l10n::get(STRING_FOR_CLONE)};
-	return {options, 1};
+	static char const* options[] = {l10n::get(STRING_FOR_REFRESH), l10n::get(STRING_FOR_CLONE)};
+	return {options, 2};
 }
 
 bool LoadInstrumentPreset::acceptCurrentOption() {
 	Error error;
 
 	switch (currentOption) {
-	/*
 	case 0: // Refresh
+		error = loadInstrumentPresetUI.performReload();
+		if (error != Error::NONE) {
+			display->displayError(error);
+			return true;
+		}
+		loadInstrumentPresetUI.close();
 		return true;
-		*/
-	default: // Clone
+	case 1: // Clone
 		error = loadInstrumentPresetUI.performLoad(true);
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -51,6 +55,8 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		}
 		loadInstrumentPresetUI.close();
 		return true;
+	default:;
 	}
+	return false;
 }
 } // namespace deluge::gui::context_menu

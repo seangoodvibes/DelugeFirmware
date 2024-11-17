@@ -24,6 +24,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
@@ -415,6 +416,53 @@ paramManagersMissing:
 	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
 
 	*getInstrument = newInstrument;
+	return Error::NONE;
+}
+
+// Returns error status
+// clip may be NULL
+Error StorageManager::reloadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
+                                               Instrument* currentInstrument, FilePointer* filePointer, String* name,
+                                               String* dirPath) {
+
+	AudioEngine::logAction("reloadInstrumentFromFile");
+	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
+	          (int32_t)filePointer->sclust);
+
+	Error error = openInstrumentFile(outputType, filePointer);
+	if (error != Error::NONE) {
+		D_PRINTLN("opening instrument file failed -  %s", name->get());
+		return error;
+	}
+
+	// clear automation
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, song, clip);
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR);
+	bool clearAutomation = true;
+	bool clearSequenceAndMPE = false;
+	clip->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
+	actionLogger.deleteAllLogs();
+
+	if (outputType == OutputType::SYNTH) {
+		Sound::initParams(&clip->paramManager);
+	}
+
+	error = currentInstrument->readFromFile(smDeserializer, song, clip, kMaxSequenceLength);
+
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		D_PRINTLN("reading instrument file failed -  %s", name->get());
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+	}
+
+	currentInstrument->existsOnCard = true;
+	currentInstrument->loadAllAudioFiles(true);
+
 	return Error::NONE;
 }
 

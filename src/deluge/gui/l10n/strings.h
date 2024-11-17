@@ -146,6 +146,7 @@ enum class String : size_t {
 	STRING_FOR_FILE_DELETED,
 
 	// gui/context_menu/load_instrument_preset.cpp
+	STRING_FOR_REFRESH,
 	STRING_FOR_CLONE,
 
 	// gui/context_menu/save_song_or_instrument.cpp

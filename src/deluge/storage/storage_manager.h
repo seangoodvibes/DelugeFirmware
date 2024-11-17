@@ -379,6 +379,8 @@ bool checkSDPresent();
 bool checkSDInitialized();
 
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = NULL);
+Error reloadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, Instrument* currentInstrument,
+                               FilePointer* filePointer, String* name, String* dirPath);
 Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
                              Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);

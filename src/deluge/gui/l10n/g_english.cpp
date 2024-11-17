@@ -161,6 +161,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_WAVETABLE, "Wavetable"},
         {STRING_FOR_ERROR_DELETING_FILE, "Error deleting file"},
         {STRING_FOR_FILE_DELETED, "File deleted"},
+        {STRING_FOR_REFRESH, "Refresh"},
         {STRING_FOR_CLONE, "Clone"},
         {STRING_FOR_COLLECT_MEDIA, "Collect media"},
         {STRING_FOR_CREATE_FOLDER, "Create folder"},

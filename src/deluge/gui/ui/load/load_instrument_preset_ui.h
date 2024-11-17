@@ -37,6 +37,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
+	Error performReload();
 	Error performLoad(bool doClone = false);
 	Error performLoadSynthToKit();
 	ActionResult timerCallback();
