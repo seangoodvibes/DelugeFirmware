@@ -1414,12 +1414,7 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
 	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		if (Buttons::isShiftButtonPressed()) {
-			currentSong->adjustMasterTransposeInterval(offset);
-		}
-		else {
-			currentSong->transpose(offset);
-		}
+		currentSong->commandTranspose(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING
@@ -2849,7 +2844,7 @@ void SessionView::transitionToSessionView() {
 		return;
 	}
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI()->getUIType() != UIType::AUTOMATION) {
 		AudioClip* clip = getCurrentAudioClip();
 		// !clip probably couldn't happen, but just in case...
 		if (!clip || !clip->sampleHolder.audioFile) {
@@ -2868,7 +2863,7 @@ void SessionView::transitionToSessionView() {
 	}
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(getCurrentClip());
-		if (getCurrentUI() == &automationView) {
+		if (getCurrentUI()->getUIType() == UIType::AUTOMATION) {
 			automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
 			getCurrentClip()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
@@ -4429,7 +4424,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 void SessionView::gridTransitionToSessionView() {
 	Sample* sample;
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI()->getUIType() != UIType::AUTOMATION) {
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
 			changeRootUI(&sessionView);
@@ -4451,7 +4446,7 @@ void SessionView::gridTransitionToSessionView() {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI()->getUIType() != UIType::AUTOMATION) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());

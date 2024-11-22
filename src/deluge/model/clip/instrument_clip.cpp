@@ -21,7 +21,6 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"

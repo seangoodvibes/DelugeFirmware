@@ -178,7 +178,7 @@ void PatchCableStrength::writeCurrentValue() {
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 
-	if (getRootUI() == &automationView) {
+	if (getRootUI()->getUIType() == UIType::AUTOMATION) {
 		int32_t p = modelStackWithParam->paramId;
 		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
@@ -261,7 +261,7 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 		}
 		else if (AudioEngine::audioSampleTimer > delayHorizontalScrollUntil) {
 			RootUI* rootUI = getRootUI();
-			if (rootUI == &automationView) {
+			if (rootUI->getUIType() == UIType::AUTOMATION) {
 				automationView.horizontalEncoderAction(offset);
 			}
 			else if (rootUI == &keyboardScreen) {

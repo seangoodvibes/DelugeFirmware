@@ -483,7 +483,9 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (getRootUI() == &keyboardScreen) {
+			RootUI* rootUI = getRootUI();
+
+			if (rootUI == &keyboardScreen) {
 				if (clip->onAutomationClipView) {
 					swapOutRootUILowLevel(&automationView);
 					automationView.openedInBackground();
@@ -494,11 +496,11 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					instrumentClipView.openedInBackground();
 				}
 			}
-			else if (getRootUI() == &instrumentClipView) {
+			else if (rootUI == &instrumentClipView) {
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
-			else if (getRootUI() == &automationView) {
+			else if (rootUI->getUIType() == UIType::AUTOMATION) {
 				if (automationView.onMenuView) {
 					clip->onAutomationClipView = false;
 					automationView.onMenuView = false;
@@ -546,7 +548,8 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on,
 		// or go back to automation overview in background root UI
 		if ((previousItem->getParamKind() != deluge::modulation::params::Kind::NONE)
 		    && (currentItem->getParamKind() == deluge::modulation::params::Kind::NONE)) {
-			if (getRootUI() == &automationView) {
+			RootUI* rootUI = getRootUI();
+			if (rootUI->getUIType() == UIType::AUTOMATION) {
 				// if on menu view, swap out root UI to previous UI
 				if (automationView.onMenuView) {
 					previousItem->buttonAction(b, on, inCardRoutine);
@@ -554,7 +557,7 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on,
 				// if not on menu view, go back to overview
 				else {
 					automationView.initParameterSelection();
-					uiNeedsRendering(&automationView);
+					uiNeedsRendering(rootUI);
 					PadLEDs::reassessGreyout();
 				}
 			}
@@ -784,9 +787,14 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 }
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
-	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-	uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
-	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+	RootUI* rootUI = getRootUI();
+
+	if (rootUI == &keyboardScreen) {
+		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+	}
+	else if (rootUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
+	}
 }
 
 void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
@@ -909,8 +917,8 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	// Forward to automation view.
 	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
 	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
-	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
-	    && !automationView.multiPadPressSelected) {
+	if (!item->isSubmenu() && rootUI->getUIType() == UIType::AUTOMATION && isEditingAutomationViewParam()
+	    && !automationView.isMultiPadPressSelected()) {
 		automationView.modEncoderAction(0, scaledOffset);
 	}
 	else {
@@ -937,7 +945,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
 			}
 
-			if (rootUI != &automationView) {
+			if (rootUI->getUIType() != UIType::AUTOMATION) {
 				// If envelope param preset values were changed, there's a chance that there could have been a
 				// change to whether notes have tails
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -985,7 +993,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	}
 	else {
 		// allow automation view to handle interpolation and pad selection shortcut
-		if ((getRootUI() == &automationView) && (x == 0) && ((y == 6) || (y == 7))) {
+		if ((getRootUI()->getUIType() == UIType::AUTOMATION) && (x == 0 && ((y == 6) || (y == 7)))) {
 			ignoreAction = true;
 		}
 	}
@@ -1111,7 +1119,7 @@ getOut:
 							}
 							beginScreen();
 
-							if (getRootUI() == &automationView) {
+							if (getRootUI()->getUIType() == UIType::AUTOMATION) {
 								// if automation view is open in the background
 								// potentially refresh grid if opening a new patch cable menu
 								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
@@ -1178,7 +1186,7 @@ doSetup:
 					if (getCurrentUI() == &soundEditor) {
 						deluge::modulation::params::Kind kind = newItem->getParamKind();
 						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-						    && getRootUI() == &automationView) {
+						    && getRootUI()->getUIType() == UIType::AUTOMATION) {
 							return ActionResult::DEALT_WITH;
 						}
 					}
@@ -1237,7 +1245,7 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 		display->setNextTransitionDirection(0);
 		beginScreen();
 
-		if (getRootUI() == &automationView) {
+		if (getRootUI()->getUIType() == UIType::AUTOMATION) {
 			// if automation view is open in the background
 			// potentially refresh grid if opening a new parameter menu
 			getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
@@ -1294,7 +1302,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		// fall through below
 	}
 
-	else if (rootUI == &automationView) {
+	else if (rootUI->getUIType() == UIType::AUTOMATION) {
 		ActionResult result = handleAutomationViewPadAction(x, y, on);
 		if (result == ActionResult::DEALT_WITH) {
 			return result;
@@ -1428,7 +1436,7 @@ bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t d
 }
 
 void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	if (getRootUI() == &automationView) {
+	if (getRootUI()->getUIType() == UIType::AUTOMATION) {
 		automationView.modEncoderAction(whichModEncoder, offset);
 	}
 	else {
@@ -1454,7 +1462,7 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 }
 
 void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
-	if (getRootUI() == &automationView) {
+	if (getRootUI()->getUIType() == UIType::AUTOMATION) {
 		automationView.modEncoderButtonAction(whichModEncoder, on);
 	}
 	else {
@@ -1609,7 +1617,8 @@ doMIDIOrCV:
 			if ((currentUI == &performanceView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
-			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
+			else if ((currentUI == &sessionView || currentUI == &arrangerView
+			          || currentUI->getUIType() == UIType::AUTOMATION)
 			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}

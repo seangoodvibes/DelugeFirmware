@@ -922,7 +922,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// if you're updating a param's value while in the sound editor menu
 			// and it's the same param displayed in the automation editor open underneath
 			// then refresh the automation editor grid
-			if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
+			if ((getCurrentUI() == &soundEditor) && (getRootUI()->getUIType() == UIType::AUTOMATION)) {
 				automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind,
 				                                                   modelStackWithParam->paramId);
 			}
@@ -1239,7 +1239,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
+	if ((getRootUI()->getUIType() == UIType::AUTOMATION) && automationView.inAutomationEditor()) {
 		automationView.displayAutomation();
 		return;
 	}
@@ -1355,7 +1355,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	RootUI* rootUI = getRootUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((rootUI == &automationView) && automationView.inAutomationEditor()) {
+	if ((rootUI->getUIType() == UIType::AUTOMATION) && automationView.inAutomationEditor()) {
 		// exception for arranger view and pressing mod button 0 so you can toggle VU meter
 		if (!(automationView.onArrangerView && whichButton == 0)) {
 			return;
@@ -1406,47 +1406,17 @@ void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
 	UIType uiType = UIType::NONE;
+	UIType uiContextType = UIType::NONE;
+	UIModControllableContext uiModControllableContext = UIModControllableContext::NONE;
 	if (rootUI) {
 		uiType = rootUI->getUIType();
-	}
-	AutomationSubType automationSubType = AutomationSubType::NONE;
-	if (uiType == UIType::AUTOMATION) {
-		automationSubType = automationView.getAutomationSubType();
+		uiContextType = rootUI->getUIContextType();
+		uiModControllableContext = rootUI->getUIModControllableContext();
 	}
 
 	// here we will set a boolean flag to let the function know whether we are dealing with the Song context
-	bool itsTheSong = (activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong);
-
-	// let's check if we're in any of the song UI's
-	if (!itsTheSong && !activeModControllableModelStack.timelineCounterIsSet()) {
-		switch (uiType) {
-		case UIType::SESSION:
-			itsTheSong = true;
-			break;
-
-		case UIType::ARRANGER:
-			itsTheSong = true;
-			break;
-
-		case UIType::PERFORMANCE:
-			itsTheSong = true;
-			break;
-
-		case UIType::AUTOMATION:
-			if (automationSubType == AutomationSubType::ARRANGER) {
-				itsTheSong = true;
-			}
-			break;
-
-		default:
-		    // fallthrough for everything else -- to many UIs to list explicitly
-		    ;
-		}
-	}
-
-	// here we will set a boolean flag to let the function know whether we are dealing with the Clip context
-	bool itsAClip = activeModControllableModelStack.timelineCounterIsSet()
-	                && activeModControllableModelStack.getTimelineCounter() != currentSong;
+	bool itsTheSong = ((activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong)
+	                   || (uiModControllableContext == UIModControllableContext::SONG));
 
 	// here we will set a boolean flag to let the function know if affect entire is enabled
 	// so that it can correctly illuminate the affect entire LED indicator
@@ -1460,29 +1430,7 @@ void View::setModLedStates() {
 		// if you're in an instrument clip, get affectEntire status from clip class
 		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
 		// enabled
-		switch (uiType) {
-		case UIType::INSTRUMENT_CLIP:
-			affectEntire = ((InstrumentClip*)clip)->affectEntire;
-			break;
-		case UIType::KEYBOARD_SCREEN:
-			affectEntire = ((InstrumentClip*)clip)->affectEntire;
-			break;
-		case UIType::AUTOMATION:
-			if (automationSubType == AutomationSubType::INSTRUMENT) {
-				affectEntire = ((InstrumentClip*)clip)->affectEntire;
-			}
-			// if it's not an instrument clip, then it's an audio clip
-			else {
-				affectEntire = true;
-			}
-			break;
-		case UIType::AUDIO_CLIP:
-			affectEntire = true;
-			break;
-		default:
-		    // fallthrough for everything else -- to many UIs to list explicitly
-		    ;
-		}
+		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
@@ -1544,23 +1492,9 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 		}
 		else {
-			switch (uiType) {
+			switch (uiContextType) {
 			case UIType::ARRANGER:
 				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-				break;
-			case UIType::AUTOMATION:
-				if (automationSubType == AutomationSubType::ARRANGER) {
-					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-				}
-				break;
-			case UIType::PERFORMANCE:
-				// if performanceView was entered from arranger
-				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-				}
-				else {
-					indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
-				}
 				break;
 			case UIType::SESSION:
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
@@ -1587,7 +1521,7 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
+		else if ((getRootUI()->getUIType() == UIType::AUTOMATION) && automationView.inAutomationEditor()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		// otherwise update mod led's to reflect current mod led selection
@@ -1997,7 +1931,8 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	}
 
 	// hook to render display for OLED and 7SEG when in Automation View
-	if (getCurrentUI() == &automationView && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+	if (getCurrentUI()->getUIType() == UIType::AUTOMATION
+	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		if (automationView.inAutomationEditor()) {
 			automationView.displayAutomation(true, !display->have7SEG());
 		}
@@ -2512,18 +2447,13 @@ getOut:
 			((Kit*)newInstrument)->selectedDrum = nullptr;
 		}
 
-		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
+		RootUI* rootUI = getRootUI();
+		if (rootUI == &instrumentClipView || rootUI->getUIType() == UIType::AUTOMATION) {
 			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
 			yield([]() { return true; });
 			instrumentClipView.recalculateColours();
-		}
 
-		if (getCurrentUI() == &instrumentClipView) {
-			uiNeedsRendering(&instrumentClipView);
-		}
-
-		else if (getCurrentUI() == &automationView) {
-			uiNeedsRendering(&automationView);
+			uiNeedsRendering(rootUI);
 		}
 
 		display->removeLoadingAnimation();

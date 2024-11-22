@@ -339,7 +339,7 @@ void InstrumentClipMinder::setLedStates() {
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
-	bool inAutomationView = ((getCurrentUI() == &automationView) && !automationView.inNoteEditor());
+	bool inAutomationView = ((getCurrentUI()->getUIType() == UIType::AUTOMATION) && !automationView.inNoteEditor());
 	if (!inAutomationView) {
 		// only light cross screen led up if you're in the automation view note editor or outside automation view
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, clip->wrapEditing);
@@ -495,16 +495,17 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
 			UI* currentUI = getCurrentUI();
+			UIType uiType = currentUI->getUIType();
 
 			// If you're in Automation View, only clear automation if you're not in the Note Editor
 			// or also clear Automation when default setting to only clear automation in Automation View is false
-			bool clearAutomation = ((currentUI == &automationView && !automationView.inNoteEditor())
-			                        || (currentUI != &automationView && !FlashStorage::automationClear));
+			bool clearAutomation = ((uiType == UIType::AUTOMATION && !automationView.inNoteEditor())
+			                        || (uiType != UIType::AUTOMATION && !FlashStorage::automationClear));
 
 			// If you're in Automation View, only clear Notes and MPE if you're in the Note Editor
 			// Always clear Notes and MPE when you're not in Automation View
 			bool clearSequenceAndMPE =
-			    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
+			    ((uiType != UIType::AUTOMATION) || (uiType == UIType::AUTOMATION && automationView.inNoteEditor()));
 
 			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
 
@@ -515,7 +516,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
 			// if you're in automation view but not in the note editor, you're clearing non-MPE automation
-			if (currentUI == &automationView) {
+			if (uiType == UIType::AUTOMATION) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 			}
 			// if you're not in automation view and automationClear default is on, you're only clearing Notes and MPE

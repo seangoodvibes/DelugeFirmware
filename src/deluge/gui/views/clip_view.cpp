@@ -197,13 +197,15 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 		UI* currentUI = getCurrentUI();
+		UIType uiType = currentUI->getUIType();
+		bool inAutomationEditor = (uiType == UIType::AUTOMATION) && (automationView.inAutomationEditor());
 
-		// Always shift automation when in Automation View
+		// Always shift automation when in Automation View Automation Editor
 		// or also shift automation when default setting to only shift automation in Automation View is false
-		bool shiftAutomation = (currentUI == &automationView || !FlashStorage::automationShift);
+		bool shiftAutomation = (inAutomationEditor || !FlashStorage::automationShift);
 
-		// Always shift Notes and MPE when you're not in Automation View
-		bool shiftSequenceAndMPE = (currentUI != &automationView);
+		// Always shift Notes and MPE when you're not in Automation View Automation Editor
+		bool shiftSequenceAndMPE = (!inAutomationEditor);
 
 		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 		if (!wasShifted) {

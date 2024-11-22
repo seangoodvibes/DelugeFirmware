@@ -422,10 +422,12 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Then entering or exiting automation view
-			else if (action->view == &automationView && getCurrentUI() != &automationView) {
+			else if (action->view->getUIType() == UIType::AUTOMATION
+			         && getCurrentUI()->getUIType() != UIType::AUTOMATION) {
 				whichAnimation = Animation::ENTER_AUTOMATION_VIEW;
 			}
-			else if (action->view != &automationView && getCurrentUI() == &automationView) {
+			else if (action->view->getUIType() != UIType::AUTOMATION
+			         && getCurrentUI()->getUIType() == UIType::AUTOMATION) {
 				whichAnimation = Animation::EXIT_AUTOMATION_VIEW;
 			}
 
@@ -655,18 +657,19 @@ currentClipSwitchedOver:
 	}
 
 	if (updateVisually) {
+		UI* currentUI = getCurrentUI();
 
-		if (getCurrentUI() == &instrumentClipView) {
+		if (currentUI == &instrumentClipView) {
 			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != Animation::CLIP_MINDER_TO_SESSION
 			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
 				if (whichAnimation == Animation::NONE) {
-					uiNeedsRendering(&instrumentClipView);
+					uiNeedsRendering(currentUI);
 				}
 			}
 		}
-		else if (getCurrentUI() == &automationView) {
+		else if (currentUI->getUIType() == UIType::AUTOMATION) {
 			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != Animation::CLIP_MINDER_TO_SESSION
 			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
@@ -674,26 +677,26 @@ currentClipSwitchedOver:
 					instrumentClipView.recalculateColours();
 				}
 				if (whichAnimation == Animation::NONE) {
-					uiNeedsRendering(&automationView);
+					uiNeedsRendering(currentUI);
 				}
 			}
 		}
-		else if (getCurrentUI() == &audioClipView) {
+		else if (currentUI == &audioClipView) {
 			if (whichAnimation == Animation::NONE) {
-				uiNeedsRendering(&audioClipView);
+				uiNeedsRendering(currentUI);
 			}
 		}
-		else if (getCurrentUI() == &keyboardScreen) {
+		else if (currentUI == &keyboardScreen) {
 			if (whichAnimation != Animation::ENTER_KEYBOARD_VIEW) {
-				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+				uiNeedsRendering(currentUI, 0xFFFFFFFF, 0);
 			}
 		}
 		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have
 		// failed if the Clip wasn't long enough before we did the action->revert() ...
-		else if (getCurrentUI() == &sessionView) {
-			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
+		else if (currentUI == &sessionView) {
+			uiNeedsRendering(currentUI, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
-		else if (getCurrentUI() == &arrangerView) {
+		else if (currentUI == &arrangerView) {
 			arrangerView.repopulateOutputsOnScreen(whichAnimation == Animation::NONE);
 		}
 

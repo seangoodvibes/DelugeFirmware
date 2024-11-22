@@ -816,7 +816,7 @@ void timerRoutine() {
 						changeRootUI(&automationView); // We want to fade the sidebar in
 						anyZoomingDone = instrumentClipView.zoomToMax(true);
 						if (anyZoomingDone) {
-							uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
+							uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
 						}
 					}
 					else if (clip->type == ClipType::INSTRUMENT) {
@@ -1025,7 +1025,7 @@ void renderClipExpandOrCollapse() {
 				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 				if (anyZoomingDone) {
-					uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
+					uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
 				}
 			}
 			else {
@@ -1066,7 +1066,7 @@ void renderNoteRowExpandOrCollapse() {
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
 		if (getCurrentClip()->onAutomationClipView) {
-			uiNeedsRendering(&automationView);
+			uiNeedsRendering(getRootUI());
 		}
 		else {
 			uiNeedsRendering(&instrumentClipView);

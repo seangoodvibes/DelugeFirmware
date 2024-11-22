@@ -46,10 +46,12 @@ MenuItem* Automation::selectButtonPress() {
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
+			RootUI* rootUI = getRootUI();
+
 			// if automation view is open in background and automation is deleted
 			// then refresh automation view UI
-			if (getRootUI() == &automationView) {
-				uiNeedsRendering(&automationView);
+			if (rootUI->getUIType() == UIType::AUTOMATION) {
+				uiNeedsRendering(rootUI);
 			}
 		}
 
@@ -73,12 +75,12 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 			// save current UI so you can switch back to it once we exit out of current menu
 			// flag automation view as onMenuView so we know that we're dealing with the background
 			// automation view used exclusively with the menu
-			if (rootUI != &automationView) {
+			if (rootUI->getUIType() != UIType::AUTOMATION) {
 				automationView.onMenuView = true;
 				automationView.previousUI = rootUI;
 				selectAutomationViewParameter(clipMinder);
 				swapOutRootUILowLevel(&automationView);
-				automationView.initializeView();
+				automationView.initialize();
 				automationView.openedInBackground();
 			}
 			// if we're in automation view and it's the menu view
@@ -100,7 +102,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	// Back button, used to back out of current automatable parameter menu
 	else if ((b == SELECT_ENC || b == BACK) && (clipMinder || arrangerView)) {
 		if (on) {
-			if (rootUI == &automationView) {
+			if (rootUI->getUIType() == UIType::AUTOMATION) {
 				// if we got here, and we're in the automation menu view
 				// then we want to reset the background root UI to the previous UI
 				// because you just entered a new menu or backed out of the current param menu
@@ -125,7 +127,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	}
 	else if ((b == X_ENC) && (clipMinder || arrangerView)) {
 		// Horizontal encoder button to zoom in/out of underlying automation view
-		if (rootUI == &automationView) {
+		if (rootUI->getUIType() == UIType::AUTOMATION) {
 			automationView.buttonAction(b, on, inCardRoutine);
 			return ActionResult::DEALT_WITH;
 		}
@@ -137,7 +139,9 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
 	if (modelStack) {
-		int32_t knobPos = automationView.getAutomationParameterKnobPos(modelStack, view.modPos) + kKnobPosOffset;
+		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(view.modPos, modelStack);
+		int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack) + kKnobPosOffset;
+
 		automationView.setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
 
 		int32_t p = modelStack->paramId;
@@ -174,11 +178,11 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 }
 
 void Automation::handleAutomationViewParameterUpdate() {
-	UI* root = getRootUI();
-	if (root == &automationView) {
+	RootUI* rootUI = getRootUI();
+	if (rootUI->getUIType() == UIType::AUTOMATION) {
 		bool clipMinder = automationView.previousUI->toClipMinder() != nullptr;
 		Automation::selectAutomationViewParameter(clipMinder);
-		uiNeedsRendering(root);
+		uiNeedsRendering(rootUI);
 	}
 }
 

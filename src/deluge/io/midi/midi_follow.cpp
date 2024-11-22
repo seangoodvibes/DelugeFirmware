@@ -822,11 +822,11 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 			// performance view
 			bool editingParamInAutomationOrPerformanceView = false;
 			RootUI* rootUI = getRootUI();
-			if (rootUI == &automationView || rootUI == &performanceView) {
+			if (rootUI->getUIType() == UIType::AUTOMATION || rootUI == &performanceView) {
 				int32_t id = modelStackWithParam->paramId;
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-				if (rootUI == &automationView) {
+				if (rootUI->getUIType() == UIType::AUTOMATION) {
 					// pass the current clip because you want to check that you're editing the param
 					// for the same clip active in automation view
 					editingParamInAutomationOrPerformanceView =
