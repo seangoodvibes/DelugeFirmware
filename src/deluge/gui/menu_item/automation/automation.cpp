@@ -137,7 +137,9 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
 	if (modelStack) {
-		int32_t knobPos = automationView.getAutomationParameterKnobPos(modelStack, view.modPos) + kKnobPosOffset;
+		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(view.modPos, modelStack);
+		int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack) + kKnobPosOffset;
+
 		automationView.setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
 
 		int32_t p = modelStack->paramId;

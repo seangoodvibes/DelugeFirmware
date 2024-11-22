@@ -41,7 +41,7 @@ public:
 	AutomationSubType getAutomationSubType();
 	const char* getName() override { return "automation_view"; }
 	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() override { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }	
+	ClipMinder* toClipMinder() override { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
