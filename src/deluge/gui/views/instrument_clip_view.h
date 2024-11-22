@@ -218,7 +218,8 @@ public:
 	// made these public so they can be accessed by the automation clip view
 
 	// ui
-	UIType getUIType() override { return UIType::INSTRUMENT_CLIP; }
+	UIType getUIType() { return UIType::INSTRUMENT_CLIP; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
 	// note editor
 	bool enterNoteEditor();

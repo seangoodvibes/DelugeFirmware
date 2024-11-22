@@ -37,7 +37,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_view.h"
+#include "gui/views/automation/context/instrument_clip.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -2638,7 +2638,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 	int32_t velocityValue = 0;
 
 	UI* currentUI = getCurrentUI();
-	bool inAutomationView = currentUI == &automationView;
+	bool inAutomationView = currentUI->getUIType() == UIType::AUTOMATION;
 	bool inSoundEditor = currentUI == &soundEditor;
 
 	Action* action;
@@ -2768,7 +2768,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 		}
 		else {
 			UI* currentUI = getCurrentUI();
-			bool inAutomationView = currentUI == &automationView;
+			bool inAutomationView = currentUI->getUIType() == UIType::AUTOMATION;
 			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
 			getCurrentInstrument()->defaultVelocity = velocityValue;
 			if (!inAutomationView && !inNoteEditor) {
@@ -3956,7 +3956,7 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 	// because the selected drum for note editing is the last auditioned note row and we don't want
 	// these two to get out of sync.
 	// Same if you're in the note row editor menu
-	bool inNoteEditor = (getRootUI() == &automationView && automationView.inNoteEditor())
+	bool inNoteEditor = (getRootUI()->getUIType() == UIType::AUTOMATION && automationView.inNoteEditor())
 	                    || (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor());
 
 	// Try getting existing NoteRow.
@@ -4760,8 +4760,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 			if (clip->output->type == OutputType::KIT) {
 				// are we currently in the instrument clip UI?
 				// if yes, we may need to refresh it (main pads and / or sidebar)
-				if (currentUI == &instrumentClipView || currentUI == &automationView || currentUI == &keyboardScreen
-				    || inNoteOrNoteRowEditor) {
+				if (currentUI == &instrumentClipView || currentUI->getUIType() == UIType::AUTOMATION
+				    || currentUI == &keyboardScreen || inNoteOrNoteRowEditor) {
 					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
 
 					// don't reset mod controllable when affect entire is enabled because mod controllable is
@@ -4778,7 +4778,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 					// if in automation clip view with affect entire disabled
 					// redraw main pads (go back to overview) + sidebar
-					if (currentUI == &automationView && !affectEntire && drumSelectionChanged) {
+					if (currentUI->getUIType() == UIType::AUTOMATION && !affectEntire && drumSelectionChanged) {
 						if (!automationView.inNoteEditor()) {
 							automationView.initParameterSelection();
 						}
@@ -5346,7 +5346,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 
 		// check that you're not in automation instrument clip view and holding an automation pad down
 		// if not, clear popup's / re-draw screen
-		if (!((getCurrentUI() == &automationView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
+		if (!((getCurrentUI()->getUIType() == UIType::AUTOMATION) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::removePopup();
 			}
@@ -5807,7 +5807,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		}
 	}
 
-	else if ((getRootUI() == &automationView && automationView.inNoteEditor())
+	else if ((getRootUI()->getUIType() == UIType::AUTOMATION && automationView.inNoteEditor())
 	         || (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor())) {
 		if (noteRowFlashOn && yDisplay == lastAuditionedYDisplay) {
 			thisColour = rowColour[yDisplay].forBlur();
@@ -5833,7 +5833,7 @@ drawNormally:
 			// we turn it off when affect entire is on because the selected drum is not relevant in that context
 			// e.g. if you're in the affect entire menu, you're not editing params for the selected drum
 			UI* currentUI = getCurrentUI();
-			bool isInstrumentClipView = ((currentUI == &instrumentClipView) || (currentUI == &automationView));
+			bool isInstrumentClipView = (currentUI->getUIContextType() == UIType::INSTRUMENT_CLIP);
 			if (!isInstrumentClipView && getAffectEntire()) {
 				thisColour = colours::black;
 				return;
@@ -6758,7 +6758,7 @@ void InstrumentClipView::graphicsRoutine() {
 
 	int32_t noteRowIndex;
 	NoteRow* noteRow = nullptr;
-	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
+	bool inNoteEditor = getRootUI()->getUIType() == UIType::AUTOMATION && automationView.inNoteEditor();
 	// if we're in the automation view note editor, then we're only looking at one note row at a time
 	// so we want to render a single note row's playhead across all note rows
 	if (inNoteEditor) {
@@ -7215,13 +7215,13 @@ void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelS
 
 		// If you're in Automation View, only shift automation if you're not in the Note Editor
 		// or also shift Automation when default setting to only shift automation in Automation View is false
-		bool shiftAutomation = ((currentUI == &automationView && !automationView.inNoteEditor())
-		                        || (currentUI != &automationView && !FlashStorage::automationShift));
+		bool shiftAutomation = ((currentUI->getUIType() == UIType::AUTOMATION && !automationView.inNoteEditor())
+		                        || (currentUI->getUIType() != UIType::AUTOMATION && !FlashStorage::automationShift));
 
 		// If you're in Automation View, only shift Notes and MPE if you're in the Note Editor
 		// Always shift Notes and MPE when you're not in Automation View
-		bool shiftSequenceAndMPE =
-		    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
+		bool shiftSequenceAndMPE = ((currentUI->getUIType() != UIType::AUTOMATION)
+		                            || (currentUI->getUIType() == UIType::AUTOMATION && automationView.inNoteEditor()));
 
 		clip->shiftOnlyOneNoteRowHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 

@@ -406,9 +406,10 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	// if you're in automation midi clip view and editing the same CC that was just updated
 	// by a learned midi knob, then re-render the pads on the automation editor grid
 	if (type == OutputType::MIDI_OUT) {
-		if (getRootUI() == &automationView) {
+		RootUI* rootUI = getRootUI();
+		if (rootUI->getUIType() == UIType::AUTOMATION) {
 			if (activeClip->lastSelectedParamID == ccNumber) {
-				uiNeedsRendering(&automationView);
+				uiNeedsRendering(rootUI);
 			}
 		}
 	}

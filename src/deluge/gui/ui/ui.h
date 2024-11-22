@@ -156,7 +156,11 @@ public:
 	virtual void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) = 0;
 	bool oledShowsUIUnderneath;
 
+	virtual UI* getUI() { return this; }
+	// virtual UI* getSubUI() { return this; }
 	virtual UIType getUIType() = 0;
+	virtual UIType getUIContextType() { return getUIType(); }
+	virtual UIModControllableContext getUIModControllableContext() { return UIModControllableContext::NONE; }
 #if ENABLE_MATRIX_DEBUG
 	const char* getUIName();
 #endif

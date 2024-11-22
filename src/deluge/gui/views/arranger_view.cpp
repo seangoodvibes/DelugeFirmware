@@ -30,7 +30,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_view.h"
+#include "gui/views/automation/context/arranger.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -197,7 +197,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			}
 			if (currentUIMode == UI_MODE_NONE) {
 				if (Buttons::isShiftButtonPressed()) {
-					automationView.onArrangerView = true;
 					changeRootUI(&automationView);
 				}
 				else {
@@ -902,7 +901,7 @@ void ArrangerView::auditionEnded() {
 	setNoSubMode();
 	setLedStates();
 
-	if (getRootUI() == &automationView) {
+	if (getRootUI()->getUIType() == UIType::AUTOMATION) {
 		if (automationView.inAutomationEditor()) {
 			automationView.displayAutomation(true, !display->have7SEG());
 		}
@@ -1881,7 +1880,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI()->getUIType() != UIType::AUTOMATION) {
 
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
@@ -1919,7 +1918,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI()->getUIType() != UIType::AUTOMATION) {
 		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());

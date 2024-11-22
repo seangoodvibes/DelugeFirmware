@@ -157,7 +157,7 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 	if (polyphonic == PolyphonyMode::CHOKE) {
 
 		// Don't choke it if it's auditioned
-		if ((getRootUI() == &instrumentClipView || getRootUI() == &automationView)
+		if ((getRootUI() == &instrumentClipView || getRootUI()->getUIType() == UIType::AUTOMATION)
 		    && instrumentClipView.isDrumAuditioned(this)) {
 			return;
 		}

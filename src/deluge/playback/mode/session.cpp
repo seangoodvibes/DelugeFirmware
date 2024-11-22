@@ -18,6 +18,7 @@
 #include "playback/mode/session.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -1097,11 +1098,12 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 							sessionView.clipNeedsReRendering(clip);
 							if (getCurrentClip()) {
-								if (getCurrentClip()->onAutomationClipView) {
-									uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
-								}
-								else {
-									uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+								RootUI* rootUI = getRootUI();
+								if (rootUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+									// just re-rendering automation view and instrument clip view
+									if (rootUI != &keyboardScreen) {
+										uiNeedsRendering(rootUI, 0xFFFFFFFF, 0);
+									}
 								}
 							}
 						}

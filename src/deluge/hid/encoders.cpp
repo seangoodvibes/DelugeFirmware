@@ -150,7 +150,7 @@ checkResult:
 
 			case EncoderName::TEMPO:
 				if ((getCurrentUI() == &instrumentClipView
-				     || (getCurrentUI() == &automationView && automationView.inNoteEditor()))
+				     || (getCurrentUI()->getUIType() == UIType::AUTOMATION && automationView.inNoteEditor()))
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
 					instrumentClipView.tempoEncoderAction(limitedDetentPos,
