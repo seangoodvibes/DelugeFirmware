@@ -135,7 +135,7 @@ public:
 	// == activeModControllableTimelineCounter
 	uint32_t modLength;
 
-	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
+	float calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
 	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
 	void potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,

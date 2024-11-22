@@ -1147,7 +1147,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.
-int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int32_t knobPos) {
+float View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int32_t knobPos) {
 	if (kind == params::Kind::MIDI) {
 		return knobPos;
 	}
@@ -1168,7 +1168,7 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	}
 
 returnValue:
-	return static_cast<int32_t>(std::round(valueForDisplayFloat));
+	return valueForDisplayFloat; // static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
 void View::instrumentBeenEdited() {

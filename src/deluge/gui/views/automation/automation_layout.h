@@ -47,9 +47,9 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
-class AutomationView final : public ClipView, public InstrumentClipMinder {
+class AutomationLayout {
 public:
-	AutomationView();
+	AutomationLayout();
 	bool opened() override;
 	void initializeView();
 	void openedInBackground();
@@ -360,8 +360,7 @@ private:
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;
-
-	AutomationLayout currentAutomation
 };
 
-extern AutomationView automationView;
+extern AutomationLayout automationLayout;
+extern AutomationLayout* currentAutomationLayout;
