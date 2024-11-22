@@ -791,7 +791,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	// if you're not on the automation overview and you haven't selected a multi pad press
 	// (multi pad press values are only editable with mod encoders to edit left and right position)
-	if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
+	if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.isMultiPadPressSelected()) {
 		automationView.modEncoderAction(0, offset);
 	}
 	else {
