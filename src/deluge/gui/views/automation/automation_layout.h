@@ -54,11 +54,8 @@ public:
 	AutomationLayout();
 	bool opened() override;
 	void initializeView();
-	void openedInBackground();
 	void focusRegained() override;
-
-	// called by ui_timer_manager - might need to revise this routine for automation clip view since it references notes
-	void graphicsRoutine() override;
+	void openedInBackground();
 
 	// ui
 	UIType getUIType() override { return UIType::AUTOMATION; }

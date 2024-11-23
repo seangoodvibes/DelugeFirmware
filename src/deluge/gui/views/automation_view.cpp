@@ -202,6 +202,14 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	return currentAutomationLayout->horizontalEncoderAction(offset);
 }
 
+uint32_t AutomationView::getMaxLength() {
+	return currentAutomationLayout->getMaxLength();
+}
+
+uint32_t AutomationView::getMaxZoom() {
+	return currentAutomationLayout->getMaxZoom();
+}
+
 // vertical encoder action
 // no change compared to instrument clip view version
 // not used with Audio Clip Automation View
@@ -239,14 +247,6 @@ void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 // called by playback_handler.cpp
 void AutomationView::notifyPlaybackBegun() {
 	return currentAutomationLayout->notifyPlaybackBegun();
-}
-
-uint32_t AutomationView::getMaxLength() {
-	return currentAutomationLayout->getMaxLength();
-}
-
-uint32_t AutomationView::getMaxZoom() {
-	return currentAutomationLayout->getMaxZoom();
 }
 
 int32_t AutomationView::getNavSysId() const {
