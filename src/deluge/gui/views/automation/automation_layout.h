@@ -47,6 +47,8 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
+namespace deluge::gui::views::automation {
+
 class AutomationLayout {
 public:
 	AutomationLayout();
@@ -362,5 +364,6 @@ private:
 	uint32_t timeSelectKnobLastReleased;
 };
 
-extern AutomationLayout automationLayout;
-extern AutomationLayout* currentAutomationLayout;
+}; // namespace deluge::gui::views::automation
+
+

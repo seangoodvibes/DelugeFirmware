@@ -100,240 +100,14 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-namespace params = deluge::modulation::params;
-using deluge::modulation::params::kNoParamID;
-using deluge::modulation::params::ParamType;
-using deluge::modulation::params::patchedParamShortcuts;
-using deluge::modulation::params::unpatchedGlobalParamShortcuts;
-using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
+deluge::gui::views::AutomationView automationView{};
 
-using namespace deluge::gui;
+namespace deluge::gui::views {
 
-const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
-                                             UI_MODE_AUDITIONING,
-                                             UI_MODE_HORIZONTAL_SCROLL,
-                                             UI_MODE_RECORD_COUNT_IN,
-                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
-                                             0};
-
-const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
-
-const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
-
-const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
-
-constexpr int32_t kNumNonGlobalParamsForAutomation = 63;
-constexpr int32_t kNumGlobalParamsForAutomation = 26;
-constexpr int32_t kParamNodeWidth = 3;
-
-// synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
-const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
-    // Master Volume, Pitch, Pan
-    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_FX},
-    {params::Kind::PATCHED, params::LOCAL_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_PAN},
-    // LPF Cutoff, Resonance, Morph
-    {params::Kind::PATCHED, params::LOCAL_LPF_FREQ},
-    {params::Kind::PATCHED, params::LOCAL_LPF_RESONANCE},
-    {params::Kind::PATCHED, params::LOCAL_LPF_MORPH},
-    // HPF Cutoff, Resonance, Morph
-    {params::Kind::PATCHED, params::LOCAL_HPF_FREQ},
-    {params::Kind::PATCHED, params::LOCAL_HPF_RESONANCE},
-    {params::Kind::PATCHED, params::LOCAL_HPF_MORPH},
-    // Bass, Bass Freq
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS_FREQ},
-    // Treble, Treble Freq
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_TREBLE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_TREBLE_FREQ},
-    // Reverb Amount
-    {params::Kind::PATCHED, params::GLOBAL_REVERB_AMOUNT},
-    // Delay Rate, Amount
-    {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},
-    {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
-    // Sidechain Shape
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
-    // Decimation, Bitcrush, Wavefolder
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BITCRUSHING},
-    {params::Kind::PATCHED, params::LOCAL_FOLD},
-    // OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
-    {params::Kind::PATCHED, params::LOCAL_CARRIER_0_FEEDBACK},
-    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_WAVE_INDEX},
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_PHASE_WIDTH},
-    {params::Kind::PATCHED, params::LOCAL_CARRIER_1_FEEDBACK},
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_WAVE_INDEX},
-    // FM Mod 1 Volume, Pitch, Feedback
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_FEEDBACK},
-    // FM Mod 2 Volume, Pitch, Feedback
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_FEEDBACK},
-    // Env 1 ADSR
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_ATTACK},
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_DECAY},
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_SUSTAIN},
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_RELEASE},
-    // Env 2 ADSR
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_ATTACK},
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_DECAY},
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_SUSTAIN},
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_RELEASE},
-    // LFO 1 Freq
-    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ},
-    // LFO 2 Freq
-    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ},
-    // Mod FX Offset, Feedback, Depth, Rate
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_OFFSET},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
-    {params::Kind::PATCHED, params::GLOBAL_MOD_FX_DEPTH},
-    {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
-    // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length, Rhythm
-    {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
-    // Noise
-    {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
-    // Portamento
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},
-    // Stutter Rate
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE},
-    // Compressor Threshold
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD},
-    // Mono Expression: X - Pitch Bend
-    {params::Kind::EXPRESSION, Expression::X_PITCH_BEND},
-    // Mono Expression: Y - Mod Wheel
-    {params::Kind::EXPRESSION, Expression::Y_SLIDE_TIMBRE},
-    // Mono Expression: Z - Channel Pressure
-    {params::Kind::EXPRESSION, Expression::Z_PRESSURE},
-}};
-
-// global FX - sorted in the order that Parameters are scrolled through on the display
-// used with kit affect entire, audio clips, and arranger
-const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomation> globalParamsForAutomation{{
-    // Master Volume, Pitch, Pan
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_PITCH_ADJUST},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_PAN},
-    // LPF Cutoff, Resonance
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_RES},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_MORPH},
-    // HPF Cutoff, Resonance
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_FREQ},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_RES},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH},
-    // Bass, Bass Freq
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS_FREQ},
-    // Treble, Treble Freq
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_TREBLE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_TREBLE_FREQ},
-    // Reverb Amount
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERB_SEND_AMOUNT},
-    // Delay Rate, Amount
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_RATE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_AMOUNT},
-    // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_VOLUME},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_SHAPE},
-    // Decimation, Bitcrush
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BITCRUSHING},
-    // Mod FX Offset, Feedback, Depth, Rate
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_OFFSET},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_FEEDBACK},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_DEPTH},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_RATE},
-    // Stutter Rate
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE},
-    // Compressor Threshold
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_THRESHOLD},
-}};
-
-// VU meter style colours for the automation editor
-
-const RGB rowColour[kDisplayHeight] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
-                                       {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
-
-const RGB rowTailColour[kDisplayHeight] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
-                                           {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
-
-const RGB rowBlurColour[kDisplayHeight] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
-                                           {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
-
-const RGB rowBipolarDownColour[kDisplayHeight / 2] = {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
-
-const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
-
-const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
-
-// colours for the velocity editor
-
-const RGB velocityRowColour[kDisplayHeight] = {{0, 0, 255},   {36, 0, 219}, {73, 0, 182}, {109, 0, 146},
-                                               {146, 0, 109}, {182, 0, 73}, {219, 0, 36}, {255, 0, 0}};
-
-const RGB velocityRowTailColour[kDisplayHeight] = {{2, 2, 53},  {9, 2, 46},  {17, 2, 38}, {24, 2, 31},
-                                                   {31, 2, 24}, {38, 2, 17}, {46, 2, 9},  {53, 2, 2}};
-
-const RGB velocityRowBlurColour[kDisplayHeight] = {{71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80},
-                                                   {76, 53, 70},  {77, 48, 60},  {78, 44, 49}, {79, 39, 39}};
-
-// lookup tables for the values that are set when you press the pads in each row of the grid
-const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
-const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
-
-// lookup tables for the min value of each pad's value range used to display automation on each row of the grid
-const int32_t nonPatchCableMinPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
-const int32_t patchCableMinPadDisplayValues[kDisplayHeight] = {-128, -96, -64, -32, 1, 33, 65, 97};
-
-// lookup tables for the max value of each pad's value range used to display automation on each row of the grid
-const int32_t nonPatchCableMaxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
-const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1, 32, 64, 96, 128};
-
-// summary of pad ranges and press values (format: MIN < PRESS < MAX)
-// patch cable:
-// y = 7 ::   97 <  128 < 128
-// y = 6 ::   65 <   90 <  96
-// y = 5 ::   33 <   60 <  64
-// y = 4 ::    1 <   30 <  32
-// y = 3 ::  -32 <  -30 <  -1
-// y = 2 ::  -64 <  -60 < -33
-// y = 1 ::  -96 <  -90 < -65
-// y = 0 :: -128 < -128 < -97
-
-// non-patch cable:
-// y = 7 :: 113 < 128 < 128
-// y = 6 ::  97 < 110 < 112
-// y = 5 ::  81 <  91 <  96
-// y = 4 ::  65 <  73 <  80
-// y = 3 ::  49 <  55 <  64
-// y = 2 ::  33 <  37 <  48
-// y = 1 ::  17 <  18 <  32
-// y = 0 ::  0  <   0 <  16
-
-// shortcuts for toggling interpolation and pad selection mode
-constexpr uint8_t kInterpolationShortcutX = 0;
-constexpr uint8_t kInterpolationShortcutY = 6;
-constexpr uint8_t kPadSelectionShortcutX = 0;
-constexpr uint8_t kPadSelectionShortcutY = 7;
-constexpr uint8_t kVelocityShortcutX = 15;
-constexpr uint8_t kVelocityShortcutY = 1;
-
-AutomationView automationView{};
+AutomationLayout* curentAutomationLayout = nullptr;
 
 AutomationView::AutomationView() {
+	currentAutomationLayout = (AutomationLayout*)&automationLayout;
 
 	instrumentClipView.numEditPadPresses = 0;
 
@@ -354,12 +128,9 @@ AutomationView::AutomationView() {
 	interpolation = true;
 	interpolationBefore = false;
 	interpolationAfter = false;
-	// used to set parameter shortcut blinking
-	parameterShortcutBlinking = false;
-	// used to set interpolation shortcut blinking
-	interpolationShortcutBlinking = false;
-	// used to set pad selection shortcut blinking
-	padSelectionShortcutBlinking = false;
+
+	
+
 	// used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -376,31 +147,10 @@ AutomationView::AutomationView() {
 	onMenuView = false;
 	navSysId = NAVIGATION_CLIP;
 
-	initMIDICCShortcutsForAutomation();
-	midiCCShortcutsLoaded = false;
-
 	automationParamType = AutomationParamType::PER_SOUND;
 
 	probabilityChanged = false;
 	timeSelectKnobLastReleased = 0;
-}
-
-void AutomationView::initMIDICCShortcutsForAutomation() {
-	for (int x = 0; x < kDisplayWidth; x++) {
-		for (int y = 0; y < kDisplayHeight; y++) {
-			int32_t ccNumber = midiFollow.paramToCC[x][y];
-			if (ccNumber != MIDI_CC_NONE) {
-				midiCCShortcutsForAutomation[x][y] = ccNumber;
-			}
-			else {
-				midiCCShortcutsForAutomation[x][y] = kNoParamID;
-			}
-		}
-	}
-
-	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
-	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
-	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 // called everytime you open up the automation view
@@ -4764,3 +4514,6 @@ void AutomationView::blinkPadSelectionShortcut() {
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
 	padSelectionShortcutBlinking = true;
 }
+
+} // namespace deluge::gui::views
+

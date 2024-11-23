@@ -99,7 +99,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-AutomationLayout* currentAutomationLayout;
+namespace deluge::gui::views::automation {
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
@@ -5768,3 +5768,5 @@ void AutomationLayout::blinkPadSelectionShortcut() {
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
 	padSelectionShortcutBlinking = true;
 }
+
+} // namespace deluge::gui::views::automation

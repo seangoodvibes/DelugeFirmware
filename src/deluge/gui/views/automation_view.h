@@ -47,6 +47,8 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
+namespace deluge::gui::views {
+
 class AutomationView final : public ClipView, public InstrumentClipMinder {
 public:
 	AutomationView();
@@ -360,8 +362,9 @@ private:
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;
-
-	AutomationLayout currentAutomation
 };
+}; // namespace deluge::gui::views::automation
 
-extern AutomationView automationView;
+// TODO: should get moved into namespace once project namespacing is complete
+extern deluge::gui::views::AutomationView automationView;
+
