@@ -52,41 +52,35 @@ namespace deluge::gui::views::automation {
 class AutomationLayout {
 public:
 	AutomationLayout();
-	bool opened() override;
+	bool opened();
 	void initializeView();
-	void focusRegained() override;
+	void focusRegained();
 	void openedInBackground();
 
 	// ui
-	UIType getUIType() override { return UIType::AUTOMATION; }
 	AutomationSubType getAutomationSubType();
-	const char* getName() override { return "automation_view"; }
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 
-	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override {
-		InstrumentClipMinder::renderOLED(canvas);
-	}
-
 	// button action
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	// pad action
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
 	// horizontal encoder action
-	ActionResult horizontalEncoderAction(int32_t offset) override;
-	uint32_t getMaxLength() override;
-	uint32_t getMaxZoom() override;
-	[[nodiscard]] int32_t getNavSysId() const override;
+	ActionResult horizontalEncoderAction(int32_t offset);
+	uint32_t getMaxLength();
+	uint32_t getMaxZoom();
+	[[nodiscard]] int32_t getNavSysId() const;
 	int32_t navSysId;
 
 	// vertical encoder action
@@ -95,24 +89,22 @@ public:
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	CopiedParamAutomation copiedParamAutomation;
 
 	// Select encoder action
-	void selectEncoderAction(int8_t offset) override;
+	void selectEncoderAction(int8_t offset);
 	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
 	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it
-	bool multiPadPressSelected;                         // public so menu can access it
+	bool isMultiPadPressSelected();						// public so menu can access it
+	bool multiPadPressSelected;                         
 
 	// called by melodic_instrument.cpp or kit.cpp
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
+	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 
 	// called by playback_handler.cpp
-	void notifyPlaybackBegun() override;
-
-	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() override { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
+	void notifyPlaybackBegun();
 
 	void setAutomationParamType();
 
@@ -139,6 +131,7 @@ public:
 	void blinkPadSelectionShortcut();
 
 	// public so menu can access it
+	bool isOnMenuView();
 	bool onMenuView;
 	UI* previousUI; // previous UI so you can swap back UI after exiting menu
 	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
@@ -147,7 +140,7 @@ public:
 	void resetInterpolationShortcutBlinking();
 	void resetPadSelectionShortcutBlinking();
 	AutomationParamType automationParamType;
-	bool getAffectEntire() override;
+	bool getAffectEntire();
 
 private:
 	// button action functions
@@ -360,5 +353,3 @@ private:
 };
 
 }; // namespace deluge::gui::views::automation
-
-

@@ -4931,6 +4931,10 @@ void AutomationLayout::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
 	}
 }
 
+bool AutomationLayout::isMultiPadPressSelected() {
+	return multiPadPressSelected;
+}
+
 // called by melodic_instrument.cpp or kit.cpp
 void AutomationLayout::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 	instrumentClipView.noteRowChanged(clip, noteRow);

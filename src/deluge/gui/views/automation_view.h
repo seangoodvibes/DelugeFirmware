@@ -100,6 +100,9 @@ public:
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;
+	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
+	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it	
+	bool isMultiPadPressSelected(); // public so menu can access it	
 
 	// called by melodic_instrument.cpp or kit.cpp
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
@@ -112,13 +115,12 @@ public:
 
 	void resetInterpolationShortcutBlinking();
 	void blinkInterpolationShortcut();
-	
+
 	void resetPadSelectionShortcutBlinking();
-	void blinkPadSelectionShortcut();	
+	void blinkPadSelectionShortcut();
 }
 
-}; // namespace deluge::gui::views::automation
+}; // namespace deluge::gui::views
 
 // TODO: should get moved into namespace once project namespacing is complete
 extern deluge::gui::views::AutomationView automationView;
-

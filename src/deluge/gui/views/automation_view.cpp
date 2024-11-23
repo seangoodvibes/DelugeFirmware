@@ -111,7 +111,7 @@ AutomationView::AutomationView() {
 }
 
 // called everytime you open up the automation view
-bool AutomationView::opened() {	
+bool AutomationView::opened() {
 	initializeView();
 
 	openedInBackground();
@@ -239,6 +239,19 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	return currentAutomationLayout->selectEncoderAction(offset);
 }
 
+// used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
+void AutomationLayout::getLastSelectedParamShortcut(Clip* clip) {
+	return currentAutomationLayout->getLastSelectedParamShortcut(clip);
+}
+
+void AutomationLayout::getLastSelectedParamArrayPosition(Clip* clip) {
+	return currentAutomationLayout->getLastSelectedParamArrayPosition(clip);
+}
+
+bool AutomationLayout::isMultiPadPressSelected() {
+	return currentAutomationLayout->isMultiPadPressSelected();
+}
+
 // called by melodic_instrument.cpp or kit.cpp
 void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 	return currentAutomationLayout->noteRowChanged(clip, noteRow);
@@ -284,4 +297,3 @@ void AutomationView::blinkPadSelectionShortcut() {
 }
 
 } // namespace deluge::gui::views
-
