@@ -372,7 +372,6 @@ AutomationLayout::AutomationLayout() {
 	lastPadSelectedKnobPos = kNoSelection;
 	numNotesSelected = 0;
 	selectedPadPressed = 0;
-	playbackStopped = false;
 	onArrangerView = false;
 	onMenuView = false;
 	navSysId = NAVIGATION_CLIP;
