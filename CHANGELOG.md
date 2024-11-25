@@ -110,6 +110,13 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Pad colors are calculated to avoid having adjacent pads of the same color as much as possible.
   - Default pad brightness is set to match the default brightness value, so they will be more visible if needed. They will dim when pressed instead of getting brighter. The brightness gradient over the drum pads, going from dim on the low velocity pads to bright on the highest, is now much more apparent, due to the max brightness being higher, the lowest brightness being lower, and using a quadratic curve for the brightness ratio rather than linear. The amount that the drum pads dim when pressed depends on the pad area, so that smaller pad presses will be more visible, and larger pad presses won't be TOO visible, i.e. they won't have a potentially unpleasant strobe light flashing behavior.
 
+### Sequencer
+
+#### <ins>Arpeggiator</ins>
+- The arpeggiator has now a new `NOTE PROBABILITY (PROB)` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
+- Added new `CHORD TYPE (CHRD)` paramater that will emulate a held chord so you can use `NOTE MODE` on the Kit Row.
+- The arpeggiator has now a new `SPREAD` submenu with up to 3 parameters that will allow you to control how those parameters of each arp step are deviated from its base value.
+
 ### MIDI
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
