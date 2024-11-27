@@ -110,6 +110,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Pad colors are calculated to avoid having adjacent pads of the same color as much as possible.
   - Default pad brightness is set to match the default brightness value, so they will be more visible if needed. They will dim when pressed instead of getting brighter. The brightness gradient over the drum pads, going from dim on the low velocity pads to bright on the highest, is now much more apparent, due to the max brightness being higher, the lowest brightness being lower, and using a quadratic curve for the brightness ratio rather than linear. The amount that the drum pads dim when pressed depends on the pad area, so that smaller pad presses will be more visible, and larger pad presses won't be TOO visible, i.e. they won't have a potentially unpleasant strobe light flashing behavior.
 
+##### Layout
+- Added the classic piano keyboard layout.
+
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
