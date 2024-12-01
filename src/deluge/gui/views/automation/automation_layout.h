@@ -80,7 +80,7 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset);
 	uint32_t getMaxLength();
 	uint32_t getMaxZoom();
-	[[nodiscard]] int32_t getNavSysId() const;
+	int32_t getNavSysId() const;
 	int32_t navSysId;
 
 	// vertical encoder action

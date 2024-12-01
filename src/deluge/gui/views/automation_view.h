@@ -101,8 +101,8 @@ public:
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;
 	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
-	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it	
-	bool isMultiPadPressSelected(); // public so menu can access it	
+	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it
+	bool isMultiPadPressSelected();                     // public so menu can access it
 
 	// called by melodic_instrument.cpp or kit.cpp
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
@@ -110,6 +110,7 @@ public:
 	// called by playback_handler.cpp
 	void notifyPlaybackBegun() override;
 
+	void initParameterSelection(bool updateDisplay = true);
 	bool onArrangerView;
 	bool inAutomationEditor();
 	bool inNoteEditor();
@@ -126,9 +127,9 @@ public:
 	UI* previousUI; // previous UI so you can swap back UI after exiting menu
 	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
-	                                      int32_t knobPosRight);	
+	                                      int32_t knobPosRight);
 	AutomationParamType automationParamType;
-}; 
+};
 
 }; // namespace deluge::gui::views
 

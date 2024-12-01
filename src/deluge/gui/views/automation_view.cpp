@@ -257,6 +257,12 @@ void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 	return currentAutomationLayout->noteRowChanged(clip, noteRow);
 }
 
+// resets the Parameter Selection which sends you back to the Automation Overview screen
+// these values are saved on a clip basis
+void AutomationView::initParameterSelection(bool updateDisplay) {
+	return currentAutomationLayout->initParameterSelection(updateDisplay);
+}
+
 // called by playback_handler.cpp
 void AutomationView::notifyPlaybackBegun() {
 	return currentAutomationLayout->notifyPlaybackBegun();
@@ -308,7 +314,7 @@ int32_t AutomationView::getAutomationParameterKnobPos(ModelStackWithAutoParam* m
 // deleting automation, or displaying current parameter value
 // multi pad presses don't use this function
 void AutomationView::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
-                                                        int32_t knobPosRight) {
+                                                      int32_t knobPosRight) {
 	return currentAutomationLayout->setAutomationKnobIndicatorLevels(modelStack, knobPosLeft, knobPosRight);
 }
 

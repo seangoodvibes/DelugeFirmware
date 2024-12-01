@@ -377,7 +377,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	else {
 		navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
 	}
-	
+
 	// playback restart command - restart should always restart, regardless of what else you're doing. playback
 	// restart command follows play button logic
 	if (restartingPlaybackAtBeginning) {
