@@ -100,7 +100,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-deluge::gui::views::AutomationView automationView{};
+&automationView automationView{};
 
 namespace deluge::gui::views {
 
@@ -294,6 +294,22 @@ void AutomationView::resetPadSelectionShortcutBlinking() {
 
 void AutomationView::blinkPadSelectionShortcut() {
 	return currentAutomationLayout->blinkPadSelectionShortcut();
+}
+
+// this function obtains a parameters value and converts it to a knobPos
+// the knobPos is used for rendering the current parameter values in the automation editor
+// it's also used for obtaining the start and end position values for a multi pad press
+// and also used for increasing/decreasing parameter values with the mod encoders
+int32_t AutomationView::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t squareStart) {
+	return currentAutomationLayout->getAutomationParameterKnobPos(modelStack, squareStart);
+}
+
+// sets both knob indicators to the same value when pressing single pad,
+// deleting automation, or displaying current parameter value
+// multi pad presses don't use this function
+void AutomationView::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+                                                        int32_t knobPosRight) {
+	return currentAutomationLayout->setAutomationKnobIndicatorLevels(modelStack, knobPosLeft, knobPosRight);
 }
 
 } // namespace deluge::gui::views

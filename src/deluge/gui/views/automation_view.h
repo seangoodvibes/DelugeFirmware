@@ -110,6 +110,7 @@ public:
 	// called by playback_handler.cpp
 	void notifyPlaybackBegun() override;
 
+	bool onArrangerView;
 	bool inAutomationEditor();
 	bool inNoteEditor();
 
@@ -118,7 +119,16 @@ public:
 
 	void resetPadSelectionShortcutBlinking();
 	void blinkPadSelectionShortcut();
-}
+
+	// public so menu can access it
+	bool isOnMenuView();
+	bool onMenuView;
+	UI* previousUI; // previous UI so you can swap back UI after exiting menu
+	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
+	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+	                                      int32_t knobPosRight);	
+	AutomationParamType automationParamType;
+}; 
 
 }; // namespace deluge::gui::views
 
