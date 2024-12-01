@@ -26,6 +26,7 @@ uint32_t getLFOInitialPhaseForZero(LFOType waveType) {
 }
 
 void LFO::setInitialPhase(const LFOConfig& config) {
+	return;
 	// Historically LFO1 didn't do much initial phase setting unless it was sync'ed.
 	// LFO2 on the other hand didn't support sync, and always went for the negative
 	// extreme regardless of wave type.

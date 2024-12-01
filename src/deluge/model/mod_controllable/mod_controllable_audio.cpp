@@ -282,7 +282,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 		StereoSample* currentSample = buffer;
 		do {
 
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			int32_t lfoOutput = 0;//modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 
 			if (modFXType == ModFXType::PHASER) {
 

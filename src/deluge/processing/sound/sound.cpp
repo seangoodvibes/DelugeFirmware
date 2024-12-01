@@ -2195,8 +2195,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tmepo changes do too? If so, this could be part of
 		// the resync logic.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] =
-		    globalLFO.render(numSamples, lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement());
+		globalSourceValues[patchSourceLFOGlobalUnderlying] = 0;
+		    //globalLFO.render(numSamples, lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement());
 		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
@@ -2637,6 +2637,7 @@ uint32_t Sound::getGlobalLFOPhaseIncrement() {
 }
 
 void Sound::resyncGlobalLFO() {
+	return;
 	if (!playbackHandler.isEitherClockActive()) {
 		return; // no clock, no sync
 	}

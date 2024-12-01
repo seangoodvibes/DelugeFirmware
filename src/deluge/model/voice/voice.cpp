@@ -155,8 +155,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	lfo.setInitialPhase(sound->lfoConfig[LFO2_ID]);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoConfig[LFO2_ID], 0);
+//	lfo.setInitialPhase(sound->lfoConfig[LFO2_ID]);
+//	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = 0;//lfo.render(0, sound->lfoConfig[LFO2_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -734,14 +734,14 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY &&
 	                             // localSourceValues[PatchSource::ENVELOPE_0 - Local::FIRST_SOURCE] == -2147483648);
 	// Local LFO
-	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
-		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
-		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound->lfoConfig[LFO2_ID], paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ]);
-		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
-		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
-	}
+//	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
+//	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
+//		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
+//		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = 0;
+//		    //lfo.render(numSamples, sound->lfoConfig[LFO2_ID], paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ]);
+//		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
+//		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
+//	}
 
 	// MPE params
 
