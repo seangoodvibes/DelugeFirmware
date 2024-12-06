@@ -51,7 +51,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
+#include "scheduler_api.h"
 #include "util/firmware_version.h"
 #include <cmath>
 #include <new>

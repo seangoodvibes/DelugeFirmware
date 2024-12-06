@@ -27,7 +27,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
-#include "task_scheduler.h"
+#include "scheduler_api.h"
 #include <optional>
 #include <string.h>
 

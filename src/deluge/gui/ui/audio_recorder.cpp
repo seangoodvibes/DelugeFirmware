@@ -41,7 +41,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
+#include "scheduler_api.h"
 #include "util/d_string.h"
 #include <string.h>
 
