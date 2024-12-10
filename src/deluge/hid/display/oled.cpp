@@ -1032,19 +1032,21 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 				scroller->pos = 0;
 			}
 
-			int32_t endX = scroller->endX;
-			if (FlashStorage::accessibilityMenuHighlighting) {
-				// for submenu's, this is the padding before the icon's are rendered
-				// need to clear this area otherwise it leaves a white pixels
-				endX += 4;
-			}
-
-			// Ok, have to render.
-			main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
-			main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
-			                scroller->textSizeY, scroller->pos, scroller->endX);
-			if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
-				main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY, scroller->endY);
+			if (doRender) {
+				int32_t endX = scroller->endX;
+				if (FlashStorage::accessibilityMenuHighlighting) {
+					// for submenu's, this is the padding before the icon's are rendered
+					// need to clear this area otherwise it leaves a white pixels
+					endX += 4;
+				}
+				// Ok, have to render.
+				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
+				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
+				                scroller->textSizeY, scroller->pos, scroller->endX);
+				if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
+					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
+					                scroller->endY);
+				}
 			}
 		}
 	}
