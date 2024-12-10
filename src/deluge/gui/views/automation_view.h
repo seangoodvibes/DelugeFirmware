@@ -47,7 +47,7 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
-namespace deluge::gui::views {
+//namespace deluge::gui::views {
 
 class AutomationView final : public ClipView, public InstrumentClipMinder {
 public:
@@ -133,7 +133,7 @@ public:
 	AutomationParamType automationParamType;
 };
 
-}; // namespace deluge::gui::views
+//}; // namespace deluge::gui::views
 
 // TODO: should get moved into namespace once project namespacing is complete
-extern deluge::gui::views::AutomationView automationView;
+extern AutomationView automationView;

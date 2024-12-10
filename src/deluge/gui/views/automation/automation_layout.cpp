@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/views/automation/automation_layout.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
@@ -99,7 +100,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-namespace deluge::gui::views::automation {
+//namespace deluge::gui::views::automation {
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
@@ -108,7 +109,7 @@ using deluge::modulation::params::patchedParamShortcuts;
 using deluge::modulation::params::unpatchedGlobalParamShortcuts;
 using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
-//using namespace deluge::gui;
+using namespace deluge::gui;
 
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
@@ -332,7 +333,7 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-//AutomationLayout automationLayout{};
+AutomationLayout automationLayout{};
 
 AutomationLayout::AutomationLayout() {
 
@@ -524,7 +525,7 @@ void AutomationLayout::focusRegained() {
 	}
 
 	// don't reset shortcut blinking if were still in the menu
-	if (getCurrentUI() == this) {
+	if (getCurrentUI() == &automationView) {
 		// blink timer got reset by view.focusRegained() above
 		parameterShortcutBlinking = false;
 		interpolationShortcutBlinking = false;
@@ -570,7 +571,7 @@ void AutomationLayout::openedInBackground() {
 		}
 	}
 	else {
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 	}
 
 	// setup interpolation shortcut blinking when entering automation view from menu
@@ -631,13 +632,13 @@ bool AutomationLayout::possiblyRefreshAutomationEditorGrid(Clip* clip, params::K
 		}
 	}
 	if (doRefreshGrid) {
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 		return true;
 	}
 	return false;
 }
 
-// called whenever you call uiNeedsRendering(this) somewhere else
+// called whenever you call uiNeedsRendering(&automationView) somewhere else
 // used to render automation overview, automation editor
 // used to setup the shortcut blinking
 bool AutomationLayout::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -902,7 +903,7 @@ void AutomationLayout::renderAutomationEditor(ModelStackWithAutoParam* modelStac
 		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
 	}
 	if (drawUndefinedArea) {
-		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
+		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, &automationView,
 		                    currentSong->tripletsOn, xDisplay);
 	}
 }
@@ -1065,7 +1066,7 @@ void AutomationLayout::renderNoteEditor(ModelStackWithNoteRow* modelStackWithNot
 		renderNoteColumn(modelStackWithNoteRow, clip, image, occupancyMask, xDisplay, xScroll, xZoom, squareInfo);
 	}
 	if (drawUndefinedArea) {
-		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
+		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, &automationView,
 		                    currentSong->tripletsOn, xDisplay);
 	}
 }
@@ -1196,7 +1197,7 @@ DisplayParameterName */
 void AutomationLayout::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	// don't refresh display if we're not current in the automation view UI
 	// (e.g. if you're editing automation while in the menu)
-	if (getCurrentUI() != this) {
+	if (getCurrentUI() != &automationView) {
 		return;
 	}
 
@@ -1864,7 +1865,7 @@ passToOthers:
 			renderDisplay();
 		}
 
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 
 		ActionResult result;
 		if (onArrangerView) {
@@ -1884,7 +1885,7 @@ passToOthers:
 	}
 
 	if (on && (b != KEYBOARD && b != CLIP_VIEW && b != SESSION_VIEW)) {
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -1896,7 +1897,7 @@ void AutomationLayout::handleSessionButtonAction(Clip* clip, bool on) {
 	if (on && Buttons::isShiftButtonPressed()) {
 		initParameterSelection();
 		blinkShortcuts();
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 	}
 	// go back to song / arranger view
 	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
@@ -1940,7 +1941,7 @@ void AutomationLayout::handleClipButtonAction(bool on, bool isAudioClip) {
 	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
 		initParameterSelection();
 		blinkShortcuts();
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 	}
 	// go back to clip view
 	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
@@ -2259,7 +2260,7 @@ void AutomationLayout::handleVerticalEncoderButtonAction(bool on) {
 void AutomationLayout::handleSelectEncoderButtonAction(bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		initParameterSelection();
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 
 		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
@@ -2519,7 +2520,7 @@ bool AutomationLayout::toggleVelocityPadSelectionMode(SquareInfo& squareInfo) {
 			instrumentClipView.dontDeleteNotesOnDepress();
 		}
 	}
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 	renderDisplay();
 	return true;
 }
@@ -2551,7 +2552,7 @@ bool AutomationLayout::toggleAutomationPadSelectionMode(ModelStackWithAutoParam*
 
 		updateAutomationModPosition(modelStackWithParam, squareStart, true, true);
 	}
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 	return true;
 }
 
@@ -2574,7 +2575,7 @@ void AutomationLayout::handleParameterSelection(Clip* clip, Output* output, Outp
 				clip->lastSelectedParamShortcutY = yDisplay;
 				blinkShortcuts();
 				renderDisplay();
-				uiNeedsRendering(this);
+				uiNeedsRendering(&automationView);
 				// if you're in note editor, turn led on
 				if (((InstrumentClip*)clip)->wrapEditing) {
 					indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
@@ -2690,7 +2691,7 @@ void AutomationLayout::handleParameterSelection(Clip* clip, Output* output, Outp
 	}
 	displayAutomation(true);
 	view.setModLedStates();
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 	// turn off cross screen LED in automation editor
 	if (clip && clip->type == ClipType::INSTRUMENT && ((InstrumentClip*)clip)->wrapEditing) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
@@ -2746,7 +2747,7 @@ void AutomationLayout::velocityPadSelectionAction(ModelStackWithNoteRow* modelSt
 		}
 
 		// refresh grid and display
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 	}
 	selectedPadPressed = velocity;
 	renderDisplay();
@@ -2908,7 +2909,7 @@ void AutomationLayout::velocityEditPadAction(ModelStackWithNoteRow* modelStackWi
 
 	if (refreshVelocityEditor) {
 		// refresh grid and update default velocity on the display
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 		// if holding a multi pad press, render left and right velocity of the multi pad press
 		if (multiPadPressActive) {
 			int32_t leftPadSelectedVelocity = getVelocityFromY(leftPadSelectedY);
@@ -3165,7 +3166,7 @@ void AutomationLayout::automationEditPadAction(ModelStackWithAutoParam* modelSta
 						                              xZoom);
 					}
 					else {
-						uiNeedsRendering(this);
+						uiNeedsRendering(&automationView);
 					}
 
 					// set led indicators to left / right pad selection values
@@ -3226,7 +3227,7 @@ singlePadPressAction:
 			leftPadSelectedX = xDisplay;
 			rightPadSelectedX = kNoSelection;
 
-			uiNeedsRendering(this);
+			uiNeedsRendering(&automationView);
 		}
 
 		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
@@ -3279,7 +3280,7 @@ ActionResult AutomationLayout::handleMutePadAction(ModelStackWithTimelineCounter
                                                    InstrumentClip* instrumentClip, Output* output,
                                                    OutputType outputType, int32_t y, int32_t velocity) {
 	if (onArrangerView) {
-		return arrangerView.handleStatusPadAction(y, velocity, this);
+		return arrangerView.handleStatusPadAction(y, velocity, &automationView);
 	}
 	else {
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
@@ -3323,13 +3324,13 @@ ActionResult AutomationLayout::handleAuditionPadAction(InstrumentClip* instrumen
                                                        OutputType outputType, int32_t y, int32_t velocity) {
 	if (onArrangerView) {
 		if (onAutomationOverview()) {
-			return arrangerView.handleAuditionPadAction(y, velocity, this);
+			return arrangerView.handleAuditionPadAction(y, velocity, &automationView);
 		}
 	}
 	else {
 		// "Learning" to this audition pad:
 		if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
-			if (getCurrentUI() == this) {
+			if (getCurrentUI() == &automationView) {
 				if (outputType == OutputType::KIT) {
 					NoteRow* thisNoteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
 					if (!thisNoteRow || !thisNoteRow->drum) {
@@ -3626,7 +3627,7 @@ getOut:
 		}
 		else if (selectedDrumChanged) {
 			initParameterSelection();
-			uiNeedsRendering(this);
+			uiNeedsRendering(&automationView);
 		}
 		else {
 			renderingNeededRegardlessOfUI(0, 1 << yDisplay);
@@ -3686,7 +3687,7 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 		if (inAutomationEditor()) {
 			int32_t xScroll = currentSong->xScroll[navSysId];
 			int32_t xZoom = currentSong->xZoom[navSysId];
-			int32_t squareSize = getPosFromSquare(1, xScroll, xZoom) - getPosFromSquare(0, xScroll, xZoom);
+			int32_t squareSize = automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
 			int32_t shiftAmount = offset * squareSize;
 
 			if (onArrangerView) {
@@ -3754,7 +3755,7 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 					instrumentClipView.adjustVelocity(offset);
 				}
 				renderDisplay(getCurrentInstrument()->defaultVelocity);
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 			}
 		}
 		return ActionResult::DEALT_WITH;
@@ -3783,7 +3784,7 @@ void AutomationLayout::shiftAutomationHorizontally(ModelStackWithAutoParam* mode
 		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 }
 
 // vertical encoder action
@@ -3849,7 +3850,7 @@ ActionResult AutomationLayout::verticalEncoderAction(int32_t offset, bool inCard
 			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
 
 			instrumentClipView.recalculateColours();
-			uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 			if (inNoteEditor()) {
 				renderDisplay();
 			}
@@ -3899,7 +3900,7 @@ shiftAllColour:
 		}
 
 		if (whichRowsToRender) {
-			uiNeedsRendering(this, whichRowsToRender, whichRowsToRender);
+			uiNeedsRendering(&automationView, whichRowsToRender, whichRowsToRender);
 		}
 	}
 
@@ -4129,7 +4130,7 @@ ActionResult AutomationLayout::scrollVertical(int32_t scrollAmount) {
 		instrumentClipView.someAuditioningHasEnded(!inNoteEditor());
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 	return ActionResult::DEALT_WITH;
 }
 
@@ -4184,7 +4185,7 @@ void AutomationLayout::modEncoderAction(int32_t whichModEncoder, int32_t offset)
 		}
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 	return;
 
 followOnAction:
@@ -4234,11 +4235,11 @@ bool AutomationLayout::automationModEncoderActionForSelectedPad(ModelStackWithAu
 		// for the second pad pressed in a long press, the square start position is set to the very last
 		// nodes position
 		if (multiPadPressSelected && (whichModEncoder == 1)) {
-			int32_t squareRightEdge = getPosFromSquare(xDisplay + 1, xScroll, xZoom);
+			int32_t squareRightEdge = automationView.getPosFromSquare(xDisplay + 1, xScroll, xZoom);
 			squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 		}
 		else {
-			squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+			squareStart = automationView.getPosFromSquare(xDisplay, xScroll, xZoom);
 		}
 
 		if (squareStart < effectiveLength) {
@@ -4401,13 +4402,13 @@ void AutomationLayout::modEncoderButtonAction(uint8_t whichModEncoder, bool on) 
 		goto followOnAction;
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 	return;
 
 followOnAction: // it will come here when you are on the automation overview / in note editor iscreen
 
 	view.modEncoderButtonAction(whichModEncoder, on);
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 }
 
 void AutomationLayout::copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xScroll,
@@ -4418,8 +4419,8 @@ void AutomationLayout::copyAutomation(ModelStackWithAutoParam* modelStackWithPar
 		copiedParamAutomation.numNodes = 0;
 	}
 
-	int32_t startPos = getPosFromSquare(0, xScroll, xZoom);
-	int32_t endPos = getPosFromSquare(kDisplayWidth, xScroll, xZoom);
+	int32_t startPos = automationView.getPosFromSquare(0, xScroll, xZoom);
+	int32_t endPos = automationView.getPosFromSquare(kDisplayWidth, xScroll, xZoom);
 	if (startPos == endPos) {
 		return;
 	}
@@ -4451,8 +4452,8 @@ void AutomationLayout::pasteAutomation(ModelStackWithAutoParam* modelStackWithPa
 		return;
 	}
 
-	int32_t startPos = getPosFromSquare(0, xScroll, xZoom);
-	int32_t endPos = getPosFromSquare(kDisplayWidth, xScroll, xZoom);
+	int32_t startPos = automationView.getPosFromSquare(0, xScroll, xZoom);
+	int32_t endPos = automationView.getPosFromSquare(kDisplayWidth, xScroll, xZoom);
 
 	int32_t pastedAutomationWidth = endPos - startPos;
 	if (pastedAutomationWidth == 0) {
@@ -4608,7 +4609,7 @@ void AutomationLayout::selectEncoderAction(int8_t offset) {
 	resetParameterShortcutBlinking();
 	blinkShortcuts();
 	view.setModLedStates();
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 }
 
 // used with SelectEncoderAction to get the next arranger / audio clip / kit affect entire parameter
@@ -5091,15 +5092,15 @@ int32_t AutomationLayout::getNavSysId() const {
 }
 
 uint32_t AutomationLayout::getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
-	int32_t squareRightEdge = getPosFromSquare(square + 1, xScroll, xZoom);
-	return std::min(effectiveLength, squareRightEdge) - getPosFromSquare(square, xScroll, xZoom);
+	int32_t squareRightEdge = automationView.getPosFromSquare(square + 1, xScroll, xZoom);
+	return std::min(effectiveLength, squareRightEdge) - automationView.getPosFromSquare(square, xScroll, xZoom);
 }
 
 // when pressing on a single pad, you want to display the value of the middle node within that square
 // as that is the most accurate value that represents that square
 uint32_t AutomationLayout::getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll,
                                                   int32_t xZoom) {
-	uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+	uint32_t squareStart = automationView.getPosFromSquare(xDisplay, xScroll, xZoom);
 	uint32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
 	if (squareWidth != 3) {
 		squareStart = squareStart + (squareWidth / 2);
@@ -5283,7 +5284,7 @@ void AutomationLayout::handleAutomationSinglePadPress(ModelStackWithAutoParam* m
 		                                xScroll, xZoom);
 	}
 
-	uiNeedsRendering(this);
+	uiNeedsRendering(&automationView);
 }
 
 // called by handle single pad press when it is determined that you are editing parameter automation
@@ -5299,10 +5300,10 @@ void AutomationLayout::handleAutomationParameterChange(ModelStackWithAutoParam* 
 		// display value at very first or very last node
 		if (multiPadPressSelected && ((leftPadSelectedX == xDisplay) || (rightPadSelectedX == xDisplay))) {
 			if (leftPadSelectedX == xDisplay) {
-				squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+				squareStart = automationView.getPosFromSquare(xDisplay, xScroll, xZoom);
 			}
 			else {
-				int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
+				int32_t squareRightEdge = automationView.getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
 				squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 			}
 		}
@@ -5320,7 +5321,7 @@ void AutomationLayout::handleAutomationParameterChange(ModelStackWithAutoParam* 
 
 	else if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+		uint32_t squareStart = automationView.getPosFromSquare(xDisplay, xScroll, xZoom);
 
 		if (squareStart < effectiveLength) {
 			// use default interpolation settings
@@ -5405,15 +5406,15 @@ void AutomationLayout::handleAutomationMultiPadPress(ModelStackWithAutoParam* mo
                                                      int32_t secondPadY, int32_t effectiveLength, int32_t xScroll,
                                                      int32_t xZoom, bool modEncoderAction) {
 
-	int32_t secondPadLeftEdge = getPosFromSquare(secondPadX, xScroll, xZoom);
+	int32_t secondPadLeftEdge = automationView.getPosFromSquare(secondPadX, xScroll, xZoom);
 
 	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
 		return;
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		int32_t firstPadLeftEdge = getPosFromSquare(firstPadX, xScroll, xZoom);
-		int32_t secondPadRightEdge = getPosFromSquare(secondPadX + 1, xScroll, xZoom);
+		int32_t firstPadLeftEdge = automationView.getPosFromSquare(firstPadX, xScroll, xZoom);
+		int32_t secondPadRightEdge = automationView.getPosFromSquare(secondPadX + 1, xScroll, xZoom);
 
 		int32_t firstPadValue = 0;
 		int32_t secondPadValue = 0;
@@ -5468,20 +5469,20 @@ void AutomationLayout::handleAutomationMultiPadPress(ModelStackWithAutoParam* mo
 			// we've already set the value for the very first node corresponding to the first pad above
 			// now we will set the value for the remaining nodes within the first pad
 			if (x == firstPadX) {
-				squareStart = getPosFromSquare(x, xScroll, xZoom) + kParamNodeWidth;
+				squareStart = automationView.getPosFromSquare(x, xScroll, xZoom) + kParamNodeWidth;
 				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
 			}
 
 			// we've already set the value for the very last node corresponding to the second pad above
 			// now we will set the value for the remaining nodes within the second pad
 			else if (x == secondPadX) {
-				squareStart = getPosFromSquare(x, xScroll, xZoom);
+				squareStart = automationView.getPosFromSquare(x, xScroll, xZoom);
 				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
 			}
 
 			// now we will set the values for the nodes between the first and second pad's pressed
 			else {
-				squareStart = getPosFromSquare(x, xScroll, xZoom);
+				squareStart = automationView.getPosFromSquare(x, xScroll, xZoom);
 				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom);
 			}
 
@@ -5519,7 +5520,7 @@ void AutomationLayout::handleAutomationMultiPadPress(ModelStackWithAutoParam* mo
 		initInterpolation();
 
 		// render the multi pad press
-		uiNeedsRendering(this);
+		uiNeedsRendering(&automationView);
 	}
 }
 
@@ -5531,15 +5532,15 @@ void AutomationLayout::renderAutomationDisplayForMultiPadPress(ModelStackWithAut
                                                                int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
                                                                int32_t xDisplay, bool modEncoderAction) {
 
-	int32_t secondPadLeftEdge = getPosFromSquare(rightPadSelectedX, xScroll, xZoom);
+	int32_t secondPadLeftEdge = automationView.getPosFromSquare(rightPadSelectedX, xScroll, xZoom);
 
 	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
 		return;
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		int32_t firstPadLeftEdge = getPosFromSquare(leftPadSelectedX, xScroll, xZoom);
-		int32_t secondPadRightEdge = getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
+		int32_t firstPadLeftEdge = automationView.getPosFromSquare(leftPadSelectedX, xScroll, xZoom);
+		int32_t secondPadRightEdge = automationView.getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
 
 		int32_t knobPosLeft = getAutomationParameterKnobPos(modelStackWithParam, firstPadLeftEdge) + kKnobPosOffset;
 
@@ -5680,7 +5681,7 @@ bool AutomationLayout::getAffectEntire() {
 }
 
 void AutomationLayout::blinkShortcuts() {
-	if (getCurrentUI() == this) {
+	if (getCurrentUI() == &automationView) {
 		int32_t lastSelectedParamShortcutX = kNoSelection;
 		int32_t lastSelectedParamShortcutY = kNoSelection;
 		if (onArrangerView) {
@@ -5772,4 +5773,4 @@ void AutomationLayout::blinkPadSelectionShortcut() {
 	padSelectionShortcutBlinking = true;
 }
 
-} // namespace deluge::gui::views::automation
+//} // namespace deluge::gui::views::automation

@@ -100,11 +100,13 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-&automationView automationView{};
+//&automationView automationView{};
 
-namespace deluge::gui::views {
+//namespace deluge::gui::views {
 
 AutomationLayout* curentAutomationLayout = nullptr;
+
+ArrangerView arrangerView{};
 
 AutomationView::AutomationView() {
 	currentAutomationLayout = (AutomationLayout*)&automationLayout;
@@ -326,4 +328,4 @@ bool AutomationView::interpolationAfter() {
 	return currentAutomationLayout->interpolationAfter;
 }
 
-} // namespace deluge::gui::views
+//} // namespace deluge::gui::views
