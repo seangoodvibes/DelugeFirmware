@@ -51,7 +51,8 @@ namespace deluge::gui::views::automation {
 
 class AutomationLayout {
 public:
-	AutomationLayout();
+	AutomationLayout() = default;
+	~AutomationLayout() override = default;
 	bool opened();
 	void initializeView();
 	void focusRegained();

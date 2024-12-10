@@ -108,7 +108,7 @@ using deluge::modulation::params::patchedParamShortcuts;
 using deluge::modulation::params::unpatchedGlobalParamShortcuts;
 using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
-using namespace deluge::gui;
+//using namespace deluge::gui;
 
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
@@ -332,7 +332,7 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-AutomationLayout automationLayout{};
+//AutomationLayout automationLayout{};
 
 AutomationLayout::AutomationLayout() {
 
@@ -620,12 +620,12 @@ AutomationSubType AutomationLayout::getAutomationSubType() {
 // rendering
 bool AutomationLayout::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
 	bool doRefreshGrid = false;
-	if (clip && !automationView.onArrangerView) {
+	if (clip && !onArrangerView) {
 		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
 			doRefreshGrid = true;
 		}
 	}
-	else if (automationView.onArrangerView) {
+	else if (onArrangerView) {
 		if ((currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind)) {
 			doRefreshGrid = true;
 		}
@@ -5012,8 +5012,8 @@ void AutomationLayout::initPadSelection() {
 
 void AutomationLayout::initInterpolation() {
 
-	automationView.interpolationBefore = false;
-	automationView.interpolationAfter = false;
+	interpolationBefore = false;
+	interpolationAfter = false;
 }
 
 // get's the modelstack for the parameters that are being edited

@@ -240,15 +240,15 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 }
 
 // used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
-void AutomationLayout::getLastSelectedParamShortcut(Clip* clip) {
+void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 	return currentAutomationLayout->getLastSelectedParamShortcut(clip);
 }
 
-void AutomationLayout::getLastSelectedParamArrayPosition(Clip* clip) {
+void AutomationView::getLastSelectedParamArrayPosition(Clip* clip) {
 	return currentAutomationLayout->getLastSelectedParamArrayPosition(clip);
 }
 
-bool AutomationLayout::isMultiPadPressSelected() {
+bool AutomationView::isMultiPadPressSelected() {
 	return currentAutomationLayout->isMultiPadPressSelected();
 }
 
@@ -316,6 +316,14 @@ int32_t AutomationView::getAutomationParameterKnobPos(ModelStackWithAutoParam* m
 void AutomationView::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
                                                       int32_t knobPosRight) {
 	return currentAutomationLayout->setAutomationKnobIndicatorLevels(modelStack, knobPosLeft, knobPosRight);
+}
+
+bool AutomationView::interpolationBefore() {
+	return currentAutomationLayout->interpolationBefore;
+}
+
+bool AutomationView::interpolationAfter() {
+	return currentAutomationLayout->interpolationAfter;
 }
 
 } // namespace deluge::gui::views

@@ -999,8 +999,8 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		// instrument clip view
 
 		if (getRootUI() == &automationView) {
-			firstI = homogenizeRegion(modelStack, pos, length, value, automationView.interpolationBefore,
-			                          automationView.interpolationAfter, effectiveLength, false);
+			firstI = homogenizeRegion(modelStack, pos, length, value, automationView.interpolationBefore(),
+			                          automationView.interpolationAfter(), effectiveLength, false);
 		}
 		else {
 			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);

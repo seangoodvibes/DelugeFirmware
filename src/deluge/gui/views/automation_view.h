@@ -117,6 +117,8 @@ public:
 
 	void resetInterpolationShortcutBlinking();
 	void blinkInterpolationShortcut();
+	bool interpolationBefore();
+	bool interpolationAfter();
 
 	void resetPadSelectionShortcutBlinking();
 	void blinkPadSelectionShortcut();
