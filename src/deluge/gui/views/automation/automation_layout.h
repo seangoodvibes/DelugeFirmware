@@ -57,6 +57,8 @@ public:
 	void focusRegained();
 	void openedInBackground();
 
+	void graphicsRoutine();
+
 	// ui
 	AutomationSubType getAutomationSubType();
 

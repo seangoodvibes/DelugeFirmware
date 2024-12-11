@@ -3770,8 +3770,7 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 
 	// Or, let parent deal with it
 	else {
-		ActionResult result = ClipView::horizontalEncoderAction(offset);
-		return result;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 }
 

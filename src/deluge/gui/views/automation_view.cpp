@@ -148,7 +148,7 @@ AutomationSubType AutomationView::getAutomationSubType() {
 }
 
 // rendering
-bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
+bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID) {
 	return currentAutomationLayout->possiblyRefreshAutomationEditorGrid(clip, paramKind, paramID);
 }
 
@@ -201,7 +201,11 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 // shift automations left / right
 // adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
-	return currentAutomationLayout->horizontalEncoderAction(offset);
+	ActionResult result = currentAutomationLayout->horizontalEncoderAction(offset);
+	if (result == ActionResult::NOT_DEALT_WITH) {
+		return ClipView::horizontalEncoderAction(offset);
+	}
+	return result;
 }
 
 uint32_t AutomationView::getMaxLength() {
