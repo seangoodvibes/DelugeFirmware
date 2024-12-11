@@ -815,10 +815,8 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				// expression params, so sounds or midi/cv, or a single drum
 				else if (params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
 					uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-					if (paramID != kNoParamID) {
-						modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
-						                                                    paramID, params::Kind::EXPRESSION);
-					}
+					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID,
+					                                                    params::Kind::EXPRESSION);
 				}
 			}
 
@@ -2289,29 +2287,41 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	}
 
 	Clip* clip = getCurrentClip();
+	Output* output = nullptr;
+	OutputType outputType;
 
-	if (clip->type == ClipType::AUDIO) {
-		if (x >= kDisplayWidth) {
+	if (onArrangerView) {
+		// don't interact with sidebar if VU Meter is displayed
+		if (x >= kDisplayWidth && view.displayVUMeter) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
+	// if we're not in arranger view, then we're in automation clip view
+	// let's make sure we don't have any null clip or output pointers
+	else {
+		if (clip && clip->output) {
+			output = clip->output;
+			outputType = output->type;
 
-	// don't interact with sidebar if VU Meter is displayed
-	if (onArrangerView && x >= kDisplayWidth && view.displayVUMeter) {
-		return ActionResult::DEALT_WITH;
-	}
-
-	Output* output = clip->output;
-	OutputType outputType = output->type;
-
-	// if we're in a midi clip, with a midi cc selected and we press the name shortcut
-	// while holding shift, then enter the rename midi cc UI
-	if (outputType == OutputType::MIDI_OUT) {
-		if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
-			if (!onAutomationOverview()) {
-				openUI(&renameMidiCCUI);
-				return ActionResult::DEALT_WITH;
+			if (outputType == OutputType::AUDIO) {
+				if (x >= kDisplayWidth) {
+					return ActionResult::DEALT_WITH;
+				}
 			}
+			else if (outputType == OutputType::MIDI_OUT) {
+				// if we're in a midi clip, with a midi cc selected and we press the name shortcut
+				// while holding shift, then enter the rename midi cc UI
+				if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
+					if (!onAutomationOverview()) {
+						openUI(&renameMidiCCUI);
+						return ActionResult::DEALT_WITH;
+					}
+				}
+			}
+		}
+		// return if pointers are null
+		else {
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
@@ -2455,10 +2465,9 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 			if (getCurrentUI() == &automationView) {
 				// make sure the context is valid for selecting a parameter
 				// can't select a parameter in a kit if you haven't selected a drum
-				if (onArrangerView
-				    || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
-				    || (outputType == OutputType::KIT && getAffectEntire())) {
+				bool isKit = outputType == OutputType::KIT;
 
+				if (onArrangerView || !isKit || getAffectEntire() || ((Kit*)output)->selectedDrum) {
 					handleParameterSelection(clip, output, outputType, x, y);
 
 					// if you're in not in note editor, turn led off if it's on
@@ -2655,12 +2664,12 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 	}
 	// expression params, so sounds or midi/cv, or a single drum
-	else if (util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
-	         // selected a single sound drum
-	         || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
-	              && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))) {
-		uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-		clip->lastSelectedParamID = paramID;
+	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
+	          // selected a single sound drum
+	          || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	               && ((Kit*)output)->selectedDrum->type == DrumType::SOUND)))
+	         && params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
+		clip->lastSelectedParamID = params::expressionParamFromShortcut(xDisplay, yDisplay);
 		clip->lastSelectedParamKind = params::Kind::EXPRESSION;
 	}
 
