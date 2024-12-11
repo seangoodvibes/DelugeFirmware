@@ -106,7 +106,7 @@ extern "C" {
 
 AutomationLayout* currentAutomationLayout = nullptr;
 
-ArrangerView arrangerView{};
+AutomationView automationView{};
 
 AutomationView::AutomationView() {
 	currentAutomationLayout = (AutomationLayout*)&automationLayout;
