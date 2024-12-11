@@ -47,7 +47,7 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
-//namespace deluge::gui::views::automation {
+// namespace deluge::gui::views::automation {
 
 class AutomationLayout final {
 public:
@@ -99,8 +99,8 @@ public:
 	void selectEncoderAction(int8_t offset);
 	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
 	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it
-	bool isMultiPadPressSelected();						// public so menu can access it
-	bool multiPadPressSelected;                         
+	bool isMultiPadPressSelected();                     // public so menu can access it
+	bool multiPadPressSelected;
 
 	// called by melodic_instrument.cpp or kit.cpp
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
@@ -143,6 +143,8 @@ public:
 	void resetPadSelectionShortcutBlinking();
 	AutomationParamType automationParamType;
 	bool getAffectEntire();
+
+	void resetShortcutBlinking();
 
 private:
 	// button action functions
@@ -326,7 +328,6 @@ private:
 	                                                    int32_t offset);
 
 	void blinkShortcuts();
-	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();
 
 	bool parameterShortcutBlinking;

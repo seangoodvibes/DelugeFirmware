@@ -100,7 +100,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-//namespace deluge::gui::views::automation {
+// namespace deluge::gui::views::automation {
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
@@ -3397,7 +3397,8 @@ void AutomationLayout::auditionPadAction(int32_t velocity, int32_t yDisplay, boo
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	bool clipIsActiveOnInstrument = automationView.InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+	bool clipIsActiveOnInstrument =
+	    automationView.InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Output* output = clip->output;
@@ -3687,7 +3688,8 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 		if (inAutomationEditor()) {
 			int32_t xScroll = currentSong->xScroll[navSysId];
 			int32_t xZoom = currentSong->xZoom[navSysId];
-			int32_t squareSize = automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
+			int32_t squareSize =
+			    automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
 			int32_t shiftAmount = offset * squareSize;
 
 			if (onArrangerView) {

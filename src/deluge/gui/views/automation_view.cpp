@@ -102,7 +102,7 @@ extern "C" {
 
 //&automationView automationView{};
 
-//namespace deluge::gui::views {
+// namespace deluge::gui::views {
 
 AutomationLayout* currentAutomationLayout = nullptr;
 
@@ -148,7 +148,8 @@ AutomationSubType AutomationView::getAutomationSubType() {
 }
 
 // rendering
-bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID) {
+bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+                                                         int32_t paramID) {
 	return currentAutomationLayout->possiblyRefreshAutomationEditorGrid(clip, paramKind, paramID);
 }
 
@@ -326,6 +327,10 @@ bool AutomationView::interpolationBefore() {
 
 bool AutomationView::interpolationAfter() {
 	return currentAutomationLayout->interpolationAfter;
+}
+
+void AutomationView::resetShortcutBlinking() {
+	return currentAutomationLayout->resetShortcutBlinking();
 }
 
 //} // namespace deluge::gui::views

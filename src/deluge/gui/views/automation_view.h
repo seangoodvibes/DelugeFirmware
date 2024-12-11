@@ -47,7 +47,7 @@ class PatchCableSet;
 class Sound;
 class SoundDrum;
 
-//namespace deluge::gui::views {
+// namespace deluge::gui::views {
 
 class AutomationView final : public ClipView, public InstrumentClipMinder {
 public:
@@ -131,6 +131,8 @@ public:
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);
 	AutomationParamType automationParamType;
+
+	void resetShortcutBlinking();
 };
 
 //}; // namespace deluge::gui::views
