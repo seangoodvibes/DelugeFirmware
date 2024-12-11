@@ -127,13 +127,13 @@ void AutomationView::initializeView() {
 	return currentAutomationLayout->initializeView();
 }
 
+void AutomationView::openedInBackground() {
+	return currentAutomationLayout->openedInBackground();
+}
+
 // Initializes some stuff to begin a new editing session
 void AutomationView::focusRegained() {
 	return currentAutomationLayout->focusRegained();
-}
-
-void AutomationView::openedInBackground() {
-	return currentAutomationLayout->openedInBackground();
 }
 
 // used for the play cursor
