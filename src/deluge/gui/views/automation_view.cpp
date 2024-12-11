@@ -104,7 +104,7 @@ extern "C" {
 
 //namespace deluge::gui::views {
 
-AutomationLayout* curentAutomationLayout = nullptr;
+AutomationLayout* currentAutomationLayout = nullptr;
 
 ArrangerView arrangerView{};
 
@@ -124,7 +124,7 @@ bool AutomationView::opened() {
 }
 
 void AutomationView::initializeView() {
-	return curentAutomationLayout->initializeView();
+	return currentAutomationLayout->initializeView();
 }
 
 // Initializes some stuff to begin a new editing session
@@ -201,11 +201,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 // shift automations left / right
 // adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
-	ActionResult result = currentAutomationLayout->horizontalEncoderAction(offset);
-	if (result == ActionResult::NOT_DEALT_WITH) {
-		return ClipView::horizontalEncoderAction(offset);
-	}
-	return result;
+	return currentAutomationLayout->horizontalEncoderAction(offset);
 }
 
 uint32_t AutomationView::getMaxLength() {

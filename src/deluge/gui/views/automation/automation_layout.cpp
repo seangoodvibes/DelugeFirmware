@@ -487,7 +487,7 @@ void AutomationLayout::focusRegained() {
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
 	else {
-		ClipView::focusRegained();
+		automationView.ClipView::focusRegained();
 
 		Clip* clip = getCurrentClip();
 		if (clip->type == ClipType::AUDIO) {
@@ -519,7 +519,7 @@ void AutomationLayout::focusRegained() {
 				}
 			}
 			instrumentClipView.auditioningSilently = false; // Necessary?
-			InstrumentClipMinder::focusRegained();
+			automationView.InstrumentClipMinder::focusRegained();
 			instrumentClipView.setLedStates();
 		}
 	}
@@ -1869,16 +1869,16 @@ passToOthers:
 
 		ActionResult result;
 		if (onArrangerView) {
-			result = TimelineView::buttonAction(b, on, inCardRoutine);
+			result = automationView.TimelineView::buttonAction(b, on, inCardRoutine);
 		}
 		else if (isAudioClip) {
-			result = ClipMinder::buttonAction(b, on);
+			result = automationView.ClipMinder::buttonAction(b, on);
 		}
 		else {
-			result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+			result = automationView.InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		}
 		if (result == ActionResult::NOT_DEALT_WITH) {
-			result = ClipView::buttonAction(b, on, inCardRoutine);
+			result = automationView.ClipView::buttonAction(b, on, inCardRoutine);
 		}
 
 		return result;
@@ -2000,7 +2000,7 @@ void AutomationLayout::handleCrossScreenButtonAction(bool on) {
 						}
 					}
 
-					setLedStates();
+					automationView.setLedStates();
 				}
 			}
 		}
@@ -2125,12 +2125,12 @@ bool AutomationLayout::handleHorizontalEncoderButtonAction(bool on, bool isAudio
 	         && !onAutomationOverview()) {
 		if (isNoUIModeActive()) {
 			// Zoom to max if we weren't already there...
-			if (!zoomToMax()) {
+			if (!automationView.zoomToMax()) {
 				// Or if we didn't need to do that, double Clip length
 				instrumentClipView.doubleClipLengthAction();
 			}
 			else {
-				displayZoomLevel();
+				automationView.displayZoomLevel();
 			}
 		}
 		// Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for
@@ -2401,7 +2401,7 @@ ActionResult AutomationLayout::handleEditPadAction(ModelStackWithAutoParam* mode
 	}
 
 	// regular automation / note editing action
-	if (isUIModeWithinRange(editPadActionUIModes) && isSquareDefined(x, xScroll, xZoom)) {
+	if (isUIModeWithinRange(editPadActionUIModes) && automationView.isSquareDefined(x, xScroll, xZoom)) {
 		if (inAutomationEditor()) {
 			automationEditPadAction(modelStackWithParam, clip, x, y, velocity, effectiveLength, xScroll, xZoom);
 		}
@@ -3397,7 +3397,7 @@ void AutomationLayout::auditionPadAction(int32_t velocity, int32_t yDisplay, boo
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+	bool clipIsActiveOnInstrument = automationView.InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Output* output = clip->output;
@@ -3770,7 +3770,7 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 
 	// Or, let parent deal with it
 	else {
-		return ActionResult::NOT_DEALT_WITH;
+		return automationView.ClipView::horizontalEncoderAction(offset);
 	}
 }
 
@@ -4188,7 +4188,7 @@ void AutomationLayout::modEncoderAction(int32_t whichModEncoder, int32_t offset)
 	return;
 
 followOnAction:
-	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+	return automationView.ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
 bool AutomationLayout::automationModEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam,
@@ -4524,7 +4524,7 @@ void AutomationLayout::selectEncoderAction(int8_t offset) {
 	// Overview the currentUIMode will change to Selecting Midi CC. In this case, turning select encoder
 	// should allow you to change the midi CC assignment to that modEncoder
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
-		InstrumentClipMinder::selectEncoderAction(offset);
+		automationView.InstrumentClipMinder::selectEncoderAction(offset);
 		return;
 	}
 	// don't allow switching to automation editor if you're holding the audition pad in arranger
