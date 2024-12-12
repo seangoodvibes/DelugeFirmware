@@ -19,33 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_view.h"
-#include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
-#include "model/note/note_row.h"
-#include "modulation/automation/copied_param_automation.h"
-
-class Action;
-class CopiedNoteRow;
-class Drum;
-class Editor;
-class AudioClip;
-class Instrument;
-class InstrumentClip;
-class MidiInstrument;
-class ModControllable;
-class ModelStackWithAutoParam;
-class ModelStackWithNoteRow;
-class ModelStackWithThreeMainThings;
-class ModelStackWithTimelineCounter;
-class Note;
-class NoteRow;
-class ParamCollection;
-class ParamManagerForTimeline;
-class ParamNode;
-class PatchCableSet;
-class Sound;
-class SoundDrum;
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 
 // namespace deluge::gui::views {
 
