@@ -16,26 +16,8 @@
  */
 
 #include "gui/views/automation_view.h"
-#include "definitions_cxx.hpp"
-#include "extern.h"
-#include "gui/colour/colour.h"
-#include "gui/colour/palette.h"
-#include "gui/menu_item/colour.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/multi_range.h"
-#include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/menus.h"
-#include "gui/ui/ui.h"
+#include "gui/ui/root_ui.h"
 #include "gui/views/automation/automation_layout.h"
-#include <new>
-#include <string.h>
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
 
 //&automationView automationView{};
 
@@ -121,7 +103,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 
 // button action
 
-ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult AutomationView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	return currentAutomationLayout->buttonAction(b, on, inCardRoutine);
 }
 

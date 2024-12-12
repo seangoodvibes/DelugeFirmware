@@ -18,36 +18,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/clip_view.h"
 #include "hid/button.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 
-class Action;
-class CopiedNoteRow;
-class Drum;
-class Editor;
-class AudioClip;
-class Instrument;
-class InstrumentClip;
-class MidiInstrument;
-class ModControllable;
-class ModelStackWithAutoParam;
-class ModelStackWithNoteRow;
-class ModelStackWithThreeMainThings;
-class ModelStackWithTimelineCounter;
-class Note;
-class NoteRow;
-class ParamCollection;
-class ParamManagerForTimeline;
-class ParamNode;
-class PatchCableSet;
-class Sound;
-class SoundDrum;
-
 // namespace deluge::gui::views::automation {
+
+class Clip;
 
 class AutomationLayout final {
 public:
@@ -135,7 +113,7 @@ public:
 	// public so menu can access it
 	bool isOnMenuView();
 	bool onMenuView;
-	UI* previousUI; // previous UI so you can swap back UI after exiting menu
+	// UI* previousUI; // previous UI so you can swap back UI after exiting menu
 	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);

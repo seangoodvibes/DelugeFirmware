@@ -1733,7 +1733,7 @@ void AutomationLayout::displayAutomation(bool padSelected, bool updateDisplay) {
 
 // button action
 
-ActionResult AutomationLayout::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
