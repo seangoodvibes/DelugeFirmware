@@ -6848,7 +6848,8 @@ void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) 
 	if (clip == getCurrentInstrumentClip()) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			if (getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)) {
-				uiNeedsRendering(this, 1 << yDisplay, 0);
+				// use getRootUI() in case it is called from automation view
+				uiNeedsRendering(getRootUI(), 1 << yDisplay, 0);
 			}
 		}
 	}
