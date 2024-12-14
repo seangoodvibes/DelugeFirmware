@@ -28,7 +28,8 @@ class ModelStackWithTimelineCounter;
 /// Player: plays back a file or samples from input without monitoring
 /// Sampler: Monitoring is enabled but disabled after recording. Overdubbing creates a new clip.
 /// Looper/FX: monitoring always enabled. Overdubbing overdubs the existing audio
-enum class AudioOutputMode : uint8_t { player, sampler, looper };
+/// Bus: monitoring always enabled. input source is always a specific track, assigned automatically.
+enum class AudioOutputMode : uint8_t { player, sampler, looper, bus };
 constexpr int kNumAudioOutputModes = 3;
 AudioOutputMode stringToAOMode(char const* string);
 char const* aoModeToString(AudioOutputMode mode);

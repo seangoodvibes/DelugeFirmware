@@ -591,6 +591,8 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 			return "Audio Sampler";
 		case AudioOutputMode::looper:
 			return "Audio Looper";
+		case AudioOutputMode::bus:
+			return "Audio Bus";
 		}
 		return "Audio";
 	}
