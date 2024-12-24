@@ -546,7 +546,8 @@ void AutomationView::openedInBackground() {
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading();
+
 	AudioEngine::logAction("AutomationView::beginSession 2");
 
 	if (renderingToStore) {

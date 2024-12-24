@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
@@ -132,6 +133,7 @@ namespace AudioEngine {
 void routine();
 void routine_task();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
+void runRoutine();
 
 void init();
 void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
@@ -178,7 +180,6 @@ void printLog();
 #endif
 int32_t getNumAudio();
 int32_t getNumVoices();
-
 bool doSomeOutputting();
 void updateReverbParams();
 
@@ -212,6 +213,7 @@ extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
+extern TaskID routine_task_id;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
 } // namespace AudioEngine

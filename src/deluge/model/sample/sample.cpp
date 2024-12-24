@@ -1384,7 +1384,7 @@ continueWhileLoop:
 		for (int32_t i = 0; i < (1 << lengthDoublingsNow); i++) {
 
 			if (!(count & 255)) {
-				AudioEngine::routineWithClusterLoading(); // --------------------------------------
+				AudioEngine::routineWithClusterLoading();
 			}
 			count++;
 
@@ -1485,7 +1485,7 @@ doneReading:
 		writeIndex++;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	/*
 	D_PRINTLN("doing fft ---------------- %d", PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
@@ -1511,7 +1511,7 @@ doneReading:
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 1023)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t thisValue = fastPythag(fftOutput[i].r, fftOutput[i].i);
@@ -1547,7 +1547,7 @@ doneReading:
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 255)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t thisValue = fftHeights[i];
@@ -1607,8 +1607,7 @@ doneReading:
 		// We're at a peak!
 
 		if (!(peakCount & 7)) {
-			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 15 works. 7 is extra
-			                                          // safe
+			AudioEngine::routineWithClusterLoading(); // Rohan 15 works. 7 is extra safe
 		}
 		peakCount++;
 
