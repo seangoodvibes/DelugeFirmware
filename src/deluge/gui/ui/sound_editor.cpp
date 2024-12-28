@@ -11,9 +11,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/ui.h"
@@ -122,15 +120,20 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-SoundEditor soundEditor;
+SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
 	selectedNoteRow = false;
+	resetSourceBlinks();
+}
+
+void SoundEditor::resetSourceBlinks() {
+	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
 }
 
 bool SoundEditor::editingKit() {
@@ -584,28 +587,19 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 	}
 }
 
-bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
+void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
+	// First we clear everything.
+	resetSourceBlinks();
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-	MenuItem* currentItem = getCurrentMenuItem();
-
-	currentItem->beginSession(oldMenuItem);
-
-	// If that didn't succeed (file browser)
-	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
-	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
-		return false;
+	// In these cases that's all we need to do.
+	if (inSettingsMenu() || inNoteEditor() || getCurrentUI() != &soundEditor) {
+		return;
 	}
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	// Extra braces to make the diff easier to read. Will submit a separate cleanup.
+	{
 
-	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
-	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
-
-		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
-		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
 		paramShortcutBlinkFrequency = 3;
 
 		// Find param shortcut
@@ -669,25 +663,18 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 				}
 			}
 
-stopThat: {}
+stopThat:
 
 			if (currentParamShorcutX != 255) {
 				updateSourceBlinks(currentItem);
 			}
 		}
 
-		// If we found nothing...
-		if (currentParamShorcutX == 255) {
-			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
-		}
-
-		// Or if we found something...
-		else {
+		// If we found something...
+		if (currentParamShorcutX != 255) {
 			blinkShortcut();
 		}
 	}
-
-shortcutsPicked:
 
 	if (currentItem->shouldBlinkLearnLed()) {
 		indicator_leds::blinkLed(IndicatorLED::LEARN);
@@ -695,10 +682,21 @@ shortcutsPicked:
 	else {
 		indicator_leds::setLedState(IndicatorLED::LEARN, false);
 	}
+}
+
+bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
+	MenuItem* currentItem = getCurrentMenuItem();
+	currentItem->beginSession(oldMenuItem);
+
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+
+	currentItem->updatePadLights();
 
 	possibleChangeToCurrentRangeDisplay();
 
-	return true;
+	return getCurrentUI() == &soundEditor;
 }
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
@@ -716,7 +714,7 @@ void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
 }
 
 void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	resetSourceBlinks();
 	setupShortcutBlink(x, y, 1);
 	blinkShortcut();
 }
@@ -781,19 +779,55 @@ void SoundEditor::scrollFinished() {
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
                                          UI_MODE_AUDITIONING, 0};
 
-void SoundEditor::selectEncoderAction(int8_t offset) {
+// inertia and acceleration controls how fast the knob accelerates in horizontal menus
+// speedScale controls how we go from "raw speed" to speed used as offset multiplier
+// min and max speed clamp the max effective speed
+//
+// current values have been tuned to be slow enough to feel easy to control, but fast
+// enough to go from 0 to 50 with one fast turn of the encoder. speedScale and min/max
+// could potentially be user configurable in a small range.
+const double acceleration = 0.1;
+const double inertia = 1.0 - acceleration;
+const double speedScale = 0.15;
+const double minSpeed = 1.0;
+const double maxSpeed = 5.0;
 
+double getKnobSpeed(int8_t offset) {
+	// speed is current raw knob speed
+	static double speed = 0.0;
+	// lastOffset and lastEncoderTime keep track of our direction and time
+	static int8_t lastOffset = 0;
+	static double lastEncoderTime = 0.0;
+	double time = getSystemTime();
+	if (offset == lastOffset) {
+		// moving in the same direction, update speed
+		speed = speed * inertia + (1.0 / (time - lastEncoderTime)) * acceleration;
+	}
+	else {
+		// change of direction, reset speed
+		speed = 0.0;
+	}
+	lastEncoderTime = time;
+	lastOffset = offset;
+	return std::clamp((speed * speedScale), minSpeed, maxSpeed);
+}
+
+void SoundEditor::selectEncoderAction(int8_t offset) {
+	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
-		offset = offset * 5;
+		scaledOffset *= 5;
 	}
 
+	MenuItem* item = getCurrentMenuItem();
 	RootUI* rootUI = getRootUI();
 
-	// if you're not on the automation overview and you haven't selected a multi pad press
-	// (multi pad press values are only editable with mod encoders to edit left and right position)
-	if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
-		automationView.modEncoderAction(0, offset);
+	// Forward to automation view.
+	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
+	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
+	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
+	    && !automationView.multiPadPressSelected) {
+		automationView.modEncoderAction(0, scaledOffset);
 	}
 	else {
 		if (!isUIModeWithinRange(selectEncoderUIModes)) {
@@ -812,7 +846,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		getCurrentMenuItem()->selectEncoderAction(offset);
+		item->selectEncoderAction(item->isSubmenu() ? offset * getKnobSpeed(offset) : scaledOffset);
 
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
@@ -878,11 +912,13 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		const MenuItem* item = nullptr;
+		Submenu* parent = nullptr;
 
 		// session views (arranger, song, performance)
 		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
+				parent = parentsForSongShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -892,6 +928,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		else if (setupKitGlobalFXMenu) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
+				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -900,32 +937,12 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// AudioClips - there are just a few shortcuts
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
 
-			// NAME shortcut
-			if (x == 11 && y == 5) {
-				// Renames the output (track), not the clip
-				Output* output = getCurrentOutput();
-				if (output) {
-					renameOutputUI.output = output;
-					openUI(&renameOutputUI);
-					return ActionResult::DEALT_WITH;
-				}
-			}
-			else if (x <= 14) {
+			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
+				parent = parentsForAudioShortcuts[x][y];
 			}
 
 			goto doSetup;
-		}
-
-		else if (x == 11 && y == 5) {
-
-			if (handleClipName()) {
-				ActionResult::DEALT_WITH;
-			}
-			else {
-				item = paramShortcutsForSounds[x][y];
-				goto doSetup;
-			}
 		}
 
 		else {
@@ -954,6 +971,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				}
 				else {
 					item = paramShortcutsForSounds[x][y];
+					parent = parentsForSoundShortcuts[x][y];
 				}
 
 doSetup:
@@ -962,6 +980,14 @@ doSetup:
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
+					}
+
+					// If we're on OLED, a parent menu & horizontal menus are in play,
+					// then we swap the parent in place of the child.
+					if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+						if (parent->focusChild(item)) {
+							item = parent;
+						}
 					}
 
 					// if we're in the menu and automation view is the root (background) UI
@@ -1705,7 +1731,7 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
-	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
+	if (currentMenuItem == static_cast<void*>(&nameEditMenu)) {
 		if (!navigationDepth) {
 			return;
 		}
@@ -1715,32 +1741,6 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	currentMenuItem->renderOLED();
 }
 
-bool SoundEditor::handleClipName() {
-
-	Clip* clip = getCurrentClip();
-	Output* output = getCurrentOutput();
-
-	switch (clip->type) {
-
-	case ClipType::INSTRUMENT:
-
-		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
-			if (clip) {
-				renameClipUI.clip = clip;
-				openUI(&renameClipUI);
-				return true;
-			}
-		}
-		else {
-
-			return false;
-		}
-
-	default:
-		return false;
-	}
-}
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);

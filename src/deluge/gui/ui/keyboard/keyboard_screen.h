@@ -59,8 +59,7 @@ public:
 	void killColumnSwitchKey(int32_t column);
 
 	// ui
-	UIType getUIType() { return UIType::KEYBOARD_SCREEN; }
-	const char* getName() { return "keyboard_screen"; }
+	UIType getUIType() override { return UIType::KEYBOARD_SCREEN; }
 	void checkNewInstrument(Instrument* newInstrument);
 
 private:

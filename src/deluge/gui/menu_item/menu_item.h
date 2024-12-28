@@ -113,6 +113,8 @@ public:
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
+	/// Like readValueAgain, but does not redraw.
+	virtual void readCurrentValue() {}
 
 	/// @}
 	/// @name Patching support
@@ -237,6 +239,10 @@ public:
 	///
 	/// By default this is just the l10n string for \ref name, but can be overriden.
 	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::getView(name); }
+	/// @brief Get the name for use on horizontal menus.
+	///
+	/// By default this redirects to getName(), but can be overriden.
+	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///
@@ -262,7 +268,20 @@ public:
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 
+	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height);
+	virtual bool isSubmenu() { return false; }
+	virtual void setupNumberEditor() {}
+	virtual void updatePadLights();
+	/// Called to inform automation view that the active parameter has changed. Parameters inheriting
+	/// from Automation forward there, no-op for everything else.
+	virtual void updateAutomationViewParameter() { return; }
+	void renderColumnLabel(int32_t startX, int32_t width, int32_t startY);
+
 	/// @}
 };
 
 #define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)
+
+/// @brief  Returns true if the item is relevant using current soundEditor
+/// modControllable and sourceIndex.
+bool isItemRelevant(MenuItem* item);

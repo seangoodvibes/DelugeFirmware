@@ -127,7 +127,6 @@ public:
 	virtual TimelineView* toTimelineView() { return nullptr; }
 
 	virtual void scrollFinished() {}
-	virtual const char* getName() { return "UI"; }
 	virtual bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) { return false; }
 
 	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
@@ -159,6 +158,12 @@ public:
 	bool oledShowsUIUnderneath;
 
 	virtual UIType getUIType() = 0;
+#if ENABLE_MATRIX_DEBUG
+	const char* getUIName();
+#endif
+
+protected:
+	UIType uiType;
 };
 
 // UIs

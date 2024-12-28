@@ -66,8 +66,7 @@ public:
 	ActionResult timerCallback() override;
 
 	// ui
-	UIType getUIType() { return UIType::PERFORMANCE; }
-	const char* getName() { return "performance_view"; }
+	UIType getUIType() override { return UIType::PERFORMANCE; }
 	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// rendering

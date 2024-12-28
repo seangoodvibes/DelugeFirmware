@@ -34,9 +34,8 @@ public:
 		return true;
 	}
 	bool canSeeViewUnderneath() final { return false; }
-	ActionResult timerCallback();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	const char* getName() { return "save_ui"; }
+	ActionResult timerCallback() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 
 protected:
 	// void displayText(bool blinkImmediately) final;

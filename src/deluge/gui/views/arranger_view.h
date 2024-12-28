@@ -121,8 +121,7 @@ public:
 	int32_t xScrollWhenPlaybackStarted;
 
 	// ui
-	UIType getUIType() { return UIType::ARRANGER; }
-	const char* getName() { return "arranger_view"; }
+	UIType getUIType() override { return UIType::ARRANGER; }
 
 	Clip* getClipForSelection();
 

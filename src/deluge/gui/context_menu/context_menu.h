@@ -51,8 +51,10 @@ public:
 	int32_t scrollPos = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 	virtual char const* getTitle() = 0;
 
-	// ui
-	UIType getUIType() { return UIType::CONTEXT_MENU; }
+	// UI
+
+	// NB! Context menus all share a type!
+	UIType getUIType() override { return UIType::CONTEXT_MENU; }
 };
 
 class ContextMenuForSaving : public ContextMenu {

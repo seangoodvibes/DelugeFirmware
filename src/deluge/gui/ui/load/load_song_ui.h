@@ -39,8 +39,7 @@ public:
 	bool deletedPartsOfOldSong;
 
 	// ui
-	UIType getUIType() { return UIType::LOAD_SONG; }
-	const char* getName() { return "load_song_ui"; }
+	UIType getUIType() override { return UIType::LOAD_SONG; }
 
 protected:
 	void displayText(bool blinkImmediately = false);

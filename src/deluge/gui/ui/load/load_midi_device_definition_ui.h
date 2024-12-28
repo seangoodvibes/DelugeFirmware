@@ -23,7 +23,7 @@
 
 class LoadMidiDeviceDefinitionUI final : public LoadUI {
 public:
-	LoadMidiDeviceDefinitionUI();
+	LoadMidiDeviceDefinitionUI() = default;
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool opened();
@@ -44,8 +44,7 @@ public:
 	Error performLoad(bool doClone = false);
 
 	// ui
-	UIType getUIType() { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
-	const char* getName() { return "load_midi_device_definition_ui"; }
+	UIType getUIType() override { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
 
 protected:
 	void folderContentsReady(int32_t entryDirection);

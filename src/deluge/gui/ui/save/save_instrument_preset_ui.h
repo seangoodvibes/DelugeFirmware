@@ -23,7 +23,7 @@ class Instrument;
 
 class SaveInstrumentPresetUI final : public SaveUI {
 public:
-	SaveInstrumentPresetUI();
+	SaveInstrumentPresetUI() = default;
 
 	bool opened();
 	// void selectEncoderAction(int8_t offset);
@@ -35,7 +35,9 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
-	const char* getName() { return "save_instrument_preset_ui"; }
+
+	// ui
+	UIType getUIType() override { return UIType::SAVE_INSTRUMENT_PRESET; }
 
 protected:
 	// int32_t arrivedInNewFolder(int32_t direction);
