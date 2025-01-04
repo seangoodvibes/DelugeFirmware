@@ -22,15 +22,15 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class SpreadVelocity final : public ArpNonSoundInteger {
+class BassProbability final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->spreadVelocity));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->bassProbability));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->spreadVelocity = value;
+		soundEditor.currentArpSettings->bassProbability = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();

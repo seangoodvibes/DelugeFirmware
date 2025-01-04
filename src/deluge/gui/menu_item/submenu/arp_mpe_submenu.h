@@ -15,25 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
-#include "gui/menu_item/value_scaling.h"
-#include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
+#include "gui/menu_item/submenu.h"
 
-namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class SpreadVelocity final : public ArpNonSoundInteger {
+namespace deluge::gui::menu_item::submenu {
+class ArpMpeSubmenu final : public Submenu {
 public:
-	using ArpNonSoundInteger::ArpNonSoundInteger;
-	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->spreadVelocity));
-	}
-	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->spreadVelocity = value;
-	}
+	using Submenu::Submenu;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
+		return !soundEditor.editingGateDrumRow();
 	}
 };
-} // namespace deluge::gui::menu_item::arpeggiator::midi_cv
+
+} // namespace deluge::gui::menu_item::submenu

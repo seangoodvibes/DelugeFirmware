@@ -15,25 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
-#include "gui/menu_item/value_scaling.h"
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class SpreadVelocity final : public ArpNonSoundInteger {
+namespace deluge::gui::menu_item::arpeggiator {
+class ArpSoundUnpatchedParam final : public UnpatchedParam {
 public:
-	using ArpNonSoundInteger::ArpNonSoundInteger;
-	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->spreadVelocity));
-	}
-	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->spreadVelocity = value;
-	}
+	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
+	}
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
 	}
 };
-} // namespace deluge::gui::menu_item::arpeggiator::midi_cv
+
+class ArpNonKitSoundUnpatchedParam final : public UnpatchedParam {
+public:
+	using UnpatchedParam::UnpatchedParam;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit();
+	}
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+	}
+};
+
+} // namespace deluge::gui::menu_item::arpeggiator

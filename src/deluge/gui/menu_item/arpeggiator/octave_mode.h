@@ -32,6 +32,12 @@ public:
 		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingGateDrumRow();
+	}
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
@@ -59,4 +65,18 @@ public:
 };
 
 extern OctaveModeToNoteMode arpOctaveModeToNoteModeMenu;
+
+class OctaveModeToNoteModeForDrums final : public OctaveMode {
+public:
+	using OctaveMode::OctaveMode;
+	void readCurrentValue() override {
+		if (display->have7SEG()) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OCTAVE_MODE));
+		}
+		OctaveMode::readCurrentValue();
+	}
+	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeFromOctaveModeMenuForDrums; }
+};
+
+extern OctaveModeToNoteModeForDrums arpOctaveModeToNoteModeMenuForDrums;
 } // namespace deluge::gui::menu_item::arpeggiator

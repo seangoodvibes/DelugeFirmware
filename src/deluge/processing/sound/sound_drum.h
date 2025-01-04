@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
+#include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
 #include "util/d_string.h"
 
@@ -29,9 +30,6 @@ public:
 	String name;
 	String path;
 	bool nameIsDiscardable;
-
-	ArpeggiatorForDrum arpeggiator;
-	ArpeggiatorSettings arpSettings;
 
 	SoundDrum();
 	bool isDrum() { return true; }
@@ -61,7 +59,7 @@ public:
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
 	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
-	ArpeggiatorBase* getArp();
-	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+	ArpeggiatorBase* getArp() override { return &arpeggiator; }
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override { return &arpSettings; }
 	void resetTimeEnteredState();
 };
