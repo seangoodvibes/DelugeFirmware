@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/automation/layout/editor/sound.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation/layout/editor/mod_controllable.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -85,19 +85,17 @@ const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1
 
 constexpr int32_t kParamNodeWidth = 3;
 
-AutomationLayoutEditorSound automationLayoutEditorSound{};
+AutomationLayoutEditorModControllable automationLayoutEditorModControllable{};
 
-AutomationLayoutEditorSound::AutomationLayoutEditorSound() {
+AutomationLayoutEditorModControllable::AutomationLayoutEditorModControllable() {
 }
 
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
 // clip length renders the undefined area of the clip that the user can't interact with
-void AutomationLayoutEditorSound::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                         RGB image[][kDisplayWidth + kSideBarWidth],
-                                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                         int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
-                                                         int32_t effectiveLength, int32_t xDisplay,
-                                                         bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
+void AutomationLayoutEditorModControllable::renderAutomationEditor(
+    ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB image[][kDisplayWidth + kSideBarWidth],
+    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
+    int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
 		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
@@ -105,12 +103,10 @@ void AutomationLayoutEditorSound::renderAutomationEditor(ModelStackWithAutoParam
 }
 
 /// render each square in each column of the automation editor grid
-void AutomationLayoutEditorSound::renderAutomationColumn(ModelStackWithAutoParam* modelStackWithParam,
-                                                         RGB image[][kDisplayWidth + kSideBarWidth],
-                                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                         int32_t lengthToDisplay, int32_t xDisplay, bool isAutomated,
-                                                         int32_t xScroll, int32_t xZoom, params::Kind kind,
-                                                         bool isBipolar) {
+void AutomationLayoutEditorModControllable::renderAutomationColumn(
+    ModelStackWithAutoParam* modelStackWithParam, RGB image[][kDisplayWidth + kSideBarWidth],
+    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t lengthToDisplay, int32_t xDisplay, bool isAutomated,
+    int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar) {
 
 	uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
 	int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
@@ -127,10 +123,9 @@ void AutomationLayoutEditorSound::renderAutomationColumn(ModelStackWithAutoParam
 }
 
 /// render column for bipolar params - e.g. pan, pitch, patch cable
-void AutomationLayoutEditorSound::renderAutomationBipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
-                                                                uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                                int32_t xDisplay, int32_t yDisplay, bool isAutomated,
-                                                                params::Kind kind, int32_t knobPos) {
+void AutomationLayoutEditorModControllable::renderAutomationBipolarSquare(
+    RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+    int32_t xDisplay, int32_t yDisplay, bool isAutomated, params::Kind kind, int32_t knobPos) {
 	RGB& pixel = image[yDisplay][xDisplay];
 
 	int32_t middleKnobPos;
@@ -215,10 +210,9 @@ void AutomationLayoutEditorSound::renderAutomationBipolarSquare(RGB image[][kDis
 }
 
 /// render column for unipolar params (e.g. not pan, pitch, or patch cables)
-void AutomationLayoutEditorSound::renderAutomationUnipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
-                                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                                 int32_t xDisplay, int32_t yDisplay, bool isAutomated,
-                                                                 int32_t knobPos) {
+void AutomationLayoutEditorModControllable::renderAutomationUnipolarSquare(
+    RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+    int32_t xDisplay, int32_t yDisplay, bool isAutomated, int32_t knobPos) {
 	RGB& pixel = image[yDisplay][xDisplay];
 
 	// determine whether or not you should render a row based on current value
@@ -254,9 +248,9 @@ void AutomationLayoutEditorSound::renderAutomationUnipolarSquare(RGB image[][kDi
 	}
 }
 
-void AutomationLayoutEditorSound::renderAutomationEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                                    Clip* clip, OutputType outputType,
-                                                                    int32_t knobPosLeft, int32_t knobPosRight) {
+void AutomationLayoutEditorModControllable::renderAutomationEditorDisplayOLED(
+    deluge::hid::display::oled_canvas::Canvas& canvas, Clip* clip, OutputType outputType, int32_t knobPosLeft,
+    int32_t knobPosRight) {
 	// display parameter name
 	DEF_STACK_STRING_BUF(parameterName, 30);
 	getAutomationParameterName(clip, outputType, parameterName);
@@ -326,8 +320,9 @@ void AutomationLayoutEditorSound::renderAutomationEditorDisplayOLED(deluge::hid:
 	}
 }
 
-void AutomationLayoutEditorSound::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType,
-                                                                    int32_t knobPosLeft, bool modEncoderAction) {
+void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType,
+                                                                              int32_t knobPosLeft,
+                                                                              bool modEncoderAction) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -405,8 +400,8 @@ void AutomationLayoutEditorSound::renderAutomationEditorDisplay7SEG(Clip* clip, 
 }
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
-void AutomationLayoutEditorSound::getAutomationParameterName(Clip* clip, OutputType outputType,
-                                                             StringBuf& parameterName) {
+void AutomationLayoutEditorModControllable::getAutomationParameterName(Clip* clip, OutputType outputType,
+                                                                       StringBuf& parameterName) {
 	if (outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
@@ -494,16 +489,16 @@ void AutomationLayoutEditorSound::getAutomationParameterName(Clip* clip, OutputT
 	}
 }
 
-uint32_t AutomationLayoutEditorSound::getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll,
-                                                     int32_t xZoom) {
+uint32_t AutomationLayoutEditorModControllable::getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll,
+                                                               int32_t xZoom) {
 	int32_t squareRightEdge = automationView.getPosFromSquare(square + 1, xScroll, xZoom);
 	return std::min(effectiveLength, squareRightEdge) - automationView.getPosFromSquare(square, xScroll, xZoom);
 }
 
 // when pressing on a single pad, you want to display the value of the middle node within that square
 // as that is the most accurate value that represents that square
-uint32_t AutomationLayoutEditorSound::getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll,
-                                                             int32_t xZoom) {
+uint32_t AutomationLayoutEditorModControllable::getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength,
+                                                                       int32_t xScroll, int32_t xZoom) {
 	uint32_t squareStart = automationView.getPosFromSquare(xDisplay, xScroll, xZoom);
 	uint32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
 	if (squareWidth != 3) {
@@ -517,8 +512,8 @@ uint32_t AutomationLayoutEditorSound::getMiddlePosFromSquare(int32_t xDisplay, i
 // the knobPos is used for rendering the current parameter values in the automation editor
 // it's also used for obtaining the start and end position values for a multi pad press
 // and also used for increasing/decreasing parameter values with the mod encoders
-int32_t AutomationLayoutEditorSound::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack,
-                                                                   uint32_t squareStart) {
+int32_t AutomationLayoutEditorModControllable::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack,
+                                                                             uint32_t squareStart) {
 	// obtain value corresponding to the two pads that were pressed in a multi pad press action
 	int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack);
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
@@ -530,8 +525,8 @@ int32_t AutomationLayoutEditorSound::getAutomationParameterKnobPos(ModelStackWit
 // interpolation status of the left node or right node (depending on the reversed parameter which is
 // used to indicate what node in what direction we are looking for (e.g. we want status of left node, or
 // right node, relative to the current pos we are looking at
-bool AutomationLayoutEditorSound::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos,
-                                                                 bool reversed) {
+bool AutomationLayoutEditorModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
+                                                                           int32_t pos, bool reversed) {
 
 	if (!modelStack->autoParam->nodes.getNumElements()) {
 		return false;
@@ -559,10 +554,11 @@ bool AutomationLayoutEditorSound::getAutomationNodeInterpolation(ModelStackWithA
 
 // this function writes the new values calculated by the handleAutomationSinglePadPress and
 // handleAutomationMultiPadPress functions
-void AutomationLayoutEditorSound::setAutomationParameterValue(ModelStackWithAutoParam* modelStack, int32_t knobPos,
-                                                              int32_t squareStart, int32_t xDisplay,
-                                                              int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
-                                                              bool modEncoderAction) {
+void AutomationLayoutEditorModControllable::setAutomationParameterValue(ModelStackWithAutoParam* modelStack,
+                                                                        int32_t knobPos, int32_t squareStart,
+                                                                        int32_t xDisplay, int32_t effectiveLength,
+                                                                        int32_t xScroll, int32_t xZoom,
+                                                                        bool modEncoderAction) {
 
 	int32_t newValue = modelStack->paramCollection->knobPosToParamValue(knobPos, modelStack);
 
@@ -627,7 +623,7 @@ void AutomationLayoutEditorSound::setAutomationParameterValue(ModelStackWithAuto
 	view.sendMidiFollowFeedback(modelStack, knobPos);
 }
 
-void AutomationLayoutEditorSound::initInterpolation() {
+void AutomationLayoutEditorModControllable::initInterpolation() {
 	automationLayoutEditor.interpolationBefore = false;
 	automationLayoutEditor.interpolationAfter = false;
 }
@@ -635,9 +631,10 @@ void AutomationLayoutEditorSound::initInterpolation() {
 // automation edit pad action
 // handles single and multi pad presses for automation editing
 // stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationLayoutEditorSound::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                          int32_t xDisplay, int32_t yDisplay, int32_t velocity,
-                                                          int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+void AutomationLayoutEditorModControllable::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam,
+                                                                    Clip* clip, int32_t xDisplay, int32_t yDisplay,
+                                                                    int32_t velocity, int32_t effectiveLength,
+                                                                    int32_t xScroll, int32_t xZoom) {
 	if (automationLayout.padSelectionOn) {
 		automationLayout.selectedPadPressed = velocity;
 	}
@@ -766,7 +763,7 @@ singlePadPressAction:
 	}
 }
 
-bool AutomationLayoutEditorSound::recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+bool AutomationLayoutEditorModControllable::recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
 	// Find an empty space in the press buffer, if there is one
 	int32_t i;
@@ -797,7 +794,7 @@ bool AutomationLayoutEditorSound::recordAutomationSinglePadPress(int32_t xDispla
 }
 
 /// toggle automation interpolation on / off
-bool AutomationLayoutEditorSound::toggleAutomationInterpolation() {
+bool AutomationLayoutEditorModControllable::toggleAutomationInterpolation() {
 	if (automationLayoutEditor.interpolation) {
 		automationLayoutEditor.interpolation = false;
 		initInterpolation();
@@ -815,9 +812,8 @@ bool AutomationLayoutEditorSound::toggleAutomationInterpolation() {
 }
 
 /// toggle automation pad selection mode on / off
-bool AutomationLayoutEditorSound::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam,
-                                                                   int32_t effectiveLength, int32_t xScroll,
-                                                                   int32_t xZoom) {
+bool AutomationLayoutEditorModControllable::toggleAutomationPadSelectionMode(
+    ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	// enter/exit pad selection mode
 	if (automationLayout.padSelectionOn) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
@@ -847,9 +843,8 @@ bool AutomationLayoutEditorSound::toggleAutomationPadSelectionMode(ModelStackWit
 	return true;
 }
 
-bool AutomationLayoutEditorSound::automationModEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam,
-                                                                           int32_t whichModEncoder, int32_t offset,
-                                                                           int32_t effectiveLength) {
+bool AutomationLayoutEditorModControllable::automationModEncoderActionForSelectedPad(
+    ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder, int32_t offset, int32_t effectiveLength) {
 	Clip* clip = getCurrentClip();
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -940,7 +935,7 @@ bool AutomationLayoutEditorSound::automationModEncoderActionForSelectedPad(Model
 	return false;
 }
 
-void AutomationLayoutEditorSound::automationModEncoderActionForUnselectedPad(
+void AutomationLayoutEditorModControllable::automationModEncoderActionForUnselectedPad(
     ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder, int32_t offset, int32_t effectiveLength) {
 	Clip* clip = getCurrentClip();
 
@@ -991,8 +986,8 @@ void AutomationLayoutEditorSound::automationModEncoderActionForUnselectedPad(
 	}
 }
 
-void AutomationLayoutEditorSound::copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                 int32_t xScroll, int32_t xZoom) {
+void AutomationLayoutEditorModControllable::copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                                           int32_t xScroll, int32_t xZoom) {
 	if (copiedParamAutomation.nodes) {
 		delugeDealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = nullptr;
@@ -1025,8 +1020,8 @@ void AutomationLayoutEditorSound::copyAutomation(ModelStackWithAutoParam* modelS
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void AutomationLayoutEditorSound::pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                  int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+void AutomationLayoutEditorModControllable::pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                                            int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	if (!copiedParamAutomation.nodes) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		return;
@@ -1093,7 +1088,7 @@ void AutomationLayoutEditorSound::pasteAutomation(ModelStackWithAutoParam* model
 Also used internally in the automation instrument clip view for updating the display and led
 indicators.*/
 
-void AutomationLayoutEditorSound::displayAutomation(bool padSelected, bool updateDisplay) {
+void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, bool updateDisplay) {
 	if ((!automationLayout.padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
@@ -1148,7 +1143,7 @@ void AutomationLayoutEditorSound::displayAutomation(bool padSelected, bool updat
 // calculates the length of the arrangement timeline, clip or the length of the kit row
 // if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
 // if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
-int32_t AutomationLayoutEditorSound::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
+int32_t AutomationLayoutEditorModControllable::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
 

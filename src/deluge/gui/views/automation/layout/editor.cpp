@@ -24,8 +24,8 @@
 #include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/automation/layout/editor/mod_controllable.h"
 #include "gui/views/automation/layout/editor/note.h"
-#include "gui/views/automation/layout/editor/sound.h"
 #include "gui/views/view.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -61,9 +61,9 @@ void AutomationLayoutEditor::renderAutomationEditor(ModelStackWithAutoParam* mod
                                                     int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
                                                     int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea,
                                                     params::Kind kind, bool isBipolar) {
-	automationLayoutEditorSound.renderAutomationEditor(modelStackWithParam, clip, image, occupancyMask, renderWidth,
-	                                                   xScroll, xZoom, effectiveLength, xDisplay, drawUndefinedArea,
-	                                                   kind, isBipolar);
+	automationLayoutEditorModControllable.renderAutomationEditor(modelStackWithParam, clip, image, occupancyMask,
+	                                                             renderWidth, xScroll, xZoom, effectiveLength, xDisplay,
+	                                                             drawUndefinedArea, kind, isBipolar);
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
 		                    (TimelineView*)getRootUI(), currentSong->tripletsOn, xDisplay);
@@ -120,8 +120,8 @@ void AutomationLayoutEditor::renderUndefinedArea(int32_t xScroll, uint32_t xZoom
 void AutomationLayoutEditor::renderAutomationEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
                                                                Clip* clip, OutputType outputType, int32_t knobPosLeft,
                                                                int32_t knobPosRight) {
-	return automationLayoutEditorSound.renderAutomationEditorDisplayOLED(canvas, clip, outputType, knobPosLeft,
-	                                                                     knobPosRight);
+	return automationLayoutEditorModControllable.renderAutomationEditorDisplayOLED(canvas, clip, outputType,
+	                                                                               knobPosLeft, knobPosRight);
 }
 
 void AutomationLayoutEditor::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
@@ -132,8 +132,8 @@ void AutomationLayoutEditor::renderNoteEditorDisplayOLED(deluge::hid::display::o
 
 void AutomationLayoutEditor::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
                                                                bool modEncoderAction) {
-	return automationLayoutEditorSound.renderAutomationEditorDisplay7SEG(clip, outputType, knobPosLeft,
-	                                                                     modEncoderAction);
+	return automationLayoutEditorModControllable.renderAutomationEditorDisplay7SEG(clip, outputType, knobPosLeft,
+	                                                                               modEncoderAction);
 }
 
 void AutomationLayoutEditor::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType,
@@ -154,7 +154,7 @@ void AutomationLayoutEditor::potentiallyVerticalScrollToSelectedDrum(InstrumentC
 // and also used for increasing/decreasing parameter values with the mod encoders
 int32_t AutomationLayoutEditor::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack,
                                                               uint32_t squareStart) {
-	return automationLayoutEditorSound.getAutomationParameterKnobPos(modelStack, squareStart);
+	return automationLayoutEditorModControllable.getAutomationParameterKnobPos(modelStack, squareStart);
 }
 
 // this function writes the new values calculated by the handleAutomationSinglePadPress and
@@ -163,12 +163,12 @@ void AutomationLayoutEditor::setAutomationParameterValue(ModelStackWithAutoParam
                                                          int32_t squareStart, int32_t xDisplay, int32_t effectiveLength,
                                                          int32_t xScroll, int32_t xZoom, bool modEncoderAction) {
 
-	return automationLayoutEditorSound.setAutomationParameterValue(modelStack, knobPos, squareStart, xDisplay,
-	                                                               effectiveLength, xScroll, xZoom, modEncoderAction);
+	return automationLayoutEditorModControllable.setAutomationParameterValue(
+	    modelStack, knobPos, squareStart, xDisplay, effectiveLength, xScroll, xZoom, modEncoderAction);
 }
 
 void AutomationLayoutEditor::initInterpolation() {
-	return automationLayoutEditorSound.initInterpolation();
+	return automationLayoutEditorModControllable.initInterpolation();
 }
 
 // automation edit pad action
@@ -177,20 +177,20 @@ void AutomationLayoutEditor::initInterpolation() {
 void AutomationLayoutEditor::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
                                                      int32_t xDisplay, int32_t yDisplay, int32_t velocity,
                                                      int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
-	return automationLayoutEditorSound.automationEditPadAction(modelStackWithParam, clip, xDisplay, yDisplay, velocity,
-	                                                           effectiveLength, xScroll, xZoom);
+	return automationLayoutEditorModControllable.automationEditPadAction(modelStackWithParam, clip, xDisplay, yDisplay,
+	                                                                     velocity, effectiveLength, xScroll, xZoom);
 }
 
 /// toggle automation interpolation on / off
 bool AutomationLayoutEditor::toggleAutomationInterpolation() {
-	return automationLayoutEditorSound.toggleAutomationInterpolation();
+	return automationLayoutEditorModControllable.toggleAutomationInterpolation();
 }
 
 /// toggle automation pad selection mode on / off
 bool AutomationLayoutEditor::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam,
                                                               int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
-	return automationLayoutEditorSound.toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll,
-	                                                                    xZoom);
+	return automationLayoutEditorModControllable.toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength,
+	                                                                              xScroll, xZoom);
 }
 
 // note edit pad action
@@ -206,25 +206,26 @@ void AutomationLayoutEditor::noteEditPadAction(ModelStackWithNoteRow* modelStack
 bool AutomationLayoutEditor::automationModEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam,
                                                                       int32_t whichModEncoder, int32_t offset,
                                                                       int32_t effectiveLength) {
-	return automationLayoutEditorSound.automationModEncoderActionForSelectedPad(modelStackWithParam, whichModEncoder,
-	                                                                            offset, effectiveLength);
+	return automationLayoutEditorModControllable.automationModEncoderActionForSelectedPad(
+	    modelStackWithParam, whichModEncoder, offset, effectiveLength);
 }
 
 void AutomationLayoutEditor::automationModEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam,
                                                                         int32_t whichModEncoder, int32_t offset,
                                                                         int32_t effectiveLength) {
-	return automationLayoutEditorSound.automationModEncoderActionForUnselectedPad(modelStackWithParam, whichModEncoder,
-	                                                                              offset, effectiveLength);
+	return automationLayoutEditorModControllable.automationModEncoderActionForUnselectedPad(
+	    modelStackWithParam, whichModEncoder, offset, effectiveLength);
 }
 
 void AutomationLayoutEditor::copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xScroll,
                                             int32_t xZoom) {
-	return automationLayoutEditorSound.copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
+	return automationLayoutEditorModControllable.copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
 }
 
 void AutomationLayoutEditor::pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
                                              int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
-	return automationLayoutEditorSound.pasteAutomation(modelStackWithParam, clip, effectiveLength, xScroll, xZoom);
+	return automationLayoutEditorModControllable.pasteAutomation(modelStackWithParam, clip, effectiveLength, xScroll,
+	                                                             xZoom);
 }
 
 // adjust the LED meters and update the display
@@ -234,26 +235,26 @@ Also used internally in the automation instrument clip view for updating the dis
 indicators.*/
 
 void AutomationLayoutEditor::displayAutomation(bool padSelected, bool updateDisplay) {
-	return automationLayoutEditorSound.displayAutomation(padSelected, updateDisplay);
+	return automationLayoutEditorModControllable.displayAutomation(padSelected, updateDisplay);
 }
 
 // calculates the length of the arrangement timeline, clip or the length of the kit row
 // if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
 // if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
 int32_t AutomationLayoutEditor::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
-	return automationLayoutEditorSound.getEffectiveLength(modelStack);
+	return automationLayoutEditorModControllable.getEffectiveLength(modelStack);
 }
 
 uint32_t AutomationLayoutEditor::getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll,
                                                 int32_t xZoom) {
-	return automationLayoutEditorSound.getSquareWidth(square, effectiveLength, xScroll, xZoom);
+	return automationLayoutEditorModControllable.getSquareWidth(square, effectiveLength, xScroll, xZoom);
 }
 
 // when pressing on a single pad, you want to display the value of the middle node within that square
 // as that is the most accurate value that represents that square
 uint32_t AutomationLayoutEditor::getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll,
                                                         int32_t xZoom) {
-	return automationLayoutEditorSound.getMiddlePosFromSquare(xDisplay, effectiveLength, xScroll, xZoom);
+	return automationLayoutEditorModControllable.getMiddlePosFromSquare(xDisplay, effectiveLength, xScroll, xZoom);
 }
 
 // call instrument clip view edit pad action function to process velocity pad press actions

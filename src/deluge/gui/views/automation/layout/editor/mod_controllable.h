@@ -22,9 +22,9 @@
 
 class Clip;
 
-class AutomationLayoutEditorSound { //: public AutomationLayoutEditor {
+class AutomationLayoutEditorModControllable { //: public AutomationLayoutEditor {
 public:
-	AutomationLayoutEditorSound();
+	AutomationLayoutEditorModControllable();
 
 	// Grid render functions
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
@@ -83,4 +83,4 @@ public:
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 };
 
-extern AutomationLayoutEditorSound automationLayoutEditorSound;
+extern AutomationLayoutEditorModControllable automationLayoutEditorModControllable;
