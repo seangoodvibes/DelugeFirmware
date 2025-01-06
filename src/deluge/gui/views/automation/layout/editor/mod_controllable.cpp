@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/views/automation/layout/editor/mod_controllable.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation/layout/editor/mod_controllable.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
