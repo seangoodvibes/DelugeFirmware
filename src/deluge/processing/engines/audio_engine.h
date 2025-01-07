@@ -216,4 +216,6 @@ extern AbsValueFollower envelopeFollower;
 extern TaskID routine_task_id;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
+/// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
+bool allowedToStartVoice();
 } // namespace AudioEngine
