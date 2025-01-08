@@ -403,6 +403,8 @@ void QwertyUI::processBackspace() {
 	}
 	if (!enteredText.isEmpty()) {
 		enteredText.shorten(enteredTextEditPos);
+		predictExtendedText();
+		predictionInterrupted = false;
 		displayText();
 	}
 }
