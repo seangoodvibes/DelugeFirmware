@@ -1308,6 +1308,8 @@ menu_item::Submenu soundEditorRootMenu{
         &modulator1Menu,
         &env0Menu,
         &env1Menu,
+        &env2Menu,
+        &env3Menu,
         &lfo1Menu,
         &lfo2Menu,
         &voiceMenu,

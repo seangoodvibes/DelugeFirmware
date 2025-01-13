@@ -274,7 +274,7 @@ constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
 
-constexpr int32_t kNumEnvelopes = 2;
+constexpr int32_t kNumEnvelopes = 4;
 constexpr int32_t kNumLFOs = 2;
 constexpr int32_t kNumModulators = 2;
 
@@ -309,6 +309,8 @@ enum class PatchSource : uint8_t {
 	SIDECHAIN,
 	ENVELOPE_0,
 	ENVELOPE_1,
+	ENVELOPE_2,
+	ENVELOPE_3,
 	LFO_LOCAL,
 	X,
 	Y,
