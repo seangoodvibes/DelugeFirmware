@@ -1013,7 +1013,9 @@ void routine() {
 
 	numRoutines = 0;
 
-	voicesStartedThisRender = 0;
+	voicesStartedThisRender = std::max<int>(
+	    cpuDireness - 12,
+	    0); // if we're at high direness then we pretend a couple have already been started to limit note ons
 
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
