@@ -98,6 +98,7 @@ public:
 
 	// Delay
 	Delay delay;
+	StutterConfig stutterConfig;
 
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?

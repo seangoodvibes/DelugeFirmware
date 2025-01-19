@@ -554,6 +554,11 @@ The Song menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Stutter (STUT)
 		- Quantize (QTZ)
@@ -842,6 +847,12 @@ The Sound menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
@@ -1231,6 +1242,12 @@ The Kit FX menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
@@ -1815,6 +1832,12 @@ The Audio Clip menu contains the following menu hierarchy:
 		- LPF (if Mutable is selected)
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
