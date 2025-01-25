@@ -680,6 +680,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   set.
 - ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
 
+#### 4.2.10 Launch Exclusively
+- ([#3213]) A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
@@ -1609,6 +1612,60 @@ different firmware
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
+
+[#2537]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2537
+
+[#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2615
+
+[#2641]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2641
+
+[#2645]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2645
+
+[#2676]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2676
+
+[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
+
+[#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
+
+[#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
+
+[#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
+
+[#2788]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2788
+
+[#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
+
+[#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
+
+[#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
+
+[#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
+
+[#2882]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2882
+
+[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
+
+[#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
+
+[#2983]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2983
+
+[#2985]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2985
+
+[#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
+
+[#3183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3183
+
+[#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
+
+[#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
+
+[#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3213]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3213
+
+[#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
+
+[#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
 
 [Automation View Documentation]: features/automation_view.md
 
