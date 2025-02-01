@@ -28,6 +28,7 @@ class MIDIInstrument;
 class MidiFollow;
 class PlaybackHandler;
 class MIDIDrum;
+class Sound;
 
 /// The source of a MIDI event. Can be one of a few different things, though we only keep track of the memory address of
 /// the source and use that to distinguish between separate sources.
@@ -42,10 +43,12 @@ struct MIDISource {
 	MIDISource(PlaybackHandler const* handler) : source_(handler){};
 	MIDISource(MidiFollow const* follow) : source_(follow){};
 	MIDISource(MIDIDrum const* drum) : source_(drum){};
+	MIDISource(Sound const* sound) : source_(sound){};
 
 	MIDISource(MIDIDevice const& device) : source_(&device){};
 	MIDISource(MIDIInstrument const& instrument) : source_(&instrument){};
 	MIDISource(MIDIDrum const& drum) : source_(&drum){};
+	MIDISource(Sound const& sound) : source_(&sound){};
 	MIDISource(MidiFollow const& follow) : source_(&follow){};
 	MIDISource(PlaybackHandler const& handler) : source_(&handler){};
 

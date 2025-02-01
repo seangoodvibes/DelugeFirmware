@@ -1117,6 +1117,11 @@ The Sound menu contains the following menu hierarchy:
 	- Reversed
 	- Ping-Pong
 </details>
+<details><summary>MIDI</summary>
+
+	- Channel
+	- Note (only available for Kits)
+</details>
 
 </details>
 
