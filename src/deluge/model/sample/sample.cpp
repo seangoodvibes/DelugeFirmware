@@ -224,8 +224,8 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	void* memory =
 	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
-	if (!memory) {
-		return NULL;
+	if (memory == nullptr) {
+		return nullptr;
 	}
 
 	i = caches.insertAtKeyMultiWord(keyWords);
