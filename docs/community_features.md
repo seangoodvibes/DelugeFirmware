@@ -1110,6 +1110,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 - ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
+#### 4.5.9 - More LFOs
+
+- ([#3332]) Added two more LFOs: LFO 3 (global) and LFO 4 (per voice), which you can access from the sound editor menu.
+
+#### 4.5.10 - Send Midi
+
+- ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for synths and sound drums, where you can select the MIDI channel
+  (and also base note for drums) that will be sent at the same time as the sound triggers.
+  In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
+  having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1622,6 +1633,10 @@ different firmware
 [#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
 
 [#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
+
+[#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
+
+[#3332]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3332
 
 [Automation View Documentation]: features/automation_view.md
 

@@ -11,6 +11,7 @@
 - Added LPF to Mutable Instruments Reverb
 - Added an option to reverse the stutter effect
 - Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), which you can access from the sound editor menu.
 
 ### User Interface
 
