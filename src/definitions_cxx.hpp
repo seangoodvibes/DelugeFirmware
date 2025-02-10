@@ -55,6 +55,12 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
+// this is the owning raw pointer annotation used by clang tidy
+namespace gsl {
+template <typename T>
+using owner = T;
+}
+
 // Constants for the char value of the flat(♭) accidental glyph
 #define FLAT_CHAR_STR "\x81"
 #define FLAT_CHAR 0x81u
