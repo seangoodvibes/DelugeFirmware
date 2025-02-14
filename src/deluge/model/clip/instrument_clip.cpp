@@ -4584,7 +4584,8 @@ doNormal: // Wrap it back to the start.
 			if (error == Error::NONE) {
 				ParamNode* firstNode = param->nodes.getElement(0);
 				firstNode->pos = quantizedPos;
-				firstNode->value = value;
+				// firstNode->value = value;
+				firstNode->valueOffset = value - param->currentValue;
 				firstNode->interpolated = reversed;
 			}
 		}

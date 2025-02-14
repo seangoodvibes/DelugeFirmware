@@ -35,7 +35,8 @@ public:
 	/// is used (even for unipolar parameters!). This means when converting automation from patch cables to non-patch
 	/// cables, lshiftAndSaturate<1>() must be used while conversion in the opposite direction (non-patch-cable to
 	/// patch-cable) a right shift by 1 is required.
-	int32_t value{0};
+	// int32_t value{0};
+	int32_t valueOffset{0};
 	/// Whether the value should be interpolated from the previous node to this one.
 	///
 	/// When false, the value should change only when this node is actually reached.
