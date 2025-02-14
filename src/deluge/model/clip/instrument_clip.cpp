@@ -4595,7 +4595,7 @@ doNormal: // Wrap it back to the start.
 			if (error == Error::NONE) {
 				ParamNode* firstNode = param->nodes.getElement(0);
 				firstNode->pos = quantizedPos;
-				firstNode->value = value;
+				param->updateNodeValue(firstNode, value);
 				firstNode->interpolated = reversed;
 			}
 		}
@@ -4628,7 +4628,8 @@ doHomogenize:
 
 		// These manual sets are in case we quantized forwards and the region we just created actually begins after
 		// "now"-time.
-		param->currentValue = value;
+		bool isRecording = true;
+		param->updateCurrentValue(value, isRecording);
 		param->valueIncrementPerHalfTick = 0;
 		// TODO: and to make it perfect, we'd also want to ignore any further nodes between now and the start of the
 		// region. Or, could probably get away with just deleting them.

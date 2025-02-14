@@ -3235,7 +3235,7 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 		    && !patchedParams->params[params::LOCAL_LPF_RESONANCE].isAutomated()
 		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() <= 0
 		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() >= -23) {
-			patchedParams->params[params::LOCAL_LPF_RESONANCE].currentValue = -2147483648;
+			patchedParams->params[params::LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
 		}
 	}
 }

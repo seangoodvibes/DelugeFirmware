@@ -28,6 +28,7 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
 	state.value = modelStack->autoParam->currentValue;
+	state.valueOffset = modelStack->autoParam->currentValueOffset;
 
 	// Either steal the data...
 	if (stealData) {

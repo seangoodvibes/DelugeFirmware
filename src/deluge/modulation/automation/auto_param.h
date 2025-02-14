@@ -37,6 +37,7 @@ class AutoParamState {
 public:
 	ParamNodeVector nodes;
 	int32_t value;
+	int32_t valueOffset;
 };
 
 struct StolenParamNodes;
@@ -46,6 +47,12 @@ public:
 	AutoParam();
 	void init();
 
+	bool isPlayingAutomation(ModelStackWithAutoParam const* modelStack);
+	bool isRecordingAutomation(ModelStackWithAutoParam const* modelStack);
+	bool isEditingAutomation();
+	void updateCurrentValue(int32_t value, bool isRecording);
+	void updateNodeValue(ParamNode* node, int32_t value);
+	int32_t getNodeValue(ParamNode* node);
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
 	                                          bool shouldLogAction = true, int32_t livePos = -1,
 	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
@@ -112,11 +119,14 @@ public:
 	int32_t getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed);
 	void setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value);
 
-	inline int32_t getCurrentValue() { return currentValue; }
+	inline int32_t getCurrentValue() { return (currentValue + currentValueOffset); }
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred();
 
-	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
+	inline void setCurrentValueBasicForSetup(int32_t value) {
+		currentValue = value;
+		currentValueOffset = 0;
+	}
 
 	inline bool isAutomated() { return (nodes.getNumElements()); }
 
@@ -128,7 +138,8 @@ public:
 	ParamNodeVector nodes;
 
 	/// Current value of the AutoParam. Updated by several functions.
-	int32_t currentValue;
+	int32_t currentValue;       // current base value of a param
+	int32_t currentValueOffset; // actual current value of param is currentValue + currentValueOffset
 	int32_t valueIncrementPerHalfTick;
 	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
 
