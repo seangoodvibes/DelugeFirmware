@@ -753,8 +753,8 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0,
-	                        makeWaveTableWorkAtAllCosts);
+	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
@@ -767,7 +767,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 		return error;
 	}
 
-	bool reversed = getCurrentAudioClip()->sampleControls.reversed;
+	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
@@ -831,6 +831,7 @@ removeLoadingAnimationAndGetOut:
 		clip->sampleHolder.transpose = 0;
 		clip->sampleHolder.cents = 0;
 		clip->sampleControls.reversed = false;
+		clip->sampleControls.invertReversed = false;
 	}
 
 	// Otherwise, we're something to do with an Instrument...
@@ -1793,7 +1794,8 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.reversed, true);
+		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);
@@ -1966,7 +1968,7 @@ getOut:
 			AudioFileHolder* holder = range->getAudioFileHolder();
 			holder->setAudioFile(NULL);
 			holder->filePath.set(&thisSample->filePath);
-			holder->setAudioFile(thisSample, source->sampleControls.reversed, true);
+			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 

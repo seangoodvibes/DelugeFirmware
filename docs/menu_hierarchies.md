@@ -736,6 +736,7 @@ The Sound menu contains the following menu hierarchy:
 		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
 		- Note Probability (NOTE)
 		- Bass Probability (BASS)
+		- Reverse Probability (RVRS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -746,6 +747,8 @@ The Sound menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
+	- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -1386,6 +1389,7 @@ The MIDI menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1493,6 +1497,7 @@ The CV menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
