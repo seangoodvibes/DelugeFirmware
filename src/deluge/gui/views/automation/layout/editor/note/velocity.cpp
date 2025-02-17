@@ -58,7 +58,7 @@ const int32_t nonPatchCableMaxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64
 // y = 1 ::  17 <  18 <  32
 // y = 0 ::  0  <   0 <  16
 
-AutomationLayoutEditorNoteVelocity automationLayoutEditorNoteVelocity{};
+PLACE_SDRAM_BSS AutomationLayoutEditorNoteVelocity automationLayoutEditorNoteVelocity{};
 
 AutomationLayoutEditorNoteVelocity::AutomationLayoutEditorNoteVelocity() {
 }

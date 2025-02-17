@@ -85,7 +85,7 @@ const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1
 
 constexpr int32_t kParamNodeWidth = 3;
 
-AutomationLayoutEditorModControllable automationLayoutEditorModControllable{};
+PLACE_SDRAM_BSS AutomationLayoutEditorModControllable automationLayoutEditorModControllable{};
 
 AutomationLayoutEditorModControllable::AutomationLayoutEditorModControllable() {
 }

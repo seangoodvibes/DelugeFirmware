@@ -21,8 +21,8 @@
 #include "gui/views/automation/context/instrument_clip.h"
 #include "gui/views/automation/layout.h"
 
-AutomationView automationView{};
-AutomationLayout automationLayout{};
+PLACE_SDRAM_BSS AutomationView automationView{};
+PLACE_SDRAM_BSS AutomationLayout automationLayout{};
 
 AutomationLayout* currentAutomationLayout = nullptr;
 

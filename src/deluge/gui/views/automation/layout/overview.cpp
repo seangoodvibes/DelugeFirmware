@@ -47,7 +47,7 @@ using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
 using namespace deluge::gui;
 
-AutomationLayoutOverview automationLayoutOverview{};
+PLACE_SDRAM_BSS AutomationLayoutOverview automationLayoutOverview{};
 
 AutomationLayoutOverview::AutomationLayoutOverview() {
 }

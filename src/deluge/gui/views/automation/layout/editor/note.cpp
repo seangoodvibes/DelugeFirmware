@@ -27,7 +27,7 @@
 
 using namespace deluge::gui;
 
-AutomationLayoutEditorNote automationLayoutEditorNote{};
+PLACE_SDRAM_BSS AutomationLayoutEditorNote automationLayoutEditorNote{};
 
 AutomationLayoutEditorNote::AutomationLayoutEditorNote() {
 }
