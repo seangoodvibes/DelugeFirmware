@@ -55,6 +55,9 @@ public:
 	                                       bool modEncoderAction);
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
 
+	// horizontal encoder action
+	ActionResult horizontalEncoderAction(int32_t offset);
+
 	// Vertical encoder action
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
@@ -73,6 +76,8 @@ public:
 	void setAutomationParameterValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                 bool modEncoderAction = false);
+	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+	                                      int32_t knobPosRight);
 	bool automationModEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
 	                                              int32_t offset, int32_t effectiveLength);
 	void automationModEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam,

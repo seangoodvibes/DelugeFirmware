@@ -37,6 +37,9 @@ public:
 	                                 OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
 
+	// Horizontal Encoder Action
+	ActionResult horizontalEncoderAction(int32_t offset);
+
 	// Vertical encoder action
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 

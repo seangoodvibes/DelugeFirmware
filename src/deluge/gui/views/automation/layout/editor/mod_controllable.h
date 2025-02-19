@@ -56,6 +56,11 @@ public:
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
+	// Horizontal Encoder Action
+	ActionResult horizontalEncoderAction(int32_t offset);
+	void shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
+	                                 int32_t effectiveLength);
+
 	// Sound Editor
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
@@ -69,6 +74,8 @@ public:
 	void setAutomationParameterValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                 bool modEncoderAction = false);
+	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+	                                      int32_t knobPosRight);
 	bool automationModEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
 	                                              int32_t offset, int32_t effectiveLength);
 	void automationModEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam,

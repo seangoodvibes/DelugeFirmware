@@ -66,6 +66,9 @@ public:
 	int32_t getNavSysId() const;
 	int32_t navSysId;
 
+	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+	                                      int32_t knobPosRight);
+
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult scrollVertical(int32_t scrollAmount);
@@ -115,8 +118,6 @@ public:
 
 	// public so menu can access it
 	// UI* previousUI; // previous UI so you can swap back UI after exiting menu
-	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
-	                                      int32_t knobPosRight);
 	void resetInterpolationShortcutBlinking();
 	void resetPadSelectionShortcutBlinking();
 	bool getAffectEntire();
@@ -202,10 +203,6 @@ private:
 	                       int32_t knobPosRight = kNoSelection);
 	void renderDisplay7SEG(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       bool modEncoderAction = false);
-
-	// Horizontal Encoder Action
-	void shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
-	                                 int32_t effectiveLength);
 
 	// Select Encoder Action
 	void selectGlobalParam(int32_t offset, Clip* clip);

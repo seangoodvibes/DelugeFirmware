@@ -58,6 +58,17 @@ void AutomationLayoutEditorNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 	return automationLayoutEditorNoteVelocity.renderNoteEditorDisplay7SEG(clip, outputType, knobPosLeft);
 }
 
+// horizontal encoder actions:
+// scroll left / right
+// zoom in / out
+// adjust clip length
+// shift automations left / right
+// adjust velocity in note editor
+ActionResult AutomationLayoutEditorNote::horizontalEncoderAction(int32_t offset) {
+	instrumentClipView.rotateNoteRowHorizontally(offset);
+	return ActionResult::DEALT_WITH;
+}
+
 /// if we're entering note editor, we want the selected drum to be visible and in sync with lastAuditionedYDisplay
 /// so we'll check if the yDisplay of the selectedDrum is in sync with the lastAuditionedYDisplay
 /// if they're not in sync, we'll sync them up by performing a vertical scroll

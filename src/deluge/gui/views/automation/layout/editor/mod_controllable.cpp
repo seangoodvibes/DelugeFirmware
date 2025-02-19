@@ -21,6 +21,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/led/indicator_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
@@ -508,6 +509,66 @@ uint32_t AutomationLayoutEditorModControllable::getMiddlePosFromSquare(int32_t x
 	return squareStart;
 }
 
+// horizontal encoder actions:
+// scroll left / right
+// zoom in / out
+// adjust clip length
+// shift automations left / right
+// adjust velocity in note editor
+ActionResult AutomationLayoutEditorModControllable::horizontalEncoderAction(int32_t offset) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	if (automationView.onArrangerView) {
+		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	}
+	else {
+		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	}
+
+	int32_t xScroll = currentSong->xScroll[automationLayout.navSysId];
+	int32_t xZoom = currentSong->xZoom[automationLayout.navSysId];
+	int32_t squareSize =
+	    automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
+	int32_t shiftAmount = offset * squareSize;
+
+	if (automationView.onArrangerView) {
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+	}
+	else {
+		Clip* clip = getCurrentClip();
+		modelStackWithParam = automationLayout.getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+	}
+
+	int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
+
+	shiftAutomationHorizontally(modelStackWithParam, shiftAmount, effectiveLength);
+
+	if (offset < 0) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_LEFT));
+	}
+	else if (offset > 0) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_RIGHT));
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+// new function created for automation instrument clip view to shift automations of the selected
+// parameter previously users only had the option to shift ALL automations together as part of community
+// feature i disabled automation shifting in the regular instrument clip view
+void AutomationLayoutEditorModControllable::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam,
+                                                                        int32_t offset, int32_t effectiveLength) {
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
+	}
+
+	uiNeedsRendering(getRootUI());
+}
+
 // this function obtains a parameters value and converts it to a knobPos
 // the knobPos is used for rendering the current parameter values in the automation editor
 // it's also used for obtaining the start and end position values for a multi pad press
@@ -615,12 +676,36 @@ void AutomationLayoutEditorModControllable::setAutomationParameterValue(ModelSta
 	if (!automationLayout.multiPadPressSelected) {
 		int32_t newKnobPos = knobPos + kKnobPosOffset;
 		automationLayout.renderDisplay(newKnobPos, kNoSelection, modEncoderAction);
-		automationLayout.setAutomationKnobIndicatorLevels(modelStack, newKnobPos, newKnobPos);
+		setAutomationKnobIndicatorLevels(modelStack, newKnobPos, newKnobPos);
 	}
 
 	// midi follow and midi feedback enabled
 	// re-send midi cc because learned parameter value has changed
 	view.sendMidiFollowFeedback(modelStack, knobPos);
+}
+
+// sets both knob indicators to the same value when pressing single pad,
+// deleting automation, or displaying current parameter value
+// multi pad presses don't use this function
+void AutomationLayoutEditorModControllable::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack,
+                                                                             int32_t knobPosLeft,
+                                                                             int32_t knobPosRight) {
+	params::Kind kind = modelStack->paramCollection->getParamKind();
+	bool isBipolar = isParamBipolar(kind, modelStack->paramId);
+
+	// if you're dealing with a patch cable which has a -128 to +128 range
+	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+	if (kind == params::Kind::PATCH_CABLE) {
+		knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
+		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
+	}
+
+	bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
+
+	if (!isBlinking) {
+		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft, isBipolar);
+		indicator_leds::setKnobIndicatorLevel(1, knobPosRight, isBipolar);
+	}
 }
 
 void AutomationLayoutEditorModControllable::initInterpolation() {
@@ -974,7 +1059,7 @@ void AutomationLayoutEditorModControllable::automationModEncoderActionForUnselec
 			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
 				int32_t knobPos = newKnobPos + kKnobPosOffset;
 				automationLayout.renderDisplay(knobPos, kNoSelection, true);
-				automationLayout.setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
+				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 
 			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
@@ -1134,7 +1219,7 @@ void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, 
 					automationLayout.renderDisplay();
 				}
 
-				automationLayout.setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
+				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 		}
 	}

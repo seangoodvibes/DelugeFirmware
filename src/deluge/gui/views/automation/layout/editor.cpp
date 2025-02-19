@@ -141,6 +141,22 @@ void AutomationLayoutEditor::renderNoteEditorDisplay7SEG(InstrumentClip* clip, O
 	return automationLayoutEditorNote.renderNoteEditorDisplay7SEG(clip, outputType, knobPosLeft);
 }
 
+// horizontal encoder actions:
+// scroll left / right
+// zoom in / out
+// adjust clip length
+// shift automations left / right
+// adjust velocity in note editor
+ActionResult AutomationLayoutEditor::horizontalEncoderAction(int32_t offset) {
+	if (automationLayout.inAutomationEditor()) {
+		return automationLayoutEditorModControllable.horizontalEncoderAction(offset);
+	}
+	else if (automationLayout.inNoteEditor()) {
+		return automationLayoutEditorNote.horizontalEncoderAction(offset);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
 /// if we're entering note editor, we want the selected drum to be visible and in sync with lastAuditionedYDisplay
 /// so we'll check if the yDisplay of the selectedDrum is in sync with the lastAuditionedYDisplay
 /// if they're not in sync, we'll sync them up by performing a vertical scroll
@@ -165,6 +181,14 @@ void AutomationLayoutEditor::setAutomationParameterValue(ModelStackWithAutoParam
 
 	return automationLayoutEditorModControllable.setAutomationParameterValue(
 	    modelStack, knobPos, squareStart, xDisplay, effectiveLength, xScroll, xZoom, modEncoderAction);
+}
+
+// sets both knob indicators to the same value when pressing single pad,
+// deleting automation, or displaying current parameter value
+// multi pad presses don't use this function
+void AutomationLayoutEditor::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+                                                              int32_t knobPosRight) {
+	return automationLayoutEditor.setAutomationKnobIndicatorLevels(modelStack, knobPosLeft, knobPosRight);
 }
 
 void AutomationLayoutEditor::initInterpolation() {

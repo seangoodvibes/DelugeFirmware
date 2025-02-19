@@ -226,34 +226,6 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_THRESHOLD},
 }};
 
-// VU meter style colours for the automation editor
-
-const RGB rowColour[kDisplayHeight] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
-                                       {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
-
-const RGB rowTailColour[kDisplayHeight] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
-                                           {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
-
-const RGB rowBlurColour[kDisplayHeight] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
-                                           {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
-
-const RGB rowBipolarDownColour[kDisplayHeight / 2] = {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
-
-const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
-
-const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
-
-// colours for the velocity editor
-
-const RGB velocityRowColour[kDisplayHeight] = {{0, 0, 255},   {36, 0, 219}, {73, 0, 182}, {109, 0, 146},
-                                               {146, 0, 109}, {182, 0, 73}, {219, 0, 36}, {255, 0, 0}};
-
-const RGB velocityRowTailColour[kDisplayHeight] = {{2, 2, 53},  {9, 2, 46},  {17, 2, 38}, {24, 2, 31},
-                                                   {31, 2, 24}, {38, 2, 17}, {46, 2, 9},  {53, 2, 2}};
-
-const RGB velocityRowBlurColour[kDisplayHeight] = {{71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80},
-                                                   {76, 53, 70},  {77, 48, 60},  {78, 44, 49}, {79, 39, 39}};
-
 // lookup tables for the values that are set when you press the pads in each row of the grid
 const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
 const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
@@ -2089,38 +2061,7 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 	            && Buttons::isButtonPressed(hid::button::CLIP_VIEW))
 	        || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
 
-		if (inAutomationEditor()) {
-			int32_t xScroll = currentSong->xScroll[navSysId];
-			int32_t xZoom = currentSong->xZoom[navSysId];
-			int32_t squareSize =
-			    automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
-			int32_t shiftAmount = offset * squareSize;
-
-			if (automationView.onArrangerView) {
-				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-				                                                          currentSong->lastSelectedParamID);
-			}
-			else {
-				Clip* clip = getCurrentClip();
-				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
-			}
-
-			int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
-
-			shiftAutomationHorizontally(modelStackWithParam, shiftAmount, effectiveLength);
-
-			if (offset < 0) {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_LEFT));
-			}
-			else if (offset > 0) {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_RIGHT));
-			}
-		}
-		else if (inNoteEditor()) {
-			instrumentClipView.rotateNoteRowHorizontally(offset);
-		}
-
-		return ActionResult::DEALT_WITH;
+		return automationLayoutEditor.horizontalEncoderAction(offset);
 	}
 
 	// else if showing the Parameter selection grid menu, disable this action
@@ -2158,18 +2099,6 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 	else {
 		return automationView.ClipView::horizontalEncoderAction(offset);
 	}
-}
-
-// new function created for automation instrument clip view to shift automations of the selected
-// parameter previously users only had the option to shift ALL automations together as part of community
-// feature i disabled automation shifting in the regular instrument clip view
-void AutomationLayout::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
-                                                   int32_t effectiveLength) {
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
-	}
-
-	uiNeedsRendering(getRootUI());
 }
 
 // vertical encoder action
@@ -3216,27 +3145,9 @@ int32_t AutomationLayout::getNavSysId() const {
 	}
 }
 
-// sets both knob indicators to the same value when pressing single pad,
-// deleting automation, or displaying current parameter value
-// multi pad presses don't use this function
 void AutomationLayout::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
                                                         int32_t knobPosRight) {
-	params::Kind kind = modelStack->paramCollection->getParamKind();
-	bool isBipolar = isParamBipolar(kind, modelStack->paramId);
-
-	// if you're dealing with a patch cable which has a -128 to +128 range
-	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-	if (kind == params::Kind::PATCH_CABLE) {
-		knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
-		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
-	}
-
-	bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
-
-	if (!isBlinking) {
-		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft, isBipolar);
-		indicator_leds::setKnobIndicatorLevel(1, knobPosRight, isBipolar);
-	}
+	return automationLayoutEditor.setAutomationKnobIndicatorLevels(modelStack, knobPosLeft, knobPosRight);
 }
 
 // updates the position that the active mod controllable stack is pointing to
@@ -3260,7 +3171,7 @@ void AutomationLayout::updateAutomationModPosition(ModelStackWithAutoParam* mode
 				}
 
 				if (updateIndicatorLevels) {
-					setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
+					automationLayoutEditor.setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
 				}
 			}
 		}
@@ -3575,7 +3486,7 @@ void AutomationLayout::renderAutomationDisplayForMultiPadPress(ModelStackWithAut
 			}
 		}
 
-		setAutomationKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
+		automationLayoutEditor.setAutomationKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 
 		// update position of mod controllable stack
 		updateAutomationModPosition(modelStackWithParam, squareStart, false, false);
