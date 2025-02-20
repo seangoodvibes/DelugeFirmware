@@ -43,6 +43,11 @@ public:
 
 	void graphicsRoutine();
 
+	// grid sized array to assign midi cc values to each pad on the grid
+	void initMIDICCShortcutsForAutomation();
+	bool midiCCShortcutsLoaded;
+	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
+
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -72,6 +77,7 @@ public:
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult scrollVertical(int32_t scrollAmount);
+	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
@@ -89,8 +95,6 @@ public:
 
 	// called by playback_handler.cpp
 	void notifyPlaybackBegun();
-
-	void setAutomationParamType();
 
 	bool onAutomationOverview();
 	bool inAutomationEditor();
@@ -124,21 +128,8 @@ public:
 
 	void resetShortcutBlinking();
 
-	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
-
 	// protected:
 	void initPadSelection();
-	void updateAutomationModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart,
-	                                 bool updateDisplay = true, bool updateIndicatorLevels = true);
-	void renderAutomationDisplayForMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-	                                             int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
-	                                             int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
-	void handleAutomationSinglePadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
-	                                    int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
-	void handleAutomationMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t firstPadX,
-	                                   int32_t firstPadY, int32_t secondPadX, int32_t secondPadY,
-	                                   int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
-	                                   bool modEncoderAction = false);
 	int32_t lastPadSelectedKnobPos;
 	bool padSelectionOn;
 	bool multiPadPressActive;
@@ -150,15 +141,8 @@ public:
 	int32_t numNotesSelected;
 	int32_t selectedPadPressed;
 
-	void handleAutomationParameterChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-	                                     OutputType outputType, int32_t xDisplay, int32_t yDisplay,
-	                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
-	int32_t calculateAutomationKnobPosForPadPress(ModelStackWithAutoParam* modelStackWithParam, OutputType outputType,
-	                                              int32_t yDisplay);
-	int32_t calculateAutomationKnobPosForMiddlePadPress(deluge::modulation::params::Kind kind, int32_t yDisplay);
-	int32_t calculateAutomationKnobPosForSinglePadPress(deluge::modulation::params::Kind kind, int32_t yDisplay);
-	int32_t calculateAutomationKnobPosForModEncoderTurn(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
-	                                                    int32_t offset);
+	void blinkShortcuts();
+	void resetParameterShortcutBlinking();
 
 private:
 	// button action functions
@@ -218,17 +202,10 @@ private:
 	// Automation Lanes Functions
 	ParamManagerForTimeline* getParamManagerForClip(Clip* clip);
 
-	void blinkShortcuts();
-	void resetParameterShortcutBlinking();
-
 	bool parameterShortcutBlinking;
 
 	bool interpolationShortcutBlinking;
 	bool padSelectionShortcutBlinking;
-
-	// grid sized array to assign midi cc values to each pad on the grid
-	void initMIDICCShortcutsForAutomation();
-	bool midiCCShortcutsLoaded;
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;

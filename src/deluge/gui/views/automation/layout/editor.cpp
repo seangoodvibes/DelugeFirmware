@@ -53,6 +53,11 @@ PLACE_SDRAM_BSS AutomationLayoutEditor automationLayoutEditor{};
 AutomationLayoutEditor::AutomationLayoutEditor() {
 }
 
+// rendering
+bool AutomationLayoutEditor::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
+	return automationLayoutEditorModControllable.possiblyRefreshAutomationEditorGrid(clip, paramKind, paramID);
+}
+
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
 // clip length renders the undefined area of the clip that the user can't interact with
 void AutomationLayoutEditor::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
@@ -188,7 +193,28 @@ void AutomationLayoutEditor::setAutomationParameterValue(ModelStackWithAutoParam
 // multi pad presses don't use this function
 void AutomationLayoutEditor::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
                                                               int32_t knobPosRight) {
-	return automationLayoutEditor.setAutomationKnobIndicatorLevels(modelStack, knobPosLeft, knobPosRight);
+	return automationLayoutEditorModControllable.setAutomationKnobIndicatorLevels(modelStack, knobPosLeft,
+	                                                                              knobPosRight);
+}
+
+// updates the position that the active mod controllable stack is pointing to
+// this sets the current value for the active parameter so that it can be auditioned
+void AutomationLayoutEditor::updateAutomationModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart,
+                                                         bool updateDisplay, bool updateIndicatorLevels) {
+	return automationLayoutEditorModControllable.updateAutomationModPosition(modelStack, squareStart, updateDisplay,
+	                                                                         updateIndicatorLevels);
+}
+
+// new function to render display when a long press is active
+// on OLED this will display the left and right position in a long press on the screen
+// on 7SEG this will display the position of the last selected pad
+// also updates LED indicators. bottom LED indicator = left pad, top LED indicator = right pad
+void AutomationLayoutEditor::renderAutomationDisplayForMultiPadPress(ModelStackWithAutoParam* modelStackWithParam,
+                                                                     Clip* clip, int32_t effectiveLength,
+                                                                     int32_t xScroll, int32_t xZoom, int32_t xDisplay,
+                                                                     bool modEncoderAction) {
+	return automationLayoutEditorModControllable.renderAutomationDisplayForMultiPadPress(
+	    modelStackWithParam, clip, effectiveLength, xScroll, xZoom, xDisplay, modEncoderAction);
 }
 
 void AutomationLayoutEditor::initInterpolation() {

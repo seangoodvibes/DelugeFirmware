@@ -31,6 +31,7 @@ public:
 	AutomationLayoutEditor();
 
 	// Grid render functions
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                            RGB image[][kDisplayWidth + kSideBarWidth],
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
@@ -78,6 +79,11 @@ public:
 	                                 bool modEncoderAction = false);
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);
+	void updateAutomationModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart,
+	                                 bool updateDisplay = true, bool updateIndicatorLevels = true);
+	void renderAutomationDisplayForMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+	                                             int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
+	                                             int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 	bool automationModEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
 	                                              int32_t offset, int32_t effectiveLength);
 	void automationModEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam,

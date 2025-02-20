@@ -27,6 +27,7 @@ public:
 	AutomationLayoutEditorModControllable();
 
 	// Grid render functions
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                            RGB image[][kDisplayWidth + kSideBarWidth],
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
@@ -76,6 +77,26 @@ public:
 	                                 bool modEncoderAction = false);
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);
+	void updateAutomationModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart,
+	                                 bool updateDisplay = true, bool updateIndicatorLevels = true);
+	void handleAutomationSinglePadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
+	                                    int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
+	void handleAutomationParameterChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+	                                     OutputType outputType, int32_t xDisplay, int32_t yDisplay,
+	                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
+	int32_t calculateAutomationKnobPosForPadPress(ModelStackWithAutoParam* modelStackWithParam, OutputType outputType,
+	                                              int32_t yDisplay);
+	int32_t calculateAutomationKnobPosForMiddlePadPress(deluge::modulation::params::Kind kind, int32_t yDisplay);
+	int32_t calculateAutomationKnobPosForSinglePadPress(deluge::modulation::params::Kind kind, int32_t yDisplay);
+	void handleAutomationMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t firstPadX,
+	                                   int32_t firstPadY, int32_t secondPadX, int32_t secondPadY,
+	                                   int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
+	                                   bool modEncoderAction = false);
+	void renderAutomationDisplayForMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+	                                             int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
+	                                             int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
+	int32_t calculateAutomationKnobPosForModEncoderTurn(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
+	                                                    int32_t offset);
 	bool automationModEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
 	                                              int32_t offset, int32_t effectiveLength);
 	void automationModEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam,
