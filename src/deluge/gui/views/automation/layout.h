@@ -76,7 +76,8 @@ public:
 
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	ActionResult scrollVertical(int32_t scrollAmount);
+	void commandVerticalScroll(InstrumentClip* clip, int32_t scrollAmount);
+	void scrollVertical(InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack, int32_t scrollAmount);
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action

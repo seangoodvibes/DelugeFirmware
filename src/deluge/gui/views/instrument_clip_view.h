@@ -124,6 +124,8 @@ public:
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
+	void commandShiftColour(int32_t offset);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void fillOffScreenImageStores();
 	void graphicsRoutine() override;
@@ -282,6 +284,7 @@ public:
 	// other note row functions
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
+	void commandEuclidean(int32_t offset);
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void editNoteRowLength(int32_t offset);
 	void rotateNoteRowHorizontally(int32_t offset);

@@ -5932,34 +5932,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		// User may be trying to move a noteCode...
 		if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-			/*
-			if (!Buttons::isShiftButtonPressed()) { // Why'd I mandate that shift not be pressed?
-			    // If in kit mode, then we can do it
-			    if (getCurrentOutputType() == OutputType::KIT) {
-
-			        if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-
-			        cutAuditionedNotesToOne();
-			        return scrollVertical(offset, inCardRoutine, true); // Will delete action log in this case
-			    }
-
-			    // Otherwise, remind the user why they can't
-			    else {
-			        if (getCurrentOutputType() == OutputType::SYNTH)
-			indicator_leds::indicateAlertOnLed(IndicatorLED::SYNTH); else
-			indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI); // MIDI
-			    }
-			}
-			*/
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
-
-			editNumEuclideanEvents(modelStackWithNoteRow, offset, lastAuditionedYDisplay);
-			shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
-			editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+			commandEuclidean(offset);
 		}
 
 		// Or note repeat...
@@ -5970,75 +5943,14 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 
 		// If user not wanting to move a noteCode, they want to transpose the key
 		else if (!currentUIMode && getCurrentOutputType() != OutputType::KIT) {
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
-			actionLogger.deleteAllLogs();
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-			InstrumentClip* clip = getCurrentInstrumentClip();
-			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
-			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
-
-			recalculateColours();
-			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+			return commandTransposeKey(offset, inCardRoutine);
 		}
 	}
 
 	// Or, if shift key is pressed
 	// no colour shifting in note row editor
 	else if (Buttons::isShiftButtonPressed() && !inNoteRowEditor) {
-		uint32_t whichRowsToRender = 0;
-
-		// If NoteRow(s) auditioned, shift its colour (Kits only)
-		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-			if (!shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-				if (getCurrentOutputType() != OutputType::KIT) {
-					goto shiftAllColour;
-				}
-
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack =
-				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-					if (auditionPadIsPressed[yDisplay]) {
-						ModelStackWithNoteRow* modelStackWithNoteRow =
-						    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
-						NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-						if (noteRow) { // This is fine. If we were in Kit mode, we could only be auditioning if
-							           // there was a NoteRow already
-							noteRow->colourOffset += offset;
-							if (noteRow->colourOffset >= 72) {
-								noteRow->colourOffset -= 72;
-							}
-							if (noteRow->colourOffset < 0) {
-								noteRow->colourOffset += 72;
-							}
-							recalculateColour(yDisplay);
-							whichRowsToRender |= (1 << yDisplay);
-						}
-					}
-				}
-			}
-		}
-
-		// Otherwise, adjust whole colour spectrum
-		else if (currentUIMode == UI_MODE_NONE) {
-shiftAllColour:
-			getCurrentInstrumentClip()->colourOffset += offset;
-			recalculateColours();
-			whichRowsToRender = 0xFFFFFFFF;
-		}
-
-		if (whichRowsToRender) {
-			uiNeedsRendering(this, whichRowsToRender, whichRowsToRender);
-		}
+		commandShiftColour(offset);
 	}
 
 	// If neither button is pressed, we'll do vertical scrolling
@@ -6053,6 +5965,75 @@ shiftAllColour:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCardRoutine) {
+	if (inCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	actionLogger.deleteAllLogs();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
+	clip->nudgeNotesVertically(offset, nudgeType, modelStack);
+
+	recalculateColours();
+	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
+
+	return ActionResult::DEALT_WITH;
+}
+
+void InstrumentClipView::commandShiftColour(int32_t offset) {
+	uint32_t whichRowsToRender = 0;
+
+	// If NoteRow(s) auditioned, shift its colour (Kits only)
+	if (isUIModeActive(UI_MODE_AUDITIONING)) {
+		editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+		if (!shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
+			if (getCurrentOutputType() != OutputType::KIT) {
+				goto shiftAllColour;
+			}
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				if (auditionPadIsPressed[yDisplay]) {
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+					NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+					if (noteRow) { // This is fine. If we were in Kit mode, we could only be auditioning if
+						           // there was a NoteRow already
+						noteRow->colourOffset += offset;
+						if (noteRow->colourOffset >= 72) {
+							noteRow->colourOffset -= 72;
+						}
+						if (noteRow->colourOffset < 0) {
+							noteRow->colourOffset += 72;
+						}
+						recalculateColour(yDisplay);
+						whichRowsToRender |= (1 << yDisplay);
+					}
+				}
+			}
+		}
+	}
+
+	// Otherwise, adjust whole colour spectrum
+	else if (currentUIMode == UI_MODE_NONE) {
+shiftAllColour:
+		getCurrentInstrumentClip()->colourOffset += offset;
+		recalculateColours();
+		whichRowsToRender = 0xFFFFFFFF;
+	}
+
+	if (whichRowsToRender) {
+		uiNeedsRendering(getRootUI(), whichRowsToRender, whichRowsToRender);
+	}
 }
 
 static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
@@ -7030,6 +7011,37 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 	}
 
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+}
+
+void InstrumentClipView::commandEuclidean(int32_t offset) {
+	/*
+	if (!Buttons::isShiftButtonPressed()) { // Why'd I mandate that shift not be pressed?
+	    // If in kit mode, then we can do it
+	    if (getCurrentOutputType() == OutputType::KIT) {
+
+	        if (inCardRoutine)
+	            return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+
+	        cutAuditionedNotesToOne();
+	        return scrollVertical(offset, inCardRoutine, true); // Will delete action log in this case
+	    }
+
+	    // Otherwise, remind the user why they can't
+	    else {
+	        if (getCurrentOutputType() == OutputType::SYNTH) {
+	            indicator_leds::indicateAlertOnLed(IndicatorLED::SYNTH);
+	            else indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI); // MIDI
+	        }
+	    }
+	}*/
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
+
+	editNumEuclideanEvents(modelStackWithNoteRow, offset, lastAuditionedYDisplay);
+	shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
+	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 }
 
 // Check UI mode is appropriate before calling this

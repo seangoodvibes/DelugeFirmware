@@ -1702,165 +1702,96 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 // no change compared to instrument clip view version
 // not used with Audio Clip Automation View
 ActionResult AutomationLayout::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 
 	if (automationView.onArrangerView) {
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-			if (Buttons::isShiftButtonPressed()) {
-				currentSong->adjustMasterTransposeInterval(offset);
-			}
-			else {
-				currentSong->transpose(offset);
-			}
-		}
-		return ActionResult::DEALT_WITH;
-	}
-
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-		return ActionResult::DEALT_WITH;
-	}
-
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	OutputType outputType = clip->output->type;
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	// If encoder button pressed
-	if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
-		if (inNoteEditor() && currentUIMode != UI_MODE_NONE) {
-			// only allow editing note repeats when selecting a note
-			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
-				instrumentClipView.editNoteRepeat(offset);
-			}
-			// only allow euclidean while holding audition pad
-			else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-				                             modelStack); // don't create
-				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-					if (clip->output->type != OutputType::KIT) {
-						modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
-						    modelStack, instrumentClipView.lastAuditionedYDisplay);
-					}
-				}
-
-				instrumentClipView.editNumEuclideanEvents(modelStackWithNoteRow, offset,
-				                                          instrumentClipView.lastAuditionedYDisplay);
-				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
-				instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-			}
-		}
-		// If user not wanting to move a noteCode, they want to transpose the key
-		else if (!currentUIMode && outputType != OutputType::KIT) {
-			actionLogger.deleteAllLogs();
-
-			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
-			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
-
-			instrumentClipView.recalculateColours();
-			uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
-			if (inNoteEditor()) {
-				renderDisplay();
-			}
+			currentSong->commandTranspose(offset);
 		}
 	}
 
-	// Or, if shift key is pressed
-	else if (Buttons::isShiftButtonPressed()) {
-		uint32_t whichRowsToRender = 0;
-
-		// If NoteRow(s) auditioned, shift its colour (Kits only)
-		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-			if (!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-				if (outputType != OutputType::KIT) {
-					goto shiftAllColour;
-				}
-
-				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-					if (instrumentClipView.auditionPadIsPressed[yDisplay]) {
-						ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-						NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-						// This is fine. If we were in Kit mode, we could only be auditioning if there
-						// was a NoteRow already
-						if (noteRow) {
-							noteRow->colourOffset += offset;
-							if (noteRow->colourOffset >= 72) {
-								noteRow->colourOffset -= 72;
-							}
-							if (noteRow->colourOffset < 0) {
-								noteRow->colourOffset += 72;
-							}
-							instrumentClipView.recalculateColour(yDisplay);
-							whichRowsToRender |= (1 << yDisplay);
-						}
-					}
-				}
-			}
-		}
-
-		// Otherwise, adjust whole colour spectrum
-		else if (currentUIMode == UI_MODE_NONE) {
-shiftAllColour:
-			clip->colourOffset += offset;
-			instrumentClipView.recalculateColours();
-			whichRowsToRender = 0xFFFFFFFF;
-		}
-
-		if (whichRowsToRender) {
-			uiNeedsRendering(getRootUI(), whichRowsToRender, whichRowsToRender);
-		}
-	}
-
-	// If neither button is pressed, we'll do vertical scrolling
 	else {
-		if (isUIModeWithinRange(verticalScrollUIModes)) {
-			if ((!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
-			     || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING)))
-			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor() && !padSelectionOn))) {
-				// if we're in the note editor pad selection mode and vertical scrolling,
-				// we want to end any presses first (which will end any note auditioning as well)
-				if (inNoteEditor() && padSelectionOn) {
-					instrumentClipView.endAllEditPadPresses();
-				}
-
-				scrollVertical(offset);
-
-				// if we're in note editor pad selection mode, scrolling vertically will change note selected
-				// so we want to re-render the display to show the updated note
-				if (inNoteEditor()) {
-					// if we're in pad selection mode, we will have de-selected the pad presses above
-					// and now we want to re-instate the pad press for the selected note row
-					// so that we can re-audition the selected note
-					if (padSelectionOn && leftPadSelectedX != kNoSelection) {
-						ModelStackWithNoteRow* modelStackWithNoteRow =
-						    ((InstrumentClip*)clip)
-						        ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-						                             modelStack); // don't create
-						if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-							NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-							int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
-							SquareInfo squareInfo;
-							noteRow->getSquareInfo(leftPadSelectedX, effectiveLength, squareInfo);
-							numNotesSelected = squareInfo.numNotes;
-
-							if (numNotesSelected != 0) {
-								// select note if there are notes in this square
-								automationLayoutEditor.recordNoteEditPadAction(leftPadSelectedX, 1);
-								instrumentClipView.dontDeleteNotesOnDepress();
-							}
-						}
+		Clip* clip = getCurrentClip();
+		if (clip != nullptr && clip->type != ClipType::AUDIO) {
+			// If encoder button pressed
+			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
+				if (inNoteEditor() && currentUIMode != UI_MODE_NONE) {
+					// only allow editing note repeats when selecting a note
+					if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
+						instrumentClipView.editNoteRepeat(offset);
 					}
-					renderDisplay();
+					// only allow euclidean while holding audition pad
+					else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
+						instrumentClipView.commandEuclidean(offset);
+					}
 				}
+				// If user not wanting to move a noteCode, they want to transpose the key
+				else if (!currentUIMode && clip->output->type != OutputType::KIT) {
+					return instrumentClipView.commandTransposeKey(offset, inCardRoutine);
+				}
+			}
+
+			// Or, if shift key is pressed
+			else if (Buttons::isShiftButtonPressed()) {
+				instrumentClipView.commandShiftColour(offset);
+			}
+
+			// If neither button is pressed, we'll do vertical scrolling
+			else {
+				commandVerticalScroll((InstrumentClip*)clip, offset);
 			}
 		}
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+void AutomationLayout::commandVerticalScroll(InstrumentClip* clip, int32_t scrollAmount) {
+	if (isUIModeWithinRange(verticalScrollUIModes)) {
+		if ((!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
+		     || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING)))
+		    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor() && !padSelectionOn))) {
+			// if we're in the note editor pad selection mode and vertical scrolling,
+			// we want to end any presses first (which will end any note auditioning as well)
+			if (inNoteEditor() && padSelectionOn) {
+				instrumentClipView.endAllEditPadPresses();
+			}
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+			scrollVertical(clip, modelStack, scrollAmount);
+
+			// if we're in note editor pad selection mode, scrolling vertically will change note selected
+			// so we want to re-render the display to show the updated note
+			if (inNoteEditor()) {
+				// if we're in pad selection mode, we will have de-selected the pad presses above
+				// and now we want to re-instate the pad press for the selected note row
+				// so that we can re-audition the selected note
+				if (padSelectionOn && leftPadSelectedX != kNoSelection) {
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+					                             modelStack); // don't create
+					if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+						NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+						int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+						SquareInfo squareInfo;
+						noteRow->getSquareInfo(leftPadSelectedX, effectiveLength, squareInfo);
+						numNotesSelected = squareInfo.numNotes;
+
+						if (numNotesSelected != 0) {
+							// select note if there are notes in this square
+							automationLayoutEditor.recordNoteEditPadAction(leftPadSelectedX, 1);
+							instrumentClipView.dontDeleteNotesOnDepress();
+						}
+					}
+				}
+				renderDisplay();
+			}
+		}
+	}
 }
 
 /// if we're entering note editor, we want the selected drum to be visible and in sync with lastAuditionedYDisplay
@@ -1871,8 +1802,8 @@ void AutomationLayout::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* c
 }
 
 // Not used with Audio Clip Automation View or Arranger Automation View
-ActionResult AutomationLayout::scrollVertical(int32_t scrollAmount) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
+void AutomationLayout::scrollVertical(InstrumentClip* clip, ModelStackWithTimelineCounter* modelStack,
+                                      int32_t scrollAmount) {
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
@@ -1881,20 +1812,17 @@ ActionResult AutomationLayout::scrollVertical(int32_t scrollAmount) {
 
 	bool isKit = outputType == OutputType::KIT;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
 	// If a Kit...
 	if (isKit) {
 		// Limit scrolling
 		if (scrollAmount >= 0) {
 			if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
-				return ActionResult::DEALT_WITH;
+				return;
 			}
 		}
 		else {
 			if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
-				return ActionResult::DEALT_WITH;
+				return;
 			}
 		}
 		// if we're in the note editor we don't want to over-scroll so that selected row is not a valid note row
@@ -1904,7 +1832,7 @@ ActionResult AutomationLayout::scrollVertical(int32_t scrollAmount) {
 			    clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, modelStack);
 			// over-scrolled, no valid note row, so return and don't do the actual scrolling
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				return ActionResult::DEALT_WITH;
+				return;
 			}
 			// we have a valid note row, so let's set selected drum equal to previous auditioned y display
 			else {
@@ -1927,7 +1855,7 @@ ActionResult AutomationLayout::scrollVertical(int32_t scrollAmount) {
 		}
 
 		if (!clip->isScrollWithinRange(scrollAmount, newYNote)) {
-			return ActionResult::DEALT_WITH;
+			return;
 		}
 	}
 
@@ -2030,7 +1958,6 @@ ActionResult AutomationLayout::scrollVertical(int32_t scrollAmount) {
 	}
 
 	uiNeedsRendering(getRootUI());
-	return ActionResult::DEALT_WITH;
 }
 
 // mod encoder action
