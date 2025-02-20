@@ -1823,123 +1823,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	    && getCurrentOutputType() == OutputType::KIT
 	    && (isUIModeActive(UI_MODE_AUDITIONING) || Buttons::isShiftButtonPressed())) {
 
-		if (sdRoutineLock) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
-		char chosenFilename[256] = "Nothing to randomize"; // not using "String" to avoid malloc etc. in hot loop
-
-		// Randomize rows with pressed audition pads, or all non-muted rows?
-		bool randomizeAll = false;
-		int32_t nRows = 8;
-		int32_t rowsRandomized = 0;
-		if (Buttons::isShiftButtonPressed()) {
-			nRows = getCurrentInstrumentClip()->noteRows.getNumElements();
-			randomizeAll = true;
-		}
-
-		for (int32_t i = 0; i < nRows; i++) {
-
-			// SHOULD this row be randomized?
-			if (randomizeAll || auditionPadIsPressed[i]) {
-				NoteRow* thisNoteRow;
-				if (randomizeAll) {
-					thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(i);
-					if (thisNoteRow->muted || thisNoteRow->hasNoNotes()) {
-						continue;
-					}
-				}
-				else {
-					thisNoteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong);
-				}
-
-				// CAN this row be randomized?
-				if (thisNoteRow == nullptr) {
-					continue;
-				}
-				Drum* drum = thisNoteRow->drum;
-				if (!drum || drum->type != DrumType::SOUND) {
-					continue;
-				}
-				SoundDrum* soundDrum = (SoundDrum*)drum;
-				MultiRange* r = soundDrum->sources[0].getRange(0);
-				if (r == nullptr) {
-					continue;
-				}
-				AudioFileHolder* afh = r->getAudioFileHolder();
-				if (afh == nullptr) {
-					continue;
-				}
-				char const* path = afh->filePath.get();
-				if (path == &nothing) {
-					continue;
-				}
-				char* slashAddress = strrchr(path, '/');
-				if (slashAddress == nullptr) {
-					continue;
-				}
-
-				// Open directory of current audio file
-				*slashAddress = 0;
-				staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
-					*slashAddress = '/';
-					display->displayError(Error::SD_CARD);
-					return ActionResult::DEALT_WITH;
-				});
-				*slashAddress = '/';
-
-				// Select random audio file from directory
-				int32_t fileCount = 0;
-				while (f_readdir(&staticDIR.inner(), &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
-					audioFileManager.loadAnyEnqueuedClusters();
-					if (staticFNO.fattrib & AM_DIR || !isAudioFilename(staticFNO.fname)) {
-						continue;
-					}
-					if (random(fileCount++) == 0) { // Algorithm: Reservoir Sampling with k=1
-						strncpy(chosenFilename, staticFNO.fname, sizeof(chosenFilename));
-					}
-				}
-
-				// Assign new audio file
-				if (fileCount) {
-					AudioEngine::stopAnyPreviewing();
-					soundDrum->killAllVoices();
-
-					afh->setAudioFile(nullptr);
-					// set the slash to 0 again
-					*slashAddress = 0;
-					afh->filePath.set(path);
-
-					afh->filePath.concatenate("/");
-					afh->filePath.concatenate(chosenFilename);
-					afh->loadFile(false, true, true, 1, nullptr, false);
-
-					soundDrum->name.set(chosenFilename);
-					getCurrentInstrument()->beenEdited();
-					*slashAddress = '/';
-					rowsRandomized++;
-				}
-			}
-		}
-
-		switch (rowsRandomized) {
-		case 0:
-			break; // if no row was selected and shift was not pressed, we assume it was a regular edit pad press
-
-		case 1:
-			display->displayPopup(chosenFilename);
-			return ActionResult::DEALT_WITH;
-			break;
-
-		default:
-			if (randomizeAll) {
-				display->displayPopup("Randomized active rows");
-			}
-			else {
-				display->displayPopup("Randomized selected rows");
-			}
-			return ActionResult::DEALT_WITH;
-		}
+		return commandDrumRandomizer();
 	}
 
 	// Edit pad action...
@@ -1956,18 +1840,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			// are we trying to enter the automation view velocity note editor
 			// by pressing audition pad + velocity shortcut?
 			if (isUIModeActive(UI_MODE_AUDITIONING) && (x == kVelocityShortcutX && y == kVelocityShortcutY)) {
-				Clip* clip = getCurrentClip();
-				// don't enter if you're in a kit with affect entire on
-				if (!(clip->output->type == OutputType::KIT && automationView.getAffectEntire())) {
-					if (automationView.inAutomationEditor()) {
-						automationView.initParameterSelection(false);
-					}
-					automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
-					clip->lastSelectedParamShortcutX = x;
-					clip->lastSelectedParamShortcutY = y;
-					changeRootUI(&automationView);
-				}
-				return ActionResult::DEALT_WITH;
+				return commandEnterNoteVelocityEditor(x, y);
 			}
 			// otherwise let's check for another shortcut pad action
 			else {
@@ -1993,19 +1866,8 @@ doRegularEditPadActionProbably:
 
 	// If mute pad action
 	else if (x == kDisplayWidth) {
-		if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			if (sdRoutineLock) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
-			if (getCurrentOutputType() != OutputType::KIT) {
-				return ActionResult::DEALT_WITH;
-			}
-			NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong);
-			if (!noteRow || !noteRow->drum) {
-				return ActionResult::DEALT_WITH;
-			}
-			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
+		if (currentUIMode == UI_MODE_MIDI_LEARN) [[unlikely]] {
+			return commandLearnMutePad(y, velocity);
 		}
 		else if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
 			if (sdRoutineLock) {
@@ -2052,20 +1914,10 @@ possiblyAuditionPad:
 			// "Learning" to this audition pad:
 			if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) [[unlikely]] {
 				if (getCurrentUI() == this) {
-					if (sdRoutineLock) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
-
-					if (getCurrentOutputType() == OutputType::KIT) {
-						NoteRow* thisNoteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong);
-						if (!thisNoteRow || !thisNoteRow->drum) {
-							return ActionResult::DEALT_WITH;
-						}
-						view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, getCurrentKit());
-					}
-					else {
-						view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)getCurrentOutput());
-					}
+					InstrumentClip* clip = getCurrentInstrumentClip();
+					Output* output = clip->output;
+					OutputType outputType = output->type;
+					return commandLearnAuditionPad(clip, output, outputType, y, velocity);
 				}
 			}
 
@@ -2088,25 +1940,11 @@ possiblyAuditionPad:
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) [[unlikely]] {
-				Instrument* instrument = getCurrentInstrument();
-
-				bool isKit = (instrument->type == OutputType::KIT);
-				if (isKit) {
-					// this is fine - since it's a kit we don't need the song, it's only used to check scale for
-					// instrument clips
-					NoteRow* noteRow =
-					    getCurrentInstrumentClip()->getNoteRowOnScreen(y, nullptr, nullptr); // On *current* clip!
-
-					if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
-						auto* drum = static_cast<SoundDrum*>(noteRow->drum);
-						currentUIMode = UI_MODE_NONE;
-						indicator_leds::setLedState(IndicatorLED::SAVE, false);
-						saveKitRowUI.setup(static_cast<SoundDrum*>(drum), &noteRow->paramManager);
-						openUI(&saveKitRowUI);
-					}
-				}
+				InstrumentClip* clip = getCurrentInstrumentClip();
+				Output* output = clip->output;
+				OutputType outputType = output->type;
+				return commandSaveKitRow(clip, output, outputType, y);
 			}
-
 			// We're quantizing: either adding a new note to the set being quantized, or removing.
 			// In the first case we simply defer to auditionPadAction.
 			else if (isUIModeActive(UI_MODE_QUANTIZE)) {
@@ -2122,6 +1960,201 @@ possiblyAuditionPad:
 			else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
 				return auditionPadAction(velocity, y, Buttons::isShiftButtonPressed());
 			}
+		}
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandDrumRandomizer() {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	char chosenFilename[256] = "Nothing to randomize"; // not using "String" to avoid malloc etc. in hot loop
+
+	// Randomize rows with pressed audition pads, or all non-muted rows?
+	bool randomizeAll = false;
+	int32_t nRows = 8;
+	int32_t rowsRandomized = 0;
+	if (Buttons::isShiftButtonPressed()) {
+		nRows = getCurrentInstrumentClip()->noteRows.getNumElements();
+		randomizeAll = true;
+	}
+
+	for (int32_t i = 0; i < nRows; i++) {
+
+		// SHOULD this row be randomized?
+		if (randomizeAll || auditionPadIsPressed[i]) {
+			NoteRow* thisNoteRow;
+			if (randomizeAll) {
+				thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(i);
+				if (thisNoteRow->muted || thisNoteRow->hasNoNotes()) {
+					continue;
+				}
+			}
+			else {
+				thisNoteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong);
+			}
+
+			// CAN this row be randomized?
+			if (thisNoteRow == nullptr) {
+				continue;
+			}
+			Drum* drum = thisNoteRow->drum;
+			if (!drum || drum->type != DrumType::SOUND) {
+				continue;
+			}
+			SoundDrum* soundDrum = (SoundDrum*)drum;
+			MultiRange* r = soundDrum->sources[0].getRange(0);
+			if (r == nullptr) {
+				continue;
+			}
+			AudioFileHolder* afh = r->getAudioFileHolder();
+			if (afh == nullptr) {
+				continue;
+			}
+			char const* path = afh->filePath.get();
+			if (path == &nothing) {
+				continue;
+			}
+			char* slashAddress = strrchr(path, '/');
+			if (slashAddress == nullptr) {
+				continue;
+			}
+
+			// Open directory of current audio file
+			*slashAddress = 0;
+			staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
+				*slashAddress = '/';
+				display->displayError(Error::SD_CARD);
+				return ActionResult::DEALT_WITH;
+			});
+			*slashAddress = '/';
+
+			// Select random audio file from directory
+			int32_t fileCount = 0;
+			while (f_readdir(&staticDIR.inner(), &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
+				audioFileManager.loadAnyEnqueuedClusters();
+				if (staticFNO.fattrib & AM_DIR || !isAudioFilename(staticFNO.fname)) {
+					continue;
+				}
+				if (random(fileCount++) == 0) { // Algorithm: Reservoir Sampling with k=1
+					strncpy(chosenFilename, staticFNO.fname, sizeof(chosenFilename));
+				}
+			}
+
+			// Assign new audio file
+			if (fileCount) {
+				AudioEngine::stopAnyPreviewing();
+				soundDrum->unassignAllVoices();
+
+				afh->setAudioFile(nullptr);
+				// set the slash to 0 again
+				*slashAddress = 0;
+				afh->filePath.set(path);
+
+				afh->filePath.concatenate("/");
+				afh->filePath.concatenate(chosenFilename);
+				afh->loadFile(false, true, true, 1, nullptr, false);
+
+				soundDrum->name.set(chosenFilename);
+				getCurrentInstrument()->beenEdited();
+				*slashAddress = '/';
+				rowsRandomized++;
+			}
+		}
+	}
+
+	switch (rowsRandomized) {
+	case 0:
+		break; // if no row was selected and shift was not pressed, we assume it was a regular edit pad press
+
+	case 1:
+		display->displayPopup(chosenFilename);
+		return ActionResult::DEALT_WITH;
+		break;
+
+	default:
+		if (randomizeAll) {
+			display->displayPopup("Randomized active rows");
+		}
+		else {
+			display->displayPopup("Randomized selected rows");
+		}
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32_t y) {
+	Clip* clip = getCurrentClip();
+	// don't enter if you're in a kit with affect entire on
+	if (!(clip->output->type == OutputType::KIT && automationView.getAffectEntire())) {
+		if (automationView.inAutomationEditor()) {
+			automationView.initParameterSelection(false);
+		}
+		automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
+		clip->lastSelectedParamShortcutX = x;
+		clip->lastSelectedParamShortcutY = y;
+		changeRootUI(&automationView);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (getCurrentOutputType() != OutputType::KIT) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong);
+	if (!noteRow || !noteRow->drum) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
+
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType,
+                                                         int32_t y, int32_t velocity) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (outputType == OutputType::KIT) {
+		NoteRow* thisNoteRow = clip->getNoteRowOnScreen(y, currentSong);
+		if (!thisNoteRow || !thisNoteRow->drum) {
+			return ActionResult::DEALT_WITH;
+		}
+		view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)output);
+	}
+	else {
+		view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandSaveKitRow(InstrumentClip* clip, Output* output, OutputType outputType,
+                                                   int32_t y) {
+	Instrument* instrument = getCurrentInstrument();
+
+	bool isKit = (instrument->type == OutputType::KIT);
+	if (isKit) {
+		// this is fine - since it's a kit we don't need the song, it's only used to check scale for
+		// instrument clips
+		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, nullptr, nullptr); // On *current* clip!
+
+		if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
+			auto* drum = static_cast<SoundDrum*>(noteRow->drum);
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::SAVE, false);
+			saveKitRowUI.setup(static_cast<SoundDrum*>(drum), &noteRow->paramManager);
+			openUI(&saveKitRowUI);
 		}
 	}
 

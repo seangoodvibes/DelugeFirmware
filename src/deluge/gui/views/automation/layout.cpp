@@ -1055,10 +1055,6 @@ void AutomationLayout::handleSelectEncoderButtonAction(bool on) {
 // handles shortcut pad action for automation (e.g. when you press shift + pad on the grid)
 // everything else is pretty much the same as instrument clip view
 ActionResult AutomationLayout::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (sdRoutineLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
 	Clip* clip = nullptr;
 	Output* output = nullptr;
 	OutputType outputType;
@@ -1114,6 +1110,9 @@ ActionResult AutomationLayout::padAction(int32_t x, int32_t y, int32_t velocity)
 // called by pad action when pressing a pad in the main grid (x < kDisplayWidth)
 ActionResult AutomationLayout::handleEditPadAction(Clip* clip, Output* output, OutputType outputType, int32_t x,
                                                    int32_t y, int32_t velocity) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 
 	// if we're in arranger automation view and holding audition pad, ignore main pad press
 	if (automationView.onArrangerView) {
@@ -1254,33 +1253,30 @@ bool AutomationLayout::shortcutPadAction(ModelStackWithAutoParam* modelStackWith
 // called by pad action when pressing a pad in the mute column (x = kDisplayWidth)
 ActionResult AutomationLayout::handleMutePadAction(InstrumentClip* instrumentClip, Output* output,
                                                    OutputType outputType, int32_t y, int32_t velocity) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 	if (automationView.onArrangerView) {
 		return arrangerView.handleStatusPadAction(y, velocity, getRootUI());
 	}
 	else {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-		if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			if (outputType != OutputType::KIT) {
-				return ActionResult::DEALT_WITH;
-			}
-			NoteRow* noteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
-			if (!noteRow || !noteRow->drum) {
-				return ActionResult::DEALT_WITH;
-			}
-			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
+		if (currentUIMode == UI_MODE_MIDI_LEARN) [[unlikely]] {
+			return instrumentClipView.commandLearnMutePad(y, velocity);
 		}
 		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
 			if (inAutomationEditor()) {
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    instrumentClip->getNoteRowOnScreen(y, modelStackWithTimelineCounter);
-
 				// if we're in a kit, and you press a mute pad
 				// check if it's a mute pad corresponding to the current selected drum
 				// if not, change the drum selection, refresh parameter selection and go back to automation overview
 				if (outputType == OutputType::KIT) {
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+					ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    instrumentClip->getNoteRowOnScreen(y, modelStackWithTimelineCounter);
+
 					if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 						Drum* drum = modelStackWithNoteRow->getNoteRow()->drum;
 						if (((Kit*)output)->selectedDrum != drum) {
@@ -1308,19 +1304,14 @@ ActionResult AutomationLayout::handleAuditionPadAction(InstrumentClip* instrumen
 	}
 	else {
 		// "Learning" to this audition pad:
-		if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
+		if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) [[unlikely]] {
 			if (getCurrentUI()->getUIType() == UIType::AUTOMATION) {
-				if (outputType == OutputType::KIT) {
-					NoteRow* thisNoteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
-					if (!thisNoteRow || !thisNoteRow->drum) {
-						return ActionResult::DEALT_WITH;
-					}
-					view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)output);
-				}
-				else {
-					view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
-				}
+				instrumentClipView.commandLearnAuditionPad(instrumentClip, output, outputType, y, velocity);
 			}
+		}
+
+		else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) [[unlikely]] {
+			return instrumentClipView.commandSaveKitRow(instrumentClip, output, outputType, y);
 		}
 
 		// Actual basic audition pad press:
@@ -1342,7 +1333,7 @@ ActionResult AutomationLayout::handleAuditionPadAction(InstrumentClip* instrumen
 			}
 
 			// process audition pad action
-			auditionPadAction(velocity, y, Buttons::isShiftButtonPressed());
+			auditionPadAction(instrumentClip, output, outputType, velocity, y, Buttons::isShiftButtonPressed());
 
 			// now that we've processed audition pad action, we may now have changed note row selection
 			// if note row selection has changed, and we're in pad selection mode
@@ -1358,7 +1349,8 @@ ActionResult AutomationLayout::handleAuditionPadAction(InstrumentClip* instrumen
 
 // audition pad action
 // not used with Audio Clip Automation View or Arranger Automation View
-void AutomationLayout::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
+void AutomationLayout::auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
+                                         int32_t velocity, bool shiftButtonDown) {
 	if (instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
 		// in case we were editing quantize/humanize
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
@@ -1369,10 +1361,6 @@ void AutomationLayout::auditionPadAction(int32_t velocity, int32_t yDisplay, boo
 
 	bool clipIsActiveOnInstrument =
 	    automationView.InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Output* output = clip->output;
-	OutputType outputType = output->type;
 
 	bool isKit = (outputType == OutputType::KIT);
 
