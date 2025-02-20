@@ -124,6 +124,18 @@ public:
 	int32_t getYVisualFromYDisplay(int32_t yDisplay);
 	int32_t getYVisualWithinOctaveFromYDisplay(int32_t yDisplay);
 	ActionResult auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+	void potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument);
+	void potentiallyRecordAuditionPadAction(bool clipIsActiveOnInstrument, int32_t velocity, int32_t yDisplay,
+	                                        Instrument* instrument, bool isKit,
+	                                        ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
+	void recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
+	                       ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
+	void recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
+	                  ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                  ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
+	NoteRow* getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument, bool clipIsActiveOnInstrument,
+	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	void potentiallyRefreshNoteRowMenu();
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
@@ -361,15 +373,7 @@ private:
 	Drum* getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, Instrument* instrument,
 	                        ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
-	void potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument);
-	void recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
-	                       ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
-	void recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
-	                  ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                  ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
 	void recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
-	NoteRow* getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument, bool clipIsActiveOnInstrument,
-	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	int32_t getVelocityToSound(int32_t velocity);
 	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
 	                         NoteRow* noteRowOnActiveClip, Drum* drum);

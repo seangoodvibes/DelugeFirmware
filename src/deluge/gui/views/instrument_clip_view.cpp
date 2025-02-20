@@ -4875,6 +4875,40 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 		potentiallyUpdateMultiRangeMenu(velocity, yDisplay, instrument);
 	}
 
+	potentiallyRecordAuditionPadAction(clipIsActiveOnInstrument, velocity, yDisplay, instrument, isKit,
+	                                   modelStackWithTimelineCounter, modelStackWithNoteRowOnCurrentClip, drum);
+
+	NoteRow* noteRowOnActiveClip = getNoteRowOnActiveClip(yDisplay, instrument, clipIsActiveOnInstrument,
+	                                                      modelStackWithNoteRowOnCurrentClip, drum);
+
+	bool doRender = true;
+
+	// If note on...
+	if (velocity != 0) {
+		doRender = startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit, noteRowOnActiveClip, drum);
+	}
+
+	// Or if auditioning this NoteRow just finished...
+	else {
+		finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
+	}
+
+	if (doRender) {
+		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
+	}
+
+	// This has to happen after setSelectedDrum is called, cos that resets LEDs
+	if (!clipIsActiveOnInstrument && velocity) {
+		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+void InstrumentClipView::potentiallyRecordAuditionPadAction(
+    bool clipIsActiveOnInstrument, int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
+    ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+    ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum) {
 	// Recording - only allowed if currentClip is activeClip
 	if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
 	    && currentSong->isClipActive(getCurrentClip()) && getCurrentClip()->armedForRecording) {
@@ -4899,32 +4933,6 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 			recordNoteOff(yDisplay, modelStackWithNoteRowOnCurrentClip);
 		}
 	}
-
-	NoteRow* noteRowOnActiveClip = getNoteRowOnActiveClip(yDisplay, instrument, clipIsActiveOnInstrument,
-	                                                      modelStackWithNoteRowOnCurrentClip, drum);
-
-	bool doRender = true;
-
-	// If note on...
-	if (velocity) {
-		doRender = startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit, noteRowOnActiveClip, drum);
-	}
-
-	// Or if auditioning this NoteRow just finished...
-	else {
-		finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
-	}
-
-	if (doRender) {
-		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
-	}
-
-	// This has to happen after setSelectedDrum is called, cos that resets LEDs
-	if (!clipIsActiveOnInstrument && velocity) {
-		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
-	}
-
-	return ActionResult::DEALT_WITH;
 }
 
 // sub-function of AuditionPadAction
@@ -5051,7 +5059,7 @@ void InstrumentClipView::recordNoteOn(int32_t velocity, int32_t yDisplay, Instru
 		                                                                                 ? instrument->defaultVelocity
 		                                                                                 : velocity);
 		if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) { // What about zoom too?
-			uiNeedsRendering(this, 1 << yDisplay, 0);
+			uiNeedsRendering(getRootUI(), 1 << yDisplay, 0);
 		}
 	}
 }
@@ -5062,7 +5070,7 @@ void InstrumentClipView::recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* 
 	if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 		getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRowOnCurrentClip);
 		if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) { // What about zoom too?
-			uiNeedsRendering(this, 1 << yDisplay, 0);
+			uiNeedsRendering(getRootUI(), 1 << yDisplay, 0);
 		}
 	}
 }
@@ -5070,7 +5078,7 @@ void InstrumentClipView::recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* 
 // sub-function of AuditionPadAction
 // if you're in a multi range menu, you can use audition pads to set the note range
 void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument) {
-	if (velocity) {
+	if (velocity != 0) {
 		if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 			menu_item::multiRangeMenu.noteOnToChangeRange(
 			    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
