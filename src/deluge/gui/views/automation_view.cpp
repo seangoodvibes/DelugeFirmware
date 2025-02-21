@@ -192,7 +192,7 @@ bool AutomationView::isMultiPadPressSelected() {
 
 // called by melodic_instrument.cpp or kit.cpp
 void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
-	return currentAutomationLayout->noteRowChanged(clip, noteRow);
+	instrumentClipView.noteRowChanged(clip, noteRow);
 }
 
 // resets the Parameter Selection which sends you back to the Automation Overview screen
@@ -203,7 +203,9 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 
 // called by playback_handler.cpp
 void AutomationView::notifyPlaybackBegun() {
-	return currentAutomationLayout->notifyPlaybackBegun();
+	if (getRootUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+		instrumentClipView.reassessAllAuditionStatus();
+	}
 }
 
 int32_t AutomationView::getNavSysId() const {

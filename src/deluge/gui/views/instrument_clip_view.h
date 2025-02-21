@@ -137,6 +137,9 @@ public:
 	NoteRow* getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument, bool clipIsActiveOnInstrument,
 	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	void potentiallyRefreshNoteRowMenu();
+	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
+	                         NoteRow* noteRowOnActiveClip, Drum* drum);
+	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
@@ -375,9 +378,6 @@ private:
 	                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
 	void recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
 	int32_t getVelocityToSound(int32_t velocity);
-	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-	                         NoteRow* noteRowOnActiveClip, Drum* drum);
-	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
 };
 
 extern InstrumentClipView instrumentClipView;

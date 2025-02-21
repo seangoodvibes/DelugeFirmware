@@ -1418,116 +1418,45 @@ ActionResult AutomationLayout::auditionPadAction(InstrumentClip* clip, Output* o
 	NoteRow* noteRowOnActiveClip = instrumentClipView.getNoteRowOnActiveClip(
 	    yDisplay, (Instrument*)output, clipIsActiveOnInstrument, modelStackWithNoteRowOnCurrentClip, drum);
 
+	bool doRender = true;
+
 	// If note on...
 	if (velocity != 0) {
-		int32_t velocityToSound = velocity;
-		if (velocityToSound == USE_DEFAULT_VELOCITY) {
-			velocityToSound = ((Instrument*)output)->defaultVelocity;
-		}
+		int32_t lastAuditionedYDisplay = instrumentClipView.lastAuditionedYDisplay;
 
-		// Yup, need to do this even if we're going to do a "silent" audition, so pad lights up etc.
-		instrumentClipView.auditionPadIsPressed[yDisplay] = velocityToSound;
-
-		if (noteRowOnActiveClip != nullptr) {
-			// Ensure our auditioning doesn't override a note playing in the sequence
-			if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
-				goto doSilentAudition;
-			}
-		}
-
-		// If won't be actually sounding Instrument...
-		if (shiftButtonDown || Buttons::isButtonPressed(hid::button::Y_ENC)) {
-
-			instrumentClipView.fileBrowserShouldNotPreview = true;
-doSilentAudition:
-			instrumentClipView.auditioningSilently = true;
-			instrumentClipView.reassessAllAuditionStatus();
-		}
-		else {
-			if (!instrumentClipView.auditioningSilently) {
-
-				instrumentClipView.fileBrowserShouldNotPreview = false;
-
-				instrumentClipView.sendAuditionNote(true, yDisplay, velocityToSound, 0);
-
-				{ instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound; }
-			}
-		}
-
-		// If wasn't already auditioning...
-		if (!isUIModeActive(UI_MODE_AUDITIONING)) {
-			instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-			instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-			instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = false;
-			enterUIMode(UI_MODE_AUDITIONING);
-		}
+		doRender = instrumentClipView.startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit,
+		                                                  noteRowOnActiveClip, drum);
 
 		drawNoteCode = true;
 
-		if (!isKit && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
+		if (!isKit && (instrumentClipView.lastAuditionedYDisplay != lastAuditionedYDisplay)) {
 			selectedRowChanged = true;
-		}
-
-		instrumentClipView.lastAuditionedYDisplay = yDisplay;
-
-		// are we in a synth / midi / cv clip
-		// and have we changed our note row selection
-		if (selectedRowChanged) {
-			instrumentClipView.potentiallyRefreshNoteRowMenu();
-		}
-
-		// Begin resampling / output-recording
-		if (Buttons::isButtonPressed(hid::button::RECORD) && audioRecorder.recordingSource == AudioInputChannel::NONE) {
-			audioRecorder.beginOutputRecording();
-			Buttons::recordButtonPressUsedUp = true;
-		}
-
-		if (isKit) {
-			instrumentClipView.setSelectedDrum(drum);
 		}
 	}
 
 	// Or if auditioning this NoteRow just finished...
 	else {
-		if (instrumentClipView.auditionPadIsPressed[yDisplay]) {
-			instrumentClipView.auditionPadIsPressed[yDisplay] = 0;
-			instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = 255;
-
-			// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
-			// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
-			if (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
-			    || noteRowOnActiveClip->isDroning(modelStackWithNoteRowOnCurrentClip->getLoopLength())) {
-				instrumentClipView.sendAuditionNote(false, yDisplay, 64, 0);
-			}
-		}
-		display->cancelPopup();
-		// don't recalculateLastAuditionedNoteOnScreen if we're in the note editor because it
-		// messes up the note row selection	for velocity editing
-		instrumentClipView.someAuditioningHasEnded(!inNoteEditor());
-		actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
-		actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
+		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
 		if (display->have7SEG()) {
 			renderDisplay();
 		}
 	}
-
-getOut:
 
 	if (selectedRowChanged || (selectedDrumChanged && (!getAffectEntire() || inNoteEditor()))) {
 		if (inNoteEditor()) {
 			renderDisplay();
 			instrumentClipView.resetSelectedNoteRowBlinking();
 			instrumentClipView.blinkSelectedNoteRow(0xFFFFFFFF);
+			doRender = false;
 		}
 		else if (selectedDrumChanged) {
 			initParameterSelection();
 			uiNeedsRendering(getRootUI());
-		}
-		else {
-			renderingNeededRegardlessOfUI(0, 1 << yDisplay);
+			doRender = false;
 		}
 	}
-	else {
+
+	if (doRender) {
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
 	}
 
@@ -2111,18 +2040,6 @@ void AutomationLayout::getLastSelectedParamArrayPosition(Clip* clip) {
 
 bool AutomationLayout::isMultiPadPressSelected() {
 	return multiPadPressSelected;
-}
-
-// called by melodic_instrument.cpp or kit.cpp
-void AutomationLayout::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
-	instrumentClipView.noteRowChanged(clip, noteRow);
-}
-
-// called by playback_handler.cpp
-void AutomationLayout::notifyPlaybackBegun() {
-	if (!automationView.onArrangerView && getCurrentClip()->type != ClipType::AUDIO) {
-		instrumentClipView.reassessAllAuditionStatus();
-	}
 }
 
 // resets the Parameter Selection which sends you back to the Automation Overview screen

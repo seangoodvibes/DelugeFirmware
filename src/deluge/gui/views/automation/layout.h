@@ -91,12 +91,6 @@ public:
 	bool isMultiPadPressSelected();                     // public so menu can access it
 	bool multiPadPressSelected;
 
-	// called by melodic_instrument.cpp or kit.cpp
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
-
-	// called by playback_handler.cpp
-	void notifyPlaybackBegun();
-
 	bool onAutomationOverview();
 	bool inAutomationEditor();
 	bool inNoteEditor();
