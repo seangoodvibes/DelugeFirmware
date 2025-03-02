@@ -36,6 +36,7 @@ void NonAudioDrum::unassignAllVoices() {
 	if (hasAnyVoices()) {
 		noteOff(NULL);
 	}
+	arpeggiator.reset();
 }
 
 bool NonAudioDrum::anyNoteIsOn() {
@@ -107,7 +108,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 	instrumentClipView.drawDrumName(this, true);
 
 	if (wasOn) {
-		noteOn(modelStack, lastVelocity, NULL, zeroMPEValues);
+		noteOn(modelStack, lastVelocity, zeroMPEValues);
 	}
 }
 

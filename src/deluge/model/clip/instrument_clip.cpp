@@ -37,6 +37,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/iterance/iterance.h"
 #include "model/note/note.h"
+#include "model/output.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -919,9 +920,9 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
 		    pendingNoteOn->noteRow->drum->toModControllable(), &pendingNoteOn->noteRow->paramManager);
 
-		pendingNoteOn->noteRow->drum->noteOn(modelStackWithThreeMainThings, pendingNoteOn->velocity, (Kit*)output,
-		                                     mpeValues, MIDI_CHANNEL_NONE, pendingNoteOn->sampleSyncLength,
-		                                     pendingNoteOn->ticksLate);
+		pendingNoteOn->noteRow->drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, pendingNoteOn->noteRow->drum,
+		                                                   pendingNoteOn->velocity, mpeValues, MIDI_CHANNEL_NONE,
+		                                                   pendingNoteOn->sampleSyncLength, pendingNoteOn->ticksLate);
 	}
 	else {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -2284,6 +2285,9 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	if (newInstrument->type == OutputType::SYNTH) {
 		arpSettings.cloneFrom(&((SoundInstrument*)newInstrument)->defaultArpSettings);
 	}
+	else if (newInstrument->type == OutputType::KIT) {
+		arpSettings.cloneFrom(&((Kit*)newInstrument)->defaultArpSettings);
+	}
 
 	if (shouldSetupPatching) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2371,17 +2375,15 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		paramManager.getMIDIParamCollection()->writeToFile(writer);
 	}
 
-	if (output->type != OutputType::KIT) {
-		writer.writeOpeningTagBeginning("arpeggiator");
+	writer.writeOpeningTagBeginning("arpeggiator");
 
-		arpSettings.writeCommonParamsToFile(writer, nullptr);
+	arpSettings.writeCommonParamsToFile(writer, nullptr);
 
-		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-			arpSettings.writeNonAudioParamsToFile(writer);
-		}
-
-		writer.closeTag();
+	if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+		arpSettings.writeNonAudioParamsToFile(writer);
 	}
+
+	writer.closeTag();
 
 	if (output->type == OutputType::KIT) {
 		writer.writeOpeningTagBeginning("kitParams");
@@ -2685,6 +2687,9 @@ someError:
 						if (outputTypeWhileLoading == OutputType::SYNTH) {
 							arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
 						}
+						else if (outputTypeWhileLoading == OutputType::KIT) {
+							arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
+						}
 					}
 					reader.exitTag("referToTrackId");
 				}
@@ -2718,6 +2723,9 @@ loadInstrument:
 
 				if (outputTypeWhileLoading == OutputType::SYNTH) {
 					arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
+				}
+				else if (outputTypeWhileLoading == OutputType::KIT) {
+					arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 				}
 
 				// Add the Instrument to the Song
@@ -3254,7 +3262,10 @@ void InstrumentClip::deleteNoteRow(ModelStackWithTimelineCounter* modelStack, in
 
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
 
-	noteRow->setDrum(NULL, (Kit*)output, modelStackWithNoteRow);
+	Kit* kit = (Kit*)output;
+	kit->removeDrumFromKitArpeggiator(noteRowIndex);
+
+	noteRow->setDrum(nullptr, (Kit*)output, modelStackWithNoteRow);
 	noteRows.deleteNoteRowAtIndex(noteRowIndex);
 }
 
