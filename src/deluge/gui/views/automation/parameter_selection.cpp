@@ -50,7 +50,7 @@ using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 using namespace deluge::gui;
 
 constexpr int32_t kNumNonGlobalParamsForAutomation = 81;
-constexpr int32_t kNumGlobalParamsForAutomation = 26;
+constexpr int32_t kNumGlobalParamsForAutomation = 37;
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
@@ -210,6 +210,19 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE},
     // Compressor Threshold
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_THRESHOLD},
+    // Arp Rate, Gate, Rhythm, Chord Polyphony, Sequence Length, Ratchet Amount, Note Prob, Bass Prob, Chord Prob,
+    // Ratchet Prob, Spread Gate, Spread Octave, Spread Velocity
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATE},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_GATE},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SPREAD_GATE},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SPREAD_VELOCITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATCHET_AMOUNT},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_NOTE_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERSE_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RHYTHM},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
 }};
 
 AutomationParameterSelection::AutomationParameterSelection() {

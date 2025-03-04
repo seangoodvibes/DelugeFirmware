@@ -20,6 +20,7 @@
 #include "gui/views/automation/context/audio_clip.h"
 #include "gui/views/automation/context/instrument_clip.h"
 #include "gui/views/automation/layout.h"
+#include "gui/views/instrument_clip_view.h"
 
 PLACE_SDRAM_BSS AutomationView automationView{};
 PLACE_SDRAM_BSS AutomationLayout automationLayout{};
