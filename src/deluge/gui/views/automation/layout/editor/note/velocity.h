@@ -44,12 +44,7 @@ public:
 	                                 OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
 
-	// Vertical encoder action
-	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
-
 	// Note Editor
-	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
-	                       int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
 	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
 	int32_t getVelocityFromY(int32_t y);

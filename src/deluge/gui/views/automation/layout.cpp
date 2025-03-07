@@ -101,8 +101,6 @@ AutomationLayout::AutomationLayout() {
 	rightPadSelectedX = kNoSelection;
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
-	numNotesSelected = 0;
-	selectedPadPressed = 0;
 	navSysId = NAVIGATION_CLIP;
 
 	midiCCShortcutsLoaded = false;
@@ -1630,9 +1628,8 @@ void AutomationLayout::commandVerticalScroll(InstrumentClip* clip, int32_t scrol
 						int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
 						SquareInfo squareInfo;
 						noteRow->getSquareInfo(leftPadSelectedX, effectiveLength, squareInfo);
-						numNotesSelected = squareInfo.numNotes;
 
-						if (numNotesSelected != 0) {
+						if (squareInfo.numNotes != 0) {
 							// select note if there are notes in this square
 							automationLayoutEditor.recordNoteEditPadAction(leftPadSelectedX, 1);
 							instrumentClipView.dontDeleteNotesOnDepress();
@@ -2057,16 +2054,6 @@ void AutomationLayout::initPadSelection() {
 	leftPadSelectedX = kNoSelection;
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
-
-	resetPadSelectionShortcutBlinking();
-
-	numNotesSelected = 0;
-	selectedPadPressed = 0;
-
-	// make sure no active presses remain when exiting pad selection mode
-	if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-		instrumentClipView.endAllEditPadPresses();
-	}
 
 	resetPadSelectionShortcutBlinking();
 }

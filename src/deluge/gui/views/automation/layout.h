@@ -133,8 +133,6 @@ public:
 	int32_t leftPadSelectedY;
 	int32_t rightPadSelectedX;
 	int32_t rightPadSelectedY;
-	int32_t numNotesSelected;
-	int32_t selectedPadPressed;
 
 	void blinkShortcuts();
 	void resetParameterShortcutBlinking();

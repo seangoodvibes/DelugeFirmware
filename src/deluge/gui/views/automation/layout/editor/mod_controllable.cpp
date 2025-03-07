@@ -1132,9 +1132,6 @@ void AutomationLayoutEditorModControllable::automationEditPadAction(ModelStackWi
                                                                     Clip* clip, int32_t xDisplay, int32_t yDisplay,
                                                                     int32_t velocity, int32_t effectiveLength,
                                                                     int32_t xScroll, int32_t xZoom) {
-	if (automationLayout.padSelectionOn) {
-		automationLayout.selectedPadPressed = velocity;
-	}
 	// If button down
 	if (velocity) {
 		// If this is a automation-length-edit press...
