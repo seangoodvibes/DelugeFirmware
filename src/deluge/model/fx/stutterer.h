@@ -26,7 +26,7 @@ class StereoSample;
 
 struct StutterConfig {
 	bool useSongStutter = true;
-	bool quantized = false;
+	bool quantized = true;
 	bool reversed = false;
 	bool pingPong = false;
 };
