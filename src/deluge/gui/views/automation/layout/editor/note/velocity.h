@@ -21,7 +21,7 @@
 
 class Clip;
 
-class AutomationLayoutEditorNoteVelocity { //: public AutomationLayoutEditorNote {
+class AutomationLayoutEditorNoteVelocity : public AutomationLayoutEditorNote {
 public:
 	AutomationLayoutEditorNoteVelocity();
 

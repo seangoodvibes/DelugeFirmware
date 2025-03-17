@@ -218,8 +218,7 @@ void AutomationLayoutEditorModControllable::renderAutomationBipolarSquare(
 	}
 
 	// pad selection mode, render cursor
-	if (automationLayout.padSelectionOn
-	    && ((xDisplay == automationLayout.leftPadSelectedX) || (xDisplay == automationLayout.rightPadSelectedX))) {
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
 		if (doRender) {
 			if (knobPos > middleKnobPos) {
 				pixel = rowBipolarDownBlurColour[-yDisplay + 7];
@@ -262,8 +261,7 @@ void AutomationLayoutEditorModControllable::renderAutomationUnipolarSquare(
 	}
 
 	// pad selection mode, render cursor
-	if (automationLayout.padSelectionOn
-	    && ((xDisplay == automationLayout.leftPadSelectedX) || (xDisplay == automationLayout.rightPadSelectedX))) {
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
 		if (doRender) {
 			pixel = rowBlurColour[yDisplay];
 		}
@@ -303,7 +301,7 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplayOLED(
 	}
 	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = automationLayout.getModelStackWithParamForClip(modelStack, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 	}
 
 	char const* isAutomated;
@@ -361,11 +359,10 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Cl
 		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
-		modelStackWithParam = automationLayout.getModelStackWithParamForClip(modelStack, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 	}
 
-	bool padSelected =
-	    (!automationLayout.padSelectionOn && isUIModeActive(UI_MODE_NOTES_PRESSED)) || automationLayout.padSelectionOn;
+	bool padSelected = (!padSelectionOn && isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelectionOn;
 
 	/* check if you're holding a pad
 	 * if yes, store pad press knob position in lastPadSelectedKnobPos
@@ -374,9 +371,9 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Cl
 	 */
 	if (padSelected) {
 		if (knobPosLeft != kNoSelection) {
-			automationLayout.lastPadSelectedKnobPos = knobPosLeft;
+			lastPadSelectedKnobPos = knobPosLeft;
 		}
-		else if (automationLayout.lastPadSelectedKnobPos != kNoSelection) {
+		else if (lastPadSelectedKnobPos != kNoSelection) {
 			params::Kind lastSelectedParamKind = params::Kind::NONE;
 			int32_t lastSelectedParamID = kNoSelection;
 			if (automationView.onArrangerView) {
@@ -387,8 +384,8 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Cl
 				lastSelectedParamKind = clip->lastSelectedParamKind;
 				lastSelectedParamID = clip->lastSelectedParamID;
 			}
-			knobPosLeft = view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID,
-			                                              automationLayout.lastPadSelectedKnobPos);
+			knobPosLeft =
+			    view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID, lastPadSelectedKnobPos);
 		}
 	}
 
@@ -553,8 +550,8 @@ ActionResult AutomationLayoutEditorModControllable::horizontalEncoderAction(int3
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	}
 
-	int32_t xScroll = currentSong->xScroll[automationLayout.navSysId];
-	int32_t xZoom = currentSong->xZoom[automationLayout.navSysId];
+	int32_t xScroll = currentSong->xScroll[navSysId];
+	int32_t xZoom = currentSong->xZoom[navSysId];
 	int32_t squareSize =
 	    automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
 	int32_t shiftAmount = offset * squareSize;
@@ -565,10 +562,10 @@ ActionResult AutomationLayoutEditorModControllable::horizontalEncoderAction(int3
 	}
 	else {
 		Clip* clip = getCurrentClip();
-		modelStackWithParam = automationLayout.getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 
-	int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
+	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
 	shiftAutomationHorizontally(modelStackWithParam, shiftAmount, effectiveLength);
 
@@ -652,11 +649,11 @@ void AutomationLayoutEditorModControllable::setAutomationParameterValue(ModelSta
 
 	// for a multi pad press, the beginning and ending pad presses are set with a square width of 3 (1
 	// node).
-	if (automationLayout.multiPadPressSelected) {
+	if (multiPadPressSelected) {
 		squareWidth = kParamNodeWidth;
 	}
 	else {
-		squareWidth = automationLayoutEditor.getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
+		squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
 	}
 
 	// if you're doing a single pad press, you don't want the values around that single press position
@@ -664,8 +661,8 @@ void AutomationLayoutEditorModControllable::setAutomationParameterValue(ModelSta
 	// interpolation turned on to fix this, re-create those nodes with their current value with
 	// interpolation off
 
-	automationLayoutEditor.interpolationBefore = getAutomationNodeInterpolation(modelStack, squareStart, true);
-	automationLayoutEditor.interpolationAfter = getAutomationNodeInterpolation(modelStack, squareStart, false);
+	interpolationBefore = getAutomationNodeInterpolation(modelStack, squareStart, true);
+	interpolationAfter = getAutomationNodeInterpolation(modelStack, squareStart, false);
 
 	// create a node to the left with the current interpolation status
 	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
@@ -698,9 +695,9 @@ void AutomationLayoutEditorModControllable::setAutomationParameterValue(ModelSta
 	}
 
 	// in a multi pad press, no need to display all the values calculated
-	if (!automationLayout.multiPadPressSelected) {
+	if (!multiPadPressSelected) {
 		int32_t newKnobPos = knobPos + kKnobPosOffset;
-		automationLayout.renderDisplay(newKnobPos, kNoSelection, modEncoderAction);
+		renderDisplay(newKnobPos, kNoSelection, modEncoderAction);
 		setAutomationKnobIndicatorLevels(modelStack, newKnobPos, newKnobPos);
 	}
 
@@ -738,7 +735,7 @@ void AutomationLayoutEditorModControllable::setAutomationKnobIndicatorLevels(Mod
 void AutomationLayoutEditorModControllable::updateAutomationModPosition(ModelStackWithAutoParam* modelStack,
                                                                         uint32_t squareStart, bool updateDisplay,
                                                                         bool updateIndicatorLevels) {
-	if (!playbackHandler.isEitherClockActive() || automationLayout.padSelectionOn) {
+	if (!playbackHandler.isEitherClockActive() || padSelectionOn) {
 		if (modelStack && modelStack->autoParam) {
 			if (modelStack->getTimelineCounter()
 			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
@@ -749,7 +746,7 @@ void AutomationLayoutEditorModControllable::updateAutomationModPosition(ModelSta
 				int32_t knobPos = getAutomationParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
 
 				if (updateDisplay) {
-					automationLayout.renderDisplay(knobPos);
+					renderDisplay(knobPos);
 				}
 
 				if (updateIndicatorLevels) {
@@ -780,32 +777,30 @@ void AutomationLayoutEditorModControllable::handleAutomationSinglePadPress(Model
 void AutomationLayoutEditorModControllable::handleAutomationParameterChange(
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay,
     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
-	if (automationLayout.padSelectionOn) {
+	if (padSelectionOn) {
 		// display pad's value
 		uint32_t squareStart = 0;
 
 		// if a long press is selected and you're checking value of start or end pad
 		// display value at very first or very last node
-		if (automationLayout.multiPadPressSelected
-		    && ((automationLayout.leftPadSelectedX == xDisplay) || (automationLayout.rightPadSelectedX == xDisplay))) {
-			if (automationLayout.leftPadSelectedX == xDisplay) {
+		if (multiPadPressSelected && ((leftPadSelectedX == xDisplay) || (rightPadSelectedX == xDisplay))) {
+			if (leftPadSelectedX == xDisplay) {
 				squareStart = automationView.getPosFromSquare(xDisplay, xScroll, xZoom);
 			}
 			else {
-				int32_t squareRightEdge =
-				    automationView.getPosFromSquare(automationLayout.rightPadSelectedX + 1, xScroll, xZoom);
+				int32_t squareRightEdge = automationView.getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
 				squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 			}
 		}
 		// display pad's middle value
 		else {
-			squareStart = automationLayoutEditor.getMiddlePosFromSquare(xDisplay, effectiveLength, xScroll, xZoom);
+			squareStart = getMiddlePosFromSquare(xDisplay, effectiveLength, xScroll, xZoom);
 		}
 
-		automationLayoutEditor.updateAutomationModPosition(modelStackWithParam, squareStart);
+		updateAutomationModPosition(modelStackWithParam, squareStart);
 
-		if (!automationLayout.multiPadPressSelected) {
-			automationLayout.leftPadSelectedX = xDisplay;
+		if (!multiPadPressSelected) {
+			leftPadSelectedX = xDisplay;
 		}
 	}
 
@@ -815,11 +810,11 @@ void AutomationLayoutEditorModControllable::handleAutomationParameterChange(
 
 		if (squareStart < effectiveLength) {
 			// use default interpolation settings
-			automationLayoutEditor.initInterpolation();
+			initInterpolation();
 
 			int32_t newKnobPos = calculateAutomationKnobPosForPadPress(modelStackWithParam, outputType, yDisplay);
-			automationLayoutEditor.setAutomationParameterValue(modelStackWithParam, newKnobPos, squareStart, xDisplay,
-			                                                   effectiveLength, xScroll, xZoom);
+			setAutomationParameterValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
+			                            xScroll, xZoom);
 		}
 	}
 }
@@ -830,7 +825,7 @@ int32_t AutomationLayoutEditorModControllable::calculateAutomationKnobPosForPadP
 	int32_t newKnobPos = 0;
 	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	if (automationLayout.middlePadPressSelected) {
+	if (middlePadPressSelected) {
 		newKnobPos = calculateAutomationKnobPosForMiddlePadPress(kind, yDisplay);
 	}
 	else {
@@ -856,8 +851,8 @@ int32_t AutomationLayoutEditorModControllable::calculateAutomationKnobPosForMidd
                                                                                            int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
-	int32_t yMin = yDisplay < automationLayout.leftPadSelectedY ? yDisplay : automationLayout.leftPadSelectedY;
-	int32_t yMax = yDisplay > automationLayout.leftPadSelectedY ? yDisplay : automationLayout.leftPadSelectedY;
+	int32_t yMin = yDisplay < leftPadSelectedY ? yDisplay : leftPadSelectedY;
+	int32_t yMax = yDisplay > leftPadSelectedY ? yDisplay : leftPadSelectedY;
 	int32_t minKnobPos = 0;
 	int32_t maxKnobPos = 0;
 
@@ -913,13 +908,11 @@ void AutomationLayoutEditorModControllable::handleAutomationMultiPadPress(
 		// if we're updating the long press values via mod encoder action, then get current values of
 		// pads pressed and re-interpolate
 		if (modEncoderAction) {
-			firstPadValue = automationLayoutEditor.getAutomationParameterKnobPos(modelStackWithParam, firstPadLeftEdge)
-			                + kKnobPosOffset;
+			firstPadValue = getAutomationParameterKnobPos(modelStackWithParam, firstPadLeftEdge) + kKnobPosOffset;
 
 			uint32_t squareStart = std::min(effectiveLength, secondPadRightEdge) - kParamNodeWidth;
 
-			secondPadValue =
-			    automationLayoutEditor.getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+			secondPadValue = getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 		}
 
 		// otherwise if it's a regular long press, calculate values from the y position of the pads
@@ -935,17 +928,16 @@ void AutomationLayoutEditorModControllable::handleAutomationMultiPadPress(
 		// clear existing nodes from long press range
 
 		// reset interpolation settings to default
-		automationLayoutEditor.initInterpolation();
+		initInterpolation();
 
 		// set value for beginning pad press at the very first node position within that pad
-		automationLayoutEditor.setAutomationParameterValue(modelStackWithParam, firstPadValue - kKnobPosOffset,
-		                                                   firstPadLeftEdge, firstPadX, effectiveLength, xScroll,
-		                                                   xZoom);
+		setAutomationParameterValue(modelStackWithParam, firstPadValue - kKnobPosOffset, firstPadLeftEdge, firstPadX,
+		                            effectiveLength, xScroll, xZoom);
 
 		// set value for ending pad press at the very last node position within that pad
 		int32_t squareStart = std::min(effectiveLength, secondPadRightEdge) - kParamNodeWidth;
-		automationLayoutEditor.setAutomationParameterValue(modelStackWithParam, secondPadValue - kKnobPosOffset,
-		                                                   squareStart, secondPadX, effectiveLength, xScroll, xZoom);
+		setAutomationParameterValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX,
+		                            effectiveLength, xScroll, xZoom);
 
 		// converting variables to float for more accurate interpolation calculation
 		float firstPadValueFloat = static_cast<float>(firstPadValue);
@@ -964,22 +956,20 @@ void AutomationLayoutEditorModControllable::handleAutomationMultiPadPress(
 			// now we will set the value for the remaining nodes within the first pad
 			if (x == firstPadX) {
 				squareStart = automationView.getPosFromSquare(x, xScroll, xZoom) + kParamNodeWidth;
-				squareWidth =
-				    automationLayoutEditor.getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
+				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
 			}
 
 			// we've already set the value for the very last node corresponding to the second pad above
 			// now we will set the value for the remaining nodes within the second pad
 			else if (x == secondPadX) {
 				squareStart = automationView.getPosFromSquare(x, xScroll, xZoom);
-				squareWidth =
-				    automationLayoutEditor.getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
+				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
 			}
 
 			// now we will set the values for the nodes between the first and second pad's pressed
 			else {
 				squareStart = automationView.getPosFromSquare(x, xScroll, xZoom);
-				squareWidth = automationLayoutEditor.getSquareWidth(x, effectiveLength, xScroll, xZoom);
+				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom);
 			}
 
 			// linear interpolation formula to calculate the value of the pads
@@ -994,9 +984,9 @@ void AutomationLayoutEditorModControllable::handleAutomationMultiPadPress(
 
 			// if interpolation is off, values for nodes in between first and second pad will not be set
 			// in a staggered/step fashion
-			if (automationLayoutEditor.interpolation) {
-				automationLayoutEditor.interpolationBefore = true;
-				automationLayoutEditor.interpolationAfter = true;
+			if (interpolation) {
+				interpolationBefore = true;
+				interpolationAfter = true;
 			}
 
 			// set value for pads in between
@@ -1013,7 +1003,7 @@ void AutomationLayoutEditorModControllable::handleAutomationMultiPadPress(
 		}
 
 		// reset interpolation settings to off
-		automationLayoutEditor.initInterpolation();
+		initInterpolation();
 
 		// render the multi pad press
 		uiNeedsRendering(getRootUI());
@@ -1028,52 +1018,48 @@ void AutomationLayoutEditorModControllable::renderAutomationDisplayForMultiPadPr
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
     int32_t xDisplay, bool modEncoderAction) {
 
-	int32_t secondPadLeftEdge = automationView.getPosFromSquare(automationLayout.rightPadSelectedX, xScroll, xZoom);
+	int32_t secondPadLeftEdge = automationView.getPosFromSquare(rightPadSelectedX, xScroll, xZoom);
 
 	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
 		return;
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		int32_t firstPadLeftEdge = automationView.getPosFromSquare(automationLayout.leftPadSelectedX, xScroll, xZoom);
-		int32_t secondPadRightEdge =
-		    automationView.getPosFromSquare(automationLayout.rightPadSelectedX + 1, xScroll, xZoom);
+		int32_t firstPadLeftEdge = automationView.getPosFromSquare(leftPadSelectedX, xScroll, xZoom);
+		int32_t secondPadRightEdge = automationView.getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
 
-		int32_t knobPosLeft =
-		    automationLayoutEditor.getAutomationParameterKnobPos(modelStackWithParam, firstPadLeftEdge)
-		    + kKnobPosOffset;
+		int32_t knobPosLeft = getAutomationParameterKnobPos(modelStackWithParam, firstPadLeftEdge) + kKnobPosOffset;
 
 		uint32_t squareStart = std::min(effectiveLength, secondPadRightEdge) - kParamNodeWidth;
-		int32_t knobPosRight =
-		    automationLayoutEditor.getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		int32_t knobPosRight = getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 
 		if (xDisplay != kNoSelection) {
-			if (automationLayout.leftPadSelectedX == xDisplay) {
+			if (leftPadSelectedX == xDisplay) {
 				squareStart = firstPadLeftEdge;
-				automationLayout.lastPadSelectedKnobPos = knobPosLeft;
+				lastPadSelectedKnobPos = knobPosLeft;
 			}
 			else {
-				automationLayout.lastPadSelectedKnobPos = knobPosRight;
+				lastPadSelectedKnobPos = knobPosRight;
 			}
 		}
 
 		if (display->haveOLED()) {
-			automationLayout.renderDisplay(knobPosLeft, knobPosRight);
+			renderDisplay(knobPosLeft, knobPosRight);
 		}
 		// display pad value of second pad pressed
 		else {
 			if (modEncoderAction) {
-				automationLayout.renderDisplay(automationLayout.lastPadSelectedKnobPos);
+				renderDisplay(lastPadSelectedKnobPos);
 			}
 			else {
-				automationLayout.renderDisplay();
+				renderDisplay();
 			}
 		}
 
-		automationLayoutEditor.setAutomationKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
+		setAutomationKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 
 		// update position of mod controllable stack
-		automationLayoutEditor.updateAutomationModPosition(modelStackWithParam, squareStart, false, false);
+		updateAutomationModPosition(modelStackWithParam, squareStart, false, false);
 	}
 }
 
@@ -1121,8 +1107,8 @@ int32_t AutomationLayoutEditorModControllable::calculateAutomationKnobPosForModE
 }
 
 void AutomationLayoutEditorModControllable::initInterpolation() {
-	automationLayoutEditor.interpolationBefore = false;
-	automationLayoutEditor.interpolationAfter = false;
+	interpolationBefore = false;
+	interpolationAfter = false;
 }
 
 // automation edit pad action
@@ -1157,24 +1143,23 @@ void AutomationLayoutEditorModControllable::automationEditPadAction(ModelStackWi
 				if (firstPadX != xDisplay) {
 					recordAutomationSinglePadPress(xDisplay, yDisplay);
 
-					automationLayout.multiPadPressSelected = true;
-					automationLayout.multiPadPressActive = true;
+					multiPadPressSelected = true;
+					multiPadPressActive = true;
 
 					// the long press logic calculates and renders the interpolation as if the press was
 					// entered in a forward fashion (where the first pad is to the left of the second
 					// pad). if the user happens to enter a long press backwards then we fix that entry
 					// by re-ordering the pad presses so that it is forward again
-					automationLayout.leftPadSelectedX = firstPadX > xDisplay ? xDisplay : firstPadX;
-					automationLayout.leftPadSelectedY = firstPadX > xDisplay ? yDisplay : firstPadY;
-					automationLayout.rightPadSelectedX = firstPadX > xDisplay ? firstPadX : xDisplay;
-					automationLayout.rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
+					leftPadSelectedX = firstPadX > xDisplay ? xDisplay : firstPadX;
+					leftPadSelectedY = firstPadX > xDisplay ? yDisplay : firstPadY;
+					rightPadSelectedX = firstPadX > xDisplay ? firstPadX : xDisplay;
+					rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
 
 					// if you're not in pad selection mode, allow user to enter a long press
-					if (!automationLayout.padSelectionOn) {
-						handleAutomationMultiPadPress(
-						    modelStackWithParam, clip, automationLayout.leftPadSelectedX,
-						    automationLayout.leftPadSelectedY, automationLayout.rightPadSelectedX,
-						    automationLayout.rightPadSelectedY, effectiveLength, xScroll, xZoom);
+					if (!padSelectionOn) {
+						handleAutomationMultiPadPress(modelStackWithParam, clip, leftPadSelectedX, leftPadSelectedY,
+						                              rightPadSelectedX, rightPadSelectedY, effectiveLength, xScroll,
+						                              xZoom);
 					}
 					else {
 						uiNeedsRendering(getRootUI());
@@ -1186,8 +1171,8 @@ void AutomationLayoutEditorModControllable::automationEditPadAction(ModelStackWi
 					                                        xDisplay);
 				}
 				else {
-					automationLayout.leftPadSelectedY = firstPadY;
-					automationLayout.middlePadPressSelected = true;
+					leftPadSelectedY = firstPadY;
+					middlePadPressSelected = true;
 					goto singlePadPressAction;
 				}
 			}
@@ -1197,7 +1182,7 @@ void AutomationLayoutEditorModControllable::automationEditPadAction(ModelStackWi
 		else {
 singlePadPressAction:
 			if (recordAutomationSinglePadPress(xDisplay, yDisplay)) {
-				automationLayout.multiPadPressActive = false;
+				multiPadPressActive = false;
 				handleAutomationSinglePadPress(modelStackWithParam, clip, xDisplay, yDisplay, effectiveLength, xScroll,
 				                               xZoom);
 			}
@@ -1225,35 +1210,34 @@ singlePadPressAction:
 
 		// outside pad selection mode, exit multi pad press once you've let go of the first pad in the
 		// long press
-		if (!automationLayout.padSelectionOn && automationLayout.multiPadPressSelected
-		    && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
-			automationLayout.initPadSelection();
+		if (!padSelectionOn && multiPadPressSelected && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
+			initPadSelection();
 		}
 		// switch from long press selection to short press selection in pad selection mode
-		else if (automationLayout.padSelectionOn && automationLayout.multiPadPressSelected
-		         && !automationLayout.multiPadPressActive && (currentUIMode != UI_MODE_NOTES_PRESSED)
+		else if (padSelectionOn && multiPadPressSelected && !multiPadPressActive
+		         && (currentUIMode != UI_MODE_NOTES_PRESSED)
 		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
 
-			automationLayout.multiPadPressSelected = false;
+			multiPadPressSelected = false;
 
-			automationLayout.leftPadSelectedX = xDisplay;
-			automationLayout.rightPadSelectedX = kNoSelection;
+			leftPadSelectedX = xDisplay;
+			rightPadSelectedX = kNoSelection;
 
 			uiNeedsRendering(getRootUI());
 		}
 
 		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
-			automationLayout.lastPadSelectedKnobPos = kNoSelection;
-			if (automationLayout.multiPadPressSelected) {
+			lastPadSelectedKnobPos = kNoSelection;
+			if (multiPadPressSelected) {
 				renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength, xScroll, xZoom,
 				                                        xDisplay);
 			}
-			else if (!automationLayout.padSelectionOn && !playbackHandler.isEitherClockActive()) {
+			else if (!padSelectionOn && !playbackHandler.isEitherClockActive()) {
 				displayAutomation();
 			}
 		}
 
-		automationLayout.middlePadPressSelected = false;
+		middlePadPressSelected = false;
 	}
 }
 
@@ -1289,16 +1273,16 @@ bool AutomationLayoutEditorModControllable::recordAutomationSinglePadPress(int32
 
 /// toggle automation interpolation on / off
 bool AutomationLayoutEditorModControllable::toggleAutomationInterpolation() {
-	if (automationLayoutEditor.interpolation) {
-		automationLayoutEditor.interpolation = false;
+	if (interpolation) {
+		interpolation = false;
 		initInterpolation();
-		automationLayout.resetInterpolationShortcutBlinking();
+		resetInterpolationShortcutBlinking();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
 	}
 	else {
-		automationLayoutEditor.interpolation = true;
-		automationLayout.blinkInterpolationShortcut();
+		interpolation = true;
+		blinkInterpolationShortcut();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
 	}
@@ -1309,27 +1293,26 @@ bool AutomationLayoutEditorModControllable::toggleAutomationInterpolation() {
 bool AutomationLayoutEditorModControllable::toggleAutomationPadSelectionMode(
     ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	// enter/exit pad selection mode
-	if (automationLayout.padSelectionOn) {
+	if (padSelectionOn) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
-		automationLayout.initPadSelection();
+		initPadSelection();
 		displayAutomation(true, !display->have7SEG());
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
 
-		automationLayout.padSelectionOn = true;
-		automationLayout.blinkPadSelectionShortcut();
+		padSelectionOn = true;
+		blinkPadSelectionShortcut();
 
-		automationLayout.multiPadPressSelected = false;
-		automationLayout.multiPadPressActive = false;
+		multiPadPressSelected = false;
+		multiPadPressActive = false;
 
 		// display only left cursor initially
-		automationLayout.leftPadSelectedX = 0;
-		automationLayout.rightPadSelectedX = kNoSelection;
+		leftPadSelectedX = 0;
+		rightPadSelectedX = kNoSelection;
 
-		uint32_t squareStart =
-		    getMiddlePosFromSquare(automationLayout.leftPadSelectedX, effectiveLength, xScroll, xZoom);
+		uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
 
 		updateAutomationModPosition(modelStackWithParam, squareStart, true, true);
 	}
@@ -1346,18 +1329,18 @@ bool AutomationLayoutEditorModControllable::automationModEncoderActionForSelecte
 		int32_t xDisplay = 0;
 
 		// for a multi pad press, adjust value of first or last pad depending on mod encoder turned
-		if (automationLayout.multiPadPressSelected) {
+		if (multiPadPressSelected) {
 			if (whichModEncoder == 0) {
-				xDisplay = automationLayout.leftPadSelectedX;
+				xDisplay = leftPadSelectedX;
 			}
 			else if (whichModEncoder == 1) {
-				xDisplay = automationLayout.rightPadSelectedX;
+				xDisplay = rightPadSelectedX;
 			}
 		}
 
 		// if not multi pad press, but in pad selection mode, then just adjust the single selected pad
-		else if (automationLayout.padSelectionOn) {
-			xDisplay = automationLayout.leftPadSelectedX;
+		else if (padSelectionOn) {
+			xDisplay = leftPadSelectedX;
 		}
 
 		// otherwise if not in pad selection mode, adjust the value of the pad currently being held
@@ -1373,12 +1356,12 @@ bool AutomationLayoutEditorModControllable::automationModEncoderActionForSelecte
 
 		uint32_t squareStart = 0;
 
-		int32_t xScroll = currentSong->xScroll[automationLayout.navSysId];
-		int32_t xZoom = currentSong->xZoom[automationLayout.navSysId];
+		int32_t xScroll = currentSong->xScroll[navSysId];
+		int32_t xZoom = currentSong->xZoom[navSysId];
 
 		// for the second pad pressed in a long press, the square start position is set to the very last
 		// nodes position
-		if (automationLayout.multiPadPressSelected && (whichModEncoder == 1)) {
+		if (multiPadPressSelected && (whichModEncoder == 1)) {
 			int32_t squareRightEdge = automationView.getPosFromSquare(xDisplay + 1, xScroll, xZoom);
 			squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 		}
@@ -1411,11 +1394,10 @@ bool AutomationLayoutEditorModControllable::automationModEncoderActionForSelecte
 
 			// once first or last pad in a multi pad press is adjusted, re-render calculate multi pad
 			// press based on revised start/ending values
-			if (automationLayout.multiPadPressSelected) {
+			if (multiPadPressSelected) {
 
-				handleAutomationMultiPadPress(modelStackWithParam, clip, automationLayout.leftPadSelectedX, 0,
-				                              automationLayout.rightPadSelectedX, 0, effectiveLength, xScroll, xZoom,
-				                              true);
+				handleAutomationMultiPadPress(modelStackWithParam, clip, leftPadSelectedX, 0, rightPadSelectedX, 0,
+				                              effectiveLength, xScroll, xZoom, true);
 
 				renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength, xScroll, xZoom,
 				                                        xDisplay, true);
@@ -1465,7 +1447,7 @@ void AutomationLayoutEditorModControllable::automationModEncoderActionForUnselec
 
 			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
 				int32_t knobPos = newKnobPos + kKnobPosOffset;
-				automationLayout.renderDisplay(knobPos, kNoSelection, true);
+				renderDisplay(knobPos, kNoSelection, true);
 				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 
@@ -1551,13 +1533,12 @@ void AutomationLayoutEditorModControllable::pasteAutomation(ModelStackWithAutoPa
 			currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
 		}
 		else {
-			if (automationLayout.padSelectionOn) {
-				if (automationLayout.multiPadPressSelected) {
+			if (padSelectionOn) {
+				if (multiPadPressSelected) {
 					renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength, xScroll, xZoom);
 				}
 				else {
-					uint32_t squareStart = automationLayoutEditor.getMiddlePosFromSquare(
-					    automationLayout.leftPadSelectedX, effectiveLength, xScroll, xZoom);
+					uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
 
 					updateAutomationModPosition(modelStackWithParam, squareStart);
 				}
@@ -1580,7 +1561,7 @@ Also used internally in the automation instrument clip view for updating the dis
 indicators.*/
 
 void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, bool updateDisplay) {
-	if ((!automationLayout.padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
+	if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -1597,7 +1578,7 @@ void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, 
 
 			Clip* clip = getCurrentClip();
 
-			modelStackWithParam = automationLayout.getModelStackWithParamForClip(modelStack, clip);
+			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1605,8 +1586,7 @@ void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, 
 			if (modelStackWithParam->getTimelineCounter()
 			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-				int32_t knobPos = automationLayoutEditor.getAutomationParameterKnobPos(modelStackWithParam, view.modPos)
-				                  + kKnobPosOffset;
+				int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos) + kKnobPosOffset;
 
 				bool displayValue =
 				    updateDisplay
@@ -1617,12 +1597,12 @@ void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, 
 				// don't update value displayed if there's no automation unless instructed to update display
 				// don't update value displayed when playback is stopped
 				if (displayValue) {
-					automationLayout.renderDisplay(knobPos);
+					renderDisplay(knobPos);
 				}
 				// on 7SEG re-render parameter name under certain circumstances
 				// e.g. when entering pad selection mode, when stopping playback
 				else {
-					automationLayout.renderDisplay();
+					renderDisplay();
 				}
 
 				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
@@ -1643,7 +1623,7 @@ int32_t AutomationLayoutEditorModControllable::getEffectiveLength(ModelStackWith
 	if (automationView.onArrangerView) {
 		effectiveLength = arrangerView.getMaxLength();
 	}
-	else if (outputType == OutputType::KIT && !automationLayout.getAffectEntire()) {
+	else if (outputType == OutputType::KIT && !getAffectEntire()) {
 		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
 
 		effectiveLength = modelStackWithNoteRow->getLoopLength();

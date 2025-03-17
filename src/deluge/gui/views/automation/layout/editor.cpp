@@ -153,10 +153,10 @@ void AutomationLayoutEditor::renderNoteEditorDisplay7SEG(InstrumentClip* clip, O
 // shift automations left / right
 // adjust velocity in note editor
 ActionResult AutomationLayoutEditor::horizontalEncoderAction(int32_t offset) {
-	if (automationLayout.inAutomationEditor()) {
+	if (inAutomationEditor()) {
 		return automationLayoutEditorModControllable.horizontalEncoderAction(offset);
 	}
-	else if (automationLayout.inNoteEditor()) {
+	else if (inNoteEditor()) {
 		return automationLayoutEditorNote.horizontalEncoderAction(offset);
 	}
 	return ActionResult::DEALT_WITH;

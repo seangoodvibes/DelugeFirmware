@@ -85,7 +85,7 @@ void AutomationLayoutEditorNote::potentiallyVerticalScrollToSelectedDrum(Instrum
 					ModelStackWithTimelineCounter* modelStack =
 					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 					int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
-					automationLayout.scrollVertical(clip, modelStack, yScrollAdjustment);
+					scrollVertical(clip, modelStack, yScrollAdjustment);
 				}
 			}
 		}

@@ -21,7 +21,7 @@
 
 class Clip;
 
-class AutomationLayoutEditorNote { //: public AutomationLayoutEditor {
+class AutomationLayoutEditorNote : public AutomationLayoutEditor {
 public:
 	AutomationLayoutEditorNote();
 

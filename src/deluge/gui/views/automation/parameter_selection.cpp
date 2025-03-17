@@ -319,7 +319,7 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 		if (clip->type == ClipType::INSTRUMENT) {
 			// don't enter if we're in a kit with affect entire enabled
 			if (!(outputType == OutputType::KIT && getAffectEntire())) {
-				automationLayoutEditor.potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
+				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
 				initParameterSelection(false);
 				automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
 				clip->lastSelectedParamShortcutX = xDisplay;
@@ -438,8 +438,7 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 	}
 	blinkShortcuts();
 	if (display->have7SEG()) {
-		automationLayout
-		    .renderDisplay(); // always display parameter name first, if there's automation it will show after
+		renderDisplay(); // always display parameter name first, if there's automation it will show after
 	}
 	displayAutomation(true);
 	view.setModLedStates();

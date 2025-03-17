@@ -22,7 +22,7 @@
 
 class Clip;
 
-class AutomationLayoutEditorModControllable { //: public AutomationLayoutEditor {
+class AutomationLayoutEditorModControllable : public AutomationLayoutEditor {
 public:
 	AutomationLayoutEditorModControllable();
 

@@ -26,7 +26,7 @@
 
 class Clip;
 
-class AutomationLayoutEditor { //: public AutomationLayout {
+class AutomationLayoutEditor : public AutomationLayout {
 public:
 	AutomationLayoutEditor();
 
