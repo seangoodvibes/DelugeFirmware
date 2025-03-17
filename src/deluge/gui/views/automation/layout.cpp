@@ -66,7 +66,6 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
 AutomationLayout::AutomationLayout() {
-
 	instrumentClipView.numEditPadPresses = 0;
 
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
