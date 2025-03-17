@@ -58,8 +58,8 @@ void AutomationLayoutOverview::renderMainPads(ModelStackWithTimelineCounter* mod
                                               OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
                                               bool isMIDICVDrum) {
-	bool singleSoundDrum = (outputType == OutputType::KIT && !automationLayout.getAffectEntire()) && !isMIDICVDrum;
-	bool affectEntireKit = (outputType == OutputType::KIT && automationLayout.getAffectEntire());
+	bool singleSoundDrum = (outputType == OutputType::KIT && !getAffectEntire()) && !isMIDICVDrum;
+	bool affectEntireKit = (outputType == OutputType::KIT && getAffectEntire());
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		RGB& pixel = image[yDisplay][xDisplay];
@@ -69,9 +69,9 @@ void AutomationLayoutOverview::renderMainPads(ModelStackWithTimelineCounter* mod
 
 			if (!automationView.onArrangerView && (outputType == OutputType::SYNTH || singleSoundDrum)) {
 				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam = automationLayout.getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, patchedParamShortcuts[xDisplay][yDisplay],
-					    params::Kind::PATCHED);
+					modelStackWithParam =
+					    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+					                                  patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
 				}
 
 				else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
@@ -82,7 +82,7 @@ void AutomationLayoutOverview::renderMainPads(ModelStackWithTimelineCounter* mod
 						continue;
 					}
 
-					modelStackWithParam = automationLayout.getModelStackWithParamForClip(
+					modelStackWithParam = getModelStackWithParamForClip(
 					    modelStackWithTimelineCounter, clip, unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
 					    params::Kind::UNPATCHED_SOUND);
 				}
@@ -91,15 +91,15 @@ void AutomationLayoutOverview::renderMainPads(ModelStackWithTimelineCounter* mod
 					ParamDescriptor paramDescriptor;
 					params::getPatchCableFromShortcut(xDisplay, yDisplay, &paramDescriptor);
 
-					modelStackWithParam = automationLayout.getModelStackWithParamForClip(
+					modelStackWithParam = getModelStackWithParamForClip(
 					    modelStackWithTimelineCounter, clip, paramDescriptor.data, params::Kind::PATCH_CABLE);
 				}
 				// expression params, so sounds or midi/cv, or a single drum
 				else if (params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
 					uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
 					if (paramID != kNoParamID) {
-						modelStackWithParam = automationLayout.getModelStackWithParamForClip(
-						    modelStackWithTimelineCounter, clip, paramID, params::Kind::EXPRESSION);
+						modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+						                                                    paramID, params::Kind::EXPRESSION);
 					}
 				}
 			}
@@ -119,24 +119,23 @@ void AutomationLayoutOverview::renderMainPads(ModelStackWithTimelineCounter* mod
 						    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 					}
 					else {
-						modelStackWithParam = automationLayout.getModelStackWithParamForClip(
-						    modelStackWithTimelineCounter, clip, paramID);
+						modelStackWithParam =
+						    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
 					}
 				}
 			}
 
 			else if (outputType == OutputType::MIDI_OUT) {
-				if (automationLayout.midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam = automationLayout.getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip,
-					    automationLayout.midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+					modelStackWithParam = getModelStackWithParamForClip(
+					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
 				}
 			}
 			else if (outputType == OutputType::CV) {
 				uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
 				if (paramID != kNoParamID) {
-					modelStackWithParam = automationLayout.getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, paramID, params::Kind::EXPRESSION);
+					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID,
+					                                                    params::Kind::EXPRESSION);
 				}
 			}
 
@@ -164,7 +163,7 @@ void AutomationLayoutOverview::renderMainPads(ModelStackWithTimelineCounter* mod
 			pixel = colours::black; // erase pad
 		}
 
-		if (!automationView.onArrangerView && !(outputType == OutputType::KIT && automationLayout.getAffectEntire())
+		if (!automationView.onArrangerView && !(outputType == OutputType::KIT && getAffectEntire())
 		    && clip->type == ClipType::INSTRUMENT) {
 			// highlight velocity pad
 			if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
@@ -187,7 +186,7 @@ void AutomationLayoutOverview::renderDisplayOLED(deluge::hid::display::oled_canv
 	// display Automation Overview
 	char const* overviewText;
 	if (!automationView.onArrangerView
-	    && (outputType == OutputType::KIT && !automationLayout.getAffectEntire() && !((Kit*)output)->selectedDrum)) {
+	    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
 		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 		deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 	}
@@ -200,7 +199,7 @@ void AutomationLayoutOverview::renderDisplayOLED(deluge::hid::display::oled_canv
 void AutomationLayoutOverview::renderDisplay7SEG(Output* output, OutputType outputType) {
 	char const* overviewText;
 	if (!automationView.onArrangerView
-	    && (outputType == OutputType::KIT && !automationLayout.getAffectEntire() && !((Kit*)output)->selectedDrum)) {
+	    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
 		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 	}
 	else {

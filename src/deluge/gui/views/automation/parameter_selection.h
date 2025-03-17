@@ -26,7 +26,7 @@
 
 class Clip;
 
-class AutomationParameterSelection {
+class AutomationParameterSelection : public AutomationLayout {
 public:
 	AutomationParameterSelection();
 

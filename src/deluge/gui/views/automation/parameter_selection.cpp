@@ -243,7 +243,7 @@ void AutomationParameterSelection::initialize() {
 			// if you did that...reset the parameter selection and save the current parameter type selection
 			// so we can check this again next time it happens
 			if (outputType != clip->lastSelectedOutputType) {
-				if (automationLayout.inAutomationEditor()) {
+				if (inAutomationEditor()) {
 					initParameterSelection();
 				}
 
@@ -263,7 +263,7 @@ void AutomationParameterSelection::initialize() {
 
 			// if you're not in note editor, turn led off if it's on
 			if (clip->wrapEditing) {
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, automationLayout.inNoteEditor());
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
 			}
 		}
 	}
@@ -300,7 +300,7 @@ void AutomationParameterSelection::focusRegained(Clip* clip) {
 
 void AutomationParameterSelection::setAutomationParamType() {
 	automationView.automationParamType = AutomationParamType::PER_SOUND;
-	if (!automationLayout.inAutomationEditor()) {
+	if (!inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
 		if ((clip->lastSelectedParamShortcutX == kVelocityShortcutX)
 		    && (clip->lastSelectedParamShortcutY == kVelocityShortcutY)) {
@@ -318,14 +318,14 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 	if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
 		if (clip->type == ClipType::INSTRUMENT) {
 			// don't enter if we're in a kit with affect entire enabled
-			if (!(outputType == OutputType::KIT && automationLayout.getAffectEntire())) {
+			if (!(outputType == OutputType::KIT && getAffectEntire())) {
 				automationLayoutEditor.potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
 				initParameterSelection(false);
 				automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
 				clip->lastSelectedParamShortcutX = xDisplay;
 				clip->lastSelectedParamShortcutY = yDisplay;
-				automationLayout.blinkShortcuts();
-				automationLayout.renderDisplay();
+				blinkShortcuts();
+				renderDisplay();
 				uiNeedsRendering(getRootUI());
 				// if you're in note editor, turn led on
 				if (((InstrumentClip*)clip)->wrapEditing) {
@@ -338,8 +338,8 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 	// potentially select a regular automatable parameter
 	else if (!automationView.onArrangerView
 	         && (outputType == OutputType::SYNTH
-	             || (outputType == OutputType::KIT && !automationLayout.getAffectEntire()
-	                 && ((Kit*)output)->selectedDrum && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
+	             || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	                 && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
 	         && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 	             || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 	             || params::isPatchCableShortcut(xDisplay, yDisplay))) {
@@ -374,7 +374,7 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 
 	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
 	else if ((automationView.onArrangerView || (outputType == OutputType::AUDIO)
-	          || (outputType == OutputType::KIT && automationLayout.getAffectEntire()))
+	          || (outputType == OutputType::KIT && getAffectEntire()))
 	         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
 
 		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
@@ -399,16 +399,15 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 		getLastSelectedGlobalParamArrayPosition(clip);
 	}
 
-	else if (outputType == OutputType::MIDI_OUT
-	         && automationLayout.midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
 
 		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
-		clip->lastSelectedParamID = automationLayout.midiCCShortcutsForAutomation[xDisplay][yDisplay];
+		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 	}
 	// expression params, so sounds or midi/cv, or a single drum
 	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
 	          // selected a single sound drum
-	          || ((outputType == OutputType::KIT && !automationLayout.getAffectEntire() && ((Kit*)output)->selectedDrum
+	          || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
 	               && ((Kit*)output)->selectedDrum->type == DrumType::SOUND)))
 	         && params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
 		clip->lastSelectedParamID = params::expressionParamFromShortcut(xDisplay, yDisplay);
@@ -429,20 +428,20 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 		clip->lastSelectedParamShortcutY = yDisplay;
 	}
 
-	automationLayout.resetParameterShortcutBlinking();
-	if (automationLayout.inNoteEditor()) {
+	resetParameterShortcutBlinking();
+	if (inNoteEditor()) {
 		automationView.automationParamType = AutomationParamType::PER_SOUND;
 		instrumentClipView.resetSelectedNoteRowBlinking();
-		if (automationLayout.padSelectionOn) {
-			automationLayout.initPadSelection();
+		if (padSelectionOn) {
+			initPadSelection();
 		}
 	}
-	automationLayout.blinkShortcuts();
+	blinkShortcuts();
 	if (display->have7SEG()) {
 		automationLayout
 		    .renderDisplay(); // always display parameter name first, if there's automation it will show after
 	}
-	automationLayout.displayAutomation(true);
+	displayAutomation(true);
 	view.setModLedStates();
 	uiNeedsRendering(getRootUI());
 	// turn off cross screen LED in automation editor
@@ -467,7 +466,7 @@ bool AutomationParameterSelection::selectEncoderAction(Clip* clip, Output* outpu
 	else if (automationView.onArrangerView || outputType != OutputType::CV) {
 		// if you're in a audio clip, a kit with affect entire enabled, or in arranger view
 		if (automationView.onArrangerView || (outputType == OutputType::AUDIO)
-		    || (outputType == OutputType::KIT && automationLayout.getAffectEntire())) {
+		    || (outputType == OutputType::KIT && getAffectEntire())) {
 			selectGlobalParam(offset, clip);
 		}
 		// if you're a synth or a kit (with affect entire off and a sound drum selected)
@@ -665,7 +664,7 @@ bool AutomationParameterSelection::selectPatchCableAtIndex(Clip* clip, PatchCabl
 
 // used with SelectEncoderAction to get the next midi CC
 void AutomationParameterSelection::selectMIDICC(int32_t offset, Clip* clip) {
-	if (automationLayout.onAutomationOverview()) {
+	if (onAutomationOverview()) {
 		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
 	auto newCC = clip->lastSelectedParamID;
@@ -690,7 +689,7 @@ int32_t AutomationParameterSelection::getNextSelectedParamArrayPosition(int32_t 
                                                                         int32_t numParams) {
 	int32_t idx;
 	// if you haven't selected a parameter yet, start at the beginning of the list
-	if (automationLayout.onAutomationOverview()) {
+	if (onAutomationOverview()) {
 		idx = 0;
 	}
 	// if you are scrolling left and are at the beginning of the list, go to the end of the list
@@ -722,7 +721,7 @@ void AutomationParameterSelection::getLastSelectedParamShortcut(Clip* clip) {
 				}
 			}
 			else if (clip->output->type == OutputType::MIDI_OUT) {
-				if (automationLayout.midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
+				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
@@ -769,7 +768,7 @@ void AutomationParameterSelection::getLastSelectedParamArrayPosition(Clip* clip)
 	if (automationView.onArrangerView || outputType != OutputType::CV) {
 		// if you're in a audio clip, a kit with affect entire enabled, or in arranger view
 		if (automationView.onArrangerView || (outputType == OutputType::AUDIO)
-		    || (outputType == OutputType::KIT && automationLayout.getAffectEntire())) {
+		    || (outputType == OutputType::KIT && getAffectEntire())) {
 			getLastSelectedGlobalParamArrayPosition(clip);
 		}
 		// if you're a synth or a kit (with affect entire off and a drum selected)
@@ -816,8 +815,8 @@ void AutomationParameterSelection::getLastSelectedGlobalParamArrayPosition(Clip*
 // resets the Parameter Selection which sends you back to the Automation Overview screen
 // these values are saved on a clip basis
 void AutomationParameterSelection::initParameterSelection(bool updateDisplay) {
-	automationLayout.resetShortcutBlinking();
-	automationLayout.initPadSelection();
+	resetShortcutBlinking();
+	initPadSelection();
 
 	if (automationView.onArrangerView) {
 		currentSong->lastSelectedParamID = kNoSelection;
@@ -849,6 +848,6 @@ void AutomationParameterSelection::initParameterSelection(bool updateDisplay) {
 	view.setKnobIndicatorLevels();
 	view.setModLedStates();
 	if (updateDisplay) {
-		automationLayout.renderDisplay();
+		renderDisplay();
 	}
 }
