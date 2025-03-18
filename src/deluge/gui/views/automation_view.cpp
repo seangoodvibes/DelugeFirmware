@@ -421,7 +421,23 @@ AutomationView::AutomationView() {
 void AutomationView::initMIDICCShortcutsForAutomation() {
 	for (int x = 0; x < kDisplayWidth; x++) {
 		for (int y = 0; y < kDisplayHeight; y++) {
-			int32_t ccNumber = midiFollow.paramToCC[x][y];
+			uint8_t ccNumber = MIDI_CC_NONE;
+			uint32_t paramId = patchedParamShortcuts[x][y];
+			if (paramId != kNoParamID) {
+				ccNumber = midiFollow.soundParamToCC[paramId];
+				if (ccNumber == MIDI_CC_NONE) {
+					ccNumber = midiFollow.globalParamToCC[paramId];
+				}
+			}
+			if (ccNumber == MIDI_CC_NONE) {
+				paramId = unpatchedNonGlobalParamShortcuts[x][y];
+				if (paramId != kNoParamID) {
+					ccNumber = midiFollow.soundParamToCC[paramId + params::UNPATCHED_START];
+					if (ccNumber == MIDI_CC_NONE) {
+						ccNumber = midiFollow.globalParamToCC[paramId];
+					}
+				}
+			}
 			if (ccNumber != MIDI_CC_NONE) {
 				midiCCShortcutsForAutomation[x][y] = ccNumber;
 			}
@@ -858,7 +874,10 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 						// don't make pitch adjust or sidechain available for automation in arranger
 						if ((paramID == params::UNPATCHED_PITCH_ADJUST)
 						    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-						    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+						    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)
+						    || (paramID >= params::UNPATCHED_FIRST_ARP_PARAM
+						        && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+						    || (paramID == params::UNPATCHED_ARP_RATE)) {
 							pixel = colours::black; // erase pad
 							continue;
 						}
@@ -866,6 +885,13 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 						    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 					}
 					else {
+						if (outputType == OutputType::AUDIO
+						    && ((paramID >= params::UNPATCHED_FIRST_ARP_PARAM
+						         && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+						        || paramID == params::UNPATCHED_ARP_RATE)) {
+							pixel = colours::black; // erase pad
+							continue;
+						}
 						modelStackWithParam =
 						    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
 					}
@@ -1607,7 +1633,7 @@ void AutomationView::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputTyp
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName) {
-	if (outputType != OutputType::MIDI_OUT) {
+	if (onArrangerView || outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
@@ -2613,7 +2639,14 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		// don't allow automation of pitch adjust, or sidechain in arranger
 		if (onArrangerView
 		    && ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME))) {
+		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)
+		        || (paramID >= params::UNPATCHED_FIRST_ARP_PARAM && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+		        || (paramID == params::UNPATCHED_ARP_RATE))) {
+			return; // no parameter selected, don't re-render grid;
+		}
+		else if (outputType == OutputType::AUDIO
+		         && ((paramID >= params::UNPATCHED_FIRST_ARP_PARAM && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+		             || paramID == params::UNPATCHED_ARP_RATE)) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
@@ -4510,7 +4543,9 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
-			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD
+			        || (id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
+			        || id == params::UNPATCHED_ARP_RATE)) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -4526,6 +4561,29 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		currentSong->lastSelectedParamID = id;
 		currentSong->lastSelectedParamKind = kind;
 		currentSong->lastSelectedParamArrayPosition = idx;
+	}
+	else if (clip->output->type == OutputType::AUDIO) {
+		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+		                                             kNumGlobalParamsForAutomation);
+		auto [kind, id] = globalParamsForAutomation[idx];
+		{
+			while ((id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
+			       || id == params::UNPATCHED_ARP_RATE) {
+
+				if (offset < 0) {
+					offset -= 1;
+				}
+				else if (offset > 0) {
+					offset += 1;
+				}
+				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+				                                        kNumGlobalParamsForAutomation);
+				id = globalParamsForAutomation[idx].second;
+			}
+		}
+		clip->lastSelectedParamID = id;
+		clip->lastSelectedParamKind = kind;
+		clip->lastSelectedParamArrayPosition = idx;
 	}
 	else {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
