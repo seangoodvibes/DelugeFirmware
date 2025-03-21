@@ -15,21 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
+#include "deluge/modulation/params/param.h"
+#include "gui/menu_item/unpatched_param.h"
+#include "gui/ui/sound_editor.h"
 
-extern void setEnvelopeNumberForTitles(int32_t);
-
-namespace deluge::gui::menu_item::submenu {
-class Envelope final : public SubmenuReferringToOneThing {
+namespace deluge::gui::menu_item::voice {
+class Portamento final : public UnpatchedParam {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	using UnpatchedParam::UnpatchedParam;
 
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
-		setEnvelopeNumberForTitles(this->thingIndex);
+	Portamento(l10n::String newName) : UnpatchedParam(newName, deluge::modulation::params::UNPATCHED_PORTAMENTO) {}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT));
 	}
-
-	bool supportsHorizontalRendering() override { return true; }
 };
 
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::voice

@@ -316,6 +316,25 @@ const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {GLOBAL_DELAY_RATE       , kNoParamID                    , kNoParamID                    , GLOBAL_DELAY_FEEDBACK  , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID}
 };
+
+const uint32_t patchedParamShortcutsSecondLayer[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {kNoParamID      		 , kNoParamID      				 , kNoParamID                    , kNoParamID			  , kNoParamID     , kNoParamID  			   , kNoParamID				, kNoParamID},
+    {kNoParamID      		 , kNoParamID      				 , kNoParamID                    , kNoParamID			  , kNoParamID     , kNoParamID  			   , kNoParamID				, kNoParamID},
+    {kNoParamID				 , kNoParamID					 , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID				   , kNoParamID            , kNoParamID},
+    {kNoParamID				 , kNoParamID					 , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID				   , kNoParamID            , kNoParamID},
+    {kNoParamID   			 , kNoParamID            		 , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {LOCAL_ENV_2_RELEASE     , LOCAL_ENV_2_SUSTAIN           , LOCAL_ENV_2_DECAY             , LOCAL_ENV_2_ATTACK     , kNoParamID	   , kNoParamID                , kNoParamID   			, kNoParamID},
+    {LOCAL_ENV_3_RELEASE     , LOCAL_ENV_3_SUSTAIN           , LOCAL_ENV_3_DECAY             , LOCAL_ENV_3_ATTACK     , kNoParamID	   , kNoParamID                , kNoParamID   			, kNoParamID},
+    {kNoParamID              , kNoParamID                    , kNoParamID					 , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {kNoParamID         	 , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {GLOBAL_LFO_FREQ_2       , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID   	, kNoParamID                  , kNoParamID   , kNoParamID},
+    {LOCAL_LFO_LOCAL_FREQ_2  , kNoParamID                    , kNoParamID                    , kNoParamID    		  , kNoParamID   	, kNoParamID                  , kNoParamID            , kNoParamID},
+    {kNoParamID       		 , kNoParamID                    , kNoParamID                    , kNoParamID  			  , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID}
+};
 // clang-format on
 
 /// Grid sized array (unpatched, non-global) to assign automatable parameters to the grid
@@ -329,7 +348,7 @@ const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] =
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , UNPATCHED_STUTTER_RATE},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING, kNoParamID},
-    {UNPATCHED_PORTAMENTO, kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
+    {UNPATCHED_PORTAMENTO, kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , UNPATCHED_COMPRESSOR_THRESHOLD , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_SIDECHAIN_SHAPE , kNoParamID                     , UNPATCHED_BASS       , UNPATCHED_BASS_FREQ},
@@ -350,7 +369,7 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , UNPATCHED_STUTTER_RATE},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , UNPATCHED_COMPRESSOR_THRESHOLD},
     {UNPATCHED_VOLUME    , UNPATCHED_PITCH_ADJUST, kNoParamID                , UNPATCHED_PAN               , kNoParamID				   , UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_LPF_MORPH	   , kNoParamID						, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},

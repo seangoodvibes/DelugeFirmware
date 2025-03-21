@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
-#include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
+#include "gui/menu_item/unpatched_param.h"
 
-namespace deluge::gui::menu_item::submenu {
-class Sidechain final : public Submenu {
+namespace deluge::gui::menu_item::eq {
+
+class EqUnpatchedParam final : public UnpatchedParam {
 public:
-	using Submenu::Submenu;
+	EqUnpatchedParam(l10n::String name, l10n::String columnLabel, int32_t newP)
+	    : UnpatchedParam(name, newP), columnLabel_{columnLabel} {}
+	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel_{name} {}
 
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentSidechain = &soundEditor.currentSound->sidechain;
-		Submenu::beginSession(navigatedBackwardFrom);
-	}
+	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel_)); }
+
+private:
+	l10n::String columnLabel_;
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::eq

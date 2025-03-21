@@ -16,28 +16,15 @@
  */
 #pragma once
 #include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "util/comparison.h"
 
 namespace deluge::gui::menu_item::mod_fx {
-class Feedback final : public UnpatchedParam {
+class Rate_Unpatched final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-		return (util::one_of(modControllable->getModFXType(),
-		                     {ModFXType::FLANGER, ModFXType::PHASER, ModFXType::GRAIN, ModFXType::WARBLE}));
-	}
-	[[nodiscard]] std::string_view getName() const override {
-		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK);
-	}
-	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
-
-	void getColumnLabel(StringBuf& label) override {
-		const auto& shortName =
-		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK, true);
-		label.append(shortName);
+		return modControllable->getModFXType() != ModFXType::NONE;
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

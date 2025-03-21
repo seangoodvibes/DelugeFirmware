@@ -111,6 +111,9 @@ public:
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
 
+	/// @brief End an editing session with this menu item
+	virtual void endSession();
+
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
 	/// Like readValueAgain, but does not redraw.
@@ -243,6 +246,11 @@ public:
 	///
 	/// By default this redirects to getName(), but can be overriden.
 	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
+
+	/// @brief Get the number of occupied virtual columns in the horizontal menu.
+	///
+	/// 1 by default, but can be overridden
+	[[nodiscard]] virtual int32_t getColumnSpan() const { return 1; };
 
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///

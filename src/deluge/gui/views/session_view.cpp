@@ -3062,6 +3062,19 @@ Clip* SessionView::getClipForLayout() {
 	}
 }
 
+int32_t SessionView::getClipIndexForLayout() {
+	switch (currentSong->sessionLayout) {
+	case SessionLayoutType::SessionLayoutTypeGrid: {
+		return gridClipIndexFromCoords(gridFirstPressedX, gridFirstPressedY);
+		break;
+	}
+	case SessionLayoutType::SessionLayoutTypeRows:
+	default: {
+		return (sessionView.selectedClipPressYDisplay + currentSong->songViewYScroll);
+	}
+	}
+}
+
 void SessionView::selectLayout(int8_t offset) {
 	gridSetDefaultMode();
 	// only reset first pad if it's not still held
@@ -4650,6 +4663,7 @@ int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
 
 Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
 	auto trackIndex = gridTrackIndexFromX(x, maxTrack);
+
 	if (trackIndex < 0) {
 		return nullptr;
 	}
@@ -4660,6 +4674,7 @@ Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
 Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
+
 	if (track == nullptr) {
 		return nullptr;
 	}
@@ -4678,6 +4693,30 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 
 	return nullptr;
 }
+
+int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
+	auto maxTrack = gridTrackCount();
+	Output* track = gridTrackFromX(x, maxTrack);
+
+	if (track == nullptr) {
+		return -1;
+	}
+
+	auto section = gridSectionFromY(y);
+	if (section == -1) {
+		return -1;
+	}
+
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		if (clip->output == track && clip->section == section) {
+			return idxClip;
+		}
+	}
+
+	return -1;
+}
+
 Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridTrackFromX(x, gridTrackCount());

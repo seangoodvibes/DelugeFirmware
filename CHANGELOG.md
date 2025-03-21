@@ -28,10 +28,23 @@ set the stutter configuration independently of the song configuration if you wis
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
 #### <ins>Horizontal Menus</ins>
-- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
   - LPF and HPF.
-  - LFOs.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
+    - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
+  - If you're not holding an audition pad or sticky shift is disabled, then the following select behaviours apply.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Turn select encoder` to change the selected menu item
+    - `Press + Turn select encoder` to change the value of the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Turn select encoder` to change the value of the selected menu item
+    - `Press + Turn select encoder` to change the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
 
 #### <ins>Tempo</ins>
 - Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of `TAP TEMPO` button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
@@ -134,6 +147,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### MIDI Clips
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
+- Updated MIDI Program menu to show values 0-127.
+  - Values for program, bank and sub-bank were previously shown as 1-128, but now reflect the actual transmitted MIDI values.
 
 #### <ins>Automation View</ins>
 
