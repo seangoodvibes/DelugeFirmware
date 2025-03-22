@@ -425,7 +425,7 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Cl
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationLayoutEditorModControllable::getAutomationParameterName(Clip* clip, OutputType outputType,
                                                                        StringBuf& parameterName) {
-	if (onArrangerView || outputType != OutputType::MIDI_OUT) {
+	if (automationView.onArrangerView || outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
