@@ -2047,7 +2047,7 @@ ActionResult InstrumentClipView::commandDrumRandomizer() {
 			// Assign new audio file
 			if (fileCount) {
 				AudioEngine::stopAnyPreviewing();
-				soundDrum->unassignAllVoices();
+				soundDrum->killAllVoices();
 
 				afh->setAudioFile(nullptr);
 				// set the slash to 0 again

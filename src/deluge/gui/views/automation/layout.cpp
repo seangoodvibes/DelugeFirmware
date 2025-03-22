@@ -110,7 +110,23 @@ AutomationLayout::AutomationLayout() {
 void AutomationLayout::initMIDICCShortcutsForAutomation() {
 	for (int x = 0; x < kDisplayWidth; x++) {
 		for (int y = 0; y < kDisplayHeight; y++) {
-			int32_t ccNumber = midiFollow.paramToCC[x][y];
+			uint8_t ccNumber = MIDI_CC_NONE;
+			uint32_t paramId = patchedParamShortcuts[x][y];
+			if (paramId != kNoParamID) {
+				ccNumber = midiFollow.soundParamToCC[paramId];
+				if (ccNumber == MIDI_CC_NONE) {
+					ccNumber = midiFollow.globalParamToCC[paramId];
+				}
+			}
+			if (ccNumber == MIDI_CC_NONE) {
+				paramId = unpatchedNonGlobalParamShortcuts[x][y];
+				if (paramId != kNoParamID) {
+					ccNumber = midiFollow.soundParamToCC[paramId + params::UNPATCHED_START];
+					if (ccNumber == MIDI_CC_NONE) {
+						ccNumber = midiFollow.globalParamToCC[paramId];
+					}
+				}
+			}
 			if (ccNumber != MIDI_CC_NONE) {
 				midiCCShortcutsForAutomation[x][y] = ccNumber;
 			}
