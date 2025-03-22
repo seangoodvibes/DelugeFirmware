@@ -380,10 +380,18 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
 		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
-		// don't allow automation of pitch adjust, or sidechain in arranger
+		// don't allow automation of pitch adjust, sidechain or arp parameters in arranger
 		if (automationView.onArrangerView
 		    && ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME))) {
+		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)
+		        || (paramID >= params::UNPATCHED_FIRST_ARP_PARAM && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+		        || (paramID == params::UNPATCHED_ARP_RATE))) {
+			return; // no parameter selected, don't re-render grid;
+		}
+		// don't allow automation of arp params in audio clips
+		else if (outputType == OutputType::AUDIO
+		         && ((paramID >= params::UNPATCHED_FIRST_ARP_PARAM && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+		             || paramID == params::UNPATCHED_ARP_RATE)) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
@@ -497,8 +505,11 @@ void AutomationParameterSelection::selectGlobalParam(int32_t offset, Clip* clip)
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
+			// don't allow automation of pitch adjust, sidechain or arp parameters in arranger
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
-			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD
+			        || (id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
+			        || id == params::UNPATCHED_ARP_RATE)) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -514,6 +525,30 @@ void AutomationParameterSelection::selectGlobalParam(int32_t offset, Clip* clip)
 		currentSong->lastSelectedParamID = id;
 		currentSong->lastSelectedParamKind = kind;
 		currentSong->lastSelectedParamArrayPosition = idx;
+	}
+	// don't allow automation of arp parameters in audio clips
+	else if (clip->output->type == OutputType::AUDIO) {
+		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+		                                             kNumGlobalParamsForAutomation);
+		auto [kind, id] = globalParamsForAutomation[idx];
+		{
+			while ((id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
+			       || id == params::UNPATCHED_ARP_RATE) {
+
+				if (offset < 0) {
+					offset -= 1;
+				}
+				else if (offset > 0) {
+					offset += 1;
+				}
+				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+				                                        kNumGlobalParamsForAutomation);
+				id = globalParamsForAutomation[idx].second;
+			}
+		}
+		clip->lastSelectedParamID = id;
+		clip->lastSelectedParamKind = kind;
+		clip->lastSelectedParamArrayPosition = idx;
 	}
 	else {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,

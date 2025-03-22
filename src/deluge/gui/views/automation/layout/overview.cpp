@@ -108,135 +108,147 @@ void AutomationLayoutOverview::renderMainPads(ModelStackWithTimelineCounter* mod
 				int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 				if (paramID != kNoParamID) {
 					if (automationView.onArrangerView) {
-						// don't make pitch adjust or sidechain available for automation in arranger
+						// don't make pitch adjust, sidechain or arp parameters available for automation in arranger
 						if ((paramID == params::UNPATCHED_PITCH_ADJUST)
 						    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
 						    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
-							pixel = colours::black; // erase pad
-							continue;
+							|| (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)
+ 						    || (paramID >= params::UNPATCHED_FIRST_ARP_PARAM
+ 						        && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+ 						    || (paramID == params::UNPATCHED_ARP_RATE)) {
+								pixel = colours::black; // erase pad
+								continue;
+							}
+							modelStackWithParam =
+							    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 						}
-						modelStackWithParam =
-						    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+						else {
+							// don't make arp params available for automation in audio clip clips
+							if (outputType == OutputType::AUDIO
+							    && ((paramID >= params::UNPATCHED_FIRST_ARP_PARAM
+							         && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+							        || paramID == params::UNPATCHED_ARP_RATE)) {
+								pixel = colours::black; // erase pad
+								continue;
+							}
+							modelStackWithParam =
+							    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
+						}
 					}
+				}
+
+				else if (outputType == OutputType::MIDI_OUT) {
+					if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+						modelStackWithParam = getModelStackWithParamForClip(
+						    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+					}
+				}
+				else if (outputType == OutputType::CV) {
+					uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
+					if (paramID != kNoParamID) {
+						modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+						                                                    paramID, params::Kind::EXPRESSION);
+					}
+				}
+
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					// highlight pad white if the parameter it represents is currently automated
+					if (modelStackWithParam->autoParam->isAutomated()) {
+						pixel = {
+						    .r = 130,
+						    .g = 120,
+						    .b = 130,
+						};
+					}
+
 					else {
-						modelStackWithParam =
-						    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
+						pixel = colours::grey;
 					}
-				}
-			}
 
-			else if (outputType == OutputType::MIDI_OUT) {
-				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+					occupancyMask[yDisplay][xDisplay] = 64;
 				}
-			}
-			else if (outputType == OutputType::CV) {
-				uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-				if (paramID != kNoParamID) {
-					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID,
-					                                                    params::Kind::EXPRESSION);
-				}
-			}
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				// highlight pad white if the parameter it represents is currently automated
-				if (modelStackWithParam->autoParam->isAutomated()) {
-					pixel = {
-					    .r = 130,
-					    .g = 120,
-					    .b = 130,
-					};
-				}
-
 				else {
-					pixel = colours::grey;
+					pixel = colours::black; // erase pad
 				}
-
-				occupancyMask[yDisplay][xDisplay] = 64;
 			}
 			else {
 				pixel = colours::black; // erase pad
 			}
-		}
-		else {
-			pixel = colours::black; // erase pad
-		}
 
-		if (!automationView.onArrangerView && !(outputType == OutputType::KIT && getAffectEntire())
-		    && clip->type == ClipType::INSTRUMENT) {
-			// highlight velocity pad
-			if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
-				pixel = colours::grey;
-				occupancyMask[yDisplay][xDisplay] = 64;
+			if (!automationView.onArrangerView && !(outputType == OutputType::KIT && getAffectEntire())
+			    && clip->type == ClipType::INSTRUMENT) {
+				// highlight velocity pad
+				if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
+					pixel = colours::grey;
+					occupancyMask[yDisplay][xDisplay] = 64;
+				}
 			}
 		}
 	}
-}
 
-void AutomationLayoutOverview::renderDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
-                                                 OutputType outputType) {
-	// align string to vertically to the centre of the display
+	void AutomationLayoutOverview::renderDisplayOLED(deluge::hid::display::oled_canvas::Canvas & canvas,
+	                                                 Output * output, OutputType outputType) {
+		// align string to vertically to the centre of the display
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
 #else
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
 #endif
 
-	// display Automation Overview
-	char const* overviewText;
-	if (!automationView.onArrangerView
-	    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
-		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
-		deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
-	}
-	else {
-		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
-		canvas.drawStringCentred(overviewText, yPos, kTextSpacingX, kTextSpacingY);
-	}
-}
-
-void AutomationLayoutOverview::renderDisplay7SEG(Output* output, OutputType outputType) {
-	char const* overviewText;
-	if (!automationView.onArrangerView
-	    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
-		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
-	}
-	else {
-		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
-	}
-	display->setScrollingText(overviewText);
-}
-
-// called by button action if b == back and UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
-bool AutomationLayoutOverview::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on) {
-	// only allow clearing of a clip if you're on the automation overview
-	if (clip->type == ClipType::AUDIO || automationView.onArrangerView) {
-		// clear all arranger automation
-		if (automationView.onArrangerView) {
-			Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_CLEAR, ActionAddition::NOT_ALLOWED);
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack =
-			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			currentSong->paramManager.deleteAllAutomation(action, modelStack);
+		// display Automation Overview
+		char const* overviewText;
+		if (!automationView.onArrangerView
+		    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
+			overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
+			deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 		}
-		// clear all audio clip automation
 		else {
-			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
-
-			// clear automation, don't clear sample and mpe
-			bool clearAutomation = true;
-			bool clearSequenceAndMPE = false;
-			clip->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
+			overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
+			canvas.drawStringCentred(overviewText, yPos, kTextSpacingX, kTextSpacingY);
 		}
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));
-
-		return false;
 	}
-	return true;
-}
+
+	void AutomationLayoutOverview::renderDisplay7SEG(Output * output, OutputType outputType) {
+		char const* overviewText;
+		if (!automationView.onArrangerView
+		    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
+			overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
+		}
+		else {
+			overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
+		}
+		display->setScrollingText(overviewText);
+	}
+
+	// called by button action if b == back and UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
+	bool AutomationLayoutOverview::handleBackAndHorizontalEncoderButtonComboAction(Clip * clip, bool on) {
+		// only allow clearing of a clip if you're on the automation overview
+		if (clip->type == ClipType::AUDIO || automationView.onArrangerView) {
+			// clear all arranger automation
+			if (automationView.onArrangerView) {
+				Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_CLEAR, ActionAddition::NOT_ALLOWED);
+
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack =
+				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				currentSong->paramManager.deleteAllAutomation(action, modelStack);
+			}
+			// clear all audio clip automation
+			else {
+				Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
+
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+				// clear automation, don't clear sample and mpe
+				bool clearAutomation = true;
+				bool clearSequenceAndMPE = false;
+				clip->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
+			}
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));
+
+			return false;
+		}
+		return true;
+	}

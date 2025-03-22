@@ -45,7 +45,7 @@ public:
 
 	// grid sized array to assign midi cc values to each pad on the grid
 	void initMIDICCShortcutsForAutomation();
-	bool midiCCShortcutsLoaded;
+	bool midiCCShortcutsLoaded = false;
 	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
 
 	// rendering

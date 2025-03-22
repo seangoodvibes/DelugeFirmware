@@ -102,7 +102,6 @@ AutomationLayout::AutomationLayout() {
 	lastPadSelectedKnobPos = kNoSelection;
 	navSysId = NAVIGATION_CLIP;
 
-	midiCCShortcutsLoaded = false;
 	probabilityChanged = false;
 	timeSelectKnobLastReleased = 0;
 }
