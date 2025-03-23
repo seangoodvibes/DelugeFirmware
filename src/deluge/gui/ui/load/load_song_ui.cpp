@@ -177,7 +177,7 @@ void LoadSongUI::enterKeyPress() {
 
 void LoadSongUI::displayArmedPopup() {
 	display->removeWorkingAnimation();
-	display->popupText("Song will begin...");
+	display->popupText("Song will begin...", PopupType::LOADING);
 }
 
 char loopsRemainingText[] = "Loops remaining: xxxxxxxxxxx";
@@ -186,7 +186,7 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		display->removeWorkingAnimation();
 		intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-		display->popupText(loopsRemainingText);
+		display->popupText(loopsRemainingText, PopupType::LOADING);
 	}
 }
 
@@ -539,7 +539,7 @@ gotErrorAfterCreatingSong:
 		else {
 			display->removeWorkingAnimation();
 			if (display->haveOLED()) {
-				display->popupText("Loading complete");
+				display->popupText("Loading complete", PopupType::LOADING);
 			}
 			else {
 				display->setText("DONE", false, 255, true, NULL, false, true);

@@ -56,8 +56,9 @@ oled_canvas::Canvas OLED::console;
 
 bool OLED::needsSending;
 
-int32_t workingAnimationCount;
-char const* workingAnimationText; // NULL means animation not active
+static int32_t working_animation_count;
+static bool started_animation;
+static bool loading;
 
 int32_t sideScrollerDirection; // 0 means none active
 
@@ -257,7 +258,6 @@ void OLED::removePopup() {
 
 	oledPopupWidth = 0;
 	popupType = PopupType::NONE;
-	workingAnimationText = NULL;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
 }
@@ -620,36 +620,110 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 	}
 }
 
+// Draws a cyclic animation while the Deluge is working on a loading or saving operation
 void updateWorkingAnimation() {
-	String textNow;
-	Error error = textNow.set(workingAnimationText);
-	if (error != Error::NONE) {
-		return;
+	const int32_t w1 = 5;    // spacing between rectangles
+	const int32_t w2 = 5;    // width of animated portion of rectangle
+	const int32_t h = 8;     // height of rectangle
+	int32_t offset = w2 - 2; // causes shifting lines to overlap by 2 pixels
+
+	const int32_t animation_width = w1 + w2 * 2 + 2;
+	const int32_t animation_height = h + 1;
+	const int32_t popupX = OLED_MAIN_WIDTH_PIXELS - 1 - animation_width;
+	const int32_t popupY = OLED_MAIN_TOPMOST_PIXEL + 2;
+
+	if (!started_animation) { // initialize the animation
+		started_animation = true;
+
+		deluge::hid::display::OLED::setupPopup(PopupType::NOTIFICATION, animation_width, animation_height, popupX,
+		                                       popupY);
 	}
 
-	char buffer[4];
-	buffer[3] = 0;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::popup;
 
-	for (int32_t i = 0; i < 3; i++) {
-		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
+	// Calculate positions using absolute coordinates (popup coordinates)
+	const int32_t x_max = popupX + animation_width;
+	const int32_t x_min = x_max - (w1 + w2 * 2); // this has to be out farther for the movement sequence
+	const int32_t x2 = x_max - w2;               // starting position of right rectangle
+	const int32_t y1 = popupY;                   // top of rectangles (absolute coordinates)
+	const int32_t y2 = y1 + h - 1;               // bottom of rectangles
+	int32_t h2 = 0;                              // height of animated portion (will increase over time)
+	// position of left side of starting stack that will be shifted over
+	const int32_t x_pos2 = loading ? x2 - working_animation_count + 1 : x_min + 1 + working_animation_count;
+	const int32_t t_reset = w1 + w2 + (h - 2) * offset;
+
+	if (working_animation_count == 1) { // first frame after initialization
+		// clear space and draw outer borders that will not change during the animation
+		image.clearAreaExact(popupX, popupY, popupX + animation_width - 1, popupY + animation_height - 1);
+		image.drawRectangle(x_min, y1, x_max, y2);
+		image.clearAreaExact(x_min + w2 + 1, popupY, x_max - w2 - 1, popupY + animation_height - 1);
+		h2 = h - 2; // will cause rectangle to be filled in at the start
+	}
+	else {
+		h2 = std::min((working_animation_count + 2) / offset, h - 2);
 	}
 
-	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, PopupType::LOADING);
+	// clears the area gradually on subsequent loops.
+	image.clearAreaExact(x_min + 1, y1 + 1, x_max - 1, y1 + h2);
+
+	if (!loading) {
+		offset *= -1;
+	}
+
+	for (int i = 0; i < h2; i++) {
+		int32_t x_pos = x_pos2 + i * offset; // Offsets positions which are later clamped. Causes staggered shifting.
+		// backfilling lines from top to bottom
+		if (loading && x_pos < x_min) {
+			image.drawHorizontalLine(y1 + 1 + i, x2, x_max - 1);
+		}
+		if (!loading && x_pos > x2) {
+			image.drawHorizontalLine(y1 + 1 + i, x_min + 1, x_min + w2);
+		}
+		x_pos = std::clamp(x_pos, x_min + 1, x2);
+		// horizontally shifting lines
+		image.drawHorizontalLine(y1 + 1 + i, x_pos, x_pos + w2 - 1);
+	}
+
+	if (working_animation_count == t_reset) {
+		// completed animation, just have to add final backfill line.
+		working_animation_count = 1;
+		if (loading) {
+			image.drawHorizontalLine(y2 - 1, x2, x_max - 1);
+		}
+		else {
+			image.drawHorizontalLine(y2 - 1, x_min + 1, x_min + w2);
+		}
+		uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, 350); // pause at end of animation cycle before restarting
+	}
+	else {
+		if (working_animation_count == 1) {
+			uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, 350); // delay the start of the animation sequence
+		}
+		else {
+			uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, 70); // time interval between animation steps
+		}
+	}
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
-	workingAnimationText = word;
-	workingAnimationCount = 0;
+	loading = !strcmp(word, "Loading");
+	if (working_animation_count) {
+		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
+	}
+	working_animation_count = 1;
+	started_animation = false;
 	updateWorkingAnimation();
+	markChanged();
 }
 
 void OLED::removeWorkingAnimation() {
-	if (hasPopupOfType(PopupType::LOADING)) {
+	// return; // infinite animation duration for debugging purposes
+	if (hasPopupOfType(PopupType::NOTIFICATION)) {
 		removePopup();
 	}
-	else if (workingAnimationText) {
-		workingAnimationText = NULL;
+	if (working_animation_count) {
+		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
+		working_animation_count = 0;
 	}
 }
 
@@ -874,14 +948,13 @@ void OLED::stopScrollingAnimation() {
 }
 
 void OLED::timerRoutine() {
-
-	if (workingAnimationText) {
-		workingAnimationCount = (workingAnimationCount + 1) & 3;
+	if (working_animation_count) {
+		working_animation_count++;
 		updateWorkingAnimation();
+		markChanged();
 	}
-
 	else {
-		removePopup();
+		removePopup(); // for the regular display popups
 	}
 }
 
