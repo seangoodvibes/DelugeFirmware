@@ -1357,7 +1357,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	// ignore modButtonAction when in the Automation View Automation Editor
 	if ((rootUI->getUIType() == UIType::AUTOMATION) && automationView.inAutomationEditor()) {
 		// exception for arranger view and pressing mod button 0 so you can toggle VU meter
-		if (!(automationView.onArrangerView && whichButton == 0)) {
+		if (!((rootUI->getUIContextType() == UIType::ARRANGER) && whichButton == 0)) {
 			return;
 		}
 	}

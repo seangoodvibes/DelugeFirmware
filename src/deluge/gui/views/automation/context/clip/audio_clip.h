@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,9 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/automation/context/audio_clip.h"
+#pragma once
 
-AutomationViewAudioClip automationViewAudioClip{};
+#include "definitions_cxx.hpp"
+#include "gui/views/automation/context/clip.h"
 
-AutomationViewAudioClip::AutomationViewAudioClip() {
-}
+// namespace deluge::gui::views {
+
+class AutomationViewAudioClip final : public AutomationViewClip {
+public:
+	AutomationViewAudioClip();
+
+	UIType getUIContextType() override { return UIType::AUDIO_CLIP; }
+};
+
+//}; // namespace deluge::gui::views
+
+// TODO: should get moved into namespace once project namespacing is complete
+extern AutomationViewAudioClip automationViewAudioClip;

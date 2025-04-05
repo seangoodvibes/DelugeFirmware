@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/automation/context/arranger.h"
+#include "gui/views/automation/context/clip/instrument_clip.h"
 
-AutomationViewArranger automationViewArranger{};
+AutomationViewInstrumentClip automationViewInstrumentClip{};
 
-AutomationViewArranger::AutomationViewArranger() {
+AutomationViewInstrumentClip::AutomationViewInstrumentClip() {
 }

@@ -180,14 +180,7 @@ void AutomationLayout::initialize() {
 // Initializes some stuff to begin a new editing session
 void AutomationLayout::focusRegained() {
 	Clip* clip = nullptr;
-	if (automationView.onArrangerView) {
-		indicator_leds::setLedState(IndicatorLED::BACK, false);
-		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-		currentSong->affectEntire = true;
-		view.focusRegained();
-		view.setActiveModControllableTimelineCounter(currentSong);
-	}
-	else {
+	if (rootUIIsClipMinderScreen()) {
 		automationView.ClipView::focusRegained();
 
 		clip = getCurrentClip();
@@ -202,6 +195,13 @@ void AutomationLayout::focusRegained() {
 			automationView.InstrumentClipMinder::focusRegained();
 			instrumentClipView.setLedStates();
 		}
+	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::BACK, false);
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+		currentSong->affectEntire = true;
+		view.focusRegained();
+		view.setActiveModControllableTimelineCounter(currentSong);
 	}
 
 	automationParameterSelection.focusRegained(clip);
@@ -221,9 +221,13 @@ void AutomationLayout::focusRegained() {
 }
 
 void AutomationLayout::openedInBackground() {
-	Clip* clip = getCurrentClip();
+	Clip* clip = nullptr;
 
-	if (!automationView.onArrangerView) {
+	bool isClipContext = rootUIIsClipMinderScreen();
+
+	if (isClipContext) {
+		clip = getCurrentClip();
+
 		// used when you're in song view / arranger view / keyboard view
 		//(so it knows to come back to automation view)
 		clip->onAutomationClipView = true;
@@ -243,13 +247,13 @@ void AutomationLayout::openedInBackground() {
 	if (renderingToStore) {
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
 		               true);
-		if (automationView.onArrangerView) {
-			arrangerView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
-			                           &PadLEDs::occupancyMaskStore[kDisplayHeight]);
-		}
-		else {
+		if (isClipContext) {
 			clip->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
 			                    &PadLEDs::occupancyMaskStore[kDisplayHeight]);
+		}
+		else {
+			arrangerView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
+			                           &PadLEDs::occupancyMaskStore[kDisplayHeight]);
 		}
 	}
 	else {
@@ -264,16 +268,16 @@ void AutomationLayout::openedInBackground() {
 
 // used for the play cursor
 void AutomationLayout::graphicsRoutine() {
-	if (automationView.onArrangerView) {
-		arrangerView.graphicsRoutine();
-	}
-	else {
+	if (rootUIIsClipMinderScreen()) {
 		if (getCurrentClip()->type == ClipType::AUDIO) {
 			audioClipView.graphicsRoutine();
 		}
 		else {
 			instrumentClipView.graphicsRoutine();
 		}
+	}
+	else {
+		arrangerView.graphicsRoutine();
 	}
 	// if we changed probability, then a pop-up may be currently stuck on display
 	// if more than half a second has past since last knob turn, cancel the pop-up
@@ -309,8 +313,7 @@ bool AutomationLayout::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWi
 
 	PadLEDs::renderingLock = true;
 
-	Clip* clip = getCurrentClip();
-	if (!automationView.onArrangerView && clip->type == ClipType::INSTRUMENT) {
+	if (getRootUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
 		instrumentClipView.recalculateColours();
 	}
 
@@ -342,13 +345,10 @@ void AutomationLayout::performActualRender(RGB image[][kDisplayWidth + kSideBarW
 	ModelStackWithNoteRow* modelStackWithNoteRow = nullptr;
 	int32_t effectiveLength = 0;
 	SquareInfo rowSquareInfo[kDisplayWidth];
+	bool isClipContext = rootUIIsClipMinderScreen();
+	bool isSongContext = !isClipContext;
 
-	if (automationView.onArrangerView) {
-		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-	}
-	else {
+	if (isClipContext) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 		if (inNoteEditor()) {
@@ -361,6 +361,11 @@ void AutomationLayout::performActualRender(RGB image[][kDisplayWidth + kSideBarW
 				noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
 			}
 		}
+	}
+	else {
+		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 
 	if (!inNoteEditor()) {
@@ -386,8 +391,7 @@ void AutomationLayout::performActualRender(RGB image[][kDisplayWidth + kSideBarW
 		// you're not in a kit where you haven't selected a drum and you haven't selected affect entire either
 		// you're not in a kit where no sound drum has been selected and you're not editing velocity
 		// you're in a kit where midi or CV sound drum has been selected and you're editing velocity
-		if (automationView.onArrangerView
-		    || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
+		if (isSongContext || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
 			bool isMIDICVDrum = false;
 			if (outputType == OutputType::KIT && !getAffectEntire()) {
 				isMIDICVDrum = (((Kit*)output)->selectedDrum
@@ -425,11 +429,11 @@ void AutomationLayout::performActualRender(RGB image[][kDisplayWidth + kSideBarW
 // depending on the active clip
 bool AutomationLayout::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (automationView.onArrangerView) {
-		return arrangerView.renderSidebar(whichRows, image, occupancyMask);
+	if (rootUIIsClipMinderScreen()) {
+		return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
 	}
 	else {
-		return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
+		return arrangerView.renderSidebar(whichRows, image, occupancyMask);
 	}
 }
 
@@ -463,18 +467,20 @@ void AutomationLayout::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, 
 	Clip* clip = getCurrentClip();
 	Output* output = clip->output;
 	OutputType outputType = output->type;
+	bool isClipContext = rootUIIsClipMinderScreen();
+	bool isSongContext = !isClipContext;
 
 	// if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
-	if (inAutomationEditor() && (automationView.onArrangerView || outputType != OutputType::MIDI_OUT)) {
+	if (inAutomationEditor() && (isSongContext || outputType != OutputType::MIDI_OUT)) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
-		if (automationView.onArrangerView) {
-			lastSelectedParamKind = currentSong->lastSelectedParamKind;
-			lastSelectedParamID = currentSong->lastSelectedParamID;
-		}
-		else {
+		if (isClipContext) {
 			lastSelectedParamKind = clip->lastSelectedParamKind;
 			lastSelectedParamID = clip->lastSelectedParamID;
+		}
+		else {
+			lastSelectedParamKind = currentSong->lastSelectedParamKind;
+			lastSelectedParamID = currentSong->lastSelectedParamID;
 		}
 		if (knobPosLeft != kNoSelection) {
 			knobPosLeft = view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID, knobPosLeft);
@@ -552,21 +558,24 @@ ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool
 	using namespace hid::button;
 
 	Clip* clip = getCurrentClip();
-	bool isAudioClip = clip->type == ClipType::AUDIO;
 
-	// these button actions are not used in the audio clip automation view
-	if (isAudioClip || automationView.onArrangerView) {
+	bool isClipContext = rootUIIsClipMinderScreen();
+	bool isSongContext = !isClipContext;
+	bool isAudioClip = isClipContext && (clip->type == ClipType::AUDIO);
+
+	// these button actions are not used in the audio clip and arranger automation views
+	if (isAudioClip || isSongContext) {
 		if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
-	if (automationView.onArrangerView) {
+	if (isSongContext) {
 		if (b == CLIP_VIEW) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
 
-	OutputType outputType = clip->output->type;
+	OutputType outputType = isClipContext ? clip->output->type : OutputType::NONE;
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
@@ -595,7 +604,7 @@ ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool
 	// Does not currently work for Automation
 	else if (b == CROSS_SCREEN_EDIT) {
 		// toggle auto scroll or cross screen editing
-		if (automationView.onArrangerView || inNoteEditor()) {
+		if (isSongContext || inNoteEditor()) {
 			handleCrossScreenButtonAction(on);
 		}
 		// don't toggle for automation editing
@@ -672,7 +681,7 @@ passToOthers:
 		uiNeedsRendering(getRootUI());
 
 		ActionResult result;
-		if (automationView.onArrangerView) {
+		if (isSongContext) {
 			result = automationView.TimelineView::buttonAction(b, on, inCardRoutine);
 		}
 		else if (isAudioClip) {
@@ -715,8 +724,7 @@ void AutomationLayout::handleSessionButtonAction(Clip* clip, bool on) {
 		if (padSelectionOn) {
 			initPadSelection();
 		}
-		if (automationView.onArrangerView) {
-			automationView.onArrangerView = false;
+		if (getRootUI()->getUIContextType() == UIType::ARRANGER) {
 			changeRootUI(&arrangerView);
 		}
 		else if (currentSong->lastClipInstanceEnteredStartPos != -1 || clip->isArrangementOnlyClip()) {
@@ -774,18 +782,7 @@ void AutomationLayout::handleCrossScreenButtonAction(bool on) {
 	if (!on && currentUIMode == UI_MODE_NONE) {
 		// if another button wasn't pressed while cross screen was held
 		if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
-			if (automationView.onArrangerView) {
-				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
-
-				if (currentSong->arrangerAutoScrollModeActive) {
-					arrangerView.reassessWhetherDoingAutoScroll();
-				}
-				else {
-					arrangerView.doingAutoScrollNow = false;
-				}
-			}
-			else {
+			if (rootUIIsClipMinderScreen()) {
 				InstrumentClip* clip = getCurrentInstrumentClip();
 				if (clip) {
 					if (clip->wrapEditing) {
@@ -812,6 +809,17 @@ void AutomationLayout::handleCrossScreenButtonAction(bool on) {
 					}
 
 					automationView.setLedStates();
+				}
+			}
+			else {
+				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+
+				if (currentSong->arrangerAutoScrollModeActive) {
+					arrangerView.reassessWhetherDoingAutoScroll();
+				}
+				else {
+					arrangerView.doingAutoScrollNow = false;
 				}
 			}
 		}
@@ -880,6 +888,9 @@ void AutomationLayout::handleCVButtonAction(OutputType outputType, bool on) {
 }
 // called by button action if b == X_ENC
 bool AutomationLayout::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
+	bool isClipContext = rootUIIsClipMinderScreen();
+	bool isSongContext = !isClipContext;
+
 	// copy / paste automation (same shortcut used for notes)
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 		if (inAutomationEditor()) {
@@ -891,14 +902,14 @@ bool AutomationLayout::handleHorizontalEncoderButtonAction(bool on, bool isAudio
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-			if (automationView.onArrangerView) {
+			if (isClipContext) {
+				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+			}
+			else {
 				modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
 				                                                          currentSong->lastSelectedParamID);
-			}
-			else {
-				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 			}
 			int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
 
@@ -916,7 +927,7 @@ bool AutomationLayout::handleHorizontalEncoderButtonAction(bool on, bool isAudio
 		}
 		return false;
 	}
-	else if (automationView.onArrangerView) {
+	else if (isSongContext) {
 		return true;
 	}
 	else if (isAudioClip) {
@@ -974,15 +985,15 @@ bool AutomationLayout::handleBackAndHorizontalEncoderButtonComboAction(Clip* cli
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if (automationView.onArrangerView) {
+		if (rootUIIsClipMinderScreen()) {
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+		}
+		else {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 			modelStackWithParam =
 			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-		}
-		else {
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1056,7 +1067,7 @@ void AutomationLayout::handleSelectEncoderButtonAction(bool on) {
 		}
 
 		display->setNextTransitionDirection(1);
-		Clip* clip = automationView.onArrangerView ? nullptr : getCurrentClip();
+		Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
 		if (soundEditor.setup(clip)) {
 			openUI(&soundEditor);
 		}
@@ -1071,7 +1082,9 @@ ActionResult AutomationLayout::padAction(int32_t x, int32_t y, int32_t velocity)
 	Output* output = nullptr;
 	OutputType outputType;
 
-	if (!automationView.onArrangerView) {
+	bool isClipContext = rootUIIsClipMinderScreen();
+
+	if (isClipContext) {
 		clip = getCurrentClip();
 		if (clip && clip->output) {
 			output = clip->output;
@@ -1088,18 +1101,18 @@ ActionResult AutomationLayout::padAction(int32_t x, int32_t y, int32_t velocity)
 	}
 	// Interacting with side bar
 	else {
-		// arranger automation view
-		if (automationView.onArrangerView) {
-			// don't interact with sidebar if VU Meter is displayed
-			if (view.displayVUMeter) {
-				return ActionResult::DEALT_WITH;
-			}
-		}
 		// clip automation view
-		else {
+		if (isClipContext) {
 			clip = getCurrentClip();
 			// no sidebar to interact with in audio clips
 			if (clip && (clip->type == ClipType::AUDIO)) {
+				return ActionResult::DEALT_WITH;
+			}
+		}
+		// arranger automation view
+		else {
+			// don't interact with sidebar if VU Meter is displayed
+			if (view.displayVUMeter) {
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -1126,8 +1139,11 @@ ActionResult AutomationLayout::handleEditPadAction(Clip* clip, Output* output, O
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
+	bool isClipContext = rootUIIsClipMinderScreen();
+	bool isSongContext = !isClipContext;
+
 	// if we're in arranger automation view and holding audition pad, ignore main pad press
-	if (automationView.onArrangerView) {
+	if (isSongContext) {
 		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -1151,7 +1167,7 @@ ActionResult AutomationLayout::handleEditPadAction(Clip* clip, Output* output, O
 	int32_t effectiveLength = 0;
 	SquareInfo squareInfo;
 
-	if (!automationView.onArrangerView) {
+	if (isClipContext) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	}
 
@@ -1243,7 +1259,7 @@ bool AutomationLayout::shortcutPadAction(ModelStackWithAutoParam* modelStackWith
 			if (getCurrentUI()->getUIType() == UIType::AUTOMATION) {
 				// make sure the context is valid for selecting a parameter
 				// can't select a parameter in a kit if you haven't selected a drum
-				if (automationView.onArrangerView
+				if (!rootUIIsClipMinderScreen()
 				    || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
 				    || (outputType == OutputType::KIT && getAffectEntire())) {
 
@@ -1268,10 +1284,7 @@ ActionResult AutomationLayout::handleMutePadAction(InstrumentClip* instrumentCli
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	if (automationView.onArrangerView) {
-		return arrangerView.handleStatusPadAction(y, velocity, getRootUI());
-	}
-	else {
+	if (rootUIIsClipMinderScreen()) {
 		if (currentUIMode == UI_MODE_MIDI_LEARN) [[unlikely]] {
 			return instrumentClipView.commandLearnMutePad(y, velocity);
 		}
@@ -1303,18 +1316,16 @@ ActionResult AutomationLayout::handleMutePadAction(InstrumentClip* instrumentCli
 			instrumentClipView.mutePadPress(y);
 		}
 	}
+	else {
+		return arrangerView.handleStatusPadAction(y, velocity, getRootUI());
+	}
 	return ActionResult::DEALT_WITH;
 }
 
 // called by pad action when pressing a pad in the audition column (x = kDisplayWidth + 1)
 ActionResult AutomationLayout::handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output,
                                                        OutputType outputType, int32_t y, int32_t velocity) {
-	if (automationView.onArrangerView) {
-		if (onAutomationOverview()) {
-			return arrangerView.handleAuditionPadAction(y, velocity, getRootUI());
-		}
-	}
-	else {
+	if (rootUIIsClipMinderScreen()) {
 		// "Learning" to this audition pad:
 		if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) [[unlikely]] {
 			if (getCurrentUI()->getUIType() == UIType::AUTOMATION) {
@@ -1359,6 +1370,11 @@ ActionResult AutomationLayout::handleAuditionPadAction(InstrumentClip* instrumen
 			    && leftPadSelectedX != kNoSelection) {
 				automationLayoutEditor.recordNoteEditPadAction(leftPadSelectedX, 1);
 			}
+		}
+	}
+	else {
+		if (onAutomationOverview()) {
+			return arrangerView.handleAuditionPadAction(y, velocity, getRootUI());
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -1508,11 +1524,11 @@ ActionResult AutomationLayout::horizontalEncoderAction(int32_t offset) {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (automationView.onArrangerView) {
-		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	if (rootUIIsClipMinderScreen()) {
+		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	}
 	else {
-		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	}
 
 	if (!onAutomationOverview()
@@ -1569,13 +1585,7 @@ ActionResult AutomationLayout::verticalEncoderAction(int32_t offset, bool inCard
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 
-	if (automationView.onArrangerView) {
-		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-			currentSong->commandTranspose(offset);
-		}
-	}
-
-	else {
+	if (rootUIIsClipMinderScreen()) {
 		Clip* clip = getCurrentClip();
 		if (clip != nullptr && clip->type != ClipType::AUDIO) {
 			// If encoder button pressed
@@ -1605,6 +1615,11 @@ ActionResult AutomationLayout::verticalEncoderAction(int32_t offset, bool inCard
 			else {
 				commandVerticalScroll((InstrumentClip*)clip, offset);
 			}
+		}
+	}
+	else {
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			currentSong->commandTranspose(offset);
 		}
 	}
 
@@ -1833,15 +1848,15 @@ void AutomationLayout::modEncoderAction(int32_t whichModEncoder, int32_t offset)
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (automationView.onArrangerView) {
-		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-	}
-	else {
+	if (rootUIIsClipMinderScreen()) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		Clip* clip = getCurrentClip();
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+	}
+	else {
+		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
 
@@ -1892,14 +1907,14 @@ void AutomationLayout::modEncoderButtonAction(uint8_t whichModEncoder, bool on) 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (automationView.onArrangerView) {
+	if (rootUIIsClipMinderScreen()) {
+		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+	}
+	else {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		modelStackWithParam =
 		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-	}
-	else {
-		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
 
@@ -1972,9 +1987,6 @@ void AutomationLayout::selectEncoderAction(int8_t offset) {
 	}
 
 	// change midi CC or param ID
-	Clip* clip = getCurrentClip();
-	Output* output = clip->output;
-	OutputType outputType = output->type;
 
 	// if you've selected a mod encoder (e.g. by pressing modEncoderButton) and you're in Automation
 	// Overview the currentUIMode will change to Selecting Midi CC. In this case, turning select encoder
@@ -2005,6 +2017,16 @@ void AutomationLayout::selectEncoderAction(int8_t offset) {
 		return;
 	}
 
+	Clip* clip = nullptr;
+	Output* output = nullptr;
+	OutputType outputType = OutputType::NONE;
+
+	if (rootUIIsClipMinderScreen()) {
+		clip = getCurrentClip();
+		output = clip->output;
+		outputType = output->type;
+	}
+
 	// try to select a parameter
 	if (automationParameterSelection.selectEncoderAction(clip, output, outputType, offset)) {
 		// update name on display, the LED mod indicators, and refresh the grid
@@ -2015,14 +2037,14 @@ void AutomationLayout::selectEncoderAction(int8_t offset) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-			if (automationView.onArrangerView) {
+			if (rootUIIsClipMinderScreen()) {
+				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+			}
+			else {
 				modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
 				                                                          currentSong->lastSelectedParamID);
-			}
-			else {
-				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 			}
 			int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
 			int32_t xScroll = currentSong->xScroll[navSysId];
@@ -2077,12 +2099,11 @@ void AutomationLayout::initPadSelection() {
 ModelStackWithAutoParam* AutomationLayout::getModelStackWithParam(void* modelStackMemory,
                                                                   ModelStackWithTimelineCounter* modelStack,
                                                                   Clip* clip) {
-
-	if (automationView.onArrangerView) {
-		return getModelStackWithParamForSong(modelStackMemory);
+	if (rootUIIsClipMinderScreen()) {
+		return getModelStackWithParamForClip(modelStack, clip);
 	}
 	else {
-		return getModelStackWithParamForClip(modelStack, clip);
+		return getModelStackWithParamForSong(modelStackMemory);
 	}
 
 	return nullptr;
@@ -2118,29 +2139,29 @@ ModelStackWithAutoParam* AutomationLayout::getModelStackWithParamForClip(ModelSt
 }
 
 uint32_t AutomationLayout::getMaxLength() {
-	if (automationView.onArrangerView) {
-		return arrangerView.getMaxLength();
+	if (rootUIIsClipMinderScreen()) {
+		return getCurrentClip()->getMaxLength();
 	}
 	else {
-		return getCurrentClip()->getMaxLength();
+		return arrangerView.getMaxLength();
 	}
 }
 
 uint32_t AutomationLayout::getMaxZoom() {
-	if (automationView.onArrangerView) {
-		return arrangerView.getMaxZoom();
+	if (rootUIIsClipMinderScreen()) {
+		return getCurrentClip()->getMaxZoom();
 	}
 	else {
-		return getCurrentClip()->getMaxZoom();
+		return arrangerView.getMaxZoom();
 	}
 }
 
 int32_t AutomationLayout::getNavSysId() const {
-	if (automationView.onArrangerView) {
-		return NAVIGATION_ARRANGEMENT;
+	if (rootUIIsClipMinderScreen()) {
+		return NAVIGATION_CLIP;
 	}
 	else {
-		return NAVIGATION_CLIP;
+		return NAVIGATION_ARRANGEMENT;
 	}
 }
 
@@ -2158,13 +2179,15 @@ bool AutomationLayout::onAutomationOverview() {
 }
 
 bool AutomationLayout::inAutomationEditor() {
-	if (automationView.onArrangerView) {
-		if (currentSong->lastSelectedParamID == kNoSelection) {
+	if (rootUIIsClipMinderScreen()) {
+		if (getCurrentClip()->lastSelectedParamID == kNoSelection) {
 			return false;
 		}
 	}
-	else if (getCurrentClip()->lastSelectedParamID == kNoSelection) {
-		return false;
+	else {
+		if (currentSong->lastSelectedParamID == kNoSelection) {
+			return false;
+		}
 	}
 
 	return true;
@@ -2178,21 +2201,23 @@ bool AutomationLayout::inNoteEditor() {
 
 // used to determine the affect entire context
 bool AutomationLayout::getAffectEntire() {
-	// arranger view always uses affect entire
-	if (automationView.onArrangerView) {
-		return true;
+	if (rootUIIsClipMinderScreen()) {
+		// are you in the sound menu for a kit?
+		if (getCurrentOutputType() == OutputType::KIT && getCurrentUI() == &soundEditor
+		    && !soundEditor.inSettingsMenu()) {
+			// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
+			if (soundEditor.setupKitGlobalFXMenu) {
+				return true;
+			}
+			// otherwise you're in the kit row context which is the same as if affect entire is disabled
+			else {
+				return false;
+			}
+		}
 	}
-	// are you in the sound menu for a kit?
-	else if (getCurrentOutputType() == OutputType::KIT && getCurrentUI() == &soundEditor
-	         && !soundEditor.inSettingsMenu()) {
-		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
-		if (soundEditor.setupKitGlobalFXMenu) {
-			return true;
-		}
-		// otherwise you're in the kit row context which is the same as if affect entire is disabled
-		else {
-			return false;
-		}
+	// arranger view always uses affect entire
+	else {
+		return true;
 	}
 	// otherwise if you're not in the kit sound menu, use the clip affect entire state
 	return getCurrentInstrumentClip()->affectEntire;
@@ -2202,14 +2227,14 @@ void AutomationLayout::blinkShortcuts() {
 	if (getCurrentUI()->getUIType() == UIType::AUTOMATION) {
 		int32_t lastSelectedParamShortcutX = kNoSelection;
 		int32_t lastSelectedParamShortcutY = kNoSelection;
-		if (automationView.onArrangerView) {
-			lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
-			lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
-		}
-		else {
+		if (rootUIIsClipMinderScreen()) {
 			Clip* clip = getCurrentClip();
 			lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
 			lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
+		}
+		else {
+			lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
+			lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
 		}
 		// if a Param has been selected for editing, blink its shortcut pad
 		if (lastSelectedParamShortcutX != kNoSelection) {

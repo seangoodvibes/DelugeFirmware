@@ -22,15 +22,14 @@
 
 // namespace deluge::gui::views {
 
-class AutomationViewArranger final : public AutomationView {
+class AutomationViewClip : public AutomationView {
 public:
-	AutomationViewArranger();
+	AutomationViewClip();
 
-	UIType getUIContextType() override { return UIType::ARRANGER; }
-	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 };
 
 //}; // namespace deluge::gui::views
 
 // TODO: should get moved into namespace once project namespacing is complete
-extern AutomationViewArranger automationViewArranger;
+extern AutomationViewClip automationViewClip;

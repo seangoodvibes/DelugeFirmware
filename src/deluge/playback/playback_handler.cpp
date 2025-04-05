@@ -201,9 +201,10 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 		RootUI* rootUI = getRootUI();
 
-		bool isArrangerView = rootUI == &arrangerView
-		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		                      || (rootUI->getUIType() == UIType::AUTOMATION && automationView.onArrangerView);
+		bool isArrangerView =
+		    rootUI == &arrangerView
+		    || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
+		    || (rootUI->getUIType() == UIType::AUTOMATION && (rootUI->getUIContextType() == UIType::ARRANGER));
 
 		bool isRestartShortcutPressed =
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
@@ -336,9 +337,10 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// if we're restarting playback from beginning, do that
 	if (!restartingPlaybackAtBeginning) {
-		bool isArrangerView = (rootUI == &arrangerView)
-		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		                      || (rootUI->getUIType() == UIType::AUTOMATION && automationView.onArrangerView);
+		bool isArrangerView =
+		    (rootUI == &arrangerView)
+		    || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
+		    || (rootUI->getUIType() == UIType::AUTOMATION && (rootUI->getUIContextType() == UIType::ARRANGER));
 
 		// second priority - if we're holding pad in arranger, play from that pad
 		isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);

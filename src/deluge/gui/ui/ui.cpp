@@ -149,12 +149,12 @@ RootUI* getRootUI() {
 
 bool currentUIIsClipMinderScreen() {
 	UI* currentUI = getCurrentUI();
-	return (currentUI && currentUI->toClipMinder());
+	return (currentUI != nullptr && (currentUI->toClipMinder() != nullptr));
 }
 
 bool rootUIIsClipMinderScreen() {
 	UI* rootUI = getRootUI();
-	return (rootUI && rootUI->toClipMinder());
+	return (rootUI != nullptr && (rootUI->toClipMinder() != nullptr));
 }
 
 void swapOutRootUILowLevel(UI* newUI) {

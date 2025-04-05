@@ -365,7 +365,7 @@ Clip* MidiFollow::getSelectedClip() {
 		break;
 	case UIType::AUTOMATION:
 		// if you're in the arranger automation view, check if you're holding audition pad
-		if (automationView.onArrangerView) {
+		if (rootUI->getUIContextType() == UIType::ARRANGER) {
 			clip = arrangerView.getClipForSelection();
 			break;
 		}

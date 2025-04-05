@@ -147,9 +147,10 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 		int32_t p = modelStack->paramId;
 		modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
 
-		Clip* clip = getCurrentClip();
+		Clip* clip = nullptr;
 
 		if (clipMinder) {
+			clip = getCurrentClip();
 			clip->lastSelectedParamID = p;
 			clip->lastSelectedParamKind = kind;
 			clip->lastSelectedOutputType = clip->output->type;
@@ -164,7 +165,6 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 			currentSong->lastSelectedParamShortcutX = kNoSelection;
 			currentSong->lastSelectedParamShortcutY = kNoSelection;
 			currentSong->lastSelectedParamArrayPosition = 0;
-			automationView.onArrangerView = true;
 		}
 		// not blinking any shortcuts for patch cables
 		// no scroll selection for patch cables

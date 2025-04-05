@@ -1370,23 +1370,25 @@ bool SoundEditor::isEditingAutomationViewParam() {
 	deluge::modulation::params::Kind kind = currentMenuItem->getParamKind();
 	int32_t paramID = currentMenuItem->getParamIndex();
 
-	bool editingParamInAutomationArrangerView = false;
-	bool editingParamInAutomationClipView = false;
+	bool editingParam = false;
 
 	if (kind != deluge::modulation::params::Kind::NONE && paramID != kNoSelection) {
-		// are in automation arranger view and editing the same param open in the menu?
-		editingParamInAutomationArrangerView = automationView.onArrangerView
-		                                       && (kind == currentSong->lastSelectedParamKind)
-		                                       && (paramID == currentSong->lastSelectedParamID);
-
-		Clip* clip = getCurrentClip();
+		bool isClipContext = rootUIIsClipMinderScreen();
+		bool isSongContext = !isClipContext;
 
 		// are in automation clip view and editing the same param open in the menu?
-		editingParamInAutomationClipView = !automationView.onArrangerView && (kind == clip->lastSelectedParamKind)
-		                                   && (paramID == clip->lastSelectedParamID);
+		if (rootUIIsClipMinderScreen()) {
+			Clip* clip = getCurrentClip();
+			editingParam = (kind == clip->lastSelectedParamKind) && (paramID == clip->lastSelectedParamID);
+		}
+		// are in automation arranger view and editing the same param open in the menu?
+		else {
+			editingParam =
+			    (kind == currentSong->lastSelectedParamKind) && (paramID == currentSong->lastSelectedParamID);
+		}
 	}
 
-	return (editingParamInAutomationArrangerView || editingParamInAutomationClipView);
+	return editingParam;
 }
 
 ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {

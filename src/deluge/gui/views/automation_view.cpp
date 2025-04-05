@@ -16,9 +16,9 @@
  */
 
 #include "gui/views/automation_view.h"
-#include "gui/views/automation/context/arranger.h"
-#include "gui/views/automation/context/audio_clip.h"
-#include "gui/views/automation/context/instrument_clip.h"
+#include "gui/views/automation/context/clip/audio_clip.h"
+#include "gui/views/automation/context/clip/instrument_clip.h"
+#include "gui/views/automation/context/song/arranger.h"
 #include "gui/views/automation/layout.h"
 #include "gui/views/instrument_clip_view.h"
 
@@ -29,7 +29,6 @@ AutomationLayout* currentAutomationLayout = nullptr;
 
 AutomationView::AutomationView() {
 	currentAutomationLayout = (AutomationLayout*)&automationLayout;
-	onArrangerView = false;
 	onMenuView = false;
 	automationParamType = AutomationParamType::PER_SOUND;
 }

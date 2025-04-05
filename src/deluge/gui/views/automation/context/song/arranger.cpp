@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2024 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,22 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "gui/views/automation/context/song/arranger.h"
 
-#include "definitions_cxx.hpp"
-#include "gui/views/automation_view.h"
+AutomationViewArranger automationViewArranger{};
 
-// namespace deluge::gui::views {
-
-class AutomationViewAudioClip final : public AutomationView {
-public:
-	AutomationViewAudioClip();
-
-	UIType getUIContextType() override { return UIType::AUDIO_CLIP; }
-	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
-};
-
-//}; // namespace deluge::gui::views
-
-// TODO: should get moved into namespace once project namespacing is complete
-extern AutomationViewAudioClip automationViewAudioClip;
+AutomationViewArranger::AutomationViewArranger() {
+}

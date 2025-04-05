@@ -42,7 +42,7 @@ public:
 	UIType getUIType() override { return UIType::AUTOMATION; }
 	// used to identify the UI as a clip UI or not.
 	ClipMinder* toClipMinder() override {
-		return getUIModControllableContext() == UIModControllableContext::SONG ? nullptr : this;
+		return getUIModControllableContext() == UIModControllableContext::CLIP ? this : nullptr;
 	}
 
 	// rendering
@@ -91,7 +91,6 @@ public:
 	void notifyPlaybackBegun() override;
 
 	void initParameterSelection(bool updateDisplay = true);
-	bool onArrangerView;
 	bool inAutomationEditor();
 	bool inNoteEditor();
 

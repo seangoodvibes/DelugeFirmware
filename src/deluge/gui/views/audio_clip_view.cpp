@@ -25,7 +25,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation/context/audio_clip.h"
+#include "gui/views/automation/context/clip/audio_clip.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
