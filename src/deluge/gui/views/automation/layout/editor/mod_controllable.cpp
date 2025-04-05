@@ -357,15 +357,18 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Cl
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if ((getRootUI()->getUIModControllableContext() == UIModControllableContext::SONG)) {
+	bool isClipContext = rootUIIsClipMinderScreen();
+	bool isSongContext = !isClipContext;
+
+	if (isClipContext) {
+		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+	}
+	else {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 		modelStackWithParam =
 		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-	}
-	else {
-		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 	}
 
 	bool padSelected = (!padSelectionOn && isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelectionOn;
@@ -382,13 +385,13 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Cl
 		else if (lastPadSelectedKnobPos != kNoSelection) {
 			params::Kind lastSelectedParamKind = params::Kind::NONE;
 			int32_t lastSelectedParamID = kNoSelection;
-			if ((getRootUI()->getUIModControllableContext() == UIModControllableContext::SONG)) {
-				lastSelectedParamKind = currentSong->lastSelectedParamKind;
-				lastSelectedParamID = currentSong->lastSelectedParamID;
-			}
-			else {
+			if (isClipContext) {
 				lastSelectedParamKind = clip->lastSelectedParamKind;
 				lastSelectedParamID = clip->lastSelectedParamID;
+			}
+			else {
+				lastSelectedParamKind = currentSong->lastSelectedParamKind;
+				lastSelectedParamID = currentSong->lastSelectedParamID;
 			}
 			knobPosLeft =
 			    view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID, lastPadSelectedKnobPos);
@@ -431,20 +434,21 @@ void AutomationLayoutEditorModControllable::renderAutomationEditorDisplay7SEG(Cl
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationLayoutEditorModControllable::getAutomationParameterName(Clip* clip, OutputType outputType,
                                                                        StringBuf& parameterName) {
-	bool isSongContext = (getRootUI()->getUIModControllableContext() == UIModControllableContext::SONG);
+	bool isClipContext = rootUIIsClipMinderScreen();
+	bool isSongContext = !isClipContext;
 
 	if (isSongContext || outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
-		if (isSongContext) {
-			lastSelectedParamKind = currentSong->lastSelectedParamKind;
-			lastSelectedParamID = currentSong->lastSelectedParamID;
-		}
-		else {
+		if (isClipContext) {
 			lastSelectedParamKind = clip->lastSelectedParamKind;
 			lastSelectedParamID = clip->lastSelectedParamID;
 			lastSelectedPatchSource = clip->lastSelectedPatchSource;
+		}
+		else {
+			lastSelectedParamKind = currentSong->lastSelectedParamKind;
+			lastSelectedParamID = currentSong->lastSelectedParamID;
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
 			PatchSource source2 = PatchSource::NONE;
@@ -550,13 +554,13 @@ ActionResult AutomationLayoutEditorModControllable::horizontalEncoderAction(int3
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	bool isSongContext = (getRootUI()->getUIModControllableContext() == UIModControllableContext::SONG);
+	bool isClipContext = rootUIIsClipMinderScreen();
 
-	if (isSongContext) {
-		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	if (isClipContext) {
+		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	}
 	else {
-		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	}
 
 	int32_t xScroll = currentSong->xScroll[navSysId];
@@ -565,13 +569,13 @@ ActionResult AutomationLayoutEditorModControllable::horizontalEncoderAction(int3
 	    automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
 	int32_t shiftAmount = offset * squareSize;
 
-	if (isSongContext) {
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-	}
-	else {
+	if (isClipContext) {
 		Clip* clip = getCurrentClip();
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+	}
+	else {
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
@@ -699,7 +703,7 @@ void AutomationLayoutEditorModControllable::setAutomationParameterValue(ModelSta
 	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
 	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
 
-	if (getRootUI()->getUIModControllableContext() == UIModControllableContext::CLIP) {
+	if (rootUIIsClipMinderScreen()) {
 		modelStack->getTimelineCounter()->instrumentBeenEdited();
 	}
 
@@ -908,8 +912,7 @@ void AutomationLayoutEditorModControllable::handleAutomationMultiPadPress(
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		RootUI* rootUI = getRootUI();
-		bool isClipContext = (rootUI->getUIModControllableContext() == UIModControllableContext::CLIP);
+		bool isClipContext = rootUIIsClipMinderScreen();
 
 		int32_t firstPadLeftEdge = automationView.getPosFromSquare(firstPadX, xScroll, xZoom);
 		int32_t secondPadRightEdge = automationView.getPosFromSquare(secondPadX + 1, xScroll, xZoom);
@@ -1018,7 +1021,7 @@ void AutomationLayoutEditorModControllable::handleAutomationMultiPadPress(
 		initInterpolation();
 
 		// render the multi pad press
-		uiNeedsRendering(rootUI);
+		uiNeedsRendering(getRootUI());
 	}
 }
 
@@ -1424,13 +1427,11 @@ bool AutomationLayoutEditorModControllable::automationModEncoderActionForSelecte
 
 void AutomationLayoutEditorModControllable::automationModEncoderActionForUnselectedPad(
     ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder, int32_t offset, int32_t effectiveLength) {
-	Clip* clip = getCurrentClip();
-
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			bool isClipContext = (getRootUI()->getUIModControllableContext() == UIModControllableContext::CLIP);
+			bool isClipContext = rootUIIsClipMinderScreen();
 
 			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
 
@@ -1440,8 +1441,11 @@ void AutomationLayoutEditorModControllable::automationModEncoderActionForUnselec
 			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a
 			// value change gets recorded if newKnobPos exceeds 127, then it means current knobPos was
 			// 127 and it was increased to 128. In which case, ignore value change
-			if (isClipContext && ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64))) {
-				return;
+			if (isClipContext) {
+				Clip* clip = getCurrentClip();
+				if ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64)) {
+					return;
+				}
 			}
 
 			int32_t newValue =
@@ -1578,19 +1582,19 @@ void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, 
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if ((getRootUI()->getUIModControllableContext() == UIModControllableContext::SONG)) {
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-			modelStackWithParam =
-			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-		}
-		else {
+		if (rootUIIsClipMinderScreen()) {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			Clip* clip = getCurrentClip();
 
 			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+		}
+		else {
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1627,22 +1631,25 @@ void AutomationLayoutEditorModControllable::displayAutomation(bool padSelected, 
 // if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
 // if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
 int32_t AutomationLayoutEditorModControllable::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
-	Clip* clip = getCurrentClip();
-	OutputType outputType = clip->output->type;
-
 	int32_t effectiveLength = 0;
 
-	if ((getRootUI()->getUIModControllableContext() == UIModControllableContext::SONG)) {
-		effectiveLength = arrangerView.getMaxLength();
-	}
-	else if (outputType == OutputType::KIT && !getAffectEntire()) {
-		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
+	if (rootUIIsClipMinderScreen()) {
+		Clip* clip = getCurrentClip();
+		OutputType outputType = clip->output->type;
 
-		effectiveLength = modelStackWithNoteRow->getLoopLength();
+		if (outputType == OutputType::KIT && !getAffectEntire()) {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
+
+			effectiveLength = modelStackWithNoteRow->getLoopLength();
+		}
+		else {
+			// this will differ for a kit when in note row mode
+			effectiveLength = clip->loopLength;
+		}
 	}
 	else {
-		// this will differ for a kit when in note row mode
-		effectiveLength = clip->loopLength;
+		effectiveLength = arrangerView.getMaxLength();
 	}
 
 	return effectiveLength;
