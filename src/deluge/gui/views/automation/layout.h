@@ -95,17 +95,6 @@ public:
 	bool inAutomationEditor();
 	bool inNoteEditor();
 
-	ModelStackWithAutoParam* getModelStackWithParam(void* modelStackMemory,
-	                                                ModelStackWithTimelineCounter* modelStack = nullptr,
-	                                                Clip* clip = nullptr);
-
-	ModelStackWithAutoParam* getModelStackWithParamForSong(void* modelStackMemory);
-
-	ModelStackWithAutoParam*
-	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                              int32_t paramID = deluge::modulation::params::kNoParamID,
-	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
-
 	// public so instrument clip view can access it
 	void initParameterSelection(bool updateDisplay = true);
 

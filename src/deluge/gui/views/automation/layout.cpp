@@ -350,7 +350,8 @@ void AutomationLayout::performActualRender(RGB image[][kDisplayWidth + kSideBarW
 
 	if (isClipContext) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+		modelStackWithParam =
+		    automationParameterSelection.getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 		if (inNoteEditor()) {
 			modelStackWithNoteRow = ((InstrumentClip*)clip)
 			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
@@ -904,7 +905,8 @@ bool AutomationLayout::handleHorizontalEncoderButtonAction(bool on, bool isAudio
 
 			if (isClipContext) {
 				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+				modelStackWithParam =
+				    automationParameterSelection.getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 			}
 			else {
 				modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -987,7 +989,7 @@ bool AutomationLayout::handleBackAndHorizontalEncoderButtonComboAction(Clip* cli
 
 		if (rootUIIsClipMinderScreen()) {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+			modelStackWithParam = automationParameterSelection.getModelStackWithParamForClip(modelStack, clip);
 		}
 		else {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -1172,7 +1174,7 @@ ActionResult AutomationLayout::handleEditPadAction(Clip* clip, Output* output, O
 	}
 
 	ModelStackWithAutoParam* modelStackWithParam =
-	    getModelStackWithParam(modelStackMemory, modelStackWithTimelineCounter, clip);
+	    automationParameterSelection.getModelStackWithParam(modelStackMemory, modelStackWithTimelineCounter, clip);
 
 	if (inNoteEditor()) {
 		modelStackWithNoteRow = ((InstrumentClip*)clip)
@@ -1851,7 +1853,8 @@ void AutomationLayout::modEncoderAction(int32_t whichModEncoder, int32_t offset)
 	if (rootUIIsClipMinderScreen()) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		Clip* clip = getCurrentClip();
-		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+		modelStackWithParam =
+		    automationParameterSelection.getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	else {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1909,7 +1912,8 @@ void AutomationLayout::modEncoderButtonAction(uint8_t whichModEncoder, bool on) 
 
 	if (rootUIIsClipMinderScreen()) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+		modelStackWithParam =
+		    automationParameterSelection.getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	else {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -2039,7 +2043,8 @@ void AutomationLayout::selectEncoderAction(int8_t offset) {
 
 			if (rootUIIsClipMinderScreen()) {
 				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+				modelStackWithParam =
+				    automationParameterSelection.getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 			}
 			else {
 				modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -2092,50 +2097,6 @@ void AutomationLayout::initPadSelection() {
 	lastPadSelectedKnobPos = kNoSelection;
 
 	resetPadSelectionShortcutBlinking();
-}
-
-// get's the modelstack for the parameters that are being edited
-// the model stack differs for SONG, SYNTH's, KIT's, MIDI, and Audio clip's
-ModelStackWithAutoParam* AutomationLayout::getModelStackWithParam(void* modelStackMemory,
-                                                                  ModelStackWithTimelineCounter* modelStack,
-                                                                  Clip* clip) {
-	if (rootUIIsClipMinderScreen()) {
-		return getModelStackWithParamForClip(modelStack, clip);
-	}
-	else {
-		return getModelStackWithParamForSong(modelStackMemory);
-	}
-
-	return nullptr;
-}
-
-// get's the modelstack for the song parameters that are being edited
-ModelStackWithAutoParam* AutomationLayout::getModelStackWithParamForSong(void* modelStackMemory) {
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-	return currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-}
-
-// get's the modelstack for the clip parameters that are being edited
-// the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
-ModelStackWithAutoParam* AutomationLayout::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
-                                                                         Clip* clip, int32_t paramID,
-                                                                         params::Kind paramKind) {
-	if (modelStack && clip && clip->output) {
-		if (paramID == kNoParamID) {
-			paramID = clip->lastSelectedParamID;
-			paramKind = clip->lastSelectedParamKind;
-		}
-
-		// check if we're in the sound menu and not the settings menu
-		// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
-		bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
-
-		return clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
-		                                            inSoundMenu);
-	}
-	return nullptr;
 }
 
 uint32_t AutomationLayout::getMaxLength() {

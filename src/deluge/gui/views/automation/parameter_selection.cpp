@@ -904,3 +904,47 @@ void AutomationParameterSelection::initParameterSelection(bool updateDisplay) {
 		renderDisplay();
 	}
 }
+
+// get's the modelstack for the parameters that are being edited
+// the model stack differs for SONG, SYNTH's, KIT's, MIDI, and Audio clip's
+ModelStackWithAutoParam* AutomationParameterSelection::getModelStackWithParam(void* modelStackMemory,
+                                                                              ModelStackWithTimelineCounter* modelStack,
+                                                                              Clip* clip) {
+	if (rootUIIsClipMinderScreen()) {
+		return getModelStackWithParamForClip(modelStack, clip);
+	}
+	else {
+		return getModelStackWithParamForSong(modelStackMemory);
+	}
+
+	return nullptr;
+}
+
+// get's the modelstack for the song parameters that are being edited
+ModelStackWithAutoParam* AutomationParameterSelection::getModelStackWithParamForSong(void* modelStackMemory) {
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	return currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+}
+
+// get's the modelstack for the clip parameters that are being edited
+// the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
+ModelStackWithAutoParam*
+AutomationParameterSelection::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                            int32_t paramID, params::Kind paramKind) {
+	if (modelStack && clip && clip->output) {
+		if (paramID == kNoParamID) {
+			paramID = clip->lastSelectedParamID;
+			paramKind = clip->lastSelectedParamKind;
+		}
+
+		// check if we're in the sound menu and not the settings menu
+		// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
+		bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
+
+		return clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
+		                                            inSoundMenu);
+	}
+	return nullptr;
+}

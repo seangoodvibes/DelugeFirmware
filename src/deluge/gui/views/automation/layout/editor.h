@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/automation/layout.h"
+#include "gui/views/automation/parameter_selection.h"
 #include "hid/button.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "model/note/note_row.h"
@@ -26,7 +26,7 @@
 
 class Clip;
 
-class AutomationLayoutEditor : public AutomationLayout {
+class AutomationLayoutEditor : public AutomationParameterSelection {
 public:
 	AutomationLayoutEditor();
 
