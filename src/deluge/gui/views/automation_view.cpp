@@ -79,11 +79,15 @@ UI* AutomationView::getInstrumentClipView() {
 }
 
 UI* AutomationView::getKitInstrumentClipView() {
-	bool affectEntire = getCurrentInstrumentClip()->affectEntire;
+	bool affectEntire;
+	// are we in the automation menu view?
 	if (getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu()) {
 		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
 		// otherwise you're in the kit row context which is the same as if affect entire is disabled
 		affectEntire = soundEditor.setupKitGlobalFXMenu;
+	}
+	else {
+		affectEntire = getCurrentInstrumentClip()->affectEntire;
 	}
 	if (affectEntire) {
 		return &automationViewKitGlobalInstrumentClip;
