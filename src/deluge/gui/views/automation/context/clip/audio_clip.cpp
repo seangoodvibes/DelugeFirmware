@@ -54,5 +54,9 @@ ActionResult AutomationViewAudioClip::buttonAction(deluge::hid::Button b, bool o
 		return ActionResult::DEALT_WITH;
 	}
 
-	return AutomationView::buttonAction(b, on, inCardRoutine);
+	else {
+		return AutomationView::buttonAction(b, on, inCardRoutine);
+	}
+
+	return ActionResult::DEALT_WITH;
 }

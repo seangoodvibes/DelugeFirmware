@@ -54,5 +54,27 @@ ActionResult AutomationViewArranger::buttonAction(deluge::hid::Button b, bool on
 		return ActionResult::DEALT_WITH;
 	}
 
-	return AutomationView::buttonAction(b, on, inCardRoutine);
+	// Auto scrolling
+	else if (b == CROSS_SCREEN_EDIT) {
+		if (!on && currentUIMode == UI_MODE_NONE) {
+			// if another button wasn't pressed while cross screen was held
+			if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
+				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+
+				if (currentSong->arrangerAutoScrollModeActive) {
+					arrangerView.reassessWhetherDoingAutoScroll();
+				}
+				else {
+					arrangerView.doingAutoScrollNow = false;
+				}
+			}
+		}
+	}
+
+	else {
+		return AutomationView::buttonAction(b, on, inCardRoutine);
+	}
+
+	return ActionResult::DEALT_WITH;
 }

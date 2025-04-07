@@ -734,17 +734,6 @@ void AutomationLayout::handleCrossScreenButtonAction(bool on) {
 					automationView.setLedStates();
 				}
 			}
-			else {
-				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
-
-				if (currentSong->arrangerAutoScrollModeActive) {
-					arrangerView.reassessWhetherDoingAutoScroll();
-				}
-				else {
-					arrangerView.doingAutoScrollNow = false;
-				}
-			}
 		}
 	}
 }

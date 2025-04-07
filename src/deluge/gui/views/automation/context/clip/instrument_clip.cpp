@@ -51,5 +51,9 @@ ActionResult AutomationViewInstrumentClip::buttonAction(deluge::hid::Button b, b
 		return instrumentClipView.handleScaleButtonAction(on, inCardRoutine);
 	}
 
-	return AutomationView::buttonAction(b, on, inCardRoutine);
+	else {
+		return AutomationView::buttonAction(b, on, inCardRoutine);
+	}
+
+	return ActionResult::DEALT_WITH;
 }
