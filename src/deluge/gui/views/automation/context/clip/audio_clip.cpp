@@ -17,7 +17,7 @@
 
 #include "gui/views/automation/context/clip/audio_clip.h"
 
-AutomationViewAudioClip automationViewAudioClip{};
+PLACE_SDRAM_BSS AutomationViewAudioClip automationViewAudioClip{};
 
 AutomationViewAudioClip::AutomationViewAudioClip() {
 }

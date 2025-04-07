@@ -17,7 +17,7 @@
 
 #include "gui/views/automation/context/clip/instrument_clip/midi_instrument_clip.h"
 
-AutomationViewMidiInstrumentClip automationViewMidiInstrumentClip{};
+PLACE_SDRAM_BSS AutomationViewMidiInstrumentClip automationViewMidiInstrumentClip{};
 
 AutomationViewMidiInstrumentClip::AutomationViewMidiInstrumentClip() {
 }

@@ -17,7 +17,7 @@
 
 #include "gui/views/automation/context/clip/instrument_clip/kit_instrument_clip/kit_global_instrument_clip.h"
 
-AutomationViewKitGlobalInstrumentClip automationViewKitGlobalInstrumentClip{};
+PLACE_SDRAM_BSS AutomationViewKitGlobalInstrumentClip automationViewKitGlobalInstrumentClip{};
 
 AutomationViewKitGlobalInstrumentClip::AutomationViewKitGlobalInstrumentClip() {
 }

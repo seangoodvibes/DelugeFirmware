@@ -17,7 +17,7 @@
 
 #include "gui/views/automation/context/song.h"
 
-AutomationViewSong automationViewSong{};
+PLACE_SDRAM_BSS AutomationViewSong automationViewSong{};
 
 AutomationViewSong::AutomationViewSong() {
 }

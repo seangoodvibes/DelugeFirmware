@@ -17,7 +17,7 @@
 
 #include "gui/views/automation/context/clip.h"
 
-AutomationViewClip automationViewClip{};
+PLACE_SDRAM_BSS AutomationViewClip automationViewClip{};
 
 AutomationViewClip::AutomationViewClip() {
 }

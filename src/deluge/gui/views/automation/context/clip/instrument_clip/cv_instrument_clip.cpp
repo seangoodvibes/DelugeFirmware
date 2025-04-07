@@ -17,7 +17,7 @@
 
 #include "gui/views/automation/context/clip/instrument_clip/cv_instrument_clip.h"
 
-AutomationViewCvInstrumentClip automationViewCvInstrumentClip{};
+PLACE_SDRAM_BSS AutomationViewCvInstrumentClip automationViewCvInstrumentClip{};
 
 AutomationViewCvInstrumentClip::AutomationViewCvInstrumentClip() {
 }

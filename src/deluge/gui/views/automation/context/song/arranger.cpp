@@ -17,7 +17,7 @@
 
 #include "gui/views/automation/context/song/arranger.h"
 
-AutomationViewArranger automationViewArranger{};
+PLACE_SDRAM_BSS AutomationViewArranger automationViewArranger{};
 
 AutomationViewArranger::AutomationViewArranger() {
 }
