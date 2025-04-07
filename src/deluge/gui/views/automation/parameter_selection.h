@@ -31,7 +31,7 @@ public:
 	AutomationParameterSelection();
 
 	void initialize();
-	void focusRegained(Clip* clip);
+	void focusRegained();
 
 	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
 	                              int32_t yDisplay);

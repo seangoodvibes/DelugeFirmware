@@ -69,7 +69,7 @@ public:
 	uint32_t getMaxLength();
 	uint32_t getMaxZoom();
 	int32_t getNavSysId() const;
-	int32_t navSysId;
+	int32_t navSysId = NAVIGATION_CLIP;
 
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);
@@ -89,7 +89,7 @@ public:
 	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
 	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it
 	bool isMultiPadPressSelected();                     // public so menu can access it
-	bool multiPadPressSelected;
+	bool multiPadPressSelected = false;
 
 	bool onAutomationOverview();
 	bool inAutomationEditor();
@@ -113,15 +113,16 @@ public:
 	void resetShortcutBlinking();
 
 	// protected:
+	// used to enter pad selection mode
 	void initPadSelection();
-	int32_t lastPadSelectedKnobPos;
-	bool padSelectionOn;
-	bool multiPadPressActive;
-	bool middlePadPressSelected;
-	int32_t leftPadSelectedX;
-	int32_t leftPadSelectedY;
-	int32_t rightPadSelectedX;
-	int32_t rightPadSelectedY;
+	int32_t lastPadSelectedKnobPos = kNoSelection;
+	bool padSelectionOn = false;
+	bool multiPadPressActive = false;
+	bool middlePadPressSelected = false;
+	int32_t leftPadSelectedX = kNoSelection;
+	int32_t leftPadSelectedY = kNoSelection;
+	int32_t rightPadSelectedX = kNoSelection;
+	int32_t rightPadSelectedY = kNoSelection;
 
 	void blinkShortcuts();
 	void resetParameterShortcutBlinking();
@@ -185,13 +186,15 @@ private:
 	// Automation Lanes Functions
 	ParamManagerForTimeline* getParamManagerForClip(Clip* clip);
 
-	bool parameterShortcutBlinking;
+	// used to set parameter shortcut blinking
+	bool parameterShortcutBlinking = false;
+	// used to set interpolation shortcut blinking
+	bool interpolationShortcutBlinking = false;
+	// used to set pad selection shortcut blinking
+	bool padSelectionShortcutBlinking = false;
 
-	bool interpolationShortcutBlinking;
-	bool padSelectionShortcutBlinking;
-
-	bool probabilityChanged;
-	uint32_t timeSelectKnobLastReleased;
+	bool probabilityChanged = false;
+	uint32_t timeSelectKnobLastReleased = 0;
 };
 
 extern AutomationLayout automationLayout;

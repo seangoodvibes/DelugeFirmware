@@ -17,6 +17,9 @@
 
 #include "gui/views/automation/context/song/arranger.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/view.h"
+#include "hid/led/indicator_leds.h"
+#include "model/song/song.h"
 
 PLACE_SDRAM_BSS AutomationViewArranger automationViewArranger{};
 
@@ -26,4 +29,14 @@ AutomationViewArranger::AutomationViewArranger() {
 // used for the play cursor
 void AutomationViewArranger::graphicsRoutine() {
 	arrangerView.graphicsRoutine();
+	AutomationView::graphicsRoutine();
+}
+
+void AutomationViewArranger::focusRegained() {
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+	currentSong->affectEntire = true;
+	view.focusRegained();
+	view.setActiveModControllableTimelineCounter(currentSong);
+	AutomationView::focusRegained();
 }

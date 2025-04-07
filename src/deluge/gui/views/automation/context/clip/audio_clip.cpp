@@ -17,6 +17,9 @@
 
 #include "gui/views/automation/context/clip/audio_clip.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/view.h"
+#include "hid/led/indicator_leds.h"
+#include "model/song/song.h"
 
 PLACE_SDRAM_BSS AutomationViewAudioClip automationViewAudioClip{};
 
@@ -26,4 +29,14 @@ AutomationViewAudioClip::AutomationViewAudioClip() {
 // used for the play cursor
 void AutomationViewAudioClip::graphicsRoutine() {
 	audioClipView.graphicsRoutine();
+	AutomationView::graphicsRoutine();
+}
+
+void AutomationViewAudioClip::focusRegained() {
+	automationView.ClipView::focusRegained();
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
+	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
+	view.focusRegained();
+	view.setActiveModControllableTimelineCounter(getCurrentClip());
+	AutomationView::focusRegained();
 }

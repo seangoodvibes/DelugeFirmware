@@ -271,29 +271,28 @@ void AutomationParameterSelection::initialize() {
 }
 
 // Initializes some stuff to begin a new editing session
-void AutomationParameterSelection::focusRegained(Clip* clip) {
-	if (clip) {
-		if (clip->type == ClipType::INSTRUMENT) {
-			// check if patch cable previously selected is still valid
-			// if not we'll reset parameter selection and go back to overview
-			if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
-				bool patchCableExists = false;
-				ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
-				if (paramManager) {
-					PatchCableSet* set = paramManager->getPatchCableSetAllowJibberish();
-					// make sure it's not jiberish
-					if (set) {
-						PatchSource s;
-						ParamDescriptor destinationParamDescriptor;
-						set->dissectParamId(clip->lastSelectedParamID, &destinationParamDescriptor, &s);
-						if (set->getPatchCableIndex(s, destinationParamDescriptor) != kNoSelection) {
-							patchCableExists = true;
-						}
+void AutomationParameterSelection::focusRegained() {
+	if (getRootUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+		Clip* clip = getCurrentClip();
+		// check if patch cable previously selected is still valid
+		// if not we'll reset parameter selection and go back to overview
+		if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			bool patchCableExists = false;
+			ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
+			if (paramManager) {
+				PatchCableSet* set = paramManager->getPatchCableSetAllowJibberish();
+				// make sure it's not jiberish
+				if (set) {
+					PatchSource s;
+					ParamDescriptor destinationParamDescriptor;
+					set->dissectParamId(clip->lastSelectedParamID, &destinationParamDescriptor, &s);
+					if (set->getPatchCableIndex(s, destinationParamDescriptor) != kNoSelection) {
+						patchCableExists = true;
 					}
 				}
-				if (!patchCableExists) {
-					initParameterSelection();
-				}
+			}
+			if (!patchCableExists) {
+				initParameterSelection();
 			}
 		}
 	}

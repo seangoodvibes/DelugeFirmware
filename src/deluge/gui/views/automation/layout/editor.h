@@ -92,9 +92,9 @@ public:
 	void pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength,
 	                     int32_t xScroll, int32_t xZoom);
 	void initInterpolation();
-	bool interpolation;
-	bool interpolationBefore;
-	bool interpolationAfter;
+	bool interpolation = true;
+	bool interpolationBefore = false;
+	bool interpolationAfter = false;
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 
 	// Note Editor

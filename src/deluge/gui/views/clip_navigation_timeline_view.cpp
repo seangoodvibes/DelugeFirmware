@@ -18,6 +18,7 @@
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/song/song.h"
 

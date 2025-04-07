@@ -17,6 +17,7 @@
 
 #include "gui/views/automation/context/clip/instrument_clip.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
 
 PLACE_SDRAM_BSS AutomationViewInstrumentClip automationViewInstrumentClip{};
 
@@ -27,4 +28,12 @@ AutomationViewInstrumentClip::AutomationViewInstrumentClip() {
 void AutomationViewInstrumentClip::graphicsRoutine() {
 	instrumentClipView.graphicsRoutine();
 	AutomationView::graphicsRoutine();
+}
+
+void AutomationViewInstrumentClip::focusRegained() {
+	automationView.ClipView::focusRegained();
+	instrumentClipView.auditioningSilently = false; // Necessary?
+	automationView.InstrumentClipMinder::focusRegained();
+	instrumentClipView.setLedStates();
+	AutomationView::focusRegained();
 }

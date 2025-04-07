@@ -80,30 +80,6 @@ AutomationLayout::AutomationLayout() {
 
 	instrumentClipView.auditioningSilently = false;
 	instrumentClipView.timeLastEditPadPress = 0;
-
-	// initialize automation view specific variables
-	automationLayoutEditor.interpolation = true;
-	automationLayoutEditor.interpolationBefore = false;
-	automationLayoutEditor.interpolationAfter = false;
-	// used to set parameter shortcut blinking
-	parameterShortcutBlinking = false;
-	// used to set interpolation shortcut blinking
-	interpolationShortcutBlinking = false;
-	// used to set pad selection shortcut blinking
-	padSelectionShortcutBlinking = false;
-	// used to enter pad selection mode
-	padSelectionOn = false;
-	multiPadPressSelected = false;
-	multiPadPressActive = false;
-	leftPadSelectedX = kNoSelection;
-	leftPadSelectedY = kNoSelection;
-	rightPadSelectedX = kNoSelection;
-	rightPadSelectedY = kNoSelection;
-	lastPadSelectedKnobPos = kNoSelection;
-	navSysId = NAVIGATION_CLIP;
-
-	probabilityChanged = false;
-	timeSelectKnobLastReleased = 0;
 }
 
 void AutomationLayout::initMIDICCShortcutsForAutomation() {
@@ -179,32 +155,7 @@ void AutomationLayout::initialize() {
 
 // Initializes some stuff to begin a new editing session
 void AutomationLayout::focusRegained() {
-	Clip* clip = nullptr;
-	if (rootUIIsClipMinderScreen()) {
-		automationView.ClipView::focusRegained();
-
-		clip = getCurrentClip();
-		if (clip->type == ClipType::AUDIO) {
-			indicator_leds::setLedState(IndicatorLED::BACK, false);
-			indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
-			view.focusRegained();
-			view.setActiveModControllableTimelineCounter(clip);
-		}
-		else {
-			instrumentClipView.auditioningSilently = false; // Necessary?
-			automationView.InstrumentClipMinder::focusRegained();
-			instrumentClipView.setLedStates();
-		}
-	}
-	else {
-		indicator_leds::setLedState(IndicatorLED::BACK, false);
-		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-		currentSong->affectEntire = true;
-		view.focusRegained();
-		view.setActiveModControllableTimelineCounter(currentSong);
-	}
-
-	automationParameterSelection.focusRegained(clip);
+	automationParameterSelection.focusRegained();
 
 	// don't reset shortcut blinking if were still in the menu
 	if (getCurrentUI()->getUIType() == UIType::AUTOMATION) {

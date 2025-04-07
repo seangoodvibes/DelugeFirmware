@@ -28,6 +28,7 @@ public:
 
 	// called by ui_timer_manager
 	void graphicsRoutine() override;
+	void focusRegained() override;
 
 	UIType getUIContextType() override { return UIType::AUDIO_CLIP; }
 };
