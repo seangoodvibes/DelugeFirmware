@@ -28,6 +28,9 @@ public:
 
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
+	// used to identify the UI as a clip UI or not.
+	ClipMinder* toClipMinder() override { return this; }
+
 	// rendering
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;

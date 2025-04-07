@@ -42,10 +42,6 @@ public:
 	UI* getInstrumentClipView();
 	UI* getKitInstrumentClipView();
 	UIType getUIType() override { return UIType::AUTOMATION; }
-	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() override {
-		return getUIModControllableContext() == UIModControllableContext::CLIP ? this : nullptr;
-	}
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
