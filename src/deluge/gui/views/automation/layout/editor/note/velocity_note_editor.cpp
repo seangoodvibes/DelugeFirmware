@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/automation/layout/editor/note/velocity.h"
+#include "gui/views/automation/layout/editor/note/velocity_note_editor.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/automation/context/clip/instrument_clip.h"
 #include "gui/views/instrument_clip_view.h"

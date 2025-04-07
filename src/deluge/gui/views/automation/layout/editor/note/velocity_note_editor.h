@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gui/views/automation/layout/editor/note.h"
+#include "gui/views/automation/layout/editor/note_editor.h"
 
 class Clip;
 
