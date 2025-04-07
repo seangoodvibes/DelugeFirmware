@@ -365,18 +365,6 @@ void AutomationLayout::performActualRender(RGB image[][kDisplayWidth + kSideBarW
 	}
 }
 
-// defers to arranger, audio clip or instrument clip sidebar render functions
-// depending on the active clip
-bool AutomationLayout::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (rootUIIsClipMinderScreen()) {
-		return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
-	}
-	else {
-		return arrangerView.renderSidebar(whichRows, image, occupancyMask);
-	}
-}
-
 /*render's what is displayed on OLED or 7SEG screens when in Automation View
 
 On Automation Overview:

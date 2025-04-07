@@ -138,13 +138,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	return currentAutomationLayout->renderMainPads(whichRows, image, occupancyMask, drawUndefinedArea);
 }
 
-// defers to arranger, audio clip or instrument clip sidebar render functions
-// depending on the active clip
-bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	return currentAutomationLayout->renderSidebar(whichRows, image, occupancyMask);
-}
-
 void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	return currentAutomationLayout->renderDisplay(knobPosLeft, knobPosRight, modEncoderAction);
 }

@@ -51,8 +51,6 @@ public:
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
-	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);

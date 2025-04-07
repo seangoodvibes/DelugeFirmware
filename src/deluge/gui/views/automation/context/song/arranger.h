@@ -32,6 +32,10 @@ public:
 	void graphicsRoutine() override;
 	void focusRegained() override;
 
+	// rendering
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+
 	// button action
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 

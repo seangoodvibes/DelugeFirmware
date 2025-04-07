@@ -94,6 +94,12 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 	return AutomationView::padAction(x, y, velocity);
 }
 
+// defers to arranger sidebar render function
+bool AutomationViewArranger::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	return arrangerView.renderSidebar(whichRows, image, occupancyMask);
+}
+
 int32_t AutomationViewArranger::getNavSysId() const {
 	return NAVIGATION_ARRANGEMENT;
 }

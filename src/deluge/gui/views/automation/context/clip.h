@@ -28,6 +28,10 @@ public:
 
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
+	// rendering
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+
 	// horizontal encoder action
 	[[nodiscard]] int32_t getNavSysId() const override;
 	uint32_t getMaxLength() override;

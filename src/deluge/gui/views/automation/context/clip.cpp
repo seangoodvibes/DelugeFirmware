@@ -23,6 +23,12 @@ PLACE_SDRAM_BSS AutomationViewClip automationViewClip{};
 AutomationViewClip::AutomationViewClip() {
 }
 
+// defers to audio clip or instrument clip sidebar render functions depending on the active clip
+bool AutomationViewClip::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
+}
+
 int32_t AutomationViewClip::getNavSysId() const {
 	return NAVIGATION_CLIP;
 }
