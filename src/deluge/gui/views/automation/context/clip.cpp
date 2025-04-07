@@ -16,8 +16,17 @@
  */
 
 #include "gui/views/automation/context/clip.h"
+#include "model/song/song.h"
 
 PLACE_SDRAM_BSS AutomationViewClip automationViewClip{};
 
 AutomationViewClip::AutomationViewClip() {
+}
+
+uint32_t AutomationViewClip::getMaxLength() {
+	return getCurrentClip()->getMaxLength();
+}
+
+uint32_t AutomationViewClip::getMaxZoom() {
+	return getCurrentClip()->getMaxZoom();
 }

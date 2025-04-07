@@ -66,8 +66,6 @@ public:
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset);
-	uint32_t getMaxLength();
-	uint32_t getMaxZoom();
 	int32_t getNavSysId() const;
 	int32_t navSysId = NAVIGATION_CLIP;
 

@@ -27,6 +27,10 @@ public:
 	AutomationViewClip();
 
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
+
+	// horizontal encoder action
+	uint32_t getMaxLength() override;
+	uint32_t getMaxZoom() override;
 };
 
 //}; // namespace deluge::gui::views

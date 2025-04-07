@@ -93,3 +93,11 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 
 	return AutomationView::padAction(x, y, velocity);
 }
+
+uint32_t AutomationViewArranger::getMaxLength() {
+	return arrangerView.getMaxLength();
+}
+
+uint32_t AutomationViewArranger::getMaxZoom() {
+	return arrangerView.getMaxZoom();
+}

@@ -1892,24 +1892,6 @@ void AutomationLayout::initPadSelection() {
 	resetPadSelectionShortcutBlinking();
 }
 
-uint32_t AutomationLayout::getMaxLength() {
-	if (rootUIIsClipMinderScreen()) {
-		return getCurrentClip()->getMaxLength();
-	}
-	else {
-		return arrangerView.getMaxLength();
-	}
-}
-
-uint32_t AutomationLayout::getMaxZoom() {
-	if (rootUIIsClipMinderScreen()) {
-		return getCurrentClip()->getMaxZoom();
-	}
-	else {
-		return arrangerView.getMaxZoom();
-	}
-}
-
 int32_t AutomationLayout::getNavSysId() const {
 	if (rootUIIsClipMinderScreen()) {
 		return NAVIGATION_CLIP;

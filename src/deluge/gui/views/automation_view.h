@@ -69,8 +69,6 @@ public:
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	uint32_t getMaxLength() override;
-	uint32_t getMaxZoom() override;
 	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// vertical encoder action

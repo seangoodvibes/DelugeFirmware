@@ -37,6 +37,10 @@ public:
 
 	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+
+	// horizontal encoder action
+	uint32_t getMaxLength() override;
+	uint32_t getMaxZoom() override;
 };
 
 //}; // namespace deluge::gui::views
