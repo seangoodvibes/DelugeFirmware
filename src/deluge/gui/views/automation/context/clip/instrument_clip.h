@@ -34,6 +34,9 @@ public:
 
 	// button action
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+
+	// pad action
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 };
 
 //}; // namespace deluge::gui::views

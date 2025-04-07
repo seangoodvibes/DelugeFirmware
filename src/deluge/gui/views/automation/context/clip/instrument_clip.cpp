@@ -57,3 +57,20 @@ ActionResult AutomationViewInstrumentClip::buttonAction(deluge::hid::Button b, b
 
 	return ActionResult::DEALT_WITH;
 }
+
+// pad action
+// handles main grid pad actions (e.g. editing, shortcuts) and sidebar pad actions (e.g. mute, audition)
+ActionResult AutomationViewInstrumentClip::padAction(int32_t x, int32_t y, int32_t velocity) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	// mute pad action
+	if (x == kDisplayWidth) {
+		if (currentUIMode == UI_MODE_MIDI_LEARN) [[unlikely]] {
+			return instrumentClipView.commandLearnMutePad(y, velocity);
+		}
+	}
+
+	return AutomationView::padAction(x, y, velocity);
+}

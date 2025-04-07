@@ -78,3 +78,18 @@ ActionResult AutomationViewArranger::buttonAction(deluge::hid::Button b, bool on
 
 	return ActionResult::DEALT_WITH;
 }
+
+// pad action
+// handles main grid pad actions (e.g. editing, shortcuts) and sidebar pad actions (e.g. status pad)
+ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t velocity) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	// status pad action
+	if (x == kDisplayWidth) {
+		return arrangerView.handleStatusPadAction(y, velocity, this);
+	}
+
+	return AutomationView::padAction(x, y, velocity);
+}

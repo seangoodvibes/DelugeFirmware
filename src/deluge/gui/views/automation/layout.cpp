@@ -1198,10 +1198,7 @@ ActionResult AutomationLayout::handleMutePadAction(InstrumentClip* instrumentCli
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	if (rootUIIsClipMinderScreen()) {
-		if (currentUIMode == UI_MODE_MIDI_LEARN) [[unlikely]] {
-			return instrumentClipView.commandLearnMutePad(y, velocity);
-		}
-		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
+		if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
 			if (inAutomationEditor()) {
 				// if we're in a kit, and you press a mute pad
 				// check if it's a mute pad corresponding to the current selected drum
@@ -1228,9 +1225,6 @@ ActionResult AutomationLayout::handleMutePadAction(InstrumentClip* instrumentCli
 
 			instrumentClipView.mutePadPress(y);
 		}
-	}
-	else {
-		return arrangerView.handleStatusPadAction(y, velocity, getRootUI());
 	}
 	return ActionResult::DEALT_WITH;
 }
