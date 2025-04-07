@@ -18,18 +18,16 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/automation/context/clip.h"
+#include "gui/views/automation/context/clip/instrument_clip.h"
 
 // namespace deluge::gui::views {
 
-class AutomationViewInstrumentClip : public AutomationViewClip {
+class AutomationViewKitInstrumentClip : public AutomationViewInstrumentClip {
 public:
-	AutomationViewInstrumentClip();
-
-	UIType getUIContextType() override { return UIType::INSTRUMENT_CLIP; }
+	AutomationViewKitInstrumentClip();
 };
 
 //}; // namespace deluge::gui::views
 
 // TODO: should get moved into namespace once project namespacing is complete
-extern AutomationViewInstrumentClip automationViewInstrumentClip;
+extern AutomationViewKitInstrumentClip automationViewKitInstrumentClip;

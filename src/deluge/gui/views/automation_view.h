@@ -39,6 +39,8 @@ public:
 	// ui
 	UI* getUI() override;
 	UI* getViewFromUIContextType(UIType uiContextType);
+	UI* getInstrumentClipView();
+	UI* getKitInstrumentClipView();
 	UIType getUIType() override { return UIType::AUTOMATION; }
 	// used to identify the UI as a clip UI or not.
 	ClipMinder* toClipMinder() override {

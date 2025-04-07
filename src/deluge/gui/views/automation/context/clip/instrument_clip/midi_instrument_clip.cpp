@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2024 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,21 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "gui/views/automation/context/clip/instrument_clip/midi_instrument_clip.h"
 
-#include "definitions_cxx.hpp"
-#include "gui/views/automation/context/clip.h"
+AutomationViewMidiInstrumentClip automationViewMidiInstrumentClip{};
 
-// namespace deluge::gui::views {
-
-class AutomationViewInstrumentClip : public AutomationViewClip {
-public:
-	AutomationViewInstrumentClip();
-
-	UIType getUIContextType() override { return UIType::INSTRUMENT_CLIP; }
-};
-
-//}; // namespace deluge::gui::views
-
-// TODO: should get moved into namespace once project namespacing is complete
-extern AutomationViewInstrumentClip automationViewInstrumentClip;
+AutomationViewMidiInstrumentClip::AutomationViewMidiInstrumentClip() {
+}

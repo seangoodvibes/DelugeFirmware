@@ -16,11 +16,18 @@
  */
 
 #include "gui/views/automation_view.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/views/automation/context/clip/audio_clip.h"
-#include "gui/views/automation/context/clip/instrument_clip.h"
+#include "gui/views/automation/context/clip/instrument_clip/cv_instrument_clip.h"
+#include "gui/views/automation/context/clip/instrument_clip/kit_instrument_clip/kit_global_instrument_clip.h"
+#include "gui/views/automation/context/clip/instrument_clip/kit_instrument_clip/kit_row_instrument_clip.h"
+#include "gui/views/automation/context/clip/instrument_clip/midi_instrument_clip.h"
+#include "gui/views/automation/context/clip/instrument_clip/synth_instrument_clip.h"
 #include "gui/views/automation/context/song/arranger.h"
 #include "gui/views/automation/layout.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/clip/instrument_clip.h"
+#include "model/song/song.h"
 
 PLACE_SDRAM_BSS AutomationView automationView{};
 PLACE_SDRAM_BSS AutomationLayout automationLayout{};
@@ -45,12 +52,43 @@ UI* AutomationView::getViewFromUIContextType(UIType uiContextType) {
 	case UIType::AUDIO_CLIP:
 		return &automationViewAudioClip;
 	case UIType::INSTRUMENT_CLIP:
-		return &automationViewInstrumentClip;
+		return getInstrumentClipView();
 	default:
 	    // fallthrough for everything else -- to many UIs to list explicitly
 	    ;
 	}
 	return nullptr;
+}
+
+UI* AutomationView::getInstrumentClipView() {
+	OutputType outputType = getCurrentOutputType();
+	switch (outputType) {
+	case OutputType::SYNTH:
+		return &automationViewSynthInstrumentClip;
+	case OutputType::KIT:
+		return getKitInstrumentClipView();
+	case OutputType::MIDI_OUT:
+		return &automationViewMidiInstrumentClip;
+	case OutputType::CV:
+		return &automationViewCvInstrumentClip;
+	default:
+	    // fallthrough
+	    ;
+	}
+	return nullptr;
+}
+
+UI* AutomationView::getKitInstrumentClipView() {
+	bool affectEntire = getCurrentInstrumentClip()->affectEntire;
+	if (getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu()) {
+		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
+		// otherwise you're in the kit row context which is the same as if affect entire is disabled
+		affectEntire = soundEditor.setupKitGlobalFXMenu;
+	}
+	if (affectEntire) {
+		return &automationViewKitGlobalInstrumentClip;
+	}
+	return &automationViewKitRowInstrumentClip;
 }
 
 // called everytime you open up the automation view
