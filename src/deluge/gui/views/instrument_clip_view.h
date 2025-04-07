@@ -79,6 +79,7 @@ public:
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
+	void handleInstrumentChange(OutputType outputType);
 
 	// PAD ACTION pad press / release handling
 

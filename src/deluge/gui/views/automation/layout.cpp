@@ -510,11 +510,6 @@ ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool
 		handleSessionButtonAction(clip, on);
 	}
 
-	// Keyboard button
-	else if (b == KEYBOARD) {
-		handleKeyboardButtonAction(on);
-	}
-
 	// Clip button - exit mode
 	// if you're holding shift or holding an audition pad while pressed clip, don't exit out of
 	// automation view reset parameter selection and short blinking instead
@@ -527,34 +522,13 @@ ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool
 	// Does not currently work for Automation
 	else if (b == CROSS_SCREEN_EDIT) {
 		// toggle auto scroll or cross screen editing
-		if (isSongContext || inNoteEditor()) {
+		if (inNoteEditor()) {
 			handleCrossScreenButtonAction(on);
 		}
 		// don't toggle for automation editing
 		else {
 			return ActionResult::DEALT_WITH;
 		}
-	}
-
-	// when switching clip type, reset parameter selection and shortcut blinking
-	else if (b == KIT) {
-		handleKitButtonAction(outputType, on);
-	}
-
-	// when switching clip type, reset parameter selection and shortcut blinking
-	else if (b == SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
-	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
-		handleSynthButtonAction(outputType, on);
-	}
-
-	// when switching clip type, reset parameter selection and shortcut blinking
-	else if (b == MIDI) {
-		handleMidiButtonAction(outputType, on);
-	}
-
-	// when switching clip type, reset parameter selection and shortcut blinking
-	else if (b == CV) {
-		handleCVButtonAction(outputType, on);
 	}
 
 	// Horizontal encoder button
@@ -588,13 +562,6 @@ ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool
 
 	else {
 passToOthers:
-		// if you're entering settings menu
-		if (on && (b == SELECT_ENC) && Buttons::isShiftButtonPressed()) {
-			if (padSelectionOn) {
-				initPadSelection();
-			}
-		}
-
 		// if you just toggle playback off, re-render 7SEG display
 		if (!on && (b == PLAY) && display->have7SEG() && inAutomationEditor() && !padSelectionOn
 		    && !playbackHandler.isEitherClockActive()) {
@@ -643,10 +610,7 @@ void AutomationLayout::handleSessionButtonAction(Clip* clip, bool on) {
 		uiNeedsRendering(getRootUI());
 	}
 	// go back to song / arranger view
-	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
-		if (padSelectionOn) {
-			initPadSelection();
-		}
+	else if (on && (currentUIMode == UI_MODE_NONE)) {
 		if (getRootUI()->getUIContextType() == UIType::ARRANGER) {
 			changeRootUI(&arrangerView);
 		}
@@ -664,19 +628,6 @@ doOther:
 	}
 }
 
-// called by button action if b == KEYBOARD
-void AutomationLayout::handleKeyboardButtonAction(bool on) {
-	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
-		if (padSelectionOn) {
-			initPadSelection();
-		}
-		changeRootUI(&keyboardScreen);
-		// reset blinking if you're leaving automation view for keyboard view
-		// blinking will be reset when you come back
-		resetShortcutBlinking();
-	}
-}
-
 // called by button action if b == CLIP_VIEW
 void AutomationLayout::handleClipButtonAction(bool on, bool isAudioClip) {
 	// if audition pad or shift is pressed, go back to automation overview
@@ -686,10 +637,7 @@ void AutomationLayout::handleClipButtonAction(bool on, bool isAudioClip) {
 		uiNeedsRendering(getRootUI());
 	}
 	// go back to clip view
-	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
-		if (padSelectionOn) {
-			initPadSelection();
-		}
+	else if (on && (currentUIMode == UI_MODE_NONE)) {
 		if (isAudioClip) {
 			changeRootUI(&audioClipView);
 		}
@@ -738,66 +686,6 @@ void AutomationLayout::handleCrossScreenButtonAction(bool on) {
 	}
 }
 
-// called by button action if b == KIT
-void AutomationLayout::handleKitButtonAction(OutputType outputType, bool on) {
-	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
-		// if you're going to create a new instrument or change output type,
-		// reset selection
-		initParameterSelection();
-		blinkShortcuts();
-
-		if (Buttons::isShiftButtonPressed()) {
-			instrumentClipView.createNewInstrument(OutputType::KIT);
-		}
-		else {
-			instrumentClipView.changeOutputType(OutputType::KIT);
-		}
-	}
-}
-
-// called by button action if b == SYNTH
-void AutomationLayout::handleSynthButtonAction(OutputType outputType, bool on) {
-	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
-		// if you're going to create a new instrument or change output type,
-		// reset selection
-		initParameterSelection();
-		blinkShortcuts();
-
-		// this gets triggered when you change an existing clip to synth / create a new synth clip in
-		// song mode
-		if (Buttons::isShiftButtonPressed()) {
-			instrumentClipView.createNewInstrument(OutputType::SYNTH);
-		}
-		// this gets triggered when you change clip type to synth from within inside clip view
-		else {
-			instrumentClipView.changeOutputType(OutputType::SYNTH);
-		}
-	}
-}
-
-// called by button action if b == MIDI
-void AutomationLayout::handleMidiButtonAction(OutputType outputType, bool on) {
-	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
-		// if you're going to change output type,
-		// reset selection
-		initParameterSelection();
-		blinkShortcuts();
-
-		instrumentClipView.changeOutputType(OutputType::MIDI_OUT);
-	}
-}
-
-// called by button action if b == CV
-void AutomationLayout::handleCVButtonAction(OutputType outputType, bool on) {
-	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
-		// if you're going to change output type,
-		// reset selection
-		initParameterSelection();
-		blinkShortcuts();
-
-		instrumentClipView.changeOutputType(OutputType::CV);
-	}
-}
 // called by button action if b == X_ENC
 bool AutomationLayout::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
 	bool isClipContext = rootUIIsClipMinderScreen();
@@ -966,7 +854,7 @@ void AutomationLayout::handleVerticalEncoderButtonAction(bool on) {
 
 // called by button action if b == SELECT_ENC and shift button is not pressed
 void AutomationLayout::handleSelectEncoderButtonAction(bool on) {
-	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
+	if (on && (currentUIMode == UI_MODE_NONE)) {
 		initParameterSelection();
 		uiNeedsRendering(getRootUI());
 

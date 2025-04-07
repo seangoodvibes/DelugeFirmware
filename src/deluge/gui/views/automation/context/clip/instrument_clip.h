@@ -37,6 +37,16 @@ public:
 
 	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+
+private:
+	// button action functions
+	void handleKeyboardButtonAction(bool on);
+	void handleSynthButtonAction(bool on);
+	void handleKitButtonAction(bool on);
+	void handleMidiButtonAction(bool on);
+	void handleCvButtonAction(bool on);
+
+	void handleInstrumentChange(OutputType outputType);
 };
 
 //}; // namespace deluge::gui::views

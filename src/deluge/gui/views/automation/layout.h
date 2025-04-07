@@ -130,13 +130,8 @@ public:
 private:
 	// button action functions
 	void handleSessionButtonAction(Clip* clip, bool on);
-	void handleKeyboardButtonAction(bool on);
 	void handleClipButtonAction(bool on, bool isAudioClip);
 	void handleCrossScreenButtonAction(bool on);
-	void handleKitButtonAction(OutputType outputType, bool on);
-	void handleSynthButtonAction(OutputType outputType, bool on);
-	void handleMidiButtonAction(OutputType outputType, bool on);
-	void handleCVButtonAction(OutputType outputType, bool on);
 	bool handleHorizontalEncoderButtonAction(bool on, bool isAudioClip);
 	bool handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on);
 	void handleVerticalEncoderButtonAction(bool on);

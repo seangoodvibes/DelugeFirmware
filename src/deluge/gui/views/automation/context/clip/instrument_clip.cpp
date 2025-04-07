@@ -16,8 +16,10 @@
  */
 
 #include "gui/views/automation/context/clip/instrument_clip.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 
 PLACE_SDRAM_BSS AutomationViewInstrumentClip automationViewInstrumentClip{};
 
@@ -51,11 +53,83 @@ ActionResult AutomationViewInstrumentClip::buttonAction(deluge::hid::Button b, b
 		return instrumentClipView.handleScaleButtonAction(on, inCardRoutine);
 	}
 
+	// Keyboard button
+	else if (b == KEYBOARD) {
+		handleKeyboardButtonAction(on);
+	}
+
+	// Synth button
+	else if (b == SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
+	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
+		handleSynthButtonAction(on);
+	}
+
+	// Kit button
+	else if (b == KIT) {
+		handleKitButtonAction(on);
+	}
+
+	// Midi button
+	else if (b == MIDI) {
+		handleMidiButtonAction(on);
+	}
+
+	// Cv button
+	else if (b == CV) {
+		handleCvButtonAction(on);
+	}
+
 	else {
 		return AutomationView::buttonAction(b, on, inCardRoutine);
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+// called by button action if b == KEYBOARD
+void AutomationViewInstrumentClip::handleKeyboardButtonAction(bool on) {
+	if (on && (currentUIMode == UI_MODE_NONE)) {
+		// reset blinking if you're leaving automation view for keyboard view
+		// blinking will be reset when you come back
+		AutomationView::resetShortcutBlinking();
+
+		changeRootUI(&keyboardScreen);
+	}
+}
+
+// called by button action if b == SYNTH
+void AutomationViewInstrumentClip::handleSynthButtonAction(bool on) {
+	if (on && (currentUIMode == UI_MODE_NONE)) {
+		handleInstrumentChange(OutputType::SYNTH);
+	}
+}
+
+// called by button action if b == KIT
+void AutomationViewInstrumentClip::handleKitButtonAction(bool on) {
+	if (on && (currentUIMode == UI_MODE_NONE)) {
+		handleInstrumentChange(OutputType::KIT);
+	}
+}
+
+// called by button action if b == MIDI
+void AutomationViewInstrumentClip::handleMidiButtonAction(bool on) {
+	if (on && (currentUIMode == UI_MODE_NONE)) {
+		handleInstrumentChange(OutputType::MIDI_OUT);
+	}
+}
+
+// called by button action if b == KIT
+void AutomationViewInstrumentClip::handleCvButtonAction(bool on) {
+	if (on && (currentUIMode == UI_MODE_NONE)) {
+		handleInstrumentChange(OutputType::CV);
+	}
+}
+
+void AutomationViewInstrumentClip::handleInstrumentChange(OutputType outputType) {
+	// if you're going to create a new instrument or change output type, reset selection
+	AutomationView::initParameterSelection();
+
+	instrumentClipView.handleInstrumentChange(outputType);
 }
 
 // pad action

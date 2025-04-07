@@ -92,6 +92,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/cfunctions.h"
+#include "util/comparison.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
@@ -495,12 +496,7 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (Buttons::isShiftButtonPressed()) {
-				createNewInstrument(OutputType::KIT);
-			}
-			else {
-				changeOutputType(OutputType::KIT);
-			}
+			handleInstrumentChange(OutputType::KIT);
 		}
 	}
 
@@ -512,17 +508,7 @@ doOther:
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				if (Buttons::isButtonPressed(MOD7)
-				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
-				           == RuntimeFeatureStateToggle::On) {
-					createNewInstrument(OutputType::SYNTH, true);
-				}
-				else if (Buttons::isShiftButtonPressed()) {
-					createNewInstrument(OutputType::SYNTH);
-				}
-				else {
-					changeOutputType(OutputType::SYNTH);
-				}
+				handleInstrumentChange(OutputType::SYNTH);
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 				// hook to load synth preset
@@ -539,7 +525,7 @@ doOther:
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				changeOutputType(OutputType::MIDI_OUT);
+				handleInstrumentChange(OutputType::MIDI_OUT);
 
 				// Drop out of scale mode if the clip is now routed to MIDI transpose,
 				// and the transposer is set to chromatic.
@@ -564,7 +550,7 @@ doOther:
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				changeOutputType(OutputType::CV);
+				handleInstrumentChange(OutputType::CV);
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 				createDrumForAuditionedNoteRow(DrumType::GATE);
@@ -923,6 +909,24 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 		}
 	}
 	return ActionResult::DEALT_WITH;
+}
+
+void InstrumentClipView::handleInstrumentChange(OutputType outputType) {
+	bool is_fm = false;
+	bool isMIDIorCV = util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV});
+
+	if (outputType == OutputType::SYNTH) {
+		is_fm = Buttons::isButtonPressed(deluge::hid::button::MOD7)
+		        && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
+		            == RuntimeFeatureStateToggle::On);
+	}
+
+	if (!isMIDIorCV && (is_fm || Buttons::isShiftButtonPressed())) {
+		createNewInstrument(outputType, is_fm);
+	}
+	else {
+		changeOutputType(outputType);
+	}
 }
 
 void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
