@@ -66,8 +66,6 @@ public:
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset);
-	int32_t getNavSysId() const;
-	int32_t navSysId = NAVIGATION_CLIP;
 
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);

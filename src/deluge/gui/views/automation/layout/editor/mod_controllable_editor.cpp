@@ -563,8 +563,8 @@ ActionResult AutomationLayoutEditorModControllable::horizontalEncoderAction(int3
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	}
 
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->xScroll[((TimelineView*)getRootUI())->getNavSysId()];
+	int32_t xZoom = currentSong->xZoom[((TimelineView*)getRootUI())->getNavSysId()];
 	int32_t squareSize =
 	    automationView.getPosFromSquare(1, xScroll, xZoom) - automationView.getPosFromSquare(0, xScroll, xZoom);
 	int32_t shiftAmount = offset * squareSize;
@@ -1371,8 +1371,8 @@ bool AutomationLayoutEditorModControllable::automationModEncoderActionForSelecte
 
 		uint32_t squareStart = 0;
 
-		int32_t xScroll = currentSong->xScroll[navSysId];
-		int32_t xZoom = currentSong->xZoom[navSysId];
+		int32_t xScroll = currentSong->xScroll[((TimelineView*)getRootUI())->getNavSysId()];
+		int32_t xZoom = currentSong->xZoom[((TimelineView*)getRootUI())->getNavSysId()];
 
 		// for the second pad pressed in a long press, the square start position is set to the very last
 		// nodes position

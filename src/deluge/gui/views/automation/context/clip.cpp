@@ -23,6 +23,10 @@ PLACE_SDRAM_BSS AutomationViewClip automationViewClip{};
 AutomationViewClip::AutomationViewClip() {
 }
 
+int32_t AutomationViewClip::getNavSysId() const {
+	return NAVIGATION_CLIP;
+}
+
 uint32_t AutomationViewClip::getMaxLength() {
 	return getCurrentClip()->getMaxLength();
 }

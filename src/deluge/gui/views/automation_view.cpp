@@ -242,10 +242,6 @@ void AutomationView::notifyPlaybackBegun() {
 	}
 }
 
-int32_t AutomationView::getNavSysId() const {
-	return currentAutomationLayout->getNavSysId();
-}
-
 bool AutomationView::inAutomationEditor() {
 	return currentAutomationLayout->inAutomationEditor();
 }

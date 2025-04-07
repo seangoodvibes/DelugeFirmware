@@ -39,6 +39,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	// horizontal encoder action
+	[[nodiscard]] int32_t getNavSysId() const override;
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 };

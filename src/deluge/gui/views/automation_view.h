@@ -69,7 +69,6 @@ public:
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;

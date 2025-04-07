@@ -29,6 +29,7 @@ public:
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
 	// horizontal encoder action
+	[[nodiscard]] int32_t getNavSysId() const override;
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 };

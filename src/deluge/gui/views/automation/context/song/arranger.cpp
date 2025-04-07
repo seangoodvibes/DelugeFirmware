@@ -94,6 +94,10 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 	return AutomationView::padAction(x, y, velocity);
 }
 
+int32_t AutomationViewArranger::getNavSysId() const {
+	return NAVIGATION_ARRANGEMENT;
+}
+
 uint32_t AutomationViewArranger::getMaxLength() {
 	return arrangerView.getMaxLength();
 }

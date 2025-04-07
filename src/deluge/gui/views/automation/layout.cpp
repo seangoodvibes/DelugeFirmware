@@ -128,8 +128,6 @@ bool AutomationLayout::opened() {
 }
 
 void AutomationLayout::initialize() {
-	navSysId = getNavSysId();
-
 	if (!midiCCShortcutsLoaded) {
 		initMIDICCShortcutsForAutomation();
 		midiCCShortcutsLoaded = true;
@@ -260,8 +258,9 @@ bool AutomationLayout::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWi
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
-	performActualRender(image, occupancyMask, currentSong->xScroll[navSysId], currentSong->xZoom[navSysId],
-	                    kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
+	performActualRender(image, occupancyMask, currentSong->xScroll[((TimelineView*)getRootUI())->getNavSysId()],
+	                    currentSong->xZoom[((TimelineView*)getRootUI())->getNavSysId()], kDisplayWidth,
+	                    kDisplayWidth + kSideBarWidth, drawUndefinedArea);
 
 	PadLEDs::renderingLock = false;
 
@@ -714,8 +713,8 @@ bool AutomationLayout::handleHorizontalEncoderButtonAction(bool on, bool isAudio
 			}
 			int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
 
-			int32_t xScroll = currentSong->xScroll[navSysId];
-			int32_t xZoom = currentSong->xZoom[navSysId];
+			int32_t xScroll = currentSong->xScroll[((TimelineView*)getRootUI())->getNavSysId()];
+			int32_t xZoom = currentSong->xZoom[((TimelineView*)getRootUI())->getNavSysId()];
 
 			if (Buttons::isShiftButtonPressed()) {
 				// paste within Automation Editor
@@ -999,8 +998,8 @@ ActionResult AutomationLayout::handleEditPadAction(Clip* clip, Output* output, O
 		effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
 	}
 
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->xScroll[((TimelineView*)getRootUI())->getNavSysId()];
+	int32_t xZoom = currentSong->xZoom[((TimelineView*)getRootUI())->getNavSysId()];
 
 	// if the user wants to change the parameter they are editing using Shift + Pad shortcut
 	// or change the parameter they are editing by press on a shortcut pad on automation overview
@@ -1715,8 +1714,8 @@ void AutomationLayout::modEncoderButtonAction(uint8_t whichModEncoder, bool on) 
 	}
 	int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
 
-	int32_t xScroll = currentSong->xScroll[navSysId];
-	int32_t xZoom = currentSong->xZoom[navSysId];
+	int32_t xScroll = currentSong->xScroll[((TimelineView*)getRootUI())->getNavSysId()];
+	int32_t xZoom = currentSong->xZoom[((TimelineView*)getRootUI())->getNavSysId()];
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
@@ -1728,7 +1727,7 @@ void AutomationLayout::modEncoderButtonAction(uint8_t whichModEncoder, bool on) 
 				}
 				// paste on Automation Overview / Note Editor
 				else {
-					instrumentClipView.pasteAutomation(whichModEncoder, navSysId);
+					instrumentClipView.pasteAutomation(whichModEncoder, ((TimelineView*)getRootUI())->getNavSysId());
 				}
 			}
 			else {
@@ -1738,7 +1737,7 @@ void AutomationLayout::modEncoderButtonAction(uint8_t whichModEncoder, bool on) 
 				}
 				// copy on Automation Overview / Note Editor
 				else {
-					instrumentClipView.copyAutomation(whichModEncoder, navSysId);
+					instrumentClipView.copyAutomation(whichModEncoder, ((TimelineView*)getRootUI())->getNavSysId());
 				}
 			}
 		}
@@ -1845,8 +1844,8 @@ void AutomationLayout::selectEncoderAction(int8_t offset) {
 				                                                          currentSong->lastSelectedParamID);
 			}
 			int32_t effectiveLength = automationLayoutEditor.getEffectiveLength(modelStackWithTimelineCounter);
-			int32_t xScroll = currentSong->xScroll[navSysId];
-			int32_t xZoom = currentSong->xZoom[navSysId];
+			int32_t xScroll = currentSong->xScroll[((TimelineView*)getRootUI())->getNavSysId()];
+			int32_t xZoom = currentSong->xZoom[((TimelineView*)getRootUI())->getNavSysId()];
 			automationLayoutEditor.renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength,
 			                                                               xScroll, xZoom);
 		}
@@ -1890,15 +1889,6 @@ void AutomationLayout::initPadSelection() {
 	lastPadSelectedKnobPos = kNoSelection;
 
 	resetPadSelectionShortcutBlinking();
-}
-
-int32_t AutomationLayout::getNavSysId() const {
-	if (rootUIIsClipMinderScreen()) {
-		return NAVIGATION_CLIP;
-	}
-	else {
-		return NAVIGATION_ARRANGEMENT;
-	}
 }
 
 void AutomationLayout::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
