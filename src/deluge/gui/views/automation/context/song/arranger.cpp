@@ -40,3 +40,19 @@ void AutomationViewArranger::focusRegained() {
 	view.setActiveModControllableTimelineCounter(currentSong);
 	AutomationView::focusRegained();
 }
+
+// button action
+ActionResult AutomationViewArranger::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (inCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	using namespace hid::button;
+
+	// these button actions are not used in the arranger automation view
+	if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV || b == CLIP_VIEW) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	return AutomationView::buttonAction(b, on, inCardRoutine);
+}

@@ -26,11 +26,14 @@ class AutomationViewArranger final : public AutomationViewSong {
 public:
 	AutomationViewArranger();
 
+	UIType getUIContextType() override { return UIType::ARRANGER; }
+
 	// called by ui_timer_manager
 	void graphicsRoutine() override;
 	void focusRegained() override;
 
-	UIType getUIContextType() override { return UIType::ARRANGER; }
+	// button action
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 };
 
 //}; // namespace deluge::gui::views

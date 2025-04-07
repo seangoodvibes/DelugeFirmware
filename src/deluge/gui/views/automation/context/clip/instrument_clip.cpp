@@ -31,9 +31,25 @@ void AutomationViewInstrumentClip::graphicsRoutine() {
 }
 
 void AutomationViewInstrumentClip::focusRegained() {
-	automationView.ClipView::focusRegained();
+	ClipView::focusRegained();
 	instrumentClipView.auditioningSilently = false; // Necessary?
-	automationView.InstrumentClipMinder::focusRegained();
+	InstrumentClipMinder::focusRegained();
 	instrumentClipView.setLedStates();
 	AutomationView::focusRegained();
+}
+
+// button action
+ActionResult AutomationViewInstrumentClip::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (inCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	using namespace hid::button;
+
+	// Scale mode button
+	if (b == SCALE_MODE) {
+		return instrumentClipView.handleScaleButtonAction(on, inCardRoutine);
+	}
+
+	return AutomationView::buttonAction(b, on, inCardRoutine);
 }

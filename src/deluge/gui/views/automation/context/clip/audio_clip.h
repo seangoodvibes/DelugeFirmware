@@ -26,11 +26,14 @@ class AutomationViewAudioClip final : public AutomationViewClip {
 public:
 	AutomationViewAudioClip();
 
+	UIType getUIContextType() override { return UIType::AUDIO_CLIP; }
+
 	// called by ui_timer_manager
 	void graphicsRoutine() override;
 	void focusRegained() override;
 
-	UIType getUIContextType() override { return UIType::AUDIO_CLIP; }
+	// button action
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 };
 
 //}; // namespace deluge::gui::views

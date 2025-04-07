@@ -490,7 +490,6 @@ void AutomationLayout::displayAutomation(bool padSelected, bool updateDisplay) {
 }
 
 // button action
-
 ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -504,27 +503,10 @@ ActionResult AutomationLayout::buttonAction(deluge::hid::Button b, bool on, bool
 	bool isSongContext = !isClipContext;
 	bool isAudioClip = isClipContext && (clip->type == ClipType::AUDIO);
 
-	// these button actions are not used in the audio clip and arranger automation views
-	if (isAudioClip || isSongContext) {
-		if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV) {
-			return ActionResult::DEALT_WITH;
-		}
-	}
-	if (isSongContext) {
-		if (b == CLIP_VIEW) {
-			return ActionResult::DEALT_WITH;
-		}
-	}
-
 	OutputType outputType = isClipContext ? clip->output->type : OutputType::NONE;
 
-	// Scale mode button
-	if (b == SCALE_MODE) {
-		return instrumentClipView.handleScaleButtonAction(on, inCardRoutine);
-	}
-
 	// Song view button
-	else if (b == SESSION_VIEW) {
+	if (b == SESSION_VIEW) {
 		handleSessionButtonAction(clip, on);
 	}
 

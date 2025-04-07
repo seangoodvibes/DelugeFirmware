@@ -33,10 +33,26 @@ void AutomationViewAudioClip::graphicsRoutine() {
 }
 
 void AutomationViewAudioClip::focusRegained() {
-	automationView.ClipView::focusRegained();
+	ClipView::focusRegained();
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
 	AutomationView::focusRegained();
+}
+
+// button action
+ActionResult AutomationViewAudioClip::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (inCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	using namespace hid::button;
+
+	// these button actions are not used in the audio clip automation view
+	if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	return AutomationView::buttonAction(b, on, inCardRoutine);
 }
