@@ -16,8 +16,14 @@
  */
 
 #include "gui/views/automation/context/clip/audio_clip.h"
+#include "gui/views/audio_clip_view.h"
 
 PLACE_SDRAM_BSS AutomationViewAudioClip automationViewAudioClip{};
 
 AutomationViewAudioClip::AutomationViewAudioClip() {
+}
+
+// used for the play cursor
+void AutomationViewAudioClip::graphicsRoutine() {
+	audioClipView.graphicsRoutine();
 }

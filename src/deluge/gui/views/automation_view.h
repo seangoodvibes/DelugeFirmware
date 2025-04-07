@@ -33,7 +33,7 @@ public:
 	void openedInBackground();
 	void focusRegained() override;
 
-	// called by ui_timer_manager - might need to revise this routine for automation clip view since it references notes
+	// called by ui_timer_manager
 	void graphicsRoutine() override;
 
 	// ui

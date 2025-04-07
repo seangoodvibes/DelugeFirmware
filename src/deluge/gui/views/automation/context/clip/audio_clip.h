@@ -26,6 +26,9 @@ class AutomationViewAudioClip final : public AutomationViewClip {
 public:
 	AutomationViewAudioClip();
 
+	// called by ui_timer_manager
+	void graphicsRoutine() override;
+
 	UIType getUIContextType() override { return UIType::AUDIO_CLIP; }
 };
 

@@ -26,6 +26,9 @@ class AutomationViewInstrumentClip : public AutomationViewClip {
 public:
 	AutomationViewInstrumentClip();
 
+	// called by ui_timer_manager
+	void graphicsRoutine() override;
+
 	UIType getUIContextType() override { return UIType::INSTRUMENT_CLIP; }
 };
 

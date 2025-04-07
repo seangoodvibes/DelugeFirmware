@@ -16,8 +16,14 @@
  */
 
 #include "gui/views/automation/context/song/arranger.h"
+#include "gui/views/arranger_view.h"
 
 PLACE_SDRAM_BSS AutomationViewArranger automationViewArranger{};
 
 AutomationViewArranger::AutomationViewArranger() {
+}
+
+// used for the play cursor
+void AutomationViewArranger::graphicsRoutine() {
+	arrangerView.graphicsRoutine();
 }

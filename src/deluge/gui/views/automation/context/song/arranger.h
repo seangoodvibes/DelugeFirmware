@@ -26,6 +26,9 @@ class AutomationViewArranger final : public AutomationViewSong {
 public:
 	AutomationViewArranger();
 
+	// called by ui_timer_manager
+	void graphicsRoutine() override;
+
 	UIType getUIContextType() override { return UIType::ARRANGER; }
 };
 

@@ -16,8 +16,15 @@
  */
 
 #include "gui/views/automation/context/clip/instrument_clip.h"
+#include "gui/views/instrument_clip_view.h"
 
 PLACE_SDRAM_BSS AutomationViewInstrumentClip automationViewInstrumentClip{};
 
 AutomationViewInstrumentClip::AutomationViewInstrumentClip() {
+}
+
+// used for the play cursor
+void AutomationViewInstrumentClip::graphicsRoutine() {
+	instrumentClipView.graphicsRoutine();
+	AutomationView::graphicsRoutine();
 }

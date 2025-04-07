@@ -268,17 +268,6 @@ void AutomationLayout::openedInBackground() {
 
 // used for the play cursor
 void AutomationLayout::graphicsRoutine() {
-	if (rootUIIsClipMinderScreen()) {
-		if (getCurrentClip()->type == ClipType::AUDIO) {
-			audioClipView.graphicsRoutine();
-		}
-		else {
-			instrumentClipView.graphicsRoutine();
-		}
-	}
-	else {
-		arrangerView.graphicsRoutine();
-	}
 	// if we changed probability, then a pop-up may be currently stuck on display
 	// if more than half a second has past since last knob turn, cancel the pop-up
 	if (probabilityChanged
