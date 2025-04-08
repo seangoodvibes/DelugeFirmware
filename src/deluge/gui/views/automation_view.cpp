@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2025 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
