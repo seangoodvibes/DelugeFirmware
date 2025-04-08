@@ -50,7 +50,6 @@ UITimerManager::UITimerManager() {
 }
 
 void UITimerManager::routine() {
-
 	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) {
 		return;
@@ -124,19 +123,27 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::INTERPOLATION_SHORTCUT_BLINK:
-					automationView.blinkInterpolationShortcut();
+					if (getRootUI()->getUIType() == UIType::AUTOMATION) {
+						automationView.blinkInterpolationShortcut();
+					}
 					break;
 
 				case TimerName::PAD_SELECTION_SHORTCUT_BLINK:
-					automationView.blinkPadSelectionShortcut();
+					if (getRootUI()->getUIType() == UIType::AUTOMATION) {
+						automationView.blinkPadSelectionShortcut();
+					}
 					break;
 
 				case TimerName::NOTE_ROW_BLINK:
-					instrumentClipView.blinkSelectedNoteRow();
+					if (getRootUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+						instrumentClipView.blinkSelectedNoteRow();
+					}
 					break;
 
 				case TimerName::SELECTED_CLIP_PULSE:
-					sessionView.gridPulseSelectedClip();
+					if (getRootUI() == &sessionView) {
+						sessionView.gridPulseSelectedClip();
+					}
 					break;
 
 				case TimerName::MATRIX_DRIVER:
@@ -151,7 +158,6 @@ void UITimerManager::routine() {
 					break;
 				}
 				case TimerName::BACK_MENU_EXIT: {
-
 					getCurrentUI()->exitUI();
 					break;
 				}
