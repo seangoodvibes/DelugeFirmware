@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
+#include "modulation/params/param.h"
 
 // namespace deluge::gui::views {
 
@@ -34,6 +35,8 @@ public:
 	void openedInBackground();
 
 	// rendering
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+	                                         int32_t paramID) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 

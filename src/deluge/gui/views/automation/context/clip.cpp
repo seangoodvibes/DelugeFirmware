@@ -47,6 +47,19 @@ void AutomationViewClip::openedInBackground() {
 	AutomationView::openedInBackground();
 }
 
+// rendering
+bool AutomationViewClip::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+                                                             int32_t paramID) {
+	bool doRefreshGrid =
+	    (clip != nullptr) && (clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind);
+
+	if (doRefreshGrid) {
+		uiNeedsRendering(getRootUI());
+	}
+
+	return doRefreshGrid;
+}
+
 // defers to audio clip or instrument clip sidebar render functions depending on the active clip
 bool AutomationViewClip::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {

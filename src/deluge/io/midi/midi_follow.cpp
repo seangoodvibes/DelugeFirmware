@@ -830,7 +830,7 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 					// pass the current clip because you want to check that you're editing the param
 					// for the same clip active in automation view
 					editingParamInAutomationOrPerformanceView =
-					    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
+					    ((AutomationView*)rootUI)->possiblyRefreshAutomationEditorGrid(clip, kind, id);
 				}
 				else {
 					editingParamInAutomationOrPerformanceView =

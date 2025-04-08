@@ -53,11 +53,6 @@ PLACE_SDRAM_BSS AutomationLayoutEditor automationLayoutEditor{};
 AutomationLayoutEditor::AutomationLayoutEditor() {
 }
 
-// rendering
-bool AutomationLayoutEditor::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
-	return automationLayoutEditorModControllable.possiblyRefreshAutomationEditorGrid(clip, paramKind, paramID);
-}
-
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
 // clip length renders the undefined area of the clip that the user can't interact with
 void AutomationLayoutEditor::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,

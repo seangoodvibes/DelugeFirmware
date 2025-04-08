@@ -178,10 +178,11 @@ void PatchCableStrength::writeCurrentValue() {
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 
-	if (getRootUI()->getUIType() == UIType::AUTOMATION) {
+	RootUI* rootUI = getRootUI();
+	if (rootUI->getUIType() == UIType::AUTOMATION) {
 		int32_t p = modelStackWithParam->paramId;
 		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+		((AutomationView*)rootUI)->possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
 	}
 }
 

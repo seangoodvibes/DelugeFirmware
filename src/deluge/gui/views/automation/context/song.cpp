@@ -16,8 +16,22 @@
  */
 
 #include "gui/views/automation/context/song.h"
+#include "model/song/song.h"
 
 PLACE_SDRAM_BSS AutomationViewSong automationViewSong{};
 
 AutomationViewSong::AutomationViewSong() {
+}
+
+// rendering
+bool AutomationViewSong::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+                                                             int32_t paramID) {
+	bool doRefreshGrid =
+	    (currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind);
+
+	if (doRefreshGrid) {
+		uiNeedsRendering(getRootUI());
+	}
+
+	return doRefreshGrid;
 }

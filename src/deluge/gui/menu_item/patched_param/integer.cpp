@@ -67,10 +67,11 @@ void Integer::writeCurrentValue() {
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
 	view.sendMidiFollowFeedback(modelStack, knobPos);
 
-	if (getRootUI()->getUIType() == UIType::AUTOMATION) {
+	RootUI* rootUI = getRootUI();
+	if (rootUI->getUIType() == UIType::AUTOMATION) {
 		int32_t p = modelStack->paramId;
 		modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
-		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+		((AutomationView*)rootUI)->possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
 	}
 
 	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0,

@@ -922,9 +922,10 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// if you're updating a param's value while in the sound editor menu
 			// and it's the same param displayed in the automation editor open underneath
 			// then refresh the automation editor grid
-			if ((getCurrentUI() == &soundEditor) && (getRootUI()->getUIType() == UIType::AUTOMATION)) {
-				automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind,
-				                                                   modelStackWithParam->paramId);
+			RootUI* rootUI = getRootUI();
+			if ((getCurrentUI() == &soundEditor) && (rootUI->getUIType() == UIType::AUTOMATION)) {
+				((AutomationView*)rootUI)
+				    ->possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, modelStackWithParam->paramId);
 			}
 		}
 	}

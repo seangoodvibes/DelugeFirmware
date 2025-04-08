@@ -31,7 +31,6 @@ public:
 	AutomationLayoutEditor();
 
 	// Grid render functions
-	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                            RGB image[][kDisplayWidth + kSideBarWidth],
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,

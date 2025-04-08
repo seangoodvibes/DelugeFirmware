@@ -174,11 +174,6 @@ void AutomationLayout::graphicsRoutine() {
 	}
 }
 
-// rendering
-bool AutomationLayout::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
-	return automationLayoutEditor.possiblyRefreshAutomationEditorGrid(clip, paramKind, paramID);
-}
-
 // called whenever you call uiNeedsRendering(getRootUI()) somewhere else
 // used to render automation overview, automation editor
 // used to setup the shortcut blinking

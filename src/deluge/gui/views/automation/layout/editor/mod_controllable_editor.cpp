@@ -95,33 +95,6 @@ PLACE_SDRAM_BSS AutomationLayoutEditorModControllable automationLayoutEditorModC
 AutomationLayoutEditorModControllable::AutomationLayoutEditorModControllable() {
 }
 
-// rendering
-bool AutomationLayoutEditorModControllable::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind,
-                                                                                int32_t paramID) {
-	bool doRefreshGrid = false;
-	RootUI* rootUI = getRootUI();
-
-	switch (rootUI->getUIModControllableContext()) {
-	case UIModControllableContext::SONG:
-		doRefreshGrid =
-		    (currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind);
-		break;
-	case UIModControllableContext::CLIP:
-		doRefreshGrid =
-		    (clip != nullptr) && (clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind);
-		break;
-	default:
-	    // fallthrough
-	    ;
-	}
-
-	if (doRefreshGrid) {
-		uiNeedsRendering(getRootUI());
-		return true;
-	}
-	return false;
-}
-
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
 // clip length renders the undefined area of the clip that the user can't interact with
 void AutomationLayoutEditorModControllable::renderAutomationEditor(

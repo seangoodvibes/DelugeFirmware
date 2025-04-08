@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
+#include "modulation/params/param.h"
 
 // namespace deluge::gui::views {
 
@@ -27,6 +28,10 @@ public:
 	AutomationViewSong();
 
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
+
+	// rendering
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+	                                         int32_t paramID) override;
 };
 
 //}; // namespace deluge::gui::views

@@ -113,12 +113,6 @@ void AutomationView::graphicsRoutine() {
 	return currentAutomationLayout->graphicsRoutine();
 }
 
-// rendering
-bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
-                                                         int32_t paramID) {
-	return currentAutomationLayout->possiblyRefreshAutomationEditorGrid(clip, paramKind, paramID);
-}
-
 // called whenever you call uiNeedsRendering(this) somewhere else
 // used to render automation overview, automation editor
 // used to setup the shortcut blinking
