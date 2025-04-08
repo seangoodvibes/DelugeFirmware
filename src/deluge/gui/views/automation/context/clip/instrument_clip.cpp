@@ -20,8 +20,14 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
+#include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/song/song.h"
+#include "modulation/patch/patch_cable_set.h"
 
 PLACE_SDRAM_BSS AutomationViewInstrumentClip automationViewInstrumentClip{};
+
+namespace params = deluge::modulation::params;
 
 AutomationViewInstrumentClip::AutomationViewInstrumentClip() {
 }
@@ -32,11 +38,52 @@ void AutomationViewInstrumentClip::graphicsRoutine() {
 	AutomationView::graphicsRoutine();
 }
 
+// called everytime you open up the automation view
+bool AutomationViewInstrumentClip::opened() {
+	AutomationView::initialize();
+	openedInBackground();
+	focusRegained();
+	return true;
+}
+
+void AutomationViewInstrumentClip::openedInBackground() {
+	getCurrentInstrumentClip()->onKeyboardScreen = false;
+
+	instrumentClipView.recalculateColours();
+
+	AutomationViewClip::openedInBackground();
+}
+
 void AutomationViewInstrumentClip::focusRegained() {
 	ClipView::focusRegained();
 	instrumentClipView.auditioningSilently = false; // Necessary?
 	InstrumentClipMinder::focusRegained();
 	instrumentClipView.setLedStates();
+
+	Clip* clip = getCurrentClip();
+
+	// check if patch cable previously selected is still valid
+	// if not we'll reset parameter selection and go back to overview
+	if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+		bool patchCableExists = false;
+		ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
+		if (paramManager) {
+			PatchCableSet* set = paramManager->getPatchCableSetAllowJibberish();
+			// make sure it's not jiberish
+			if (set) {
+				PatchSource s;
+				ParamDescriptor destinationParamDescriptor;
+				set->dissectParamId(clip->lastSelectedParamID, &destinationParamDescriptor, &s);
+				if (set->getPatchCableIndex(s, destinationParamDescriptor) != kNoSelection) {
+					patchCableExists = true;
+				}
+			}
+		}
+		if (!patchCableExists) {
+			AutomationView::initParameterSelection();
+		}
+	}
+
 	AutomationView::focusRegained();
 }
 

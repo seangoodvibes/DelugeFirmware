@@ -28,9 +28,12 @@ public:
 
 	UIType getUIContextType() override { return UIType::ARRANGER; }
 
+	bool opened() override;
+	void openedInBackground();
+	void focusRegained() override;
+
 	// called by ui_timer_manager
 	void graphicsRoutine() override;
-	void focusRegained() override;
 
 	// rendering
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

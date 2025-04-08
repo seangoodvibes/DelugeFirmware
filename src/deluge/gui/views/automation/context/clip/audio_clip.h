@@ -28,9 +28,11 @@ public:
 
 	UIType getUIContextType() override { return UIType::AUDIO_CLIP; }
 
+	bool opened() override;
+	void focusRegained() override;
+
 	// called by ui_timer_manager
 	void graphicsRoutine() override;
-	void focusRegained() override;
 
 	// button action
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;

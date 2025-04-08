@@ -19,6 +19,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/view.h"
 #include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
 #include "model/song/song.h"
 
 PLACE_SDRAM_BSS AutomationViewArranger automationViewArranger{};
@@ -26,10 +27,31 @@ PLACE_SDRAM_BSS AutomationViewArranger automationViewArranger{};
 AutomationViewArranger::AutomationViewArranger() {
 }
 
-// used for the play cursor
-void AutomationViewArranger::graphicsRoutine() {
-	arrangerView.graphicsRoutine();
-	AutomationView::graphicsRoutine();
+// called everytime you open up the automation view
+bool AutomationViewArranger::opened() {
+	AutomationView::initialize();
+	openedInBackground();
+	focusRegained();
+	return true;
+}
+
+void AutomationViewArranger::openedInBackground() {
+	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
+
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	AudioEngine::logAction("AutomationViewArranger::beginSession");
+
+	if (renderingToStore) {
+		AutomationView::renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
+		                               &PadLEDs::occupancyMaskStore[kDisplayHeight], true);
+		arrangerView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
+		                           &PadLEDs::occupancyMaskStore[kDisplayHeight]);
+	}
+	else {
+		uiNeedsRendering(getRootUI());
+	}
+
+	AutomationView::openedInBackground();
 }
 
 void AutomationViewArranger::focusRegained() {
@@ -39,6 +61,12 @@ void AutomationViewArranger::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong);
 	AutomationView::focusRegained();
+}
+
+// used for the play cursor
+void AutomationViewArranger::graphicsRoutine() {
+	arrangerView.graphicsRoutine();
+	AutomationView::graphicsRoutine();
 }
 
 // button action

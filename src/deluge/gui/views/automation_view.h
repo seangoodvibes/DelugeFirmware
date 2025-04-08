@@ -28,7 +28,6 @@
 class AutomationView : public ClipView, public InstrumentClipMinder {
 public:
 	AutomationView();
-	bool opened() override;
 	void initialize();
 	void openedInBackground();
 	void focusRegained() override;

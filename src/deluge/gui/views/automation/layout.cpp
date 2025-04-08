@@ -116,17 +116,6 @@ void AutomationLayout::initMIDICCShortcutsForAutomation() {
 	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
-// called everytime you open up the automation view
-bool AutomationLayout::opened() {
-	initialize();
-
-	openedInBackground();
-
-	focusRegained();
-
-	return true;
-}
-
 void AutomationLayout::initialize() {
 	if (!midiCCShortcutsLoaded) {
 		initMIDICCShortcutsForAutomation();
@@ -153,8 +142,6 @@ void AutomationLayout::initialize() {
 
 // Initializes some stuff to begin a new editing session
 void AutomationLayout::focusRegained() {
-	automationParameterSelection.focusRegained();
-
 	// don't reset shortcut blinking if were still in the menu
 	if (getCurrentUI()->getUIType() == UIType::AUTOMATION) {
 		// blink timer got reset by view.focusRegained() above
@@ -170,45 +157,6 @@ void AutomationLayout::focusRegained() {
 }
 
 void AutomationLayout::openedInBackground() {
-	Clip* clip = nullptr;
-
-	bool isClipContext = rootUIIsClipMinderScreen();
-
-	if (isClipContext) {
-		clip = getCurrentClip();
-
-		// used when you're in song view / arranger view / keyboard view
-		//(so it knows to come back to automation view)
-		clip->onAutomationClipView = true;
-
-		if (clip->type == ClipType::INSTRUMENT) {
-			((InstrumentClip*)clip)->onKeyboardScreen = false;
-
-			instrumentClipView.recalculateColours();
-		}
-	}
-
-	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
-
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
-	AudioEngine::logAction("AutomationLayout::beginSession 2");
-
-	if (renderingToStore) {
-		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
-		               true);
-		if (isClipContext) {
-			clip->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
-			                    &PadLEDs::occupancyMaskStore[kDisplayHeight]);
-		}
-		else {
-			arrangerView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
-			                           &PadLEDs::occupancyMaskStore[kDisplayHeight]);
-		}
-	}
-	else {
-		uiNeedsRendering(getRootUI());
-	}
-
 	// setup interpolation shortcut blinking when entering automation view from menu
 	if (automationView.onMenuView && automationLayoutEditor.interpolation) {
 		blinkInterpolationShortcut();

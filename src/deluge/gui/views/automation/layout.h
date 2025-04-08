@@ -36,7 +36,6 @@ class Clip;
 class AutomationLayout {
 public:
 	AutomationLayout();
-	bool opened();
 	void initialize();
 	void focusRegained();
 	void openedInBackground();

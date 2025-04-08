@@ -31,6 +31,8 @@ public:
 	// used to identify the UI as a clip UI or not.
 	ClipMinder* toClipMinder() override { return this; }
 
+	void openedInBackground();
+
 	// rendering
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;

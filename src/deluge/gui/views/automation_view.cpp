@@ -95,17 +95,6 @@ UI* AutomationView::getKitInstrumentClipView() {
 	return &automationViewKitRowInstrumentClip;
 }
 
-// called everytime you open up the automation view
-bool AutomationView::opened() {
-	initialize();
-
-	openedInBackground();
-
-	focusRegained();
-
-	return true;
-}
-
 void AutomationView::initialize() {
 	return currentAutomationLayout->initialize();
 }

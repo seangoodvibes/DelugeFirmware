@@ -32,6 +32,14 @@ void AutomationViewAudioClip::graphicsRoutine() {
 	AutomationView::graphicsRoutine();
 }
 
+// called everytime you open up the automation view
+bool AutomationViewAudioClip::opened() {
+	AutomationView::initialize();
+	AutomationViewClip::openedInBackground();
+	focusRegained();
+	return true;
+}
+
 void AutomationViewAudioClip::focusRegained() {
 	ClipView::focusRegained();
 	indicator_leds::setLedState(IndicatorLED::BACK, false);

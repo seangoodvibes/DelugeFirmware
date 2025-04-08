@@ -16,11 +16,35 @@
  */
 
 #include "gui/views/automation/context/clip.h"
+#include "hid/led/pad_leds.h"
 #include "model/song/song.h"
 
 PLACE_SDRAM_BSS AutomationViewClip automationViewClip{};
 
 AutomationViewClip::AutomationViewClip() {
+}
+
+void AutomationViewClip::openedInBackground() {
+	Clip* clip = getCurrentClip();
+
+	clip->onAutomationClipView = true;
+
+	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
+
+	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	AudioEngine::logAction("AutomationViewClip::beginSession");
+
+	if (renderingToStore) {
+		AutomationView::renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
+		                               &PadLEDs::occupancyMaskStore[kDisplayHeight], true);
+		clip->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
+		                    &PadLEDs::occupancyMaskStore[kDisplayHeight]);
+	}
+	else {
+		uiNeedsRendering(getRootUI());
+	}
+
+	AutomationView::openedInBackground();
 }
 
 // defers to audio clip or instrument clip sidebar render functions depending on the active clip
