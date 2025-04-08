@@ -2428,7 +2428,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		AudioEngine::logAction(buf);
 #endif
 	}
-
+	AudioEngine::logAction("done rendering outputs");
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied
 	// Go through each SampleRecorder, feeding them audio
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next) {
@@ -2441,6 +2441,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 			recorder->feedAudio((int32_t*)outputBuffer, numSamples, true);
 		}
 	}
+	AudioEngine::logAction("done recorders");
 
 	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
@@ -2457,6 +2458,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	globalEffectable.processReverbSendAndVolume(outputBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);
+	AudioEngine::logAction("done global effectables");
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	    && currentPlaybackMode == &arrangement) {
@@ -2469,6 +2471,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 			paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
 		}
 	}
+	AudioEngine::logAction("done render");
 }
 
 void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
