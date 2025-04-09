@@ -475,7 +475,6 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 
 // used to change the parameter selection and reset shortcut pad settings so that new pad can be blinked
 // once parameter is selected
-// used to fine tune the values of non-midi parameters
 bool AutomationParameterSelection::selectEncoderAction(Clip* clip, Output* output, OutputType outputType,
                                                        int8_t offset) {
 	bool isClipContext = clip != nullptr;

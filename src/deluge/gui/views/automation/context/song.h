@@ -32,6 +32,15 @@ public:
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
 	                                         int32_t paramID) override;
+
+	// Select encoder action
+	void selectEncoderAction(int8_t offset) override;
+	void selectParameter(int32_t offset);
+	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamID,
+	                                          int32_t lastSelectedParamArrayPosition, int32_t numParams);
+
+	// model stack with param
+	ModelStackWithAutoParam* getModelStackWithParam(void* modelStackMemory);
 };
 
 //}; // namespace deluge::gui::views

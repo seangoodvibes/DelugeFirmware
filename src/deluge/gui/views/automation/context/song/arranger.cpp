@@ -114,12 +114,43 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	// status pad action
-	if (x == kDisplayWidth) {
-		return arrangerView.handleStatusPadAction(y, velocity, this);
+	if (x < kDisplayWidth) {
+		// if we're in arranger automation view and holding audition pad, ignore main pad press
+		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+			return ActionResult::DEALT_WITH;
+		}
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStackMemory);
+		int32_t effectiveLength = getMaxLength();
+
+		int32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+
+		// insert code for shortcut pad action
+
+		// insert code for edit pad action
+
+		return ActionResult::DEALT_WITH;
 	}
 
-	return AutomationView::padAction(x, y, velocity);
+	else {
+		// don't interact with sidebar if VU Meter is displayed
+		if (view.displayVUMeter) {
+			return ActionResult::DEALT_WITH;
+		}
+
+		// status pad action
+		if (x == kDisplayWidth) {
+			return arrangerView.handleStatusPadAction(y, velocity, this);
+		}
+
+		// audition pad action
+		else {
+			return arrangerView.handleAuditionPadAction(y, velocity, this);
+		}
+	}
 }
 
 // defers to arranger sidebar render function

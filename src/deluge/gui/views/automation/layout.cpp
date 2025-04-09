@@ -832,18 +832,11 @@ ActionResult AutomationLayout::handleEditPadAction(Clip* clip, Output* output, O
 	}
 
 	bool isClipContext = rootUIIsClipMinderScreen();
-	bool isSongContext = !isClipContext;
 
-	// if we're in arranger automation view and holding audition pad, ignore main pad press
-	if (isSongContext) {
-		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-			return ActionResult::DEALT_WITH;
-		}
-	}
 	// if we're in a midi clip, with a midi cc selected
 	// and we press the name shortcut while holding shift
 	// then enter the rename midi cc UI
-	else if (outputType == OutputType::MIDI_OUT && !onAutomationOverview()) {
+	if (outputType == OutputType::MIDI_OUT && !onAutomationOverview()) {
 		if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
 			openUI(&renameMidiCCUI);
 			return ActionResult::DEALT_WITH;
@@ -1056,11 +1049,6 @@ ActionResult AutomationLayout::handleAuditionPadAction(InstrumentClip* instrumen
 			    && leftPadSelectedX != kNoSelection) {
 				automationLayoutEditor.recordNoteEditPadAction(leftPadSelectedX, 1);
 			}
-		}
-	}
-	else {
-		if (onAutomationOverview()) {
-			return arrangerView.handleAuditionPadAction(y, velocity, getRootUI());
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -1667,7 +1655,6 @@ followOnAction: // it will come here when you are on the automation overview / i
 
 // used to change the parameter selection and reset shortcut pad settings so that new pad can be blinked
 // once parameter is selected
-// used to fine tune the values of non-midi parameters
 void AutomationLayout::selectEncoderAction(int8_t offset) {
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
