@@ -42,11 +42,6 @@ public:
 
 	void graphicsRoutine();
 
-	// grid sized array to assign midi cc values to each pad on the grid
-	void initMIDICCShortcutsForAutomation();
-	bool midiCCShortcutsLoaded = false;
-	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
-
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);

@@ -229,6 +229,11 @@ AutomationParameterSelection::AutomationParameterSelection() {
 }
 
 void AutomationParameterSelection::initialize() {
+	if (!midiCCShortcutsLoaded) {
+		initMIDICCShortcutsForAutomation();
+		midiCCShortcutsLoaded = true;
+	}
+
 	// let the view know if we're dealing with an automation parameter or a note parameter
 	setAutomationParamType();
 
@@ -268,6 +273,40 @@ void AutomationParameterSelection::initialize() {
 			}
 		}
 	}
+}
+
+void AutomationParameterSelection::initMIDICCShortcutsForAutomation() {
+	for (int x = 0; x < kDisplayWidth; x++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
+			uint8_t ccNumber = MIDI_CC_NONE;
+			uint32_t paramId = patchedParamShortcuts[x][y];
+			if (paramId != kNoParamID) {
+				ccNumber = midiFollow.soundParamToCC[paramId];
+				if (ccNumber == MIDI_CC_NONE) {
+					ccNumber = midiFollow.globalParamToCC[paramId];
+				}
+			}
+			if (ccNumber == MIDI_CC_NONE) {
+				paramId = unpatchedNonGlobalParamShortcuts[x][y];
+				if (paramId != kNoParamID) {
+					ccNumber = midiFollow.soundParamToCC[paramId + params::UNPATCHED_START];
+					if (ccNumber == MIDI_CC_NONE) {
+						ccNumber = midiFollow.globalParamToCC[paramId];
+					}
+				}
+			}
+			if (ccNumber != MIDI_CC_NONE) {
+				midiCCShortcutsForAutomation[x][y] = ccNumber;
+			}
+			else {
+				midiCCShortcutsForAutomation[x][y] = kNoParamID;
+			}
+		}
+	}
+
+	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
+	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 void AutomationParameterSelection::setAutomationParamType() {
