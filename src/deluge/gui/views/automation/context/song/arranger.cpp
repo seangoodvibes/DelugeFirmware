@@ -122,13 +122,22 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStackMemory);
+		ModelStackWithAutoParam* modelStackWithParam = nullptr;
+		if (currentSong->lastSelectedParamID != kNoSelection) {
+			modelStackWithParam = getModelStackWithParam(modelStackMemory);
+		}
 		int32_t effectiveLength = getMaxLength();
 
 		int32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 		int32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
-		// insert code for shortcut pad action
+		// if the user wants to change the parameter they are editing using Shift + Pad shortcut
+		// or change the parameter they are editing by press on a shortcut pad on automation overview
+		// or they want to enable/disable interpolation
+		// or they want to enable/disable pad selection mode
+		if (shortcutPadAction(modelStackWithParam, effectiveLength, x, y, velocity, xScroll, xZoom)) {
+			return ActionResult::DEALT_WITH;
+		}
 
 		// insert code for edit pad action
 

@@ -24,7 +24,6 @@
 #include "gui/views/automation/context/clip/instrument_clip/midi_instrument_clip.h"
 #include "gui/views/automation/context/clip/instrument_clip/synth_instrument_clip.h"
 #include "gui/views/automation/context/song/arranger.h"
-#include "gui/views/automation/layout.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -93,6 +92,10 @@ UI* AutomationView::getKitInstrumentClipView() {
 		return &automationViewKitGlobalInstrumentClip;
 	}
 	return &automationViewKitRowInstrumentClip;
+}
+
+AutomationLayout* AutomationView::getCurrentAutomationLayout() {
+	return currentAutomationLayout;
 }
 
 void AutomationView::initialize() {

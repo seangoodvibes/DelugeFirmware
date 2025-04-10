@@ -51,6 +51,8 @@ using namespace deluge::gui;
 
 constexpr int32_t kNumNonGlobalParamsForAutomation = 81;
 constexpr int32_t kNumGlobalParamsForAutomation = 37;
+constexpr uint8_t kVelocityShortcutX = 15;
+constexpr uint8_t kVelocityShortcutY = 1;
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/automation/layout.h"
 #include "gui/views/clip_view.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "modulation/automation/auto_param.h"
@@ -106,6 +107,8 @@ public:
 	AutomationParamType automationParamType;
 
 	void resetShortcutBlinking();
+
+	AutomationLayout* getCurrentAutomationLayout();
 };
 
 //}; // namespace deluge::gui::views

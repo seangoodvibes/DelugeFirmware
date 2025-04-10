@@ -117,12 +117,12 @@ void AutomationViewSong::selectEncoderAction(int8_t offset) {
 		offset = offset * 5;
 	}
 
-	selectParameter(offset);
+	selectParameterWithOffset(offset);
 	uiNeedsRendering(getRootUI());
 }
 
 // used with SelectEncoderAction to get the next arranger affect entire parameter
-void AutomationViewSong::selectParameter(int32_t offset) {
+void AutomationViewSong::selectParameterWithOffset(int32_t offset) {
 	auto idx =
 	    getNextSelectedParamArrayPosition(offset, currentSong->lastSelectedParamID,
 	                                      currentSong->lastSelectedParamArrayPosition, kNumGlobalParamsForAutomation);
@@ -175,6 +175,88 @@ int32_t AutomationViewSong::getNextSelectedParamArrayPosition(int32_t offset, in
 		idx = lastSelectedParamArrayPosition + offset;
 	}
 	return idx;
+}
+
+/// handles shortcut pad actions, including:
+/// 1) toggle interpolation on / off
+/// 2) select parameter on automation overview
+/// 3) select parameter using shift + shortcut pad
+/// 4) select parameter using audition + shortcut pad
+bool AutomationViewSong::shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
+                                           int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll,
+                                           int32_t xZoom) {
+	AutomationLayout* currentAutomationLayout = getCurrentAutomationLayout();
+	if (currentAutomationLayout == nullptr) {
+		return true;
+	}
+
+	bool shortcutPress =
+	    (velocity != 0)
+	    && (Buttons::isShiftButtonPressed()
+	        || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)
+	        || currentAutomationLayout->onAutomationOverview());
+
+	if (shortcutPress) {
+		// only allow toggling of interpolation / pad selection mode when you've selected a parameter
+		if (currentAutomationLayout->inAutomationEditor()) {
+			// toggle interpolation on / off
+			if (xDisplay == kInterpolationShortcutX && yDisplay == kInterpolationShortcutY) {
+				return currentAutomationLayout->toggleAutomationInterpolation();
+			}
+			// toggle pad selection on / off
+			else if (xDisplay == kPadSelectionShortcutX && yDisplay == kPadSelectionShortcutY) {
+				return currentAutomationLayout->toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength,
+				                                                                 xScroll, xZoom);
+			}
+		}
+	}
+
+	// don't change parameters this way if we're in the menu
+	if (getCurrentUI() != getRootUI()) {
+		return true;
+	}
+
+	// attempt to select parameter
+	if (shortcutPress) {
+		selectParameterWithShortcut(xDisplay, yDisplay);
+		return true;
+	}
+
+	return false;
+}
+
+void AutomationViewSong::selectParameterWithShortcut(int32_t xDisplay, int32_t yDisplay) {
+	// check if this is a valid shortcut
+	if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+
+		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
+		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+
+		// don't allow automation of pitch adjust, sidechain or arp parameters in arranger
+		if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
+		    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)
+		    || (paramID >= params::UNPATCHED_FIRST_ARP_PARAM && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
+		    || (paramID == params::UNPATCHED_ARP_RATE)) {
+			return; // no parameter selected, don't re-render grid;
+		}
+
+		currentSong->lastSelectedParamKind = paramKind;
+		currentSong->lastSelectedParamID = paramID;
+
+		getLastSelectedGlobalParamArrayPosition();
+	}
+}
+
+void AutomationViewSong::getLastSelectedGlobalParamArrayPosition() {
+	for (auto idx = 0; idx < kNumGlobalParamsForAutomation; idx++) {
+
+		auto [kind, id] = globalParamsForAutomation[idx];
+
+		if ((id == currentSong->lastSelectedParamID) && (kind == currentSong->lastSelectedParamKind)) {
+			currentSong->lastSelectedParamArrayPosition = idx;
+			break;
+		}
+	}
 }
 
 // get's the modelstack for the song parameters that are being edited

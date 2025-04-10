@@ -33,11 +33,17 @@ public:
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
 	                                         int32_t paramID) override;
 
+	// pad action
+	bool shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength, int32_t xDisplay,
+	                       int32_t yDisplay, int32_t velocity, int32_t xScroll, int32_t xZoom);
+
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;
-	void selectParameter(int32_t offset);
+	void selectParameterWithOffset(int32_t offset);
+	void selectParameterWithShortcut(int32_t xDisplay, int32_t yDisplay);
 	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamID,
 	                                          int32_t lastSelectedParamArrayPosition, int32_t numParams);
+	void getLastSelectedGlobalParamArrayPosition();
 
 	// model stack with param
 	ModelStackWithAutoParam* getModelStackWithParam(void* modelStackMemory);

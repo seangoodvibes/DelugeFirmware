@@ -66,9 +66,9 @@ public:
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
 	                             int32_t xZoom);
 	bool recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay);
-	bool toggleAutomationInterpolation();
+	bool toggleAutomationInterpolation() override;
 	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
-	                                      int32_t xScroll, int32_t xZoom);
+	                                      int32_t xScroll, int32_t xZoom) override;
 	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	bool getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setAutomationParameterValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,

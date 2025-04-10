@@ -28,8 +28,6 @@ constexpr uint8_t kInterpolationShortcutX = 0;
 constexpr uint8_t kInterpolationShortcutY = 6;
 constexpr uint8_t kPadSelectionShortcutX = 0;
 constexpr uint8_t kPadSelectionShortcutY = 7;
-constexpr uint8_t kVelocityShortcutX = 15;
-constexpr uint8_t kVelocityShortcutY = 1;
 
 class Clip;
 
@@ -78,6 +76,12 @@ public:
 	bool isMultiPadPressSelected();                     // public so menu can access it
 	bool multiPadPressSelected = false;
 
+	// Editor
+	virtual bool toggleAutomationInterpolation() { return true; }
+	virtual bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
+	                                              int32_t xScroll, int32_t xZoom) {
+		return true;
+	}
 	bool onAutomationOverview();
 	bool inAutomationEditor();
 	bool inNoteEditor();
