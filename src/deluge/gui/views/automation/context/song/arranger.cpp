@@ -24,6 +24,8 @@
 
 PLACE_SDRAM_BSS AutomationViewArranger automationViewArranger{};
 
+const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
+
 AutomationViewArranger::AutomationViewArranger() {
 }
 
@@ -120,28 +122,7 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 			return ActionResult::DEALT_WITH;
 		}
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-
-		ModelStackWithAutoParam* modelStackWithParam = nullptr;
-		if (currentSong->lastSelectedParamID != kNoSelection) {
-			modelStackWithParam = getModelStackWithParam(modelStackMemory);
-		}
-		int32_t effectiveLength = getMaxLength();
-
-		int32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-		int32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
-
-		// if the user wants to change the parameter they are editing using Shift + Pad shortcut
-		// or change the parameter they are editing by press on a shortcut pad on automation overview
-		// or they want to enable/disable interpolation
-		// or they want to enable/disable pad selection mode
-		if (shortcutPadAction(modelStackWithParam, effectiveLength, x, y, velocity, xScroll, xZoom)) {
-			return ActionResult::DEALT_WITH;
-		}
-
-		// insert code for edit pad action
-
-		return ActionResult::DEALT_WITH;
+		return editPadAction(x, y, velocity);
 	}
 
 	else {
@@ -160,6 +141,35 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 			return arrangerView.handleAuditionPadAction(y, velocity, this);
 		}
 	}
+}
+
+ActionResult AutomationViewArranger::editPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	if (currentSong->lastSelectedParamID != kNoSelection) {
+		modelStackWithParam = getModelStackWithParam(modelStackMemory);
+	}
+
+	int32_t effectiveLength = getMaxLength();
+	int32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	int32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+
+	// if the user wants to change the parameter they are editing using Shift + Pad shortcut
+	// or change the parameter they are editing by press on a shortcut pad on automation overview
+	// or they want to enable/disable interpolation
+	// or they want to enable/disable pad selection mode
+	if (AutomationViewSong::shortcutPadAction(modelStackWithParam, effectiveLength, xDisplay, yDisplay, velocity,
+	                                          xScroll, xZoom)) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	// regular automation editing action
+	//	if (isUIModeWithinRange(editPadActionUIModes) && AutomationView::isSquareDefined(xDisplay, xScroll, xZoom)) {
+
+	//    }
+
+	return ActionResult::DEALT_WITH;
 }
 
 // defers to arranger sidebar render function
