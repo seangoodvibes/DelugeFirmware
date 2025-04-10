@@ -85,20 +85,8 @@ AutomationLayout::AutomationLayout() {
 void AutomationLayout::initialize() {
 	automationParameterSelection.initialize();
 
-	// grab the default setting for interpolation
-	automationLayoutEditor.interpolation = FlashStorage::automationInterpolate;
-
 	// re-initialize pad selection mode (so you start with the default automation editor)
 	initPadSelection();
-
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Output* output = clip->output;
-
-	// if we're in the note editor and we're in a kit,
-	// check that the lastAuditionedYDisplay is in sync with the selected drum
-	if (inNoteEditor()) {
-		automationLayoutEditor.potentiallyVerticalScrollToSelectedDrum(clip, output);
-	}
 }
 
 // Initializes some stuff to begin a new editing session
@@ -119,9 +107,9 @@ void AutomationLayout::focusRegained() {
 
 void AutomationLayout::openedInBackground() {
 	// setup interpolation shortcut blinking when entering automation view from menu
-	if (automationView.onMenuView && automationLayoutEditor.interpolation) {
-		blinkInterpolationShortcut();
-	}
+	//	if (automationView.onMenuView && automationLayoutEditor.interpolation) {
+	//		blinkInterpolationShortcut();
+	//	}
 }
 
 // used for the play cursor
@@ -897,16 +885,16 @@ ActionResult AutomationLayout::handleEditPadAction(Clip* clip, Output* output, O
 
 	// regular automation / note editing action
 	if (isUIModeWithinRange(editPadActionUIModes) && automationView.isSquareDefined(x, xScroll, xZoom)) {
-		if (inAutomationEditor()) {
-			automationLayoutEditor.automationEditPadAction(modelStackWithParam, clip, x, y, velocity, effectiveLength,
-			                                               xScroll, xZoom);
-		}
-		else if (inNoteEditor()) {
-			if (noteRow) {
-				automationLayoutEditor.noteEditPadAction(modelStackWithNoteRow, noteRow, (InstrumentClip*)clip, x, y,
-				                                         velocity, effectiveLength, squareInfo);
-			}
-		}
+		//	if (inAutomationEditor()) {
+		//		automationLayoutEditor.automationEditPadAction(x, y, velocity, xScroll, xZoom, effectiveLength,
+		//		                                               modelStackWithParam, clip);
+		//	}
+		//	else if (inNoteEditor()) {
+		//		if (noteRow) {
+		//			automationLayoutEditor.noteEditPadAction(modelStackWithNoteRow, noteRow, (InstrumentClip*)clip, x,
+		// y, 			                                         velocity, effectiveLength, squareInfo);
+		//		}
+		//	}
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -1343,13 +1331,6 @@ void AutomationLayout::commandVerticalScroll(InstrumentClip* clip, int32_t scrol
 			}
 		}
 	}
-}
-
-/// if we're entering note editor, we want the selected drum to be visible and in sync with lastAuditionedYDisplay
-/// so we'll check if the yDisplay of the selectedDrum is in sync with the lastAuditionedYDisplay
-/// if they're not in sync, we'll sync them up by performing a vertical scroll
-void AutomationLayout::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output) {
-	return automationLayoutEditor.potentiallyVerticalScrollToSelectedDrum(clip, output);
 }
 
 // Not used with Audio Clip Automation View or Arranger Automation View
@@ -1856,14 +1837,14 @@ void AutomationLayout::blinkShortcuts() {
 		}
 	}
 	// only blink interpolation shortcut while in automation editor
-	if (automationLayoutEditor.interpolation && inAutomationEditor()) {
-		if (!interpolationShortcutBlinking) {
-			blinkInterpolationShortcut();
-		}
-	}
-	else {
-		resetInterpolationShortcutBlinking();
-	}
+	//	if (automationLayoutEditor.interpolation && inAutomationEditor()) {
+	//		if (!interpolationShortcutBlinking) {
+	//			blinkInterpolationShortcut();
+	//		}
+	//	}
+	//	else {
+	//		resetInterpolationShortcutBlinking();
+	//	}
 	if (padSelectionOn) {
 		blinkPadSelectionShortcut();
 	}
@@ -1920,12 +1901,4 @@ void AutomationLayout::blinkPadSelectionShortcut() {
 	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
 	padSelectionShortcutBlinking = true;
-}
-
-bool AutomationLayout::interpolationBefore() {
-	return automationLayoutEditor.interpolationBefore;
-}
-
-bool AutomationLayout::interpolationAfter() {
-	return automationLayoutEditor.interpolationAfter;
 }

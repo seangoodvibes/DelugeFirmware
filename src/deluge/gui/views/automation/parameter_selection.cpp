@@ -335,7 +335,7 @@ void AutomationParameterSelection::handleParameterSelection(Clip* clip, Output* 
 		if (clip->type == ClipType::INSTRUMENT) {
 			// don't enter if we're in a kit with affect entire enabled
 			if (!(outputType == OutputType::KIT && getAffectEntire())) {
-				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
+				//	potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
 				initParameterSelection(false);
 				automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
 				clip->lastSelectedParamShortcutX = xDisplay;

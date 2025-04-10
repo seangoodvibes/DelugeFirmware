@@ -109,6 +109,7 @@ public:
 	void resetShortcutBlinking();
 
 	AutomationLayout* getCurrentAutomationLayout();
+	virtual ModelStackWithAutoParam* getModelStackWithParam(void* modelStackMemory) { return nullptr; }
 };
 
 //}; // namespace deluge::gui::views

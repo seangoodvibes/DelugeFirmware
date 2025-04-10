@@ -25,6 +25,8 @@ class AutomationLayoutEditorNote : public AutomationLayoutEditor {
 public:
 	AutomationLayoutEditorNote();
 
+	void initialize() override;
+
 	// Grid render functions
 	void renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
 	                      RGB image[][kDisplayWidth + kSideBarWidth],

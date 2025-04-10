@@ -34,7 +34,7 @@ class Clip;
 class AutomationLayout {
 public:
 	AutomationLayout();
-	void initialize();
+	virtual void initialize();
 	void focusRegained();
 	void openedInBackground();
 
@@ -52,6 +52,9 @@ public:
 
 	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	virtual void automationEditPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll,
+	                                     int32_t xZoom, int32_t effectiveLength,
+	                                     ModelStackWithAutoParam* modelStackWithParam, Clip* clip) {};
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset);
@@ -92,8 +95,8 @@ public:
 	// public so uiTimerManager can access it
 	void blinkInterpolationShortcut();
 	void blinkPadSelectionShortcut();
-	bool interpolationBefore();
-	bool interpolationAfter();
+	virtual bool getInterpolationBefore() { return false; }
+	virtual bool getInterpolationAfter() { return false; }
 
 	// public so menu can access it
 	// UI* previousUI; // previous UI so you can swap back UI after exiting menu

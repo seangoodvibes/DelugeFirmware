@@ -58,17 +58,11 @@ public:
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset);
 
-	// Vertical encoder action
-	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
-
 	// Pad action
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
 	// Sound Editor
-	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
-	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
-	                             int32_t xZoom);
 	bool toggleAutomationInterpolation();
 	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
 	                                      int32_t xScroll, int32_t xZoom);
@@ -91,9 +85,6 @@ public:
 	void pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength,
 	                     int32_t xScroll, int32_t xZoom);
 	void initInterpolation();
-	bool interpolation = true;
-	bool interpolationBefore = false;
-	bool interpolationAfter = false;
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 
 	// Note Editor

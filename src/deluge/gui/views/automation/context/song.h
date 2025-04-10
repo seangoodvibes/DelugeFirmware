@@ -34,8 +34,10 @@ public:
 	                                         int32_t paramID) override;
 
 	// pad action
-	bool shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength, int32_t xDisplay,
-	                       int32_t yDisplay, int32_t velocity, int32_t xScroll, int32_t xZoom);
+	bool shortcutPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll, int32_t xZoom,
+	                       int32_t effectiveLength);
+	void editPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll, int32_t xZoom,
+	                   int32_t effectiveLength);
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;
@@ -46,7 +48,7 @@ public:
 	void getLastSelectedGlobalParamArrayPosition();
 
 	// model stack with param
-	ModelStackWithAutoParam* getModelStackWithParam(void* modelStackMemory);
+	ModelStackWithAutoParam* getModelStackWithParam(void* modelStackMemory) override;
 };
 
 //}; // namespace deluge::gui::views

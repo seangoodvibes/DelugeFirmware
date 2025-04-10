@@ -260,11 +260,11 @@ void AutomationView::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* m
 }
 
 bool AutomationView::interpolationBefore() {
-	return currentAutomationLayout->interpolationBefore();
+	return currentAutomationLayout->getInterpolationBefore();
 }
 
 bool AutomationView::interpolationAfter() {
-	return currentAutomationLayout->interpolationAfter();
+	return currentAutomationLayout->getInterpolationAfter();
 }
 
 void AutomationView::resetShortcutBlinking() {

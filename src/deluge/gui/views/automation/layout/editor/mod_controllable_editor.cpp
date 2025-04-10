@@ -95,6 +95,11 @@ PLACE_SDRAM_BSS AutomationLayoutEditorModControllable automationLayoutEditorModC
 AutomationLayoutEditorModControllable::AutomationLayoutEditorModControllable() {
 }
 
+void AutomationLayoutEditorModControllable::initialize() {
+	// grab the default setting for interpolation
+	interpolation = FlashStorage::automationInterpolate;
+}
+
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
 // clip length renders the undefined area of the clip that the user can't interact with
 void AutomationLayoutEditorModControllable::renderAutomationEditor(
@@ -1102,10 +1107,12 @@ void AutomationLayoutEditorModControllable::initInterpolation() {
 // automation edit pad action
 // handles single and multi pad presses for automation editing
 // stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationLayoutEditorModControllable::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam,
-                                                                    Clip* clip, int32_t xDisplay, int32_t yDisplay,
-                                                                    int32_t velocity, int32_t effectiveLength,
-                                                                    int32_t xScroll, int32_t xZoom) {
+void AutomationLayoutEditorModControllable::automationEditPadAction(int32_t xDisplay, int32_t yDisplay,
+                                                                    int32_t velocity, int32_t xScroll, int32_t xZoom,
+                                                                    int32_t effectiveLength,
+                                                                    ModelStackWithAutoParam* modelStackWithParam,
+                                                                    Clip* clip) {
+
 	// If button down
 	if (velocity) {
 		// If this is a automation-length-edit press...

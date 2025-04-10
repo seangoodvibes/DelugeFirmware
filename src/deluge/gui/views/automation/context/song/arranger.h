@@ -43,8 +43,8 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 
 	// pad action
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult editPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity);
+	ActionResult padAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity) override;
+	ActionResult handleEditPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity);
 
 	// horizontal encoder action
 	[[nodiscard]] int32_t getNavSysId() const override;

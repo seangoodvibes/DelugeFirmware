@@ -111,18 +111,18 @@ ActionResult AutomationViewArranger::buttonAction(deluge::hid::Button b, bool on
 
 // pad action
 // handles main grid pad actions (e.g. editing, shortcuts) and sidebar pad actions (e.g. status pad)
-ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t velocity) {
+ActionResult AutomationViewArranger::padAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	if (x < kDisplayWidth) {
+	if (xDisplay < kDisplayWidth) {
 		// if we're in arranger automation view and holding audition pad, ignore main pad press
 		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		return editPadAction(x, y, velocity);
+		return handleEditPadAction(xDisplay, yDisplay, velocity);
 	}
 
 	else {
@@ -132,42 +132,34 @@ ActionResult AutomationViewArranger::padAction(int32_t x, int32_t y, int32_t vel
 		}
 
 		// status pad action
-		if (x == kDisplayWidth) {
-			return arrangerView.handleStatusPadAction(y, velocity, this);
+		if (xDisplay == kDisplayWidth) {
+			return arrangerView.handleStatusPadAction(yDisplay, velocity, this);
 		}
 
 		// audition pad action
 		else {
-			return arrangerView.handleAuditionPadAction(y, velocity, this);
+			return arrangerView.handleAuditionPadAction(yDisplay, velocity, this);
 		}
 	}
 }
 
-ActionResult AutomationViewArranger::editPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (currentSong->lastSelectedParamID != kNoSelection) {
-		modelStackWithParam = getModelStackWithParam(modelStackMemory);
-	}
-
-	int32_t effectiveLength = getMaxLength();
+ActionResult AutomationViewArranger::handleEditPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity) {
 	int32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 	int32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int32_t effectiveLength = getMaxLength();
 
 	// if the user wants to change the parameter they are editing using Shift + Pad shortcut
 	// or change the parameter they are editing by press on a shortcut pad on automation overview
 	// or they want to enable/disable interpolation
 	// or they want to enable/disable pad selection mode
-	if (AutomationViewSong::shortcutPadAction(modelStackWithParam, effectiveLength, xDisplay, yDisplay, velocity,
-	                                          xScroll, xZoom)) {
+	if (AutomationViewSong::shortcutPadAction(xDisplay, yDisplay, velocity, xScroll, xZoom, effectiveLength)) {
 		return ActionResult::DEALT_WITH;
 	}
 
 	// regular automation editing action
-	//	if (isUIModeWithinRange(editPadActionUIModes) && AutomationView::isSquareDefined(xDisplay, xScroll, xZoom)) {
-
-	//    }
+	if (isUIModeWithinRange(editPadActionUIModes) && AutomationView::isSquareDefined(xDisplay, xScroll, xZoom)) {
+		AutomationViewSong::editPadAction(xDisplay, yDisplay, velocity, xScroll, xZoom, effectiveLength);
+	}
 
 	return ActionResult::DEALT_WITH;
 }

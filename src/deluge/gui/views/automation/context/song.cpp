@@ -182,9 +182,8 @@ int32_t AutomationViewSong::getNextSelectedParamArrayPosition(int32_t offset, in
 /// 2) select parameter on automation overview
 /// 3) select parameter using shift + shortcut pad
 /// 4) select parameter using audition + shortcut pad
-bool AutomationViewSong::shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
-                                           int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll,
-                                           int32_t xZoom) {
+bool AutomationViewSong::shortcutPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll,
+                                           int32_t xZoom, int32_t effectiveLength) {
 	AutomationLayout* currentAutomationLayout = getCurrentAutomationLayout();
 	if (currentAutomationLayout == nullptr) {
 		return true;
@@ -205,6 +204,8 @@ bool AutomationViewSong::shortcutPadAction(ModelStackWithAutoParam* modelStackWi
 			}
 			// toggle pad selection on / off
 			else if (xDisplay == kPadSelectionShortcutX && yDisplay == kPadSelectionShortcutY) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStackMemory);
 				return currentAutomationLayout->toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength,
 				                                                                 xScroll, xZoom);
 			}
@@ -259,8 +260,28 @@ void AutomationViewSong::getLastSelectedGlobalParamArrayPosition() {
 	}
 }
 
+void AutomationViewSong::editPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll,
+                                       int32_t xZoom, int32_t effectiveLength) {
+	AutomationLayout* currentAutomationLayout = getCurrentAutomationLayout();
+	if (currentAutomationLayout == nullptr) {
+		return;
+	}
+
+	if (currentAutomationLayout->inAutomationEditor()) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStackMemory);
+
+		currentAutomationLayout->automationEditPadAction(xDisplay, yDisplay, velocity, xScroll, xZoom, effectiveLength,
+		                                                 modelStackWithParam, nullptr);
+	}
+}
+
 // get's the modelstack for the song parameters that are being edited
 ModelStackWithAutoParam* AutomationViewSong::getModelStackWithParam(void* modelStackMemory) {
+	if (currentSong->lastSelectedParamID == kNoSelection) {
+		return nullptr;
+	}
+
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 

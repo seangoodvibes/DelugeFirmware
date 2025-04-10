@@ -157,13 +157,6 @@ ActionResult AutomationLayoutEditor::horizontalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }
 
-/// if we're entering note editor, we want the selected drum to be visible and in sync with lastAuditionedYDisplay
-/// so we'll check if the yDisplay of the selectedDrum is in sync with the lastAuditionedYDisplay
-/// if they're not in sync, we'll sync them up by performing a vertical scroll
-void AutomationLayoutEditor::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output) {
-	return automationLayoutEditorNote.potentiallyVerticalScrollToSelectedDrum(clip, output);
-}
-
 // this function obtains a parameters value and converts it to a knobPos
 // the knobPos is used for rendering the current parameter values in the automation editor
 // it's also used for obtaining the start and end position values for a multi pad press
@@ -214,16 +207,6 @@ void AutomationLayoutEditor::renderAutomationDisplayForMultiPadPress(ModelStackW
 
 void AutomationLayoutEditor::initInterpolation() {
 	return automationLayoutEditorModControllable.initInterpolation();
-}
-
-// automation edit pad action
-// handles single and multi pad presses for automation editing
-// stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationLayoutEditor::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                     int32_t xDisplay, int32_t yDisplay, int32_t velocity,
-                                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
-	return automationLayoutEditorModControllable.automationEditPadAction(modelStackWithParam, clip, xDisplay, yDisplay,
-	                                                                     velocity, effectiveLength, xScroll, xZoom);
 }
 
 /// toggle automation interpolation on / off

@@ -32,6 +32,15 @@ PLACE_SDRAM_BSS AutomationLayoutEditorNote automationLayoutEditorNote{};
 AutomationLayoutEditorNote::AutomationLayoutEditorNote() {
 }
 
+void AutomationLayoutEditorNote::initialize() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	Output* output = clip->output;
+
+	// if we're in the note editor and we're in a kit,
+	// check that the lastAuditionedYDisplay is in sync with the selected drum
+	potentiallyVerticalScrollToSelectedDrum(clip, output);
+}
+
 // gets the length of the note row, renders the pads corresponding to current note parameter values set up to the
 // note row length renders the undefined area of the note row that the user can't interact with
 void AutomationLayoutEditorNote::renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,

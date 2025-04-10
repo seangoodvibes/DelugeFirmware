@@ -26,6 +26,8 @@ class AutomationLayoutEditorModControllable : public AutomationLayoutEditor {
 public:
 	AutomationLayoutEditorModControllable();
 
+	void initialize() override;
+
 	// Grid render functions
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                            RGB image[][kDisplayWidth + kSideBarWidth],
@@ -62,9 +64,9 @@ public:
 	                                 int32_t effectiveLength);
 
 	// Sound Editor
-	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
-	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
-	                             int32_t xZoom);
+	void automationEditPadAction(int32_t xDisplay, int32_t yDisplay, int32_t velocity, int32_t xScroll, int32_t xZoom,
+	                             int32_t effectiveLength, ModelStackWithAutoParam* modelStackWithParam,
+	                             Clip* clip) override;
 	bool recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	bool toggleAutomationInterpolation() override;
 	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
@@ -105,6 +107,11 @@ public:
 	                     int32_t xScroll, int32_t xZoom);
 	CopiedParamAutomation copiedParamAutomation;
 	void initInterpolation();
+	bool interpolation = true;
+	bool interpolationBefore = false;
+	bool interpolationAfter = false;
+	bool getInterpolationBefore() override { return interpolationBefore; }
+	bool getInterpolationAfter() override { return interpolationAfter; }
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
