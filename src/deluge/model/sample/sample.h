@@ -34,8 +34,8 @@
 #define RAW_DATA_ENDIANNESS_WRONG_24 4
 #define RAW_DATA_ENDIANNESS_WRONG_32 5
 
-#define MIDI_NOTE_UNSET -999
-#define MIDI_NOTE_ERROR -1000
+const float MIDI_NOTE_UNSET = (-999);
+const float MIDI_NOTE_ERROR = (-1000);
 
 class LoadedSamplePosReason;
 class SampleCache;
