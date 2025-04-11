@@ -72,6 +72,8 @@ public:
 	const char* getName() { return "instrument_clip_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult potentiallyRandomizeDrumSamples();
+	ActionResult potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename);
 
 	// SCALE MODE related commands.
 

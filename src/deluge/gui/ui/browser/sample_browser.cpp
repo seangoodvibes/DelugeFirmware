@@ -960,7 +960,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix) {
+				if (!numCharsInPrefix || display->haveOLED()) {
 					newName.set(&enteredText);
 				}
 				else {
