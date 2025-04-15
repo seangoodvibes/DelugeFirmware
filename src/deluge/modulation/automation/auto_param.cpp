@@ -108,11 +108,15 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	    (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	     && (!modelStack->timelineCounterIsSet() || modelStack->getTimelineCounter()->isPlayingAutomationNow()));
 
+	bool isRecording = false;
+
 	if (isPlaying) {
 
 		// If recording...
 		if (playbackHandler.recording != RecordingMode::OFF && modelStack->timelineCounterIsSet()
 		    && modelStack->getTimelineCounter()->armedForRecording) {
+
+			isRecording = true;
 
 			// If in record mode and shift button held down, delete automation
 			if (Buttons::isShiftButtonPressed()) {
@@ -295,7 +299,9 @@ skipThat: {}
 	}
 
 getOut:
-	currentValue = value;
+	if (!isRecording) {
+		currentValue = value;
+	}
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
