@@ -56,6 +56,9 @@ public:
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
 	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
+	int32_t getValueAtNode(ParamNode* thisNode);
+	void setValueOffsetAtNode(ParamNode* thisNode, int32_t value);
+	int32_t getValueOffsetFromValue(int32_t value);
 	/// tick the interolator by a number of samples - used for internal synths
 	bool tickSamples(int32_t numSamples);
 	/// tick the interpolator by a number of ticks - used for midi
