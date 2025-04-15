@@ -725,29 +725,6 @@ adjustNodeJustReached:
 		}
 	}
 
-	// If this node we've just reached wasn't interpolated, and automation is not overridden (which may have only just
-	// become the case), we need to jump to the node's value. (Or, it'll be the value of the node to the left if the
-	// node here isn't interpolated.)
-	if ((!noNeedToJumpToValue || mustUpdateValueAtEveryNode) && !renewedOverridingAtTime) {
-		int32_t oldValue = currentValue;
-		currentValue = valueJustReached;
-
-		// The call to notifyParamModifiedInSomeWay() below normally has the ability to delete this AutoParam, which we
-		// want it not to. It won't if we still contain automation, which I think we have to... Let's just verify that.
-#if ALPHA_OR_BETA_VERSION
-		if (!isAutomated()) {
-			FREEZE_WITH_ERROR("E372");
-		}
-#endif
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
-	}
-
-	if (mayInterpolate) {
-		if ((reversed ? nodeJustReached : nextNodeInOurDirection)->interpolated) {
-			setupInterpolation(nextNodeInOurDirection, effectiveLength, currentPos, reversed);
-		}
-	}
-
 getOut:
 	int32_t ticksTilNextNode = nextNodeInOurDirection->pos - currentPos;
 	if (reversed) {
@@ -1405,15 +1382,15 @@ int32_t AutoParam::getValueOffsetFromValue(int32_t value) {
 	return (value - currentValue);
 }
 
-// Returns whether a change was made to currentValue
+// Returns whether a change was made to currentValueOffset
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
 	if (!nodes.getNumElements()) {
 		return false;
 	}
 
-	int32_t oldValue = currentValue;
-	currentValue = getValueAtPos(pos, modelStack);
-	return (currentValue != oldValue);
+	int32_t oldValueOffset = currentValueOffset;
+	currentValueOffset = getValueAtPos(pos, modelStack) - currentValue;
+	return (currentValueOffset != oldValueOffset);
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {

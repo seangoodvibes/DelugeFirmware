@@ -132,6 +132,7 @@ public:
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
+	int32_t currentValueOffset;
 	int32_t valueIncrementPerHalfTick;
 	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
 
