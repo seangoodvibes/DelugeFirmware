@@ -3727,7 +3727,7 @@ shiftAllColour:
 			if ((!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
 			     || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING)))
 			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor()))) {
-				scrollVertical(offset);
+				scrollVertical(offset, modelStack);
 
 				// if we're in note editor scrolling vertically will change note selected
 				// so we want to re-render the display to show the updated note
@@ -3752,15 +3752,19 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 		if (noteRow) {
 			int32_t lastAuditionedYDisplayScrolled = instrumentClipView.lastAuditionedYDisplay + clip->yScroll;
 			if (noteRowIndex != lastAuditionedYDisplayScrolled) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
 				int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
-				scrollVertical(yScrollAdjustment);
+				scrollVertical(yScrollAdjustment, modelStack);
 			}
 		}
 	}
 }
 
 // Not used with Audio Clip Automation View or Arranger Automation View
-ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
+ActionResult AutomationView::scrollVertical(int32_t scrollAmount, ModelStackWithTimelineCounter* modelStack) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Output* output = clip->output;
 	OutputType outputType = output->type;
@@ -3769,9 +3773,6 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 	int32_t noteRowToSwapWithI;
 
 	bool isKit = outputType == OutputType::KIT;
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// If a Kit...
 	if (isKit) {
@@ -3824,15 +3825,18 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 
 	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
+		if ((instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255)
+		    && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
+			instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
 
-		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
-		if (noteRow) {
-			// If recording, record a note-off for this NoteRow, if one exists
-			if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-				clip->recordNoteOff(modelStackWithNoteRow);
+			if (noteRow) {
+				// If recording, record a note-off for this NoteRow, if one exists
+				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+					clip->recordNoteOff(modelStackWithNoteRow);
+				}
 			}
 		}
 	}
