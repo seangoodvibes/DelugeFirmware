@@ -19,7 +19,6 @@
 
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
-#include "menu_item.h"
 #include "util/containers.h"
 #include <initializer_list>
 #include <span>
@@ -41,9 +40,9 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
-	void selectEncoderAction(int32_t offset) final;
+	void selectEncoderAction(int32_t offset) override;
 	MenuItem* selectButtonPress() final;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
 	bool usesAffectEntire() override;
@@ -51,6 +50,8 @@ public:
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
+	virtual RenderingStyle renderingStyle() const { return RenderingStyle::VERTICAL; };
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
@@ -58,33 +59,20 @@ public:
 	bool wrapAround();
 	bool isSubmenu() override { return true; }
 	virtual bool focusChild(const MenuItem* child);
-	/// Submenus which support horizontal rendering need to override this.
-	virtual bool supportsHorizontalRendering() { return false; }
-	RenderingStyle renderingStyle();
 	void updatePadLights() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; };
+	[[nodiscard]] bool showNotification() const override { return false; }
 
 protected:
-	void drawVerticalMenu();
-	void drawHorizontalMenu();
+	deluge::vector<MenuItem*> items;
+	typename decltype(items)::iterator current_item_;
+	uint32_t initial_index_ = 0;
 
 private:
 	bool shouldForwardButtons();
-	deluge::vector<MenuItem*> items;
-	typename decltype(items)::iterator current_item_;
-};
-
-class HorizontalMenu : public Submenu {
-public:
-	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems) : Submenu(newName, newItems) {}
-	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems) : Submenu(newName, newItems) {}
-	HorizontalMenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
-	    : Submenu(newName, title, newItems) {}
-	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
-	    : Submenu(newName, title, newItems) {}
-	bool supportsHorizontalRendering() { return true; }
 };
 
 } // namespace deluge::gui::menu_item

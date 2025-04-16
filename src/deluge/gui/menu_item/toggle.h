@@ -14,6 +14,7 @@ public:
 	virtual void drawValue();
 	void drawPixelsForOled();
 	void displayToggleValue();
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }

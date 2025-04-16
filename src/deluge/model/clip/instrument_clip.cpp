@@ -44,6 +44,7 @@
 #include "model/scale/utils.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
@@ -1445,9 +1446,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!(i & 15)) {
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
-			AudioEngine::logAction("renderAsSingleRow still");
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t yNote;
@@ -1687,7 +1686,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	Instrument* oldInstrument = (Instrument*)output;
 	int32_t oldYScroll = yScroll;
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	AudioEngine::audioRoutineLocked = true;
 
@@ -1748,7 +1747,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	AudioEngine::audioRoutineLocked = false;
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	// If now a Kit, match NoteRows back up to Drums
 	if (newInstrument->type == OutputType::KIT) {
@@ -1783,7 +1782,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			}
 
 			// TODO: we surely don't need to call this every time through
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;
@@ -2113,7 +2112,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 				thisNoteRow->rememberDrumName();
 			}
 			AudioEngine::logAction("InstrumentClip::unassignAllNoteRowsFromDrums");
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading();
 
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
@@ -3049,12 +3048,12 @@ expressionParam:
 									goto expressionParam;
 								}
 							}
-							auto maybeMidiParam =
-							    paramManager.getMIDIParamCollection()->getOrCreateParamFromCC(paramId);
-							if (!maybeMidiParam) {
-								return maybeMidiParam.error();
+							MIDIParam* midiParam =
+							    paramManager.getMIDIParamCollection()->params.getOrCreateParamFromCC(paramId, 0);
+							if (!midiParam) {
+								return Error::INSUFFICIENT_RAM;
 							}
-							param = &maybeMidiParam.value()->second;
+							param = &midiParam->param;
 						}
 					}
 					reader.exitTag("cc");
@@ -3232,7 +3231,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				noteRows.deleteNoteRowAtIndex(i);
 
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				AudioEngine::routineWithClusterLoading();
 			}
 			else {
 				i++;
@@ -3896,7 +3895,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 
 			if (!(noteRowCount & 15)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				AudioEngine::routineWithClusterLoading();
 				AudioEngine::logAction("nlkr");
 			}
 

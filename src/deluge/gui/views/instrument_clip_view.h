@@ -241,6 +241,7 @@ public:
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
 	void popupVelocity(char const* displayString);
 
+	void handleProbabilityOrIteranceEditing(int8_t offset, bool editNoteRow);
 	void adjustNoteProbabilityWithOffset(int32_t offset);
 	void adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
 	void adjustNoteIteranceWithFinalValue(Iterance finalValue);
@@ -338,8 +339,8 @@ private:
 
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-	                                int32_t* getIndex = nullptr);
+	NoteRow* getOrCreateEmptyNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
+	                                       int32_t* getIndex = nullptr);
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 

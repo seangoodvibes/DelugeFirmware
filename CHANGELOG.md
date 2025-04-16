@@ -9,10 +9,14 @@
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
-- Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
-- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), which you can access from the sound editor menu.
+- Added two more envelopes (Envelope 3 and Envelope 4)
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-)
+- Patch cables can be toggled to unipolar or bipolar mode
+  - `Press + Turn select encoder` to change the polarity while in the patch cable menu
+  - For OLED: `MIDI`/`CV` buttons can be used as an additional way to change it, with corresponding graphics on the display
+  - For 7SEG: a little dot will be displayed on the right side when the polarity is unipolar
 
-#### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
+#### <ins>Per-clip Stutter with options: Direction and Quantize</ins>
 - Now the stutter buffer can also be set to play in reverse, and ping-pong.
 - A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
 - An extra menu has been added per sound source (either synths, kit rows, affect-entire kits, or audio clips) to
@@ -20,6 +24,26 @@ set the stutter configuration independently of the song configuration if you wis
 - Quantized stutter is enabled by default.
 
 ### User Interface
+
+#### <ins>New Shortcuts</ins>
+Added main grid pad shortcuts for the following parameters:
+- `COMPRESSOR THRESHOLD`: accessed using `SHIFT` / `AUDITION PAD` + `PAD` between the `DECIMATION PAD` and `LPF db/OCT PAD`
+- `STUTTER RATE`: accessed using `SHIFT` / `AUDITION PAD` + `PAD` between the `PLAY DIRECTION PAD` and `SATURATION PAD`
+- `NOTE PROBABILITY`: accessed using `SHIFT` + `NOTE PAD` in the `PATCH SOURCE` column between the `RANDOM PAD` and `SIDECHAIN PAD`
+  - Note: `AUDITION PAD` + `NOTE PAD` is reserved for future functionality
+- `RANDOMIZER LOCK`: accessed using :key[SHIFT] + :key[RANDOM PAD] in the `PATCH SOURCE` column between :key[NOTE PAD] and :key[VELOCITY PAD]
+  - Note: :key[AUDITION PAD] + :key[RANDOM PAD] is reserved for future functionality
+- `VELOCITY PROBABILITY`: accessed using `SHIFT` + `VELOCITY PAD` in the `PATCH SOURCE` column between the `AFTERTOUCH PAD` and `RANDOM PAD`
+  - Note: `AUDITION PAD` + `VELOCITY PAD` is reserved for entering the Velocity Automation View
+
+#### <ins>Layered Shortcuts</ins>
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
+  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
+  - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
+  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
+  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
 
 #### <ins>Accessibility</ins>
 - Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
@@ -34,21 +58,37 @@ set the stutter configuration independently of the song configuration if you wis
 
 ##### <ins>Horizontal Menus</ins>
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Oscillator 1-2.
+  - Oscillator mixer.
+  - Sample 1-2.
+  - Sample recorder.
+  - Modulator 1-2.
+  - Master.
   - Envelope 1-4.
-  - LPF and HPF.
   - LFO 1-4.
-  - Arpeggiator
-- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
-  - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
-    - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
-  - If you're not holding an audition pad or sticky shift is disabled, then the following select behaviours apply.
-  - With `Alternative Select Behaviour (SELE)` DISABLED:
-    - `Turn select encoder` to change the selected menu item
-    - `Press + Turn select encoder` to change the value of the selected menu item
-  - With `Alternative Select Behaviour (SELE)` ENABLED:
-    - `Turn select encoder` to change the value of the selected menu item
-    - `Press + Turn select encoder` to change the selected menu item
-
+  - LPF and HPF.
+  - EQ.
+  - Distortion.
+  - Reverb.
+  - Reverb sidechain.
+  - Sidechain.
+  - Delay.
+  - Mod FX.
+  - Compressor.
+  - Stutter.
+  - Unison.
+  - Voice.
+  - Arpeggiator.
+- Horizontal Menu controls.
+  - `Turn select encoder` to change the value of the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+    - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
+  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
+    - Use `CROSS-SCREEN` button to switch to the next page
+    - Use `SCALE` button to switch to the previous page
+    - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
+    - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
+  - You can fine-tune values (e.g., oscillator transpose) in a menu by either `Press + Turn select encoder` or `Shift + Turn select encoder`
 
 #### <ins>Clip Name Display & Copying</ins>
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.
@@ -73,13 +113,15 @@ set the stutter configuration independently of the song configuration if you wis
 
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+- Added `AUDIO EXPORT` for `KIT DRUMS`, an automated process for exporting `DRUM's` while in `KIT INSTRUMENT CLIP VIEW`. Press `SAVE` + `RECORD` to start exporting.
+- Added Tempo, Root Note and Scale Information to file names
 
 
 #### <ins>Save/Load Patterns</ins>
 - Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
 
 #### <ins>Favourites</ins>
-A `Favourites` feature has been added to the browser for most file types. The `Favourites` are displayed above the QWERTY Keyboard and are only visible when that keyboard is shown. `Favourites` can be configured to either offer 16 favourites (default), 16 banks with 16 favourites each or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`. Now also when pressing the `KEYBOARD` button, you can pin the QWERTY keyboard so it is not hidden every time you select a sample.
+A `Favourites` feature has been added to the browser for most file types. The `Favourites` are displayed above the QWERTY Keyboard and are only visible when that keyboard is shown. `Favourites` can be configured to either offer 16 favourites (default), 16 banks with 16 favourites each or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`. Now also when pressing the `KEYBOARD` button, you can pin the QWERTY keyboard so it is not hidden every time you select a sample.
 
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
@@ -162,6 +204,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### MIDI Clips
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
+- Updated MIDI Program menu to show values 0-127.
+  - Values for program, bank and sub-bank were previously shown as 1-128, but now reflect the actual transmitted MIDI values.
 
 #### <ins>Automation View</ins>
 
@@ -189,6 +233,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Layout
 - Added the classic piano keyboard layout.
 
+#### <ins>Scales/Key</ins>
+
+- Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental.
+
+
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
@@ -197,6 +246,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity Spread
 also affect normal sequenced notes while arpeggiator is Off.
 - Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
+- Added `SWAP PROBABILITY (SWAP)` paramater that will allow you to control the chance of a note in the pattern being replaced by a random note from the pattern.
+- Added `GLIDE PROBABILITY (GLID)` paramater that will allow you to control the chance of delaying a note's note-off event to be executed at the same time as the following arp note. If your sound has some `Portamento` applied, then it will produce a glide effect.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
@@ -228,6 +279,12 @@ also affect normal sequenced notes while arpeggiator is Off.
 - A new folder has been created in the root of the SD card titled `MIDI_DEVICES`
 - MIDI device definition files can be saved to / loaded from `MIDI_DEVICES/DEFINITION/`
 - See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
+
+## c1.2.1 Chopin
+
+### Sound Engine
+
+- Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in song row view and the audio waveform renderer.
 
 ## c1.2.0 Chopin
 

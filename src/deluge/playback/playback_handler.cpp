@@ -545,7 +545,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not
 		// happening so it doesn't do the first tick yet
 		playbackState = 0;
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading();
 		playbackState = newPlaybackState;
 	}
 
@@ -3201,8 +3201,8 @@ doCreateNextOverdub:
 
 			// If we're holding down a Clip in Session View, prioritize that
 			if (getRootUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-				clipToCreateOverdubFrom = sessionView.getClipOnScreen(sessionView.selectedClipPressYDisplay);
-				clipIndexToCreateOverdubFrom = sessionView.selectedClipPressYDisplay + currentSong->songViewYScroll;
+				clipToCreateOverdubFrom = sessionView.getClipForLayout();
+				clipIndexToCreateOverdubFrom = sessionView.getClipIndexForLayout();
 				sessionView.performActionOnPadRelease = false;
 			}
 

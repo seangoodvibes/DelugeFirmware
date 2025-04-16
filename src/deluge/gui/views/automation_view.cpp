@@ -121,8 +121,8 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 81;
-constexpr int32_t kNumGlobalParamsForAutomation = 37;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
+constexpr int32_t kNumGlobalParamsForAutomation = 39;
 constexpr int32_t kParamNodeWidth = 3;
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
@@ -222,6 +222,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_NOTE_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SWAP_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GLIDE_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_REVERSE_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
@@ -292,6 +294,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_NOTE_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SWAP_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_GLIDE_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERSE_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RHYTHM},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
@@ -404,8 +408,6 @@ AutomationView::AutomationView() {
 	rightPadSelectedX = kNoSelection;
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
-	numNotesSelected = 0;
-	selectedPadPressed = 0;
 	playbackStopped = false;
 	onArrangerView = false;
 	onMenuView = false;
@@ -605,8 +607,8 @@ void AutomationView::openedInBackground() {
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
-	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-	yield([]() { return true; });
+	AudioEngine::routineWithClusterLoading();
+
 	AudioEngine::logAction("AutomationView::beginSession 2");
 
 	if (renderingToStore) {
@@ -1175,16 +1177,6 @@ void AutomationView::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth]
 		else {
 			pixel = colours::black; // erase pad
 		}
-	}
-	// pad selection mode, render cursor
-	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
-		if (doRender) {
-			pixel = velocityRowBlurColour[yDisplay];
-		}
-		else {
-			pixel = colours::grey;
-		}
-		occupancyMask[yDisplay][xDisplay] = 64;
 	}
 }
 
@@ -2487,21 +2479,16 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		if (Buttons::isShiftButtonPressed()
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
-			// toggle interpolation on / off
-			// not relevant for note editor because interpolation doesn't apply to note params
-			if (!inNoteEditor() && (x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
-				return toggleAutomationInterpolation();
-			}
-			// toggle pad selection on / off
-			else if (!onAutomationOverview()) {
-				if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
-					//	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
-					//		return toggleVelocityPadSelectionMode(squareInfo);
-					//	}
-					//	else {
-					if (inAutomationEditor()) {
-						return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
-					}
+			if (!inNoteEditor()) {
+				// toggle interpolation on / off
+				// not relevant for note editor because interpolation doesn't apply to note params
+				if ((x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
+					return toggleAutomationInterpolation();
+				}
+				// toggle pad selection on / off
+				// not relevant for note editor because pad selection mode was deemed unnecessary
+				else if (inAutomationEditor() && (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY)) {
+					return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
 				}
 			}
 
@@ -2547,40 +2534,6 @@ bool AutomationView::toggleAutomationInterpolation() {
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
 	}
-	return true;
-}
-
-/// toggle velocity pad selection mode on / off
-bool AutomationView::toggleVelocityPadSelectionMode(SquareInfo& squareInfo) {
-	// enter/exit pad selection mode
-	if (padSelectionOn) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
-
-		initPadSelection();
-	}
-	else {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
-
-		padSelectionOn = true;
-		blinkPadSelectionShortcut();
-
-		// display only left cursor
-		leftPadSelectedX = 0;
-		rightPadSelectedX = kNoSelection;
-		numNotesSelected = squareInfo.numNotes;
-
-		// when entering velocity pad selection mode, record note selection
-		// but don't record pad press yet if there are no notes in this square
-		// because recording a pad press for an empty square creates a note, and we don't want that yet
-		// (we'll do that when we try to adjust square velocity)
-		if (numNotesSelected != 0) {
-			// select note if there are notes in this square
-			recordNoteEditPadAction(leftPadSelectedX, 1);
-			instrumentClipView.dontDeleteNotesOnDepress();
-		}
-	}
-	uiNeedsRendering(this);
-	renderDisplay();
 	return true;
 }
 
@@ -2747,9 +2700,6 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	if (inNoteEditor()) {
 		automationParamType = AutomationParamType::PER_SOUND;
 		instrumentClipView.resetSelectedNoteRowBlinking();
-		if (padSelectionOn) {
-			initPadSelection();
-		}
 	}
 	blinkShortcuts();
 	if (display->have7SEG()) {
@@ -2771,52 +2721,8 @@ void AutomationView::noteEditPadAction(ModelStackWithNoteRow* modelStackWithNote
                                        InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
                                        int32_t effectiveLength, SquareInfo& squareInfo) {
 	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
-		if (padSelectionOn) {
-			velocityPadSelectionAction(modelStackWithNoteRow, clip, x, y, velocity, squareInfo);
-		}
-		else {
-			velocityEditPadAction(modelStackWithNoteRow, noteRow, clip, x, y, velocity, effectiveLength, squareInfo);
-		}
+		velocityEditPadAction(modelStackWithNoteRow, noteRow, clip, x, y, velocity, effectiveLength, squareInfo);
 	}
-}
-
-// handle's what happens when you select columns in velocity pad selection mode
-void AutomationView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
-                                                int32_t x, int32_t y, int32_t velocity, SquareInfo& squareInfo) {
-
-	if (velocity) {
-		// if selection has changed and note was previously selected, release previous press
-		// if we recorded the previous pad that was pressed
-		if (leftPadSelectedX != kNoSelection && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-			recordNoteEditPadAction(leftPadSelectedX, 0);
-		}
-
-		// if we selected a new pad, record new press
-		// don't record pad press yet if there are no notes in this square
-		// because recording a pad press for an empty square creates a note, and we don't want that yet
-		// (we'll do that when we try to adjust square velocity)
-		if (leftPadSelectedX != x && squareInfo.numNotes != 0) {
-			// record new note selection
-			recordNoteEditPadAction(x, 1);
-			instrumentClipView.dontDeleteNotesOnDepress();
-		}
-
-		if (leftPadSelectedX != x) {
-			// store new pad selection
-			leftPadSelectedX = x;
-			numNotesSelected = squareInfo.numNotes;
-		}
-		else {
-			// de-select pad selection
-			leftPadSelectedX = kNoSelection;
-			numNotesSelected = 0;
-		}
-
-		// refresh grid and display
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	}
-	selectedPadPressed = velocity;
-	renderDisplay();
 }
 
 // velocity edit pad action
@@ -3185,9 +3091,6 @@ void AutomationView::recordNoteEditPadAction(int32_t x, int32_t velocity) {
 void AutomationView::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
                                              int32_t yDisplay, int32_t velocity, int32_t effectiveLength,
                                              int32_t xScroll, int32_t xZoom) {
-	if (padSelectionOn) {
-		selectedPadPressed = velocity;
-	}
 	// If button down
 	if (velocity) {
 		// If this is a automation-length-edit press...
@@ -3799,30 +3702,10 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 
 	// fine tune note velocity
 	// If holding down notes and nothing else is held down, adjust velocity
-	// or if in pad selection mode, create note or adjust velocity
-	else if (inNoteEditor()
-	         && (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
-	             || (currentUIMode == UI_MODE_NONE && padSelectionOn && leftPadSelectedX != kNoSelection))) {
+	else if (inNoteEditor() && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 		if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 			if (!instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-				// adjust velocity faster in pad selection mode while holding shift
-				if (padSelectionOn && Buttons::isShiftButtonPressed()) {
-					offset = offset * 5;
-				}
-
-				// if we had selected a pad without any notes in it yet
-				// and we're trying to increase velocity of that pad
-				// then let's create a note first
-				if (padSelectionOn && (offset > 0) && numNotesSelected == 0) {
-					// record pad press
-					// this will create a new note at default velocity
-					recordNoteEditPadAction(leftPadSelectedX, 1);
-					numNotesSelected = 1;
-				}
-				// note exists in the pad selected, so let's adjust its velocity
-				else {
-					instrumentClipView.adjustVelocity(offset);
-				}
+				instrumentClipView.adjustVelocity(offset);
 				renderDisplay(getCurrentInstrument()->defaultVelocity);
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
@@ -3978,40 +3861,12 @@ shiftAllColour:
 		if (isUIModeWithinRange(verticalScrollUIModes)) {
 			if ((!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
 			     || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING)))
-			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor() && !padSelectionOn))) {
-				// if we're in the note editor pad selection mode and vertical scrolling,
-				// we want to end any presses first (which will end any note auditioning as well)
-				if (inNoteEditor() && padSelectionOn) {
-					instrumentClipView.endAllEditPadPresses();
-				}
+			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor()))) {
+				scrollVertical(offset, modelStack);
 
-				scrollVertical(offset);
-
-				// if we're in note editor pad selection mode, scrolling vertically will change note selected
+				// if we're in note editor scrolling vertically will change note selected
 				// so we want to re-render the display to show the updated note
 				if (inNoteEditor()) {
-					// if we're in pad selection mode, we will have de-selected the pad presses above
-					// and now we want to re-instate the pad press for the selected note row
-					// so that we can re-audition the selected note
-					if (padSelectionOn && leftPadSelectedX != kNoSelection) {
-						ModelStackWithNoteRow* modelStackWithNoteRow =
-						    ((InstrumentClip*)clip)
-						        ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-						                             modelStack); // don't create
-						if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-							NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-							int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
-							SquareInfo squareInfo;
-							noteRow->getSquareInfo(leftPadSelectedX, effectiveLength, squareInfo);
-							numNotesSelected = squareInfo.numNotes;
-
-							if (numNotesSelected != 0) {
-								// select note if there are notes in this square
-								recordNoteEditPadAction(leftPadSelectedX, 1);
-								instrumentClipView.dontDeleteNotesOnDepress();
-							}
-						}
-					}
 					renderDisplay();
 				}
 			}
@@ -4032,15 +3887,19 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 		if (noteRow) {
 			int32_t lastAuditionedYDisplayScrolled = instrumentClipView.lastAuditionedYDisplay + clip->yScroll;
 			if (noteRowIndex != lastAuditionedYDisplayScrolled) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
 				int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
-				scrollVertical(yScrollAdjustment);
+				scrollVertical(yScrollAdjustment, modelStack);
 			}
 		}
 	}
 }
 
 // Not used with Audio Clip Automation View or Arranger Automation View
-ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
+ActionResult AutomationView::scrollVertical(int32_t scrollAmount, ModelStackWithTimelineCounter* modelStack) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Output* output = clip->output;
 	OutputType outputType = output->type;
@@ -4049,9 +3908,6 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 	int32_t noteRowToSwapWithI;
 
 	bool isKit = outputType == OutputType::KIT;
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// If a Kit...
 	if (isKit) {
@@ -4104,15 +3960,18 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 
 	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
+		if ((instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255)
+		    && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
+			instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
 
-		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
-		if (noteRow) {
-			// If recording, record a note-off for this NoteRow, if one exists
-			if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-				clip->recordNoteOff(modelStackWithNoteRow);
+			if (noteRow) {
+				// If recording, record a note-off for this NoteRow, if one exists
+				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+					clip->recordNoteOff(modelStackWithNoteRow);
+				}
 			}
 		}
 	}
@@ -4237,7 +4096,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				return;
 			}
 		}
-		else {
+		else if (inNoteEditor()) {
 			goto followOnAction;
 		}
 	}
@@ -4601,17 +4460,17 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return;
 	}
-	// edit row or note probability
+	// edit row or note probability or iterance
 	else if (inNoteEditor()) {
-		// only allow adjusting probbaility while holding note
+		// only allow adjusting probability / iterance while holding note
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
-			instrumentClipView.adjustNoteProbabilityWithOffset(offset);
+			instrumentClipView.handleProbabilityOrIteranceEditing(offset, false);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}
-		// only allow adjusting row probability while holding audition
+		// only allow adjusting row probability / iterance while holding audition
 		else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-			instrumentClipView.setNoteRowProbabilityWithOffset(offset);
+			instrumentClipView.handleProbabilityOrIteranceEditing(offset, true);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}
@@ -5086,16 +4945,6 @@ void AutomationView::initPadSelection() {
 	leftPadSelectedX = kNoSelection;
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
-
-	resetPadSelectionShortcutBlinking();
-
-	numNotesSelected = 0;
-	selectedPadPressed = 0;
-
-	// make sure no active presses remain when exiting pad selection mode
-	if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-		instrumentClipView.endAllEditPadPresses();
-	}
 
 	resetPadSelectionShortcutBlinking();
 }

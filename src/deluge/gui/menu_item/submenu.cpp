@@ -1,16 +1,20 @@
 #include "submenu.h"
+#include "processing/sound/sound.h"
 
 #include "etl/vector.h"
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "storage/flash_storage.h"
 #include <algorithm>
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentMultiRange = nullptr;
+
+	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
+		navigatedBackwardFrom = items[initial_index_];
+		initial_index_ = 0; // only set on first access, remember previously accessed menu otherwise.
+	}
 	focusChild(navigatedBackwardFrom);
 	if (display->have7SEG()) {
 		updateDisplay();
@@ -18,22 +22,21 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 bool Submenu::focusChild(const MenuItem* child) {
-	// Set new current item.
-	auto prev = current_item_;
 	if (child != nullptr) {
-		current_item_ = std::find(items.begin(), items.end(), child);
+		// if the specific child is passed, try to find it among the items
+		// if not found or not relevant, keep the previous selection
+		auto candidate = std::find(items.begin(), items.end(), child);
+		if (candidate != items.end() && isItemRelevant(*candidate)) {
+			current_item_ = candidate;
+		}
 	}
-	// If the item wasn't found or isn't relevant, set to first relevant one instead.
+
+	// If the current item isn't valid or isn't relevant, set to first relevant one instead.
 	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
 		current_item_ = std::ranges::find_if(items, isItemRelevant); // Find first relevant item.
 	}
-	// Log it.
-	if (current_item_ != items.end()) {
-		return true;
-	}
-	else {
-		return false;
-	}
+
+	return current_item_ != items.end();
 }
 
 void Submenu::updateDisplay() {
@@ -49,16 +52,16 @@ void Submenu::updateDisplay() {
 	}
 }
 
-void Submenu::drawPixelsForOled() {
-	if (renderingStyle() == RenderingStyle::VERTICAL) {
-		drawVerticalMenu();
-	}
-	else {
-		drawHorizontalMenu();
-	}
+void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
+
+	// Draw arrow icon centered indicating that there is another layer
+	const int32_t arrow_y = slot.start_y + kHorizontalMenuSlotYOffset;
+	const int32_t arrow_x = slot.start_x + (slot.width - kSubmenuIconSpacingX) / 2 - 1;
+	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIconBold, arrow_x, arrow_y, kSubmenuIconSpacingX);
 }
 
-void Submenu::drawVerticalMenu() {
+void Submenu::drawPixelsForOled() {
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
@@ -99,61 +102,6 @@ void Submenu::drawVerticalMenu() {
 	drawSubmenuItemsForOled(visible, pos);
 }
 
-void Submenu::drawHorizontalMenu() {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
-	baseY += OLED_MAIN_TOPMOST_PIXEL;
-
-	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
-	int32_t nBefore = std::count_if(items.begin(), current_item_, isItemRelevant);
-
-	int32_t pageSize = std::min<int32_t>(nTotal, 4);
-	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
-	int32_t currentPage = nBefore / pageSize;
-	int32_t posOnPage = mod(nBefore, pageSize);
-	int32_t pageStart = currentPage * pageSize;
-
-	// Scan to beginning of the visible page:
-	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
-	for (size_t n = 0; n < pageStart; n++) {
-		it = std::find_if(std::next(it), items.end(), isItemRelevant);
-	}
-
-	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
-	int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / std::min<int32_t>(nTotal - pageStart, 4);
-
-	// Render the page
-	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
-		MenuItem* item = *it;
-		int32_t startX = boxWidth * n;
-		item->readCurrentValue();
-		item->renderInHorizontalMenu(startX + 1, boxWidth, baseY, boxHeight);
-		// next relevant item.
-		it = std::find_if(std::next(it), items.end(), isItemRelevant);
-	}
-
-	// Render the page counters
-	if (pageCount > 1) {
-		int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
-		int32_t pageY = extraY + OLED_MAIN_TOPMOST_PIXEL;
-
-		int32_t endX = OLED_MAIN_WIDTH_PIXELS;
-
-		for (int32_t p = pageCount; p > 0; p--) {
-			DEF_STACK_STRING_BUF(pageNum, 2);
-			pageNum.appendInt(p);
-			int32_t w = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
-			image.drawString(pageNum.c_str(), endX - w, pageY, kTextSpacingX, kTextSpacingY);
-			endX -= w + 1;
-			if (p - 1 == currentPage) {
-				image.invertArea(endX, w + 1, pageY, pageY + kTextSpacingY);
-			}
-		}
-	}
-	image.invertArea(boxWidth * posOnPage, boxWidth, baseY, baseY + boxHeight);
-}
-
 void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
@@ -185,44 +133,14 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 }
 
 bool Submenu::wrapAround() {
-	return display->have7SEG() || renderingStyle() == RenderingStyle::HORIZONTAL;
+	return display->have7SEG() || renderingStyle() == HORIZONTAL;
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {
 	if (current_item_ == items.end()) {
 		return;
 	}
-	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
-	bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
-	/* turning select encoder while any of these conditions are true can change horizontal menu value
-	    i) Shift Button is stuck; or
-	    ii) Audition pad pressed; or
-	    iii) Horizontal menu alternative select encoder behaviour is enabled
-	*/
-	bool horizontalMenuValueChangeModifierEnabled = Buttons::isShiftStuck() || isUIModeActive(UI_MODE_AUDITIONING)
-	                                                || FlashStorage::defaultAlternativeSelectEncoderBehaviour;
-
-	// change horizontal menu value when either:
-	// A) You're not pressing select encoder AND value change modifier is true
-	// B) You're pressing select encoder AND value change modifier is disabled
-	bool changeHorizontalMenuValue = (!selectButtonPressed && horizontalMenuValueChangeModifierEnabled)
-	                                 || (selectButtonPressed && !horizontalMenuValueChangeModifierEnabled);
-
-	MenuItem* child = *current_item_;
-
-	if (horizontal && !child->isSubmenu() && changeHorizontalMenuValue) {
-		child->selectEncoderAction(offset);
-		focusChild(child);
-		// We don't want to return true for selectEncoderEditsInstrument(), since
-		// that would trigger for scrolling in the menu as well.
-		return soundEditor.markInstrumentAsEdited();
-	}
-	if (horizontal) {
-		// Undo any acceleration: we only want it for the items, not the menu itself.
-		// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
-		offset = std::clamp(offset, (int32_t)-1, (int32_t)1);
-	}
 	if (offset > 0) {
 		// Scan items forward, counting relevant items.
 		auto lastRelevant = current_item_;
@@ -264,8 +182,6 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		} while (offset < 0);
 	}
 	updateDisplay();
-	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 }
 
 bool Submenu::shouldForwardButtons() {
@@ -338,16 +254,6 @@ bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 		return (*current_item_)->learnNoteOn(cable, channel, noteCode);
 	}
 	return false;
-}
-
-Submenu::RenderingStyle Submenu::renderingStyle() {
-	if (display->haveOLED() && this->supportsHorizontalRendering()
-	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
-		return RenderingStyle::HORIZONTAL;
-	}
-	else {
-		return RenderingStyle::VERTICAL;
-	}
 }
 
 void Submenu::updatePadLights() {

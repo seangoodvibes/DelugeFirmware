@@ -283,13 +283,14 @@ public:
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
 
-	[[gnu::always_inline]] void saturate(int32_t* data, uint32_t* workingValue) {
+	int32_t getShiftAmountForSaturation() const { return (clippingAmount >= 2) ? (clippingAmount - 2) : 0; }
+
+	///	clipping amount must be greater than 0! Check before calling
+	/// Shift amount is givben by getShiftAmountForSaturation
+	[[gnu::always_inline]] void saturate(int32_t* data, uint32_t* workingValue, int32_t shiftAmount) {
 		// Clipping
-		if (clippingAmount != 0u) {
-			int32_t shiftAmount = (clippingAmount >= 2) ? (clippingAmount - 2) : 0;
-			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-			*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << (shiftAmount);
-		}
+		//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
+		*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << (shiftAmount);
 	}
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
@@ -319,6 +320,8 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
+	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
+	                           ArpReturnInstruction instruction);
 
 private:
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
@@ -338,6 +341,7 @@ private:
 	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void doParamLPF(int32_t numSamples, ModelStackWithSoundFlags* modelStack);
 	void stopParamLPF(ModelStackWithSoundFlags* modelStack);
+
 	bool renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack);
 	void setupDefaultExpressionPatching(ParamManager* paramManager);
 	void pushSwitchActionOnEncoderForParam(int32_t p, bool on, ModelStackWithThreeMainThings* modelStack);

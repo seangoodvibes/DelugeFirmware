@@ -1540,11 +1540,19 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
-			atLeastOneNoteOn = true;
-			invertReversed = instruction.invertReversed;
-			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.arpNoteOn->noteCodeOnPostArp[n],
-			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
-			                      samplesLate, fromMIDIChannel);
+			if (AudioEngine::allowedToStartVoice()) {
+				atLeastOneNoteOn = true;
+				invertReversed = instruction.invertReversed;
+				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
+				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
+				                      fromMIDIChannel);
+				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+			}
+			else {
+				D_PRINTLN("couldn't start note from sound::noteon");
+			}
+			// todo: end pending note?
 		}
 	}
 	if (!atLeastOneNoteOn) {
@@ -1563,6 +1571,12 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	ArpReturnInstruction instruction;
 	arpeggiator->noteOff(arpSettings, noteCode, &instruction);
 
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+	}
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
@@ -1597,12 +1611,13 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			// If FM, or no active sources are samples, or still sounding after fast-release, unassign
 			bool needs_unassign = //<
 			    synthMode == SynthMode::FM
-			    || std::ranges::none_of(std::views::iota(0, kNumSources),
-			                            [&](int32_t s) {
-				                            return isSourceActiveCurrently(s, paramManager)
-				                                   && sources[s].oscType != OscType::SAMPLE;
-			                            })
-			    || (voice->envelopes[0].state == EnvelopeStage::RELEASE && !voice->doFastRelease());
+			    || std::ranges::any_of(std::views::iota(0, kNumSources),
+			                           [&](int32_t s) {
+				                           return isSourceActiveCurrently(s, paramManager)
+				                                  && sources[s].oscType != OscType::SAMPLE;
+			                           })
+			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
+			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
 
 			if (needs_unassign) {
 				if (voiceToReuse != nullptr) {
@@ -1710,7 +1725,7 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 			// This is a sound drum (kit)
 			ArpeggiatorForDrum* arpeggiator = (ArpeggiatorForDrum*)getArp();
 			// Just one note is possible
-			ArpNote arpNote = arpeggiator->arpNote;
+			ArpNote arpNote = arpeggiator->active_note;
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (arpNote.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
@@ -1756,11 +1771,13 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		if (noteCode == ALL_NOTES_OFF) {
 			// We must send note offs for all active notes
 			// so we will search for the current notes on postArp phase, if any
+
+			// First any glide notes
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
+				if (getArp()->glideNoteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
-				int32_t outputNoteCode = getArp()->noteCodeCurrentlyOnPostArp[n];
+				int32_t outputNoteCode = getArp()->glideNoteCodeCurrentlyOnPostArp[n];
 				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
 					// If note for drums is set then this is a SoundDrum and we must use the relative note code
 					// (relative to kNoteForDrum)
@@ -1778,7 +1795,34 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
 				// we don't send two note offs if a normal noteOff or playback stop is received later
-				getArp()->noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				getArp()->glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			}
+
+			// Then any normal notes
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (getArp()->active_note.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				int32_t outputNoteCode = getArp()->active_note.noteCodeOnPostArp[n];
+				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+					// If note for drums is set then this is a SoundDrum and we must use the relative note code
+					// (relative to kNoteForDrum)
+					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
+					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+					// Correct if out of bounds
+					if (outputNoteCode < 0) {
+						outputNoteCode = 0;
+					}
+					else if (outputNoteCode > 127) {
+						outputNoteCode = 127;
+					}
+				}
+				midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
+
+				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
+				// we don't send two note offs if a normal noteOff or playback stop is received later
+				getArp()->active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				getArp()->active_note.noteStatus[n] = ArpNoteStatus::OFF;
 			}
 		}
 		else {
@@ -2292,6 +2336,31 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
+void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
+                                  ArpReturnInstruction instruction) {
+	if (instruction.arpNoteOn)
+		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
+	while (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE
+	       && AudioEngine::allowedToStartVoice()) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			invertReversed = instruction.invertReversed;
+
+			noteOnPostArpeggiator(
+			    modelStackWithSoundFlags,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+		}
+		if (getArp()->handlePendingNotes(arpSettings, &instruction))
+			instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
+	}
+}
+
 void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                    int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
                    int32_t pitchAdjust, SampleRecorder* recorder) {
@@ -2373,41 +2442,37 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (arpSettings != nullptr) {
 		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 	}
+	ArpReturnInstruction instruction;
+
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
-		ArpReturnInstruction instruction;
-
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
-
-		bool atLeastOneOff = false;
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-			atLeastOneOff = true;
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-		}
-		if (atLeastOneOff) {
-			invertReversed = false;
-		}
-		if (instruction.arpNoteOn != nullptr) {
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-					break;
-				}
-				invertReversed = instruction.invertReversed;
-				noteOnPostArpeggiator(
-				    modelStackWithSoundFlags,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-				    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-			}
-		}
 	}
+	else {
+		getArp()->handlePendingNotes(arpSettings, &instruction);
+	}
+	bool atLeastOneOff = false;
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		atLeastOneOff = true;
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		atLeastOneOff = true;
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+	}
+	if (atLeastOneOff) {
+		invertReversed = false;
+	}
+	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
 
 	// Setup delay
 	Delay::State delayWorkingState{};
@@ -2453,7 +2518,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
-
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
@@ -2463,12 +2527,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
-				it = voices_.erase(it);
 			}
-			else {
-				it++;
-			}
+			++it;
 		}
+		std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
@@ -4083,7 +4145,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	}
 	writer.writeAttribute("maxVoices", maxVoiceCount);
 
-	writer.writeOpeningTagEnd(); // -------------------------------------------------------------------------
+	writer.writeOpeningTagEnd();
 
 	writeSourceToFile(writer, 0, "osc1");
 	writeSourceToFile(writer, 1, "osc2");
@@ -4628,7 +4690,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 	for (auto it = voices_.begin(); it != voices_.end();) {
 		const ActiveVoice& voice = *it;
-		bool stillGoing = voice->doFastRelease();
+		bool stillGoing = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 		if (!stillGoing) {
 			this->checkVoiceExists(voice, "E212");

@@ -55,6 +55,10 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
+// Constants for the char value of the flat(♭) accidental glyph
+#define FLAT_CHAR_STR "\x81"
+#define FLAT_CHAR 0x81u
+
 constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {
@@ -253,6 +257,7 @@ enum class OutputType : uint8_t {
 enum class StemExportType : uint8_t {
 	CLIP,
 	TRACK,
+	DRUM,
 	MIXDOWN,
 };
 
@@ -262,6 +267,8 @@ enum class ThingType : uint8_t {
 	SONG,
 	NONE,
 };
+
+enum class MenuHighlighting : uint8_t { FULL_INVERSION, PARTIAL_INVERSION, NO_INVERSION };
 
 constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
@@ -502,6 +509,9 @@ enum class Error {
 	SD_CARD_NOT_PRESENT,
 	SD_CARD_NO_FILESYSTEM,
 	INVALID_PATTERN_VERSION,
+	OUT_OF_BUFFER_SPACE,
+	INVALID_SYSEX_FORMAT,
+	POS_PAST_STRING,
 };
 
 enum class SampleRepeatMode {
@@ -939,6 +949,10 @@ constexpr int32_t kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
 constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS);
 constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 
+// small characters
+constexpr int32_t kTextSmallSpacingX = 4;
+constexpr int32_t kTextSmallSizeY = 5;
+
 // non-title characters
 constexpr int32_t kTextSpacingX = 6; // the width of a character (5 px) + the space after it (1 px)
 constexpr int32_t kTextSpacingY = 9; // the height of a character (7 px) + the space above (1px) and below it (1px)
@@ -1067,3 +1081,6 @@ enum class LaunchStyle { DEFAULT, FILL, ONCE };
 
 enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;
+
+constexpr uint8_t kHorizontalMenuSlotYOffset = 2;
+constexpr uint8_t kScreenTitleSeparatorY = 12 + OLED_MAIN_TOPMOST_PIXEL;

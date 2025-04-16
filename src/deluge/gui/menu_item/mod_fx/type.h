@@ -65,5 +65,18 @@ public:
 		(void)optType;
 		return modfx::getModNames();
 	}
+
+	[[nodiscard]] int32_t getOccupiedSlots() const override {
+		// Occupy the whole page in the horizontal menu
+		return 4;
+	}
+
+	[[nodiscard]] bool showNotification() const override { return false; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		OLED::main.drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+		drawPixelsForOled();
+	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

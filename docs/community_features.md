@@ -34,22 +34,67 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Oscillator 1-2.
+  - Oscillator mixer.
+  - Sample 1-2.
+  - Sample recorder.
+  - Modulator 1-2
+  - Master.
   - Envelope 1-4.
-  - LPF and HPF.
   - LFO 1-4.
-  - Arpegiattor
-- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
-  - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
-    - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
-  - If you're not holding an audition pad or sticky shift is disabled, then the following select behaviours apply.
-  - With `Alternative Select Behaviour (SELE)` DISABLED:
-    - `Turn select encoder` to change the selected menu item
-    - `Press + Turn select encoder` to change the value of the selected menu item
-  - With `Alternative Select Behaviour (SELE)` ENABLED:
-    - `Turn select encoder` to change the value of the selected menu item
-    - `Press + Turn select encoder` to change the selected menu item
+  - LPF and HPF.
+  - EQ.
+  - Distortion.
+  - Reverb.
+  - Reverb sidechain.
+  - Sidechain.
+  - Delay.
+  - Mod FX.
+  - Compressor.
+  - Unison.
+  - Voice.
+  - Arpeggiator.
+- Horizontal Menu controls.
+  - `Turn select encoder` to change the value of the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+    - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
+  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
+    - Use `CROSS-SCREEN` button to switch to the next page
+    - Use `SCALE` button to switch to the previous page
+    - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
+    - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
+  - You can fine-tune values (e.g., oscillator transpose) in a menu by either `Press + Turn select encoder` or `Shift + Turn select encoder`
 
-#### 2.3 Favourites
+#### 2.3 Layered Shortcuts
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
+  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
+  - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
+  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
+  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
+
+#### 2.4 Favourites
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
+- In the `Favourites Only (16)`-Mode , 16 Favourite Slots are available at the Toprow above the Keyboard.
+- In the `Favourites and Banks (256)`-Mode, the Toprow contains 16 Banks, each with 16 Favourites displayed on the second row.
+Usage:
+- Save a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Browse to the File you want to save
+  - Hold `SHIFT` and select a empty Favourite Slot (light blue)
+- Delete a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Hold `SHIFT` and select the Favourite Slot you want to delete
+- Recall a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Select the Favourite
+- Change the Colour of a Favourite
+  - Select the Favourite you want to modify
+  - Hold `SHIFT` and turn `VERTICAL ENCODER`
+
+Tip:
+If you are Browsing Songs or Samples an dont want to have the Preview to hide the Keyboard on Scrolling, just press the `KEYBOARD`-Button to pin the Keyboard and the Favourites.
 A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
 - In the `Favourites Only (16)`-Mode , 16 Favourite Slots are available at the Toprow above the Keyboard.
 - In the `Favourites and Banks (256)`-Mode, the Toprow contains 16 Banks, each with 16 Favourites displayed on the second row.
@@ -435,6 +480,10 @@ which track to record from. The source can also be selected by pressing a clip's
 - ([#3195]) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
 - ([#3195]) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
 
+#### 3.36 Configurable Accidental
+
+- ([#3794]) Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -706,7 +755,7 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.8 - Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong
+#### 4.2.8 - Per-clip Stutter with options: Direction and Quantize
 
 - ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
   the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
@@ -1137,11 +1186,11 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 #### 4.5.8 - More envelopes
 
-- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4). Pressing the ENV1 shortcuts toggles between ENV1 and ENV3, while the ENV2 shortcuts toggle between ENV2 and ENV4.
 
 #### 4.5.9 - More LFOs
 
-- ([#3332]) Added two more LFOs: LFO 3 (global) and LFO 4 (per voice), which you can access from the sound editor menu.
+- ([#3332]) Added two more LFOs: LFO3 (global) and LFO4 (per voice). Pressing the LFO1 shortcuts toggles between LFO1 and LFO3, while the LFO2 shortcuts toggle between LFO2 and LFO4.
 
 #### 4.5.10 - Send Midi
 
@@ -1667,6 +1716,8 @@ different firmware
 [#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
 
 [#3425]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3425
+
+[#3794]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3794
 
 [Automation View Documentation]: features/automation_view.md
 

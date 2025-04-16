@@ -47,7 +47,13 @@ bool LoadMidiDeviceDefinitionUI::opened() {
 		return false;
 	}
 
-	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
+
+	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
@@ -68,6 +74,8 @@ bool LoadMidiDeviceDefinitionUI::opened() {
 	return true;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 	// reset
@@ -135,6 +143,7 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 
 	return Error::NONE;
 }
+#pragma GCC diagnostic pop
 
 void LoadMidiDeviceDefinitionUI::folderContentsReady(int32_t entryDirection) {
 }

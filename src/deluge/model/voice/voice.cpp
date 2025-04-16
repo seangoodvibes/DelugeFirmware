@@ -90,7 +90,7 @@ Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, param
 void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong) {
 
 	unassignStuff(deletingSong);
-
+	delete_this_voice_ = true;
 	if (!deletingSong) {
 		this->sound.voiceUnassigned(modelStack);
 	}
@@ -1537,6 +1537,7 @@ skipUnisonPart: {}
 			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
+			int32_t shiftAmount = sound.getShiftAmountForSaturation();
 
 			do {
 				int32_t outputSampleL = *(oscBufferPos++);
@@ -1548,8 +1549,8 @@ skipUnisonPart: {}
 					outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
 				}
 
-				sound.saturate(&outputSampleL, &lastSaturationTanHWorkingValue[0]);
-				sound.saturate(&outputSampleR, &lastSaturationTanHWorkingValue[1]);
+				sound.saturate(&outputSampleL, &lastSaturationTanHWorkingValue[0], shiftAmount);
+				sound.saturate(&outputSampleR, &lastSaturationTanHWorkingValue[1], shiftAmount);
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
@@ -1621,6 +1622,7 @@ skipUnisonPart: {}
 			int32_t* __restrict__ outputSample = soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
 
+			auto clippingAmount = sound.getShiftAmountForSaturation();
 			do {
 				int32_t output = *oscBufferPos;
 
@@ -1629,7 +1631,7 @@ skipUnisonPart: {}
 					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
 				}
 
-				sound.saturate(&output, &lastSaturationTanHWorkingValue[0]);
+				sound.saturate(&output, &lastSaturationTanHWorkingValue[0], clippingAmount);
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
@@ -2453,7 +2455,7 @@ bool Voice::forceNormalRelease() {
 	if (doneFirstRender) {
 		// If no release-stage, we'll stop as soon as we can
 		if (!hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, SOFT_CULL_INCREMENT);
 		}
 		// otherwise we'll just let it get there on its own
 		else {

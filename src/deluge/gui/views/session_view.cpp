@@ -2183,26 +2183,7 @@ ramError:
 }
 
 void SessionView::graphicsRoutine() {
-	static int counter = 0;
-	if (currentUIMode == UI_MODE_NONE) {
-		int32_t modKnobMode = -1;
-		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) {
-				modKnobMode = *modKnobModePointer;
-				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
-			}
-		}
-		if (modKnobMode == 4 && editingComp) { // upper
-			counter = (counter + 1) % 5;
-			if (counter == 0) {
-				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
-
-				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
-			}
-		}
-	}
+	potentiallyUpdateCompressorLEDs();
 
 	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
@@ -2354,6 +2335,29 @@ void SessionView::graphicsRoutine() {
 	}
 
 	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
+void SessionView::potentiallyUpdateCompressorLEDs() {
+	static int counter = 0;
+	if (currentUIMode == UI_MODE_NONE) {
+		int32_t modKnobMode = -1;
+		bool editingComp = false;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer) {
+				modKnobMode = *modKnobModePointer;
+				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
+			}
+		}
+		if (modKnobMode == 4 && editingComp) { // upper
+			counter = (counter + 1) % 5;
+			if (counter == 0) {
+				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
+
+				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
+			}
+		}
+	}
 }
 
 // checks if tempo has changed since it was last rendered on the display and updates it if required
@@ -2928,8 +2932,8 @@ void SessionView::transitionToSessionView() {
 
 // Might be called during card routine! So renders might fail. Not too likely
 void SessionView::finishedTransitioningHere() {
-	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-	yield([]() { return true; });
+	AudioEngine::routineWithClusterLoading();
+
 	currentUIMode = UI_MODE_ANIMATION_FADE;
 	PadLEDs::recordTransitionBegin(kFadeSpeed);
 	changeRootUI(this);
@@ -3061,6 +3065,19 @@ Clip* SessionView::getClipForLayout() {
 	case SessionLayoutType::SessionLayoutTypeRows:
 	default: {
 		return getClipOnScreen(selectedClipYDisplay);
+	}
+	}
+}
+
+int32_t SessionView::getClipIndexForLayout() {
+	switch (currentSong->sessionLayout) {
+	case SessionLayoutType::SessionLayoutTypeGrid: {
+		return gridClipIndexFromCoords(gridFirstPressedX, gridFirstPressedY);
+		break;
+	}
+	case SessionLayoutType::SessionLayoutTypeRows:
+	default: {
+		return (sessionView.selectedClipPressYDisplay + currentSong->songViewYScroll);
 	}
 	}
 }
@@ -3347,11 +3364,6 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	}
 
 	RGB resultColour = RGB::fromHue(clip->output->colour);
-	// when selecting a clip, dim all other clip pads a bit
-	// so that the selected clip pad can be lit a bit brighter
-	if (renderPulse && (x != gridFirstPressedX || y != gridFirstPressedY)) {
-		resultColour = resultColour.adjust(255, 2);
-	}
 
 	// Black phase of arm flashing
 	if (view.clipArmFlashOn && clip->armState != ArmState::OFF) {
@@ -3599,6 +3611,8 @@ void SessionView::setupNewClip(Clip* newClip) {
 	}
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
 	if (source->name.isEmpty()) {
 		return;
@@ -3629,6 +3643,7 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 	}
 	target->name.set(newName.data());
 }
+#pragma GCC diagnostic pop
 
 Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
 	actionLogger.deleteAllLogs();
@@ -4662,6 +4677,7 @@ int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
 
 Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
 	auto trackIndex = gridTrackIndexFromX(x, maxTrack);
+
 	if (trackIndex < 0) {
 		return nullptr;
 	}
@@ -4672,6 +4688,7 @@ Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
 Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
+
 	if (track == nullptr) {
 		return nullptr;
 	}
@@ -4690,6 +4707,30 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 
 	return nullptr;
 }
+
+int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
+	auto maxTrack = gridTrackCount();
+	Output* track = gridTrackFromX(x, maxTrack);
+
+	if (track == nullptr) {
+		return -1;
+	}
+
+	auto section = gridSectionFromY(y);
+	if (section == -1) {
+		return -1;
+	}
+
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		if (clip->output == track && clip->section == section) {
+			return idxClip;
+		}
+	}
+
+	return -1;
+}
+
 Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridTrackFromX(x, gridTrackCount());

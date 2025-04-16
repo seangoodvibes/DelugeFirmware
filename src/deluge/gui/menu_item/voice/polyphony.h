@@ -25,6 +25,8 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
+#include <hid/display/oled.h>
+
 namespace deluge::gui::menu_item::voice {
 class VoiceCount : public IntegerWithOff {
 public:
@@ -63,9 +65,32 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->polyphonic == PolyphonyMode::POLY);
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT));
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		if (const auto value = getValue(); value == 0) {
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
+		}
+		else {
+			valueBuf.appendInt(value);
+		}
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		if (getValue() == 0) {
+			return OLED::main.drawIconCentered(OLED::infinityIcon, slot.start_x, slot.width,
+			                                   slot.start_y + kHorizontalMenuSlotYOffset + 1);
+		}
+		IntegerWithOff::renderInHorizontalMenu(slot);
 	}
 };
 
@@ -116,6 +141,10 @@ public:
 			return &polyphonicVoiceCountMenu;
 		}
 		return Selection::selectButtonPress();
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_POLYPHONY_SHORT));
 	}
 };
 } // namespace deluge::gui::menu_item::voice

@@ -504,89 +504,92 @@ The Song menu contains the following menu hierarchy:
 </details>
 <details><summary>FX</summary>
 
-	- EQ
-		- Bass
-		- Treble (TREB)
-		- Bass Frequency (BAFR)
-		- Treble Frequency (TRFR)
-	- Delay (DELA)
-		- Amount (AMOU)
-		- Rate
-		- Pingpong (PING)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Type
-			- Digital (DIGI)
-			- Analog (ANA)
-		- Sync
-		NOTE: These options can change depending on how your default resolution is set
+    - EQ
+    	- Bass
+    	- Treble (TREB)
+    	- Bass Frequency (BAFR)
+    	- Treble Frequency (TRFR)
+    - Delay (DELA)
+    	- Pingpong (PING)
+    		- Disabled (OFF)
+    		- Enabled (ON)
+    	- Sync
+    	NOTE: These options can change depending on how your default resolution is set
+    		- Off
+    		- 2-Bar
+    		- 1-Bar
+    		- 2nd-Notes
+    		- 4th-Notes
+    		- 8th-Notes
+    		- 16th-Notes
+    		- 32nd-Notes
+    		- 64th-Notes
+    		- 128th-Notes
+    		- 2-Bar-TPLTS
+    		- 1-Bar-TPLTS
+    		- 2nd-TPLTS
+    		- 4th-TPLTS
+    		- 8th-TPLTS
+    		- 16th-TPLTS
+    		- 32nd-TPLTS
+    		- 64th-TPLTS
+    		- 128th-TPLTS
+    		- 2-Bar-DTTED
+    		- 1-Bar-DTTED
+    		- 2nd-DTTED
+    		- 4th-DTTED
+    		- 8th-DTTED
+    		- 16th-DTTED
+    		- 32nd-DTTED
+    		- 64th-DTTED
+    		- 128th-DTTED
+    	- Rate
+    	- Amount (AMOU)
+    	- Type
+    		- Digital (DIGI)
+    		- Analog (ANA)
 
-			- Off
-			- 2-Bar
-			- 1-Bar
-			- 2nd-Notes
-			- 4th-Notes
-			- 8th-Notes
-			- 16th-Notes
-			- 32nd-Notes
-			- 64th-Notes
-			- 128th-Notes
-			- 2-Bar-TPLTS
-			- 1-Bar-TPLTS
-			- 2nd-TPLTS
-			- 4th-TPLTS
-			- 8th-TPLTS
-			- 16th-TPLTS
-			- 32nd-TPLTS
-			- 64th-TPLTS
-			- 128th-TPLTS
-			- 2-Bar-DTTED
-			- 1-Bar-DTTED
-			- 2nd-DTTED
-			- 4th-DTTED
-			- 8th-DTTED
-			- 16th-DTTED
-			- 32nd-DTTED
-			- 64th-DTTED
-			- 128th-DTTED
-	- Reverb (REVE)
-		- Amount (AMOU)
-  			- Freeverb (FVRB)
-          		- Mutable (MTBL)
-		- Model (MODE)
-		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
-		- Damping (DAMP)
-		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
-  		- HPF (if Mutable is Selected)
-  		- LPF (if Mutable is Selected)
-		- Pan
-		- Reverb Sidechain (SIDE)
-			- Volume Ducking (VOLU)
+    - Reverb (REVE)
+    	- Model (MODE)
+    		- Freeverb (FVRB)
+    		- Mutable (MTBL)
+    	- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+    	- Damping (DAMP)
+    	- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+    	- Amount (AMOU)
+    	- Pan
+    	- HPF (if Mutable is Selected)
+    	- LPF (if Mutable is Selected)
+    	- Reverb Sidechain (SIDE)
+    		- Volume Ducking (VOLU)
 
-	- Stutter (STUT)
-		- Quantize (QTZ)
-		- Reverse (REVE)
-		- Ping-Pong (PING)
+    - Stutter (STUT)
+    	- Use Song Settings (SONG)
+    	- Quantize (QTZ)
+    	- Reverse (REVE)
+    	- Ping-Pong (PING)
 
-	- Mod-FX (MODU)
-		- Type
-			- Disabled (OFF)
-			- Flanger (FLAN)
-			- Chorus (CHOR)
-			- Phaser (PHAS)
-			- Stereo Chorus (S.CHO)
-			- Warble (WARB)
-			- Grain (GRAI)
-		- Rate
-		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Amount (Amnt) if Grain is selected
-		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Type (GRTY) if Grain is selected
-		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
-			- Displayed as Grain Size (SIZE) if Grain is selected
-	- Distortion (DIST)
-		- Decimation (DECI)
-		- Bitcrush (CRUS)
+    - Mod-FX (MODU)
+    - Type
+    	- Disabled (OFF)
+    	- Flanger (FLAN)
+    	- Chorus (CHOR)
+    	- Phaser (PHAS)
+    	- Stereo Chorus (S.CHO)
+    	- Warble (WARB)
+    	- Grain (GRAI)
+    - Rate
+    - Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+    	- Displayed as Grain Amount (Amnt) if Grain is selected
+    - Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+    	- Displayed as Grain Type (GRTY) if Grain is selected
+    - Offset (OFFS) (if Chorus, Warble or Grain is selected)
+    	- Displayed as Grain Size (SIZE) if Grain is selected
+    - Distortion (DIST)
+    	- Saturation (SATU)
+    	- Bitcrush (CRUS)
+    	- Decimation (DECI)
+    	- Wavefold (WAVE)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
 <details><summary>Active Scales</summary>
@@ -675,17 +678,22 @@ The Sound menu is accessible from Synth Clips and Kit clips when affect entire i
 The Sound menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Actions (ACT)</summary>
+
+    - Rename clip/drum (NAME)
+    - Record to sample 1 (REC1)
+    - Record to sample 2 (REC2)
+</details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
-	- Master Transpose (TRAN)
-	- Vibrato (VIBR)
 	- Pan
+	- Master Transpose (TRAN)
 	- Synth Mode (MODE) - in Synth's and Kit row's that have loaded a Synth preset
 		- Subtractive
 		- FM
 		- Ringmod
-	- Name - in Kit's only for naming a Kit row
+    - Vibrato (VIBR)
 </details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
@@ -751,9 +759,11 @@ The Sound menu contains the following menu hierarchy:
 		- Ratchet Probability (RPRO)
 		- Chord Polyphony (CHRD) (NOTE: NOT available for Sound Kit Rows)
 		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
-		- Note Probability (NOTE)
-		- Bass Probability (BASS)
-		- Reverse Probability (RVRS)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
+    	- Reverse Probability (RVRS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -941,11 +951,11 @@ The Sound menu contains the following menu hierarchy:
 		- Wavetable
 		- Sample (SAMP)
 		- Input (IN)
-
-	- Volume (VOLU)
-	- Wave-Index (WAVE) - if Wavetable type is selected
 	- File Browser (FILE) - if Wavetable or Sample type is selected
-	- Record Audio (RECO)
+	- Transpose (TRAN)
+	- Wave-Index (WAVE) - if Wavetable type is selected
+	- Pulse Width (PULS) - if any type except Sample or Input is selected
+	- Retrigger Phase (RETR) - if any type except Sample is selected
 	- Reverse (REVE) - if Sample type is selected
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -954,18 +964,15 @@ The Sound menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
-	- Start-Point (STAR) - if Sample type is selected
-	- End-Point (END-) - if Sample type is selected
-	- Transpose (TRAN)
-	- Pitch/Speed (PISP)
+	- Speed (SPEE) - if Sample type selected
+    - Pitch/Speed (PISP)
 		- Linked
 		- Independent
 	- Interpolation (INTE) - if Input type is selected
 		- Linear
 		- Sync
-	- Speed (SPEE) - if Sample type selected
-	- Pulse Width (PULS) - if any type except Sample or Input is selected
-	- Retrigger Phase (RETR) - if any type except Sample is selected
+	- Start-Point (STAR) - if Sample type is selected
+	- End-Point (END-) - if Sample type is selected
 </details>
 <details><summary>Oscillator 2 (OSC2) </summary>
 
@@ -979,11 +986,11 @@ The Sound menu contains the following menu hierarchy:
 		- Wavetable
 		- Sample (SAMP)
 		- Input (IN)
-
-	- Volume (VOLU)
-	- Wave-Index (WAVE) - if Wavetable type is selected
 	- File Browser (FILE) - if Wavetable or Sample type is selected
-	- Record Audio (RECO)
+	- Transpose (TRAN)
+	- Wave-Index (WAVE) - if Wavetable type is selected
+	- Pulse Width (PULS) - if any type except Sample or Input is selected
+	- Retrigger Phase (RETR) - if any type except Sample is selected
 	- Reverse (REVE) - if Sample type is selected
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -992,21 +999,23 @@ The Sound menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
-	- Start-Point (STAR) - if Sample type is selected
-	- End-Point (END-) - if Sample type is selected
-	- Transpose (TRAN)
-	- Pitch/Speed (PISP)
+	- Speed (SPEE) - if Sample type selected
+    - Pitch/Speed (PISP)
 		- Linked
 		- Independent
 	- Interpolation (INTE) - if Input type is selected
 		- Linear
 		- Sync
-	- Speed (SPEE) - if Sample type selected
-	- Pulse Width (PULS) - if any type except Sample or Input is selected
-	- Oscillator Sync (SYNC)
-		- Disabled (OFF)
-		- Enabled (ON)
-	- Retrigger Phase (RETR) - if any type except Sample is selected
+	- Start-Point (STAR) - if Sample type is selected
+	- End-Point (END-) - if Sample type is selected
+</details>
+<details>
+<summary>Osc mixer (OMIX) </summary>
+
+    - Osc1 level (OSC1)
+    - Osc2 level (OSC2)
+    - Noise level (NOIS)
+    - Oscillator sync (SYNC)
 </details>
 <details><summary>Envelope 1 (ENV1) </summary>
 
@@ -1108,21 +1117,21 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Voice (VOIC) </summary>
 
-	- Polyphony Type (POLY)
-		- Auto (Can play chords, but starting a new note ends any releasing ones)
-		- Polyphonic (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
-		- Monophonic (Each note stops all other notes, retriggers envelope)
-		- Legato (Each note stops all other notes, does not retrigger envelope)
-	- Unison (UNIS)
-		- Unison Number (NUM)
-		- Unison Detune (DETU)
-		- Unison Stereo Spread (SPRE)
-    - Max Voices (VCNT)
-	- Portamento (PORT)
-	- Priority (PRIO)
-		- Low
-		- Medium
-		- High
+- Priority (PRIO)
+    - Low
+    - Medium
+    - High
+- Polyphony Type (POLY)
+  - Auto (Can play chords, but starting a new note ends any releasing ones)
+  - Polyphonic (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
+  - Monophonic (Each note stops all other notes, retriggers envelope)
+  - Legato (Each note stops all other notes, does not retrigger envelope)
+- Max Voices (VCNT)
+- Portamento (PORT)
+- Unison (UNIS)
+  - Unison Number (NUM)
+  - Unison Detune (DETU)
+  - Unison Stereo Spread (SPRE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1152,6 +1161,27 @@ The Kit FX menu is accessible from Kit clips when affect entire is enabled by pr
 The Kit FX menu contains the following menu hierarchy:
 
 <blockquote>
+<details>
+<summary>Actions</summary>
+	- Audio Export (EXPO)
+		- Start Export (EXPO)
+		- Configure Export (CONF)
+			- Kit FX (KIT)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Normalization (NORM)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Export to Silence (SILE)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Song FX (SONG)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Offline Rendering (OFFR)
+				- Disabled (OFF)
+				- Enabled (ON)
+</details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
@@ -1211,9 +1241,11 @@ The Kit FX menu contains the following menu hierarchy:
 		- Velocity Spread (VELO)
 		- Ratchet Amount (RATC)
 		- Ratchet Probability (RPRO)
-		- Note Probability (NOTE)
-		- Bass Probability (BASS)
-		- Reverse Probability (RVRS)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
+    	- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -1460,8 +1492,10 @@ The MIDI menu contains the following menu hierarchy:
 		- Ratchet Probability (RPRO)
 		- Chord Polyphony (CHRD) (NOTE: NOT available for Midi Kit Rows)
 		- Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
-		- Note Probability (NOTE)
-		- Bass Probability (BASS)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1570,7 +1604,9 @@ The CV menu contains the following menu hierarchy:
 		- Chord Polyphony (CHRD) (NOTE: NOT available for Gate Kit Rows)
 		- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
 		- Note Probability (NOTE)
-		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+    	- Swap Probability (SWAP) (NOTE: NOT available for Gate Kit Rows)
+    	- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+    	- Glide Probability (GLID) (NOTE: NOT available for Gate Kit Rows)
 	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)

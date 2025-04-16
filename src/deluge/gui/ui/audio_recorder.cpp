@@ -189,7 +189,6 @@ void AudioRecorder::slowRoutine() {
 
 void AudioRecorder::process() {
 	while (true) {
-
 		AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();

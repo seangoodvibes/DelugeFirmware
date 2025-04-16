@@ -24,9 +24,10 @@
 
 namespace deluge::gui::menu_item::delay {
 
-class PingPong final : public Toggle {
+class PingPong final : public Selection {
 public:
-	using Toggle::Toggle;
+	using Selection::Selection;
+	bool isToggle() override { return true; }
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -48,6 +49,21 @@ public:
 		else {
 			soundEditor.currentModControllable->delay.pingPong = current_value;
 		}
+	}
+
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_OFF),
+		    l10n::getView(STRING_FOR_ON),
+		};
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		using namespace deluge::hid::display;
+		const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 };
 

@@ -69,6 +69,6 @@ menu = Submenu(
     "hpfMenu",
     ["{title}", "%%CHILDREN%%"],
     "filter/hpf/index.md",
-    [freq, res, morph, mode],
+    [mode, freq, res, morph],
     name="STRING_FOR_HPF",
 )

@@ -62,6 +62,7 @@ public:
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine() override;
+	void potentiallyUpdateCompressorLEDs();
 	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
 	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
@@ -118,6 +119,7 @@ public:
 	int8_t selectedMacro = -1;
 
 	Clip* getClipForLayout();
+	int32_t getClipIndexForLayout();
 
 	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
 
@@ -263,6 +265,7 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+	int32_t gridClipIndexFromCoords(uint32_t x, uint32_t y);
 	Cartesian gridXYFromClip(Clip& clip);
 
 	void gridSetDefaultMode() {

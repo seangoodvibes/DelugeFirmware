@@ -50,6 +50,12 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, note, &instruction);
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
@@ -58,7 +64,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 }
 
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
-	NonAudioDrum::noteOffPostArp(noteCodePostArp);
+	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	lastVelocity = arpNote->velocity;
 	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
 }
@@ -159,7 +165,7 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 		int32_t value7 = newValue >> 24;
 		// Note: use the note code currently on post-arp, because this drum supports "Chord Simulator" and "Octaves" and
 		// the note code could be different
-		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.arpNote.noteCodeOnPostArp[0],
+		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.active_note.noteCodeOnPostArp[0],
 		                                    kMIDIOutputFilterNoMPE);
 	}
 }

@@ -63,7 +63,7 @@ Kit::~Kit() {
 	// Delete all Drums
 	while (firstDrum) {
 		AudioEngine::logAction("~Kit");
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
@@ -118,8 +118,9 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
 
-	writer.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                             // Attributes end
+	writer.writeOpeningTagEnd();
+	// Attributes end
+
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (midiInput.containsSomething()) {
@@ -670,6 +671,35 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
+	// Kit arp, get arp settings, perform setup and render arp pre-output
+	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
+
+	// if you're exporting drum stems and includeKitFX configuration setting is disabled
+	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
+	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)
+	    && !stemExport.includeKitFX) [[unlikely]] {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
+		int32_t pitchAdjust =
+		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+
+		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
+		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	}
+	// render kit row with kit affect entire FX
+	else {
+		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+		                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+		                                      isClipActive, OutputType::KIT, recorder);
+	}
+
+	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
+	renderNonAudioArpPostOutput(output);
+}
+
+void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                     ParamManager* paramManager, std::span<StereoSample> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -688,7 +718,25 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		ArpReturnInstruction kitInstruction;
 		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
 
+		if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			// Glide note off
+			if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+				NoteRow* thisNoteRow =
+				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+				if (thisNoteRow->drum != nullptr) {
+					// Reset invertReverse for drum arpeggiator (done for every noteOff)
+					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+					// Do row note off
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStackWithTimelineCounter
+					        ->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
+					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+				}
+			}
+		}
 		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			// Normal note off
 			if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 				NoteRow* thisNoteRow =
 				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
@@ -704,6 +752,7 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+			// Note on
 			if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0]
 			    < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 				NoteRow* thisNoteRow =
@@ -719,15 +768,26 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
 					                          0, 0);
+					kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 				}
 			}
 		}
 	}
+}
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::KIT, recorder);
+ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
+	if (clip != nullptr) {
+		return &clip->arpSettings;
+	}
+	else if (activeClip != nullptr) {
+		return &((InstrumentClip*)activeClip)->arpSettings;
+	}
+	else {
+		return nullptr;
+	}
+}
 
+void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
@@ -750,6 +810,12 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
 			                                 phaseIncrement);
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+			}
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
@@ -760,22 +826,11 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 				}
 			}
 		}
-	}
-}
-
-ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
-	if (clip) {
-		return &clip->arpSettings;
-	}
-	else if (activeClip) {
-		return &((InstrumentClip*)activeClip)->arpSettings;
-	}
-	else {
-		return nullptr;
 	}
 }
 
@@ -894,7 +949,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 		if (thisDrum->type == DrumType::SOUND) {
 
 			if (!(count & 7)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				AudioEngine::routineWithClusterLoading();
 			}
 			count++;
 
@@ -926,7 +981,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -951,7 +1006,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisDrum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					AudioEngine::routineWithClusterLoading();
 				}
 				count++;
 
@@ -999,9 +1054,8 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 					if (thisNoteRow->drum->type == DrumType::SOUND) {
 
 						if (!(count & 7)) {
-							AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess
-							                                          // very often this wouldn't work cos the audio
-							                                          // routine would be locked
+							// Rohan: I guess very often this wouldn't work cos the audio routine would be locked
+							AudioEngine::routineWithClusterLoading();
 						}
 						count++;
 
@@ -1060,7 +1114,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			AudioEngine::routineWithClusterLoading();
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
 	}
@@ -1095,7 +1149,24 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	int32_t ticksTilNextKitArpEvent =
 	    arpeggiator.doTickForward(arpSettings, &kitInstruction, currentPos, activeClip->currentlyPlayingReversed);
 
+	if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+		// Glide note off
+		if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+			NoteRow* thisNoteRow =
+			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+			if (thisNoteRow->drum != nullptr) {
+				// reset invertReverse for drum arpeggiator (done for every noteOff)
+				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+				// Do row note off
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
+				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+			}
+		}
+	}
 	if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+		// Normal note off
 		if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
 			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
@@ -1110,7 +1181,9 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			}
 		}
 	}
-	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
+	    && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+		// Note on
 		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
 			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
@@ -1125,6 +1198,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
 				                          0);
+				// no check needed - will be held by the drum's own arp if it can't start immediately
+				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 			}
 		}
 	}
@@ -1156,27 +1231,28 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				    modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
 
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 				}
-				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					if (instruction.arpNoteOn == nullptr
-					    || instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-						break;
-					}
-					soundDrum->invertReversed = instruction.invertReversed;
-					soundDrum->noteOnPostArpeggiator(
-					    modelStackWithSoundFlags,
-					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-					    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
-				}
+				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction);
 			}
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
@@ -1233,6 +1309,7 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 			// Do row note on
 			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
 			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
+			kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 		}
 	}
 }

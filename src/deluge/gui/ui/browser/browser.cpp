@@ -135,8 +135,7 @@ void Browser::emptyFileItems() {
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -156,8 +155,7 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -1344,7 +1342,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	int32_t textStartX = 14;
 	int32_t iconStartX = 1;
-	if (FlashStorage::accessibilityMenuHighlighting) {
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
 		textStartX += kTextSpacingX;
 		iconStartX = kTextSpacingX;
 	}
@@ -1625,7 +1623,6 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 void Browser::favouritesChanged() {
-	favouritesVisible = true;
 	renderFavourites();
 }
 

@@ -14,7 +14,7 @@ public:
 	virtual size_t size() = 0;
 	/// @brief  Should this menu wrap around?
 	virtual bool wrapAround();
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 
 protected:
 	void drawPixelsForOled() override = 0;
@@ -23,6 +23,7 @@ protected:
 	/// Writes to a buffer instead of returning a value, since some subclasses (SyncLevel) must generate
 	/// their option names. Default implementation renders the current value as number.
 	virtual void getShortOption(StringBuf&);
+	void getNotificationValue(StringBuf& value) override { getShortOption(value); }
 };
 
 } // namespace deluge::gui::menu_item

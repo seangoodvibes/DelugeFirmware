@@ -27,6 +27,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -44,7 +45,6 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -69,7 +69,6 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "storage/wave_table/wave_table.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <cstring>
@@ -88,6 +87,7 @@ SampleBrowser::SampleBrowser() {
 	shouldWrapFolderContents = false;
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
+	qwertyCurrentlyDrawnOnscreen = false;
 }
 
 bool SampleBrowser::opened() {
@@ -96,6 +96,8 @@ bool SampleBrowser::opened() {
 	if (!success) {
 		return false;
 	}
+
+	qwertyAlwaysVisible = false;
 
 	favouritesManager.setCategory("SAMPLES");
 	favouritesChanged();
@@ -368,7 +370,6 @@ void SampleBrowser::enterKeyPress() {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
-			return;
 		}
 	}
 
@@ -724,6 +725,11 @@ possiblyExit:
 
 				enteredTextEditPos = 0;
 				displayText(false);
+
+				// Process first press only if its not a favourite row press to prevent blind keypresses
+				if (y < favouriteRow) {
+					return Browser::padAction(x, y, on);
+				}
 			}
 		}
 		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
@@ -996,7 +1002,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix) {
+				if (!numCharsInPrefix || display->haveOLED()) {
 					newName.set(&enteredText);
 				}
 				else {
@@ -1074,6 +1080,21 @@ doLoadAsSample:
 
 	if (!loadWithoutExiting) {
 		exitAndNeverDeleteDrum();
+
+		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
+			if (isUIOpen(&soundEditor)) {
+				closeUI(&soundEditor);
+			}
+
+			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
+			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
+			soundEditor.navigationDepth = 0;
+			openUI(&soundEditor);
+
+			parentMenuHeadingTo = nullptr;
+			menuItemHeadingTo = nullptr;
+		}
+
 		uiNeedsRendering(&audioClipView);
 	}
 	display->removeWorkingAnimation();
@@ -1135,7 +1156,7 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int32_t numSamples, Sam
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
 
-		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+		AudioEngine::routineWithClusterLoading();
 
 		// And now, for this selected comparison size, do a number of comparisions
 		for (int32_t whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
@@ -1240,7 +1261,7 @@ removeReasonsFromSamplesAndGetOut:
 		return false;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	int32_t numCharsInPrefixForFolderLoad = 65535;
 
@@ -1635,7 +1656,7 @@ doReturnFalse:
 
 	D_PRINTLN("loaded and sorted samples");
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
 	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
@@ -1740,7 +1761,7 @@ skipOctaveCorrection:
 	for (int32_t s = 0; s < numSamples; s++) {
 
 		if (!(s & 31)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		Sample* thisSample = sortArea[s];

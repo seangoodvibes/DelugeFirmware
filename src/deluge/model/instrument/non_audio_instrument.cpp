@@ -46,6 +46,14 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 			                   phaseIncrement);
 
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				noteOffPostArp(instruction.glideNoteCodeOffPostArp[n], instruction.glideOutputMIDIChannelOff[n],
+				               kDefaultLiftValue, n); // Is there some better option than using the default lift
+				                                      // value? The lift event wouldn't have occurred yet...
+			}
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
@@ -58,6 +66,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 				}
 			}
@@ -98,6 +107,13 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		// Run everything by the Arp...
 		arpeggiator.noteOff(arpSettings, noteCodePreArp, &instruction);
 
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			noteOffPostArp(instruction.glideNoteCodeOffPostArp[n], instruction.glideOutputMIDIChannelOff[n], velocity,
+			               n);
+		}
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 				break;
@@ -172,6 +188,15 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 	int32_t ticksTilNextArpEvent = arpeggiator.doTickForward(&((InstrumentClip*)activeClip)->arpSettings, &instruction,
 	                                                         currentPos, activeClip->currentlyPlayingReversed);
 
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArp(instruction.glideNoteCodeOffPostArp[n], instruction.glideOutputMIDIChannelOff[n],
+		               kDefaultLiftValue,
+		               n); // Is there some better option than using the default lift value? The lift
+		                   // event wouldn't have occurred yet...
+	}
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;

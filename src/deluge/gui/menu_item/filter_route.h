@@ -21,7 +21,6 @@
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {
@@ -56,12 +55,17 @@ public:
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
-		(void)optType;
-		return {"HPF2LPF", "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
+		return {l10n::getView(l10n::String::STRING_FOR_HPF_TO_LPF), l10n::getView(l10n::String::STRING_FOR_LPF_TO_HPF),
+		        l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return ((sound == nullptr) || (sound->lpfMode != FilterMode::OFF && sound->hpfMode != FilterMode::OFF));
+
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 4; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+	[[nodiscard]] bool showNotification() const override { return false; }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		OLED::main.drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+		drawPixelsForOled();
 	}
 };
 } // namespace deluge::gui::menu_item
