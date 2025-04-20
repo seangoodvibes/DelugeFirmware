@@ -58,10 +58,7 @@ TimelineCounter* playPositionCounter) { if (whichModEncoder == 0) { channelEncod
 int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset,
                                       uint8_t whichModEncoder) {
 
-	if ((getCurrentUI() == &instrumentClipView
-	     || (getCurrentUI() == &automationView
-	         && automationView.getAutomationSubType() == AutomationSubType::INSTRUMENT))
-	    && currentUIMode == UI_MODE_AUDITIONING) {
+	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 0) {
 			modChange(modelStack, offset, &channelEncoderCurrentOffset, &channel, getNumChannels());
 		}

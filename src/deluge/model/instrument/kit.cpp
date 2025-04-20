@@ -1599,12 +1599,9 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 			if (thisNoteRow) {
 				instrumentClip->toggleNoteRowMute(modelStackWithNoteRow);
 
-				if (getCurrentUI() == &automationView
-				    && automationView.getAutomationSubType() == AutomationSubType::INSTRUMENT) {
-					uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
-				}
-				else {
-					uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+				UI* currentUI = getCurrentUI();
+				if (currentUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+					uiNeedsRendering(currentUI, 0, 0xFFFFFFFF);
 				}
 			}
 		}

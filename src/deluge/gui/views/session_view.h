@@ -129,7 +129,8 @@ public:
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	// ui
-	UIType getUIType() { return UIType::SESSION; }
+	UIType getUIType() override { return UIType::SESSION; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	bool createClip{false};
