@@ -20,97 +20,113 @@
 
 namespace deluge::dsp::filter {
 
-std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
+q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate stereo samples
 
-[[gnu::hot]] void FilterSet::renderHPFLong(std::span<q31_t> buffer) {
-	if (!HPFOn) [[unlikely]] {
-		return;
+[[gnu::hot]] void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+	if (HPFOn) {
+		if (hpfMode_ == FilterMode::HPLADDER) {
+			hpfilter.ladder.filterMono(startSample, endSample, sampleIncrement);
+		}
+		else if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
+			hpfilter.svf.filterMono(startSample, endSample, sampleIncrement);
+		}
 	}
-	if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
-		hpfilter.svf.filterMono(buffer);
-	}
-	else if (hpfMode_ == FilterMode::HPLADDER) {
-		hpfilter.ladder.filterMono(buffer);
+}
+[[gnu::hot]] void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample) {
+	if (HPFOn) {
+		if (hpfMode_ == FilterMode::HPLADDER) {
+			hpfilter.ladder.filterStereo(startSample, endSample);
+		}
+		else if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
+			hpfilter.svf.filterStereo(startSample, endSample);
+		}
 	}
 }
 
-[[gnu::hot]] void FilterSet::renderHPFLongStereo(std::span<StereoSample> buffer) {
-	if (!HPFOn) [[unlikely]] {
-		return;
-	}
-	if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
-		hpfilter.svf.filterStereo(buffer);
-	}
-	else if (hpfMode_ == FilterMode::HPLADDER) {
-		hpfilter.ladder.filterStereo(buffer);
+[[gnu::hot]] void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+	if (LPFOn) {
+		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
+			lpfilter.svf.filterMono(startSample, endSample, sampleIncrement);
+		}
+		else {
+			lpfilter.ladder.filterMono(startSample, endSample, sampleIncrement);
+		}
 	}
 }
 
-[[gnu::hot]] void FilterSet::renderLPFLong(std::span<q31_t> buffer) {
-	if (!LPFOn) {
-		return;
-	}
-	if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
-		lpfilter.svf.filterMono(buffer);
-		return;
-	}
-	lpfilter.ladder.filterMono(buffer);
-}
+[[gnu::hot]] void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample) {
+	if (LPFOn) {
+		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 
-[[gnu::hot]] void FilterSet::renderLPFLongStereo(std::span<StereoSample> buffer) {
-	if (!LPFOn) {
-		return;
-	}
-	if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
-		lpfilter.svf.filterStereo(buffer);
-		return;
-	}
-	lpfilter.ladder.filterStereo(buffer);
-}
+			lpfilter.svf.filterStereo(startSample, endSample);
+		}
+		else {
 
-[[gnu::hot]] void FilterSet::renderLong(std::span<q31_t> buffer) {
+			lpfilter.ladder.filterStereo(startSample, endSample);
+		}
+	}
+}
+[[gnu::hot]] void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples,
+                                        int32_t sampleIncrememt) {
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
-		renderHPFLong(buffer);
-		renderLPFLong(buffer);
-		break;
 
+		renderHPFLong(startSample, endSample, sampleIncrememt);
+		renderLPFLong(startSample, endSample, sampleIncrememt);
+
+		break;
 	case FilterRoute::LOW_TO_HIGH:
-		renderLPFLong(buffer);
-		renderHPFLong(buffer);
+
+		renderLPFLong(startSample, endSample, sampleIncrememt);
+		renderHPFLong(startSample, endSample, sampleIncrememt);
+
 		break;
 
 	case FilterRoute::PARALLEL:
 		// render one filter in the temp buffer so we can add
 		// them together
-		memcpy(temp_render_buffer.data(), buffer.data(), buffer.size_bytes());
-		std::span mono_temp_render_buffer{reinterpret_cast<q31_t*>(temp_render_buffer.data()), buffer.size()};
+		int32_t length = endSample - startSample;
+		memcpy(tempRenderBuffer, startSample, length * sizeof(q31_t));
 
-		renderHPFLong(mono_temp_render_buffer);
-		renderLPFLong(buffer);
-		std::ranges::transform(buffer, mono_temp_render_buffer, buffer.begin(), std::plus{});
+		renderHPFLong(tempRenderBuffer, tempRenderBuffer + length, sampleIncrememt);
+		renderLPFLong(startSample, endSample, sampleIncrememt);
+
+		for (int i = 0; i < length; i++) {
+			startSample[i] += tempRenderBuffer[i];
+		}
 		break;
 	}
 }
 // expects to receive an interleaved stereo stream
-[[gnu::hot]] void FilterSet::renderLongStereo(std::span<StereoSample> buffer) {
+[[gnu::hot]] void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
 	// Do HPF, if it's on
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
-		renderHPFLongStereo(buffer);
-		renderLPFLongStereo(buffer);
-		break;
 
+		renderHPFLongStereo(startSample, endSample);
+
+		renderLPFLongStereo(startSample, endSample);
+
+		break;
 	case FilterRoute::LOW_TO_HIGH:
-		renderLPFLongStereo(buffer);
-		renderHPFLongStereo(buffer);
-		break;
 
+		renderLPFLongStereo(startSample, endSample);
+
+		renderHPFLongStereo(startSample, endSample);
+
+		break;
 	case FilterRoute::PARALLEL:
-		memcpy(temp_render_buffer.data(), buffer.data(), buffer.size_bytes());
-		renderHPFLongStereo(std::span{temp_render_buffer}.first(buffer.size()));
-		renderLPFLongStereo(buffer);
-		std::ranges::transform(buffer, temp_render_buffer, buffer.begin(), std::plus{});
+		int32_t length = endSample - startSample;
+
+		memcpy(tempRenderBuffer, startSample, length * sizeof(q31_t));
+
+		renderHPFLongStereo(tempRenderBuffer, tempRenderBuffer + length);
+
+		renderLPFLongStereo(startSample, endSample);
+
+		for (int i = 0; i < length; i++) {
+			startSample[i] += tempRenderBuffer[i];
+		}
 		break;
 	}
 }
