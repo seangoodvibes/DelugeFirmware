@@ -286,6 +286,8 @@ private:
 	void copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xScroll, int32_t xZoom);
 	void pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength,
 	                     int32_t xScroll, int32_t xZoom);
+	void pasteAutomationCrossScreen(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength,
+	                                int32_t xScroll, int32_t xZoom);
 
 	// Select Encoder Action
 	void selectGlobalParam(int32_t offset, Clip* clip);

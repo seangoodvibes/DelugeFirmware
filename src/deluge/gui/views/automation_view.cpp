@@ -2110,8 +2110,9 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 }
 // called by button action if b == X_ENC
 bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
+	bool isCrossScreenPressed = Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT);
 	// copy / paste automation (same shortcut used for notes)
-	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+	if (Buttons::isButtonPressed(deluge::hid::button::LEARN) || isCrossScreenPressed) {
 		if (inAutomationEditor()) {
 			Clip* clip = getCurrentClip();
 			OutputType outputType = clip->output->type;
@@ -2135,7 +2136,13 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 			int32_t xScroll = currentSong->xScroll[navSysId];
 			int32_t xZoom = currentSong->xZoom[navSysId];
 
-			if (Buttons::isShiftButtonPressed()) {
+			if (isCrossScreenPressed) {
+				// copy current screen
+				copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
+				// paste to all other screens
+				pasteAutomationCrossScreen(modelStackWithParam, clip, effectiveLength, xScroll, xZoom);
+			}
+			else if (Buttons::isShiftButtonPressed()) {
 				// paste within Automation Editor
 				pasteAutomation(modelStackWithParam, clip, effectiveLength, xScroll, xZoom);
 			}
@@ -4075,6 +4082,19 @@ void AutomationView::copyAutomation(ModelStackWithAutoParam* modelStackWithParam
 	}
 
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
+}
+
+void AutomationView::pasteAutomationCrossScreen(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                                int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	int32_t xScrollIncrement = xZoom * kDisplayWidth;
+
+	for (int32_t thisXScroll = 0; thisXScroll < effectiveLength; thisXScroll += xScrollIncrement) {
+		// don't paste onto the page we're copying from
+		if (thisXScroll == xScroll) {
+			continue;
+		}
+		pasteAutomation(modelStackWithParam, clip, effectiveLength, thisXScroll, xZoom);
+	}
 }
 
 void AutomationView::pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength,
