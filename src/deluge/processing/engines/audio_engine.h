@@ -196,6 +196,7 @@ extern uint32_t i2sRXBufferPos;
 extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
+extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;
@@ -214,7 +215,6 @@ extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
 void feedReverbBackdoorForGrain(int index, q31_t value);
-extern bool routineBeenCalled;
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
