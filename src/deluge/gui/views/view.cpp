@@ -2513,8 +2513,11 @@ getOut:
 		}
 
 		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
-			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			if (!AudioEngine::audioRoutineLocked) {
+				// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
+				AudioEngine::routineBeenCalled = false;
+				yield([]() { return (AudioEngine::routineBeenCalled == true); });
+			}
 			instrumentClipView.recalculateColours();
 		}
 

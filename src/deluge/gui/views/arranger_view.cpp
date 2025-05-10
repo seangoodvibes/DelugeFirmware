@@ -2572,8 +2572,11 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	view.setActiveModControllableTimelineCounter(output->getActiveClip());
 
-	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
-	yield([]() { return true; });
+	if (!AudioEngine::audioRoutineLocked) {
+		// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
+		AudioEngine::routineBeenCalled = false;
+		yield([]() { return (AudioEngine::routineBeenCalled == true); });
+	}
 
 	beginAudition(output);
 }
