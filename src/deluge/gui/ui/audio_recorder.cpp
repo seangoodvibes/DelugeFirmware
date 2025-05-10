@@ -189,11 +189,9 @@ void AudioRecorder::slowRoutine() {
 
 void AudioRecorder::process() {
 	while (true) {
-		if (!AudioEngine::audioRoutineLocked) {
-			// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
-			AudioEngine::routineBeenCalled = false;
-			yield([]() { return (AudioEngine::routineBeenCalled == true); });
-		}
+		// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
+		AudioEngine::routineBeenCalled = false;
+		yield([]() { return (AudioEngine::routineBeenCalled == true); });
 
 		uiTimerManager.routine();
 
