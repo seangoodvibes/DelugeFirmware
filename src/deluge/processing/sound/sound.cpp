@@ -2029,6 +2029,9 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		case OscType::INPUT_L:
 		case OscType::INPUT_R:
 		case OscType::INPUT_STEREO:
+		case OscType::INPUT_L_UNPITCHED:
+		case OscType::INPUT_R_UNPITCHED:
+		case OscType::INPUT_STEREO_UNPITCHED:
 			break;
 
 		// Wave-based - instant fail!
@@ -4694,7 +4697,8 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	}
 
 	// Stereo live-input
-	if ((sources[0].oscType == OscType::INPUT_STEREO || sources[1].oscType == OscType::INPUT_STEREO)
+	if ((sources[0].oscType == OscType::INPUT_STEREO || sources[0].oscType == OscType::INPUT_STEREO_UNPITCHED
+	     || sources[1].oscType == OscType::INPUT_STEREO || sources[1].oscType == OscType::INPUT_STEREO_UNPITCHED)
 	    && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) {
 		return true;
 	}

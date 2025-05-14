@@ -42,8 +42,12 @@ public:
 			return false;
 		}
 		OscType oscType = sound->sources[whichThing].oscType;
-		return (oscType != OscType::SAMPLE && oscType != OscType::INPUT_L && oscType != OscType::INPUT_R
-		        && oscType != OscType::INPUT_STEREO);
+		bool isOscTypeSampleOrInput = oscType == OscType::SAMPLE || oscType == OscType::INPUT_L
+		                              || oscType == OscType::INPUT_R || oscType == OscType::INPUT_STEREO
+		                              || oscType == OscType::INPUT_L_UNPITCHED || oscType == OscType::INPUT_R_UNPITCHED
+		                              || oscType == OscType::INPUT_STEREO_UNPITCHED;
+
+		return (!isOscTypeSampleOrInput);
 	}
 };
 

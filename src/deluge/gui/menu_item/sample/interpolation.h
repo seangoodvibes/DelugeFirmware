@@ -35,10 +35,14 @@ public:
 		}
 		Sound* sound = static_cast<Sound*>(modControllable);
 		Source* source = &sound->sources[whichThing];
+
+		bool isOscTypeInput =
+		    source->oscType == OscType::INPUT_L || source->oscType == OscType::INPUT_R
+		    || source->oscType == OscType::INPUT_STEREO || source->oscType == OscType::INPUT_L_UNPITCHED
+		    || source->oscType == OscType::INPUT_R_UNPITCHED || source->oscType == OscType::INPUT_STEREO_UNPITCHED;
+
 		return (sound->getSynthMode() == ::SynthMode::SUBTRACTIVE
-		        && ((source->oscType == OscType::SAMPLE && source->hasAtLeastOneAudioFileLoaded())
-		            || source->oscType == OscType::INPUT_L || source->oscType == OscType::INPUT_R
-		            || source->oscType == OscType::INPUT_STEREO));
+		        && ((source->oscType == OscType::SAMPLE && source->hasAtLeastOneAudioFileLoaded()) || isOscTypeInput));
 	}
 };
 } // namespace deluge::gui::menu_item::sample

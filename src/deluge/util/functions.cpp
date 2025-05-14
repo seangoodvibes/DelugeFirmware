@@ -764,6 +764,15 @@ char const* oscTypeToString(OscType oscType) {
 	case OscType::INPUT_STEREO:
 		return "inStereo";
 
+	case OscType::INPUT_L_UNPITCHED:
+		return "inLeftUnpitched";
+
+	case OscType::INPUT_R_UNPITCHED:
+		return "inRightUnpitched";
+
+	case OscType::INPUT_STEREO_UNPITCHED:
+		return "inStereoUnpitched";
+
 	case OscType::DX7:
 		return "dx7";
 
@@ -803,6 +812,15 @@ OscType stringToOscType(char const* string) {
 	}
 	else if (!strcmp(string, "inStereo")) {
 		return OscType::INPUT_STEREO;
+	}
+	else if (!strcmp(string, "inLeftUnpitched")) {
+		return OscType::INPUT_L_UNPITCHED;
+	}
+	else if (!strcmp(string, "inRightUnpitched")) {
+		return OscType::INPUT_R_UNPITCHED;
+	}
+	else if (!strcmp(string, "inStereoUnpitched")) {
+		return OscType::INPUT_STEREO_UNPITCHED;
 	}
 	else if (!strcmp(string, "dx7")) {
 		return OscType::DX7;

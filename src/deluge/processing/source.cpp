@@ -90,7 +90,8 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 
 	return (oscType == OscType::SAMPLE && sampleHolder && sampleHolder->audioFile
 	        && sampleHolder->audioFile->numChannels == 2)
-	       || (oscType == OscType::INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
+	       || ((oscType == OscType::INPUT_STEREO || oscType == OscType::INPUT_STEREO_UNPITCHED)
+	           && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
 
 void Source::detachAllAudioFiles() {

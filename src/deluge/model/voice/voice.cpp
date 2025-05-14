@@ -443,10 +443,14 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 		uint32_t phaseIncrement;
 
+		bool isOscTypeSampleOrInput = source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
+		                              || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO
+		                              || source->oscType == OscType::INPUT_L_UNPITCHED
+		                              || source->oscType == OscType::INPUT_R_UNPITCHED
+		                              || source->oscType == OscType::INPUT_STEREO_UNPITCHED;
+
 		// Sample-osc
-		if (sound.getSynthMode() != SynthMode::FM
-		    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
-		        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
+		if (sound.getSynthMode() != SynthMode::FM && isOscTypeSampleOrInput) {
 
 			int32_t pitchAdjustNeutralValue;
 			if (source->oscType == OscType::SAMPLE) {
@@ -2226,7 +2230,10 @@ dontUseCache: {}
 
 		// Or echoing input
 		else if (sound.sources[s].oscType == OscType::INPUT_L || sound.sources[s].oscType == OscType::INPUT_R
-		         || sound.sources[s].oscType == OscType::INPUT_STEREO) {
+		         || sound.sources[s].oscType == OscType::INPUT_STEREO
+		         || sound.sources[s].oscType == OscType::INPUT_L_UNPITCHED
+		         || sound.sources[s].oscType == OscType::INPUT_R_UNPITCHED
+		         || sound.sources[s].oscType == OscType::INPUT_STEREO_UNPITCHED) {
 
 			VoiceUnisonPartSource* source = &unisonParts[u].sources[s];
 			OscType inputTypeNow = sound.sources[s].oscType;
@@ -2235,12 +2242,21 @@ dontUseCache: {}
 
 				if (!source->livePitchShifter) {
 
-					if (inputTypeNow == OscType::INPUT_STEREO && !AudioEngine::lineInPluggedIn
-					    && !AudioEngine::micPluggedIn) {
-						inputTypeNow = OscType::INPUT_L;
+					if ((inputTypeNow == OscType::INPUT_STEREO || inputTypeNow == OscType::INPUT_STEREO_UNPITCHED)
+					    && !AudioEngine::lineInPluggedIn && !AudioEngine::micPluggedIn) {
+						if (inputTypeNow == OscType::INPUT_STEREO) {
+							inputTypeNow = OscType::INPUT_L;
+						}
+						else {
+							inputTypeNow = OscType::INPUT_L_UNPITCHED;
+						}
 					}
 
-					LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputTypeNow, true);
+					bool doLivePitchShifting = inputTypeNow == OscType::INPUT_L || inputTypeNow == OscType::INPUT_R
+					                           || inputTypeNow == OscType::INPUT_STEREO;
+
+					LiveInputBuffer* liveInputBuffer =
+					    AudioEngine::getOrCreateLiveInputBuffer(inputTypeNow, doLivePitchShifting);
 
 					if (liveInputBuffer) {
 
@@ -2283,13 +2299,15 @@ dontUseCache: {}
 
 				// Just left, or just right, or if (stereo but there's only the internal, mono mic)
 				if (sound.sources[s].oscType != OscType::INPUT_STEREO
+				    || sound.sources[s].oscType != OscType::INPUT_STEREO_UNPITCHED
 				    || (!AudioEngine::lineInPluggedIn && !AudioEngine::micPluggedIn)) {
 
 					int32_t const* const oscBufferEnd = oscBuffer + numSamples;
 
 					int32_t channelOffset;
 					// If right, but not internal mic
-					if (sound.sources[s].oscType == OscType::INPUT_R
+					if ((sound.sources[s].oscType == OscType::INPUT_R
+					     || sound.sources[s].oscType == OscType::INPUT_R_UNPITCHED)
 					    && (AudioEngine::lineInPluggedIn || AudioEngine::micPluggedIn)) {
 						channelOffset = 1;
 

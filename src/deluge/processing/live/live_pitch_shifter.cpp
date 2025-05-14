@@ -28,7 +28,8 @@
 
 LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement) {
 	inputType = newInputType;
-	numChannels = (newInputType == OscType::INPUT_STEREO) ? 2 : 1;
+	numChannels =
+	    ((newInputType == OscType::INPUT_STEREO) || (newInputType == OscType::INPUT_STEREO_UNPITCHED)) ? 2 : 1;
 
 	if (phaseIncrement < kMaxSampleValue) {
 		nextCrossfadeLength = samplesTilHopEnd = kInterpolationMaxNumSamples * 2;

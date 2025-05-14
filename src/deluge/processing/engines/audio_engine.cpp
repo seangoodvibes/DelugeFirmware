@@ -1391,7 +1391,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 		}
 
 		int32_t size = sizeof(LiveInputBuffer);
-		if (inputType == OscType::INPUT_STEREO) {
+		if (inputType == OscType::INPUT_STEREO || inputType == OscType::INPUT_STEREO_UNPITCHED) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
