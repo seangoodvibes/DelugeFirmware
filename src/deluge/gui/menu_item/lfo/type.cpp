@@ -35,7 +35,7 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 	renderColumnLabel(startX, width, startY);
 
 	const uint8_t* bitmap = getLfoIconBitmap();
-	image.drawGraphicMultiLine(bitmap, startX, startY + kTextSpacingX + 3, 32, 16,
+	image.drawGraphicMultiLine(bitmap, startX + 1, startY + kTextSpacingX + 3, 32, 16,
 	                           2); // Note numBytesTall = 2
 }
 
