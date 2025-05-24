@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
-#include "gui/menu_item/submenu.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
@@ -47,8 +46,9 @@ class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDIDevice;
 namespace deluge::gui::menu_item {
+class Submenu;
 enum class RangeEdit : uint8_t;
-}
+} // namespace deluge::gui::menu_item
 
 class SoundEditor final : public UI {
 public:
@@ -115,8 +115,9 @@ public:
 	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
 	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);
-	bool canSeeViewUnderneath() { return true; }
-	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
+	bool canSeeViewUnderneath() override { return true; }
+	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, deluge::gui::menu_item::Submenu* parent = nullptr,
+	           int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);

@@ -1120,19 +1120,18 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				const int32_t modSourceX = x - 14;
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
+				secondLayerModSourceShortcutsToggled =
+				    sourceShortcutBlinkFrequencies[modSourceX][y] != 255
+				            && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE
+				        ? !secondLayerModSourceShortcutsToggled
+				        : false;
+
 				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
-				if (sourceShortcutBlinkFrequencies[modSourceX][y] != 255
-				    && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE) {
-					secondLayerModSourceShortcutsToggled = !secondLayerModSourceShortcutsToggled;
-					if (secondLayerModSourceShortcutsToggled) {
-						const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
-						if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
-							source = secondLayerSource;
-						}
+				if (secondLayerModSourceShortcutsToggled) {
+					const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
+					if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
+						source = secondLayerSource;
 					}
-				}
-				else {
-					secondLayerModSourceShortcutsToggled = false;
 				}
 
 				if (source == PatchSource::SOON) {
@@ -1210,7 +1209,9 @@ getOut:
 			}
 
 			// Shortcut to edit a parameter
-			if (!modulationItemFound && (x < 14 || (x == 14 && y < 5) || (x == 15 && y == 1))) {
+			if (!modulationItemFound
+			    && (x < 14 || (x == 14 && y < 5) ||     //< regular shortcuts
+			        (x == 15 && (y == 1 || y == 3)))) { //< note & velocity probability
 
 				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
@@ -1237,35 +1238,26 @@ getOut:
 					parent = parentsForSoundShortcuts[x][y];
 
 					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
-					if (x == currentParamShorcutX && y == currentParamShorcutY) {
-						secondLayerShortcutsToggled = !secondLayerShortcutsToggled;
-						if (secondLayerShortcutsToggled) {
-							const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
-							const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
-							if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
-								item = secondLayerItem;
-								parent = secondLayerParent;
-							}
+					secondLayerShortcutsToggled =
+					    x == currentParamShorcutX && y == currentParamShorcutY
+					            && getCurrentMenuItem()->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE
+					        ? !secondLayerShortcutsToggled
+					        : false;
+
+					if (secondLayerShortcutsToggled) {
+						const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
+						const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
+						if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
+							item = secondLayerItem;
+							parent = secondLayerParent;
 						}
-					}
-					else {
-						secondLayerShortcutsToggled = false;
 					}
 				}
 doSetup:
 				if (item) {
-
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
-					}
-
-					// If we're on OLED, a parent menu & horizontal menus are in play,
-					// then we swap the parent in place of the child.
-					if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-						if (parent->focusChild(item)) {
-							item = parent;
-						}
 					}
 
 					// if we're in the menu and automation view is the root (background) UI
@@ -1283,8 +1275,7 @@ doSetup:
 						}
 					}
 
-					const auto thingIndexOpt = parent->getThingIndex();
-					const auto thingIndex = thingIndexOpt.value_or(0);
+					const int32_t thingIndex = x & 1;
 
 					if (display->haveOLED()) {
 						switch (x) {
@@ -1298,11 +1289,11 @@ doSetup:
 						}
 					}
 
-					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					bool setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 
 					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+						setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1561,7 +1552,7 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
+bool SoundEditor::setup(Clip* clip, const MenuItem* item, Submenu* parent, int32_t sourceIndex) {
 
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
@@ -1718,16 +1709,26 @@ doMIDIOrCV:
 		}
 	}
 
+	// This isn't a very nice solution, but we have to set currentParamManager before calling
+	// checkPermissionToBeginSession(), because in a minority of cases, like "patch cable strength" / "modulation
+	// depth", it needs this.
+	currentParamManager = newParamManager;
+	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
+	currentModControllable = newModControllable;
+
+	// If we're on OLED, a parent menu & horizontal menus are in play,
+	// then we swap the parent in place of the child.
+	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		if (parent->focusChild(item)) {
+			newItem = parent;
+		}
+	}
+
 	::MultiRange* newRange = currentMultiRange;
 
 	if ((currentUI != &soundEditor && currentUI != &sampleMarkerEditor) || sourceIndex != currentSourceIndex) {
 		newRange = nullptr;
 	}
-
-	// This isn't a very nice solution, but we have to set currentParamManager before calling
-	// checkPermissionToBeginSession(), because in a minority of cases, like "patch cable strength" / "modulation
-	// depth", it needs this.
-	currentParamManager = newParamManager;
 
 	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
@@ -1758,7 +1759,6 @@ doMIDIOrCV:
 	currentSound = newSound;
 	currentArpSettings = newArpSettings;
 	currentMultiRange = newRange;
-	currentModControllable = newModControllable;
 
 	if (currentModControllable) {
 		currentSidechain = &currentModControllable->sidechain;

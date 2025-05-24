@@ -69,8 +69,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-		renderColumnLabel(startX, width, startY);
+		hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 		DEF_STACK_STRING_BUF(paramValue, 5);
 		int sizeX, sizeY;
@@ -84,9 +83,7 @@ public:
 			sizeX = kTextTitleSpacingX;
 			sizeY = kTextTitleSizeY;
 		}
-		int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextSpacingY);
-		int32_t pad = ((width - pxLen) / 2) - 1;
-		image.drawString(paramValue.c_str(), startX + pad, startY + sizeY + 2, sizeX, sizeY, 0, startX + width);
+		image.drawStringCentered(paramValue, startX, startY + sizeY + 2, sizeX, sizeY, width);
 	}
 };
 } // namespace deluge::gui::menu_item::midi

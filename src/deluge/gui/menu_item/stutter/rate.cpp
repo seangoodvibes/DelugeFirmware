@@ -65,23 +65,18 @@ void Rate::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 		return UnpatchedParam::renderInHorizontalMenu(startX, width, startY, height);
 	}
 
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-	renderColumnLabel(startX, width, startY);
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Render current value
 	const char* label = getQuantizedOptionLabel();
-	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
-	shortOpt.append(label);
+	image.drawStringCentered(label, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
+}
 
-	int32_t pxLen;
-	// Trim characters from the end until it fits.
-	while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
-		shortOpt.truncate(shortOpt.size() - 1);
+void Rate::getValueForPopup(StringBuf& valueBuf) {
+	if (!isStutterQuantized()) {
+		return valueBuf.appendInt(getValue());
 	}
-	// Padding to center the string. If we can't center exactly, 1px left is better than 1px right.
-	int32_t pad = ((width - pxLen) / 2) - 1;
-	image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
-	                 startX + width - kTextSpacingX);
+	valueBuf.append(getQuantizedOptionLabel());
 }
 
 bool Rate::isStutterQuantized() {

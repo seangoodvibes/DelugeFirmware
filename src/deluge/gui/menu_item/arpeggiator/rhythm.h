@@ -42,27 +42,16 @@ public:
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-		renderColumnLabel(startX, width, startY);
+		hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 		// Render current value
-
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		char name[12];
 		// Index:Name
-		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
+		snprintf(name, sizeof(name), "%d:%s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
 		shortOpt.append(name);
 
-		int32_t pxLen;
-		// Trim characters from the end until it fits.
-		while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
-			shortOpt.truncate(shortOpt.size() - 1);
-		}
-		// Padding to center the string. If we can't center exactly, 1px left is better than 1px right.
-		int32_t pad = (width + 1 - pxLen) / 2;
-		image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
-		                 startX + width - kTextSpacingX);
+		image.drawStringCentered(shortOpt, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

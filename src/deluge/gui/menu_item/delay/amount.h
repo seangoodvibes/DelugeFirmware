@@ -15,26 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer.h"
-#include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/sound_editor.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class Rate final : public patched_param::Integer {
+#include "gui/menu_item/integer.h"
+
+namespace deluge::gui::menu_item::delay {
+class Amount final : public patched_param::Integer {
 public:
-	using patched_param::Integer::Integer;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow()
-		       && !soundEditor.editingKitAffectEntire();
-	}
-};
+	using Integer::Integer;
 
-class KitRate final : public UnpatchedParam {
-public:
-	using UnpatchedParam::UnpatchedParam;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKitAffectEntire();
-	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
 };
-
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::delay

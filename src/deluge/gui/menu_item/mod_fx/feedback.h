@@ -34,10 +34,9 @@ public:
 	}
 	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
 
-	void getColumnLabel(StringBuf& label) override {
-		const auto& shortName =
-		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK, true);
-		label.append(shortName);
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		label.append(modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK,
+		                                 !forSmallFont));
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx
