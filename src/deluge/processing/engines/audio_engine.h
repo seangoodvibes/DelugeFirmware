@@ -130,6 +130,7 @@ class Reverb;
 
 namespace AudioEngine {
 void routine();
+void routine_task();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 
 void init();
