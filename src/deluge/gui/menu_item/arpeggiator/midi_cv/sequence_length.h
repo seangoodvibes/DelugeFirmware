@@ -32,5 +32,25 @@ public:
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
 		soundEditor.currentArpSettings->sequenceLength = value;
 	}
+
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		if (getValue() == 0) {
+			const auto off_string = l10n::get(l10n::String::STRING_FOR_OFF);
+			return OLED::main.drawStringCentered(off_string, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+			                                     kTextSpacingX, kTextSpacingY, slot.width);
+		}
+		ArpNonSoundInteger::renderInHorizontalMenu(slot);
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		if (const auto value = getValue(); value == 0) {
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
+		}
+		else {
+			valueBuf.appendInt(value);
+		}
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

@@ -19,54 +19,25 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class ArpUnpatchedParam final : public UnpatchedParam {
+class ArpUnpatchedParam : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	ArpUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	ArpUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
+
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
 	}
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return style_; }
+
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
 private:
-	NumberStyle style_ = KNOB;
-};
-
-class ArpSoundOnlyUnpatchedParam final : public UnpatchedParam {
-public:
-	using UnpatchedParam::UnpatchedParam;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
-		       && !soundEditor.editingNonAudioDrumRow();
-	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
-	}
-};
-
-class ArpNonKitSoundUnpatchedParam final : public UnpatchedParam {
-public:
-	using UnpatchedParam::UnpatchedParam;
-
-	ArpNonKitSoundUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
-	    : UnpatchedParam(newName, title, newP), style_(style) {}
-
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit();
-	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return style_; }
-
-private:
-	NumberStyle style_ = KNOB;
+	RenderingStyle style_ = KNOB;
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator

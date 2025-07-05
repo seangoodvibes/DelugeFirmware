@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2025 Leonid Burygin
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,29 +14,24 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
-#include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection.h"
 
-namespace deluge::gui::menu_item::lfo {
+namespace deluge::gui::menu_item {
 
-class Shape : public Selection {
+// A base class for rendering multiple menu items as a single "container" within a horizontal menu
+class HorizontalMenuContainer {
 public:
-	using Selection::Selection;
+	virtual ~HorizontalMenuContainer() = default;
+	HorizontalMenuContainer(std::initializer_list<MenuItem*> items) : items_{items} {}
 
-	deluge::vector<std::string_view> getOptions(OptType optType) override {
-		using enum l10n::String;
-		bool shortOpt = optType == OptType::SHORT;
-		return {
-		    l10n::getView(STRING_FOR_SINE),
-		    l10n::getView(STRING_FOR_TRIANGLE),
-		    l10n::getView(STRING_FOR_SQUARE),
-		    l10n::getView(STRING_FOR_SAW),
-		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
-		    l10n::getView(shortOpt ? STRING_FOR_RANDOM_WALK_SHORT : STRING_FOR_RANDOM_WALK),
-		    l10n::getView(STRING_FOR_WARBLE),
-		};
-	}
+	[[nodiscard]] int32_t getOccupiedSlotsCount() const { return items_.size(); }
+	std::span<MenuItem* const> getItems() const { return items_; }
+
+	virtual void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent) {}
+
+protected:
+	deluge::vector<MenuItem*> items_;
 };
 
-} // namespace deluge::gui::menu_item::lfo
+} // namespace deluge::gui::menu_item

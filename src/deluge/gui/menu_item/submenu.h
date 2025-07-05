@@ -19,7 +19,6 @@
 
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
-#include "menu_item.h"
 #include "util/containers.h"
 #include <initializer_list>
 #include <span>
@@ -52,7 +51,7 @@ public:
 	void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	virtual RenderingStyle renderingStyle() const { return RenderingStyle::VERTICAL; };
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
@@ -64,15 +63,13 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
-	std::optional<uint8_t> getThingIndex() { return thingIndex; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; };
-	[[nodiscard]] bool showPopup() const override { return false; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; };
+	[[nodiscard]] bool showNotification() const override { return false; }
 
 protected:
-	std::optional<uint8_t> thingIndex = std::nullopt;
-	uint32_t initial_index_ = 0;
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
+	uint32_t initial_index_ = 0;
 
 private:
 	bool shouldForwardButtons();

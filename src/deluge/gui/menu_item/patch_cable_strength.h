@@ -20,6 +20,7 @@
 #include "gui/menu_item/automation/automation.h"
 #include "menu_item_with_cc_learning.h"
 
+#include <gui/ui/sound_editor.h>
 #include <modulation/patch/patch_cable.h>
 class MultiRange;
 
@@ -63,17 +64,20 @@ public:
 
 	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory);
 
-	void updateAutomationViewParameter() override;
-
 	/// Used when scrolling horizontally to briefly catch on min / max decimal number edit position
 	uint32_t delayHorizontalScrollUntil = 0;
 
 protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
-	Polarity polarity_;
+	void getNotificationValue(StringBuf& valueBuf) override { return valueBuf.appendFloat(getValue() / 100.0f, 2, 2); }
 
 private:
-	void updatePolarity(Polarity newPolarity);
+	bool isInHorizontalMenu() const;
+	void setPatchCablePolarity(Polarity newPolarity);
+	void updatePolarityUI();
+	Polarity polarity_in_the_ui_;
+	// if polarity is set before the patch cable is created then we'll need to update the patch cable when it exists
+	bool patch_cable_exists_ = false;
 };
 
 } // namespace deluge::gui::menu_item

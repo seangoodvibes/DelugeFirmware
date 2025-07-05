@@ -20,7 +20,6 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
 #include <hid/display/oled.h>
@@ -117,67 +116,34 @@ private:
 		}
 	}
 
-	void getValueForPopup(StringBuf& valueBuf) override {
+	void getNotificationValue(StringBuf& valueBuf) override {
 		const auto value = Selection::getValue();
 		valueBuf.append(getOptions(OptType::SHORT)[value]);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
 		const auto value = getValue();
 
 		if (value == USE_SONG_STUTTER) {
-			const auto& icon = OLED::songIcon;
-			constexpr int32_t songIconWidth = 9;
-
-			// Draw a song icon centered
-			const int32_t x = startX + ((width - songIconWidth) / 2) - 2;
-			const int32_t y = startY + ((height - songIconWidth) / 2);
-			return image.drawGraphicMultiLine(icon, x, y, songIconWidth);
+			image.drawStringCentered("song", slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			                         kTextSpacingY, slot.width);
+			return;
 		}
 
-		constexpr int32_t numBytesTall = 2;
+		// Draw the direction icon centered
 		const bool reversed = value == REVERSED || value == REVERSED_PING_PONG;
-		const auto icon =
-		    reversed ? reverseBitmap(OLED::stutterDirectionIcon, numBytesTall) : OLED::stutterDirectionIcon;
-
-		constexpr int32_t iconHeight = numBytesTall * 8;
-		const int32_t iconWidth = icon.size() / numBytesTall;
+		image.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset,
+		                       reversed);
 
 		if (value == FORWARD_PING_PONG || value == REVERSED_PING_PONG) {
-			// Draw the "P" indicator and the icon centered
-			constexpr int32_t iconOffset = 4;
-			image.drawChar('P', startX + 3, startY + 3, 5, kTextSpacingY);
-			image.drawGraphicMultiLine(reversed ? icon.data() : icon.data() + iconOffset * numBytesTall, startX + 11,
-			                           startY, iconWidth - iconOffset, iconHeight, numBytesTall);
+			// Draw ping-pong dots
+			const int32_t center_x = slot.start_x + slot.width / 2;
+			image.drawPixel(center_x, slot.start_y + kHorizontalMenuSlotYOffset);
+			image.drawPixel(center_x, slot.start_y + kHorizontalMenuSlotYOffset + 7);
 		}
-		else {
-			// Draw the icon centered
-			const int32_t x = startX + (width - iconWidth) / 2 - 1;
-			image.drawGraphicMultiLine(icon.data(), x, startY, iconWidth, iconHeight, numBytesTall);
-		}
-	}
-
-	static std::vector<uint8_t> reverseBitmap(const std::vector<uint8_t>& bitmap, int32_t numBytesTall) {
-		const int32_t columnCount = bitmap.size() / numBytesTall;
-
-		std::vector<uint8_t> output(bitmap.size());
-
-		for (size_t col = 0; col < columnCount; ++col) {
-			const int32_t inputIndex = col * numBytesTall;
-			const int32_t reversedCol = columnCount - 1 - col;
-			const int32_t outputIndex = reversedCol * numBytesTall;
-
-			for (int32_t byte = 0; byte < numBytesTall; ++byte) {
-				uint8_t b = bitmap[inputIndex + byte];
-				const uint8_t reversed = std::bit_cast<uint8_t>(b);
-				output[outputIndex + byte] = reversed;
-			}
-		}
-
-		return output;
 	}
 };
 

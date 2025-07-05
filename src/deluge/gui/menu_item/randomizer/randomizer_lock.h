@@ -21,9 +21,8 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
+namespace deluge::gui::menu_item::randomizer {
 class RandomizerLock final : public Selection {
 public:
 	using Selection::Selection;
@@ -67,16 +66,10 @@ public:
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		const auto iconBitmap = this->getValue() ? &OLED::switcherIconOn : &OLED::switcherIconOff;
-
-		oled_canvas::Canvas& image = OLED::main;
-		constexpr int32_t numBytesTall = 2;
-		constexpr int32_t iconHeight = numBytesTall * 8;
-		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
-		const int32_t x = startX + (width - iconWidth) / 2 - 1;
-		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
+		const Icon& icon = getValue() ? OLED::lockedIconBig : OLED::unlockedIconBig;
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 };
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::randomizer

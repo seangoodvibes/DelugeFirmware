@@ -60,27 +60,31 @@ void SyncLevel::getColumnLabel(StringBuf& label) {
 	syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), level, label, currentSong->getInputTickMagnitude());
 }
 
-void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+void SyncLevel::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace deluge::hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
 	const int32_t value = getValue();
 
 	if (const ::SyncLevel level = syncValueToSyncLevel(value); level == SYNC_LEVEL_NONE) {
-		// Draw the "off" switcher icon
-		const auto iconBitmap = &OLED::switcherIconOff;
-		constexpr int32_t numBytesTall = 2;
-		constexpr int32_t iconHeight = numBytesTall * 8;
-		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
-		const int32_t x = startX + (width - iconWidth) / 2 - 1;
-		return image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
+		const auto off_string = l10n::get(l10n::String::STRING_FOR_OFF);
+		return image.drawStringCentered(off_string, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+		                                kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
 	// Draw only the sync type icon, sync level already drawn as a label
-	const std::vector<uint8_t>& typeIcon = getSyncTypeIcon();
-	const int32_t typeIconWidth = typeIcon.size() / 2;
-	const int32_t padding = ((width - typeIconWidth) / 2) - 2;
-	image.drawGraphicMultiLine(typeIcon.data(), startX + padding, startY, typeIconWidth, 16, 2);
+	const Icon& type_icon = [&] {
+		switch (syncValueToSyncType(getValue())) {
+		case SYNC_TYPE_EVEN:
+			return OLED::syncTypeEvenIcon;
+		case SYNC_TYPE_DOTTED:
+			return OLED::syncTypeDottedIcon;
+		case SYNC_TYPE_TRIPLET:
+			return OLED::syncTypeTripletsIcon;
+		}
+		return OLED::syncTypeEvenIcon;
+	}();
+	image.drawIconCentered(type_icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset - 3);
 }
 
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
@@ -94,21 +98,6 @@ void SyncLevel::getShortOption(StringBuf& opt) {
 	}
 	else {
 		opt.append(l10n::get(l10n::String::STRING_FOR_OFF));
-	}
-}
-
-const std::vector<uint8_t>& SyncLevel::getSyncTypeIcon() {
-	using namespace deluge::hid::display;
-
-	switch (syncValueToSyncType(getValue())) {
-	case SYNC_TYPE_EVEN:
-		return OLED::syncTypeEvenIcon;
-	case SYNC_TYPE_DOTTED:
-		return OLED::syncTypeDottedIcon;
-	case SYNC_TYPE_TRIPLET:
-		return OLED::syncTypeTripletsIcon;
-	default:
-		__unreachable();
 	}
 }
 

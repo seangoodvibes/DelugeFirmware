@@ -47,6 +47,7 @@ class AudioFileHolder;
 class MIDIDevice;
 namespace deluge::gui::menu_item {
 class Submenu;
+class HorizontalMenu;
 enum class RangeEdit : uint8_t;
 } // namespace deluge::gui::menu_item
 
@@ -82,6 +83,7 @@ public:
 	bool editingKit();
 	bool editingKitAffectEntire();
 	bool editingKitRow();
+	void setCurrentSource(int32_t sourceIndex);
 
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
@@ -91,8 +93,8 @@ public:
 
 	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
-	uint8_t currentParamShorcutX;
-	uint8_t currentParamShorcutY;
+	uint8_t currentParamShortcutX;
+	uint8_t currentParamShortcutY;
 	uint8_t currentParamColour;
 	uint8_t paramShortcutBlinkFrequency;
 	uint32_t shortcutBlinkCounter;
@@ -116,8 +118,7 @@ public:
 	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);
 	bool canSeeViewUnderneath() override { return true; }
-	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, deluge::gui::menu_item::Submenu* parent = nullptr,
-	           int32_t sourceIndex = 0);
+	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
@@ -165,6 +166,11 @@ public:
 	void toggleNoteEditorParamMenu(int32_t on);
 	void updatePadLightsFor(MenuItem* item);
 
+	// Horizontal menus
+	deluge::gui::menu_item::HorizontalMenu* maybeGetParentMenu(MenuItem* item);
+	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>>
+	getCurrentHorizontalMenusChain(bool checkNavigationDepth = true);
+
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,
@@ -175,8 +181,8 @@ private:
 	void setLedStates();
 	ActionResult handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity);
 	bool isEditingAutomationViewParam();
-	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
-	                                    MenuItem* currentItem);
+	void handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
+	                                    MenuItem* currentItem, bool isHorizontalMenu);
 
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];

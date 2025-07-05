@@ -63,12 +63,14 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxNumVoicesUnison; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
-	void getColumnLabel(StringBuf& buf) override {
-		buf.append(l10n::getView(l10n::String::STRING_FOR_UNISON_NUMBER_SHORT));
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		DEF_STACK_STRING_BUF(paramValue, 2);
+		paramValue.appendInt(getValue());
+		OLED::main.drawStringCentered(paramValue, slot.start_x + 1, slot.start_y + kHorizontalMenuSlotYOffset + 3,
+		                              kTextBigSpacingX, kTextBigSizeY, slot.width);
 	}
-
-	NumberStyle getNumberStyle() const override { return NUMBER; }
 };
 
 class CountToStereoSpread final : public Count {

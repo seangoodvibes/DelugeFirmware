@@ -118,60 +118,41 @@ public:
 		return nullptr;
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
-	[[nodiscard]] bool showPopup() const override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_MODE)); }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
-		const std::vector<std::reference_wrapper<const std::vector<uint8_t>>> bitmaps = [&] {
-			switch (this->getValue<ArpPreset>()) {
-			case ArpPreset::OFF:
-				return std::vector{std::cref(OLED::switcherIconOff)};
-			case ArpPreset::UP:
-				return std::vector{std::cref(OLED::arpModeIconUp)};
-			case ArpPreset::DOWN:
-				return std::vector{std::cref(OLED::arpModeIconDown)};
-			case ArpPreset::BOTH:
-				return std::vector{std::cref(OLED::arpModeIconUp), std::cref(OLED::arpModeIconDown)};
-			case ArpPreset::RANDOM:
-				return std::vector{std::cref(OLED::diceIcon)};
-			case ArpPreset::WALK:
-				return std::vector{std::cref(OLED::arpModeIconWalk)};
-			case ArpPreset::CUSTOM:
-				return std::vector{std::cref(OLED::arpModeIconCustom)};
-			}
-
-			return std::vector{std::cref(OLED::switcherIconOff)};
-		}();
-
-		const std::string_view option = getOptions(OptType::FULL)[this->getValue()];
-
-		constexpr int32_t paddingBetween = 3;
-		constexpr int32_t numBytesTall = 2;
-		const int32_t textWidth = image.getStringWidthInPixels(option.data(), kTextSpacingY);
-		const int32_t bitmapsWidth = std::accumulate(
-		    bitmaps.begin(), bitmaps.end(), 0, [](int32_t acc, auto v) { return acc + v.get().size() / numBytesTall; });
-
-		const int32_t totalWidth = textWidth + paddingBetween + bitmapsWidth;
-
-		// Calc center position
-		int32_t x = startX + ((width - totalWidth) / 2) - 1;
-		int32_t y = startY + ((height - numBytesTall * 8) / 2) + 1;
-
-		// Draw icons
-		for (auto bitmap : bitmaps) {
-			image.drawGraphicMultiLine(bitmap.get().data(), x, y, bitmap.get().size() / numBytesTall, numBytesTall * 8,
-			                           numBytesTall);
-			x += bitmap.get().size() / numBytesTall;
+		if (this->getValue<ArpPreset>() == ArpPreset::OFF) {
+			const auto off = l10n::get(l10n::String::STRING_FOR_OFF);
+			return image.drawStringCentered(off, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset + 5,
+			                                kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 		}
 
-		// Draw mode text
-		x += paddingBetween;
-		y = startY + ((height - kTextSpacingY) / 2);
-		image.drawString(option.data(), x, y, kTextSpacingX, kTextSpacingY, 0, x + width - kTextSpacingX);
+		const auto arpPreset = getValue<ArpPreset>();
+		const Icon& icon = [&] {
+			switch (arpPreset) {
+			case ArpPreset::UP:
+			case ArpPreset::DOWN:
+				return OLED::arpModeIconUp;
+			case ArpPreset::BOTH:
+				return OLED::arpModeIconUpDown;
+			case ArpPreset::RANDOM:
+				return OLED::diceIcon;
+			case ArpPreset::WALK:
+				return OLED::arpModeIconWalk;
+			case ArpPreset::CUSTOM:
+				return OLED::arpModeIconCustom;
+			default:
+				return OLED::arpModeIconUp;
+			}
+		}();
+
+		const bool reversed = arpPreset == ArpPreset::DOWN;
+		image.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset + 1, reversed);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

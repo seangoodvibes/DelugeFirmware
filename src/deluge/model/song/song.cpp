@@ -63,6 +63,7 @@
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
+#include <hid/buttons.h>
 #include <new>
 #include <stdint.h>
 

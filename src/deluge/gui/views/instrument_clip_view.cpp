@@ -23,6 +23,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -505,7 +506,7 @@ doOther:
 				cancelAllAuditioning();
 
 				// Can't fail because we just set the selected Drum
-				bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu, 0);
+				bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
 				if (success) {
 					openUI(&soundEditor);
 				}
@@ -3414,19 +3415,17 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 
 const char* InstrumentClipView::getFillString(uint8_t fill) {
 	// FILL mode
-	if (fill == FillMode::FILL) {
+	if (fill == FILL) {
 		return "FILL";
 	}
 
 	// NO-FILL mode
-	else if (fill == FillMode::NOT_FILL) {
+	if (fill == NOT_FILL) {
 		return "NOT FILL";
 	}
 
 	// OFF
-	else {
-		return "OFF";
-	}
+	return "OFF";
 }
 
 #pragma gcc pop
@@ -3534,7 +3533,7 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 // if we're in a submenu, we'll need to go up a level
 void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	exitNoteEditor();
-	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
+	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu || runtimeFeatureSettings.isOn(HorizontalMenus)) {
 		soundEditor.goUpOneLevel();
 	}
 }
@@ -3558,6 +3557,11 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// to allow you to switch between items in horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
@@ -3566,7 +3570,7 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 	// to allow you to toggle playback on / off
 	// to allow you to toggle shift on / off
 	// to allow you to toggle mod encoders on / off
-	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+	if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
@@ -3724,13 +3728,15 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 
 ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	bool isHoldingVerticalEncoder = Buttons::isButtonPressed(deluge::hid::button::Y_ENC);
+	bool isInHorizontalMenu = runtimeFeatureSettings.get(HorizontalMenus) == On;
 
 	// if you haven't selected a row and you are holding down vertical encoder
 	// ignore this action because it makes it too easy to transpose by mistake
 	if (!isUIModeActive(UI_MODE_AUDITIONING) && isHoldingVerticalEncoder) {
 		return ActionResult::DEALT_WITH;
 	}
-	else if (!isHoldingVerticalEncoder) {
+
+	if (!isHoldingVerticalEncoder) {
 		shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 		actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 		actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
@@ -3739,10 +3745,10 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
 
 	// if you're not pressing vertical encoder, then you did some vertical scrolling
-	// if you're in a parameter menu, update value displayed
+	// if you're in a parameter menu or in the horizontal note row editor menu, update value displayed
 	if (!isHoldingVerticalEncoder) {
 		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
-		if (currentMenuItem != &noteRowEditorRootMenu) {
+		if (isInHorizontalMenu || currentMenuItem != &noteRowEditorRootMenu) {
 			currentMenuItem->readValueAgain();
 		}
 	}
@@ -3790,13 +3796,18 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// to allow you to switch between items in horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
 		return buttonAction(b, on, inCardRoutine);
 	}
 	// to allow you to toggle affect entire on / off in kits
-	else if (on && b == AFFECT_ENTIRE) {
+	if (on && b == AFFECT_ENTIRE) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->output->type == OutputType::KIT) {
 			clip->affectEntire = !clip->affectEntire;
@@ -5328,7 +5339,7 @@ doDisplayError:
 
 	// Can't fail because we just set the selected Drum
 	// TODO: what if fail because no RAM
-	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu, 0);
+	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
 
 	if (doRecording) {
 		success = openUI(&audioRecorder);
