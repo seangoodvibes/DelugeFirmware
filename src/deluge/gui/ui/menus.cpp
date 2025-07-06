@@ -17,7 +17,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/spread_gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_octave.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_velocity.h"
-#include "gui/menu_item/arpeggiator/midi_cv/step_probability.h"
+#include "gui/menu_item/arpeggiator/midi_cv/swap_probability.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
@@ -284,12 +284,14 @@ arpeggiator::ArpUnpatchedParam arpBassProbabilityMenu{
     STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_BASS_PROBABILITY};
 arpeggiator::midi_cv::BassProbability arpBassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
                                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{
-    STRING_FOR_STEP_PROBABILITY, STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_STEP_PROBABILITY};
-arpeggiator::midi_cv::StepProbability arpStepProbabilityMenuMIDIOrCV{STRING_FOR_STEP_PROBABILITY,
-                                                                     STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{
-    STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_GLIDE_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpSwapProbabilityMenu{STRING_FOR_SWAP_PROBABILITY,
+                                                      STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
+                                                      params::UNPATCHED_ARP_SWAP_PROBABILITY};
+arpeggiator::midi_cv::SwapProbability arpSwapProbabilityMenuMIDIOrCV{STRING_FOR_SWAP_PROBABILITY,
+                                                                     STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE};
+arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{STRING_FOR_GLIDE_PROBABILITY,
+                                                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
+                                                       params::UNPATCHED_ARP_GLIDE_PROBABILITY};
 arpeggiator::midi_cv::GlideProbability arpGlideProbabilityMenuMIDIOrCV{STRING_FOR_GLIDE_PROBABILITY,
                                                                        STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{
@@ -347,8 +349,8 @@ arpeggiator::Randomizer arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                                            &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
                                            // Note
                                            &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
-                                           // Step
-                                           &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
+                                           // Swap
+                                           &arpSwapProbabilityMenu, &arpSwapProbabilityMenuMIDIOrCV,
                                            // Bass
                                            &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
                                            // Glide
@@ -454,7 +456,7 @@ envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV1_SUSTAIN_ME
 envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV1_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
 HorizontalMenu env1Menu{
-    STRING_FOR_ENVELOPE_1, {&env1AttackMenu, &env1DecayMenu, &env1SustainMenu, &env1ReleaseMenu}, HorizontalMenu::Layout::FIXED, 0};
+    STRING_FOR_ENVELOPE_1, {&env1AttackMenu, &env1DecayMenu, &env1SustainMenu, &env1ReleaseMenu}, HorizontalMenu::Layout::FIXED};
 
 // Envelope 2 menu ---------------------------------------------------------------------------------
 envelope::Segment env2AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV2_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -463,7 +465,7 @@ envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV2_SUSTAIN_ME
 envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV2_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
 HorizontalMenu env2Menu{
-    STRING_FOR_ENVELOPE_2, {&env2AttackMenu, &env2DecayMenu, &env2SustainMenu, &env2ReleaseMenu}, HorizontalMenu::Layout::FIXED, 1};
+    STRING_FOR_ENVELOPE_2, {&env2AttackMenu, &env2DecayMenu, &env2SustainMenu, &env2ReleaseMenu}, HorizontalMenu::Layout::FIXED};
 
 // Envelope 3 menu ---------------------------------------------------------------------------------
 envelope::Segment env3AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV3_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -472,7 +474,7 @@ envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV3_SUSTAIN_ME
 envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV3_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
 HorizontalMenu env3Menu{
-    STRING_FOR_ENVELOPE_3, {&env3AttackMenu, &env3DecayMenu, &env3SustainMenu, &env3ReleaseMenu}, HorizontalMenu::Layout::FIXED, 2};
+    STRING_FOR_ENVELOPE_3, {&env3AttackMenu, &env3DecayMenu, &env3SustainMenu, &env3ReleaseMenu}, HorizontalMenu::Layout::FIXED};
 
 // Envelope 4 menu ---------------------------------------------------------------------------------
 envelope::Segment env4AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV4_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -481,7 +483,7 @@ envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV4_SUSTAIN_ME
 envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV4_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
 HorizontalMenu env4Menu{
-    STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, HorizontalMenu::Layout::FIXED, 3};
+    STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, HorizontalMenu::Layout::FIXED};
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
