@@ -665,6 +665,18 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
                        int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                        bool isClipActive) {
 
+	// Kit arp, get arp settings and render arp pre-output
+	renderArp(modelStack);
+
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+	                                      isClipActive, OutputType::KIT, recorder);
+
+	// For Midi and Gate rows, we need to call the render method of the arpeggiator
+	renderNonAudioArp();
+}
+
+void Kit::renderArp(ModelStack* modelStack) {
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
@@ -742,11 +754,21 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 	}
+}
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::KIT, recorder);
+ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
+	if (clip) {
+		return &clip->arpSettings;
+	}
+	else if (activeClip) {
+		return &((InstrumentClip*)activeClip)->arpSettings;
+	}
+	else {
+		return nullptr;
+	}
+}
 
+void Kit::renderNonAudioArp() {
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
@@ -789,18 +811,6 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 				}
 			}
 		}
-	}
-}
-
-ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
-	if (clip) {
-		return &clip->arpSettings;
-	}
-	else if (activeClip) {
-		return &((InstrumentClip*)activeClip)->arpSettings;
-	}
-	else {
-		return nullptr;
 	}
 }
 

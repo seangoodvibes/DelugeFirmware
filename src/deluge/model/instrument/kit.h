@@ -103,7 +103,6 @@ public:
 	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                      ModelStackWithTimelineCounter* modelStack) override {}
 
-	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
 	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	void choke();
 	void resyncLFOs() override;
@@ -180,4 +179,9 @@ private:
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
 	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
+
+	// Kit Arp
+	void renderArp(ModelStack* modelStack);
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
+	void renderNonAudioArp();
 };
