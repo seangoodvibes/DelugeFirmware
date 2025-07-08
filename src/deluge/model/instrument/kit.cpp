@@ -664,32 +664,34 @@ yesTickParamManager:
 void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                        int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                        bool isClipActive) {
-
-	// Kit arp, get arp settings and render arp pre-output
-	renderArp(modelStack);
-
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::KIT, recorder);
-
-	// For Midi and Gate rows, we need to call the render method of the arpeggiator
-	renderNonAudioArp();
-}
-
-void Kit::renderArp(ModelStack* modelStack) {
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
-	// Kit arp, get arp settings, perform setup and render arp pre-output
+	// Kit arp, get arp settings and render arp pre-output
 	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::KIT, recorder);
+	// if you're exporting drum stems
+	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
+	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)) [[unlikely]] {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
+		int32_t pitchAdjust =
+		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+
+		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
+		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	}
+	// render kit row with kit affect entire FX
+	else {
+		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+		                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+		                                      isClipActive, OutputType::KIT, recorder);
+	}
+
+	// For Midi and Gate rows, we need to call the render method of the arpeggiator
 	renderNonAudioArpPostOutput(output);
 }
 
