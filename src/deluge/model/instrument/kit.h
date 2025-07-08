@@ -181,7 +181,8 @@ private:
 	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
 
 	// Kit Arp
-	void renderArp(ModelStack* modelStack);
+	void setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                ParamManager* paramManager, std::span<StereoSample> output);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
-	void renderNonAudioArp();
+	void renderNonAudioArpPostOutput(std::span<StereoSample> output);
 };

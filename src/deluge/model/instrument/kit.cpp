@@ -682,6 +682,19 @@ void Kit::renderArp(ModelStack* modelStack) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
+	// Kit arp, get arp settings, perform setup and render arp pre-output
+	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
+
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+	                                      isClipActive, OutputType::KIT, recorder);
+
+	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
+	renderNonAudioArpPostOutput(output);
+}
+
+void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                     ParamManager* paramManager, std::span<StereoSample> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -768,7 +781,7 @@ ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
 	}
 }
 
-void Kit::renderNonAudioArp() {
+void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
