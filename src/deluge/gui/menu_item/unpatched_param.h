@@ -63,6 +63,8 @@ public:
 		return getValue();
 	}
 
+	void updateAutomationViewParameter() override;
+
 protected:
 	virtual int32_t getFinalValue();
 };

@@ -86,4 +86,8 @@ ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	return modelStack->getPatchedAutoParamFromId(getP());
 }
 
+void PatchedParam::updateAutomationViewParameter() {
+	Automation::handleAutomationViewParameterUpdate();
+}
+
 } // namespace deluge::gui::menu_item

@@ -111,9 +111,7 @@ HorizontalMenu::Paging HorizontalMenuCombined::splitMenuItemsByPages(std::span<M
 }
 
 void HorizontalMenuCombined::selectEncoderAction(int32_t offset) {
-	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
-	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
-	if (renderingStyle() != HORIZONTAL || !selectButtonPressed) {
+	if (renderingStyle() != HORIZONTAL || !Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 		return HorizontalMenu::selectEncoderAction(offset);
 	}
 
@@ -170,7 +168,6 @@ void HorizontalMenuCombined::selectEncoderAction(int32_t offset) {
 
 	updateDisplay();
 	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 }
 
 } // namespace deluge::gui::menu_item

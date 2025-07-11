@@ -270,11 +270,13 @@ public:
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 	virtual bool isSubmenu() { return false; }
+	virtual bool isHorizontalMenu() { return false; }
+	virtual MenuItem* getCurrentHorizontalMenuItem() { return nullptr; }
 	virtual void setupNumberEditor() {}
 	virtual void updatePadLights();
 	/// Called to inform automation view that the active parameter has changed. Parameters inheriting
 	/// from Automation forward there, no-op for everything else.
-	virtual void updateAutomationViewParameter() { return; }
+	virtual void updateAutomationViewParameter() {}
 
 	/// @}
 	/// @name Horizontal menus

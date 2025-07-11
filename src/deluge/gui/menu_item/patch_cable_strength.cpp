@@ -317,11 +317,8 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 	if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 		updatePolarity(offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR);
 
-		if (display->haveOLED()) {
-			Buttons::selectButtonPressUsedUp = true;
-		}
-		else {
-			display->popupText(polarityToStringShort(polarity_));
+		if (display->have7SEG()) {
+			display->displayPopup(polarityToStringShort(polarity_));
 		}
 		return;
 	}

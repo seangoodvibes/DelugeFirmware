@@ -64,7 +64,7 @@ public:
 		return getValue();
 	}
 
-	void updateAutomationViewParameter() override;
+	void updateAutomationViewParameter() final { PatchedParam::updateAutomationViewParameter(); }
 
 protected:
 	void readCurrentValue() override;

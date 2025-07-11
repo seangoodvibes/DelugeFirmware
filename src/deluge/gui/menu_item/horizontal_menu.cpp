@@ -170,30 +170,23 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 }
 
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
-	if (renderingStyle() != HORIZONTAL) {
+	if (renderingStyle() != HORIZONTAL || Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 		return Submenu::selectEncoderAction(offset);
 	}
 
-	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
-	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
-
-	if (!selectButtonPressed) {
-		MenuItem* child = *current_item_;
-		if (child->isSubmenu()) {
-			// No action for a submenu
-			return;
-		}
-
-		child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
-		focusChild(child);
-		displayPopup(child);
-
-		// We don't want to return true for selectEncoderEditsInstrument(), since
-		// that would trigger for scrolling in the menu as well.
-		return soundEditor.markInstrumentAsEdited();
+	MenuItem* child = *current_item_;
+	if (child->isSubmenu()) {
+		// No action for a submenu
+		return;
 	}
 
-	Submenu::selectEncoderAction(offset);
+	child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
+	focusChild(child);
+	displayPopup(child);
+
+	// We don't want to return true for selectEncoderEditsInstrument(), since
+	// that would trigger for scrolling in the menu as well.
+	return soundEditor.markInstrumentAsEdited();
 }
 
 void HorizontalMenu::displayPopup(MenuItem* menuItem) {
@@ -238,7 +231,6 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 	updateDisplay();
 	updatePadLights();
 	updateSelectedMenuItemLED(targetPosition);
-	(*current_item_)->updateAutomationViewParameter();
 
 	if (display->hasPopupOfType(PopupType::HORIZONTAL_MENU)) {
 		display->cancelPopup();
@@ -277,7 +269,6 @@ ActionResult HorizontalMenu::selectMenuItem(std::span<MenuItem*> pageItems, cons
 			// Update the currently selected item
 			updateDisplay();
 			updatePadLights();
-			(*current_item_)->updateAutomationViewParameter();
 			displayPopup(*current_item_);
 			break;
 		}

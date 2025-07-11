@@ -104,6 +104,10 @@ uint32_t UnpatchedParam::getParamIndex() {
 	return this->getP();
 }
 
+void UnpatchedParam::updateAutomationViewParameter() {
+	Automation::handleAutomationViewParameterUpdate();
+}
+
 // ---------------------------------------
 
 // ---------------------------------------

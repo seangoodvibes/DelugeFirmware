@@ -172,7 +172,7 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		} while (offset > 0);
 	}
 	else if (offset < 0) {
-		// Scan items backwad, counting relevant items.
+		// Scan items backward, counting relevant items.
 		auto lastRelevant = current_item_;
 		do {
 			if (current_item_ == items.begin()) {
@@ -193,7 +193,6 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	}
 	updateDisplay();
 	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 }
 
 bool Submenu::shouldForwardButtons() {
@@ -205,36 +204,28 @@ MenuItem* Submenu::selectButtonPress() {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->selectButtonPress();
 	}
-	else {
-		return *current_item_;
-	}
+	return *current_item_;
 }
 
 ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->buttonAction(b, on, inCardRoutine);
 	}
-	else {
-		return MenuItem::buttonAction(b, on, inCardRoutine);
-	}
+	return MenuItem::buttonAction(b, on, inCardRoutine);
 }
 
 deluge::modulation::params::Kind Submenu::getParamKind() {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->getParamKind();
 	}
-	else {
-		return MenuItem::getParamKind();
-	}
+	return MenuItem::getParamKind();
 }
 
 uint32_t Submenu::getParamIndex() {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->getParamIndex();
 	}
-	else {
-		return MenuItem::getParamIndex();
-	}
+	return MenuItem::getParamIndex();
 }
 
 void Submenu::unlearnAction() {
@@ -291,9 +282,7 @@ MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPress
 	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
 		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);
 	}
-	else {
-		return MenuItem::patchingSourceShortcutPress(s, previousPressStillActive);
-	}
+	return MenuItem::patchingSourceShortcutPress(s, previousPressStillActive);
 }
 
 } // namespace deluge::gui::menu_item

@@ -174,6 +174,7 @@ checkResult:
 					}
 				}
 				else {
+					Buttons::selectButtonPressUsedUp = true;
 					getCurrentUI()->selectEncoderAction(limitedDetentPos);
 				}
 				break;

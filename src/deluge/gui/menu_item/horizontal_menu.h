@@ -39,6 +39,8 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
 	void endSession() override;
+	bool isHorizontalMenu() override { return true; }
+	MenuItem* getCurrentHorizontalMenuItem() override { return *current_item_; }
 
 protected:
 	Paging paging;
