@@ -5255,7 +5255,7 @@ int32_t InstrumentClipView::getVelocityToSound(int32_t velocity) {
 // sub-function of AuditionPadAction
 // audition pad is pressed, we'll either do a silent audition or non-silent audition
 bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-                                             NoteRow* noteRowOnActiveClip, Drum* drum) {
+                                             NoteRow* noteRowOnActiveClip, Drum* drum, bool displayNoteCode) {
 	bool doSilentAudition = false;
 
 	int32_t velocityToSound = getVelocityToSound(velocity);
@@ -5263,7 +5263,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	auditionPadIsPressed[yDisplay] = velocityToSound; // Yup, need to do this even if we're going to do a
 	                                                  // "silent" audition, so pad lights up etc.
 
-	if (noteRowOnActiveClip) {
+	if (noteRowOnActiveClip != nullptr) {
 		// Ensure our auditioning doesn't override a note playing in the sequence
 		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
 			doSilentAudition = true;
@@ -5318,14 +5318,13 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (isKit) {
 		setSelectedDrum(drum);
-		drawNoteCode(yDisplay);
-		return false; // No need to redraw any squares, because setSelectedDrum() has done it
 	}
-	else {
+
+	if (displayNoteCode) {
 		drawNoteCode(yDisplay);
 	}
 
-	return true;
+	return !isKit; // No need to redraw any squares in kit, because setSelectedDrum() has done it
 }
 
 // sub-function of AuditionPadAction
