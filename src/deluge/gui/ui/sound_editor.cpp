@@ -1004,14 +1004,6 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 		item->selectEncoderAction(item->isSubmenu() ? offset : scaledOffset);
 
-		// for horizontal menu's, selected menu item may have changed with press and turn of select encoder
-		// so we will want to check if automation view should be refreshed or exit out of automation editor
-		if (currentHorizontalMenuItem != nullptr) {
-			MenuItem* newHorizonalMenuItem = item->getCurrentHorizontalMenuItem();
-			handlePotentialParamMenuChange(deluge::hid::button::SELECT_ENC, sdRoutineLock, currentHorizontalMenuItem,
-			                               newHorizonalMenuItem);
-		}
-
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
 				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
@@ -1036,6 +1028,14 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			else {
 				view.setModLedStates();
 			}
+		}
+
+		// for horizontal menu's, selected menu item may have changed with press and turn of select encoder
+		// so we will want to check if automation view should be refreshed or exit out of automation editor
+		if (currentHorizontalMenuItem != nullptr) {
+			MenuItem* newHorizonalMenuItem = item->getCurrentHorizontalMenuItem();
+			handlePotentialParamMenuChange(deluge::hid::button::SELECT_ENC, sdRoutineLock, currentHorizontalMenuItem,
+			                               newHorizonalMenuItem);
 		}
 	}
 }
