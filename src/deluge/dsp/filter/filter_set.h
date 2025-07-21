@@ -51,7 +51,7 @@ public:
 	void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1);
 
 	// expects to receive an interleaved stereo stream
-	void renderLongStereo(q31_t* startSample, q31_t* endSample);
+	void renderLongStereo(StereoBuffer<q31_t> buffer);
 
 	// used to check whether the filter is used at all
 	inline bool isLPFOn() { return LPFOn; }
@@ -65,10 +65,10 @@ private:
 	FilterMode lastHPFMode_;
 	FilterRoute routing_;
 
-	void renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
-	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample);
-	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample);
-	void renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
+	void renderLPFLong(std::span<q31_t> buffer);
+	void renderLPFLongStereo(StereoBuffer<q31_t> buffer);
+	void renderHPFLongStereo(StereoBuffer<q31_t> buffer);
+	void renderHPFLong(std::span<q31_t> buffer);
 
 	// all filters share a state. This is fine since they just hold plain data and initialization is handled by
 	// reset/configure calls.  This is faster than using a variant at the cost of not throwing on incorrect access.

@@ -17,7 +17,7 @@
 
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -784,8 +784,8 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
-[[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
-	filterSet.renderLongStereo(&buffer.data()->l, &(buffer.data() + buffer.size())->l);
+[[gnu::hot]] void GlobalEffectable::processFilters(deluge::dsp::StereoBuffer<q31_t> buffer) {
+	filterSet.renderLongStereo(buffer);
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
@@ -1110,10 +1110,10 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 	return modFXType_;
 }
 
-Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback,
-                                                       bool soundComingIn) {
+deluge::dsp::Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager,
+                                                                    bool shouldLimitDelayFeedback, bool soundComingIn) {
 
-	Delay::State delayWorkingState;
+	deluge::dsp::Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
@@ -1132,8 +1132,9 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 	return delayWorkingState;
 }
 
-void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume,
-                                                    ParamManager* paramManager, const Delay::State& delayWorkingState,
+void GlobalEffectable::processFXForGlobalEffectable(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* postFXVolume,
+                                                    ParamManager* paramManager,
+                                                    const deluge::dsp::Delay::State& delayWorkingState,
                                                     bool anySoundComingIn, q31_t verbAmount) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 

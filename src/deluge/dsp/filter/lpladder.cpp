@@ -239,38 +239,28 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		}
 	}
 }
-[[gnu::hot]] void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void LpLadderFilter::doFilterStereo(StereoBuffer<q31_t> buffer) {
 
 	// Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
-
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do12dBLPFOnSample(*currentSample, l);
-			currentSample += 1;
-			*currentSample = do12dBLPFOnSample(*currentSample, r);
-			currentSample += 1;
-		} while (currentSample < endSample);
+		for (StereoSample<q31_t>& sample : buffer) {
+			sample.l = do12dBLPFOnSample(sample.l, l);
+			sample.r = do12dBLPFOnSample(sample.r, r);
+		}
 	}
 
 	// Full ladder (regular)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do24dBLPFOnSample(*currentSample, l);
-
-			currentSample += 1;
-			*currentSample = do24dBLPFOnSample(*currentSample, r);
-
-			currentSample += 1;
-		} while (currentSample < endSample);
+		for (StereoSample<q31_t>& sample : buffer) {
+			sample.l = do24dBLPFOnSample(sample.l, l);
+			sample.r = do24dBLPFOnSample(sample.r, r);
+		}
 	}
 
 	// Full ladder (drive)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 		if (doOversampling) {
-			q31_t* currentSample = startSample;
-			do {
+			for (StereoSample<q31_t>& sample : buffer) {
 				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
 				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
 				// low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in
@@ -306,21 +296,24 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
 
 				currentSample += 1;
-			} while (currentSample < endSample);
+			}
+			while (currentSample < endSample)
+				;
 		}
 
 		else {
-			q31_t* currentSample = startSample;
-			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
+			for (StereoSample<q31_t>& sample : buffer) {
+				q31_t outputSampleToKeep = doDriveLPFOnSample(sample.l, l);
+				sample.l = getTanHUnknown(outputSampleToKeep, 4);
 
 				currentSample += 1;
 				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r);
 				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
 
 				currentSample += 1;
-			} while (currentSample < endSample);
+			}
+			while (currentSample < endSample)
+				;
 		}
 	}
 }

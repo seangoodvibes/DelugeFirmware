@@ -17,7 +17,11 @@
 
 #include "dsp/compressor/rms_feedback.h"
 #include "util/fixedpoint.h"
-std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> dryBuffer;
+#include "util/functions.h"
+#include <cstring>
+
+namespace deluge::dsp {
+std::array<deluge::dsp::fixed_point::StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> dryBuffer;
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setAttack(5 << 24);
@@ -49,15 +53,14 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	er = runEnvelope(lastER, er, numSamples);
 }
 /// This renders at a 'neutral' volume, so that at threshold zero the volume in unchanged
-void RMSFeedbackCompressor::renderVolNeutral(std::span<StereoSample> buffer, q31_t finalVolume) {
+void RMSFeedbackCompressor::renderVolNeutral(StereoBuffer<q31_t> buffer, q31_t finalVolume) {
 	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
 	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
 	// I couldn't extract correct volume levels from it.
 	render(buffer, 1 << 27, 1 << 27, finalVolume >> 3);
 }
 constexpr uint8_t saturationAmount = 3;
-void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdjustL, q31_t volAdjustR,
-                                   q31_t finalVolume) {
+void RMSFeedbackCompressor::render(StereoBuffer<q31_t> buffer, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume) {
 	// make a copy for blending if we need to
 	if (wet != ONE_Q31) {
 		memcpy(dryBuffer.data(), buffer.data(), buffer.size_bytes());
@@ -97,7 +100,8 @@ void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdju
 	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(buffer.size()))) << 8;
 
 	auto dry_it = dryBuffer.begin();
-	for (StereoSample& sample : buffer) {
+	for (StereoSample<q31_t>& _sample : buffer) {
+		auto sample = reinterpret_cast<deluge::dsp::fixed_point::StereoSample&>(_sample);
 		currentVolumeL += amplitudeIncrementL;
 		currentVolumeR += amplitudeIncrementR;
 
@@ -140,7 +144,7 @@ float RMSFeedbackCompressor::runEnvelope(float current, float desired, float num
 
 // output range is 0-21 (2^31)
 // dac clipping is at 16
-float RMSFeedbackCompressor::calcRMS(std::span<StereoSample> buffer) {
+float RMSFeedbackCompressor::calcRMS(StereoBuffer<q31_t> buffer) {
 	q31_t sum = 0;
 	q31_t offset = 0; // to remove dc offset
 	float lastMean = mean;
@@ -165,3 +169,4 @@ float RMSFeedbackCompressor::calcRMS(std::span<StereoSample> buffer) {
 
 	return logmean;
 }
+} // namespace deluge::dsp

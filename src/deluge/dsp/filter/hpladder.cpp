@@ -73,16 +73,15 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 		currentSample += sampleIncrement;
 	} while (currentSample < endSample);
 }
-// filter an interleaved stereo buffer
-[[gnu::hot]] void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
-	q31_t* currentSample = startSample;
-	do {
-		*currentSample = doHPF(*currentSample, l);
-		currentSample += 1;
-		*currentSample = doHPF(*currentSample, r);
-		currentSample += 1;
-	} while (currentSample < endSample);
+
+/// filter an interleaved stereo buffer
+[[gnu::hot]] void HpLadderFilter::doFilterStereo(StereoBuffer<q31_t> buffer) {
+	for (auto& sample : buffer) {
+		sample.l = doHPF(sample.l, l);
+		sample.r = doHPF(sample.r, r);
+	}
 }
+
 [[gnu::always_inline]] inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
 	// inputs are only 16 bit so this is pretty small
 	// this limit was found experimentally as about the lowest fc can get without sounding broken

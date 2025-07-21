@@ -33,7 +33,6 @@ extern "C" {
 }
 
 class Song;
-class StereoSample;
 class Instrument;
 class Sound;
 class ParamManagerForTimeline;
@@ -47,14 +46,14 @@ class SideChain;
 class VoiceVector;
 class Freeverb;
 class Metronome;
-class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
-class AbsValueFollower;
 
 namespace deluge::dsp {
+class AbsValueFollower;
 class Reverb;
-}
+class RMSFeedbackCompressor;
+} // namespace deluge::dsp
 
 /*
  * ================== Audio rendering ==================
@@ -210,11 +209,11 @@ extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
-extern RMSFeedbackCompressor mastercompressor;
+extern deluge::dsp::RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
-extern StereoFloatSample approxRMSLevel;
-extern AbsValueFollower envelopeFollower;
+extern deluge::dsp::StereoSample<float> approxRMSLevel;
+extern deluge::dsp::AbsValueFollower envelopeFollower;
 extern TaskID routine_task_id;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
