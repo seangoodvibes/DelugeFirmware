@@ -1402,7 +1402,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user holding a note(s) down, we'll adjust proability instead
+	// Or, if user is holding a note(s) down, we'll adjust probability instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		adjustProbability(offset);
 	}
@@ -3963,7 +3963,6 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		enterUIMode(UI_MODE_AUDITIONING);
 	}
 
-	drawNoteCode(yDisplay);
 	bool lastAuditionedYDisplayChanged = lastAuditionedYDisplay != yDisplay;
 	lastAuditionedYDisplay = yDisplay;
 
@@ -3982,8 +3981,13 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (isKit) {
 		setSelectedDrum(drum);
+		drawNoteCode(yDisplay);
 		return false; // No need to redraw any squares, because setSelectedDrum() has done it
 	}
+	else {
+		drawNoteCode(yDisplay);
+	}
+
 	return true;
 }
 
@@ -4196,7 +4200,11 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 		drawActualNoteCode(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong));
 	}
 	else {
-		drawDrumName(getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)->drum);
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Kit* thisKit = (Kit*)clip->output;
+		if (thisKit->selectedDrum != nullptr) {
+			drawDrumName(thisKit->selectedDrum);
+		}
 	}
 }
 
