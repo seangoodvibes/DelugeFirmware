@@ -150,6 +150,8 @@ public:
 	static const Icon sampleModeStretchIcon;
 	static const Icon keyboardIcon;
 	static const Icon crossedOutKeyboardIcon;
+	static const Icon oscTrackingEnabledIcon;
+	static const Icon oscTrackingDisabledIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
