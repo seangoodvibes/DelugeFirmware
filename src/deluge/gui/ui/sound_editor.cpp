@@ -954,56 +954,47 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	MenuItem* item = getCurrentMenuItem();
 	RootUI* rootUI = getRootUI();
 
-	// Forward to automation view.
-	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
-	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
-	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
-	    && !automationView.multiPadPressSelected) {
-		automationView.modEncoderAction(0, scaledOffset);
+	if (!isUIModeWithinRange(selectEncoderUIModes)) {
+		return;
 	}
-	else {
-		if (!isUIModeWithinRange(selectEncoderUIModes)) {
-			return;
-		}
 
-		bool hadNoteTails;
+	bool hadNoteTails;
 
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+
+	if (currentSound) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		if (currentSound) {
+		hadNoteTails = currentSound->allowNoteTails(modelStack);
+	}
+
+	item->selectEncoderAction(item->isSubmenu() ? offset : scaledOffset);
+
+	if (currentSound) {
+		if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
+			markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
+		}
+
+		if (rootUI != &automationView) {
+			// If envelope param preset values were changed, there's a chance that there could have been a
+			// change to whether notes have tails
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			hadNoteTails = currentSound->allowNoteTails(modelStack);
+			bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
+			if (hadNoteTails != hasNoteTailsNow) {
+				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			}
 		}
 
-		item->selectEncoderAction(item->isSubmenu() ? offset : scaledOffset);
-
-		if (currentSound) {
-			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
-				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
-			}
-
-			if (rootUI != &automationView) {
-				// If envelope param preset values were changed, there's a chance that there could have been a
-				// change to whether notes have tails
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
-
-				bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
-				if (hadNoteTails != hasNoteTailsNow) {
-					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-				}
-			}
-
-			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
-			    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
-				indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
-			}
-			else {
-				view.setModLedStates();
-			}
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && getCurrentMenuItem()->usesAffectEntire()
+		    && editingKit()) {
+			indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
+		}
+		else {
+			view.setModLedStates();
 		}
 	}
 }
