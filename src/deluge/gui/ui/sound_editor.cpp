@@ -559,8 +559,20 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else {
-		// potentially swap root UI to automation view / previous UI
-		return getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+		MenuItem* currentMenuItem = getCurrentMenuItem();
+		MenuItem* currentHorizontalMenuItem = currentMenuItem->getCurrentHorizontalMenuItem();
+
+		// potentially swap out automation view UI / handle parameter change in horizontal menu
+		ActionResult result = currentMenuItem->buttonAction(b, on, inCardRoutine);
+
+		if (on && currentHorizontalMenuItem != nullptr) {
+			MenuItem* newMenuItem = getCurrentMenuItem();
+			MenuItem* newHorizontalMenuItem = newMenuItem->getCurrentHorizontalMenuItem();
+			handlePotentialParamMenuChange(SELECT_ENC, inCardRoutine, currentHorizontalMenuItem,
+			                               newHorizontalMenuItem == nullptr ? newMenuItem : newHorizontalMenuItem);
+		}
+
+		return result;
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -593,8 +605,7 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inC
 			}
 		}
 		// if we're entering a param menu from a non-param menu
-		else if ((previousItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-		         && (currentItem->getParamKind() != deluge::modulation::params::Kind::NONE)) {
+		else {
 			// enter automation view and update parameter selection
 			currentItem->buttonAction(b, true, inCardRoutine);
 		}

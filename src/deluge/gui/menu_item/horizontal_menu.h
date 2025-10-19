@@ -59,6 +59,7 @@ public:
 	virtual bool hasItem(const MenuItem* item);
 	virtual void setCurrentItem(const MenuItem* item);
 	decltype(items)& getItems() { return items; }
+	MenuItem* getCurrentHorizontalMenuItem() override { return *current_item_; }
 
 protected:
 	Paging paging;
