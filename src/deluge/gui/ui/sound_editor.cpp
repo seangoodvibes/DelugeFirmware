@@ -559,8 +559,20 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else {
-		// potentially swap root UI to automation view / previous UI
-		return getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+		MenuItem* currentMenuItem = getCurrentMenuItem();
+		MenuItem* currentHorizontalMenuItem = currentMenuItem->getCurrentHorizontalMenuItem();
+
+		// potentially swap out automation view UI / handle parameter change in horizontal menu
+		ActionResult result = currentMenuItem->buttonAction(b, on, inCardRoutine);
+
+		if (on && currentHorizontalMenuItem != nullptr) {
+			MenuItem* newMenuItem = getCurrentMenuItem();
+			MenuItem* newHorizontalMenuItem = newMenuItem->getCurrentHorizontalMenuItem();
+			handlePotentialParamMenuChange(b, inCardRoutine, currentHorizontalMenuItem,
+			                               newHorizontalMenuItem == nullptr ? newMenuItem : newHorizontalMenuItem);
+		}
+
+		return result;
 	}
 
 	return ActionResult::DEALT_WITH;

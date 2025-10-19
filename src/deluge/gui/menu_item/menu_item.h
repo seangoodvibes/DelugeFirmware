@@ -315,6 +315,8 @@ public:
 
 	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {};
 
+	virtual MenuItem* getCurrentHorizontalMenuItem() { return nullptr; }
+
 	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 
 	/// @}
