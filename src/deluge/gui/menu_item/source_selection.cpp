@@ -43,6 +43,14 @@ const PatchSource sourceMenuContents[] = {
     PatchSource::X,
     PatchSource::Y,
     PatchSource::AFTERTOUCH,
+    PatchSource::MACRO1,
+    PatchSource::MACRO2,
+    PatchSource::MACRO3,
+    PatchSource::MACRO4,
+    PatchSource::MACRO5,
+    PatchSource::MACRO6,
+    PatchSource::MACRO7,
+    PatchSource::MACRO8,
 };
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
@@ -151,6 +159,38 @@ void SourceSelection::drawValue() {
 
 	case PatchSource::Y:
 		text = STRING_FOR_PATCH_SOURCE_Y;
+		break;
+
+	case PatchSource::MACRO1:
+		text = STRING_FOR_PATCH_SOURCE_MACRO1;
+		break;
+
+	case PatchSource::MACRO2:
+		text = STRING_FOR_PATCH_SOURCE_MACRO2;
+		break;
+
+	case PatchSource::MACRO3:
+		text = STRING_FOR_PATCH_SOURCE_MACRO3;
+		break;
+
+	case PatchSource::MACRO4:
+		text = STRING_FOR_PATCH_SOURCE_MACRO4;
+		break;
+
+	case PatchSource::MACRO5:
+		text = STRING_FOR_PATCH_SOURCE_MACRO5;
+		break;
+
+	case PatchSource::MACRO6:
+		text = STRING_FOR_PATCH_SOURCE_MACRO6;
+		break;
+
+	case PatchSource::MACRO7:
+		text = STRING_FOR_PATCH_SOURCE_MACRO7;
+		break;
+
+	case PatchSource::MACRO8:
+		text = STRING_FOR_PATCH_SOURCE_MACRO8;
 		break;
 
 	// explicit fallthrough cases

@@ -123,7 +123,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 91;
 constexpr int32_t kNumGlobalParamsForAutomation = 39;
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
@@ -242,6 +242,22 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::EXPRESSION, Expression::Y_SLIDE_TIMBRE},
     // Mono Expression: Z - Channel Pressure
     {params::Kind::EXPRESSION, Expression::Z_PRESSURE},
+    // Macro: Macro 1
+    {params::Kind::MACRO, Macro::MACRO1},
+    // Macro: Macro 2
+    {params::Kind::MACRO, Macro::MACRO2},
+    // Macro: Macro 3
+    {params::Kind::MACRO, Macro::MACRO3},
+    // Macro: Macro 4
+    {params::Kind::MACRO, Macro::MACRO4},
+    // Macro: Macro 5
+    {params::Kind::MACRO, Macro::MACRO5},
+    // Macro: Macro 6
+    {params::Kind::MACRO, Macro::MACRO6},
+    // Macro: Macro 7
+    {params::Kind::MACRO, Macro::MACRO7},
+    // Macro: Macro 8
+    {params::Kind::MACRO, Macro::MACRO8},
 }};
 
 // global FX - sorted in the order that Parameters are scrolled through on the display

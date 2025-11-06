@@ -56,6 +56,8 @@ enum class Kind : int32_t {
 	PATCH_CABLE,
 	/// Parameter connected to an MPE expression axis
 	EXPRESSION,
+	/// Parameter used for creating macros
+	MACRO,
 };
 
 /// Integer type used for all Param enumerations.

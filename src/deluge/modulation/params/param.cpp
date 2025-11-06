@@ -296,6 +296,16 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		return l10n::get(NAMES[p]);
 	}
 
+	if (kind == Kind::MACRO && p < kNumMacroDimensions) {
+		static l10n::String const NAMES[kNumMacroDimensions] = {
+		    [Macro::MACRO1] = STRING_FOR_PATCH_SOURCE_MACRO1, [Macro::MACRO2] = STRING_FOR_PATCH_SOURCE_MACRO2,
+		    [Macro::MACRO3] = STRING_FOR_PATCH_SOURCE_MACRO3, [Macro::MACRO4] = STRING_FOR_PATCH_SOURCE_MACRO4,
+		    [Macro::MACRO5] = STRING_FOR_PATCH_SOURCE_MACRO5, [Macro::MACRO6] = STRING_FOR_PATCH_SOURCE_MACRO6,
+		    [Macro::MACRO7] = STRING_FOR_PATCH_SOURCE_MACRO7, [Macro::MACRO8] = STRING_FOR_PATCH_SOURCE_MACRO8,
+		};
+		return l10n::get(NAMES[p]);
+	}
+
 	constexpr ParamType unc = UNPATCHED_NUM_SHARED;
 
 	if (kind == Kind::UNPATCHED_SOUND && p < util::to_underlying(UNPATCHED_SOUND_MAX_NUM)) {

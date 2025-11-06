@@ -33,6 +33,7 @@ class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class ModelStackWithParamCollection;
 class ExpressionParamSet;
+class MacroParamSet;
 class PatchCableSet;
 class MIDIParamCollection;
 class PatchedParamSet;
@@ -74,6 +75,20 @@ public:
 
 	inline ExpressionParamSet* getExpressionParamSet() { // Will return NULL if didn't exist
 		return (ExpressionParamSet*)getExpressionParamSetSummary()->paramCollection;
+	}
+
+	bool ensureMacroParamSetExists(bool forDrum = false);
+
+	inline int32_t getMacroParamSetOffset() { return macroParamSetOffset; }
+
+	MacroParamSet* getOrCreateMacroParamSet(bool forDrum = false); // Will return NULL if can't create
+
+	inline ParamCollectionSummary* getMacroParamSetSummary() { // Will return one containing NULL if didn't exist
+		return &summaries[getMacroParamSetOffset()];
+	}
+
+	inline MacroParamSet* getMacroParamSet() { // Will return NULL if didn't exist
+		return (MacroParamSet*)getMacroParamSetSummary()->paramCollection;
 	}
 
 	inline MIDIParamCollection* getMIDIParamCollection() {
@@ -165,6 +180,7 @@ public:
 
 	bool resonanceBackwardsCompatibilityProcessed;
 	uint8_t expressionParamSetOffset;
+	uint8_t macroParamSetOffset;
 
 	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if
 	// we know this, we can check for stuff faster.

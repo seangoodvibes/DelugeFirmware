@@ -281,3 +281,16 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getExpressionAutoParamFr
 
 	return summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 }
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getMacroAutoParamFromID(int32_t newParamId) {
+	if (newParamId >= kNumMacroDimensions) {
+		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
+	}
+
+	paramManager->ensureMacroParamSetExists(); // Allowed to fail
+	ParamCollectionSummary* summary = paramManager->getMacroParamSetSummary();
+	ModelStackWithParamId* modelStackWithParamId =
+	    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+
+	return summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+}

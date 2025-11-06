@@ -327,6 +327,14 @@ enum class PatchSource : uint8_t {
 	VELOCITY,
 	NOTE,
 	RANDOM,
+	MACRO1,
+	MACRO2,
+	MACRO3,
+	MACRO4,
+	MACRO5,
+	MACRO6,
+	MACRO7,
+	MACRO8,
 	NONE,
 
 	// Used for shortcuts
@@ -915,13 +923,26 @@ constexpr int32_t kWavetableMaxCycleSize = 65536; // TODO: work out what this sh
 
 constexpr int32_t kMaxImageStoreWidth = kDisplayWidth;
 
-constexpr int32_t kNumExpressionDimensions = 3;
-
-enum Expression {
+enum class Expression {
 	X_PITCH_BEND,
 	Y_SLIDE_TIMBRE,
 	Z_PRESSURE,
 };
+
+constexpr auto kNumExpressionDimensions = util::to_underlying(Expression::Z_PRESSURE);
+
+enum class Macro {
+	MACRO1,
+	MACRO2,
+	MACRO3,
+	MACRO4,
+	MACRO5,
+	MACRO6,
+	MACRO7,
+	MACRO8,
+};
+
+constexpr auto kNumMacroDimensions = util::to_underlying(Macro::MACRO8);
 
 constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;

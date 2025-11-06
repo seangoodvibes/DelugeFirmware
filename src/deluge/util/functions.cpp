@@ -312,6 +312,30 @@ char const* sourceToString(PatchSource source) {
 	case PatchSource::Y:
 		return "y";
 
+	case PatchSource::MACRO1:
+		return "macro1";
+
+	case PatchSource::MACRO1:
+		return "macro2";
+
+	case PatchSource::MACRO1:
+		return "macro3";
+
+	case PatchSource::MACRO4:
+		return "macro4";
+
+	case PatchSource::MACRO5:
+		return "macro5";
+
+	case PatchSource::MACRO6:
+		return "macro6";
+
+	case PatchSource::MACRO7:
+		return "macro7";
+
+	case PatchSource::MACRO8:
+		return "macro8";
+
 	default:
 		return "none";
 	}
@@ -366,6 +390,30 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 
 	case PatchSource::Y:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_Y);
+
+	case PatchSource::MACRO1:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO1);
+
+	case PatchSource::MACRO2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO2);
+
+	case PatchSource::MACRO3:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO3);
+
+	case PatchSource::MACRO4:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO4);
+
+	case PatchSource::MACRO5:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO5);
+
+	case PatchSource::MACRO6:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO6);
+
+	case PatchSource::MACRO7:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO7);
+
+	case PatchSource::MACRO8:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_MACRO8);
 
 	default:
 		return "none";
@@ -429,6 +477,30 @@ char const* sourceToStringShort(PatchSource source) {
 
 	case PatchSource::Y:
 		return "mpeY";
+
+	case PatchSource::MACRO1:
+		return "mac1";
+
+	case PatchSource::MACRO2:
+		return "mac2";
+
+	case PatchSource::MACRO3:
+		return "mac3";
+
+	case PatchSource::MACRO4:
+		return "mac4";
+
+	case PatchSource::MACRO5:
+		return "mac5";
+
+	case PatchSource::MACRO6:
+		return "mac6";
+
+	case PatchSource::MACRO7:
+		return "mac7";
+
+	case PatchSource::MACRO8:
+		return "mac8";
 
 	default:
 		return "----";
