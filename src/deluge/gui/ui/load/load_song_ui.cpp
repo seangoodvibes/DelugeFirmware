@@ -216,12 +216,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 				}
 				else {
 					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-					if (display->haveOLED()) {
-						displayArmedPopup();
-					}
-					else {
-						sessionView.redrawNumericDisplay();
-					}
+					displayArmedPopup();
 				}
 			}
 		}
@@ -315,10 +310,7 @@ void LoadSongUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		display->displayError(display->haveOLED()
-		                          ? Error::FILE_NOT_FOUND
-		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
-		                                                                     // for consistency with old times.
+		display->displayError(Error::FILE_NOT_FOUND);
 		performingLoad = false;
 		return;
 	}
@@ -431,10 +423,6 @@ fail:
 		if (playbackHandler.isEitherClockActive()) {
 			preLoadedSong->loadCrucialSamplesOnly();
 		}
-
-		else {
-			displayText(false);
-		}
 		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
 		performingLoad = false;
@@ -528,23 +516,13 @@ gotErrorAfterCreatingSong:
 			}
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-			if (display->haveOLED()) {
-				displayArmedPopup();
-			}
-			else {
-				sessionView.redrawNumericDisplay();
-			}
+			displayArmedPopup();
 		}
 
 		// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
 		else {
 			display->removeWorkingAnimation();
-			if (display->haveOLED()) {
-				display->popupText("Loading complete", PopupType::LOADING);
-			}
-			else {
-				display->setText("DONE", false, 255, true, NULL, false, true);
-			}
+			display->popupText("Loading complete", PopupType::LOADING);
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		}
 
@@ -574,10 +552,8 @@ gotErrorAfterCreatingSong:
 	}
 
 swapDone:
-	if (display->haveOLED()) {
-		// To override our popup if we did one. (Still necessary?)
-		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
-	}
+	// To override our popup if we did one. (Still necessary?)
+	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of
 	// samples wanting some data loaded. So do that immediately
 	audioFileManager.loadAnyEnqueuedClusters(99999);
@@ -789,13 +765,7 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 		else if (session.numRepeatsTilLaunch > 9999) {
 			session.numRepeatsTilLaunch = 9999;
 		}
-		if (display->haveOLED()) {
-			// renderUIsForOled();
-			displayLoopsRemainingPopup();
-		}
-		else {
-			sessionView.redrawNumericDisplay();
-		}
+		displayLoopsRemainingPopup();
 	}
 
 	else {

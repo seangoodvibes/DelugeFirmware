@@ -52,14 +52,12 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSource->getOrCreateFirstRange(); // TODO: deal with error
 	soundEditor.setCurrentMultiRange(this->getValue());
 
-	if (display->haveOLED()) {
-		currentScroll = this->getValue() - 1;
-		if (currentScroll > this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-			currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
-		}
-		if (currentScroll < 0) {
-			currentScroll = 0;
-		}
+	currentScroll = this->getValue() - 1;
+	if (currentScroll > this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+		currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+	}
+	if (currentScroll < 0) {
+		currentScroll = 0;
 	}
 
 	Range::beginSession(navigatedBackwardFrom);
@@ -150,12 +148,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 		}
 
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValueForEditingRange(false);
-		}
+		renderUIsForOled();
 	}
 
 	// Or, normal mode
@@ -220,24 +213,16 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			else {
 				newRange->topNote = midPoint;
 				// And can leave old range alone
-				if (display->haveOLED()) {
-					currentScroll++; // Won't go past end of list, cos list just grew.
-				}
+				currentScroll++; // Won't go past end of list, cos list just grew.
 			}
 
 			this->setValue(newI);
-			if (display->haveOLED()) {
-				display->consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
-				if (currentScroll > this->getValue()) {
-					currentScroll = this->getValue();
-				}
-				else if (currentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-					currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
-				}
+			display->consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
+			if (currentScroll > this->getValue()) {
+				currentScroll = this->getValue();
 			}
-			else {
-
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_INSERT));
+			else if (currentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+				currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 			}
 		}
 
@@ -252,24 +237,17 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			this->setValue(newValue);
 			soundEditor.currentSource->defaultRangeI = this->getValue();
 
-			if (display->haveOLED()) {
-				if (currentScroll > this->getValue()) {
-					currentScroll = this->getValue();
-				}
-				else if (currentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-					currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
-				}
+			if (currentScroll > this->getValue()) {
+				currentScroll = this->getValue();
+			}
+			else if (currentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+				currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 			}
 		}
 
 		soundEditor.setCurrentMultiRange(this->getValue());
 		soundEditor.possibleChangeToCurrentRangeDisplay();
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValue();
-		}
+		renderUIsForOled();
 	}
 	RootUI* rootUI = getRootUI();
 	if (rootUI == &keyboardScreen) {
@@ -312,10 +290,8 @@ void MultiRange::deletePress() {
 
 		this->setValue(this->getValue() - 1);
 		soundEditor.setCurrentMultiRange(this->getValue());
-		if (display->haveOLED()) {
-			if (currentScroll > this->getValue()) {
-				currentScroll = this->getValue();
-			}
+		if (currentScroll > this->getValue()) {
+			currentScroll = this->getValue();
 		}
 		// If top one...
 		if (this->getValue() == oldNum - 2) {
@@ -330,12 +306,7 @@ void MultiRange::deletePress() {
 
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_DELETED));
 	soundEditor.possibleChangeToCurrentRangeDisplay();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
@@ -344,7 +315,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 	if (this->getValue() == 0) {
 		strcpy(buffer, l10n::get(l10n::String::STRING_FOR_BOTTOM));
 		if (getLeftLength) {
-			*getLeftLength = display->haveOLED() ? 6 : 3;
+			*getLeftLength = 6;
 		}
 	}
 	else {
@@ -354,19 +325,15 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 	char* bufferPos = buffer + strlen(buffer);
 
-	if (display->haveOLED()) {
-		while (bufferPos < &buffer[7]) {
-			*bufferPos = ' ';
-			bufferPos++;
-		}
+	while (bufferPos < &buffer[7]) {
+		*bufferPos = ' ';
+		bufferPos++;
 	}
 
 	// Upper end
 	if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
 		*(bufferPos++) = '-';
-		if (display->haveOLED()) {
-			*(bufferPos++) = ' ';
-		}
+		*(bufferPos++) = ' ';
 		*(bufferPos++) = 't';
 		*(bufferPos++) = 'o';
 		*(bufferPos++) = 'p';
@@ -400,19 +367,14 @@ void MultiRange::noteOnToChangeRange(int32_t noteCode) {
 			this->setValue(newI);
 			soundEditor.setCurrentMultiRange(this->getValue());
 			soundEditor.possibleChangeToCurrentRangeDisplay();
-			if (display->haveOLED()) {
-				if (currentScroll > this->getValue()) {
-					currentScroll = this->getValue();
-				}
-				else if (currentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-					currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
-				}
+			if (currentScroll > this->getValue()) {
+				currentScroll = this->getValue();
+			}
+			else if (currentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+				currentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+			}
 
-				renderUIsForOled();
-			}
-			else {
-				drawValue();
-			}
+			renderUIsForOled();
 		}
 	}
 }

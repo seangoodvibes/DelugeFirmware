@@ -50,11 +50,12 @@ UITimerManager::UITimerManager() {
 }
 
 void UITimerManager::routine() {
-
 	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) {
 		return;
 	}
+
+	auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
 		auto name = static_cast<TimerName>(i);
@@ -89,24 +90,12 @@ void UITimerManager::routine() {
 					break;
 				}
 				case TimerName::DISPLAY:
-					if (display->haveOLED()) {
-						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
-						oled->timerRoutine();
-					}
-					else {
-						display->timerRoutine();
-					}
+					oled->timerRoutine();
 
 					break;
 
 				case TimerName::LOADING_ANIMATION:
-					if (display->haveOLED()) {
-						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
-						oled->timerRoutine();
-					}
-					else {
-						display->timerRoutine();
-					}
+					oled->timerRoutine();
 
 					break;
 
@@ -220,22 +209,16 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::OLED_LOW_LEVEL:
-					if (deluge::hid::display::have_oled_screen) {
-						oledLowLevelTimerCallback();
-					}
+					oledLowLevelTimerCallback();
 					break;
 
 				case TimerName::OLED_CONSOLE:
-					if (display->haveOLED()) {
-						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
-						oled->consoleTimerEvent();
-					}
+					oled->consoleTimerEvent();
 					break;
 
 				case TimerName::OLED_SCROLLING_AND_BLINKING:
-					if (display->haveOLED()) {
-						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
-					}
+					deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
+
 					break;
 
 				case TimerName::SYSEX_DISPLAY:

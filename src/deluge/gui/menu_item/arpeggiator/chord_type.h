@@ -63,7 +63,7 @@ public:
 		return soundEditor.editingKitRow() && !soundEditor.editingGateDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+		// label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

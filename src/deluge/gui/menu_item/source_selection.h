@@ -36,9 +36,6 @@ public:
 	static int32_t selectedRowOnScreen;
 	int32_t scrollPos; // Each instance needs to store this separately
 
-	// 7seg only
-	void drawValue() override;
-
 	PatchSource s;
 
 protected:

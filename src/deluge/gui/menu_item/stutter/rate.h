@@ -27,7 +27,7 @@ public:
 	    : UnpatchedParam(newName, title, deluge::modulation::params::UNPATCHED_STUTTER_RATE) {}
 
 	void selectEncoderAction(int32_t offset) override;
-	void drawValue() override;
+	void drawValue();
 	void drawPixelsForOled() override;
 	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
 	void getNotificationValue(StringBuf& valueBuf) override;

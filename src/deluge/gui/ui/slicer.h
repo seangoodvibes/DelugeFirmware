@@ -61,9 +61,6 @@ public:
 	UIType getUIType() override { return UIType::SLICER; }
 
 private:
-	// 7SEG Only
-	void redraw();
-
 	void doSlice();
 };
 

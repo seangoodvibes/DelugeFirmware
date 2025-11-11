@@ -4770,11 +4770,9 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
-			if (display->haveOLED()) {
-				auto oled = static_cast<deluge::hid::display::OLED*>(display);
-				oled->consoleTimerEvent();
-				oled->removeWorkingAnimation();
-			}
+			auto oled = static_cast<deluge::hid::display::OLED*>(display);
+			oled->consoleTimerEvent();
+			oled->removeWorkingAnimation();
 			return output;
 		}
 		else if (results.error != Error::NONE) {
@@ -4949,11 +4947,6 @@ gotAnInstrument: {}
 	display->setText("A002");
 #endif
 	replaceInstrument(oldInstrument, newInstrument);
-#if ALPHA_OR_BETA_VERSION
-	if (display->have7SEG()) {
-		view.displayOutputName(newInstrument);
-	}
-#endif
 
 	instrumentSwapped(newInstrument);
 
@@ -5808,24 +5801,20 @@ void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
 	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
 
 	buffer.append(noteName);
-	if (display->haveOLED()) {
-		buffer.append(" ");
-		buffer.append(getScaleName(getCurrentScale()));
-	}
+	buffer.append(" ");
+	buffer.append(getScaleName(getCurrentScale()));
 }
 
 void Song::displayCurrentRootNoteAndScaleName() {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
 	getCurrentRootNoteAndScaleName(popupMsg);
-	if (display->haveOLED()) {
-		UI* currentUI = getCurrentUI();
-		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
-		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
-		if (isSessionView && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
-			sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
-			deluge::hid::display::OLED::markChanged();
-			return;
-		}
+	UI* currentUI = getCurrentUI();
+	bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+	// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
+	if (isSessionView && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+		sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
+		deluge::hid::display::OLED::markChanged();
+		return;
 	}
 	display->displayPopup(popupMsg.c_str());
 }
@@ -5854,23 +5843,13 @@ void Song::adjustMasterTransposeInterval(int32_t interval) {
 void Song::displayMasterTransposeInterval() {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
 
-	if (display->haveOLED()) {
-		popupMsg.append("Transpose Interval: \n");
-		if (masterTransposeInterval == 0) {
-			popupMsg.append("Encoder");
-		}
-		else {
-			popupMsg.appendInt(masterTransposeInterval);
-			popupMsg.append(" Semitones");
-		}
+	popupMsg.append("Transpose Interval: \n");
+	if (masterTransposeInterval == 0) {
+		popupMsg.append("Encoder");
 	}
 	else {
-		if (masterTransposeInterval == 0) {
-			popupMsg.append("ENC");
-		}
-		else {
-			popupMsg.appendInt(masterTransposeInterval);
-		}
+		popupMsg.appendInt(masterTransposeInterval);
+		popupMsg.append(" Semitones");
 	}
 	display->displayPopup(popupMsg.c_str());
 }
@@ -5929,9 +5908,7 @@ void Song::changeThresholdRecordingMode(int8_t offset) {
 
 void Song::displayThresholdRecordingMode() {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
-	if (display->haveOLED()) {
-		popupMsg.append("Threshold: ");
-	}
+	popupMsg.append("Threshold: ");
 
 	switch (currentSong->thresholdRecordingMode) {
 	case ThresholdRecordingMode::OFF:

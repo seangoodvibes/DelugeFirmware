@@ -120,7 +120,7 @@ protected:
 	virtual ActionResult backButtonAction();
 	virtual void folderContentsReady(int32_t entryDirection) {}
 	virtual void currentFileChanged(int32_t movementDirection) {}
-	void displayText(bool blinkImmediately = false) override;
+	void displayText(bool blinkImmediately = false) { return; };
 	static Slot getSlot(char const* displayName);
 	Error readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
 	                                       char const* filenameToStartAt, char const* defaultDirToAlsoTry,

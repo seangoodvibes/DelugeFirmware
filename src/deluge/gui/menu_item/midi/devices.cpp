@@ -51,12 +51,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 
 	soundEditor.currentMIDICable = getCable(this->getValue());
-	if (display->haveOLED()) {
-		currentScroll = this->getValue();
-	}
-	else {
-		drawValue();
-	}
+	currentScroll = this->getValue();
 }
 
 void Devices::selectEncoderAction(int32_t offset) {
@@ -66,16 +61,10 @@ void Devices::selectEncoderAction(int32_t offset) {
 		int32_t newValue = this->getValue() + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
-			if (display->haveOLED()) {
-				return;
-			}
-			newValue = lowestDeviceNum;
+			return;
 		}
 		else if (newValue < lowestDeviceNum) {
-			if (display->haveOLED()) {
-				return;
-			}
-			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
+			return;
 		}
 
 		this->setValue(newValue);
@@ -85,28 +74,26 @@ void Devices::selectEncoderAction(int32_t offset) {
 	} while (!soundEditor.currentMIDICable->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
-	if (display->haveOLED()) {
-		if (this->getValue() < currentScroll) {
-			currentScroll = this->getValue();
-		}
-		//
-		if (offset >= 0) {
-			int32_t d = this->getValue();
-			int32_t numSeen = 1;
-			while (d > lowestDeviceNum) {
-				d--;
-				if (d == currentScroll) {
-					break;
-				}
-				auto device = getCable(d);
-				if (!(device && device->connectionFlags)) {
-					continue;
-				}
-				numSeen++;
-				if (numSeen >= kOLEDMenuNumOptionsVisible) {
-					currentScroll = d;
-					break;
-				}
+	if (this->getValue() < currentScroll) {
+		currentScroll = this->getValue();
+	}
+	//
+	if (offset >= 0) {
+		int32_t d = this->getValue();
+		int32_t numSeen = 1;
+		while (d > lowestDeviceNum) {
+			d--;
+			if (d == currentScroll) {
+				break;
+			}
+			auto device = getCable(d);
+			if (!(device && device->connectionFlags)) {
+				continue;
+			}
+			numSeen++;
+			if (numSeen >= kOLEDMenuNumOptionsVisible) {
+				currentScroll = d;
+				break;
 			}
 		}
 	}
@@ -136,13 +123,7 @@ MIDICable* Devices::getCable(int32_t deviceIndex) {
 }
 
 void Devices::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		char const* displayName = soundEditor.currentMIDICable->getDisplayName();
-		display->setScrollingText(displayName);
-	}
+	renderUIsForOled();
 }
 
 MenuItem* Devices::selectButtonPress() {

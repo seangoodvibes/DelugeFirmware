@@ -134,20 +134,6 @@ public:
 			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
 		}
 		renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
-		if (display->have7SEG()) {
-			const char* type;
-			switch (mode) {
-			case AudioOutputMode::player:
-				type = "PLAY";
-				break;
-			case AudioOutputMode::sampler:
-				type = "SAMP";
-				break;
-			case AudioOutputMode::looper:
-				type = "LOOP";
-			}
-			display->displayPopup(type);
-		}
 	}
 
 protected:

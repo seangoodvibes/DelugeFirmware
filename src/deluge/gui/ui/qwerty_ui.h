@@ -51,9 +51,6 @@ protected:
 	void drawTextForOLEDEditing(int32_t textStartX, int32_t xPixelMax, int32_t yPixel, int32_t maxChars,
 	                            deluge::hid::display::oled_canvas::Canvas& canvas);
 
-	// 7SEG only
-	virtual void displayText(bool blinkImmediately = false);
-
 	// Favourites
 	void renderFavourites();
 

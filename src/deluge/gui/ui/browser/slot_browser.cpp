@@ -57,7 +57,6 @@ Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 }
 
 void SlotBrowser::focusRegained() {
-	Browser::displayText(false);
 }
 
 ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
@@ -65,47 +64,14 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	if (!isNoUIModeActive()) {
 		return ActionResult::DEALT_WITH;
 	}
-	if (display->have7SEG()) {
-		FileItem* currentFileItem = getCurrentFileItem();
-		if (currentFileItem) {
-			// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
-
-			Slot thisSlot = getSlot(enteredText.get());
-			if (thisSlot.slot < 0) {
-				goto nonNumeric;
-			}
-
-			numberEditPos -= offset;
-			if (numberEditPos > 2) {
-				numberEditPos = 2;
-			}
-			else if (numberEditPos < -1) {
-				numberEditPos = -1;
-			}
-
-			displayText(numberEditPos >= 0);
-			return ActionResult::DEALT_WITH;
-		}
-	}
-	{
-nonNumeric:
-		if (display->haveOLED()) { // Maintain consistency with before - don't do this on numeric
-			qwertyVisible = true;
-		}
-		return Browser::horizontalEncoderAction(offset);
-	}
+	qwertyVisible = true;
+	return Browser::horizontalEncoderAction(offset);
 }
 
 void SlotBrowser::processBackspace() {
 	Browser::processBackspace();
-	if (display->haveOLED()) {
-		if (fileIndexSelected == -1) {
-			predictExtendedText();
-		}
-	}
-	else {
-		// currentFileExists = false;
-		currentFileHasSuffixFormatNameImplied = false;
+	if (fileIndexSelected == -1) {
+		predictExtendedText();
 	}
 }
 
@@ -171,36 +137,7 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 }
 
 Error SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
-	Error error;
-	if (display->have7SEG()) {
-		// If numeric...
-		Slot slot = getSlot(enteredText.get());
-		if (slot.slot != -1) {
-			error = filenameWithoutExtension->set(filePrefix);
-			if (error != Error::NONE) {
-				return error;
-			}
-			error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-			if (error != Error::NONE) {
-				return error;
-			}
-			if (slot.subSlot != -1) {
-				char buffer[2];
-				buffer[0] = 'A' + slot.subSlot;
-				buffer[1] = 0;
-				error = filenameWithoutExtension->concatenate(buffer);
-				if (error != Error::NONE) {
-					return error;
-				}
-			}
-		}
-		else {
-			filenameWithoutExtension->set(&enteredText);
-		}
-	}
-	else {
-		filenameWithoutExtension->set(&enteredText);
-	}
+	filenameWithoutExtension->set(&enteredText);
 
 	return Error::NONE;
 }

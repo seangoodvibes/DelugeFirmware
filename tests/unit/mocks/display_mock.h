@@ -2,7 +2,7 @@
 
 class Display {
 public:
-	bool have7SEG() { return false; }
+	bool haveOLED() { return true; }
 };
 
 extern Display* display;

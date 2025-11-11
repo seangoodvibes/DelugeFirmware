@@ -421,9 +421,9 @@ doActualSimpleChange:
 	else if (b == Y_ENC) {
 		if (on && !Buttons::isShiftButtonPressed()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
-			// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
-			if (!isOLEDSessionView) {
+			bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+			// only display pop-up if we're not currently in Song / Arranger View
+			if (!isSessionView) {
 				currentSong->displayCurrentRootNoteAndScaleName();
 			}
 		}
@@ -942,7 +942,7 @@ void ArrangerView::auditionEnded() {
 
 	if (getRootUI() == &automationView) {
 		if (automationView.inAutomationEditor()) {
-			automationView.displayAutomation(true, !display->have7SEG());
+			automationView.displayAutomation(true, true);
 		}
 		else {
 			automationView.renderDisplay();
@@ -1780,12 +1780,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 /// redraw OLED and 7SEG displays
 void ArrangerView::renderDisplay() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		sessionView.redrawNumericDisplay();
-	}
+	renderUIsForOled();
 }
 
 /// enter clip view
@@ -3135,9 +3130,7 @@ void ArrangerView::graphicsRoutine() {
 		PadLEDs::sendOutSidebarColours();
 	}
 
-	if (display->haveOLED()) {
-		sessionView.displayPotentialTempoChange(this);
-	}
+	sessionView.displayPotentialTempoChange(this);
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
 

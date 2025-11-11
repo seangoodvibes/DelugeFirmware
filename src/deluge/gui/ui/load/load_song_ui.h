@@ -42,7 +42,7 @@ public:
 	UIType getUIType() override { return UIType::LOAD_SONG; }
 
 protected:
-	void displayText(bool blinkImmediately = false) override;
+	void displayText(bool blinkImmediately = false);
 	void enterKeyPress() override;
 	void folderContentsReady(int32_t entryDirection) override;
 	void currentFileChanged(int32_t movementDirection) override;

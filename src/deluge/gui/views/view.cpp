@@ -999,21 +999,11 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 			else {
 				paramDisplayName.append(sourceToStringShort(source1));
 			}
-			if (display->haveOLED()) {
-				paramDisplayName.append(" -> ");
-			}
-			else {
-				paramDisplayName.append(" - ");
-			}
+			paramDisplayName.append(" -> ");
 
 			if (source2 != PatchSource::NONE) {
 				paramDisplayName.append(sourceToStringShort(source2));
-				if (display->haveOLED()) {
-					paramDisplayName.append(" -> ");
-				}
-				else {
-					paramDisplayName.append(" - ");
-				}
+				paramDisplayName.append(" -> ");
 			}
 
 			paramDisplayName.append(modulation::params::getPatchedParamShortName(modelStackWithParam->paramId));
@@ -1081,46 +1071,44 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	DEF_STACK_STRING_BUF(parameter_value, 40);
 
 	// On OLED, display the name of the parameter on the first line of the popup
-	if (display->haveOLED()) {
-		if (kind == params::Kind::PATCH_CABLE) {
-			parameter_name.append(sourceToStringShort(source1));
+	if (kind == params::Kind::PATCH_CABLE) {
+		parameter_name.append(sourceToStringShort(source1));
+		parameter_name.append("->");
+		if (source2 != PatchSource::NONE && source2 != PatchSource::NOT_AVAILABLE) {
+			parameter_name.append(sourceToStringShort(source2));
 			parameter_name.append("->");
-			if (source2 != PatchSource::NONE && source2 != PatchSource::NOT_AVAILABLE) {
-				parameter_name.append(sourceToStringShort(source2));
-				parameter_name.append("->");
-			}
-			parameter_name.append(modulation::params::getPatchedParamShortName(paramID));
 		}
-		else if (getCurrentOutputType() == OutputType::MIDI_OUT) {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-			if (kind == params::Kind::EXPRESSION) {
-				if (paramID == X_PITCH_BEND) {
-					parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
-				}
-				else if (paramID == Z_PRESSURE) {
-					parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
-				}
-				else if (paramID == Y_SLIDE_TIMBRE) {
-					// in mono expression this is mod wheel, and y-axis is not directly controllable
-					parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
-				}
+		parameter_name.append(modulation::params::getPatchedParamShortName(paramID));
+	}
+	else if (getCurrentOutputType() == OutputType::MIDI_OUT) {
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+		if (kind == params::Kind::EXPRESSION) {
+			if (paramID == X_PITCH_BEND) {
+				parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 			}
-			else if (paramID >= 0 && paramID < kNumRealCCNumbers) {
-				std::string_view name = midiInstrument->getNameFromCC(paramID);
-				if (!name.empty()) {
-					parameter_name.append(name.data());
-				}
-				else {
-					parameter_name.append("CC ");
-					parameter_name.appendInt(paramID);
-				}
+			else if (paramID == Z_PRESSURE) {
+				parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+			}
+			else if (paramID == Y_SLIDE_TIMBRE) {
+				// in mono expression this is mod wheel, and y-axis is not directly controllable
+				parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 			}
 		}
-		else {
-			const char* name = getParamDisplayName(kind, paramID);
-			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
-				parameter_name.append(name);
+		else if (paramID >= 0 && paramID < kNumRealCCNumbers) {
+			std::string_view name = midiInstrument->getNameFromCC(paramID);
+			if (!name.empty()) {
+				parameter_name.append(name.data());
 			}
+			else {
+				parameter_name.append("CC ");
+				parameter_name.appendInt(paramID);
+			}
+		}
+	}
+	else {
+		const char* name = getParamDisplayName(kind, paramID);
+		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+			parameter_name.append(name);
 		}
 	}
 
@@ -1155,15 +1143,10 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	// if turning arpeggiator rhythm mod encoder
 	else if (isParamArpRhythm(kind, paramID)) {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
-		if (display->haveOLED()) {
-			char name[12];
-			// Index: Name
-			snprintf(name, sizeof(name), "%d: %s", current_display_value, arpRhythmPatternNames[current_display_value]);
-			parameter_value.append(name);
-		}
-		else {
-			parameter_value.append(arpRhythmPatternNames[current_display_value]);
-		}
+		char name[12];
+		// Index: Name
+		snprintf(name, sizeof(name), "%d: %s", current_display_value, arpRhythmPatternNames[current_display_value]);
+		parameter_value.append(name);
 	}
 	else {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
@@ -1171,82 +1154,77 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	}
 
 	// Check if we need to update the notification (avoid excessive updates)
-	if (display->haveOLED()) {
 
-		// Check if notification popup is active and if the parameter info has changed
-		bool has_param_info_changed = true;
-		bool has_min_time_elapsed = true;
-		if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
-			has_param_info_changed =
-			    (kind != last_param_kind || paramID != last_param_id || current_display_value != last_display_value
-			     || source1 != last_source1 || source2 != last_source2);
+	// Check if notification popup is active and if the parameter info has changed
+	bool has_param_info_changed = true;
+	bool has_min_time_elapsed = true;
+	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
+		has_param_info_changed =
+		    (kind != last_param_kind || paramID != last_param_id || current_display_value != last_display_value
+		     || source1 != last_source1 || source2 != last_source2);
 
-			// Check if enough time has passed since the last actual display update so we
-			// can still perceive the changes and so we don't exceed the screen's refresh rate.
-			uint32_t time_since_last_actual_display = current_time - last_actual_display_time;
-			has_min_time_elapsed = (time_since_last_actual_display >= MIN_UPDATE_INTERVAL);
-		}
+		// Check if enough time has passed since the last actual display update so we
+		// can still perceive the changes and so we don't exceed the screen's refresh rate.
+		uint32_t time_since_last_actual_display = current_time - last_actual_display_time;
+		has_min_time_elapsed = (time_since_last_actual_display >= MIN_UPDATE_INTERVAL);
+	}
 
-		// Display arbitration: check if this parameter currently owns the display
-		bool current_param_owns_display = (kind == display_owner_kind && paramID == display_owner_param_id
-		                                   && source1 == display_owner_source1 && source2 == display_owner_source2);
+	// Display arbitration: check if this parameter currently owns the display
+	bool current_param_owns_display = (kind == display_owner_kind && paramID == display_owner_param_id
+	                                   && source1 == display_owner_source1 && source2 == display_owner_source2);
 
-		// Determine if this parameter can take control of the display
-		bool can_take_display_ownership = false;
+	// Determine if this parameter can take control of the display
+	bool can_take_display_ownership = false;
 
-		if (!display->hasPopupOfType(PopupType::NOTIFICATION)) {
-			// No notification currently shown, so anything can take it
-			can_take_display_ownership = true;
-		}
-		else if (current_param_owns_display) {
-			// This parameter already owns the display
-			can_take_display_ownership = true;
-			last_display_update_time = current_time;
-		}
-		else {
-			// Different parameter wants to display - check arbitration rules
-			uint32_t time_since_ownership_start = current_time - display_ownership_start_time;
-			uint32_t time_since_last_update = current_time - last_display_update_time;
-
-			if (time_since_ownership_start >= MIN_DISPLAY_OWNERSHIP_TIME || time_since_last_update >= DISPLAY_TIMEOUT) {
-				// Current owner has had enough time juggling or has stopped updating, so pass it on
-				can_take_display_ownership = true;
-			}
-			// else: it's still the current owner's turn to juggle the ball, so keep it
-		}
-
-		// Only update notification if parameter info has changed AND we can take display ownership AND enough time has
-		// elapsed
-		if (has_param_info_changed && can_take_display_ownership && has_min_time_elapsed) {
-			display->displayNotification(parameter_name.c_str(), parameter_value.c_str());
-
-			// Update cached values
-			last_param_kind = kind;
-			last_param_id = paramID;
-			last_display_value = current_display_value;
-			last_source1 = source1;
-			last_source2 = source2;
-
-			// Update display ownership tracking
-			if (!current_param_owns_display) {
-				// New parameter taking ownership
-				display_owner_kind = kind;
-				display_owner_param_id = paramID;
-				display_owner_source1 = source1;
-				display_owner_source2 = source2;
-				display_ownership_start_time = current_time;
-			}
-			last_display_update_time = current_time;
-			last_actual_display_time = current_time; // Track when we actually updated the display
-		}
-		// Even if no display update needed, refresh timer if same parameter is being adjusted
-		else if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
-			uiTimerManager.setTimer(TimerName::DISPLAY, 1000);
-			last_display_update_time = current_time;
-		}
+	if (!display->hasPopupOfType(PopupType::NOTIFICATION)) {
+		// No notification currently shown, so anything can take it
+		can_take_display_ownership = true;
+	}
+	else if (current_param_owns_display) {
+		// This parameter already owns the display
+		can_take_display_ownership = true;
+		last_display_update_time = current_time;
 	}
 	else {
-		display->displayPopup(parameter_value.c_str());
+		// Different parameter wants to display - check arbitration rules
+		uint32_t time_since_ownership_start = current_time - display_ownership_start_time;
+		uint32_t time_since_last_update = current_time - last_display_update_time;
+
+		if (time_since_ownership_start >= MIN_DISPLAY_OWNERSHIP_TIME || time_since_last_update >= DISPLAY_TIMEOUT) {
+			// Current owner has had enough time juggling or has stopped updating, so pass it on
+			can_take_display_ownership = true;
+		}
+		// else: it's still the current owner's turn to juggle the ball, so keep it
+	}
+
+	// Only update notification if parameter info has changed AND we can take display ownership AND enough time has
+	// elapsed
+	if (has_param_info_changed && can_take_display_ownership && has_min_time_elapsed) {
+		display->displayNotification(parameter_name.c_str(), parameter_value.c_str());
+
+		// Update cached values
+		last_param_kind = kind;
+		last_param_id = paramID;
+		last_display_value = current_display_value;
+		last_source1 = source1;
+		last_source2 = source2;
+
+		// Update display ownership tracking
+		if (!current_param_owns_display) {
+			// New parameter taking ownership
+			display_owner_kind = kind;
+			display_owner_param_id = paramID;
+			display_owner_source1 = source1;
+			display_owner_source2 = source2;
+			display_ownership_start_time = current_time;
+		}
+		last_display_update_time = current_time;
+		last_actual_display_time = current_time; // Track when we actually updated the display
+	}
+	// Even if no display update needed, refresh timer if same parameter is being adjusted
+	else if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
+		uiTimerManager.setTimer(TimerName::DISPLAY, 1000);
+		last_display_update_time = current_time;
 	}
 }
 
@@ -1286,11 +1264,6 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they
 	// can't
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (display->have7SEG()) {
-			if (on) {
-				display->displayPopup("CANT");
-			}
-		}
 		return;
 	}
 
@@ -2095,7 +2068,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	// hook to render display for OLED and 7SEG when in Automation View
 	if (getCurrentUI() == &automationView && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		if (automationView.inAutomationEditor()) {
-			automationView.displayAutomation(true, !display->have7SEG());
+			automationView.displayAutomation(true, true);
 		}
 		else {
 			automationView.renderDisplay();
@@ -2103,153 +2076,85 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		return;
 	}
 
-	if (display->haveOLED()) {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-		hid::display::OLED::clearMainImage();
+	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+	hid::display::OLED::clearMainImage();
 
-		char const* outputTypeText = getOutputTypeName(outputType, channel);
+	char const* outputTypeText = getOutputTypeName(outputType, channel);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		canvas.drawStringCentred(outputTypeText, yPos, kTextSpacingX, kTextSpacingY);
-	}
+	canvas.drawStringCentred(outputTypeText, yPos, kTextSpacingX, kTextSpacingY);
 
 	char buffer[12];
 	char const* nameToDraw = nullptr;
 
 	if (!isNameEmpty) {
-		if (display->haveOLED()) {
-			nameToDraw = name;
+		nameToDraw = name;
 oledDrawString:
-			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
 #endif
 
-			int32_t stringLengthPixels = canvas.getStringWidthInPixels(nameToDraw, kTextTitleSizeY);
+		int32_t stringLengthPixels = canvas.getStringWidthInPixels(nameToDraw, kTextTitleSizeY);
 
-			if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-				canvas.drawStringCentred(nameToDraw, yPos, kTextTitleSpacingX, kTextTitleSizeY);
-			}
-			else {
-				canvas.drawString(nameToDraw, 0, yPos, kTextTitleSpacingX, kTextTitleSizeY);
-				deluge::hid::display::OLED::setupSideScroller(0, nameToDraw, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-				                                              yPos + kTextTitleSizeY, kTextTitleSpacingX,
-				                                              kTextTitleSizeY, false);
-			}
-
-			if (clip) {
-				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
-				DEF_STACK_STRING_BUF(info, clip->name.getLength() + 10);
-				if (clip->name.isEmpty()) {
-					info.append("Section ");
-					info.appendInt(clip->section + 1);
-				}
-				else {
-					info.appendInt(clip->section + 1);
-					info.append(": ");
-					info.append(clip->name.get());
-				}
-				yPos = yPos + 14;
-				canvas.drawStringCentred(info.data(), yPos, kTextSpacingX, kTextSpacingY);
-				deluge::hid::display::OLED::setupSideScroller(1, info.data(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
-				                                              false);
-			}
+		if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+			canvas.drawStringCentred(nameToDraw, yPos, kTextTitleSpacingX, kTextTitleSizeY);
 		}
 		else {
-			bool andAHalf;
-			if (display->getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
-				display->setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
+			canvas.drawString(nameToDraw, 0, yPos, kTextTitleSpacingX, kTextTitleSizeY);
+			deluge::hid::display::OLED::setupSideScroller(0, nameToDraw, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+			                                              yPos + kTextTitleSizeY, kTextTitleSpacingX, kTextTitleSizeY,
+			                                              false);
+		}
+
+		if (clip) {
+			// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
+			DEF_STACK_STRING_BUF(info, clip->name.getLength() + 10);
+			if (clip->name.isEmpty()) {
+				info.append("Section ");
+				info.appendInt(clip->section + 1);
 			}
 			else {
-				// If numeric-looking, we might want to align right.
-				bool alignRight = false;
-				uint8_t dotPos = 255;
-
-				char const* charPos = name;
-				if (*charPos == '0') { // If first digit is 0, then no more digits allowed.
-					charPos++;
-				}
-				else { // Otherwise, up to 3 digits allowed.
-					while (*charPos >= '0' && *charPos <= '9' && charPos < (name + 3)) {
-						charPos++;
-					}
-				}
-
-				if (charPos != name) { // We are required to have found at least 1 digit.
-					if (*charPos == 0) {
-yesAlignRight:
-						alignRight = true;
-						if (!editedByUser) {
-							dotPos = 3;
-						}
-					}
-					else if ((*charPos >= 'a' && *charPos <= 'z') || (*charPos >= 'A' && *charPos <= 'Z')) {
-						charPos++;
-						if (*charPos == 0) {
-							goto yesAlignRight;
-						}
-					}
-				}
-
-				display->setText(name, alignRight, dotPos, doBlink);
+				info.appendInt(clip->section + 1);
+				info.append(": ");
+				info.append(clip->name.get());
 			}
+			yPos = yPos + 14;
+			canvas.drawStringCentred(info.data(), yPos, kTextSpacingX, kTextSpacingY);
+			deluge::hid::display::OLED::setupSideScroller(1, info.data(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+			                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY, false);
 		}
 	}
 	else if (outputType == OutputType::MIDI_OUT) {
-		if (display->haveOLED()) {
-			if (channel < 16) {
-				slotToString(channel + 1, channelSuffix, buffer, 1);
-				goto oledOutputBuffer;
-			}
-			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-				goto oledDrawString;
-			}
-			else {
-				nameToDraw = "Transpose";
-				goto oledDrawString;
-			}
+		if (channel < 16) {
+			slotToString(channel + 1, channelSuffix, buffer, 1);
+			goto oledOutputBuffer;
 		}
-		else {
-			if (channel < 16) {
-				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
-			}
-			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-				display->setText(text, false, 255, doBlink);
-			}
-			else {
-				display->setText("Transpose", false, 255, doBlink);
-			}
-		}
-	}
-	else if (outputType == OutputType::CV) {
-		if (display->haveOLED()) {
-			if (channel < both) {
-				intToString(channel + 1, buffer);
-			}
-			else {
-				sprintf(buffer, "1 and 2");
-			}
-oledOutputBuffer:
-			nameToDraw = buffer;
+		else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+			nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
 			goto oledDrawString;
 		}
 		else {
-			if (channel < both) {
-				display->setTextAsNumber(channel + 1, 255, doBlink);
-			}
-			else {
-				display->setText("Both");
-			}
+			nameToDraw = "Transpose";
+			goto oledDrawString;
 		}
+	}
+	else if (outputType == OutputType::CV) {
+		if (channel < both) {
+			intToString(channel + 1, buffer);
+		}
+		else {
+			sprintf(buffer, "1 and 2");
+		}
+oledOutputBuffer:
+		nameToDraw = buffer;
+		goto oledDrawString;
 	}
 }
 #pragma GCC diagnostic pop

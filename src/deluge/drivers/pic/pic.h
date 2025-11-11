@@ -45,7 +45,6 @@ class PIC {
 		SET_LED_OFF = 152,
 		SET_LED_ON = 188,
 
-		UPDATE_SEVEN_SEGMENT_DISPLAY = 224,
 		SET_UART_SPEED = 225,
 
 		SET_SCROLL_ROW = 228,
@@ -158,10 +157,6 @@ public:
 	static void flashMainPadWithColourIdx(size_t idx, int32_t colour_idx) {
 		send(util::to_underlying(Message::SET_FLASH_COLOR) + colour_idx);
 		flashMainPad(idx);
-	}
-
-	static void update7SEG(const std::array<uint8_t, kNumericDisplayLength>& display) {
-		send(Message::UPDATE_SEVEN_SEGMENT_DISPLAY, display);
 	}
 
 	static void enableOLED() { send(Message::ENABLE_OLED); }

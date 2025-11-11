@@ -228,12 +228,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 				}
 				session.armForSwitchToArrangement();
-				if (display->haveOLED()) {
-					renderUIsForOled();
-				}
-				else {
-					sessionView.redrawNumericDisplay();
-				}
+				renderUIsForOled();
 				display->cancelPopup();
 			}
 
@@ -1948,16 +1943,14 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 /** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
 void PlaybackHandler::commandDisplaySwingInterval() {
 	DEF_STACK_STRING_BUF(text, 30);
-	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
-			text.append("off");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
-		text.append("\n");
+	text.append("Swing: ");
+	if (currentSong->swingAmount == 0) {
+		text.append("off");
 	}
+	else {
+		text.appendInt(currentSong->swingAmount + 50);
+	}
+	text.append("\n");
 	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
@@ -1969,25 +1962,15 @@ void PlaybackHandler::commandClearTempoAutomation() {
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
 void PlaybackHandler::commandDisplaySwingAmount() {
 	DEF_STACK_STRING_BUF(text, 30);
-	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
-			text.append("off");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
-		text.append("\n");
-		syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+	text.append("Swing: ");
+	if (currentSong->swingAmount == 0) {
+		text.append("off");
 	}
 	else {
-		if (currentSong->swingAmount == 0) {
-			text.append("OFF");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
+		text.appendInt(currentSong->swingAmount + 50);
 	}
+	text.append("\n");
+	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
@@ -2154,8 +2137,8 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	else {
 		if (!isExternalClockActive()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
-			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
+			bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+			if (display->hasPopupOfType(PopupType::TEMPO) || isSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
 				// Setting | Button | Mode
@@ -2328,80 +2311,19 @@ void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	// The 7-seg needs to work so much harder there's no point trying to share the code.
 	DEF_STACK_STRING_BUF(text, 27);
-	if (display->haveOLED()) {
-		UI* currentUI = getCurrentUI();
-		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if ((currentUI == &sessionView || currentUI == &arrangerView)
-		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
-			sessionView.lastDisplayedTempo = tempoBPM;
-			getTempoStringForOLED(tempoBPM, text);
-			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
-			deluge::hid::display::OLED::markChanged();
-		}
-		else {
-			text.append("Tempo: ");
-			getTempoStringForOLED(tempoBPM, text);
-			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
-		}
+	UI* currentUI = getCurrentUI();
+	// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
+	if ((currentUI == &sessionView || currentUI == &arrangerView)
+	    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+		sessionView.lastDisplayedTempo = tempoBPM;
+		getTempoStringForOLED(tempoBPM, text);
+		sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
+		deluge::hid::display::OLED::markChanged();
 	}
 	else {
-		if (tempoBPM >= 9999.5) {
-			return display->popupTextTemporary("FAST", PopupType::TEMPO);
-		}
-
-		int32_t divisor = 1;
-		int32_t dotMask = (1 << 7);
-
-		if (tempoBPM >= 999.95) {}
-		else if (tempoBPM >= 99.995) {
-			divisor = 10;
-			dotMask |= (1 << 1);
-		}
-		else if (tempoBPM >= 9.9995) {
-			divisor = 100;
-			dotMask |= (1 << 2);
-		}
-		else {
-			divisor = 1000;
-			dotMask |= (1 << 3);
-		}
-
-		int32_t roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
-		double roundedSmallerAgain = (double)roundedBigger / divisor;
-
-		bool isPerfect = false;
-
-		// It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do
-		// display that as an integer
-		if (roundedBigger != 0 && !isExternalClockActive()) {
-
-			// Compare to current tempo to see if 100% accurate
-			double roundedSmallerHere = roundedSmallerAgain;
-			if (currentSong->insideWorldTickMagnitude > 0) {
-				roundedSmallerHere *= ((uint32_t)1 << (currentSong->insideWorldTickMagnitude));
-			}
-			double newTempoSamples = (double)110250 / roundedSmallerHere;
-			if (currentSong->insideWorldTickMagnitude < 0) {
-				newTempoSamples *= ((uint32_t)1 << (-currentSong->insideWorldTickMagnitude));
-			}
-
-			uint64_t newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
-
-			isPerfect = (currentSong->timePerTimerTickBig == newTimePerTimerTickBig);
-		}
-
-		int32_t roundedTempoBPM = roundedSmallerAgain + 0.5;
-
-		// If perfect and integer...
-		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-			text.appendInt(roundedTempoBPM);
-			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
-		}
-		else {
-			text.appendInt(roundedBigger, 4);
-			// This is what popupTextTemporary() does, except for passing in the dotMask
-			display->displayPopup(text.c_str(), 3, false, dotMask, 1, PopupType::TEMPO);
-		}
+		text.append("Tempo: ");
+		getTempoStringForOLED(tempoBPM, text);
+		display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 	}
 }
 
@@ -2933,14 +2855,9 @@ void PlaybackHandler::switchToArrangement() {
 	arrangement.setupPlayback();
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
 	arrangerView.reassessWhetherDoingAutoScroll();
-	if (display->haveOLED()) {
-		if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-			renderUIsForOled();
-		}
-	}
-	else {
-		sessionView.redrawNumericDisplay();
+	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+		renderUIsForOled();
 	}
 
 	if (getCurrentUI() == &sessionView) {

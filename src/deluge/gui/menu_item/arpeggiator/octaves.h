@@ -56,7 +56,7 @@ public:
 		return !soundEditor.editingGateDrumRow() && !soundEditor.editingKitAffectEntire();
 	}
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+		// label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }

@@ -135,15 +135,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 
 	// re-render UI because view scroll positions and mute statuses will have been updated
 	uiNeedsRendering(getCurrentUI());
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		if (!rootUIIsClipMinderScreen()) {
-			sessionView.redrawNumericDisplay();
-		}
-		// here is the right place to call InstrumentClipMinder::redrawNumericDisplay()
-	}
+	renderUIsForOled();
 }
 
 /// Stop stem export process
@@ -774,12 +766,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 
 /// display how many stems we've exported so far
 void StemExport::displayStemExportProgress(StemExportType stemExportType) {
-	if (display->haveOLED()) {
-		displayStemExportProgressOLED(stemExportType);
-	}
-	else {
-		displayStemExportProgress7SEG();
-	}
+	displayStemExportProgressOLED(stemExportType);
 }
 
 void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
@@ -804,16 +791,6 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 	}
 	deluge::hid::display::OLED::drawPermanentPopupLookingText(exportStatus.c_str());
 	deluge::hid::display::OLED::markChanged();
-}
-
-void StemExport::displayStemExportProgress7SEG() {
-	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
-	if (inContextMenu()) {
-		return;
-	}
-	DEF_STACK_STRING_BUF(exportStatus, 50);
-	exportStatus.appendInt(totalNumStemsToExport - numStemsExported);
-	display->setText(exportStatus.c_str(), true, 255, false);
 }
 
 // creates the full file path for stem exporting including the stem folder structure and wav file name

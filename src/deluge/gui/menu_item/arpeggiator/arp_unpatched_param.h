@@ -31,7 +31,7 @@ public:
 	}
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
+		// label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }

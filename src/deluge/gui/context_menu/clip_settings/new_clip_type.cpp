@@ -47,9 +47,7 @@ bool NewClipType::setupAndCheckAvailability() {
 
 	indicator_leds::blinkLed(IndicatorLED::BACK);
 
-	if (display->haveOLED()) {
-		scrollPos = currentOption;
-	}
+	scrollPos = currentOption;
 
 	return true;
 }

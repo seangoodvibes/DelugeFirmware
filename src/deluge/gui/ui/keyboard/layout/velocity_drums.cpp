@@ -103,9 +103,7 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 			return;
 
 		DEF_STACK_STRING_BUF(buffer, 16);
-		if (display->haveOLED()) {
-			buffer.append("Zoom Level: ");
-		}
+		buffer.append("Zoom Level: ");
 		buffer.appendInt(state.zoom_level + 1);
 		display->displayPopup(buffer.c_str());
 

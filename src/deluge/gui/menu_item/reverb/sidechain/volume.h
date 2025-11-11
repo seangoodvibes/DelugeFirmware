@@ -32,7 +32,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return -1; }
 
-	void drawValue() override {
+	void drawValue() {
 		if (this->getValue() < 0) {
 			display->setText(l10n::get(l10n::String::STRING_FOR_AUTO));
 		}

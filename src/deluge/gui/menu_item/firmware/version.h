@@ -18,7 +18,6 @@
 #include "gui/menu_item/menu_item.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 #include <version.h>
 
 namespace deluge::gui::menu_item::firmware {
@@ -29,18 +28,6 @@ public:
 	void drawPixelsForOled() override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		canvas.drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, 18, 20);
-	}
-
-	void beginSession(MenuItem* navigatedBackwardFrom) override { drawValue(); }
-
-	void drawValue() {
-		if (display->have7SEG()) {
-			static_cast<hid::display::SevenSegment*>(display)->enableLowercase();
-		}
-		display->setScrollingText(kFirmwareVersionString);
-		if (display->have7SEG()) {
-			static_cast<hid::display::SevenSegment*>(display)->disableLowercase();
-		}
 	}
 };
 } // namespace deluge::gui::menu_item::firmware

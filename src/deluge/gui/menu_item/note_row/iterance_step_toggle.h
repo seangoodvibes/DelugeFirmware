@@ -48,14 +48,7 @@ public:
 		return modelStackWithNoteRow;
 	}
 
-	void updateDisplay() {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValue();
-		}
-	}
+	void updateDisplay() { renderUIsForOled(); }
 
 	void readCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];

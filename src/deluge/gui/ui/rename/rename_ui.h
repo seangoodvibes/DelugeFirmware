@@ -23,7 +23,7 @@ class RenameUI : public QwertyUI {
 public:
 	RenameUI(const char* title_);
 	bool opened();
-	void displayText(bool blinkImmediately = false) override;
+	void displayText(bool blinkImmediately = false);
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool exitUI() override;

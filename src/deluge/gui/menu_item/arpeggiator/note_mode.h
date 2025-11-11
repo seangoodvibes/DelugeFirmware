@@ -38,13 +38,14 @@ public:
 		return !soundEditor.editingKitRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+		// label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
 		if (optType == OptType::SHORT) {
 			return {
+			    /*
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP),        //<
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_DOWN),      //<
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP_DOWN),   //<
@@ -54,6 +55,7 @@ public:
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_WALK3),     //<
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_AS_PLAYED), //<
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_PATTERN),   //<
+			    */
 			};
 		}
 		return {
@@ -73,12 +75,7 @@ public:
 class NoteModeFromOctaveMode final : public NoteMode {
 public:
 	using NoteMode::NoteMode;
-	void readCurrentValue() override {
-		if (display->have7SEG()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_MODE));
-		}
-		NoteMode::readCurrentValue();
-	}
+	void readCurrentValue() override { NoteMode::readCurrentValue(); }
 };
 
 extern NoteModeFromOctaveMode arpNoteModeFromOctaveModeMenu;

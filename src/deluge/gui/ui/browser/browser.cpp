@@ -286,10 +286,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	int32_t filePrefixLength;
 
-	if (display->have7SEG()) {
-		if (filePrefixHere) {
-			filePrefixLength = strlen(filePrefixHere);
-		}
+	if (filePrefixHere) {
+		filePrefixLength = strlen(filePrefixHere);
 	}
 
 	while (true) {
@@ -343,45 +341,7 @@ extensionNotSupported:
 		thisItem->filePointer = thisFilePointer;
 
 		char const* storedFilenameChars = thisItem->filename.get();
-		if (display->have7SEG()) {
-			if (filePrefixHere) {
-				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
-					goto nonNumericFile;
-				}
-
-				char* dotAddress = strrchr(storedFilenameChars, '.');
-				if (!dotAddress) {
-					goto nonNumericFile; // Shouldn't happen?
-				}
-
-				int32_t dotPos = (uint32_t)dotAddress - (uint32_t)storedFilenameChars;
-				if (dotPos < filePrefixLength + 3) {
-					goto nonNumericFile;
-				}
-
-				char const* numbersStartAddress = &storedFilenameChars[filePrefixLength];
-
-				if (!memIsNumericChars(numbersStartAddress, 3)) {
-					goto nonNumericFile;
-				}
-
-				thisItem->displayName = numbersStartAddress;
-
-				if (*thisItem->displayName == '0') {
-					thisItem->displayName++;
-					if (*thisItem->displayName == '0') {
-						thisItem->displayName++;
-					}
-				}
-			}
-			else {
-				goto nonNumericFile;
-			}
-		}
-		else {
-nonNumericFile:
-			thisItem->displayName = storedFilenameChars;
-		}
+		thisItem->displayName = storedFilenameChars;
 	}
 	staticDIR.close();
 
@@ -608,9 +568,7 @@ gotErrorAfterAllocating:
 	}
 
 	enteredTextEditPos = 0;
-	if (display->haveOLED()) {
-		scrollPosHorizontal = 0;
-	}
+	scrollPosHorizontal = 0;
 
 	bool foundExact = false;
 	if (fileItems.getNumElements()) {
@@ -688,12 +646,10 @@ useFoundFile:
 
 			char nameBuffer[20];
 			char* nameBufferPos = nameBuffer;
-			if (display->haveOLED()) {
-				*(nameBufferPos++) = 'S';
-				*(nameBufferPos++) = 'O';
-				*(nameBufferPos++) = 'N';
-				*(nameBufferPos++) = 'G';
-			}
+			*(nameBufferPos++) = 'S';
+			*(nameBufferPos++) = 'O';
+			*(nameBufferPos++) = 'N';
+			*(nameBufferPos++) = 'G';
 			intToString(thisSlot.slot, nameBufferPos);
 			char* subSlotPos = strchr(nameBufferPos, 0);
 			char* charPosHere = subSlotPos + 1;
@@ -776,7 +732,7 @@ noNumberYet:
 					goto tryAgain;
 				}
 				numberStartPos = endSearchString.getLength() + 1;
-				error = endSearchString.concatenate(display->haveOLED() ? " :" : "_:");
+				error = endSearchString.concatenate(" :");
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating; // See above comment.
 				}
@@ -855,9 +811,6 @@ useNonExistentFileName:     // Normally this will get skipped over - if we found
 everythingFinalized:
 	folderContentsReady(direction);
 
-	if (display->have7SEG()) {
-		displayText();
-	}
 	return Error::NONE;
 }
 
@@ -865,18 +818,11 @@ everythingFinalized:
 Error Browser::getUnusedSlot(OutputType outputType, String* newName, char const* thingName) {
 
 	Error error;
-	if (display->haveOLED()) {
-		char filenameToStartAt[6]; // thingName is max 4 chars.
-		strcpy(filenameToStartAt, thingName);
-		strcat(filenameToStartAt, ":");
-		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
-		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
-	}
-	else {
-		char const* filenameToStartAt = ":"; // Colon is the first character after the digits
-		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
-		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
-	}
+	char filenameToStartAt[6]; // thingName is max 4 chars.
+	strcpy(filenameToStartAt, thingName);
+	strcat(filenameToStartAt, ":");
+	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
+	                                         false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
 	if (error != Error::NONE) {
 doReturn:
@@ -885,78 +831,32 @@ doReturn:
 
 	sortFileItems();
 
-	if (display->haveOLED()) {
-		int32_t freeSlotNumber = 1;
-		int32_t minNumDigits = 1;
-		if (fileItems.getNumElements()) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-			String displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
-			if (error != Error::NONE) {
-				goto emptyFileItemsAndReturn;
-			}
-			char const* readingChar = &displayName.get()[strlen(thingName)];
-			freeSlotNumber = 0;
-			minNumDigits = 0;
-			while (*readingChar >= '0' && *readingChar <= '9') {
-				freeSlotNumber *= 10;
-				freeSlotNumber += *readingChar - '0';
-				minNumDigits++;
-				readingChar++;
-			}
-			freeSlotNumber++;
-		}
-
-		error = newName->set(thingName);
+	int32_t freeSlotNumber = 1;
+	int32_t minNumDigits = 1;
+	if (fileItems.getNumElements()) {
+		FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+		String displayName;
+		error = fileItem->getDisplayNameWithoutExtension(&displayName);
 		if (error != Error::NONE) {
 			goto emptyFileItemsAndReturn;
 		}
-		error = newName->concatenateInt(freeSlotNumber, minNumDigits);
-	}
-	else {
-		int32_t nextHigherSlotFound = kNumSongSlots; // I think the use of this is a bit deprecated...
-		int32_t i = fileItems.getNumElements();
-
-		// Ok, due to not bothering to reload fileItems if we need to look too far back, we may sometimes fail to see an
-		// empty slot further back when later ones are taken. Oh well.
-goBackOne:
-		i--;
-		int32_t freeSlotNumber;
-		if (i < 0) {
-noMoreToLookAt:
-			if (nextHigherSlotFound <= 0) {
-				newName->clear(); // Indicate no slots available.
-				goto emptyFileItemsAndReturn;
-			}
-			freeSlotNumber = 0;
+		char const* readingChar = &displayName.get()[strlen(thingName)];
+		freeSlotNumber = 0;
+		minNumDigits = 0;
+		while (*readingChar >= '0' && *readingChar <= '9') {
+			freeSlotNumber *= 10;
+			freeSlotNumber += *readingChar - '0';
+			minNumDigits++;
+			readingChar++;
 		}
-		else {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			String displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
-			if (error != Error::NONE) {
-				goto emptyFileItemsAndReturn;
-			}
-			char const* displayNameChars = displayName.get();
-			if (displayNameChars[0] < '0') {
-				goto noMoreToLookAt;
-			}
-
-			Slot slotHere = getSlot(displayNameChars);
-			if (slotHere.slot < 0) {
-				goto goBackOne;
-			}
-
-			freeSlotNumber = slotHere.slot + 1; // Well, hopefully it's free...
-			if (freeSlotNumber >= nextHigherSlotFound) {
-				nextHigherSlotFound = slotHere.slot;
-				goto goBackOne;
-			}
-		}
-
-		// If still here, we found an unused slot.
-		error = newName->setInt(freeSlotNumber);
+		freeSlotNumber++;
 	}
+
+	error = newName->set(thingName);
+	if (error != Error::NONE) {
+		goto emptyFileItemsAndReturn;
+	}
+	error = newName->concatenateInt(freeSlotNumber, minNumDigits);
 
 emptyFileItemsAndReturn:
 	emptyFileItems();
@@ -988,90 +888,54 @@ void Browser::selectEncoderAction(int8_t offset) {
 	else {
 		// If user is holding shift, skip past any subslots. And on numeric Deluge, user may have chosen one digit to
 		// "edit".
-		if (display->haveOLED()) {
-			// TODO: deal with deleted FileItems here...
-			int32_t numberEditPosNow = numberEditPos;
-			if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
-				numberEditPosNow = 0;
+		// TODO: deal with deleted FileItems here...
+		int32_t numberEditPosNow = numberEditPos;
+		if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
+			numberEditPosNow = 0;
+		}
+
+		if (numberEditPosNow != -1) {
+			Slot thisSlot = getSlot(enteredText.get());
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
+			D_PRINTLN("treating as numeric");
+			thisSlot.subSlot = -1;
+			switch (numberEditPosNow) {
+			case 0:
+				thisSlot.slot += offset;
+				break;
+
+			case 1:
+				thisSlot.slot = (thisSlot.slot / 10 + offset) * 10;
+				break;
+
+			case 2:
+				thisSlot.slot = (thisSlot.slot / 100 + offset) * 100;
+				break;
+
+			default:
+				__builtin_unreachable();
 			}
 
-			if (numberEditPosNow != -1) {
-				Slot thisSlot = getSlot(enteredText.get());
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.subSlot = -1;
-				switch (numberEditPosNow) {
-				case 0:
-					thisSlot.slot += offset;
-					break;
-
-				case 1:
-					thisSlot.slot = (thisSlot.slot / 10 + offset) * 10;
-					break;
-
-				case 2:
-					thisSlot.slot = (thisSlot.slot / 100 + offset) * 100;
-					break;
-
-				default:
-					__builtin_unreachable();
-				}
-
-				char searchString[6];
-				char* searchStringNumbersStart = searchString;
-				int32_t minNumDigits = 1;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = fileItems.search(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
+			char searchString[6];
+			char* searchStringNumbersStart = searchString;
+			int32_t minNumDigits = 1;
+			intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
+			if (offset < 0) {
+				char* pos = strchr(searchStringNumbersStart, 0);
+				*pos = 'A';
+				pos++;
+				*pos = 0;
 			}
-			else {
-				newFileIndex = fileIndexSelected + offset;
+			newFileIndex = fileItems.search(searchString);
+			if (offset < 0) {
+				newFileIndex--;
 			}
 		}
 		else {
-			if (filePrefix && Buttons::isShiftButtonPressed()) {
-				int32_t filePrefixLength = strlen(filePrefix);
-				char const* enteredTextChars = enteredText.get();
-				if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
-					goto nonNumeric;
-				}
-				Slot thisSlot = getSlot(&enteredTextChars[filePrefixLength]);
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.slot += offset;
-
-				char searchString[9];
-				memcpy(searchString, filePrefix, filePrefixLength);
-				char* searchStringNumbersStart = searchString + filePrefixLength;
-				int32_t minNumDigits = 3;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = fileItems.search(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
-			}
-			else {
 nonNumeric:
-				newFileIndex = fileIndexSelected + offset;
-			}
+			newFileIndex = fileIndexSelected + offset;
 		}
 	}
 
@@ -1097,10 +961,6 @@ gotErrorAfterAllocating:
 
 			newFileIndex = fileItems.search(enteredText.get()) + offset;
 			D_PRINTLN("new file Index is %d", newFileIndex);
-		}
-
-		else if (!shouldWrapFolderContents && display->have7SEG()) {
-			return;
 		}
 
 		else { // Wrap to end
@@ -1133,10 +993,6 @@ searchFromOneEnd:
 			goto tryReadingItems;
 		}
 
-		else if (!shouldWrapFolderContents && display->have7SEG()) {
-			return;
-		}
-
 		else {
 			scrollPosVertical = 9999;
 
@@ -1164,31 +1020,7 @@ searchFromOneEnd:
 	}
 
 	enteredTextEditPos = 0;
-	if (display->haveOLED()) {
-		scrollPosHorizontal = 0;
-	}
-	else {
-		char const* oldCharAddress = enteredText.get();
-		char const* newCharAddress = getCurrentFileItem()->displayName; // Will have file extension, so beware...
-		while (true) {
-			char oldChar = *oldCharAddress;
-			char newChar = *newCharAddress;
-
-			if (oldChar >= 'A' && oldChar <= 'Z') {
-				oldChar += 32;
-			}
-			if (newChar >= 'A' && newChar <= 'Z') {
-				newChar += 32;
-			}
-
-			if (oldChar != newChar) {
-				break;
-			}
-			oldCharAddress++;
-			newCharAddress++;
-			enteredTextEditPos++;
-		}
-	}
+	scrollPosHorizontal = 0;
 
 	error = setEnteredTextFromCurrentFilename();
 	if (error != Error::NONE) {
@@ -1196,7 +1028,6 @@ searchFromOneEnd:
 		return;
 	}
 
-	displayText();
 	currentFileChanged(offset);
 }
 
@@ -1255,7 +1086,7 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
+		if (!mayDefaultToBrandNewNameOnEntry) {
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
@@ -1297,7 +1128,7 @@ notFound:
 	fileIndexSelected = i;
 
 	// Move scroll only if found item is completely offscreen.
-	if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
+	if (scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
 		scrollPosVertical = i;
 	}
 
@@ -1305,8 +1136,6 @@ notFound:
 	if (error != Error::NONE) {
 		goto gotError;
 	}
-
-	displayText();
 
 	// If we're now on a different file than before, preview it
 	if (fileItem->filePointer.sclust != oldClust) {
@@ -1479,52 +1308,6 @@ doReturn:
 	}
 
 	goto doReturn;
-}
-
-void Browser::displayText(bool blinkImmediately) {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		if (arrivedAtFileByTyping || qwertyVisible) {
-			if (!arrivedAtFileByTyping) {
-				// This means a key has been hit while browsing
-				// to bring up the keyboard, so set position to -1
-				// this might not be neccesary?
-				numberEditPos = -1;
-			}
-			QwertyUI::displayText(blinkImmediately);
-		}
-		else {
-			if (enteredText.isEmpty() && fileIndexSelected == -1) {
-				display->setText("----");
-			}
-			else {
-
-				if (filePrefix) {
-
-					Slot thisSlot = getSlot(enteredText.get());
-					if (thisSlot.slot >= 0) {
-						display->setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
-						                       numberEditPos, blinkImmediately);
-						return;
-					}
-				}
-				int16_t scrollStart = enteredTextEditPos;
-				// if the first difference would be visible on
-				// screen anyway, start scroll from the beginning
-				if (enteredTextEditPos < 3) {
-					scrollStart = 0;
-				}
-				else {
-					// provide some context in case the post-fix is long
-					scrollStart = enteredTextEditPos - 2;
-				}
-
-				scrollingText = display->setScrollingText(enteredText.get(), scrollStart);
-			}
-		}
-	}
 }
 
 FileItem* Browser::getCurrentFileItem() {
@@ -1741,10 +1524,8 @@ Error Browser::goIntoFolder(char const* folderName) {
 
 	display->setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
-	if (display->haveOLED()) {
-		if (error == Error::NONE) {
-			renderUIsForOled();
-		}
+	if (error == Error::NONE) {
+		renderUIsForOled();
 	}
 
 	return error;
@@ -1771,17 +1552,13 @@ Error Browser::goUpOneDirectoryLevel() {
 
 	display->setNextTransitionDirection(-1);
 	error = arrivedInNewFolder(-1, enteredText.get());
-	if (display->haveOLED()) {
-		if (error == Error::NONE) {
-			renderUIsForOled();
-		}
+	if (error == Error::NONE) {
+		renderUIsForOled();
 	}
 	return error;
 }
 
 Error Browser::createFolder() {
-	displayText();
-
 	String newDirPath;
 	Error error;
 

@@ -34,16 +34,13 @@ protected:
 	virtual void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 
 	// 7Seg Only
-	void drawValue() override;
+	virtual void drawValue() {};
 };
 
 class IntegerWithOff : public Integer {
 public:
 	using Integer::Integer;
 	void drawPixelsForOled() override;
-
-	// 7Seg Only
-	void drawValue() override;
 };
 
 class IntegerContinuous : public Integer {

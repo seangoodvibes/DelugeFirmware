@@ -67,8 +67,8 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	}
 
 	UI* currentUI = getCurrentUI();
-	bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
-	if (isOLEDSessionView) {
+	bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+	if (isSessionView) {
 		if (currentSong->key.rootNote != sessionView.lastDisplayedRootNote) {
 			currentSong->displayCurrentRootNoteAndScaleName();
 			sessionView.lastDisplayedRootNote = currentSong->key.rootNote;

@@ -291,10 +291,6 @@ void PerformanceView::focusRegained() {
 
 	updateLayoutChangeStatus();
 
-	if (display->have7SEG()) {
-		redrawNumericDisplay();
-	}
-
 	uiNeedsRendering(this);
 }
 
@@ -475,76 +471,58 @@ bool PerformanceView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 /// XXX: This should take a canvas and render to it rather than pulling the main image all the time.
 void PerformanceView::renderViewDisplay() {
 	if (defaultEditingMode) {
-		if (display->haveOLED()) {
-			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		deluge::hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-			// render "Performance View" at top of OLED screen
-			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
-			                        kTextSpacingY);
+		// render "Performance View" at top of OLED screen
+		image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX, kTextSpacingY);
 
-			yPos = yPos + 12;
+		yPos = yPos + 12;
 
-			char const* editingModeType;
+		char const* editingModeType;
 
-			// render "Param" or "Value" in the middle of the OLED screen
-			if (editingParam) {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
-			}
-			else {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
-			}
-
-			image.drawStringCentred(editingModeType, yPos, kTextSpacingX, kTextSpacingY);
-
-			yPos = yPos + 12;
-
-			// render "Editing Mode" at the bottom of the OLED screen
-			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR), yPos, kTextSpacingX,
-			                        kTextSpacingY);
-
-			deluge::hid::display::OLED::markChanged();
+		// render "Param" or "Value" in the middle of the OLED screen
+		if (editingParam) {
+			editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
 		}
 		else {
-			char const* editingModeType;
-			if (editingParam) {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
-			}
-			else {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
-			}
-			display->setScrollingText(editingModeType);
+			editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
 		}
+
+		image.drawStringCentred(editingModeType, yPos, kTextSpacingX, kTextSpacingY);
+
+		yPos = yPos + 12;
+
+		// render "Editing Mode" at the bottom of the OLED screen
+		image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR), yPos, kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::markChanged();
 	}
 	else {
-		if (display->haveOLED()) {
-			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		deluge::hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-			yPos = yPos + 12;
+		yPos = yPos + 12;
 
-			// Render "Performance View" in the middle of the OLED screen
-			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
-			                        kTextSpacingY);
+		// Render "Performance View" in the middle of the OLED screen
+		image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX, kTextSpacingY);
 
-			deluge::hid::display::OLED::markChanged();
-		}
-		else {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW));
-		}
+		deluge::hid::display::OLED::markChanged();
+		display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW));
 	}
+
 	onFXDisplay = false;
 }
 
@@ -554,100 +532,65 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 		// display parameter name
 		char parameterName[30];
 		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
-		if (display->haveOLED()) {
-			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		deluge::hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-			yPos = yPos + 12;
+		yPos = yPos + 12;
 
-			image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
+		image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
 
-			deluge::hid::display::OLED::markChanged();
-		}
-		else {
-			display->setScrollingText(parameterName);
-		}
+		deluge::hid::display::OLED::markChanged();
 	}
 	else {
-		if (display->haveOLED()) {
-			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		deluge::hid::display::OLED::clearMainImage();
 
-			// display parameter name
-			char parameterName[30];
-			strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+		// display parameter name
+		char parameterName[30];
+		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-			image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
+		image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
 
-			// display parameter value
-			yPos = yPos + 24;
+		// display parameter value
+		yPos = yPos + 24;
 
-			if (params::isParamQuantizedStutter(
-			        paramKind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
-				char const* buffer;
-				if (knobPos < -39) { // 4ths stutter: no leds turned on
-					buffer = "4ths";
-				}
-				else if (knobPos < -14) { // 8ths stutter: 1 led turned on
-					buffer = "8ths";
-				}
-				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-					buffer = "16ths";
-				}
-				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-					buffer = "32nds";
-				}
-				else { // 64ths stutter: all 4 leds turned on
-					buffer = "64ths";
-				}
-				image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+		if (params::isParamQuantizedStutter(
+		        paramKind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
+			char const* buffer;
+			if (knobPos < -39) { // 4ths stutter: no leds turned on
+				buffer = "4ths";
 			}
-			else {
-				char buffer[5];
-				intToString(knobPos, buffer);
-				image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+			else if (knobPos < -14) { // 8ths stutter: 1 led turned on
+				buffer = "8ths";
 			}
-
-			deluge::hid::display::OLED::markChanged();
+			else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
+				buffer = "16ths";
+			}
+			else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
+				buffer = "32nds";
+			}
+			else { // 64ths stutter: all 4 leds turned on
+				buffer = "64ths";
+			}
+			image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
 		}
-		// 7Seg Display
 		else {
-			if (params::isParamQuantizedStutter(
-			        paramKind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
-				char const* buffer;
-				if (knobPos < -39) { // 4ths stutter: no leds turned on
-					buffer = "4ths";
-				}
-				else if (knobPos < -14) { // 8ths stutter: 1 led turned on
-					buffer = "8ths";
-				}
-				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-					buffer = "16th";
-				}
-				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-					buffer = "32nd";
-				}
-				else { // 64ths stutter: all 4 leds turned on
-					buffer = "64th";
-				}
-				display->setText(buffer, true);
-			}
-			else {
-				char buffer[5];
-				intToString(knobPos, buffer);
-				display->setText(buffer, true);
-			}
+			char buffer[5];
+			intToString(knobPos, buffer);
+			image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
 		}
+
+		deluge::hid::display::OLED::markChanged();
 	}
 
 	onFXDisplay = true;
@@ -678,10 +621,6 @@ bool PerformanceView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, i
 void PerformanceView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	renderViewDisplay();
 	sessionView.renderOLED(canvas);
-}
-
-void PerformanceView::redrawNumericDisplay() {
-	sessionView.redrawNumericDisplay();
 }
 
 void PerformanceView::setLedStates() {

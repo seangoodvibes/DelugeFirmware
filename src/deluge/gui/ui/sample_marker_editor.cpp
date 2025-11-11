@@ -127,10 +127,6 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	if (display->have7SEG()) {
-		displayText();
-	}
-
 	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
@@ -334,12 +330,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkPhase = 0;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		displayText();
-	}
+	renderUIsForOled();
 }
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
@@ -634,12 +625,7 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				displayText();
-			}
+			renderUIsForOled();
 		}
 
 		// Release press
@@ -1244,39 +1230,6 @@ void SampleMarkerEditor::loopLock() {
 	auto& multiSampleRange = getCurrentMultisampleRange();
 	multiSampleRange.sampleHolder.loopLocked = true;
 	display->displayPopup("LOCK");
-}
-
-void SampleMarkerEditor::displayText() {
-
-	MarkerColumn cols[kNumMarkerTypes];
-	getColsOnScreen(cols);
-
-	// Draw decimal number too
-	uint32_t markerPos = cols[util::to_underlying(markerType)].pos;
-	int32_t number = (uint64_t)markerPos * 1000 / waveformBasicNavigator.sample->sampleRate; // mSec
-	int32_t numDecimals = 3;
-
-	while (number > 9999) {
-		number /= 10;
-		numDecimals--;
-	}
-
-	int32_t drawDot = 3 - numDecimals;
-	if (drawDot >= kNumericDisplayLength) {
-		drawDot = 0x80u;
-	}
-	else {
-		drawDot = (0x80u) | (1 << (kNumericDisplayLength - drawDot - 1));
-	}
-
-	if (isLoopLocked()) {
-		drawDot |= 0x01u;
-	}
-
-	char buffer[5];
-	intToString(number, buffer, numDecimals + 1);
-
-	display->setText(buffer, true, drawDot);
 }
 
 void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],

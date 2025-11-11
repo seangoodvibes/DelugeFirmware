@@ -105,17 +105,6 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 	}
 }
 
-void InstrumentClipMinder::redrawNumericDisplay() {
-	if (stemExport.processStarted) {
-		return;
-	}
-	if (display->have7SEG()) {
-		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
-			view.displayOutputName(getCurrentOutput(), false);
-		}
-	}
-}
-
 void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
 		stemExport.displayStemExportProgressOLED(StemExportType::DRUM);
@@ -162,37 +151,16 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 
 		// if we don't have a midi cc name set, draw CC number instead
 		if (!appendedName) {
-			if (display->haveOLED()) {
-				buffer.append("CC ");
-				buffer.appendInt(controlNumber);
-			}
-			else {
-				if (controlNumber < 100) {
-					buffer.append("CC");
-				}
-				else {
-					buffer.append("C");
-				}
-				buffer.appendInt(controlNumber);
-			}
+			buffer.append("CC ");
+			buffer.appendInt(controlNumber);
 		}
 	}
 
-	if (display->haveOLED()) {
-		if (automationExists) {
-			buffer.append("\n");
-			buffer.append("(automated)");
-		}
-		display->popupText(buffer.c_str());
+	if (automationExists) {
+		buffer.append("\n");
+		buffer.append("(automated)");
 	}
-	else {
-		if (doScroll) {
-			display->setScrollingText(buffer.c_str(), 0, 600, -1, automationExists ? 3 : 255);
-		}
-		else {
-			display->setText(buffer.c_str(), true, automationExists ? 3 : 255, false);
-		}
-	}
+	display->popupText(buffer.c_str());
 }
 #pragma GCC pop
 bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is_dx) {
@@ -318,23 +286,13 @@ gotError:
 		openUI(&soundEditor);
 	}
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		redrawNumericDisplay();
-	}
+	renderUIsForOled();
 
 	return true;
 }
 
 void InstrumentClipMinder::displayOrLanguageChanged() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		redrawNumericDisplay();
-	}
+	renderUIsForOled();
 }
 
 void InstrumentClipMinder::setLedStates() {
@@ -368,9 +326,6 @@ void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
 	MIDITranspose::exitScaleModeForMIDITransposeClips();
-	if (display->have7SEG()) {
-		redrawNumericDisplay();
-	}
 }
 
 ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -611,13 +566,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural);
 
-	if (display->haveOLED()) {
-		display->popupTextTemporary(noteName);
-	}
-	else {
-		uint8_t drawDot = !isNatural ? 0 : 255;
-		display->setText(noteName, false, drawDot, true);
-	}
+	display->popupTextTemporary(noteName);
 }
 
 void InstrumentClipMinder::cycleThroughScales() {

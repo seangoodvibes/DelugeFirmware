@@ -34,7 +34,7 @@ public:
 	int32_t getColumnSpan() const override { return 1; };
 
 protected:
-	void drawValue() final;
+	void drawValue();
 	virtual void getNoteLengthName(StringBuf& buffer);
 	void drawPixelsForOled() override;
 	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;

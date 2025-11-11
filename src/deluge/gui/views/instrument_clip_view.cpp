@@ -442,9 +442,6 @@ doOther:
 			}
 
 			currentUIMode = UI_MODE_NONE;
-			if (display->have7SEG()) {
-				InstrumentClipMinder::redrawNumericDisplay();
-			}
 			uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 		}
 	}
@@ -948,7 +945,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 				return commandEnterScaleMode();
 			}
 		}
-		else if (inScaleMode && display->have7SEG()) {
+		else if (inScaleMode) {
 			displayCurrentScaleName();
 		}
 	}
@@ -1506,17 +1503,12 @@ getOut:
 	uiNeedsRendering(this);
 	if (previewOnly) {
 		if (copiedScreenWidth / 16 != currentSong->xZoom[getNavSysId()]) {
-			char buffer[(display->haveOLED()) ? 29 : 5];
+			char buffer[29];
 			DEF_STACK_STRING_BUF(from, 30);
 			DEF_STACK_STRING_BUF(to, 30);
 			currentSong->getNoteLengthName(from, copiedScreenWidth / 16, "-notes", true);
 			currentSong->getNoteLengthName(to, currentSong->xZoom[getNavSysId()], "-notes", true);
-			if (display->haveOLED()) {
-				snprintf(buffer, sizeof(buffer), "%s -> %s", from.data(), to.data());
-			}
-			else {
-				snprintf(buffer, sizeof(buffer), "%.2f", scaleFactor);
-			}
+			snprintf(buffer, sizeof(buffer), "%s -> %s", from.data(), to.data());
 			display->displayPopup(buffer, 5);
 		}
 	}
@@ -1721,9 +1713,7 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 	displayZoomLevel();
 
-	if (display->haveOLED()) {
-		display->consoleText("Clip multiplied");
-	}
+	display->consoleText("Clip multiplied");
 }
 
 void InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx) {
@@ -2849,13 +2839,8 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
 			getCurrentInstrument()->defaultVelocity = velocityValue;
 			if (!inAutomationView && !inNoteEditor) {
-				if (display->haveOLED()) {
-					strcpy(buffer, "Velocity: ");
-					intToString(velocityValue, buffer + strlen(buffer));
-				}
-				else {
-					intToString(velocityValue, buffer);
-				}
+				strcpy(buffer, "Velocity: ");
+				intToString(velocityValue, buffer + strlen(buffer));
 
 				displayString = buffer;
 
@@ -2867,12 +2852,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 
 // display velocity popup
 void InstrumentClipView::popupVelocity(char const* displayString) {
-	if (display->haveOLED()) {
-		display->popupText(displayString);
-	}
-	else {
-		display->displayPopup(displayString, 0, true);
-	}
+	display->popupText(displayString);
 }
 
 void InstrumentClipView::adjustNoteProbabilityWithOffset(int32_t offset) {
@@ -3367,37 +3347,31 @@ multiplePresses:
 #pragma GCC diagnostic ignored "-Wstack-usage="
 
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
+	char buffer[29];
 
 	// if it's a latching probability, remove latching from value
 	if (probability > kNumProbabilityValues) {
 		probability &= 127;
 	}
 
-	if (display->haveOLED()) {
-		sprintf(buffer, "Probability %d%%", probability * 5);
-		if (prevBase) {
-			strcat(buffer, " latching");
-		}
-		display->popupText(buffer, PopupType::PROBABILITY);
+	sprintf(buffer, "Probability %d%%", probability * 5);
+	if (prevBase) {
+		strcat(buffer, " latching");
 	}
-	else {
-		intToString(probability * 5, buffer);
-		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
-	}
+	display->popupText(buffer, PopupType::PROBABILITY);
 }
 
 void InstrumentClipView::displayIterance(Iterance iterance) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
+	char buffer[29];
 
 	// Iteration dependence
 	int32_t iterancePreset = iterance.toPresetIndex();
 
 	if (iterancePreset == kDefaultIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: OFF" : "OFF");
+		strcpy(buffer, "Iterance: OFF");
 	}
 	else if (iterancePreset == kCustomIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: CUSTOM" : "CUSTOM");
+		strcpy(buffer, "Iterance: CUSTOM");
 	}
 	else {
 		Iterance iterance = iterancePresets[iterancePreset - 1];
@@ -3408,15 +3382,10 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 				break;
 			}
 		}
-		sprintf(buffer, display->haveOLED() ? "Iterance: %d of %d" : "%dof%d", i + 1, iterance.divisor);
+		sprintf(buffer, "Iterance: %d of %d", i + 1, iterance.divisor);
 	}
 
-	if (display->haveOLED()) {
-		display->popupText(buffer, PopupType::ITERANCE);
-	}
-	else {
-		display->displayPopup(buffer, 0, true, 255, 1, PopupType::ITERANCE);
-	}
+	display->popupText(buffer, PopupType::ITERANCE);
 }
 
 const char* InstrumentClipView::getFillString(uint8_t fill) {
@@ -5036,12 +5005,7 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 						AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 					}
 				}
-				if (display->haveOLED()) {
-					deluge::hid::display::OLED::removePopup();
-				}
-				else {
-					redrawNumericDisplay();
-				}
+				deluge::hid::display::OLED::removePopup();
 				doRender = true;
 			}
 		}
@@ -5425,12 +5389,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		// check that you're not in automation instrument clip view and holding an automation pad down
 		// if not, clear popup's / re-draw screen
 		if (!((getCurrentUI() == &automationView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
-			if (display->haveOLED()) {
-				deluge::hid::display::OLED::removePopup();
-			}
-			else {
-				redrawNumericDisplay();
-			}
+			deluge::hid::display::OLED::removePopup();
 		}
 	}
 }
@@ -5457,25 +5416,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	DEF_STACK_STRING_BUF(drumName, 50);
 
 	getDrumName(drum, drumName);
-
-	if (display->haveOLED()) {
-		display->popupText(drumName.c_str());
-	}
-	else {
-		bool andAHalf;
-		if (drum && (drum->type == DrumType::SOUND)
-		    && (display->getEncodedPosFromLeft(99999, drumName.c_str(), &andAHalf) > kNumericDisplayLength)) {
-			display->setScrollingText(drumName.c_str(), 0, kInitialFlashTime + kFlashTime);
-		}
-		else {
-			if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
-				display->displayPopup(drumName.c_str());
-			}
-			else {
-				display->setText(drumName.c_str(), false, 255, true);
-			}
-		}
-	}
+	display->popupText(drumName.c_str());
 
 	if (drum && drum->type != DrumType::SOUND) {
 		if (drum->type == DrumType::MIDI) {
@@ -5488,48 +5429,28 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 }
 
 void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
-	if (display->haveOLED()) {
-		if (!drum) {
-			drumName.append("No sound");
-		}
-		else if (drum->type == DrumType::SOUND) {
-			drumName.append(((SoundDrum*)drum)->name.get());
-		}
-		else {
-			if (drum->type == DrumType::GATE) {
-				drumName.append("Gate channel ");
-				drumName.appendInt(((GateDrum*)drum)->channel + 1);
-			}
-			else { // MIDI
-				drumName.append("CH: ");
-				drumName.appendInt(((MIDIDrum*)drum)->channel + 1);
-				drumName.append(" N#: ");
-				drumName.appendInt(((MIDIDrum*)drum)->note);
-				drumName.append("\n");
-
-				char noteLabel[5];
-				noteCodeToString(((MIDIDrum*)drum)->note, noteLabel);
-
-				drumName.append(noteLabel);
-			}
-		}
+	if (!drum) {
+		drumName.append("No sound");
+	}
+	else if (drum->type == DrumType::SOUND) {
+		drumName.append(((SoundDrum*)drum)->name.get());
 	}
 	else {
-		if (!drum) {
-			drumName.append("NONE");
+		if (drum->type == DrumType::GATE) {
+			drumName.append("Gate channel ");
+			drumName.appendInt(((GateDrum*)drum)->channel + 1);
 		}
-		else {
-			if (drum->type != DrumType::SOUND) {
-				char buffer[7];
-				drum->getName(buffer);
-				drumName.append(buffer);
-			}
-			else {
-				// If we're here, it's a SoundDrum
-				SoundDrum* soundDrum = (SoundDrum*)drum;
+		else { // MIDI
+			drumName.append("CH: ");
+			drumName.appendInt(((MIDIDrum*)drum)->channel + 1);
+			drumName.append(" N#: ");
+			drumName.appendInt(((MIDIDrum*)drum)->note);
+			drumName.append("\n");
 
-				drumName.append(soundDrum->name.get());
-			}
+			char noteLabel[5];
+			noteCodeToString(((MIDIDrum*)drum)->note, noteLabel);
+
+			drumName.append(noteLabel);
 		}
 	}
 }
@@ -5650,12 +5571,7 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 	clip->yScroll = newScroll;
 
-	if (display->haveOLED()) {
-		currentSong->displayCurrentRootNoteAndScaleName();
-	}
-	else {
-		displayCurrentScaleName();
-	}
+	currentSong->displayCurrentRootNoteAndScaleName();
 
 	// And tidy up
 	recalculateColours();
@@ -6299,23 +6215,12 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 		quantizeAmount = -kQuantizationPrecision;
 	}
 
-	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(text, 24);
-		appendQuantizeMode(text, quantizeAmount, nudgeMode);
-		text.append(" ");
-		text.appendInt(abs(quantizeAmount * 10));
-		text.append("%");
-		display->popupText(text.c_str(), PopupType::QUANTIZE);
-	}
-	else {
-		DEF_STACK_STRING_BUF(text, 6);
-		// Put A in front for QUANTIZE ALL if there's space for it.
-		if (nudgeMode == NudgeMode::QUANTIZE_ALL && quantizeAmount > -10) {
-			text.append("A");
-		}
-		text.appendInt(quantizeAmount * 10); // Negative means humanize
-		display->popupText(text.c_str(), PopupType::QUANTIZE);
-	}
+	DEF_STACK_STRING_BUF(text, 24);
+	appendQuantizeMode(text, quantizeAmount, nudgeMode);
+	text.append(" ");
+	text.appendInt(abs(quantizeAmount * 10));
+	text.append("%");
+	display->popupText(text.c_str(), PopupType::QUANTIZE);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -6483,17 +6388,10 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 		currentClip->expectEvent();
 	}
 
-	if (display->haveOLED()) {
-		char buffer[20];
-		strcpy(buffer, "Note repeats: ");
-		intToString(newNumNotes, buffer + strlen(buffer));
-		display->popupTextTemporary(buffer);
-	}
-	else {
-		char buffer[12];
-		intToString(newNumNotes, buffer);
-		display->displayPopup(buffer, 0, true);
-	}
+	char buffer[20];
+	strcpy(buffer, "Note repeats: ");
+	intToString(newNumNotes, buffer + strlen(buffer));
+	display->popupTextTemporary(buffer);
 }
 
 // GCC doesn't like the MODEL_STACK_MAX_SIZE on the stack
@@ -6684,7 +6582,7 @@ doCompareNote:
 	}
 
 	// Now, decide what message to display ---------------------------------------------------
-	char buffer[display->haveOLED() ? 24 : 5];
+	char buffer[24];
 	char const* message;
 	bool alignRight = false;
 
@@ -6696,12 +6594,7 @@ doCompareNote:
 		if (!didAnySuccessfulNudging) {
 			return; // Don't want to see these "multiple pads moved" messages if in fact none were moved
 		}
-		if (display->haveOLED()) {
-			message = (offset >= 0) ? "Nudged notes right" : "Nudged notes left";
-		}
-		else {
-			message = (offset >= 0) ? "RIGHT" : "LEFT";
-		}
+		message = (offset >= 0) ? "Nudged notes right" : "Nudged notes left";
 	}
 
 	else {
@@ -6732,32 +6625,12 @@ doCompareNote:
 			}
 		}
 
-		if (display->haveOLED()) {
-			strcpy(buffer, "Note nudge: ");
-			intToString(resultingTotalOffset, buffer + strlen(buffer));
-			message = buffer;
-		}
-		else {
-			if (resultingTotalOffset > 9999) {
-				message = "RIGHT";
-			}
-			else if (resultingTotalOffset < -999) {
-				message = "LEFT";
-			}
-			else {
-				message = buffer;
-				alignRight = true;
-				intToString(resultingTotalOffset, buffer);
-			}
-		}
+		strcpy(buffer, "Note nudge: ");
+		intToString(resultingTotalOffset, buffer + strlen(buffer));
+		message = buffer;
 	}
 
-	if (display->haveOLED()) {
-		display->popupTextTemporary(message);
-	}
-	else {
-		display->displayPopup(message, 0, alignRight);
-	}
+	display->popupTextTemporary(message);
 
 	doneAnyNudgingSinceFirstEditPadPress = true; // Even if we didn't actually nudge, we want to record this for the
 	                                             // purpose of the offsetting of the number display - see above
@@ -7249,22 +7122,15 @@ noteRowChanged:
 	}
 displayNewNumNotes:
 	// Tell the user about it in text
-	if (display->haveOLED()) {
-		char buffer[34];
-		strcpy(buffer, "Events: ");
-		char* pos = strchr(buffer, 0);
-		intToString(newNumNotes, pos);
-		pos = strchr(buffer, 0);
-		strcpy(pos, " of ");
-		pos = strchr(buffer, 0);
-		intToString(numStepsAvailable, pos);
-		display->popupTextTemporary(buffer);
-	}
-	else {
-		char buffer[12];
-		intToString(newNumNotes, buffer);
-		display->displayPopup(buffer, 0, true);
-	}
+	char buffer[34];
+	strcpy(buffer, "Events: ");
+	char* pos = strchr(buffer, 0);
+	intToString(newNumNotes, pos);
+	pos = strchr(buffer, 0);
+	strcpy(pos, " of ");
+	pos = strchr(buffer, 0);
+	intToString(numStepsAvailable, pos);
+	display->popupTextTemporary(buffer);
 
 	// Render it
 	if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
@@ -7353,14 +7219,8 @@ addConsequenceToAction:
 	}
 
 displayMessage:
-	if (display->haveOLED()) {
-		char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
-		display->popupTextTemporary(message);
-	}
-	else {
-		char const* message = (offset == 1) ? "RIGHT" : "LEFT";
-		display->displayPopup(message, 0);
-	}
+	char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
+	display->popupTextTemporary(message);
 }
 
 extern bool shouldResumePlaybackOnNoteRowLengthSet;
@@ -7487,17 +7347,10 @@ tryScrollingLeft:
 		didScroll = scrollLeftIfTooFarRight(newLength);
 	}
 
-	if (display->haveOLED()) {
-		char buffer[19];
-		strcpy(buffer, "Steps: ");
-		intToString(newNumSteps, buffer + strlen(buffer));
-		display->popupTextTemporary(buffer);
-	}
-	else {
-		char buffer[12];
-		intToString(newNumSteps, buffer);
-		display->displayPopup(buffer, 0, true);
-	}
+	char buffer[19];
+	strcpy(buffer, "Steps: ");
+	intToString(newNumSteps, buffer + strlen(buffer));
+	display->popupTextTemporary(buffer);
 
 	// Play it
 	clip->expectEvent();

@@ -101,8 +101,6 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	// 7SEG only
-	void redrawNumericDisplay();
-	void clearNumericDisplay();
 	void displayRepeatsTilLaunch();
 
 	uint32_t selectedClipTimePressed;

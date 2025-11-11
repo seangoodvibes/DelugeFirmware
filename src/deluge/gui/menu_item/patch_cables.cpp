@@ -20,9 +20,7 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 		currentValue = savedVal;
 	}
 
-	if (display->haveOLED()) {
-		scrollPos = std::max((int32_t)0, currentValue - 1);
-	}
+	scrollPos = std::max((int32_t)0, currentValue - 1);
 
 	readValueAgain();
 }
@@ -36,13 +34,7 @@ void PatchCables::readValueAgain() {
 	}
 
 	renderOptions();
-
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 	blinkShortcutsSoon();
 }
 
@@ -98,44 +90,22 @@ void PatchCables::drawPixelsForOled() {
 	drawItemsForOled(options, currentValue - scrollPos, scrollPos);
 }
 
-void PatchCables::drawValue() {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
-	if (set->numPatchCables == 0) {
-		display->setText("none", false, false);
-		return;
-	}
-
-	display->setScrollingText(options[currentValue].begin());
-}
-
 void PatchCables::selectEncoderAction(int32_t offset) {
 	int32_t newValue = currentValue + offset;
 
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
-	if (display->haveOLED()) {
-		if (newValue >= set->numPatchCables || newValue < 0) {
-			return;
-		}
-	}
-	else {
-		if (newValue >= set->numPatchCables) {
-			newValue %= set->numPatchCables;
-		}
-		else if (newValue < 0) {
-			newValue = (newValue % set->numPatchCables + set->numPatchCables) % set->numPatchCables;
-		}
+	if (newValue >= set->numPatchCables || newValue < 0) {
+		return;
 	}
 
 	currentValue = newValue;
 
-	if (display->haveOLED()) {
-		if (currentValue < scrollPos) {
-			scrollPos = currentValue;
-		}
-		else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
-			scrollPos++;
-		}
+	if (currentValue < scrollPos) {
+		scrollPos = currentValue;
+	}
+	else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
+		scrollPos++;
 	}
 
 	readValueAgain(); // redraw
@@ -143,7 +113,7 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 
 void PatchCables::blinkShortcutsSoon() {
 	// some throttling so menu scrolling doesn't become a lightning storm of flashes
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 500 : 200);
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 }
 

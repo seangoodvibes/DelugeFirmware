@@ -1276,14 +1276,7 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 		}
 	}
 
-	// OLED Display
-	if (display->haveOLED()) {
-		renderDisplayOLED(clip, output, outputType, knobPosLeft, knobPosRight);
-	}
-	// 7SEG Display
-	else {
-		renderDisplay7SEG(clip, output, outputType, knobPosLeft, modEncoderAction);
-	}
+	renderDisplayOLED(clip, output, outputType, knobPosLeft, knobPosRight);
 }
 
 void AutomationView::renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft,
@@ -1487,155 +1480,6 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
 	}
 }
 
-void AutomationView::renderDisplay7SEG(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft,
-                                       bool modEncoderAction) {
-	// display OVERVIEW
-	if (onAutomationOverview()) {
-		renderAutomationOverviewDisplay7SEG(output, outputType);
-	}
-	else {
-		if (inAutomationEditor()) {
-			renderAutomationEditorDisplay7SEG(clip, outputType, knobPosLeft, modEncoderAction);
-		}
-		else {
-			renderNoteEditorDisplay7SEG((InstrumentClip*)clip, outputType, knobPosLeft);
-		}
-	}
-}
-
-void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType) {
-	char const* overviewText;
-	if (!onArrangerView && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
-		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
-	}
-	else {
-		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
-	}
-	display->setScrollingText(overviewText);
-}
-
-void AutomationView::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
-                                                       bool modEncoderAction) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (onArrangerView) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-	}
-	else {
-		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
-	}
-
-	bool padSelected = (!padSelectionOn && isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelectionOn;
-
-	/* check if you're holding a pad
-	 * if yes, store pad press knob position in lastPadSelectedKnobPos
-	 * so that it can be used next time as the knob position if returning here
-	 * to display parameter value after another popup has been cancelled (e.g. audition pad)
-	 */
-	if (padSelected) {
-		if (knobPosLeft != kNoSelection) {
-			lastPadSelectedKnobPos = knobPosLeft;
-		}
-		else if (lastPadSelectedKnobPos != kNoSelection) {
-			params::Kind lastSelectedParamKind = params::Kind::NONE;
-			int32_t lastSelectedParamID = kNoSelection;
-			if (onArrangerView) {
-				lastSelectedParamKind = currentSong->lastSelectedParamKind;
-				lastSelectedParamID = currentSong->lastSelectedParamID;
-			}
-			else {
-				lastSelectedParamKind = clip->lastSelectedParamKind;
-				lastSelectedParamID = clip->lastSelectedParamID;
-			}
-			knobPosLeft =
-			    view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID, lastPadSelectedKnobPos);
-		}
-	}
-
-	bool isAutomated =
-	    modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->autoParam->isAutomated();
-	bool playbackStarted = playbackHandler.isEitherClockActive();
-
-	// display parameter value if knobPos is provided
-	if ((knobPosLeft != kNoSelection) && (padSelected || (playbackStarted && isAutomated) || modEncoderAction)) {
-		char buffer[5];
-		intToString(knobPosLeft, buffer);
-		if (modEncoderAction && !padSelected) {
-			display->displayPopup(buffer, 3, true);
-		}
-		else {
-			display->setText(buffer, true, 255, false);
-		}
-	}
-	// display parameter name
-	else if (knobPosLeft == kNoSelection) {
-		DEF_STACK_STRING_BUF(parameterName, 30);
-		getAutomationParameterName(clip, outputType, parameterName);
-		// if playback is running and there is automation, the screen will display the
-		// current automation value at the playhead position
-		// when changing to a parameter with automation, flash the parameter name first
-		// before the value is displayed
-		// otherwise if there's no automation, just scroll the parameter name
-		if (padSelected || (playbackStarted && isAutomated)) {
-			display->displayPopup(parameterName.c_str(), 3, true, isAutomated ? 3 : 255);
-		}
-		else {
-			display->setScrollingText(parameterName.c_str(), 0, 600, -1, isAutomated ? 3 : 255);
-		}
-	}
-}
-
-void AutomationView::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	bool isKit = outputType == OutputType::KIT;
-
-	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-	                                                                        modelStack); // don't create
-	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		if (!isKit) {
-			modelStackWithNoteRow =
-			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
-		}
-	}
-
-	if (knobPosLeft != kNoSelection) {
-		char buffer[5];
-		intToString(knobPosLeft, buffer);
-		display->setText(buffer, true, 255, false);
-	}
-	else {
-		// display note / drum name
-		char noteRowName[50];
-		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			if (isKit) {
-				DEF_STACK_STRING_BUF(drumName, 50);
-				instrumentClipView.getDrumName(modelStackWithNoteRow->getNoteRow()->drum, drumName);
-				strncpy(noteRowName, drumName.c_str(), 49);
-			}
-			else {
-				int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-				noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, &isNatural);
-			}
-		}
-		else {
-			if (isKit) {
-				strncpy(noteRowName, "(Select Drum)", 49);
-			}
-			else {
-				strncpy(noteRowName, "(Select Note)", 49);
-			}
-		}
-		display->setScrollingText(noteRowName);
-	}
-}
-
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName) {
 	if (onArrangerView || outputType != OutputType::MIDI_OUT) {
@@ -1661,16 +1505,11 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 
 			parameterName.append(sourceToStringShort(lastSelectedPatchSource));
 
-			if (display->haveOLED()) {
-				parameterName.append(" -> ");
-			}
-			else {
-				parameterName.append(" - ");
-			}
+			parameterName.append(" -> ");
 
 			if (source2 != PatchSource::NONE) {
 				parameterName.append(sourceToStringShort(source2));
-				parameterName.append(display->haveOLED() ? " -> " : " - ");
+				parameterName.append(" -> ");
 			}
 
 			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID));
@@ -1707,19 +1546,8 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 
 			// if we don't have a midi cc name set, draw CC number instead
 			if (!appendedName) {
-				if (display->haveOLED()) {
-					parameterName.append("CC ");
-					parameterName.appendInt(clip->lastSelectedParamID);
-				}
-				else {
-					if (clip->lastSelectedParamID < 100) {
-						parameterName.append("CC");
-					}
-					else {
-						parameterName.append("C");
-					}
-					parameterName.appendInt(clip->lastSelectedParamID);
-				}
+				parameterName.append("CC ");
+				parameterName.appendInt(clip->lastSelectedParamID);
 			}
 		}
 	}
@@ -1759,10 +1587,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 
 				int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos) + kKnobPosOffset;
 
-				bool displayValue = updateDisplay
-				                    && (display->haveOLED()
-				                        || (display->have7SEG() && inAutomationEditor()
-				                            && (playbackHandler.isEitherClockActive() || padSelected)));
+				bool displayValue = updateDisplay;
 
 				// update value on the screen when playing back automation
 				// don't update value displayed if there's no automation unless instructed to update display
@@ -1901,12 +1726,6 @@ passToOthers:
 			if (padSelectionOn) {
 				initPadSelection();
 			}
-		}
-
-		// if you just toggle playback off, re-render 7SEG display
-		if (!on && (b == PLAY) && display->have7SEG() && inAutomationEditor() && !padSelectionOn
-		    && !playbackHandler.isEitherClockActive()) {
-			renderDisplay();
 		}
 
 		uiNeedsRendering(this);
@@ -2258,7 +2077,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
-			displayAutomation(padSelectionOn, !display->have7SEG());
+			displayAutomation(padSelectionOn, true);
 		}
 	}
 	else if (on && inNoteEditor()) {
@@ -2545,7 +2364,7 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
-		displayAutomation(true, !display->have7SEG());
+		displayAutomation(true, true);
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
@@ -2702,9 +2521,6 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
 	blinkShortcuts();
-	if (display->have7SEG()) {
-		renderDisplay(); // always display parameter name first, if there's automation it will show after
-	}
 	displayAutomation(true);
 	view.setModLedStates();
 	uiNeedsRendering(this);
@@ -2886,13 +2702,7 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 		if (multiPadPressActive) {
 			int32_t leftPadSelectedVelocity = getVelocityFromY(leftPadSelectedY);
 			int32_t rightPadSelectedVelocity = getVelocityFromY(rightPadSelectedY);
-			if (display->haveOLED()) {
-				renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
-			}
-			else {
-				// for 7seg, render value of last pad pressed
-				renderDisplay(leftPadSelectedX == x ? leftPadSelectedVelocity : rightPadSelectedVelocity);
-			}
+			renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
 		}
 		else {
 			if (velocity) {
@@ -3583,9 +3393,6 @@ doSilentAudition:
 			instrumentClipView.someAuditioningHasEnded(!inNoteEditor());
 			actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 			actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
-			if (display->have7SEG()) {
-				renderDisplay();
-			}
 		}
 	}
 
@@ -4318,7 +4125,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
-			displayAutomation(padSelectionOn, !display->have7SEG());
+			displayAutomation(padSelectionOn, true);
 		}
 	}
 
@@ -4531,7 +4338,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		renderAutomationDisplayForMultiPadPress(modelStackWithParam, clip, effectiveLength, xScroll, xZoom);
 	}
 	else {
-		displayAutomation(true, !display->have7SEG());
+		displayAutomation(true, true);
 	}
 	resetParameterShortcutBlinking();
 	blinkShortcuts();
@@ -5495,18 +5302,7 @@ void AutomationView::renderAutomationDisplayForMultiPadPress(ModelStackWithAutoP
 			}
 		}
 
-		if (display->haveOLED()) {
-			renderDisplay(knobPosLeft, knobPosRight);
-		}
-		// display pad value of second pad pressed
-		else {
-			if (modEncoderAction) {
-				renderDisplay(lastPadSelectedKnobPos);
-			}
-			else {
-				renderDisplay();
-			}
-		}
+		renderDisplay(knobPosLeft, knobPosRight);
 
 		setAutomationKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 

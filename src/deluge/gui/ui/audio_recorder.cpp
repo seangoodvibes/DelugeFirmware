@@ -113,10 +113,6 @@ gotError:
 		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 		indicator_leds::blinkLed(IndicatorLED::BACK);
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
-		if (display->have7SEG()) {
-			display->setNextTransitionDirection(0);
-			display->setText("WAIT", false, 255, true);
-		}
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
@@ -196,10 +192,7 @@ void AudioRecorder::process() {
 		}
 
 		uiTimerManager.routine();
-
-		if (display->haveOLED()) {
-			oledRoutine();
-		}
+		oledRoutine();
 		PIC::flush();
 
 		readButtonsAndPads();
@@ -235,15 +228,9 @@ void AudioRecorder::process() {
 				}
 			}
 			else if (!updatedRecordingStatus && recorder->numSamplesCaptured) {
-				if (display->have7SEG()) {
-					display->setText("REC", false, 255, true);
-				}
-				else {
-					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX,
-					                                                   kTextBigSizeY);
-					deluge::hid::display::OLED::sendMainImage();
-				}
+				deluge::hid::display::OLED::clearMainImage();
+				deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
+				deluge::hid::display::OLED::sendMainImage();
 				updatedRecordingStatus = true;
 			}
 		}

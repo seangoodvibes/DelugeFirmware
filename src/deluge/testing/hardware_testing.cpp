@@ -192,7 +192,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				anythingProbablyPressed = true;
 			}
 		}
-		else if (value == oledWaitingForMessage && display->haveOLED()) {
+		else if (value == oledWaitingForMessage) {
 			// delayUS(2500); // TODO: fix
 			if (value == 248) {
 				oledSelectingComplete();
@@ -237,9 +237,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		indicator_leds::setKnobIndicatorLevel(1, encoderTestPos);
 	}
 
-	if (display->haveOLED()) {
-		oledRoutine();
-	}
+	oledRoutine();
 	PIC::flush();
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
@@ -252,13 +250,11 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	cvEngine.sendVoltageOut(0, 65520);
 	cvEngine.sendVoltageOut(1, 65520);
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
-		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
+	deluge::hid::display::OLED::clearMainImage();
+	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 
-		canvas.invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1);
-		deluge::hid::display::OLED::sendMainImage();
-	}
+	canvas.invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1);
+	deluge::hid::display::OLED::sendMainImage();
 
 	midiEngine.midiThru = true;
 
@@ -267,9 +263,6 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	}
 
 	PIC::setFlashLength(100);
-
-	// Switch on numeric display
-	PIC::update7SEG({0xFF, 0xFF, 0xFF, 0xFF});
 
 	// Switch on level indicator LEDs
 	indicator_leds::setKnobIndicatorLevel(0, 128);

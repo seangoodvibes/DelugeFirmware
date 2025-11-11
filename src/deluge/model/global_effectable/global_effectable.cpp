@@ -131,40 +131,25 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 }
 
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
-	if (display->haveOLED()) {
-		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
-			popupMsg.append("Comp Mode: ");
-			popupMsg.append(getCompressorModeDisplayName());
-			popupMsg.append("\n");
+	if (on) {
+		DEF_STACK_STRING_BUF(popupMsg, 100);
+		popupMsg.append("Comp Mode: ");
+		popupMsg.append(getCompressorModeDisplayName());
+		popupMsg.append("\n");
 
-			if (editingComp) {
-				popupMsg.append("Comp Param: ");
-				popupMsg.append(getCompressorParamDisplayName());
-			}
-			else {
-				// Reverb
-				popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
-			}
-
-			display->popupText(popupMsg.c_str());
+		if (editingComp) {
+			popupMsg.append("Comp Param: ");
+			popupMsg.append(getCompressorParamDisplayName());
 		}
 		else {
-			display->cancelPopup();
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 		}
+
+		display->popupText(popupMsg.c_str());
 	}
 	else {
-		if (on) {
-			display->displayPopup(getCompressorModeDisplayName());
-		}
-		else {
-			if (editingComp) {
-				display->displayPopup(getCompressorParamDisplayName());
-			}
-			else {
-				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
-			}
-		}
+		display->cancelPopup();
 	}
 }
 
@@ -179,28 +164,18 @@ char const* GlobalEffectable::getCompressorParamDisplayName() {
 }
 
 void GlobalEffectable::displayModFXSettings(bool on) {
-	if (display->haveOLED()) {
-		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
-			popupMsg.append("Type: ");
-			popupMsg.append(getModFXTypeDisplayName());
+	if (on) {
+		DEF_STACK_STRING_BUF(popupMsg, 100);
+		popupMsg.append("Type: ");
+		popupMsg.append(getModFXTypeDisplayName());
 
-			popupMsg.append("\nParam: ");
-			popupMsg.append(getModFXParamDisplayName());
+		popupMsg.append("\nParam: ");
+		popupMsg.append(getModFXParamDisplayName());
 
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
+		display->popupText(popupMsg.c_str());
 	}
 	else {
-		if (on) {
-			display->displayPopup(getModFXTypeDisplayName());
-		}
-		else {
-			display->displayPopup(getModFXParamDisplayName());
-		}
+		display->cancelPopup();
 	}
 }
 
@@ -516,9 +491,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		const char* unit;
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
-			if (display->haveOLED()) {
-				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
-			}
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
 			current = (compressor.getThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
@@ -532,9 +505,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
-				if (display->haveOLED()) {
-					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
-				}
+				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
 				current = (compressor.getRatio() >> 24) - 64;
 				current += offset;
 				// this range is ratio of 2 to 20
@@ -545,9 +516,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::ATTACK:
-				if (display->haveOLED()) {
-					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
-				}
+				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
 				current = (compressor.getAttack() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -558,9 +527,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::RELEASE:
-				if (display->haveOLED()) {
-					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
-				}
+				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
 				current = (compressor.getRelease() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -571,9 +538,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::SIDECHAIN:
-				if (display->haveOLED()) {
-					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
-				}
+				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
 				current = (compressor.getSidechain() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -584,9 +549,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::BLEND: {
-				if (display->haveOLED()) {
-					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
-				}
+				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
 				current = (compressor.getBlend() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -604,13 +567,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		}
 
 		parameterValue.appendInt(displayLevel);
-		if (display->haveOLED()) {
-			parameterValue.append(unit);
-			display->displayNotification(parameterName.c_str(), parameterValue.c_str());
-		}
-		else {
-			display->displayPopup(parameterValue.c_str());
-		}
+		parameterValue.append(unit);
+		display->displayNotification(parameterName.c_str(), parameterValue.c_str());
 
 		return ActionResult::DEALT_WITH;
 	}

@@ -87,83 +87,6 @@ void SourceSelection::drawPixelsForOled() {
 	drawItemsForOled(itemNames, selectedRowOnScreen);
 }
 
-// 7SEG only
-void SourceSelection::drawValue() {
-	l10n::String text;
-	using enum l10n::String;
-
-	switch (sourceMenuContents[this->getValue()]) {
-	case PatchSource::LFO_GLOBAL_1:
-		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1;
-		break;
-
-	case PatchSource::LFO_GLOBAL_2:
-		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2;
-		break;
-
-	case PatchSource::LFO_LOCAL_1:
-		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1;
-		break;
-
-	case PatchSource::LFO_LOCAL_2:
-		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL_2;
-		break;
-
-	case PatchSource::ENVELOPE_0:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_0;
-		break;
-
-	case PatchSource::ENVELOPE_1:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_1;
-		break;
-
-	case PatchSource::ENVELOPE_2:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_2;
-		break;
-
-	case PatchSource::ENVELOPE_3:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_3;
-		break;
-
-	case PatchSource::SIDECHAIN:
-		text = STRING_FOR_PATCH_SOURCE_SIDECHAIN;
-		break;
-
-	case PatchSource::VELOCITY:
-		text = STRING_FOR_PATCH_SOURCE_VELOCITY;
-		break;
-
-	case PatchSource::NOTE:
-		text = STRING_FOR_PATCH_SOURCE_NOTE;
-		break;
-
-	case PatchSource::RANDOM:
-		text = STRING_FOR_PATCH_SOURCE_RANDOM;
-		break;
-
-	case PatchSource::AFTERTOUCH:
-		text = STRING_FOR_PATCH_SOURCE_AFTERTOUCH;
-		break;
-
-	case PatchSource::X:
-		text = STRING_FOR_PATCH_SOURCE_X;
-		break;
-
-	case PatchSource::Y:
-		text = STRING_FOR_PATCH_SOURCE_Y;
-		break;
-
-	// explicit fallthrough cases
-	case PatchSource::NOT_AVAILABLE:
-	case PatchSource::SOON:
-	case PatchSource::NONE:;
-	}
-
-	uint8_t drawDot = shouldDrawDotOnValue();
-
-	display->setText(l10n::get(text), false, drawDot);
-}
-
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 	this->setValue(0);
 
@@ -190,33 +113,20 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 
 			this->setValue(this->getValue() + 1);
-			if (display->haveOLED()) {
-				scrollPos = this->getValue();
-			}
+			scrollPos = this->getValue();
 
 			if (this->getValue() >= kNumPatchSources) {
 				this->setValue(firstAllowedIndex);
-				if (display->haveOLED()) {
-					scrollPos = this->getValue();
-				}
+				scrollPos = this->getValue();
 				s = sourceMenuContents[this->getValue()];
 				break;
 			}
 		}
 	}
-
-	if (display->have7SEG()) {
-		drawValue();
-	}
 }
 
 void SourceSelection::readValueAgain() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 void SourceSelection::selectEncoderAction(int32_t offset) {
@@ -225,13 +135,8 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 	do {
 		newValue += offset;
 
-		if (display->haveOLED()) {
-			if (newValue >= kNumPatchSources || newValue < 0) {
-				return;
-			}
-		}
-		else {
-			newValue = ((newValue % kNumPatchSources) + kNumPatchSources) % kNumPatchSources;
+		if (newValue >= kNumPatchSources || newValue < 0) {
+			return;
 		}
 
 	} while (!sourceIsAllowed(sourceMenuContents[newValue]));
@@ -239,19 +144,14 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 	s = sourceMenuContents[newValue];
 	this->setValue(newValue);
 
-	if (display->haveOLED()) {
-		if (this->getValue() < scrollPos) {
-			scrollPos = this->getValue();
-		}
-		else if (offset >= 0 && selectedRowOnScreen == kOLEDMenuNumOptionsVisible - 1) {
-			scrollPos++;
-		}
+	if (this->getValue() < scrollPos) {
+		scrollPos = this->getValue();
+	}
+	else if (offset >= 0 && selectedRowOnScreen == kOLEDMenuNumOptionsVisible - 1) {
+		scrollPos++;
+	}
 
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 bool SourceSelection::sourceIsAllowed(PatchSource source) {

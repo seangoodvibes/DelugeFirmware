@@ -18,7 +18,7 @@ public:
 
 protected:
 	void drawPixelsForOled() override = 0;
-	void drawValue() override;
+	void drawValue();
 	/// Subclasses should implement this to provide a string suitable for using in a horizontal menu.
 	/// Writes to a buffer instead of returning a value, since some subclasses (SyncLevel) must generate
 	/// their option names. Default implementation renders the current value as number.

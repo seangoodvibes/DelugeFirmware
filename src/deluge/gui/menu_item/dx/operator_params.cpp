@@ -35,12 +35,7 @@ void DxOperatorParams::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void DxOperatorParams::readValueAgain() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 struct {
@@ -67,36 +62,20 @@ void DxOperatorParams::drawPixelsForOled() {
 	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
 }
 
-void DxOperatorParams::drawValue() {
-	display->setScrollingText(items[currentValue].name);
-}
-
 void DxOperatorParams::selectEncoderAction(int32_t offset) {
 	int32_t newValue = currentValue + offset;
 
-	if (display->haveOLED()) {
-		if (newValue >= numValues || newValue < 0) {
-			return;
-		}
-	}
-	else {
-		if (newValue >= numValues) {
-			newValue %= numValues;
-		}
-		else if (newValue < 0) {
-			newValue = (newValue % numValues + numValues) % numValues;
-		}
+	if (newValue >= numValues || newValue < 0) {
+		return;
 	}
 
 	currentValue = newValue;
 
-	if (display->haveOLED()) {
-		if (currentValue < scrollPos) {
-			scrollPos = currentValue;
-		}
-		else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
-			scrollPos++;
-		}
+	if (currentValue < scrollPos) {
+		scrollPos = currentValue;
+	}
+	else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
+		scrollPos++;
 	}
 
 	readValueAgain();

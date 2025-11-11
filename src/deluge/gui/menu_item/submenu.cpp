@@ -16,9 +16,7 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 		initial_index_ = 0; // only set on first access, remember previously accessed menu otherwise.
 	}
 	focusChild(navigatedBackwardFrom);
-	if (display->have7SEG()) {
-		updateDisplay();
-	}
+	updateDisplay();
 }
 
 bool Submenu::focusChild(const MenuItem* child) {
@@ -44,11 +42,8 @@ void Submenu::updateDisplay() {
 		// no relevant items, back out
 		soundEditor.goUpOneLevel();
 	}
-	else if (display->haveOLED()) {
-		renderUIsForOled();
-	}
 	else {
-		(*current_item_)->drawName();
+		renderUIsForOled();
 	}
 }
 
@@ -133,7 +128,7 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 }
 
 bool Submenu::wrapAround() {
-	return display->have7SEG() || renderingStyle() == HORIZONTAL;
+	return renderingStyle() == HORIZONTAL;
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {

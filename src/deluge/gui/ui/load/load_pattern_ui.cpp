@@ -149,11 +149,9 @@ void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
 Error LoadPatternUI::setupForLoadingPattern() {
 	enteredText.clear();
 
-	if (display->haveOLED()) {
-		fileIcon = deluge::hid::display::OLED::midiIcon;
-		fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
-		fileIconPt2Width = 1;
-	}
+	fileIcon = deluge::hid::display::OLED::midiIcon;
+	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
+	fileIconPt2Width = 1;
 
 	String searchFilename;
 
@@ -177,10 +175,6 @@ Error LoadPatternUI::setupForLoadingPattern() {
 	currentLabelLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
 
 	drawKeys();
-
-	if (display->have7SEG()) {
-		displayText(false);
-	}
 
 	return Error::NONE;
 }
@@ -270,9 +264,7 @@ ActionResult LoadPatternUI::padAction(int32_t x, int32_t y, int32_t on) {
 Error LoadPatternUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
-		// Make it say "NONE" on numeric Deluge, for
-		// consistency with old times.
-		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
+		return Error::FILE_NOT_FOUND;
 	}
 
 	if (currentFileItem->isFolder) {

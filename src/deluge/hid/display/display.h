@@ -38,7 +38,7 @@ enum class PopupType {
 
 namespace deluge::hid {
 
-enum struct DisplayType { OLED, SEVENSEG };
+enum struct DisplayType { OLED };
 
 class Display {
 public:
@@ -65,7 +65,7 @@ public:
 
 	virtual void displayPopup(char const* shortLong[2], int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) {
-		displayPopup(have7SEG() ? shortLong[0] : shortLong[1], numFlashes, alignRight, drawDot, blinkSpeed, type);
+		displayPopup(shortLong[1], numFlashes, alignRight, drawDot, blinkSpeed, type);
 	}
 
 	virtual void popupText(char const* text, PopupType type = PopupType::GENERAL) = 0;
@@ -107,10 +107,7 @@ public:
 		return nullptr;
 	}
 
-	virtual std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match SevenSegment
-
 	bool haveOLED() { return displayType == DisplayType::OLED; }
-	bool have7SEG() { return displayType == DisplayType::SEVENSEG; }
 
 private:
 	DisplayType displayType;
@@ -120,10 +117,6 @@ private:
 
 extern deluge::hid::Display* display;
 
-namespace deluge::hid::display {
-void swapDisplayType();
-// physical screen is oled
-extern bool have_oled_screen;
-} // namespace deluge::hid::display
+namespace deluge::hid::display {} // namespace deluge::hid::display
 
 extern "C" void consoleTextIfAllBootedUp(char const* text);

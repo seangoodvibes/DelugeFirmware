@@ -524,7 +524,6 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added parameter names (including mod matrix / patch cable mappings) to Mod (Gold) Encoder popups.
 - `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
-- Added a new community setting which allows emulating the 7SEG style on the OLED display. When set to `TOGGLE` press `SHIFT`+`LEARN/INPUT`+`AFFECT ENTIRE` to switch to the emulated 7SEG display.
 - Fixed several cases where popups could get stuck open.
 - Fixed a number of minor rendering bugs.
 
@@ -795,8 +794,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
 - You can now batch delete kit rows which do not contain any notes, freeing kits from unused sounds. *
 - Audio waveforms can be shifted in an Audio clip, similar to instrument clips, with the exclusion of wrapping the audio
   around.
-- Support for sending and receiving large `SYSEX` messages has been added. This allows 7SEG behavior to be emulated on
-  OLED hardware and vice versa. Also allows for loading firmware over USB. As this could be a security risk, it must be
+- Support for sending and receiving large `SYSEX` messages has been added. This allows for loading firmware over USB. As this could be a security risk, it must be
   enabled in community feature settings. †
 
 ## Footnotes

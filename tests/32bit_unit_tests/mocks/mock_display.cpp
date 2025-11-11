@@ -5,7 +5,7 @@
 
 class MockDisplay : public deluge::hid::Display {
 public:
-	MockDisplay() : deluge::hid::Display(deluge::hid::DisplayType::SEVENSEG) {}
+	MockDisplay() : deluge::hid::Display(deluge::hid::DisplayType::OLED) {}
 
 	~MockDisplay() = default;
 
@@ -25,7 +25,6 @@ public:
 
 	void cancelPopup() {};
 	void freezeWithError(char const* text) { std::cout << text << std::endl; };
-	bool isLayerCurrentlyOnTop(NumericLayer* layer) { return false; };
 	void displayError(Error error) { std::cout << util::to_underlying(error) << std::endl; };
 
 	void removeWorkingAnimation() {};
@@ -46,12 +45,6 @@ public:
 	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) { return 0; }
 	void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
 	                   int32_t blinkPos = -1, bool blinkImmediately = false) {}
-	NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
-	                                            int32_t initialDelay = 600) {
-		return nullptr;
-	}
-
-	std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match SevenSegment
 };
 
 extern "C" void freezeWithError(char const* error) {

@@ -55,12 +55,7 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 */
-	if (display->haveOLED()) {
-		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-	}
-	else {
-		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
-	}
+	enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
 	delayMS(10);
 
 	/*
@@ -70,12 +65,7 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 	*/
-	if (display->haveOLED()) {
-		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-	}
-	else {
-		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
-	}
+	enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
 
 	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
 
@@ -197,13 +187,7 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	uint32_t output = (uint32_t)(0b00110000 | (1 << channel)) << 24;
 	output |= (uint32_t)voltage << 8;
 	// if we have a physical oled then we need to send via the pic
-	if (deluge::hid::display::have_oled_screen) {
-		enqueueCVMessage(channel, output);
-	}
-	else {
-		R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
-		cvOutPending = false;
-	}
+	enqueueCVMessage(channel, output);
 }
 
 void CVEngine::physicallySwitchGate(int32_t channel) {

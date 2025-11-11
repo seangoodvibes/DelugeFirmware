@@ -2,7 +2,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
@@ -78,25 +77,6 @@ std::string_view getErrorMessage(Error error) {
 
 	default:
 		return l10n::getView(STRING_FOR_ERROR_GENERIC);
-	}
-}
-
-bool have_oled_screen = false;
-
-void swapDisplayType() {
-	using ::display; // this is c++
-	bool was_oled = display->haveOLED();
-	delete display;
-	if (was_oled) {
-		display = new deluge::hid::display::SevenSegment;
-	}
-	else {
-		deluge::l10n::chosenLanguage = nullptr;
-		display = new deluge::hid::display::OLED;
-	}
-	UI* ui = getCurrentUI();
-	if (ui) {
-		ui->displayOrLanguageChanged();
 	}
 }
 

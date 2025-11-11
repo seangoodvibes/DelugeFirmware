@@ -914,9 +914,7 @@ void FileReader::readDone() {
 
 		uiTimerManager.routine();
 
-		if (display->haveOLED()) {
-			oledRoutine();
-		}
+		oledRoutine();
 		PIC::flush();
 	}
 }

@@ -1344,13 +1344,6 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
       shift.
 * `Enable DX7 Engine (DX7)`
     * When On, enables access to the DX7 synth engine (see [DX7 Synth Documentation]).
-* `Emulated Display (EMUL)`
-    * This allows you to emulate the 7SEG screen on a deluge with OLED hardware screen.
-    * In "Toggle" mode, the "SHIFT" + "LEARN" + "AFFECT-ENTIRE" combination can used to switch between screen types at
-      any time.
-    * With the "7SEG" mode, the deluge will boot with the emulated display.
-    * This option is technically available also on deluge with 7SEG hardware. But as you need an external display to
-      render the OLED screen, it is of more limited use.
 * `KB View Sidebar Menu Exit (EXIT)`
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
 * `Launch Event Playhead (PLAY)`

@@ -89,11 +89,6 @@ public:
 		                              kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
-	void drawValue() override {
-		const std::string value = getIteranceDisplayValue("%dof%d");
-		display->setText(value);
-	}
-
 	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.append(getIteranceDisplayValue("%d of %d")); }
 
 	void writeCurrentValue() override { ; }

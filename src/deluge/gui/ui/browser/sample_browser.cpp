@@ -110,9 +110,7 @@ bool SampleBrowser::opened() {
 
 	autoLoadEnabled = false;
 
-	if (display->haveOLED()) {
-		fileIndexSelected = 0;
-	}
+	fileIndexSelected = 0;
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		instrumentClipView.cancelAllAuditioning();
@@ -200,9 +198,6 @@ void SampleBrowser::possiblySetUpBlinking() {
 void SampleBrowser::focusRegained() {
 	// displayCurrentFilename();
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
-	if (display->have7SEG()) {
-		displayText(); // In case returning from delete-file context menu
-	}
 }
 
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {
@@ -336,13 +331,7 @@ void SampleBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		if (display->haveOLED()) {
-			display->displayError(Error::FILE_NOT_FOUND);
-		}
-		else {
-			// Make it say "NONE" on numeric Deluge, for consistency with old times.
-			display->displayError(Error::NO_FURTHER_FILES_THIS_DIRECTION);
-		}
+		display->displayError(Error::FILE_NOT_FOUND);
 		return;
 	}
 
@@ -721,7 +710,6 @@ possiblyExit:
 				qwertyCurrentlyDrawnOnscreen = true;
 
 				enteredTextEditPos = 0;
-				displayText(false);
 			}
 		}
 		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
@@ -994,7 +982,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix || display->haveOLED()) {
+				if (!numCharsInPrefix) {
 					newName.set(&enteredText);
 				}
 				else {

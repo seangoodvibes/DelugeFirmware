@@ -83,7 +83,7 @@ public:
 	}
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+		// label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
 	}
 
 	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value

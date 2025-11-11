@@ -77,7 +77,6 @@ public:
 	void renderViewDisplay();
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	// 7SEG only
-	void redrawNumericDisplay();
 	void setLedStates();
 
 	// button action

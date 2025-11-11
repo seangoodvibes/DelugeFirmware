@@ -39,7 +39,6 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -334,7 +333,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
+		else if (util::to_underlying(value) == oledWaitingForMessage) {
 			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -440,9 +439,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 }
 
 void setupBlankSong() {
@@ -650,9 +647,7 @@ void registerTasks() {
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
 	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
-	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&(oledRoutine), p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
-	}
+	addRepeatingTask(&(oledRoutine), p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
@@ -667,9 +662,7 @@ void mainLoop() {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (hid::display::have_oled_screen) {
-			oledRoutine();
-		}
+		oledRoutine();
 		PIC::flush();
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
@@ -778,12 +771,6 @@ extern "C" int32_t deluge_main(void) {
 		setupOLED(); // Set up OLED now
 		display = new deluge::hid::display::OLED;
 	}
-	else {
-		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
-		display = new deluge::hid::display::SevenSegment;
-	}
-	// remember the physical display type
-	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -880,11 +867,6 @@ extern "C" int32_t deluge_main(void) {
 	FlashStorage::readSettings();
 
 	runtimeFeatureSettings.init();
-
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
-	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
-		deluge::hid::display::swapDisplayType();
-	}
 
 	usbLock = 1;
 	openUSBHost();
@@ -1054,9 +1036,7 @@ extern "C" void routineForSD(void) {
 	AudioEngine::routine();
 	switch (step) {
 	case UIStage::oled:
-		if (display->haveOLED()) {
-			oledRoutine();
-		}
+		oledRoutine();
 		PIC::flush();
 		step = UIStage::readEnc;
 		break;

@@ -29,7 +29,7 @@ public:
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+		// label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 };
 } // namespace deluge::gui::menu_item::randomizer::midi_cv

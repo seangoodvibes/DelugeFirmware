@@ -37,7 +37,6 @@ bool RenameUI::opened() {
 	String name = getName();
 	enteredText.set(&name);
 
-	displayText();
 	drawKeys();
 
 	return true;
@@ -53,12 +52,7 @@ void RenameUI::enterKeyPress() {
 }
 
 void RenameUI::displayText(bool blinkImmediately) {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		QwertyUI::displayText(blinkImmediately);
-	}
+	renderUIsForOled();
 }
 
 bool RenameUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
