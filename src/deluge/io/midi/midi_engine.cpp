@@ -991,7 +991,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	uint8_t originalStatusType = statusType;
 	uint8_t originalData2 = data2;
 
-	if (statusType == 0x0F) {
+	if (statusType == 0x0F && fromDevice->receiveClock) {
 		if (channel == 0x02) {
 			if (currentSong) {
 				playbackHandler.positionPointerReceived(data1, data2);

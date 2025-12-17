@@ -80,7 +80,9 @@ public:
  * See MIDIDeviceManager or midiengine.cpp for details
  */
 
-// These never get destructed. So we're safe having various Instruments etc holding pointers to them.
+enum class clock_setting { NONE, RECEIVE, SEND, BOTH };
+
+/// A MIDI device connection. Stores all state specific to a given device and its contained ports and channels.
 class MIDIDevice {
 public:
 	MIDIDevice();
@@ -129,7 +131,8 @@ public:
 	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
-	bool sendClock; // whether to send clocks to this device
+	bool sendClock;    // whether to send clocks to this device
+	bool receiveClock; // whether to receive clocks from this device
 	uint8_t incomingSysexBuffer[1024];
 	int32_t incomingSysexPos = 0;
 
@@ -227,7 +230,15 @@ public:
 
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
-	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDIDeviceUSB(portNum) {}
+	MIDIDeviceUSBUpstream(uint8_t portNum, bool mpe, bool clock_in) : MIDIDeviceUSB(portNum) {
+		if (mpe) {
+			for (auto& port : ports) {
+				port.mpeLowerZoneLastMemberChannel = 7;
+				port.mpeUpperZoneLastMemberChannel = 8;
+			}
+		}
+		receiveClock = clock_in;
+	}
 	void writeReferenceAttributesToFile(Serializer& writer);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
