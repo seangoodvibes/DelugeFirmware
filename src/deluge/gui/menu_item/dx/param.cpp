@@ -209,7 +209,7 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
+PLACE_SDRAM_TEXT bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	int found_param = -2;
 	if (y > 1 && x <= 13) {
 		int op = 8 - y - 1; // op 0-5
@@ -319,6 +319,7 @@ PLACE_SDRAM_TEXT [[nodiscard]] std::string_view DxParam::getTitle() const {
 	return "DX7 PARAM";
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void DxParam::flashParamName() {
 	if (0 <= param && param < 6 * 21) {
 		char buf[12] = {0};
@@ -354,7 +355,7 @@ void DxParam::flashParamName() {
 }
 
 using deluge::hid::display::OLED;
-static void show(const char* text, int r, int c, bool inv = false) {
+PLACE_SDRAM_TEXT static void show(const char* text, int r, int c, bool inv = false) {
 	int ybel = 7 + (2 + r) * (kTextSizeYUpdated + 2);
 	int xpos = 5 + c * kTextSpacingX;
 	OLED::main.drawString(text, xpos, ybel, kTextSpacingX, kTextSizeYUpdated);
@@ -364,13 +365,13 @@ static void show(const char* text, int r, int c, bool inv = false) {
 	}
 }
 
-static void show(int val, int r, int c, bool inv = false) {
+PLACE_SDRAM_TEXT static void show(int val, int r, int c, bool inv = false) {
 	char buffer[12];
 	intToString(val, buffer, 2);
 	show(buffer, r, c, inv);
 }
 
-static void renderEnvelope(uint8_t* params, int op, int idx) {
+PLACE_SDRAM_TEXT static void renderEnvelope(uint8_t* params, int op, int idx) {
 	show("rate", 0, 0, false);
 	show("levl", 1, 0, false);
 	for (int i = 0; i < 4; i++) {
@@ -381,7 +382,7 @@ static void renderEnvelope(uint8_t* params, int op, int idx) {
 	}
 }
 
-static void renderScaling(uint8_t* params, int op, int idx) {
+PLACE_SDRAM_TEXT static void renderScaling(uint8_t* params, int op, int idx) {
 	char buffer[12];
 
 	for (int i = 0; i < 2; i++) {
@@ -427,7 +428,7 @@ static void renderScaling(uint8_t* params, int op, int idx) {
 	}
 }
 
-static void renderSensParams(uint8_t* params, int op, int idx) {
+PLACE_SDRAM_TEXT static void renderSensParams(uint8_t* params, int op, int idx) {
 	show("rate scale", 0, 1);
 	show(params[op * 21 + 13], 0, 12, idx == 13);
 
@@ -438,7 +439,7 @@ static void renderSensParams(uint8_t* params, int op, int idx) {
 	show(params[op * 21 + 15], 1, 16, idx == 15);
 }
 
-static void renderTuning(uint8_t* params, int op, int param) {
+PLACE_SDRAM_TEXT static void renderTuning(uint8_t* params, int op, int param) {
 	int mode = params[op * 21 + 17];
 	const char* text = mode ? "fixed" : "ratio";
 	show(text, 0, 1, (17 == param));
@@ -456,7 +457,7 @@ static void renderTuning(uint8_t* params, int op, int param) {
 	show(val, 1, 7, (16 == param));
 }
 
-static void renderLFO(uint8_t* params, int param) {
+PLACE_SDRAM_TEXT static void renderLFO(uint8_t* params, int param) {
 	char buffer[12];
 	int ybel = 5 + 2 * (kTextSizeYUpdated + 2) + 2;
 	int ybel2 = ybel + (kTextSizeYUpdated + 2);
@@ -486,7 +487,7 @@ static void renderLFO(uint8_t* params, int param) {
 	show(buffer, 1, 10, (143 == param));
 }
 
-static void renderAlgorithm(uint8_t* params) {
+PLACE_SDRAM_TEXT static void renderAlgorithm(uint8_t* params) {
 
 	char buffer[12];
 	intToString(params[134] + 1, buffer, 2);
@@ -514,6 +515,7 @@ static void renderAlgorithm(uint8_t* params) {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void DxParam::drawPixelsForOled() {
 	const int y0 = 20;
 	char buffer[12];
@@ -547,6 +549,7 @@ void DxParam::drawPixelsForOled() {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void DxParam::drawValue() {
 	if (display->haveOLED()) {
 		renderUIsForOled();
@@ -581,7 +584,7 @@ void DxParam::drawValue() {
 	}
 }
 
-void DxParam::openForOpOrGlobal(int op) {
+PLACE_SDRAM_TEXT void DxParam::openForOpOrGlobal(int op) {
 	bool was_focused = true; // was already in DxParam
 	if (!isUIOpen(&soundEditor) || soundEditor.getCurrentMenuItem() != this) {
 		bool success = soundEditor.setup(getCurrentClip(), this, 0);
