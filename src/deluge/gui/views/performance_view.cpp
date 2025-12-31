@@ -179,7 +179,7 @@ PLACE_SDRAM_RODATA const int32_t quantizedStutterPressValues[kDisplayHeight] = {
 PLACE_SDRAM_BSS PerformanceView performanceView{};
 
 // initialize variables
-PerformanceView::PerformanceView() {
+PLACE_SDRAM_TEXT PerformanceView::PerformanceView() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
@@ -210,6 +210,7 @@ PerformanceView::PerformanceView() {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 int32_t PerformanceView::getNavSysId() const {
 	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 		return NAVIGATION_ARRANGEMENT;
@@ -219,7 +220,7 @@ int32_t PerformanceView::getNavSysId() const {
 	}
 }
 
-void PerformanceView::initPadPress(PadPress& padPress) {
+PLACE_SDRAM_TEXT void PerformanceView::initPadPress(PadPress& padPress) {
 	padPress.isActive = false;
 	padPress.xDisplay = kNoSelection;
 	padPress.yDisplay = kNoSelection;
@@ -227,7 +228,7 @@ void PerformanceView::initPadPress(PadPress& padPress) {
 	padPress.paramID = kNoSelection;
 }
 
-void PerformanceView::initFXPress(FXColumnPress& columnPress) {
+PLACE_SDRAM_TEXT void PerformanceView::initFXPress(FXColumnPress& columnPress) {
 	columnPress.previousKnobPosition = kNoSelection;
 	columnPress.currentKnobPosition = kNoSelection;
 	columnPress.yDisplay = kNoSelection;
@@ -235,7 +236,7 @@ void PerformanceView::initFXPress(FXColumnPress& columnPress) {
 	columnPress.padPressHeld = false;
 }
 
-void PerformanceView::initLayout(ParamsForPerformance& layout) {
+PLACE_SDRAM_TEXT void PerformanceView::initLayout(ParamsForPerformance& layout) {
 	layout.paramKind = params::Kind::NONE;
 	layout.paramID = kNoSelection;
 	layout.xDisplay = kNoSelection;
@@ -248,7 +249,7 @@ void PerformanceView::initLayout(ParamsForPerformance& layout) {
 	layout.rowTailColour[2] = 0;
 }
 
-void PerformanceView::initDefaultFXValues(int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::initDefaultFXValues(int32_t xDisplay) {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		int32_t defaultFXValue = getKnobPosForSinglePadPress(xDisplay, yDisplay);
 		defaultFXValues[xDisplay][yDisplay] = defaultFXValue;
@@ -256,6 +257,7 @@ void PerformanceView::initDefaultFXValues(int32_t xDisplay) {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool PerformanceView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (defaultEditingMode) {
 		*cols = 0x03;
@@ -265,6 +267,7 @@ bool PerformanceView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return false;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool PerformanceView::opened() {
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
@@ -275,6 +278,7 @@ bool PerformanceView::opened() {
 	return true;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::focusRegained() {
 	currentSong->affectEntire = true;
 
@@ -298,6 +302,7 @@ void PerformanceView::focusRegained() {
 	uiNeedsRendering(this);
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 UIType PerformanceView::getUIContextType() {
 	// if performanceView was entered from arranger
 	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
@@ -308,7 +313,7 @@ UIType PerformanceView::getUIContextType() {
 	}
 }
 
-void PerformanceView::graphicsRoutine() {
+PLACE_SDRAM_TEXT void PerformanceView::graphicsRoutine() {
 	sessionView.potentiallyUpdateCompressorLEDs();
 
 	// if we're not currently selecting a clip
@@ -334,6 +339,7 @@ void PerformanceView::graphicsRoutine() {
 	sessionView.potentiallyRenderClipLaunchPlayhead(reallyNoTickSquare, sixteenthNotesRemaining);
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ActionResult PerformanceView::timerCallback() {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
 		sessionView.timerCallback();
@@ -344,6 +350,7 @@ ActionResult PerformanceView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool PerformanceView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
@@ -372,7 +379,7 @@ bool PerformanceView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 }
 
 /// render every column, one row at a time
-void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		RGB& pixel = image[xDisplay];
@@ -430,7 +437,7 @@ void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
 }
 
 /// check if a param has been assinged to any of the FX columns
-bool PerformanceView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t paramID) {
+PLACE_SDRAM_TEXT bool PerformanceView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if ((layoutForPerformance[xDisplay].paramKind == paramKind)
 		    && (layoutForPerformance[xDisplay].paramID == paramID)) {
@@ -441,6 +448,7 @@ bool PerformanceView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t 
 }
 
 /// if entered performance view using pink grid mode pad, render the pink pad
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool PerformanceView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
@@ -464,7 +472,7 @@ bool PerformanceView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 /// render performance view display on opening
 ///
 /// XXX: This should take a canvas and render to it rather than pulling the main image all the time.
-void PerformanceView::renderViewDisplay() {
+PLACE_SDRAM_TEXT void PerformanceView::renderViewDisplay() {
 	if (defaultEditingMode) {
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
@@ -648,6 +656,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 // and current value is displayed on the screen, don't show pop-up as the display already shows it
 // this checks that the param displayed on the screen in performance view
 // is the same param currently being edited with mod encoder and updates the display if needed
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool PerformanceView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, int32_t id, int32_t newKnobPos) {
 	// check if you're not in editing mode
 	// and a param hold press is currently active
@@ -666,21 +675,23 @@ bool PerformanceView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, i
 	return false;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	renderViewDisplay();
 	sessionView.renderOLED(canvas);
 }
 
-void PerformanceView::redrawNumericDisplay() {
+PLACE_SDRAM_TEXT void PerformanceView::redrawNumericDisplay() {
 	sessionView.redrawNumericDisplay();
 }
 
-void PerformanceView::setLedStates() {
+PLACE_SDRAM_TEXT void PerformanceView::setLedStates() {
 	setCentralLEDStates();
 	view.setLedStates();    // inherited from session view
 	view.setModLedStates(); // inherited from session view
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
@@ -712,6 +723,7 @@ void PerformanceView::setCentralLEDStates() {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
@@ -973,7 +985,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+PLACE_SDRAM_TEXT ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	if (!justExitedSoundEditor) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
@@ -1059,8 +1071,8 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 }
 
 /// process pad actions in the normal performance view or value editor
-void PerformanceView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
-                                      int32_t on) {
+PLACE_SDRAM_TEXT void PerformanceView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
+                                                       int32_t yDisplay, int32_t on) {
 	// obtain Kind, ParamID corresponding to the column pressed on performance grid
 	Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
 	int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
@@ -1138,8 +1150,9 @@ void PerformanceView::normalPadAction(ModelStackWithThreeMainThings* modelStack,
 	}
 }
 
-void PerformanceView::padPressAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind, int32_t paramID,
-                                     int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::padPressAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
+                                                      int32_t paramID, int32_t xDisplay, int32_t yDisplay,
+                                                      bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
 	                      renderDisplay)) {
 		// if pressing a new pad in a column, reset held status
@@ -1163,6 +1176,7 @@ void PerformanceView::padPressAction(ModelStackWithThreeMainThings* modelStack, 
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                        int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition,
@@ -1191,8 +1205,8 @@ void PerformanceView::padReleaseAction(ModelStackWithThreeMainThings* modelStack
 }
 
 /// process pad actions in the param editor
-void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
-                                           int32_t yDisplay, int32_t on) {
+PLACE_SDRAM_TEXT void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
+                                                            int32_t yDisplay, int32_t on) {
 	// pressing a pad
 	if (on) {
 		// if you haven't yet pressed and are holding a param shortcut pad on the param overview
@@ -1254,7 +1268,7 @@ void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelS
 }
 
 /// check if pad press corresponds to a shortcut pad on the grid
-bool PerformanceView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
+PLACE_SDRAM_TEXT bool PerformanceView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != params::Kind::NONE)
 	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != kNoParamID)) {
 		return true;
@@ -1263,6 +1277,7 @@ bool PerformanceView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 }
 
 /// backup performance layout column press info so changes can be undone / redone later
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::backupPerformanceLayout() {
 	if (successfullyReadDefaultsFromFile) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -1273,17 +1288,18 @@ void PerformanceView::backupPerformanceLayout() {
 }
 
 /// re-load performance layout column press info from backup
-void PerformanceView::restorePreviousHoldPress(int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::restorePreviousHoldPress(int32_t xDisplay) {
 	memcpy(&fxPress[xDisplay], &backupFXPress[xDisplay], sizeof(FXColumnPress));
 	lastPadPress.yDisplay = backupFXPress[xDisplay].yDisplay;
 }
 
-bool PerformanceView::shouldRestorePreviousHoldPress(int32_t xDisplay) {
+PLACE_SDRAM_TEXT bool PerformanceView::shouldRestorePreviousHoldPress(int32_t xDisplay) {
 	return (!fxPress[xDisplay].padPressHeld && backupFXPress[xDisplay].padPressHeld);
 }
 
 /// used in conjunction with backupPerformanceLayout to log changes
 /// while in Performance View so that you can undo/redo them afters
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::logPerformanceViewPress(int32_t xDisplay, bool closeAction) {
 	if (anyChangesToLog()) {
 		actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
@@ -1294,7 +1310,7 @@ void PerformanceView::logPerformanceViewPress(int32_t xDisplay, bool closeAction
 }
 
 /// check if there are any changes that needed to be logged in action logger for undo/redo mechanism to work
-bool PerformanceView::anyChangesToLog() {
+PLACE_SDRAM_TEXT bool PerformanceView::anyChangesToLog() {
 	if (performanceLayoutBackedUp) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			if (backupFXPress[xDisplay].previousKnobPosition != fxPress[xDisplay].previousKnobPosition) {
@@ -1320,6 +1336,7 @@ bool PerformanceView::anyChangesToLog() {
 /// called when you press <> + back
 /// in param editor, it will clear existing param mappings
 /// in regular performance view or value editor, it will clear held pads and reset param values to pre-held state
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
 	resetPadPressInfo();
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -1343,6 +1360,7 @@ void PerformanceView::resetPerformanceView(ModelStackWithThreeMainThings* modelS
 
 /// resets a single FX column to remove held status
 /// and reset the param value assigned to that FX column to pre-held state
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
 	if (fxPress[xDisplay].padPressHeld) {
 		// obtain Kind and ParamID corresponding to the column in focus (xDisplay)
@@ -1358,6 +1376,7 @@ void PerformanceView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, i
 
 /// reset press info and stutter when exiting performance view
 /// exit out of default editing mode
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStack) {
 	releaseStutter(modelStack);
 	resetPadPressInfo();
@@ -1366,12 +1385,13 @@ void PerformanceView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStac
 }
 
 /// initialize pad press info structs
-void PerformanceView::resetPadPressInfo() {
+PLACE_SDRAM_TEXT void PerformanceView::resetPadPressInfo() {
 	initPadPress(firstPadPress);
 	initPadPress(lastPadPress);
 }
 
 /// check if stutter is active and release it if it is
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
 		padReleaseAction(modelStack, params::Kind::UNPATCHED_GLOBAL, deluge::modulation::params::UNPATCHED_STUTTER_RATE,
@@ -1385,6 +1405,7 @@ void PerformanceView::releaseStutter(ModelStackWithThreeMainThings* modelStack) 
 /// if you're in the value editor, pressing a column and changing the value will also open the sound editor
 /// menu for the parameter to show you the current value in the menu
 /// in regular performance view, this function will also update the parameter value shown on the display
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                         int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
@@ -1442,6 +1463,7 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 
 /// get the current value for a parameter and update display if value is different than currently shown
 /// update current value stored
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                         int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
@@ -1477,7 +1499,7 @@ void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStac
 
 /// converts grid pad press yDisplay into a knobPosition value default
 /// this will likely need to be customized based on the parameter to create some more param appropriate ranges
-int32_t PerformanceView::getKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+PLACE_SDRAM_TEXT int32_t PerformanceView::getKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
 	params::Kind paramKind = defaultLayoutForPerformance[xDisplay].paramKind;
@@ -1499,6 +1521,7 @@ int32_t PerformanceView::getKnobPosForSinglePadPress(int32_t xDisplay, int32_t y
 }
 
 /// Used to edit a pad's value in editing mode
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::selectEncoderAction(int8_t offset) {
 	if (lastPadPress.isActive && defaultEditingMode && !editingParam) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1525,7 +1548,7 @@ void PerformanceView::selectEncoderAction(int8_t offset) {
 }
 
 /// used to calculate new knobPos when you turn the select encoder
-int32_t PerformanceView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
+PLACE_SDRAM_TEXT int32_t PerformanceView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
 
 	// adjust the current knob so that it is within the range of 0-128 for calculation purposes
 	knobPos = knobPos + kKnobPosOffset;
@@ -1551,10 +1574,12 @@ int32_t PerformanceView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, i
 	return newKnobPos;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ActionResult PerformanceView::horizontalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ActionResult PerformanceView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
 		return sessionView.verticalEncoderAction(offset, inCardRoutine);
@@ -1565,17 +1590,19 @@ ActionResult PerformanceView::verticalEncoderAction(int32_t offset, bool inCardR
 }
 
 /// why do I need this? (code won't compile without it)
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 uint32_t PerformanceView::getMaxZoom() {
 	return currentSong->getLongestClip(true, false)->getMaxZoom();
 }
 
 /// why do I need this? (code won't compile without it)
-uint32_t PerformanceView::getMaxLength() {
+PLACE_SDRAM_TEXT uint32_t PerformanceView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
 }
 
 /// updates the display if the mod encoder has just updated the same parameter currently being held / last held
 /// if no param is currently being held, it will reset the display to just show "Performance View"
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
@@ -1596,6 +1623,7 @@ void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) 
 }
 
 /// used to reset stutter if it's already active
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// release stutter if it's already active before beginning stutter again
 	if (on) {
@@ -1631,12 +1659,14 @@ void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
 }
 
 /// this compares the last loaded XML file defaults to the current layout in performance view
 /// to determine if there are any unsaved changes
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::updateLayoutChangeStatus() {
 	anyChangesToSave = false;
 
@@ -1684,14 +1714,14 @@ void PerformanceView::updateLayoutChangeStatus() {
 }
 
 /// update saved perfomance view layout and update saved changes status
-void PerformanceView::savePerformanceViewLayout() {
+PLACE_SDRAM_TEXT void PerformanceView::savePerformanceViewLayout() {
 	writeDefaultsToFile();
 	updateLayoutChangeStatus();
 }
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void PerformanceView::writeDefaultsToFile() {
+PLACE_SDRAM_TEXT void PerformanceView::writeDefaultsToFile() {
 	// PerformanceView.xml
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
@@ -1720,7 +1750,7 @@ void PerformanceView::writeDefaultsToFile() {
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
-void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
+PLACE_SDRAM_TEXT void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
 	char tagName[10];
 	tagName[0] = 'F';
 	tagName[1] = 'X';
@@ -1736,7 +1766,7 @@ void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
 }
 
 /// convert paramID to a paramName to write to XML
-void PerformanceView::writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay) {
 	char const* paramName;
 
 	auto kind = layoutForPerformance[xDisplay].paramKind;
@@ -1755,7 +1785,7 @@ void PerformanceView::writeDefaultFXParamToFile(Serializer& writer, int32_t xDis
 
 /// creates "8 - 1 row # tags within a "row" tag"
 /// limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
-void PerformanceView::writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay) {
 	//<row>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_ROW_TAG);
 	writer.writeOpeningTagEnd();
@@ -1772,7 +1802,7 @@ void PerformanceView::writeDefaultFXRowValuesToFile(Serializer& writer, int32_t 
 
 /// for each FX column, write the held status, what row is being held, and what previous value was
 /// (previous value is used to reset param after you remove the held status)
-void PerformanceView::writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t xDisplay) {
 	//<hold>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_HOLD_TAG);
 	writer.writeOpeningTagEnd();
@@ -1802,7 +1832,7 @@ void PerformanceView::writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t
 }
 
 /// backup current layout, load saved layout, log layout change, update change status
-void PerformanceView::loadPerformanceViewLayout() {
+PLACE_SDRAM_TEXT void PerformanceView::loadPerformanceViewLayout() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -1820,7 +1850,7 @@ void PerformanceView::loadPerformanceViewLayout() {
 }
 
 /// re-read defaults from backed up XML in memory in order to reduce SD Card IO
-void PerformanceView::readDefaultsFromBackedUpFile() {
+PLACE_SDRAM_TEXT void PerformanceView::readDefaultsFromBackedUpFile() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &backupXMLDefaultLayoutForPerformance[xDisplay],
 		       sizeof(ParamsForPerformance));
@@ -1836,6 +1866,7 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 }
 
 /// read defaults from XML
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::readDefaultsFromFile() {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
@@ -1885,6 +1916,7 @@ void PerformanceView::readDefaultsFromFile() {
 }
 
 /// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::loadDefaultLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeof(ParamsForPerformance));
@@ -1902,7 +1934,7 @@ void PerformanceView::loadDefaultLayout() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceView::readDefaultFXValuesFromFile() {
+PLACE_SDRAM_TEXT void PerformanceView::readDefaultFXValuesFromFile() {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
@@ -1925,7 +1957,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 	}
 }
 
-void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1948,7 +1980,7 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 /// compares param name from <param> tag to the list of params available for use in performance view
 /// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
 /// rowColour, rowTailColour)
-void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
 	Deserializer& reader = smDeserializer;
 	char const* tagName = reader.readTagOrAttributeValue();
@@ -1966,7 +1998,8 @@ void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	}
 }
 
-void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
+PLACE_SDRAM_TEXT void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
 	Deserializer& reader = smDeserializer;
@@ -1999,7 +2032,7 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	}
 }
 
-void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
+PLACE_SDRAM_TEXT void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
 	Deserializer& reader = smDeserializer;
@@ -2043,6 +2076,7 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	initializeHeldFX(xDisplay);
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void PerformanceView::initializeHeldFX(int32_t xDisplay) {
 	if (fxPress[xDisplay].padPressHeld) {
 		// set the value associated with the held pad
