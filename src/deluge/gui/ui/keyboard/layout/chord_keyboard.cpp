@@ -30,6 +30,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 	KeyboardStateChord& state = getState().chord;
@@ -60,7 +61,7 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	precalculate(); // Update chord quality colors if scale has changed
 }
 
-void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad pressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad pressed) {
 	KeyboardStateChord& state = getState().chord;
 	NoteSet& scaleNotes = getScaleNotes();
 	uint8_t scaleNoteCount = getScaleNoteCount();
@@ -82,7 +83,7 @@ void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad 
 	}
 }
 
-void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	KeyboardStateChord& state = getState().chord;
 
 	NoteSet& scaleNotes = getScaleNotes();
@@ -119,6 +120,7 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
@@ -126,6 +128,7 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	offsetPads(offset, false);
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                   PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
@@ -134,7 +137,7 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	offsetPads(offset, shiftEnabled);
 }
 
-void KeyboardLayoutChord::offsetPads(int32_t offset, bool shiftEnabled) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChord::offsetPads(int32_t offset, bool shiftEnabled) {
 	if (shiftEnabled) {
 		if (mode == ChordKeyboardMode::ROW) {
 			mode = ChordKeyboardMode::COLUMN;
@@ -149,7 +152,7 @@ void KeyboardLayoutChord::offsetPads(int32_t offset, bool shiftEnabled) {
 	precalculate();
 }
 
-void KeyboardLayoutChord::precalculate() {
+PLACE_SDRAM_TEXT void KeyboardLayoutChord::precalculate() {
 	KeyboardStateChord& state = getState().chord;
 
 	Scale currentScale = currentSong->getCurrentScale();
@@ -184,6 +187,7 @@ void KeyboardLayoutChord::precalculate() {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	KeyboardStateChord& state = getState().chord;
 	// Iterate over grid image
@@ -235,7 +239,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	    mode == ChordKeyboardMode::COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
 }
 
-void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	KeyboardStateChord& state = getState().chord;
 	// TODO: Enable auto voice leading when it is implemented more fully
 	// if (x == kDisplayWidth - 1 && y == 0) {
@@ -257,6 +261,7 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
 	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
@@ -280,6 +285,7 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
                                                uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;
@@ -290,6 +296,7 @@ uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t roo
 	return root + steps + octaveDisplacement * kOctaveSize;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool KeyboardLayoutChord::allowSidebarType(ColumnControlFunction sidebarType) {
 	if (sidebarType == ColumnControlFunction::CHORD) {
 		return false;
