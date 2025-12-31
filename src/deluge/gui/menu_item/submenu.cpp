@@ -61,7 +61,7 @@ void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
 	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIconBold, arrow_x, arrow_y, kSubmenuIconSpacingX);
 }
 
-void Submenu::drawPixelsForOled() {
+PLACE_SDRAM_TEXT void Submenu::drawPixelsForOled() {
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
@@ -102,7 +102,7 @@ void Submenu::drawPixelsForOled() {
 	drawSubmenuItemsForOled(visible, pos);
 }
 
-void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
+PLACE_SDRAM_TEXT void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;

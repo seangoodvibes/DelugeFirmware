@@ -55,6 +55,7 @@ bool HorizontalMenu::focusChild(const MenuItem* child) {
 	return result;
 }
 
+// note: can't place in PLACE_SDRAM_TEXT, reason: TBD
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
@@ -94,7 +95,7 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 	return Submenu::buttonAction(b, on, inCardRoutine);
 }
 
-void HorizontalMenu::renderOLED() {
+PLACE_SDRAM_TEXT void HorizontalMenu::renderOLED() {
 	if (renderingStyle() != HORIZONTAL) {
 		return Submenu::renderOLED();
 	}
@@ -122,7 +123,7 @@ void HorizontalMenu::renderOLED() {
 	OLED::markChanged();
 }
 
-void HorizontalMenu::renderTitle(const Paging& paging) const {
+PLACE_SDRAM_TEXT void HorizontalMenu::renderTitle(const Paging& paging) const {
 	std::string_view title = getTitle();
 
 	// Check if we need to shorten the title
@@ -163,7 +164,7 @@ void HorizontalMenu::renderTitle(const Paging& paging) const {
 	OLED::main.drawScreenTitle(title, false);
 }
 
-void HorizontalMenu::renderPageCounters(const Paging& paging) {
+PLACE_SDRAM_TEXT void HorizontalMenu::renderPageCounters(const Paging& paging) {
 	if (paging.totalPages <= 1) {
 		return;
 	}
@@ -188,6 +189,7 @@ void HorizontalMenu::renderPageCounters(const Paging& paging) {
 	image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 }
 
+// note: can't place in PLACE_SDRAM_TEXT, reason: TBD
 void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	static auto containers_map = [&] {
 		std::map<MenuItem*, HorizontalMenuContainer*> result;
@@ -294,6 +296,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 	}
 }
 
+// note: can't place in PLACE_SDRAM_TEXT, reason: TBD
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
 	if (renderingStyle() != HORIZONTAL) {
 		return Submenu::selectEncoderAction(offset);
@@ -347,7 +350,7 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	}
 }
 
-void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain) {
+PLACE_SDRAM_TEXT void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain) {
 	const auto it = std::ranges::find(chain, this);
 	const int32_t current_menu_pos = std::distance(chain.begin(), it);
 	int32_t target_menu_pos = current_menu_pos + direction;
@@ -379,8 +382,9 @@ void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<Horizonta
 	}
 }
 
-void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_page_items, const MenuItem* previous,
-                                                 int32_t pressed_button_position) {
+PLACE_SDRAM_TEXT void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_page_items,
+                                                                  const MenuItem* previous,
+                                                                  int32_t pressed_button_position) {
 	// Find the item you're looking for by iterating through all items on the current page
 	int32_t current_column = 0;
 
@@ -413,6 +417,7 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 	}
 }
 
+// note: can't place in PLACE_SDRAM_TEXT, reason: TBD
 void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	lastSelectedItemPosition = kNoSelection;
 
@@ -446,6 +451,7 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	}
 }
 
+// note: can't place in PLACE_SDRAM_TEXT, reason: TBD
 HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	static std::vector<MenuItem*> visible_page_items;
 	visible_page_items.clear();
