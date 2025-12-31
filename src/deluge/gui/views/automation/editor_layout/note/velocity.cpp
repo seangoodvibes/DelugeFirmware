@@ -58,12 +58,10 @@ PLACE_SDRAM_RODATA const int32_t maxPadDisplayValues[kDisplayHeight] = {16, 32, 
 PLACE_SDRAM_BSS AutomationEditorLayoutNoteVelocity automationEditorLayoutNoteVelocity{};
 
 /// render each square in each column of the note editor grid
-void AutomationEditorLayoutNoteVelocity::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow,
-                                                          InstrumentClip* clip,
-                                                          RGB image[][kDisplayWidth + kSideBarWidth],
-                                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                          int32_t xDisplay, int32_t xScroll, int32_t xZoom,
-                                                          SquareInfo& squareInfo) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutNoteVelocity::renderNoteColumn(
+    ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, RGB image[][kDisplayWidth + kSideBarWidth],
+    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t xScroll, int32_t xZoom,
+    SquareInfo& squareInfo) {
 	// iterate through each square
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, squareInfo.averageVelocity);
@@ -71,10 +69,9 @@ void AutomationEditorLayoutNoteVelocity::renderNoteColumn(ModelStackWithNoteRow*
 }
 
 /// render column for note parameter
-void AutomationEditorLayoutNoteVelocity::renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
-                                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                          int32_t xDisplay, int32_t yDisplay, uint8_t squareType,
-                                                          int32_t value) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutNoteVelocity::renderNoteSquare(
+    RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+    int32_t xDisplay, int32_t yDisplay, uint8_t squareType, int32_t value) {
 	RGB& pixel = image[yDisplay][xDisplay];
 	bool doRender = false;
 
@@ -103,9 +100,9 @@ void AutomationEditorLayoutNoteVelocity::renderNoteSquare(RGB image[][kDisplayWi
 }
 
 /// updates OLED display to display the current velocity
-void AutomationEditorLayoutNoteVelocity::displayParameterValueOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                                   int32_t yPos, int32_t knobPosLeft,
-                                                                   int32_t knobPosRight) {
+PLACE_SDRAM_TEXT void
+AutomationEditorLayoutNoteVelocity::displayParameterValueOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                              int32_t yPos, int32_t knobPosLeft, int32_t knobPosRight) {
 	if (knobPosRight != kNoSelection) {
 		char bufferLeft[10];
 		bufferLeft[0] = 'L';
@@ -134,10 +131,9 @@ void AutomationEditorLayoutNoteVelocity::displayParameterValueOLED(deluge::hid::
 }
 
 // velocity edit pad action
-void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow,
-                                                               NoteRow* noteRow, InstrumentClip* clip, int32_t x,
-                                                               int32_t y, int32_t velocity, int32_t effectiveLength,
-                                                               SquareInfo& squareInfo) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(
+    ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip, int32_t x, int32_t y,
+    int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo) {
 	// save pad selected
 	getLeftPadSelectedX() = x;
 
@@ -315,13 +311,13 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 }
 
 // convert y of pad press into velocity value between 1 and 127
-int32_t AutomationEditorLayoutNoteVelocity::getVelocityFromY(int32_t y) {
+PLACE_SDRAM_TEXT int32_t AutomationEditorLayoutNoteVelocity::getVelocityFromY(int32_t y) {
 	int32_t velocity = std::clamp<int32_t>(padPressValues[y], 1, 127);
 	return velocity;
 }
 
 // convert velocity of a square into y
-int32_t AutomationEditorLayoutNoteVelocity::getYFromVelocity(int32_t velocity) {
+PLACE_SDRAM_TEXT int32_t AutomationEditorLayoutNoteVelocity::getYFromVelocity(int32_t velocity) {
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (minPadDisplayValues[i] <= velocity && velocity <= maxPadDisplayValues[i]) {
 			return i;
@@ -331,7 +327,8 @@ int32_t AutomationEditorLayoutNoteVelocity::getYFromVelocity(int32_t velocity) {
 }
 
 // add note and set velocity
-void AutomationEditorLayoutNoteVelocity::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutNoteVelocity::addNoteWithNewVelocity(int32_t x, int32_t velocity,
+                                                                                 int32_t newVelocity) {
 	if (velocity) {
 		// we change the instrument default velocity because it is used for new notes
 		getCurrentInstrument()->defaultVelocity = newVelocity;
@@ -343,9 +340,10 @@ void AutomationEditorLayoutNoteVelocity::addNoteWithNewVelocity(int32_t x, int32
 }
 
 // adjust velocity of existing notes
-void AutomationEditorLayoutNoteVelocity::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow,
-                                                            NoteRow* noteRow, int32_t x, int32_t velocity,
-                                                            int32_t newVelocity, uint8_t squareType) {
+PLACE_SDRAM_TEXT void
+AutomationEditorLayoutNoteVelocity::adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+                                                       int32_t x, int32_t velocity, int32_t newVelocity,
+                                                       uint8_t squareType) {
 	if (velocity) {
 		// record pad press
 		recordNoteEditPadAction(x, velocity);
@@ -360,6 +358,7 @@ void AutomationEditorLayoutNoteVelocity::adjustNoteVelocity(ModelStackWithNoteRo
 }
 
 // set velocity of notes within pressed pad square
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                                      int32_t x, int32_t newVelocity) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
@@ -437,9 +436,10 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 }
 
 // set velocity of notes between pressed squares
-void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
-                                                         SquareInfo rowSquareInfo[kDisplayWidth],
-                                                         int32_t velocityIncrement) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow,
+                                                                          NoteRow* noteRow,
+                                                                          SquareInfo rowSquareInfo[kDisplayWidth],
+                                                                          int32_t velocityIncrement) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 	if (!action) {
 		return;

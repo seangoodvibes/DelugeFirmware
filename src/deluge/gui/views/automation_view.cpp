@@ -551,7 +551,7 @@ void AutomationView::openedInBackground() {
 
 	AudioEngine::routineWithClusterLoading();
 
-	AudioEngine::logAction("AutomationView::beginSession 2");
+	// AudioEngine::logAction("AutomationView::beginSession 2");
 
 	if (renderingToStore) {
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
@@ -2653,7 +2653,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 }
 
 // used with SelectEncoderAction to get the next arranger / audio clip / kit affect entire parameter
-void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
+PLACE_SDRAM_TEXT void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 	if (onArrangerView) {
 		auto idx = getNextSelectedParamArrayPosition(offset, currentSong->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
@@ -2714,7 +2714,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 }
 
 // used with SelectEncoderAction to get the next synth or kit non-affect entire param
-void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
+PLACE_SDRAM_TEXT void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 	bool foundPatchCable = false;
 	// if we previously selected a patch cable, we'll see if there are any more to scroll through
 	if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
@@ -2777,6 +2777,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 
 // iterate through the patch cable list to select the previous or next patch cable
 // actual selecting of the patch cable is done in the selectPatchCableAtIndex function
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 	ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
 	if (paramManager) {
@@ -2820,6 +2821,7 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 // if we havent already selected a patch cable, we'll select this one
 // if we selected one previously, we'll see if this one is adjacent to the previous one selected
 // if it's adjacent to the previous one selected, we'll select this one
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
                                              bool& foundCurrentPatchCable) {
 	PatchCable* cable = &set->patchCables[patchCableIndex];
@@ -2849,7 +2851,7 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 }
 
 // used with SelectEncoderAction to get the next midi CC
-void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
+PLACE_SDRAM_TEXT void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (onAutomationOverview()) {
 		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
@@ -2870,8 +2872,9 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 }
 
 // used with SelectEncoderAction to get the next parameter in the list of parameters
-int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
-                                                          int32_t numParams) {
+PLACE_SDRAM_TEXT int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset,
+                                                                           int32_t lastSelectedParamArrayPosition,
+                                                                           int32_t numParams) {
 	int32_t idx;
 	// if you haven't selected a parameter yet, start at the beginning of the list
 	if (onAutomationOverview()) {
@@ -2893,6 +2896,7 @@ int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_
 }
 
 // used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 	bool paramShortcutFound = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -2945,7 +2949,7 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 	}
 }
 
-void AutomationView::getLastSelectedParamArrayPosition(Clip* clip) {
+PLACE_SDRAM_TEXT void AutomationView::getLastSelectedParamArrayPosition(Clip* clip) {
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
@@ -2965,6 +2969,7 @@ void AutomationView::getLastSelectedParamArrayPosition(Clip* clip) {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::getLastSelectedNonGlobalParamArrayPosition(Clip* clip) {
 	for (auto idx = 0; idx < kNumNonGlobalParamsForAutomation; idx++) {
 
@@ -2977,6 +2982,7 @@ void AutomationView::getLastSelectedNonGlobalParamArrayPosition(Clip* clip) {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
 	for (auto idx = 0; idx < kNumGlobalParamsForAutomation; idx++) {
 
@@ -2998,12 +3004,13 @@ void AutomationView::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
 }
 
 // called by melodic_instrument.cpp or kit.cpp
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 	instrumentClipView.noteRowChanged(clip, noteRow);
 }
 
 // called by playback_handler.cpp
-void AutomationView::notifyPlaybackBegun() {
+PLACE_SDRAM_TEXT void AutomationView::notifyPlaybackBegun() {
 	if (!onArrangerView && getCurrentClip()->type != ClipType::AUDIO) {
 		instrumentClipView.reassessAllAuditionStatus();
 	}
@@ -3011,6 +3018,7 @@ void AutomationView::notifyPlaybackBegun() {
 
 // resets the Parameter Selection which sends you back to the Automation Overview screen
 // these values are saved on a clip basis
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::initParameterSelection(bool updateDisplay) {
 	resetShortcutBlinking();
 	initPadSelection();
@@ -3050,6 +3058,7 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 }
 
 // exit pad selection mode, reset pad press statuses
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::initPadSelection() {
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -3062,13 +3071,14 @@ void AutomationView::initPadSelection() {
 	resetPadSelectionShortcutBlinking();
 }
 
-void AutomationView::initInterpolation() {
+PLACE_SDRAM_TEXT void AutomationView::initInterpolation() {
 	interpolationBefore = false;
 	interpolationAfter = false;
 }
 
 // get's the modelstack for the parameters that are being edited
 // the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
                                                                        Clip* clip, int32_t paramID,
                                                                        params::Kind paramKind) {
@@ -3093,21 +3103,23 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 // the knobPos is used for rendering the current parameter values in the automation editor
 // it's also used for obtaining the start and end position values for a multi pad press
 // and also used for increasing/decreasing parameter values with the mod encoders
-int32_t AutomationView::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t squareStart) {
+PLACE_SDRAM_TEXT int32_t AutomationView::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack,
+                                                                       uint32_t squareStart) {
 	return automationEditorLayoutModControllable.getAutomationParameterKnobPos(modelStack, squareStart);
 }
 
 // sets both knob indicators to the same value when pressing single pad,
 // deleting automation, or displaying current parameter value
 // multi pad presses don't use this function
-void AutomationView::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
-                                                      int32_t knobPosRight) {
+PLACE_SDRAM_TEXT void AutomationView::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack,
+                                                                       int32_t knobPosLeft, int32_t knobPosRight) {
 	automationEditorLayoutModControllable.setAutomationKnobIndicatorLevels(modelStack, knobPosLeft, knobPosRight);
 }
 
 // calculates the length of the arrangement timeline, clip or the length of the kit row
 // if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
 // if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
@@ -3130,7 +3142,7 @@ int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelS
 	return effectiveLength;
 }
 
-uint32_t AutomationView::getMaxLength() {
+PLACE_SDRAM_TEXT uint32_t AutomationView::getMaxLength() {
 	if (onArrangerView) {
 		return arrangerView.getMaxLength();
 	}
@@ -3139,7 +3151,7 @@ uint32_t AutomationView::getMaxLength() {
 	}
 }
 
-uint32_t AutomationView::getMaxZoom() {
+PLACE_SDRAM_TEXT uint32_t AutomationView::getMaxZoom() {
 	if (onArrangerView) {
 		return arrangerView.getMaxZoom();
 	}
@@ -3148,6 +3160,7 @@ uint32_t AutomationView::getMaxZoom() {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 int32_t AutomationView::getNavSysId() const {
 	if (onArrangerView) {
 		return NAVIGATION_ARRANGEMENT;
@@ -3161,10 +3174,11 @@ int32_t AutomationView::getNavSysId() const {
 // used to handle pad actions on automation overview
 // used to disable certain actions on the automation overview screen
 // e.g. doubling clip length, editing clip length
-bool AutomationView::onAutomationOverview() {
+PLACE_SDRAM_TEXT bool AutomationView::onAutomationOverview() {
 	return (!inAutomationEditor() && !inNoteEditor());
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::inAutomationEditor() {
 	if (onArrangerView) {
 		if (currentSong->lastSelectedParamID == kNoSelection) {
@@ -3178,7 +3192,7 @@ bool AutomationView::inAutomationEditor() {
 	return true;
 }
 
-void AutomationView::setAutomationParamType() {
+PLACE_SDRAM_TEXT void AutomationView::setAutomationParamType() {
 	automationParamType = AutomationParamType::PER_SOUND;
 	if (!inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
@@ -3191,11 +3205,12 @@ void AutomationView::setAutomationParamType() {
 
 // used to check if we're automating a note row specific param type
 // e.g. velocity, probability, poly expression, etc.
-bool AutomationView::inNoteEditor() {
+PLACE_SDRAM_TEXT bool AutomationView::inNoteEditor() {
 	return (automationParamType != AutomationParamType::PER_SOUND);
 }
 
 // used to determine the affect entire context
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::getAffectEntire() {
 	// arranger view always uses affect entire
 	if (onArrangerView) {
@@ -3217,6 +3232,7 @@ bool AutomationView::getAffectEntire() {
 	return getCurrentInstrumentClip()->affectEntire;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::blinkShortcuts() {
 	if (getCurrentUI() == &automationView) {
 		int32_t lastSelectedParamShortcutX = kNoSelection;
@@ -3268,7 +3284,7 @@ void AutomationView::blinkShortcuts() {
 	}
 }
 
-void AutomationView::resetShortcutBlinking() {
+PLACE_SDRAM_TEXT void AutomationView::resetShortcutBlinking() {
 	soundEditor.resetSourceBlinks();
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
@@ -3279,7 +3295,7 @@ void AutomationView::resetShortcutBlinking() {
 // created this function to undo any existing parameter shortcut blinking so that it doesn't get
 // rendered in automation view also created it so that you can reset blinking when a parameter is
 // deselected or when you enter/exit automation view
-void AutomationView::resetParameterShortcutBlinking() {
+PLACE_SDRAM_TEXT void AutomationView::resetParameterShortcutBlinking() {
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	parameterShortcutBlinking = false;
 }
@@ -3287,23 +3303,24 @@ void AutomationView::resetParameterShortcutBlinking() {
 // created this function to undo any existing interpolation shortcut blinking so that it doesn't get
 // rendered in automation view also created it so that you can reset blinking when interpolation is
 // turned off or when you enter/exit automation view
-void AutomationView::resetInterpolationShortcutBlinking() {
+PLACE_SDRAM_TEXT void AutomationView::resetInterpolationShortcutBlinking() {
 	uiTimerManager.unsetTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK);
 	interpolationShortcutBlinking = false;
 }
 
-void AutomationView::blinkInterpolationShortcut() {
+PLACE_SDRAM_TEXT void AutomationView::blinkInterpolationShortcut() {
 	PadLEDs::flashMainPad(kInterpolationShortcutX, kInterpolationShortcutY);
 	uiTimerManager.setTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK, 3000);
 	interpolationShortcutBlinking = true;
 }
 
 // used to blink waveform shortcut when in pad selection mode
-void AutomationView::resetPadSelectionShortcutBlinking() {
+PLACE_SDRAM_TEXT void AutomationView::resetPadSelectionShortcutBlinking() {
 	uiTimerManager.unsetTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK);
 	padSelectionShortcutBlinking = false;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::blinkPadSelectionShortcut() {
 	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
