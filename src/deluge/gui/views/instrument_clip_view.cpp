@@ -111,8 +111,8 @@ extern "C" {
 
 using namespace deluge::gui;
 
-constexpr uint8_t kVelocityShortcutX = 15;
-constexpr uint8_t kVelocityShortcutY = 1;
+PLACE_SDRAM_RODATA constexpr uint8_t kVelocityShortcutX = 15;
+PLACE_SDRAM_RODATA constexpr uint8_t kVelocityShortcutY = 1;
 
 PLACE_SDRAM_DATA InstrumentClipView instrumentClipView{};
 
