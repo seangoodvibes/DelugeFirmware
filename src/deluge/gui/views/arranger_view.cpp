@@ -92,7 +92,7 @@ using namespace gui;
 
 PLACE_SDRAM_BSS ArrangerView arrangerView{};
 
-ArrangerView::ArrangerView() {
+PLACE_SDRAM_TEXT ArrangerView::ArrangerView() {
 	doingAutoScrollNow = false;
 
 	lastInteractedOutputIndex = 0;

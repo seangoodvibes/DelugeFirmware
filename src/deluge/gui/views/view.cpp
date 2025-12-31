@@ -92,11 +92,11 @@ namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 
-View view{};
+PLACE_SDRAM_BSS View view{};
 
 extern GlobalMIDICommand pendingGlobalMIDICommand;
 
-View::View() {
+PLACE_SDRAM_TEXT View::View() {
 	midiLearnFlashOn = false;
 
 	deleteMidiCommandOnRelease = false;

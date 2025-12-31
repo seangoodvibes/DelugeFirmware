@@ -116,7 +116,7 @@ PLACE_SDRAM_RODATA constexpr uint8_t kVelocityShortcutY = 1;
 
 PLACE_SDRAM_BSS InstrumentClipView instrumentClipView{};
 
-InstrumentClipView::InstrumentClipView() {
+PLACE_SDRAM_TEXT InstrumentClipView::InstrumentClipView() {
 
 	numEditPadPresses = 0;
 

@@ -94,7 +94,7 @@ using namespace gui;
 
 PLACE_SDRAM_BSS SessionView sessionView{};
 
-SessionView::SessionView() {
+PLACE_SDRAM_TEXT SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 	createClip = false;
 }
