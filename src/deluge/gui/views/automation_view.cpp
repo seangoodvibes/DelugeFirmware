@@ -315,7 +315,7 @@ PLACE_SDRAM_RODATA constexpr uint8_t kVelocityShortcutY = 1;
 
 PLACE_SDRAM_BSS AutomationView automationView{};
 
-AutomationView::AutomationView() {
+PLACE_SDRAM_TEXT AutomationView::AutomationView() {
 
 	instrumentClipView.numEditPadPresses = 0;
 
@@ -399,6 +399,7 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 }
 
 // called everytime you open up the automation view
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::opened() {
 	initializeView();
 
@@ -409,6 +410,7 @@ bool AutomationView::opened() {
 	return true;
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::initializeView() {
 	navSysId = getNavSysId();
 
@@ -472,6 +474,7 @@ void AutomationView::initializeView() {
 }
 
 // Initializes some stuff to begin a new editing session
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::focusRegained() {
 	if (onArrangerView) {
 		indicator_leds::setLedState(IndicatorLED::BACK, false);
@@ -532,6 +535,7 @@ void AutomationView::focusRegained() {
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::openedInBackground() {
 	Clip* clip = getCurrentClip();
 
@@ -576,6 +580,7 @@ void AutomationView::openedInBackground() {
 }
 
 // used for the play cursor
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::graphicsRoutine() {
 	if (onArrangerView) {
 		arrangerView.graphicsRoutine();
@@ -599,6 +604,7 @@ void AutomationView::graphicsRoutine() {
 
 // used to return whether Automation View is in the AUTOMATION_ARRANGER_VIEW UI Type, AUTOMATION_INSTRUMENT_CLIP_VIEW or
 // AUTOMATION_AUDIO_CLIP_VIEW UI Type
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 UIType AutomationView::getUIContextType() {
 	if (onArrangerView) {
 		return UIType::ARRANGER;
@@ -614,6 +620,7 @@ UIType AutomationView::getUIContextType() {
 }
 
 // rendering
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
 	bool doRefreshGrid = false;
 	if (clip && !automationView.onArrangerView) {
@@ -636,6 +643,7 @@ bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kin
 // called whenever you call uiNeedsRendering(&automationView) somewhere else
 // used to render automation overview, automation editor
 // used to setup the shortcut blinking
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
@@ -670,6 +678,7 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 }
 
 // determines whether you should render the automation editor, automation overview or just render some love <3
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],
                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
                                          uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
@@ -765,6 +774,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 }
 
 // renders automation overview
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                               ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
                                               OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -897,6 +907,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 }
 
 // occupancyMask now optional
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
                                          RGB image[][kDisplayWidth + kSideBarWidth],
                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
@@ -931,6 +942,7 @@ void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_
 
 // defers to arranger, audio clip or instrument clip sidebar render functions
 // depending on the active clip
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (onArrangerView) {
@@ -961,6 +973,7 @@ This function replaces the two functions that were previously called:
 DisplayParameterValue
 DisplayParameterName */
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	// don't refresh display if we're not current in the automation view UI
 	// (e.g. if you're editing automation while in the menu)
@@ -1002,6 +1015,7 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft,
                                        int32_t knobPosRight) {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
@@ -1024,6 +1038,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, Output* output, OutputType ou
 	deluge::hid::display::OLED::markChanged();
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD (maybe l10n strings?)
 void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
                                                          Output* output, OutputType outputType) {
 	// align string to vertically to the centre of the display
@@ -1045,6 +1060,7 @@ void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::o
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::renderDisplay7SEG(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft,
                                        bool modEncoderAction) {
 	// display OVERVIEW
@@ -1062,6 +1078,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, Output* output, OutputType ou
 	}
 }
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD (maybe l10n strings?)
 void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType) {
 	char const* overviewText;
 	if (!onArrangerView && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
@@ -1079,6 +1096,7 @@ void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputT
 Also used internally in the automation instrument clip view for updating the display and led
 indicators.*/
 
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 	if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1131,7 +1149,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 }
 
 // button action
-
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1291,7 +1309,7 @@ passToOthers:
 }
 
 // called by button action if b == SESSION_VIEW
-void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	// if shift is pressed, go back to automation overview
 	if (on && Buttons::isShiftButtonPressed()) {
 		initParameterSelection();
@@ -1317,7 +1335,7 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 }
 
 // called by button action if b == KEYBOARD
-void AutomationView::handleKeyboardButtonAction(bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleKeyboardButtonAction(bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
 			initPadSelection();
@@ -1330,7 +1348,7 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 }
 
 // called by button action if b == CLIP_VIEW
-void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
+PLACE_SDRAM_TEXT void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	// if audition pad or shift is pressed, go back to automation overview
 	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
 		initParameterSelection();
@@ -1353,7 +1371,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 }
 
 // call by button action if b == CROSS_SCREEN_EDIT
-void AutomationView::handleCrossScreenButtonAction(bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleCrossScreenButtonAction(bool on) {
 	if (!on && currentUIMode == UI_MODE_NONE) {
 		// if another button wasn't pressed while cross screen was held
 		if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
@@ -1402,7 +1420,7 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 }
 
 // called by button action if b == KIT
-void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		// if you're going to create a new instrument or change output type,
 		// reset selection
@@ -1414,7 +1432,7 @@ void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 }
 
 // called by button action if b == SYNTH
-void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		// if you're going to create a new instrument or change output type,
 		// reset selection
@@ -1426,7 +1444,7 @@ void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 }
 
 // called by button action if b == MIDI
-void AutomationView::handleMidiButtonAction(OutputType outputType, bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleMidiButtonAction(OutputType outputType, bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		// if you're going to change output type,
 		// reset selection
@@ -1438,7 +1456,7 @@ void AutomationView::handleMidiButtonAction(OutputType outputType, bool on) {
 }
 
 // called by button action if b == CV
-void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		// if you're going to change output type,
 		// reset selection
@@ -1449,7 +1467,7 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 	}
 }
 // called by button action if b == X_ENC
-bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
+PLACE_SDRAM_TEXT bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
 	// copy / paste automation (same shortcut used for notes)
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 		if (inAutomationEditor()) {
@@ -1533,7 +1551,7 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 }
 
 // called by button action if b == back and UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
-bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on) {
+PLACE_SDRAM_TEXT bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on) {
 	// only allow clearing of a clip if you're on the automation overview
 	if (on && onAutomationOverview()) {
 		if (clip->type == ClipType::AUDIO || onArrangerView) {
@@ -1615,7 +1633,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 }
 
 // handle by button action if b == Y_ENC
-void AutomationView::handleVerticalEncoderButtonAction(bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 	if (on) {
 		if (inNoteEditor()) {
 			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
@@ -1639,7 +1657,7 @@ void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 }
 
 // called by button action if b == SELECT_ENC and shift button is not pressed
-void AutomationView::handleSelectEncoderButtonAction(bool on) {
+PLACE_SDRAM_TEXT void AutomationView::handleSelectEncoderButtonAction(bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		initParameterSelection();
 		uiNeedsRendering(&automationView);
@@ -1664,6 +1682,7 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 // pad action
 // handles shortcut pad action for automation (e.g. when you press shift + pad on the grid)
 // everything else is pretty much the same as instrument clip view
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1760,11 +1779,12 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 }
 
 // called by pad action when pressing a pad in the main grid (x < kDisplayWidth)
-ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam,
-                                                 ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
-                                                 Clip* clip, Output* output, OutputType outputType,
-                                                 int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
-                                                 SquareInfo& squareInfo) {
+PLACE_SDRAM_TEXT ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam,
+                                                                  ModelStackWithNoteRow* modelStackWithNoteRow,
+                                                                  NoteRow* noteRow, Clip* clip, Output* output,
+                                                                  OutputType outputType, int32_t effectiveLength,
+                                                                  int32_t x, int32_t y, int32_t velocity,
+                                                                  SquareInfo& squareInfo) {
 
 	if (onArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return ActionResult::DEALT_WITH;
@@ -1803,9 +1823,10 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 /// 2) select parameter on automation overview
 /// 3) select parameter using shift + shortcut pad
 /// 4) select parameter using audition + shortcut pad
-bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
-                                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y,
-                                       int32_t velocity, int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo) {
+PLACE_SDRAM_TEXT bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                                        Output* output, OutputType outputType, int32_t effectiveLength,
+                                                        int32_t x, int32_t y, int32_t velocity, int32_t xScroll,
+                                                        int32_t xZoom, SquareInfo& squareInfo) {
 	if (velocity) {
 		bool shortcutPress = false;
 		if (Buttons::isShiftButtonPressed()
@@ -1854,8 +1875,8 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 
 // called by shortcutPadAction when it is determined that you are selecting a parameter on automation
 // overview or by using a grid shortcut combo
-void AutomationView::handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
-                                              int32_t yDisplay) {
+PLACE_SDRAM_TEXT void AutomationView::handleParameterSelection(Clip* clip, Output* output, OutputType outputType,
+                                                               int32_t xDisplay, int32_t yDisplay) {
 	// PatchSource::Velocity shortcut
 	// Enter Velocity Note Editor
 	if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
@@ -1999,9 +2020,9 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 }
 
 // called by pad action when pressing a pad in the mute column (x = kDisplayWidth)
-ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType,
-                                                 int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult AutomationView::handleMutePadAction(
+    ModelStackWithTimelineCounter* modelStackWithTimelineCounter, InstrumentClip* instrumentClip, Output* output,
+    OutputType outputType, int32_t y, int32_t velocity) {
 	if (onArrangerView) {
 		return arrangerView.handleStatusPadAction(y, velocity, &automationView);
 	}
@@ -2036,8 +2057,9 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 }
 
 // called by pad action when pressing a pad in the audition column (x = kDisplayWidth + 1)
-ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output,
-                                                     OutputType outputType, int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output,
+                                                                      OutputType outputType, int32_t y,
+                                                                      int32_t velocity) {
 	if (onArrangerView) {
 		if (onAutomationOverview()) {
 			return arrangerView.handleAuditionPadAction(y, velocity, &automationView);
@@ -2072,8 +2094,9 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 
 // audition pad action
 // not used with Audio Clip Automation View or Arranger Automation View
-ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType,
-                                               int32_t yDisplay, int32_t velocity, bool shiftButtonDown) {
+PLACE_SDRAM_TEXT ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* output,
+                                                                OutputType outputType, int32_t yDisplay,
+                                                                int32_t velocity, bool shiftButtonDown) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
 	}
@@ -2197,7 +2220,7 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 // adjust clip length
 // shift automations left / right
 // adjust velocity in note editor
-ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
@@ -2300,6 +2323,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 // new function created for automation instrument clip view to shift automations of the selected
 // parameter previously users only had the option to shift ALL automations together as part of community
 // feature i disabled automation shifting in the regular instrument clip view
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
                                                  int32_t effectiveLength) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -2312,6 +2336,7 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 // vertical encoder action
 // no change compared to instrument clip view version
 // not used with Audio Clip Automation View
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -2385,6 +2410,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 /// if we're entering note editor, we want the selected drum to be visible and in sync with lastAuditionedYDisplay
 /// so we'll check if the yDisplay of the selectedDrum is in sync with the lastAuditionedYDisplay
 /// if they're not in sync, we'll sync them up by performing a vertical scroll
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output) {
 	int32_t noteRowIndex;
 	Drum* selectedDrum = ((Kit*)output)->selectedDrum;
@@ -2409,6 +2435,7 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 
 // used to change the value of a step when you press and hold a pad on the timeline
 // used to record live automations in
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2465,6 +2492,7 @@ followOnAction:
 }
 
 // used to copy paste automation or to delete automation of the current selected parameter
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	Clip* clip = getCurrentClip();
@@ -2549,6 +2577,7 @@ followOnAction: // it will come here when you are on the automation overview / i
 // used to change the parameter selection and reset shortcut pad settings so that new pad can be blinked
 // once parameter is selected
 // used to fine tune the values of non-midi parameters
+// note: can't place this function in PLACE_SDRAM_TEXT - reason: TBD
 void AutomationView::selectEncoderAction(int8_t offset) {
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
