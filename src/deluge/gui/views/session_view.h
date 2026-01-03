@@ -66,7 +66,8 @@ public:
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void graphicsRoutine();
+	void graphicsRoutine() override;
+	void potentiallyUpdateCompressorLEDs();
 	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
 	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
