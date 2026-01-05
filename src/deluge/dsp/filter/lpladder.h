@@ -28,8 +28,8 @@ public:
 	LpLadderFilter() = default;
 	// returns a compensatory gain value
 	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain);
-	void doFilter(std::span<q31_t> buffer);
-	void doFilterStereo(StereoBuffer<q31_t> buffer);
+	void doFilter(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt);
+	void doFilterStereo(q31_t* startSample, q31_t* endSample);
 	void resetFilter() {
 		l.reset();
 		r.reset();
@@ -42,7 +42,6 @@ private:
 		BasicFilterComponent lpfLPF2;
 		BasicFilterComponent lpfLPF3;
 		BasicFilterComponent lpfLPF4;
-
 		void reset() {
 			lpfLPF1.reset();
 			lpfLPF2.reset();
@@ -50,8 +49,7 @@ private:
 			lpfLPF4.reset();
 		}
 	};
-
-	[[gnu::always_inline]] q31_t scaleInput(q31_t input, q31_t feedbacksSum) {
+	[[gnu::always_inline]] inline q31_t scaleInput(q31_t input, q31_t feedbacksSum) {
 		q31_t temp;
 		if (morph > 0 || processedResonance > 510000000) {
 			temp = multiply_32x32_rshift32_rounded(
@@ -70,7 +68,6 @@ private:
 
 		return temp;
 	}
-
 	[[gnu::always_inline]] inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state);
 	[[gnu::always_inline]] inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state);
 	[[gnu::always_inline]] inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state);

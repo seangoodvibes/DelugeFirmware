@@ -1498,14 +1498,13 @@ skipUnisonPart: {}
 	}
 
 	if (didStereoTempBuffer) {
-		std::span stereo_osc_buffer{reinterpret_cast<dsp::StereoSample<q31_t>*>(oscBuffer),
-		                            static_cast<size_t>(numSamples)};
+		int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 		// fold
 		if (paramFinalValues[params::LOCAL_FOLD] > 0) {
-			dsp::foldBufferPolyApproximation(stereo_osc_buffer, paramFinalValues[params::LOCAL_FOLD]);
+			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_FOLD]);
 		}
 		// Filters
-		filterSet.renderLongStereo(stereo_osc_buffer);
+		filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
 		// No clipping
 		if (!sound.clippingAmount) {
@@ -1580,17 +1579,15 @@ skipUnisonPart: {}
 		oscBufferPos = oscBuffer;
 		*/
 
-		// cast to unsigned to avoid narrowing-warnings from span{} below.
-		auto n = static_cast<uint32_t>(numSamples);
-
+		int32_t* const oscBufferEnd = oscBuffer + numSamples;
 		// wavefolding pre filter
 		if (paramFinalValues[params::LOCAL_FOLD] > 0) {
 			q31_t foldAmount = paramFinalValues[params::LOCAL_FOLD];
 
-			dsp::foldBufferPolyApproximation(std::span{oscBuffer, n}, foldAmount);
+			dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
 		}
 
-		filterSet.renderLong(std::span{oscBuffer, n});
+		filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 		// No clipping
 		if (!sound.clippingAmount) {
