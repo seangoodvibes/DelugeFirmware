@@ -383,14 +383,32 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween, bool useYield)
 	if (!routineBeenCalled) {
 		bypassCulling = true; // yolo?
 
-		if (useYield) {
-			logAction("RWCL: yieldToAudio()");
-			yieldToAudio();
+		/*	if (useYield) {
+		        logAction("RWCL: yieldToAudio()");
+		        yieldToAudio();
+		    }
+		    else if (!audioRoutineLocked) {
+		        logAction("RWCL: routine_task()");
+		        // Sean: replace AudioEngine::routine() call with call to run AudioEngine::routine() task
+		        if (AudioEngine::routine_task_id != -1) {
+		            runTask(AudioEngine::routine_task_id);
+		        }
+		        else {
+		            AudioEngine::routine();
+		        }
+		    }
+		*/
+		//	if (!audioRoutineLocked) {
+		if (AudioEngine::routine_task_id != -1) {
+			runTask(AudioEngine::routine_task_id);
 		}
 		else {
-			logAction("RWCL: routine()");
-			routine();
+			AudioEngine::routine();
 		}
+		//	}
+		//	else {
+		//		yield([]() { return (AudioEngine::routineBeenCalled); });
+		//	}
 	}
 }
 
