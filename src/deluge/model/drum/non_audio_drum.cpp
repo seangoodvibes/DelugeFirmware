@@ -24,7 +24,7 @@
 #include "util/functions.h"
 
 void NonAudioDrum::killAllVoices() {
-	if (hasActiveVoices()) {
+	if (hasAnyVoices()) {
 		noteOff(nullptr);
 	}
 	arpeggiator.reset();

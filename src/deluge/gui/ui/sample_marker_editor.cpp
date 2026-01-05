@@ -39,6 +39,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_vector.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -1011,22 +1012,32 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 	// InstrumentClips / Samples
 	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-		if (soundEditor.currentSound->hasActiveVoices()) {
-			auto valid_voices_view =
-			    soundEditor.currentSound->voices() | std::views::filter([](const Sound::ActiveVoice& voice) {
-				    // Ensure correct MultisampleRange.
-				    return voice->guides[soundEditor.currentSourceIndex].audioFileHolder
-				           == soundEditor.currentMultiRange->getAudioFileHolder();
-			    });
 
-			if (!valid_voices_view.empty()) {
-				auto& assigned_voice = *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
+		if (soundEditor.currentSound->hasAnyVoices()) {
+			Voice* assignedVoice = nullptr;
 
-				VoiceUnisonPartSource* part = &assigned_voice->unisonParts[soundEditor.currentSound->numUnison >> 1]
+			int32_t ends[2];
+			AudioEngine::activeVoices.getRangeForSound(soundEditor.currentSound, ends);
+			for (int32_t v = ends[0]; v < ends[1]; v++) {
+				Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+
+				// Ensure correct MultisampleRange.
+				if (thisVoice->guides[soundEditor.currentSourceIndex].audioFileHolder
+				    != soundEditor.currentMultiRange->getAudioFileHolder()) {
+					continue;
+				}
+
+				if (!assignedVoice || thisVoice->orderSounded > assignedVoice->orderSounded) {
+					assignedVoice = thisVoice;
+				}
+			}
+
+			if (assignedVoice) {
+				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[soundEditor.currentSound->numUnison >> 1]
 				                                   .sources[soundEditor.currentSourceIndex];
-				if (part != nullptr && part->active) {
+				if (part && part->active) {
 					voiceSample = part->voiceSample;
-					guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
+					guide = &assignedVoice->guides[soundEditor.currentSourceIndex];
 				}
 			}
 		}

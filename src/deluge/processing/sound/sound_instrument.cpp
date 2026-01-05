@@ -24,6 +24,7 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
+#include "model/voice/voice_vector.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -331,13 +332,19 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
-	for (const auto& voice : this->voices()) {
-		if (voice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+
+	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
+
+	int32_t ends[2];
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+		if (thisVoice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			if (expressionValueChangesMustBeDoneSmoothly) {
-				voice->expressionEventSmooth(newValue, s);
+				thisVoice->expressionEventSmooth(newValue, s);
 			}
 			else {
-				voice->expressionEventImmediate(*this, newValue, s);
+				thisVoice->expressionEventImmediate(*this, newValue, s);
 			}
 		}
 	}
@@ -496,15 +503,18 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 		return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 	}
 
-	if (!hasActiveVoices()) {
+	if (!numVoicesAssigned) {
 		return false;
 	}
 
-	for (const auto& voice : this->voices()) {
-		if ((voice->noteCodeAfterArpeggiation == noteCode)
-		    && voice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
+	int32_t ends[2];
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+		if ((thisVoice->noteCodeAfterArpeggiation == noteCode)
+		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
 			if (resetTimeEntered) {
-				voice->envelopes[0].resetTimeEntered();
+				thisVoice->envelopes[0].resetTimeEntered();
 			}
 			return true;
 		}

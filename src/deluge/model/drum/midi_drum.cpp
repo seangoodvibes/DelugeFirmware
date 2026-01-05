@@ -75,7 +75,7 @@ void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 }
 
 void MIDIDrum::killAllVoices() {
-	if (hasActiveVoices()) {
+	if (hasAnyVoices()) {
 		noteOff(nullptr);
 	}
 	arpeggiator.reset();

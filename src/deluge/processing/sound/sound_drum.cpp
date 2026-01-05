@@ -26,6 +26,7 @@
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
+#include "model/voice/voice_vector.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -51,8 +52,11 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 void SoundDrum::resetTimeEnteredState() {
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
-	for (const ActiveVoice& voice : this->voices()) {
-		voice->envelopes[0].resetTimeEntered();
+	int32_t ends[2];
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+		thisVoice->envelopes[0].resetTimeEntered();
 	}
 }
 
@@ -75,15 +79,20 @@ void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloc
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
+
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
-	for (const ActiveVoice& voice : this->voices()) {
+
+	int32_t ends[2];
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if (expressionValueChangesMustBeDoneSmoothly) {
-			voice->expressionEventSmooth(newValue, s);
+			thisVoice->expressionEventSmooth(newValue, s);
 		}
 		else {
-			voice->expressionEventImmediate(*this, newValue, s);
+			thisVoice->expressionEventImmediate(*this, newValue, s);
 		}
 	}
 

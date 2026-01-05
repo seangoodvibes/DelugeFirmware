@@ -23,7 +23,6 @@
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
-#include "util/containers.h"
 #include <cstdint>
 #include <memory>
 
@@ -145,6 +144,10 @@ void init();
 void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
 void stopAnyPreviewing();
 
+Voice* solicitVoice(Sound* forSound);
+void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = nullptr,
+                   bool removeFromVector = true, bool shouldDispose = true);
+
 void songSwapAboutToHappen();
 void killAllVoices(bool deletingSong = false);
 void logAction(char const* string);
@@ -201,7 +204,7 @@ extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;
-extern deluge::fast_vector<Sound*> sounds;
+extern VoiceVector activeVoices;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;

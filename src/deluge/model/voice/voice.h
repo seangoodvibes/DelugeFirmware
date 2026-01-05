@@ -26,16 +26,14 @@
 #include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
 #include <bitset>
-#include <compare>
-#include <memory>
 
 class StereoSample;
 class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
 public:
-	Voice(Sound& sound);
-	~Voice() { setAsUnassigned(nullptr); }
+	Voice();
+
 	Patcher patcher;
 
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
@@ -45,7 +43,7 @@ public:
 	// this Voice right now.
 	std::array<VoiceSamplePlaybackGuide, kNumSources> guides;
 
-	Sound& sound; // This is a reference to the Sound that owns this Voice
+	Sound* assignedToSound;
 
 	///
 	/// This is just for the *local* params, specific to this Voice only
@@ -108,7 +106,7 @@ public:
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
 	bool hasReleaseStage();
 	void unassignStuff(bool deletingSong);
-	[[nodiscard]] uint32_t getPriorityRating() const;
+	uint32_t getPriorityRating();
 	void expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue, int32_t s);
 	void expressionEventSmooth(int32_t newValue, int32_t s);
 
@@ -124,11 +122,6 @@ public:
 
 	bool speedUpRelease();
 	bool shouldBeDeleted() { return delete_this_voice_; }
-
-	// This compares based on the priority of two voices
-	[[nodiscard]] std::strong_ordering operator<=>(const Voice& other) const {
-		return this->getPriorityRating() <=> other.getPriorityRating();
-	}
 
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t

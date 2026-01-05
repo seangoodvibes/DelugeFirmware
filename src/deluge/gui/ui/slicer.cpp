@@ -37,6 +37,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_vector.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -45,8 +46,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
-#include <algorithm>
-#include <cstring>
+#include <string.h>
 
 using namespace deluge::gui;
 
@@ -166,26 +166,40 @@ void Slicer::graphicsRoutine() {
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-	if (getCurrentClip()->type == ClipType::INSTRUMENT && drum->hasActiveVoices()) {
-		range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
+	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 
-		auto valid_voices_view = drum->voices() | std::views::filter([&](const Sound::ActiveVoice& voice) {
-			                         // Ensure correct MultisampleRange.
-			                         return voice->guides[0].audioFileHolder == range->getAudioFileHolder();
-		                         });
+		if (drum->hasAnyVoices()) {
 
-		if (!valid_voices_view.empty()) {
-			const Sound::ActiveVoice& voice = *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
+			Voice* assignedVoice = nullptr;
 
-			VoiceUnisonPartSource* part = &voice->unisonParts[drum->numUnison >> 1].sources[0];
-			if (part != nullptr && part->active) {
-				voiceSample = part->voiceSample;
-				guide = &voice->guides[soundEditor.currentSourceIndex];
+			range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
+
+			int32_t ends[2];
+			AudioEngine::activeVoices.getRangeForSound(drum, ends);
+			for (int32_t v = ends[0]; v < ends[1]; v++) {
+				Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+
+				// Ensure correct MultisampleRange.
+				if (thisVoice->guides[0].audioFileHolder != range->getAudioFileHolder()) {
+					continue;
+				}
+
+				if (!assignedVoice || thisVoice->orderSounded > assignedVoice->orderSounded) {
+					assignedVoice = thisVoice;
+				}
+			}
+
+			if (assignedVoice) {
+				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[drum->numUnison >> 1].sources[0];
+				if (part && part->active) {
+					voiceSample = part->voiceSample;
+					guide = &assignedVoice->guides[soundEditor.currentSourceIndex];
+				}
 			}
 		}
 	}
 
-	if (voiceSample != nullptr) {
+	if (voiceSample) {
 		int32_t samplePos = voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
 		if (samplePos >= waveformBasicNavigator.xScroll) {
 			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
@@ -506,26 +520,34 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			Kit* kit = getCurrentKit();
 			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-			if (getCurrentClip()->type == ClipType::INSTRUMENT && drum->hasActiveVoices()) {
-				auto valid_voices_view = drum->voices() | std::views::filter([&](const Sound::ActiveVoice& voice) {
-					                         // Ensure correct MultisampleRange.
-					                         return voice->guides[0].audioFileHolder == range->getAudioFileHolder();
-				                         });
+			if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+				if (drum->hasAnyVoices()) {
+					Voice* assignedVoice = nullptr;
 
-				range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
+					range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 
-				if (!valid_voices_view.empty()) {
-					const Sound::ActiveVoice& assigned_voice =
-					    *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
-
-					VoiceUnisonPartSource* part = &assigned_voice->unisonParts[drum->numUnison >> 1].sources[0];
-					if (part != nullptr && part->active) {
-						voiceSample = part->voiceSample;
-						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
+					int32_t ends[2];
+					AudioEngine::activeVoices.getRangeForSound(drum, ends);
+					for (int32_t v = ends[0]; v < ends[1]; v++) {
+						Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+						// Ensure correct MultisampleRange.
+						if (thisVoice->guides[0].audioFileHolder != range->getAudioFileHolder()) {
+							continue;
+						}
+						if (!assignedVoice || thisVoice->orderSounded > assignedVoice->orderSounded) {
+							assignedVoice = thisVoice;
+						}
+					}
+					if (assignedVoice) {
+						VoiceUnisonPartSource* part = &assignedVoice->unisonParts[drum->numUnison >> 1].sources[0];
+						if (part && part->active) {
+							voiceSample = part->voiceSample;
+							guide = &assignedVoice->guides[soundEditor.currentSourceIndex];
+						}
 					}
 				}
 			}
-			if (voiceSample != nullptr) {
+			if (voiceSample) {
 				int32_t samplePos = voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
 				if (samplePos < waveformBasicNavigator.sample->lengthInSamples && numManualSlice < MAX_MANUAL_SLICES) {
 					manualSlicePoints[numManualSlice].startPos = samplePos;

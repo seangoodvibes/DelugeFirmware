@@ -35,7 +35,7 @@ public:
 
 	using Sound::allowNoteTails;
 	using Sound::anyNoteIsOn;
-	using Sound::hasActiveVoices;
+	using Sound::hasAnyVoices;
 	using Sound::prepareForHibernation;
 	void killAllVoices() override;
 
