@@ -785,8 +785,8 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
-[[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
-	filterSet.renderLongStereo(&buffer.data()->l, &(buffer.data() + buffer.size())->l);
+[[gnu::hot]] void GlobalEffectable::processFilters(deluge::dsp::StereoBuffer<q31_t> buffer) {
+	filterSet.renderLongStereo(buffer);
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
