@@ -1608,8 +1608,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                           return isSourceActiveCurrently(s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
-			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
-			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
+			    || (voice->envelopes[0].state == EnvelopeStage::RELEASE && !voice->doFastRelease());
 
 			if (needs_unassign) {
 				if (voiceToReuse != nullptr) {
