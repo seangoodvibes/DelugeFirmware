@@ -45,6 +45,7 @@ class Clip;
 class GlobalEffectableForClip;
 class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
+class ModelStackWithVoice;
 class ModelStackWithModControllable;
 
 #define PARAM_LPF_OFF (-1)
@@ -200,7 +201,7 @@ public:
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings,
 	                 const char* pathAttribute = NULL);
 
-	void voiceUnassigned(ModelStackWithSoundFlags* modelStack);
+	void voiceUnassigned(ModelStackWithVoice* modelStack);
 	bool isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager);
 	bool isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager);
 	bool isSourceActiveEver(int32_t s, ParamManager* paramManager);
