@@ -1,15 +1,16 @@
 #include "interpolate.h"
 #include "definitions_cxx.hpp"
+#include "deluge/dsp/stereo_sample.h"
 #include <argon.hpp>
 #include <cstdint>
 #include <limits>
 
 namespace deluge::dsp {
-StereoSample<q31_t> Interpolator::interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos) {
+StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos) {
 	constexpr size_t numBitsInTableSize = 8;
 	constexpr size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
 
-	StereoSample<q31_t> output;
+	StereoSample output;
 
 	uint32_t rshifted;
 	if constexpr (rshiftAmount >= 0) {
@@ -66,8 +67,8 @@ StereoSample<q31_t> Interpolator::interpolate(size_t channels, int32_t whichKern
 	return output;
 }
 
-StereoSample<q31_t> Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
-	StereoSample<q31_t> output;
+StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
+	StereoSample output;
 	int16_t strength2 = phase >> 9;
 	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
 

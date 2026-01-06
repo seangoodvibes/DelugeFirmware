@@ -20,7 +20,7 @@
 
 namespace deluge::dsp::filter {
 
-std::array<StereoSample<q31_t>, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
+q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate stereo samples
 
 [[gnu::hot]] void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (HPFOn) {
@@ -43,29 +43,29 @@ std::array<StereoSample<q31_t>, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 	}
 }
 
-[[gnu::hot]] void FilterSet::renderHPFLongStereo(StereoBuffer<q31_t> buffer) {
-	if (!HPFOn) [[unlikely]] {
-		return;
-	}
-	if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
-		hpfilter.svf.filterStereo(buffer);
-	}
-	else if (hpfMode_ == FilterMode::HPLADDER) {
-		hpfilter.ladder.filterStereo(buffer);
+[[gnu::hot]] void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+	if (LPFOn) {
+		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
+			lpfilter.svf.filterMono(startSample, endSample, sampleIncrement);
+		}
+		else {
+			lpfilter.ladder.filterMono(startSample, endSample, sampleIncrement);
+		}
 	}
 }
 
-[[gnu::hot]] void FilterSet::renderLPFLongStereo(StereoBuffer<q31_t> buffer) {
-	if (!LPFOn) {
-		return;
-	}
-	if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
-		lpfilter.svf.filterStereo(buffer);
-		return;
-	}
-	lpfilter.ladder.filterStereo(buffer);
-}
+[[gnu::hot]] void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample) {
+	if (LPFOn) {
+		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 
+			lpfilter.svf.filterStereo(startSample, endSample);
+		}
+		else {
+
+			lpfilter.ladder.filterStereo(startSample, endSample);
+		}
+	}
+}
 [[gnu::hot]] void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples,
                                         int32_t sampleIncrememt) {
 	switch (routing_) {
@@ -98,7 +98,7 @@ std::array<StereoSample<q31_t>, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 	}
 }
 // expects to receive an interleaved stereo stream
-[[gnu::hot]] void FilterSet::renderLongStereo(StereoBuffer<q31_t> buffer) {
+[[gnu::hot]] void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
 	// Do HPF, if it's on
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:

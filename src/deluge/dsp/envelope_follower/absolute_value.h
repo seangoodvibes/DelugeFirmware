@@ -17,12 +17,10 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "dsp_ng/core/types.hpp"
+#include "dsp/stereo_sample.h"
 #include <cmath>
 #include <span>
 
-namespace deluge::dsp {
 class AbsValueFollower {
 public:
 	AbsValueFollower() = default;
@@ -57,7 +55,7 @@ public:
 		return releaseMS;
 	};
 
-	StereoSample<float> calcApproxRMS(StereoBuffer<q31_t> buffer);
+	StereoFloatSample calcApproxRMS(std::span<StereoSample> buffer);
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);
@@ -81,4 +79,3 @@ private:
 	q31_t attackKnobPos{0};
 	q31_t releaseKnobPos{0};
 };
-} // namespace deluge::dsp

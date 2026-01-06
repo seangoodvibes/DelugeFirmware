@@ -2423,8 +2423,7 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-void Song::renderAudio(deluge::dsp::StereoBuffer<q31_t> outputBuffer, int32_t* reverbBuffer,
-                       int32_t sideChainHitPending) {
+void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	int32_t volumePostFX =
@@ -2474,7 +2473,7 @@ void Song::renderAudio(deluge::dsp::StereoBuffer<q31_t> outputBuffer, int32_t* r
 	}
 	AudioEngine::logAction("done recorders");
 
-	deluge::dsp::Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
+	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =

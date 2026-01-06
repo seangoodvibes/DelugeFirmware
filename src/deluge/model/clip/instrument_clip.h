@@ -30,6 +30,7 @@ class InstrumentClip;
 class Instrument;
 class ModControllable;
 class Drum;
+class StereoSample;
 class ParamManagerForTimeline;
 class Sound;
 class Note;

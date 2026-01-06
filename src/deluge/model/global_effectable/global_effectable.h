@@ -36,11 +36,10 @@ public:
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) override;
 	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
-	void processFilters(deluge::dsp::StereoBuffer<q31_t> buffer);
+	void processFilters(std::span<StereoSample> buffer);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
-	void processFXForGlobalEffectable(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* postFXVolume,
-	                                  ParamManager* paramManager, const deluge::dsp::Delay::State& delayWorkingState,
-	                                  bool anySoundComingIn, q31_t verbAmount);
+	void processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager,
+	                                  const Delay::State& delayWorkingState, bool anySoundComingIn, q31_t verbAmount);
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
@@ -54,8 +53,8 @@ public:
 	                               int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	deluge::dsp::Delay::State createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback = false,
-	                                                  bool soundComingIn = true);
+	Delay::State createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback = false,
+	                                     bool soundComingIn = true);
 	bool isEditingComp() override { return editingComp; }
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,

@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge/dsp/granular/GranularProcessor.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
-#include "dsp_ng/core/types.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -149,10 +149,9 @@ bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 	return (unpatchedParams->getValue(params::UNPATCHED_TREBLE) != 0);
 }
 
-void ModControllableAudio::processFX(deluge::dsp::StereoBuffer<q31_t> buffer, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, const deluge::dsp::Delay::State& delayWorkingState,
-                                     int32_t* postFXVolume, ParamManager* paramManager, bool anySoundComingIn,
-                                     q31_t reverbSendAmount) {
+void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
+                                     int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
+                                     ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -187,7 +186,7 @@ void ModControllableAudio::processFX(deluge::dsp::StereoBuffer<q31_t> buffer, Mo
 			trebleFreq = getExp(700000000, (unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
 		}
 
-		for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
+		for (StereoSample& sample : buffer) {
 			doEQ(thisDoBass, thisDoTreble, &sample.l, &sample.r, bassAmount, trebleAmount);
 		}
 	}
@@ -195,8 +194,8 @@ void ModControllableAudio::processFX(deluge::dsp::StereoBuffer<q31_t> buffer, Mo
 	// Delay ----------------------------------------------------------------------------------
 	delay.process(buffer, delayWorkingState);
 }
-void ModControllableAudio::processGrainFX(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t modFXRate,
-                                          int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
+                                          int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
                                           bool anySoundComingIn, q31_t verbAmount) {
 	// this shouldn't be possible but just in case
 	if (anySoundComingIn && !grainFX) [[unlikely]] {
@@ -212,7 +211,7 @@ void ModControllableAudio::processGrainFX(deluge::dsp::StereoBuffer<q31_t> buffe
 	}
 }
 
-void ModControllableAudio::processReverbSendAndVolume(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* reverbBuffer,
+void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
                                                       int32_t reverbSendAmount, int32_t pan,
                                                       bool doAmplitudeIncrement) {
@@ -244,7 +243,7 @@ void ModControllableAudio::processReverbSendAndVolume(deluge::dsp::StereoBuffer<
 		amplitudeIncrementR = multiply_32x32_rshift32(amplitudeIncrementR, amplitudeR) << 2;
 	}
 
-	for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
+	for (StereoSample& sample : buffer) {
 		// Send to reverb
 		if (reverbSendAmount != 0) {
 			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
@@ -277,7 +276,7 @@ bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
 	return (unpatchedParams->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) != -2147483648);
 }
 
-void ModControllableAudio::processSRRAndBitcrushing(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* postFXVolume,
+void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager) {
 	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
 
@@ -294,7 +293,7 @@ void ModControllableAudio::processSRRAndBitcrushing(deluge::dsp::StereoBuffer<q3
 		// If not also doing SRR
 		if (!srrEnabled) {
 			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
-			for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
+			for (StereoSample& sample : buffer) {
 				sample.l &= mask;
 				sample.r &= mask;
 			}
@@ -325,7 +324,7 @@ void ModControllableAudio::processSRRAndBitcrushing(deluge::dsp::StereoBuffer<q3
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
 		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
 
-		for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
+		for (StereoSample& sample : buffer) {
 			// Convert down.
 			// If time to "grab" another sample for down-conversion...
 			if (lowSampleRatePos < 4194304) {
@@ -1312,7 +1311,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	}
 }
 
-void ModControllableAudio::processStutter(deluge::dsp::StereoBuffer<q31_t> buffer, ParamManager* paramManager) {
+void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager) {
 	if (stutterer.isStuttering(this)) {
 		stutterer.processStutter(buffer, paramManager, currentSong->getInputTickMagnitude(),
 		                         playbackHandler.getTimePerInternalTickInverse());
@@ -1743,9 +1742,9 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 bool ModControllableAudio::enableGrain() {
 
 	if (grainFX == nullptr) {
-		void* grainMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(deluge::dsp::GranularProcessor));
+		void* grainMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GranularProcessor));
 		if (grainMemory) {
-			grainFX = new (grainMemory) deluge::dsp::GranularProcessor;
+			grainFX = new (grainMemory) GranularProcessor;
 			return true;
 		}
 	}

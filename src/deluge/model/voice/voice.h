@@ -29,6 +29,7 @@
 #include <compare>
 #include <memory>
 
+class StereoSample;
 class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {

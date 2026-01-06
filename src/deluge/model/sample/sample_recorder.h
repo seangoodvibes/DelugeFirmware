@@ -19,9 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/envelope_follower/absolute_value.h"
-#include "dsp_ng/core/types.hpp"
+#include "dsp/stereo_sample.h"
 #include "fatfs/fatfs.hpp"
-#include "util/d_string.h"
 #include <cstddef>
 #include <gsl/gsl>
 #include <optional>
@@ -55,7 +54,7 @@ public:
 	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
 	            Output* outputRecordingFrom);
 	void setRecordingThreshold();
-	void feedAudio(deluge::dsp::StereoBuffer<q31_t> input, bool applyGain = false, uint8_t gainToApply = 5);
+	void feedAudio(std::span<StereoSample> input, bool applyGain = false, uint8_t gainToApply = 5);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
@@ -155,5 +154,5 @@ private:
 	void detachSample();
 	Error truncateFileDownToSize(uint32_t newFileSize);
 	Error writeOneCompletedCluster();
-	deluge::dsp::AbsValueFollower envelopeFollower{};
+	AbsValueFollower envelopeFollower{};
 };

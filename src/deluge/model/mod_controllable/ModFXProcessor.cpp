@@ -25,9 +25,9 @@
 #include <cstdint>
 
 /// NOT GRAIN! - this only does the comb filter based mod fx
-void ModFXProcessor::processModFX(deluge::dsp::StereoBuffer<q31_t> buffer, const ModFXType& modFXType,
-                                  int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-                                  UnpatchedParamSet* unpatchedParams, bool anySoundComingIn) {
+void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate,
+                                  int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+                                  bool anySoundComingIn) {
 
 	if (modFXType != ModFXType::NONE) {
 
@@ -137,29 +137,23 @@ void ModFXProcessor::setupModFXWFeedback(const ModFXType& modFXType, int32_t mod
 	}
 }
 template <ModFXType modFXType>
-void ModFXProcessor::processModFXBuffer(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t modFXRate, int32_t modFXDepth,
+void ModFXProcessor::processModFXBuffer(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
                                         LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
                                         int32_t thisModFXDelayDepth, int32_t feedback, bool stereo) {
 	if constexpr (modFXType == ModFXType::PHASER) {
-		for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
+		for (StereoSample& sample : buffer) {
 			int32_t lfo = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 			sample = processOnePhaserSample(sample, modFXDepth, feedback, lfo);
 		}
 		return;
 	}
-	if (stereo) {
-		for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
-			auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
-			sample = processOneModFXSample<modFXType, true>(sample, modFXDelayOffset, thisModFXDelayDepth, feedback,
-			                                                lfo1, lfo2);
-		}
-	}
-	else {
-		for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
-			auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
-			sample = processOneModFXSample<modFXType, false>(sample, modFXDelayOffset, thisModFXDelayDepth, feedback,
-			                                                 lfo1, -lfo1);
-		}
+
+	for (StereoSample& sample : buffer) {
+		auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
+		sample = stereo ? processOneModFXSample<modFXType, true>(sample, modFXDelayOffset, thisModFXDelayDepth,
+		                                                         feedback, lfo1, lfo2)
+		                : processOneModFXSample<modFXType, false>(sample, modFXDelayOffset, thisModFXDelayDepth,
+		                                                          feedback, lfo1, -lfo1);
 	}
 }
 
@@ -182,10 +176,9 @@ std::pair<int32_t, int32_t> ModFXProcessor::processModLFOs(int32_t modFXRate, LF
 }
 
 template <ModFXType modFXType, bool stereo>
-deluge::dsp::StereoSample<q31_t> ModFXProcessor::processOneModFXSample(deluge::dsp::StereoSample<q31_t> sample,
-                                                                       int32_t modFXDelayOffset,
-                                                                       int32_t thisModFXDelayDepth, int32_t feedback,
-                                                                       int32_t lfoOutput, int32_t lfo2Output) {
+StereoSample ModFXProcessor::processOneModFXSample(StereoSample sample, int32_t modFXDelayOffset,
+                                                   int32_t thisModFXDelayDepth, int32_t feedback, int32_t lfoOutput,
+                                                   int32_t lfo2Output) {
 	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
 
 	int32_t strength2 = (delayTime & 65535) << 15;
@@ -247,9 +240,8 @@ deluge::dsp::StereoSample<q31_t> ModFXProcessor::processOneModFXSample(deluge::d
 	return sample;
 }
 
-deluge::dsp::StereoSample<q31_t>
-ModFXProcessor::processOnePhaserSample(deluge::dsp::StereoSample<q31_t> sample, int32_t modFXDepth, int32_t feedback,
-                                       int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
+StereoSample ModFXProcessor::processOnePhaserSample(StereoSample sample, int32_t modFXDepth, int32_t feedback,
+                                                    int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
 	int32_t _a1 =
 	    1073741824 - multiply_32x32_rshift32_rounded((((uint32_t)lfoOutput + (uint32_t)2147483648) >> 1), modFXDepth);
 
@@ -258,7 +250,7 @@ ModFXProcessor::processOnePhaserSample(deluge::dsp::StereoSample<q31_t> sample, 
 
 	// Do the allpass filters
 	for (auto& sample : allpassMemory) {
-		deluge::dsp::StereoSample<q31_t> whatWasInput = phaserMemory;
+		StereoSample whatWasInput = phaserMemory;
 
 		phaserMemory.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, -_a1) << 2) + sample.l;
 		sample.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, _a1) << 2) + whatWasInput.l;
@@ -275,7 +267,7 @@ ModFXProcessor::processOnePhaserSample(deluge::dsp::StereoSample<q31_t> sample, 
 
 void ModFXProcessor::resetMemory() {
 	if (modFXBuffer) {
-		memset(modFXBuffer, 0, kModFXBufferSize * sizeof(deluge::dsp::StereoSample<q31_t>));
+		memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 	}
 
 	else {
@@ -285,16 +277,15 @@ void ModFXProcessor::resetMemory() {
 }
 
 void ModFXProcessor::setupBuffer() {
-	if (modFXBuffer == nullptr) {
-		modFXBuffer =
-		    (deluge::dsp::StereoSample<q31_t>*)delugeAlloc(kModFXBufferSize * sizeof(deluge::dsp::StereoSample<q31_t>));
-		if (modFXBuffer != nullptr) {
-			memset(modFXBuffer, 0, kModFXBufferSize * sizeof(deluge::dsp::StereoSample<q31_t>));
+	if (!modFXBuffer) {
+		modFXBuffer = (StereoSample*)delugeAlloc(kModFXBufferSize * sizeof(StereoSample));
+		if (modFXBuffer) {
+			memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 		}
 	}
 }
 void ModFXProcessor::disableBuffer() {
-	if (modFXBuffer != nullptr) {
+	if (modFXBuffer) {
 		delugeDealloc(modFXBuffer);
 		modFXBuffer = nullptr;
 	}

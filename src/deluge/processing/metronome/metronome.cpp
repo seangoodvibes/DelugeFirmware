@@ -16,7 +16,7 @@
  */
 
 #include "processing/metronome/metronome.h"
-#include "dsp_ng/core/types.hpp"
+#include "dsp/stereo_sample.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -35,7 +35,7 @@ void Metronome::trigger(uint32_t newPhaseIncrement) {
 	timeSinceTrigger = 0;
 }
 
-void Metronome::render(deluge::dsp::StereoBuffer<q31_t> buffer) {
+void Metronome::render(std::span<StereoSample> buffer) {
 	if (!sounding) {
 		return;
 	}
@@ -53,7 +53,7 @@ void Metronome::render(deluge::dsp::StereoBuffer<q31_t> buffer) {
 
 	q31_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
 
-	for (deluge::dsp::StereoSample<q31_t>& sample : buffer) {
+	for (StereoSample& sample : buffer) {
 		q31_t value = (phase <= ONE_Q31) ? high : -high;
 		phase += phaseIncrement;
 

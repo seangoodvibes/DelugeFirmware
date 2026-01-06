@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "dsp_ng/core/types.hpp"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
@@ -26,7 +25,7 @@
 namespace deluge::dsp::filter {
 constexpr int32_t ONE_Q16 = 134217728;
 
-extern std::array<StereoSample<q31_t>, SSI_TX_BUFFER_NUM_SAMPLES> blendBuffer;
+extern q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2];
 /**
  *  Interface for filters in the sound engine
  * This is a CRTP base class for all filters used in the sound engine. To implement a new filter,
@@ -84,7 +83,7 @@ public:
 	 * @param endSample pointer to last sample
 	 * @param extraSaturation extra saturation value
 	 */
-	[[gnu::hot]] void filterStereo(StereoBuffer<q31_t> buffer) {
+	[[gnu::hot]] void filterStereo(q31_t* startSample, q31_t* endSample) {
 		if (dryFade < 0.001) {
 			static_cast<T*>(this)->doFilterStereo(startSample, endSample);
 		}

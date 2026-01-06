@@ -17,6 +17,7 @@
 
 #include "number.h"
 #include "hid/display/oled.h"
+#include "trigger/out/ppqn.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {

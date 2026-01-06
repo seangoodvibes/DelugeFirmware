@@ -21,14 +21,12 @@
 #include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
-#include "dsp_ng/core/types.hpp"
+#include "dsp/stereo_sample.h"
 #include "memory/stealable.h"
 #include "modulation/lfo.h"
 #include <span>
 
 class UnpatchedParamSet;
-
-namespace deluge::dsp {
 
 struct Grain {
 	int32_t length;     // in samples 0=OFF
@@ -56,7 +54,7 @@ public:
 	void startSkippingRendering();
 
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
-	void processGrainFX(StereoBuffer<q31_t> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
+	void processGrainFX(std::span<StereoSample> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
 	                    int32_t pitchRandomness, int32_t* postFXVolume, bool anySoundComingIn, float tempoBPM,
 	                    q31_t reverbAmount);
 
@@ -66,7 +64,7 @@ public:
 private:
 	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
 	                  int32_t* postFXVolume, float timePerInternalTick);
-	StereoSample<q31_t> processOneGrainSample(StereoSample<q31_t> currentSample);
+	StereoSample processOneGrainSample(StereoSample currentSample);
 	void getBuffer();
 	void setWrapsToShutdown();
 	void setupGrainsIfNeeded(int32_t writeIndex);
@@ -111,15 +109,12 @@ public:
 	void steal(char const* errorCode) override { owner->grainBufferStolen(); };
 
 	// gives it  a high priority - these are huge so reallocating them can be slow
-	[[nodiscard]] StealableQueue getAppropriateQueue() const override {
-		return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
-	};
-	StereoSample<q31_t>& operator[](int32_t i) { return sampleBuffer[i]; }
-	StereoSample<q31_t> operator[](int32_t i) const { return sampleBuffer[i]; }
-	bool inUse = true;
+	StealableQueue getAppropriateQueue() override { return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE; };
+	StereoSample& operator[](int32_t i) { return sampleBuffer[i]; }
+	StereoSample operator[](int32_t i) const { return sampleBuffer[i]; }
+	bool inUse{true};
 
 private:
 	GranularProcessor* owner;
-	std::array<StereoSample<q31_t>, kModFXGrainBufferSize * sizeof(StereoSample<q31_t>)> sampleBuffer;
+	StereoSample sampleBuffer[kModFXGrainBufferSize * sizeof(StereoSample)];
 };
-} // namespace deluge::dsp
