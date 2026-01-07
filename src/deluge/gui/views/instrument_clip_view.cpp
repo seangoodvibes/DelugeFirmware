@@ -850,6 +850,30 @@ doCancelPopup:
 			goto passToOthers;
 		}
 	}
+
+	else if (b == SYNC_SCALING && currentUIMode == UI_MODE_NOTES_PRESSED) {
+		if (on) {
+			Note* note = getLeftMostNotePressed();
+			FillMode mode = static_cast<FillMode>(note->getFill());
+			if (display->hasPopupOfType(PopupType::FILL)) {
+				switch (mode) {
+				case FillMode::OFF:
+					mode = FillMode::NOT_FILL;
+					break;
+				case FillMode::NOT_FILL:
+					mode = FillMode::FILL;
+					break;
+				default:
+					mode = FillMode::OFF;
+					break;
+				}
+				adjustNoteFillWithFinalValue(mode);
+			}
+			else {
+				displayFill(mode);
+			}
+		}
+	}
 	else {
 passToOthers:
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -2925,6 +2949,10 @@ void InstrumentClipView::adjustNoteFillWithOffset(int32_t offset) {
 	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
 }
 
+void InstrumentClipView::adjustNoteFillWithFinalValue(FillMode finalValue) {
+	adjustNoteParameterValue(0, finalValue, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
+}
+
 // used with the note probability, iterance and fill note editing menu
 // when adjusting multiple notes, the value displayed is the value of the left most note
 Note* InstrumentClipView::getLeftMostNotePressed() {
@@ -2975,7 +3003,8 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
 
-	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE)
+	                || display->hasPopupOfType(PopupType::FILL);
 
 	// If just one press...
 	if (numEditPadPresses == 1) {
@@ -3392,6 +3421,9 @@ multiplePresses:
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameterValue));
 		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameterValue);
+		}
 	}
 }
 
@@ -3452,14 +3484,27 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 	}
 }
 
-const char* InstrumentClipView::getFillString(uint8_t fill) {
+void InstrumentClipView::displayFill(uint8_t mode) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	strcpy(buffer, getFillString(mode));
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::FILL);
+	}
+	else {
+		display->displayPopup(buffer, 0, true, 255, 1, PopupType::FILL);
+	}
+}
+
+const char* InstrumentClipView::getFillString(uint8_t mode) {
 	// FILL mode
-	if (fill == FILL) {
+	if (mode == FILL) {
 		return "FILL";
 	}
 
 	// NO-FILL mode
-	if (fill == NOT_FILL) {
+	if (mode == NOT_FILL) {
 		return "NOT FILL";
 	}
 
@@ -4051,6 +4096,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 			displayIterance(Iterance::fromInt(parameterValue));
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			displayFill(parameterValue);
 		}
 	}
 

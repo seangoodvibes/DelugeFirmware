@@ -290,6 +290,7 @@ public:
 	void adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
 	void adjustNoteIteranceWithFinalValue(Iterance finalValue);
 	void adjustNoteFillWithOffset(int32_t offset);
+	void adjustNoteFillWithFinalValue(FillMode finalValue);
 	Note* getLeftMostNotePressed();
 	void adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
 	                              int32_t parameterMinValue, int32_t parameterMaxValue,
@@ -368,6 +369,7 @@ private:
 	void nudgeNotes(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);
 	void displayIterance(Iterance iterance);
+	void displayFill(uint8_t mode);
 
 	// note row functions
 	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);
