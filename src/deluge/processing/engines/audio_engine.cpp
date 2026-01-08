@@ -362,18 +362,8 @@ int32_t getNumVoices() {
 	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
 	                             [](auto sound) { return sound->voices().size(); });
 }
-void yieldToAudio() {
-	// if we're not locked in audio routine, yield until audio routine is called or scheduler is idle
-	if (!audioRoutineLocked) {
-		yieldToIdle([]() { return (AudioEngine::routineBeenCalled); });
-	}
-	// if we're locked in audio routine, yield until it finishes
-	else {
-		yield([]() { return (AudioEngine::routineBeenCalled); });
-	}
-}
 
-void routineWithClusterLoading(bool mayProcessUserActionsBetween, bool useYield) {
+void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
 
 	routineBeenCalled = false;
@@ -381,7 +371,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween, bool useYield)
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
 
 	if (!routineBeenCalled) {
-		bypassCulling = true; // yolo?
+		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
 
 		logAction("call runRoutine() from routineWithClusterLoading()");
 		runRoutine();

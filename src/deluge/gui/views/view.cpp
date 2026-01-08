@@ -2575,8 +2575,7 @@ getOut:
 
 		RootUI* rootUI = getRootUI();
 		if (rootUI == &instrumentClipView || rootUI == &automationView) {
-			// can't use YieldToAudio here because it causes crash
-			AudioEngine::routineWithClusterLoading(false, false);
+			AudioEngine::routineWithClusterLoading();
 
 			instrumentClipView.recalculateColours();
 
