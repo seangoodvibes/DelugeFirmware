@@ -383,32 +383,21 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween, bool useYield)
 	if (!routineBeenCalled) {
 		bypassCulling = true; // yolo?
 
-		/*	if (useYield) {
-		        logAction("RWCL: yieldToAudio()");
-		        yieldToAudio();
-		    }
-		    else if (!audioRoutineLocked) {
-		        logAction("RWCL: routine_task()");
-		        // Sean: replace AudioEngine::routine() call with call to run AudioEngine::routine() task
-		        if (AudioEngine::routine_task_id != -1) {
-		            runTask(AudioEngine::routine_task_id);
-		        }
-		        else {
-		            AudioEngine::routine();
-		        }
-		    }
-		*/
-		//	if (!audioRoutineLocked) {
-		if (AudioEngine::routine_task_id != -1) {
-			runTask(AudioEngine::routine_task_id);
-		}
-		else {
-			AudioEngine::routine();
-		}
-		//	}
-		//	else {
-		//		yield([]() { return (AudioEngine::routineBeenCalled); });
-		//	}
+		logAction("call runRoutine() from routineWithClusterLoading()");
+		runRoutine();
+	}
+}
+
+void runRoutine() {
+	// check if we've setup the audio routine task
+	if (routine_task_id != -1) [[likely]] {
+		// run AudioEngine::routine() task so that scheduler is aware
+		runTask(AudioEngine::routine_task_id);
+	}
+	// otherwise call audio routine directly (necessary otherwise Deluge freezes on boot)
+	else {
+		ignoreForStats();
+		routine();
 	}
 }
 
