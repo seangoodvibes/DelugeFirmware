@@ -16,7 +16,6 @@
  */
 
 #include "model/sample/sample_recorder.h"
-#include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -30,8 +29,6 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "util/exceptions.h"
-#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include <algorithm>
 #include <new>
@@ -112,6 +109,9 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
                             bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
                             Output* outputRecordingFrom_) {
 
+	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
+		return Error::INSUFFICIENT_RAM;
+	}
 	outputRecordingFrom = outputRecordingFrom_;
 	keepingReasonsForFirstClusters = newKeepingReasons;
 	recordingExtraMargins = shouldRecordExtraMargins;
@@ -345,7 +345,7 @@ Error SampleRecorder::cardRoutine() {
 	if (status == RecorderStatus::ABORTED) {
 
 aborted:
-		if (sample != nullptr) { // This might get called multiple times, so check we haven't already detached it.
+		if (sample) { // This might get called multiple times, so check we haven't already detached it.
 
 			// Note: if this abort() is due to a song-swap (loading a different song),
 			// then samples is about to be searched for temp ones to delete, and we'll need to have deleted it here
@@ -364,10 +364,10 @@ aborted:
 #endif
 
 			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
-				audioFileManager.releaseFile(*sample);
+				audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*sample);
 			}
 
-			sample = nullptr; // So we don't try to detach it again when we're destructed
+			sample = NULL; // So we don't try to detach it again when we're destructed
 		}
 
 		// Delete the file if one was created
@@ -485,14 +485,9 @@ aborted:
 			sample->filePath.set(&filePath);                                 // Can't fail!
 			sample->tempFilePathForRecording.set(&tempFilePathForRecording); // Can't fail!
 
-			try {
-				audioFileManager.sampleFiles[&sample->filePath] = sample;
-			} catch (deluge::exception e) {
-				if (e == deluge::exception::BAD_ALLOC) {
-					error = Error::INSUFFICIENT_RAM;
-					goto gotError;
-				}
-				freezeWithError("EXSR");
+			error = audioFileManager.audioFiles.insertElement(sample);
+			if (error != Error::NONE) {
+				goto gotError;
 			}
 
 			haveAddedSampleToArray = true;

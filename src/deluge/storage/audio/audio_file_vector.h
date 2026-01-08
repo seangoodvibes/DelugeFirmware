@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,18 +17,12 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "memory/stealable.h"
+#include "util/container/vector/named_thing_vector.h"
 
-class WaveTable;
+class AudioFile;
 
-class WaveTableBandData final : public Stealable {
+class AudioFileVector final : public NamedThingVector {
 public:
-	WaveTableBandData(WaveTable* newWaveTable);
-
-	bool mayBeStolen(void* thingNotToStealFrom = nullptr) override;
-	void steal(char const* errorCode) override;
-	StealableQueue getAppropriateQueue() override;
-
-	WaveTable* waveTable;
+	AudioFileVector();
+	int32_t searchForExactObject(AudioFile* audioFile);
 };
