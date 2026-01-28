@@ -19,11 +19,11 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "hid/display/display.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
 #include "util/container/enum_to_string_map.hpp"
-#include "hid/display/display.h"
 
 class ModelStackWithTimelineCounter;
 

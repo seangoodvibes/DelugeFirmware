@@ -683,20 +683,21 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
 		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
-				modelStackWithTimelineCounter, outputBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjust,
-				sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+		    modelStackWithTimelineCounter, outputBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjust,
+		    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 	}
 	// render kit row with kit affect entire FX
 	else {
 		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-											reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-											shouldLimitDelayFeedback, isClipActive, OutputType::KIT, recorder);
+		                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, recorder);
 	}
 
 	renderNonAudioArpPostOutput(numSamples);
 }
 
-void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, ParamManager* paramManager, int32_t numSamples) {
+void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                     ParamManager* paramManager, int32_t numSamples) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();

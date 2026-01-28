@@ -192,11 +192,11 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					StereoSample& fromDelay1 = buffer.current();
 					StereoSample& fromDelay2 = *nextPos;
 					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					           << 2;
+					                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+					                << 2;
 					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					            + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					           << 2;
+					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+					                << 2;
 				}
 			}
 

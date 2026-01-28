@@ -1,13 +1,13 @@
 #include "submenu.h"
+#include "etl/vector.h"
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "etl/vector.h"
-#include "storage/flash_storage.h"
-#include "processing/source.h"
 #include "processing/sound/sound.h"
+#include "processing/source.h"
+#include "storage/flash_storage.h"
 #include <algorithm>
 #include <numeric>
 

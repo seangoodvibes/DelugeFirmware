@@ -170,8 +170,8 @@ lookAtArpNote:
 				    || arpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
 					break;
 				}
-				polyphonicExpressionEventPostArpeggiator(newValue, arpNote->noteCodeOnPostArp[i], whichExpressionDimension,
-				                                         arpNote, i);
+				polyphonicExpressionEventPostArpeggiator(newValue, arpNote->noteCodeOnPostArp[i],
+				                                         whichExpressionDimension, arpNote, i);
 			}
 		}
 	}

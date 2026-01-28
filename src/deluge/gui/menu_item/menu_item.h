@@ -120,7 +120,7 @@ public:
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
-	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
+	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
 
 	/// @brief End an editing session with this menu item
 	virtual void endSession();

@@ -1911,7 +1911,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
+			uint32_t sum = (uint32_t)*(fmSample++) + (uint32_t)feedback;
 
 			feedbackValue = doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
@@ -2860,7 +2860,7 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 
 				int64_t resetterPhaseToDivide = (uint64_t)resetterPhase << 30;
 
-				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
+				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
 					resetterPhaseToDivide -= (uint64_t)1 << 62;
 				}
 
@@ -2877,7 +2877,7 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 				}
 
 				int32_t resetterPhaseToMultiply = resetterPhase >> 1;
-				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
+				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
 					resetterPhaseToMultiply -= ((uint32_t)1 << 31); // Count the last little bit of the cycle as
 					                                                // actually a negative-number bit of the next one.
 				}

@@ -16,9 +16,6 @@
  */
 
 #include "horizontal_menu.h"
-#include "multi_range.h"
-#include "processing/sound/sound.h"
-#include "submenu.h"
 #include "gui/ui/menus.h"
 #include "gui/views/automation_view.h"
 #include "hid/buttons.h"

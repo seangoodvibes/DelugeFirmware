@@ -16,8 +16,8 @@
  */
 
 #include "oled.h"
-#include <vector>
 #include <util/containers.h>
+#include <vector>
 
 #define DEFINE_ICON(name, numBytesTall, ...)                                                                           \
 	static const uint8_t name##_data[] = {__VA_ARGS__};                                                                \

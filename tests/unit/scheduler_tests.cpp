@@ -5,8 +5,8 @@
 #include "cstdint"
 #include "mocks/timer_mocks.h"
 #include <iostream>
-#include <stdlib.h>
 #include <print>
+#include <stdlib.h>
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -82,8 +82,8 @@ TEST(Scheduler, schedule) {
 TEST(Scheduler, remove) {
 	static SelfRemoving selfRemoving;
 
-	TaskID id =
-	    addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times", RESOURCE_NONE);
+	TaskID id = addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times",
+	                             RESOURCE_NONE);
 	selfRemoving.id = id;
 	mock().clear();
 	mock().expectNCalls(5, "runFiveTimes");

@@ -43,15 +43,15 @@
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
-#include "storage/storage_manager.h"
 #include "scheduler_api.h"
+#include "storage/storage_manager.h"
 #include "util/firmware_version.h"
 #include <cmath>
 #include <new>

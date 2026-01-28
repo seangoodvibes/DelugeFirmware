@@ -57,8 +57,8 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
 #include "util/comparison.h"
+#include "util/functions.h"
 
 using namespace deluge;
 using namespace deluge::gui;

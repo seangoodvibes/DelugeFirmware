@@ -27,8 +27,8 @@
 #include "model/clip/clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "util/functions.h"
 #include "submenu.h"
+#include "util/functions.h"
 
 #include <hid/buttons.h>
 #include <model/clip/audio_clip.h>

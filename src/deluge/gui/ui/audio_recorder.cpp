@@ -38,10 +38,10 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "processing/stem_export/stem_export.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "scheduler_api.h"
 #include "util/d_string.h"
 #include <string.h>
 
