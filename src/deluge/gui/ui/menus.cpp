@@ -890,7 +890,7 @@ audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
 menu_item::EditName nameEditMenu{STRING_FOR_RENAME_CLIP};
 
-const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
+PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
@@ -901,7 +901,7 @@ const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     nullptr,
 };
 
-const MenuItem* gateDrumParamShortcuts[8] = {
+PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[8] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,

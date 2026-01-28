@@ -42,7 +42,7 @@ extern uint8_t anyUSBSendingStillHappening[];
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
 
-PLACE_INTERNAL_FRUNK ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
 namespace MIDIDeviceManager {
 
@@ -59,10 +59,10 @@ std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
 
 // This class represents a thing you can send midi too,
 // the virtual cable is an implementation detail
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0, false, true};
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1, true, false};
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2, false, false};
-MIDIDeviceDINPorts dinMIDIPorts{};
+PLACE_SDRAM_BSS MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0, false, true};
+PLACE_SDRAM_BSS MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1, true, false};
+PLACE_SDRAM_BSS MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2, false, false};
+PLACE_SDRAM_BSS MIDIDeviceDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
