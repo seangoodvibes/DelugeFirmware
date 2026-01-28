@@ -1074,6 +1074,7 @@ Submenu defaultsSubmenu{
         &defaultPadBrightness,
         &defaultSliceMode,
         &defaultHoldTimeMenu,
+        &defaultHighCPUUsageIndicatorMode,
     },
 };
 
