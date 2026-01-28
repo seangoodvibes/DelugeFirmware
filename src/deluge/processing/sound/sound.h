@@ -280,6 +280,8 @@ public:
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
+	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
+	                           ArpReturnInstruction instruction);
 	void wontBeRenderedForAWhile();
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;

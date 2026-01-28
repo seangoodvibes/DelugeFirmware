@@ -765,6 +765,7 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
 					                          0, 0);
+					kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 				}
 			}
 		}
@@ -810,6 +811,7 @@ void Kit::renderNonAudioArpPostOutput(int32_t numSamples) {
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 				}
 			}
@@ -1176,7 +1178,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			}
 		}
 	}
-	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
+	    && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 		// Note on
 		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
@@ -1192,6 +1195,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
 				                          0);
+				// no check needed - will be held by the drum's own arp if it can't start immediately
+				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 			}
 		}
 	}
@@ -1312,6 +1317,7 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 			// Do row note on
 			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
 			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
+			kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 		}
 	}
 }
