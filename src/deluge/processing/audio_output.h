@@ -119,6 +119,9 @@ protected:
 	bool wantsToBeginArrangementRecording();
 	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
 
+	/// returns true for loopers and samplers without a file
+	bool modeAllowsMonitoring() const;
+
 	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
 	Output* outputRecordingFrom{nullptr};
 };

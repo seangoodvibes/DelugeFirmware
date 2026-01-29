@@ -222,10 +222,6 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 		clear(nullptr, modelStack, true, true);
 	}
 	auto ao = (AudioOutput*)output;
-	// if we're a sampler then turn off monitoring
-	if (ao->mode == AudioOutputMode::sampler) {
-		ao->mode = AudioOutputMode::player;
-	}
 	originalLength = loopLength;
 	sampleHolder.filePath.set(&recorder->sample->filePath);
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.isCurrentlyReversed(), true,
