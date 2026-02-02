@@ -498,23 +498,28 @@ uint8_t numRoutines = 0;
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
 inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	bool culled = false;
-	int32_t numToCull = 0;
+	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
+	// we can be a bit more lenient with the limit
+	auto max_num_samples = numSamplesLimit + (20 * voicesStartedThisRender);
 	if (numAudio + numVoice > MIN_VOICES) {
+		static int32_t last_num_samples_over = 0;
 
-		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+		int32_t num_samples_over_limit = numSamples - max_num_samples;
+
 		// If it's real dire, do a proper immediate cull
-		if (numSamplesOverLimit >= 20) {
+		if (num_samples_over_limit >= 20) {
 
-			numToCull = (numSamplesOverLimit >> 3);
+			int32_t num_to_cull = (num_samples_over_limit >> 3);
 
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
-			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
-			for (int32_t i = numToCull / 2; i < numToCull; i++) {
+			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
+
+			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
 				// cull with fast release
 				forceCullVoice(numSamples, nullptr);
 			}
-			for (int32_t i = 1; i < numToCull / 2; i++) {
+			for (int32_t i = 1; i < num_to_cull / 2; i++) {
 				// cull with immediate release
 				immediateCullVoice(false, CullType::FORCE, numSamples, nullptr);
 			}
@@ -531,17 +536,19 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
 		// is increasing
-		else if (numSamplesOverLimit >= 0) {
-
-			// If not in first routine call this is inaccurate, so just release another voice since things are
-			// probably bad
-			softCullVoice(numSamples, nullptr);
-			logAction("soft cull");
-			if (numRoutines > 0) {
-				culled = true;
-				D_PRINTLN("culling in second routine");
+		else if (num_samples_over_limit >= 0) {
+			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
+				// If not in first routine call this is inaccurate, so just release another voice since things are
+				// probably bad
+				softCullVoice(numSamples, nullptr);
+				logAction("soft cull");
+				if (numRoutines > 0) {
+					culled = true;
+					D_PRINTLN("culling in second routine");
+				}
 			}
 		}
+		last_num_samples_over = num_samples_over_limit;
 	}
 	else {
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
@@ -557,6 +564,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
+		D_PRINTLN("started %i voices this render cycle", voicesStartedThisRender);
 	}
 }
 
@@ -572,11 +580,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) {
 
-		int32_t newDireness = numSamples - (direnessThreshold - 1);
-		if (newDireness > 14) {
-			newDireness = 14;
-		}
-
+		int32_t newDireness = std::min<int32_t>(numSamples - (direnessThreshold - 1), 14);
 		if (newDireness >= cpuDireness) {
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
