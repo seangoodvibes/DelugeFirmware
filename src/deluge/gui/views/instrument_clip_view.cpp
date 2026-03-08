@@ -837,7 +837,7 @@ doCancelPopup:
 	}
 
 	else if (b == SELECT_ENC) {
-		if (on) {
+		if (!on && !Buttons::selectButtonPressUsedUp) {
 			if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 				if (enterNoteEditor()) {
 					return ActionResult::DEALT_WITH;
@@ -1759,10 +1759,11 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 }
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
+	bool isSelectEncoderPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
+		if (isSelectEncoderPressed) {
 
 			if (playbackHandler.isEitherClockActive() && playbackHandler.ticksLeftInCountIn) {
 				return;
@@ -1778,7 +1779,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
 	// Or set / create a new Drum
 	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
-		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
+		if (isSelectEncoderPressed) {
 			drumForNewNoteRow = flipThroughAvailableDrums(offset, drumForNewNoteRow, true);
 			// setSelectedDrum(drumForNewNoteRow); // Can't - it doesn't have a NoteRow, and so we don't really know
 			// where its ParamManager is!
