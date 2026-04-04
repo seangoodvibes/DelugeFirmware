@@ -144,20 +144,42 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 	// calculate new velocity based on Y of pad pressed
 	int32_t newVelocity = getVelocityFromY(y);
 
+	// get note info on all the squares in the note row
+	SquareInfo rowSquareInfo[kDisplayWidth];
+	noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
+
 	// middle pad press variables
 	getMiddlePadPressSelected() = false;
 
 	// multi pad press variables
 	getMultiPadPressSelected() = false;
-	SquareInfo rowSquareInfo[kDisplayWidth];
+
 	int32_t multiPadPressVelocityIncrement = 0;
+
+	// velocity head pad press variables
+	bool isVelocityHeadPadPressSelected = false;
 
 	// update velocity editor rendering
 	bool refreshVelocityEditor = false;
 	bool showNewVelocity = true;
 
-	// check for middle or multi pad press
-	if (velocity && squareInfo.numNotes != 0 && instrumentClipView.numEditPadPresses == 1) {
+	// check if all presses are velocity head pad presses
+	// if they are then you're definitely not doing a middle pad or multi pad press
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		int32_t pressX = instrumentClipView.editPadPresses[i].xDisplay;
+		int32_t pressY = instrumentClipView.editPadPresses[i].yDisplay;
+		if (minPadDisplayValues[pressY] <= rowSquareInfo[pressX].averageVelocity
+		    && rowSquareInfo[pressX].averageVelocity <= maxPadDisplayValues[pressY]) {
+			isVelocityHeadPadPressSelected = true;
+		}
+		else {
+			isVelocityHeadPadPressSelected = false;
+		}
+	}
+
+	// check for middle or multi pad press if all presses aren't velocity head presses
+	if (!isVelocityHeadPadPressSelected && !velocity && squareInfo.numNotes != 0
+	    && instrumentClipView.numEditPadPresses == 1) {
 		// Find that original press
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 			if (instrumentClipView.editPadPresses[i].isActive) {
@@ -178,9 +200,6 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 				// found a second press that isn't in the same column as the first press
 				else {
 					int32_t firstPadX = instrumentClipView.editPadPresses[i].xDisplay;
-
-					// get note info on all the squares in the note row
-					noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
 
 					// the long press logic calculates and renders the interpolation as if the press was
 					// entered in a forward fashion (where the first pad is to the left of the second
@@ -268,9 +287,9 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 			addNoteWithNewVelocity(x, velocity, newVelocity);
 			refreshVelocityEditor = true;
 		}
-		// pressing pad corresponding to note's current averageVelocity, remove note
-		else if (minPadDisplayValues[y] <= squareInfo.averageVelocity
-		         && squareInfo.averageVelocity <= maxPadDisplayValues[y]) {
+		// pressing pad corresponding to note's current averageVelocity,
+		// select note and potentially remove it (if its a short press)
+		else if (isVelocityHeadPadPressSelected) {
 			recordNoteEditPadAction(x, velocity);
 			refreshVelocityEditor = true;
 			showNewVelocity = false;
