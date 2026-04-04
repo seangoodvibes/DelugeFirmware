@@ -194,8 +194,8 @@ private:
 	bool shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
 	                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
 	                       int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo);
-	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
-	                              int32_t yDisplay);
+	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay, int32_t yDisplay,
+	                              bool isShiftPressed);
 	// mute pad action
 	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,

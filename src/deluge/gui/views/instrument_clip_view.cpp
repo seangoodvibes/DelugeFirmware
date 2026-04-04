@@ -1877,7 +1877,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		if (velocity && (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
 			// are we trying to enter the automation view velocity note editor
 			// by pressing audition pad + velocity shortcut?
-			if (isUIModeActive(UI_MODE_AUDITIONING) && (x == kVelocityShortcutX && y == kVelocityShortcutY)) {
+			if (isUIModeActive(UI_MODE_AUDITIONING) && isVelocityShortcut(x, y)) {
 				return commandEnterNoteVelocityEditor(x, y);
 			}
 			// otherwise let's check for another shortcut pad action
@@ -2163,7 +2163,9 @@ ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32
 		automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
 		clip->lastSelectedParamShortcutX = x;
 		clip->lastSelectedParamShortcutY = y;
-		changeRootUI(&automationView);
+		// open note editor UI on top
+		display->setNextTransitionDirection(1);
+		openUI(&automationView);
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -7755,4 +7757,8 @@ void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
 	noteRowFlashOn = !noteRowFlashOn;
 	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
 	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
+}
+
+bool InstrumentClipView::isVelocityShortcut(int32_t x, int32_t y) {
+	return (x == kVelocityShortcutX && y == kVelocityShortcutY);
 }

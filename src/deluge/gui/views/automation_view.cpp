@@ -307,8 +307,6 @@ constexpr uint8_t kInterpolationShortcutX = 0;
 constexpr uint8_t kInterpolationShortcutY = 6;
 constexpr uint8_t kPadSelectionShortcutX = 0;
 constexpr uint8_t kPadSelectionShortcutY = 7;
-constexpr uint8_t kVelocityShortcutX = 15;
-constexpr uint8_t kVelocityShortcutY = 1;
 
 PLACE_SDRAM_BSS AutomationView automationView{};
 
@@ -465,6 +463,7 @@ void AutomationView::initializeView() {
 		if (outputType == OutputType::KIT) {
 			potentiallyVerticalScrollToSelectedDrum(clip, output);
 		}
+		indicator_leds::blinkLed(IndicatorLED::BACK);
 	}
 }
 
@@ -881,15 +880,6 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 		else {
 			pixel = colours::black; // erase pad
 		}
-
-		if (!onArrangerView && !(outputType == OutputType::KIT && getAffectEntire())
-		    && clip->type == ClipType::INSTRUMENT) {
-			// highlight velocity pad
-			if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
-				pixel = colours::grey;
-				occupancyMask[yDisplay][xDisplay] = 64;
-			}
-		}
 	}
 }
 
@@ -1224,6 +1214,17 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (handleBackAndHorizontalEncoderButtonComboAction(clip, on)) {
 			goto passToOthers;
+		}
+	}
+
+	// back out of note editor into previous UI (e.g. automation view or instrument clip view)
+	// (depends on where you entered the editing mode UI from - shortcut or menu)
+	else if (b == BACK && inNoteEditor()) {
+		if (on) {
+			automationParamType = AutomationParamType::PER_SOUND;
+			instrumentClipView.resetSelectedNoteRowBlinking();
+			display->setNextTransitionDirection(-1);
+			close();
 		}
 	}
 
@@ -1805,7 +1806,8 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
                                        int32_t velocity, int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo) {
 	if (velocity) {
 		bool shortcutPress = false;
-		if (Buttons::isShiftButtonPressed()
+		bool isShiftPressed = Buttons::isShiftButtonPressed();
+		if (isShiftPressed
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
 			if (!inNoteEditor()) {
@@ -1834,9 +1836,9 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				    || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
 				    || (outputType == OutputType::KIT && getAffectEntire())) {
 
-					handleParameterSelection(clip, output, outputType, x, y);
+					handleParameterSelection(clip, output, outputType, x, y, isShiftPressed);
 
-					// if you're in not in note editor, turn led off if it's on
+					// if you're not in note editor, turn led off if it's on
 					if (((InstrumentClip*)clip)->wrapEditing) {
 						indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
 					}
@@ -1852,10 +1854,10 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 // called by shortcutPadAction when it is determined that you are selecting a parameter on automation
 // overview or by using a grid shortcut combo
 void AutomationView::handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
-                                              int32_t yDisplay) {
+                                              int32_t yDisplay, bool isShiftPressed) {
 	// PatchSource::Velocity shortcut
-	// Enter Velocity Note Editor
-	if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
+	// Enter Velocity Note Editor if shift is not pressed
+	if (!isShiftPressed && instrumentClipView.isVelocityShortcut(xDisplay, yDisplay)) {
 		if (clip->type == ClipType::INSTRUMENT) {
 			// don't enter if we're in a kit with affect entire enabled
 			if (!(outputType == OutputType::KIT && getAffectEntire())) {
@@ -1866,12 +1868,16 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 				automationParamType = AutomationParamType::NOTE_VELOCITY;
 				clip->lastSelectedParamShortcutX = xDisplay;
 				clip->lastSelectedParamShortcutY = yDisplay;
-				blinkShortcuts();
-				renderDisplay();
-				uiNeedsRendering(&automationView);
-				// if you're in note editor, turn led on
-				if (((InstrumentClip*)clip)->wrapEditing) {
-					indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+				// if we're not already in note editor, open the UI
+				if (!inNoteEditor()) {
+					display->setNextTransitionDirection(1);
+					openUI(&automationView);
+				}
+				// if we're already in note editor, refresh selection
+				else {
+					blinkShortcuts();
+					renderDisplay();
+					uiNeedsRendering(&automationView);
 				}
 			}
 			return;
@@ -1981,6 +1987,9 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	if (inNoteEditor()) {
 		automationParamType = AutomationParamType::PER_SOUND;
 		instrumentClipView.resetSelectedNoteRowBlinking();
+		// exit Note Editor UI
+		display->setNextTransitionDirection(-1);
+		close();
 	}
 	blinkShortcuts();
 	if (display->have7SEG()) {
@@ -3179,8 +3188,7 @@ void AutomationView::setAutomationParamType() {
 	automationParamType = AutomationParamType::PER_SOUND;
 	if (!inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
-		if ((clip->lastSelectedParamShortcutX == kVelocityShortcutX)
-		    && (clip->lastSelectedParamShortcutY == kVelocityShortcutY)) {
+		if (instrumentClipView.isVelocityShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
 		}
 	}

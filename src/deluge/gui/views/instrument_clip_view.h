@@ -266,6 +266,9 @@ public:
 	UIType getUIType() override { return UIType::INSTRUMENT_CLIP; }
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
+	// note velocity editor
+	bool isVelocityShortcut(int32_t x, int32_t y);
+
 	// note editor
 	bool enterNoteEditor();
 	void exitNoteEditor();
