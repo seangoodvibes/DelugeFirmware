@@ -67,6 +67,7 @@ struct SquareInfo {
 	Iterance iterance;
 	int32_t fill;
 	bool isValid{false};
+	bool toDelete{false};
 };
 
 struct PendingNoteOn {
