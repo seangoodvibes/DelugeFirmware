@@ -183,7 +183,7 @@ checkResult:
 
 					// Do it, only if
 					if (val + modEncoderInitialTurnDirection[e] != 0) {
-						getCurrentUI()->modEncoderAction(e, val);
+						getCurrentUI()->modEncoderAction(e, val * encoder.calcNextKnobSpeed(val));
 						modEncoderInitialTurnDirection[e] = 0;
 					}
 
