@@ -126,7 +126,7 @@ struct PerformMacroSource {
 namespace params = deluge::modulation::params;
 struct PerformMacroDestination {
 	params::Kind param_kind = params::Kind::NONE;
-	int32_t param_id = kNoSelection;
+	params::ParamType param_type = kNoSelection;
 	float depth = 0.0;
 	float min = 0.0;
 	float max = 0.0;
@@ -527,6 +527,9 @@ public:
 		PerformMacro macro = getPerformMacroFromIndex(PerformMacroKind::MACRO1);
 		PerformMacroSource source = getPerformMacroSource(macro);
 		PerformMacroDestination destination = getPerformMacroDestination(macro, PerformMacroDestinationKind::DESTINATION1);
+
+		setupPerformanceMacroSource(source, 64, true);
+		setupPerformanceMacroDestination(destination, params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ, 50.0, 0.0, 128.0);
 	}
 
 	PerformMacro getPerformMacroFromIndex(int8_t macro_index) {
@@ -546,9 +549,9 @@ public:
 		source.is_bipolar = is_bipolar;
 	}
 
-	void setupPerformanceMacroDestination(PerformMacroDestination destination, params::Kind param_kind, int32_t param_id, float depth, float min, float max) {
+	void setupPerformanceMacroDestination(PerformMacroDestination destination, params::Kind param_kind, params::ParamType param_type, float depth, float min, float max) {
 		destination.param_kind = param_kind;
-		destination.param_id = param_id;
+		destination.param_type = param_type;
 		destination.depth = 0.0;
 		destination.min = 0.0;
 		destination.max = 0.0;
