@@ -905,6 +905,9 @@ enum Expression {
 	Z_PRESSURE,
 };
 
+constexpr int32_t kNumPerformMacroSources = 6;
+constexpr int32_t kNumPerformMacroDestinations = 4;
+
 constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
 constexpr int32_t NUM_CHANNELS = 18;

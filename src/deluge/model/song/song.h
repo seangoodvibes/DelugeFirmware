@@ -100,6 +100,25 @@ struct SessionMacro {
 	uint8_t section{0};
 };
 
+struct PerformMacroSource {
+	uint32_t current_value{0};
+	bool is_bipolar = true;
+};
+
+namespace params = deluge::modulation::params;
+struct PerformMacroDestination {
+	params::Kind param_kind = params::Kind::NONE;
+	int32_t param_id = kNoSelection;
+	float depth = 0.0;
+	float min = 0.0;
+	float max = 0.0;
+};
+
+struct PerformMacro {
+	PerformMacroSource source{};
+	std::array<PerformMacroDestination, kNumPerformMacroDestinations> destinations{};
+};
+
 class Song final : public TimelineCounter {
 public:
 	Song();
@@ -462,6 +481,48 @@ public:
 	void changeThresholdRecordingMode(int8_t offset);
 	void displayThresholdRecordingMode();
 	ThresholdRecordingMode thresholdRecordingMode;
+
+	// Performance Macros
+	std::array<PerformMacro, kNumPerformMacroSources> perform_macros{};
+	void initPerformanceMacros() {
+		for (int32_t m = 0; m < kNumPerformMacroSources; m++) {
+			PerformMacro macro = getPerformMacroFromIndex(m);
+
+			PerformMacroSource macro_source = getPerformMacroSource(macro);
+			setupPerformanceMacroSource(macro_source, 0, true);
+
+			for (int32_t d = 0; d < kNumPerformMacroDestinations; d++) {
+				PerformMacroDestination macro_destination = getPerformMacroDestination(macro, d);
+				setupPerformanceMacroDestination(macro_destination, params::Kind::NONE, kNoSelection, 0.0, 0.0, 0.0);
+			}
+		}
+		return;
+	}
+
+	PerformMacro getPerformMacroFromIndex(int32_t macro_index) {
+		return perform_macros[macro_index];
+	}
+
+	PerformMacroSource getPerformMacroSource(PerformMacro macro) {
+		return macro.source;
+	}
+
+	PerformMacroDestination getPerformMacroDestination(PerformMacro macro, int32_t destination_index) {
+		return macro.destinations[destination_index];
+	}
+
+	void setupPerformanceMacroSource(PerformMacroSource source, uint32_t current_value, bool is_bipolar) {
+		source.current_value = current_value;
+		source.is_bipolar = is_bipolar;
+	}
+
+	void setupPerformanceMacroDestination(PerformMacroDestination destination, params::Kind param_kind, int32_t param_id, float depth, float min, float max) {
+		destination.param_kind = param_kind;
+		destination.param_id = param_id;
+		destination.depth = 0.0;
+		destination.min = 0.0;
+		destination.max = 0.0;
+	}
 
 private:
 	ScaleMapper scaleMapper;
