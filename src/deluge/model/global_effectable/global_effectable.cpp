@@ -756,6 +756,12 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	int32_t lpfFrequency =
 	    getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ)));
+
+	// adjust lpfFrequency using song perform macros
+	if (isSong()) {
+		;
+	}
+
 	int32_t lpfResonance =
 	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
 	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_RES)));
