@@ -100,25 +100,6 @@ struct SessionMacro {
 	uint8_t section{0};
 };
 
-struct PerformMacroSource {
-	uint32_t current_value{0};
-	bool is_bipolar = true;
-};
-
-namespace params = deluge::modulation::params;
-struct PerformMacroDestination {
-	params::Kind param_kind = params::Kind::NONE;
-	int32_t param_id = kNoSelection;
-	float depth = 0.0;
-	float min = 0.0;
-	float max = 0.0;
-};
-
-struct PerformMacro {
-	PerformMacroSource source{};
-	std::array<PerformMacroDestination, kNumPerformMacroDestinations> destinations{};
-};
-
 enum PerformMacroKind : int8_t {
 	MACRO1 = 0,
 	MACRO2,
@@ -136,6 +117,31 @@ enum PerformMacroDestinationKind : int8_t {
 	DESTINATION4,
 	NUM_DESTINATIONS
 };
+
+struct PerformMacroSource {
+	uint32_t current_value{0};
+	bool is_bipolar = true;
+};
+
+namespace params = deluge::modulation::params;
+struct PerformMacroDestination {
+	params::Kind param_kind = params::Kind::NONE;
+	int32_t param_id = kNoSelection;
+	float depth = 0.0;
+	float min = 0.0;
+	float max = 0.0;
+};
+
+
+
+struct PerformMacro {
+	PerformMacroSource source{};
+	std::array<PerformMacroDestination, PerformMacroDestinationKind::NUM_DESTINATIONS> destinations{};
+};
+
+
+
+
 
 class Song final : public TimelineCounter {
 public:
