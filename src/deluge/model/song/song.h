@@ -119,6 +119,24 @@ struct PerformMacro {
 	std::array<PerformMacroDestination, kNumPerformMacroDestinations> destinations{};
 };
 
+enum PerformMacroKind : int8_t {
+	MACRO1 = 0,
+	MACRO2,
+	MACRO3,
+	MACRO4,
+	MACRO5,
+	MACRO6,
+	NUM_SOURCES
+};
+
+enum PerformMacroDestinationKind : int8_t {
+	DESTINATION1 = 0,
+	DESTINATION2,
+	DESTINATION3,
+	DESTINATION4,
+	NUM_DESTINATIONS
+};
+
 class Song final : public TimelineCounter {
 public:
 	Song();
@@ -483,15 +501,15 @@ public:
 	ThresholdRecordingMode thresholdRecordingMode;
 
 	// Performance Macros
-	std::array<PerformMacro, kNumPerformMacroSources> perform_macros{};
+	std::array<PerformMacro, PerformMacroKind::NUM_SOURCES> perform_macros{};
 	void initPerformanceMacros() {
-		for (int32_t m = 0; m < kNumPerformMacroSources; m++) {
+		for (int8_t m = 0; m < PerformMacroKind::NUM_SOURCES; m++) {
 			PerformMacro macro = getPerformMacroFromIndex(m);
 
 			PerformMacroSource macro_source = getPerformMacroSource(macro);
 			setupPerformanceMacroSource(macro_source, 0, true);
 
-			for (int32_t d = 0; d < kNumPerformMacroDestinations; d++) {
+			for (int8_t d = 0; d < PerformMacroDestinationKind::NUM_DESTINATIONS; d++) {
 				PerformMacroDestination macro_destination = getPerformMacroDestination(macro, d);
 				setupPerformanceMacroDestination(macro_destination, params::Kind::NONE, kNoSelection, 0.0, 0.0, 0.0);
 			}
@@ -499,7 +517,13 @@ public:
 		return;
 	}
 
-	PerformMacro getPerformMacroFromIndex(int32_t macro_index) {
+	void setupExamplePerformMacro() {
+		PerformMacro macro = getPerformMacroFromIndex(PerformMacroKind::MACRO1);
+		PerformMacroSource source = getPerformMacroSource(macro);
+		PerformMacroDestination destination = getPerformMacroDestination(macro, PerformMacroDestinationKind::DESTINATION1);
+	}
+
+	PerformMacro getPerformMacroFromIndex(int8_t macro_index) {
 		return perform_macros[macro_index];
 	}
 
@@ -507,7 +531,7 @@ public:
 		return macro.source;
 	}
 
-	PerformMacroDestination getPerformMacroDestination(PerformMacro macro, int32_t destination_index) {
+	PerformMacroDestination getPerformMacroDestination(PerformMacro macro, int8_t destination_index) {
 		return macro.destinations[destination_index];
 	}
 
