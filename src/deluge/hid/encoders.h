@@ -68,7 +68,7 @@ public:
 	double calcNextKnobSpeed(int8_t offset);
 
 private:
-	std::atomic_int8_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	std::atomic_int8_t pos = 0;   ///< Written by the IRQ (applyEdges), drained by the encoder task.
 	double currentKnobSpeed{0.0}; // Used for encoder acceleration
 };
 

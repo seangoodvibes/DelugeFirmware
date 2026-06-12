@@ -60,7 +60,7 @@ double ContinuousEncoder::calcNextKnobSpeed(int8_t offset) {
 	constexpr double inertia = 1.0 - acceleration;
 	constexpr double speed_scale = 0.15;
 	constexpr double min_speed = 1.0;
-	constexpr double max_speed = 2.0;
+	constexpr double max_speed = 3.0;
 	constexpr double reset_speed_time_threshold = 0.3;
 
 	// lastOffset and lastEncoderTime keep track of our direction and time
