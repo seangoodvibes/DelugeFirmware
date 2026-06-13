@@ -290,7 +290,9 @@ skipThat: {}
 	// If still unautomated (or not currently playing), record value change
 	if (!nodes.getNumElements() || !isPlaying) {
 		if (value != currentValue) {
-			actionLogger.recordUnautomatedParamChange(modelStack);
+			if (shouldLogAction) {
+				actionLogger.recordUnautomatedParamChange(modelStack);
+			}
 		}
 	}
 

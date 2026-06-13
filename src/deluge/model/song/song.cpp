@@ -3080,7 +3080,7 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction, int32_t pos) {
 	auto tempo_param = getModelStackWithParam(model_stack_with_three_main_things, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// convert timePerTimerTickBig from 64 bit in to 32 bit in
 	int32_t new_tempo = timePerTimerTickBig >> 33;
-	// don't log tempo changes through auto param as it's already done above when updating timePerTimerTickBig
+	// don't log unautomated param changes through auto param as that is already done above
 	tempo_param->autoParam->setCurrentValueInResponseToUserInput(new_tempo, tempo_param, false, pos);
 }
 
