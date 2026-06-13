@@ -154,7 +154,7 @@ public:
 
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
-	void setBPM(float tempoBPM, bool shouldLogAction);
+	void setBPM(float tempoBPM, bool shouldLogAction, int32_t pos = -1); // default to use live pos (pos = -1)
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
 	void writeTemplateSong(const char* templateSong);

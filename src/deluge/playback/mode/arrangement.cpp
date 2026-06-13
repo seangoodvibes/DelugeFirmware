@@ -124,7 +124,9 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 		    modelStack->addTimelineCounter(modelStack->song)
 		        ->addOtherTwoThingsButNoNoteRow(&modelStack->song->globalEffectable, &modelStack->song->paramManager);
 
+		// tick params forward so that param current values are updated
 		currentSong->paramManager.processCurrentPos(modelStackStackWithThreeMainThing, posIncrement, false);
+		// update BPM with current tempo param value
 		currentSong->updateBPMFromAutomation();
 	}
 
