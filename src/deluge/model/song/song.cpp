@@ -3069,27 +3069,28 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 	setTimePerTimerTick(newTimePerTimerTickBig, shouldLogAction);
 }
 
-void Song::setBPM(float tempoBPM, bool shouldLogAction) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
-	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
-	auto intTempo = (int32_t)(tempoBPM * 100);
-	int32_t pos = -1; // means use the live position
-	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+void Song::setBPM(float tempoBPM, bool shouldLogAction, int32_t pos) {
+	// first update BPM so that timePerTimerTickBig gets updated
 	setBPMInner(tempoBPM, shouldLogAction);
+
+	// next update tempo auto param current value with updated timePerTimerTickBig
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* model_stack_with_three_main_things =
+	    setupModelStackWithSongAsTimelineCounter(model_stack_memory);
+	auto tempo_param = getModelStackWithParam(model_stack_with_three_main_things, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	// convert timePerTimerTickBig from 64 bit in to 32 bit in
+	int32_t new_tempo = timePerTimerTickBig >> 33;
+	// don't log tempo changes through auto param as it's already done above when updating timePerTimerTickBig
+	tempo_param->autoParam->setCurrentValueInResponseToUserInput(new_tempo, tempo_param, false, pos);
 }
 
 void Song::clearTempoAutomation() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
-	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
-	int32_t pos = -1; // means use the live position
-	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
-	tempoParam->autoParam->deleteAutomation(action, tempoParam);
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* model_stack_with_three_main_things =
+	    setupModelStackWithSongAsTimelineCounter(model_stack_memory);
+	auto tempo_param = getModelStackWithParam(model_stack_with_three_main_things, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	Action* action = nullptr; // we don't log tempo changes through automation action logger
+	tempo_param->autoParam->deleteAutomation(action, tempo_param);
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 }
 
@@ -5976,10 +5977,11 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 void Song::updateBPMFromAutomation() {
 	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
 	// that
-	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
-	if (currentTempo && currentTempo != intBPM) {
-		setBPMInner((float)currentTempo / 100, false);
-		intBPM = currentTempo;
+	int32_t current_tempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
+	uint64_t new_time_per_timer_tick_big = ((uint64_t)current_tempo) << 33;
+	// if tempo has changed, update time per timer tick big
+	if (current_tempo && (new_time_per_timer_tick_big != timePerTimerTickBig)) {
+		setTimePerTimerTick(new_time_per_timer_tick_big, true);
 	}
 }
 
