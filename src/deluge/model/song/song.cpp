@@ -5974,13 +5974,23 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 	return modelStackWithParam;
 }
 
-void Song::updateBPMFromAutomation() {
-	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
-	// that
-	int32_t current_tempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
+void Song::updateBPMFromAutomation(int32_t pos) {
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* model_stack_with_three_main_things =
+	    setupModelStackWithSongAsTimelineCounter(model_stack_memory);
+	auto tempo_param = getModelStackWithParam(model_stack_with_three_main_things, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	int32_t current_tempo = tempo_param->autoParam->getValuePossiblyAtPos(pos, tempo_param);
+
+	int32_t current_tempo_old = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
+
+	DEF_STACK_STRING_BUF(parameter_value, 40);
+	parameter_value.appendInt(current_tempo_old);
+	parameter_value.append("\n");
+	parameter_value.appendInt(current_tempo);
+	display->displayPopup(parameter_value.c_str());
 	uint64_t new_time_per_timer_tick_big = ((uint64_t)current_tempo) << 33;
 	// if tempo has changed, update time per timer tick big
-	if (current_tempo && (new_time_per_timer_tick_big != timePerTimerTickBig)) {
+	if (new_time_per_timer_tick_big != timePerTimerTickBig) {
 		setTimePerTimerTick(new_time_per_timer_tick_big, true);
 	}
 }

@@ -126,8 +126,6 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 		// tick params forward so that param current values are updated
 		currentSong->paramManager.processCurrentPos(modelStackStackWithThreeMainThing, posIncrement, false);
-		// update BPM with current tempo param value
-		currentSong->updateBPMFromAutomation();
 	}
 
 	int32_t nearestArpTickTime = 2147483647;
@@ -343,6 +341,9 @@ justDoArp:
 		// Yes we could only do that if songParamManagerMightContainAutomation, which means that we did call
 		// processCurrentPos() on that paramManager above. Because otherwise, its ticksTilNextEvent would be an invalid
 		// value - often 0, which causes a freeze / infinite loop.
+
+		// update BPM with current tempo param value
+		currentSong->updateBPMFromAutomation(lastProcessedPos);
 	}
 }
 
