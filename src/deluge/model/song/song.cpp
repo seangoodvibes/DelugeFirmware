@@ -3079,7 +3079,7 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction, int32_t pos) {
 	    setupModelStackWithSongAsTimelineCounter(model_stack_memory);
 	auto tempo_param = getModelStackWithParam(model_stack_with_three_main_things, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// convert timePerTimerTickBig from 64 bit in to 32 bit in
-	int32_t new_tempo = timePerTimerTickBig >> 33;
+	int32_t new_tempo = timePerTimerTickBig >> 32;
 	// don't log tempo changes through auto param as it's already done above when updating timePerTimerTickBig
 	tempo_param->autoParam->setCurrentValueInResponseToUserInput(new_tempo, tempo_param, false, pos);
 }
@@ -5983,12 +5983,14 @@ void Song::updateBPMFromAutomation(int32_t pos) {
 
 	int32_t current_tempo_old = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
 
+	/*
 	DEF_STACK_STRING_BUF(parameter_value, 40);
 	parameter_value.appendInt(current_tempo_old);
 	parameter_value.append("\n");
 	parameter_value.appendInt(current_tempo);
 	display->displayPopup(parameter_value.c_str());
-	uint64_t new_time_per_timer_tick_big = ((uint64_t)current_tempo) << 33;
+	*/
+	uint64_t new_time_per_timer_tick_big = ((uint64_t)current_tempo) << 32;
 	// if tempo has changed, update time per timer tick big
 	if (new_time_per_timer_tick_big != timePerTimerTickBig) {
 		setTimePerTimerTick(new_time_per_timer_tick_big, true);
