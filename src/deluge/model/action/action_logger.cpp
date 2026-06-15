@@ -239,7 +239,7 @@ void ActionLogger::updateAction(Action* newAction) {
 
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {
 
-	// If this is a param where you should not record automated param changes (e.g. tempo) then exit
+	// If this is a param where you should not record unautomated param changes (e.g. tempo) then exit
 	if (!modelStack->paramCollection->shouldRecordUnautomatedParamChange(modelStack)) {
 		return;
 	}
