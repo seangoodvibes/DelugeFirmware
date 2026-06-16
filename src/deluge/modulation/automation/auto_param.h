@@ -130,7 +130,10 @@ public:
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
 	int32_t valueIncrementPerHalfTick;
+	float value_increment_per_half_tick_float;
 	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
+
+	void resetInterpolationIncrement();
 
 	// "Latching" happens when you start recording values, but then stops if you arrive at any pre-existing values. So
 	// it only works in empty stretches of time.
@@ -138,8 +141,11 @@ public:
 private:
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
-	void setupInterpolation(ParamNode* nextNode, int32_t effectiveLength, int32_t currentPos, bool reversed);
+	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength, int32_t currentPos, bool reversed);
 	void homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
 	                                 bool interpolateEnd);
 	void deleteNodesBeyondPos(int32_t pos);
+	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);
+	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_nod, bool use_float_interpolation);
+	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
 };

@@ -53,7 +53,7 @@
 AutoParam::AutoParam() {
 	init();
 	currentValue = 0;
-	valueIncrementPerHalfTick = 0;
+	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
 
@@ -76,7 +76,7 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 	if (otherParam->renewedOverridingAtTime) {
 		renewedOverridingAtTime = otherParam->renewedOverridingAtTime;
-		valueIncrementPerHalfTick = 0;
+		resetInterpolationIncrement();
 	}
 	currentValue = otherParam->currentValue;
 }
@@ -102,7 +102,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
-	valueIncrementPerHalfTick = 0;
+	resetInterpolationIncrement();
 
 	bool isPlaying =
 	    (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -379,7 +379,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 		nodes.empty();
 	}
 
-	valueIncrementPerHalfTick = 0;
+	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 
 	if (shouldNotify && wasAutomated) {
@@ -391,7 +391,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 // I.e. a ParamSet must be notified if automation is deleted.
 void AutoParam::deleteAutomationBasicForSetup() {
 	nodes.empty();
-	valueIncrementPerHalfTick = 0;
+	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
 
@@ -451,7 +451,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	*/
 
 	// Stop any pre-existing interpolation (though we might set up some more, below)
-	valueIncrementPerHalfTick = 0;
+	resetInterpolationIncrement();
 
 	// Now start thinking about the *next* node, which we'll get to in a while
 	int32_t iRight = iJustReached + 1;
@@ -743,7 +743,7 @@ adjustNodeJustReached:
 
 	if (mayInterpolate) {
 		if ((reversed ? nodeJustReached : nextNodeInOurDirection)->interpolated) {
-			setupInterpolation(nextNodeInOurDirection, effectiveLength, currentPos, reversed);
+			setupInterpolation(modelStack, nextNodeInOurDirection, effectiveLength, currentPos, reversed);
 		}
 	}
 
@@ -771,8 +771,12 @@ getOut:
 	return ticksTilNextNode;
 }
 
+bool AutoParam::useFloatInterpolation(ModelStackWithAutoParam const* modelStack) {
+	return modelStack->paramCollection->shouldInterpolateWithFloat(modelStack);
+}
+
 // You now much check before calling this that interpolation should happen at all
-void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t effectiveLength, int32_t currentPos,
+void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNodeInOurDirection, int32_t effectiveLength, int32_t currentPos,
                                    bool reversed) {
 
 	if (renewedOverridingAtTime == 1) {
@@ -794,7 +798,9 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 		ticksTilNextNode += effectiveLength;
 	}
 
-	valueIncrementPerHalfTick = halfDistance / ticksTilNextNode;
+	bool use_float_interpolation = useFloatInterpolation(modelStack);
+
+	calculateInterpolationIncrement(halfDistance, ticksTilNextNode, use_float_interpolation);
 
 	// If automation still overridden (at least to some extent), limit how fast interpolation can occur
 	if (renewedOverridingAtTime) {
@@ -812,47 +818,102 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 			timeSinceOverridden = std::max(timeSinceOverridden, (int32_t)0);
 
 			int32_t limit = timeSinceOverridden << (26 - OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING);
-			if (valueIncrementPerHalfTick > limit) {
-				valueIncrementPerHalfTick = limit;
-			}
-			else if (valueIncrementPerHalfTick < -limit) {
-				valueIncrementPerHalfTick = -limit;
+			potentiallyOverrideInterpolationIncrement(limit, use_float_interpolation);
+		}
+	}
+}
 
-				// If we didn't even have to limit it, there's no need to be overriding anymore
-			}
-			else {
-				renewedOverridingAtTime = 0;
-			}
+void AutoParam::resetInterpolationIncrement() {
+	resetInterpolationIncrement();
+}
+
+void AutoParam::calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node, bool use_float_interpolation) {
+	if (use_float_interpolation) [[unlikely]] {
+		value_increment_per_half_tick_float = half_distance / ticks_til_next_node;
+	}
+	else {
+		valueIncrementPerHalfTick = half_distance / ticks_til_next_node;
+	}
+}
+
+void AutoParam::potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation) {
+	if (use_float_interpolation) [[unlikely]] {
+		if (value_increment_per_half_tick_float > limit) {
+			value_increment_per_half_tick_float = limit;
+		}
+		else if (value_increment_per_half_tick_float < -limit) {
+			value_increment_per_half_tick_float = -limit;
+
+			// If we didn't even have to limit it, there's no need to be overriding anymore
+		}
+		else {
+			renewedOverridingAtTime = 0;
+		}
+	}
+	else {
+		if (valueIncrementPerHalfTick > limit) {
+			valueIncrementPerHalfTick = limit;
+		}
+		else if (valueIncrementPerHalfTick < -limit) {
+			valueIncrementPerHalfTick = -limit;
+
+			// If we didn't even have to limit it, there's no need to be overriding anymore
+		}
+		else {
+			renewedOverridingAtTime = 0;
 		}
 	}
 }
 
 bool AutoParam::tickSamples(int32_t numSamples) {
-	if (!valueIncrementPerHalfTick) {
+	if (valueIncrementPerHalfTick == 0 && value_increment_per_half_tick_float == 0.0) {
 		return false;
 	}
 
 	int32_t oldValue = currentValue;
-	currentValue +=
-	    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()) * 6
-	    * numSamples;
+	bool reset_increment = false;
 
-	// Ensure no overflow
-	bool overflowOccurred = (valueIncrementPerHalfTick >= 0) ? (currentValue < oldValue) : (currentValue > oldValue);
-	if (overflowOccurred) {
-		currentValue = (valueIncrementPerHalfTick >= 0) ? 2147483647 : -2147483648;
-		valueIncrementPerHalfTick = 0;
+	if (valueIncrementPerHalfTick != 0) [[likely]] {
+		currentValue +=
+			multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()) * 6
+			* numSamples;
+
+		// Ensure no overflow
+		bool overflowOccurred = (valueIncrementPerHalfTick >= 0) ? (currentValue < oldValue) : (currentValue > oldValue);
+		if (overflowOccurred) {
+			currentValue = (valueIncrementPerHalfTick >= 0) ? 2147483647 : -2147483648;
+			reset_increment = true;
+		}
+	}
+	else {
+		currentValue = add_saturate(currentValue, value_increment_per_half_tick_float * playbackHandler.getTimePerInternalTickInverse() * 6 * numSamples);
+
+		// Ensure no overflow
+		bool overflowOccurred = (value_increment_per_half_tick_float >= 0.0) ? (currentValue < oldValue) : (currentValue > oldValue);
+		if (overflowOccurred) {
+			currentValue = (value_increment_per_half_tick_float >= 0.0) ? 2147483647 : -2147483648;
+			reset_increment = true;
+		}
+	}
+
+	if (reset_increment) {
+		resetInterpolationIncrement();
 	}
 
 	return true;
 }
 
 bool AutoParam::tickTicks(int32_t numTicks) {
-	if (valueIncrementPerHalfTick == 0) {
+	if (valueIncrementPerHalfTick == 0 && value_increment_per_half_tick_float == 0.0) {
 		return false;
 	}
 
-	currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks * 2);
+	if (valueIncrementPerHalfTick != 0) [[likely]] {
+		currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks * 2);
+	}
+	else {
+		currentValue = add_saturate(currentValue, value_increment_per_half_tick_float * numTicks * 2);
+	}
 
 	return true;
 }
@@ -1031,7 +1092,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 			mostRecentI = nodes.getNumElements() - 1;
 		}
 		if (mostRecentI == firstI) {
-			valueIncrementPerHalfTick = 0;
+			resetInterpolationIncrement();
 yesChangeCurrentValue:
 			currentValue = value;
 		}
@@ -1392,7 +1453,7 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
 
-	valueIncrementPerHalfTick = 0; // We may calculate this, below
+	resetInterpolationIncrement(); // We may calculate this, below
 	renewedOverridingAtTime = 0;
 	if (nodes.getNumElements()) {
 		int32_t oldValue = currentValue;
@@ -1418,7 +1479,7 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 			}
 
 			// Setup interpolation from the pos we're at now
-			setupInterpolation(nextNodeOurDirection, modelStack->getLoopLength(), pos, reversed);
+			setupInterpolation(modelStack, nextNodeOurDirection, modelStack->getLoopLength(), pos, reversed);
 		}
 
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
@@ -1849,7 +1910,7 @@ addNewNodeAt0IfNecessary:
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
 		}
 		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
-		valueIncrementPerHalfTick = 0; // In case we were interpolating.
+		resetInterpolationIncrement(); // In case we were interpolating.
 	}
 }
 
@@ -2750,7 +2811,7 @@ setNodeValue:
 	}
 
 	if (!nodes.getNumElements()) {
-		valueIncrementPerHalfTick = 0; // In case we were interpolating.
+		resetInterpolationIncrement(); // In case we were interpolating.
 	}
 
 	nodes.testSequentiality("E334");
@@ -2758,6 +2819,7 @@ setNodeValue:
 
 void AutoParam::notifyPingpongOccurred() {
 	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
+	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
 }
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,

@@ -103,7 +103,7 @@ void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* mode
 	}
 
 inline void ParamSet::checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
-	if (params[p].valueIncrementPerHalfTick) {
+	if (params[p].valueIncrementPerHalfTick != 0 || params[p].value_increment_per_half_tick_float != 0.0) {
 		modelStack->summary->whichParamsAreInterpolating[p >> 5] |= ((uint32_t)1 << (p & 31));
 	}
 }
@@ -208,7 +208,7 @@ void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, 
 void ParamSet::playbackHasEnded(ModelStackWithParamCollection* modelStack) {
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
-	params[p].valueIncrementPerHalfTick = 0;
+	params[p].resetInterpolationIncrement();
 	FOR_EACH_PARAM_END
 
 	modelStack->summary->resetInterpolationRecord(topUintToRepParams);
@@ -393,6 +393,10 @@ void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirection
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
 	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
+}
+
+bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
+	return (modelStack->paramId == params::UNPATCHED_TEMPO);
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
