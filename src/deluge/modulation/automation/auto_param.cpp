@@ -824,12 +824,13 @@ void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, Pa
 }
 
 void AutoParam::resetInterpolationIncrement() {
-	resetInterpolationIncrement();
+	valueIncrementPerHalfTick = 0;
+	value_increment_per_half_tick_float = 0.0;
 }
 
 void AutoParam::calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node, bool use_float_interpolation) {
 	if (use_float_interpolation) [[unlikely]] {
-		value_increment_per_half_tick_float = half_distance / ticks_til_next_node;
+		value_increment_per_half_tick_float = (float)half_distance / (float)ticks_til_next_node;
 	}
 	else {
 		valueIncrementPerHalfTick = half_distance / ticks_til_next_node;
@@ -871,7 +872,7 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 	}
 
 	int32_t oldValue = currentValue;
-	bool reset_increment = false;
+	bool overflow_occurred = false;
 
 	if (valueIncrementPerHalfTick != 0) [[likely]] {
 		currentValue +=
@@ -879,24 +880,19 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 			* numSamples;
 
 		// Ensure no overflow
-		bool overflowOccurred = (valueIncrementPerHalfTick >= 0) ? (currentValue < oldValue) : (currentValue > oldValue);
-		if (overflowOccurred) {
+		overflow_occurred = (valueIncrementPerHalfTick >= 0) ? (currentValue < oldValue) : (currentValue > oldValue);
+		if (overflow_occurred) {
 			currentValue = (valueIncrementPerHalfTick >= 0) ? 2147483647 : -2147483648;
-			reset_increment = true;
 		}
 	}
 	else {
-		currentValue = add_saturate(currentValue, value_increment_per_half_tick_float * playbackHandler.getTimePerInternalTickInverse() * 6 * numSamples);
+		currentValue = add_saturate(currentValue, std::round(value_increment_per_half_tick_float * playbackHandler.getTimePerInternalTickInverse() * 6 * numSamples));
 
 		// Ensure no overflow
-		bool overflowOccurred = (value_increment_per_half_tick_float >= 0.0) ? (currentValue < oldValue) : (currentValue > oldValue);
-		if (overflowOccurred) {
-			currentValue = (value_increment_per_half_tick_float >= 0.0) ? 2147483647 : -2147483648;
-			reset_increment = true;
-		}
+		overflow_occurred = (currentValue == oldValue);
 	}
 
-	if (reset_increment) {
+	if (overflow_occurred) {
 		resetInterpolationIncrement();
 	}
 
@@ -908,11 +904,20 @@ bool AutoParam::tickTicks(int32_t numTicks) {
 		return false;
 	}
 
+	int32_t oldValue = currentValue;
+	bool overflow_occurred = false;
+
 	if (valueIncrementPerHalfTick != 0) [[likely]] {
 		currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks * 2);
 	}
 	else {
-		currentValue = add_saturate(currentValue, value_increment_per_half_tick_float * numTicks * 2);
+		currentValue = add_saturate(currentValue, std::round(value_increment_per_half_tick_float * numTicks * 2));
+	}
+
+	bool overflow_occured = (currentValue == oldValue);
+
+	if (overflow_occured) {
+		resetInterpolationIncrement();
 	}
 
 	return true;
