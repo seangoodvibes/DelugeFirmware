@@ -129,13 +129,19 @@ public:
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
-	int32_t valueIncrementPerHalfTick;
+	/// Q32 value increment per half tick. The fractional part lets sparse low-resolution params, such as tempo,
+	/// interpolate through AutoParam::currentValue instead of quantizing the slope to 0.
+	int64_t valueIncrementPerHalfTick;
+	int64_t interpolationRemainder;
 	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
 
 	// "Latching" happens when you start recording values, but then stops if you arrive at any pre-existing values. So
 	// it only works in empty stretches of time.
 
 private:
+	void clearInterpolation();
+	int64_t consumeValueIncrement(int64_t valueIncrementQ32);
+	bool applyValueIncrement(int64_t valueIncrement);
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ParamNode* nextNode, int32_t effectiveLength, int32_t currentPos, bool reversed);

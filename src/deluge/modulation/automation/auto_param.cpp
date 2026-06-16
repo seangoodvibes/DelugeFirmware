@@ -39,6 +39,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <limits>
 #include <math.h>
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
@@ -50,15 +51,141 @@
 #define UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES                                                           \
 	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
+namespace {
+
+constexpr int64_t kInterpolationScale = int64_t{1} << 32;
+
+uint64_t addSaturating(uint64_t a, uint64_t b) {
+	if (std::numeric_limits<uint64_t>::max() - a < b) {
+		return std::numeric_limits<uint64_t>::max();
+	}
+
+	return a + b;
+}
+
+uint64_t multiplySaturating(uint64_t a, uint64_t b) {
+	if (a && b > std::numeric_limits<uint64_t>::max() / a) {
+		return std::numeric_limits<uint64_t>::max();
+	}
+
+	return a * b;
+}
+
+uint64_t multiplyRshift32Saturating(uint64_t a, uint64_t b) {
+	uint64_t aHigh = a >> 32;
+	uint64_t aLow = (uint32_t)a;
+	uint64_t bHigh = b >> 32;
+	uint64_t bLow = (uint32_t)b;
+
+	uint64_t highProduct = aHigh * bHigh;
+	if (highProduct > (std::numeric_limits<uint64_t>::max() >> 32)) {
+		return std::numeric_limits<uint64_t>::max();
+	}
+
+	uint64_t result = highProduct << 32;
+	result = addSaturating(result, aHigh * bLow);
+	result = addSaturating(result, aLow * bHigh);
+	result = addSaturating(result, (aLow * bLow) >> 32);
+
+	return result;
+}
+
+uint64_t getMagnitude(int64_t value) {
+	if (value >= 0) {
+		return value;
+	}
+
+	return (uint64_t)(-(value + 1)) + 1;
+}
+
+int64_t applySignAndSaturate(uint64_t magnitude, bool negative) {
+	constexpr uint64_t maxPositiveMagnitude = std::numeric_limits<int64_t>::max();
+	constexpr uint64_t maxNegativeMagnitude = (uint64_t)std::numeric_limits<int64_t>::max() + 1;
+
+	if (negative) {
+		if (magnitude >= maxNegativeMagnitude) {
+			return std::numeric_limits<int64_t>::min();
+		}
+
+		return -(int64_t)magnitude;
+	}
+
+	if (magnitude > maxPositiveMagnitude) {
+		return std::numeric_limits<int64_t>::max();
+	}
+
+	return (int64_t)magnitude;
+}
+
+int64_t multiplySignedByUnsignedSaturating(int64_t value, uint64_t multiplier) {
+	bool negative = value < 0;
+	uint64_t magnitude = multiplySaturating(getMagnitude(value), multiplier);
+	return applySignAndSaturate(magnitude, negative);
+}
+
+int64_t multiplySignedByUnsignedRshift32Saturating(int64_t value, uint64_t multiplier) {
+	bool negative = value < 0;
+	uint64_t magnitude = multiplyRshift32Saturating(getMagnitude(value), multiplier);
+	return applySignAndSaturate(magnitude, negative);
+}
+
+int64_t addSaturating(int64_t a, int64_t b) {
+	if (b > 0 && a > std::numeric_limits<int64_t>::max() - b) {
+		return std::numeric_limits<int64_t>::max();
+	}
+	if (b < 0 && a < std::numeric_limits<int64_t>::min() - b) {
+		return std::numeric_limits<int64_t>::min();
+	}
+
+	return a + b;
+}
+
+} // namespace
+
 AutoParam::AutoParam() {
 	init();
 	currentValue = 0;
-	valueIncrementPerHalfTick = 0;
+	clearInterpolation();
 	renewedOverridingAtTime = 0;
 }
 
 void AutoParam::init() {
 	nodes.init();
+}
+
+void AutoParam::clearInterpolation() {
+	valueIncrementPerHalfTick = 0;
+	interpolationRemainder = 0;
+}
+
+int64_t AutoParam::consumeValueIncrement(int64_t valueIncrementQ32) {
+	interpolationRemainder = addSaturating(interpolationRemainder, valueIncrementQ32);
+
+	int64_t valueIncrement = interpolationRemainder / kInterpolationScale;
+	interpolationRemainder -= valueIncrement * kInterpolationScale;
+
+	return valueIncrement;
+}
+
+bool AutoParam::applyValueIncrement(int64_t valueIncrement) {
+	if (!valueIncrement) {
+		return false;
+	}
+
+	int64_t newValue = (int64_t)currentValue + valueIncrement;
+	if (newValue > std::numeric_limits<int32_t>::max()) {
+		currentValue = std::numeric_limits<int32_t>::max();
+		clearInterpolation();
+	}
+	else if (newValue < std::numeric_limits<int32_t>::min()) {
+		currentValue = std::numeric_limits<int32_t>::min();
+		clearInterpolation();
+	}
+	else {
+		currentValue = (int32_t)newValue;
+	}
+
+	return true;
 }
 
 void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
@@ -69,6 +196,7 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 		nodes.init();
 	}
 	currentValue = otherParam->currentValue;
+	clearInterpolation();
 
 	renewedOverridingAtTime = 0;
 }
@@ -76,7 +204,7 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 	if (otherParam->renewedOverridingAtTime) {
 		renewedOverridingAtTime = otherParam->renewedOverridingAtTime;
-		valueIncrementPerHalfTick = 0;
+		clearInterpolation();
 	}
 	currentValue = otherParam->currentValue;
 }
@@ -102,7 +230,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
-	valueIncrementPerHalfTick = 0;
+	clearInterpolation();
 
 	bool isPlaying =
 	    (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -379,7 +507,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 		nodes.empty();
 	}
 
-	valueIncrementPerHalfTick = 0;
+	clearInterpolation();
 	renewedOverridingAtTime = 0;
 
 	if (shouldNotify && wasAutomated) {
@@ -391,7 +519,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 // I.e. a ParamSet must be notified if automation is deleted.
 void AutoParam::deleteAutomationBasicForSetup() {
 	nodes.empty();
-	valueIncrementPerHalfTick = 0;
+	clearInterpolation();
 	renewedOverridingAtTime = 0;
 }
 
@@ -451,7 +579,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	*/
 
 	// Stop any pre-existing interpolation (though we might set up some more, below)
-	valueIncrementPerHalfTick = 0;
+	clearInterpolation();
 
 	// Now start thinking about the *next* node, which we'll get to in a while
 	int32_t iRight = iJustReached + 1;
@@ -779,7 +907,7 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 		return; // If it's latched-until-next-node-hit, we're not allowed to interpolate.
 	}
 
-	int32_t halfDistance = (nextNodeInOurDirection->value >> 1) - (currentValue >> 1);
+	int64_t halfDistance = (nextNodeInOurDirection->value >> 1) - (currentValue >> 1);
 
 	if (!halfDistance) {
 		return;
@@ -794,7 +922,8 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 		ticksTilNextNode += effectiveLength;
 	}
 
-	valueIncrementPerHalfTick = halfDistance / ticksTilNextNode;
+	valueIncrementPerHalfTick = (halfDistance * kInterpolationScale) / ticksTilNextNode;
+	interpolationRemainder = 0;
 
 	// If automation still overridden (at least to some extent), limit how fast interpolation can occur
 	if (renewedOverridingAtTime) {
@@ -812,11 +941,12 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 			timeSinceOverridden = std::max(timeSinceOverridden, (int32_t)0);
 
 			int32_t limit = timeSinceOverridden << (26 - OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING);
-			if (valueIncrementPerHalfTick > limit) {
-				valueIncrementPerHalfTick = limit;
+			int64_t limitQ32 = (int64_t)limit * kInterpolationScale;
+			if (valueIncrementPerHalfTick > limitQ32) {
+				valueIncrementPerHalfTick = limitQ32;
 			}
-			else if (valueIncrementPerHalfTick < -limit) {
-				valueIncrementPerHalfTick = -limit;
+			else if (valueIncrementPerHalfTick < -limitQ32) {
+				valueIncrementPerHalfTick = -limitQ32;
 
 				// If we didn't even have to limit it, there's no need to be overriding anymore
 			}
@@ -833,18 +963,14 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 	}
 
 	int32_t oldValue = currentValue;
-	currentValue +=
-	    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()) * 6
-	    * numSamples;
+	uint64_t halfTicksThisBufferQ32 =
+	    multiplySaturating(playbackHandler.getTimePerInternalTickInverse(), (uint64_t)6 * numSamples);
+	int64_t valueIncrementQ32 =
+	    multiplySignedByUnsignedRshift32Saturating(valueIncrementPerHalfTick, halfTicksThisBufferQ32);
+	int64_t valueIncrement = consumeValueIncrement(valueIncrementQ32);
 
-	// Ensure no overflow
-	bool overflowOccurred = (valueIncrementPerHalfTick >= 0) ? (currentValue < oldValue) : (currentValue > oldValue);
-	if (overflowOccurred) {
-		currentValue = (valueIncrementPerHalfTick >= 0) ? 2147483647 : -2147483648;
-		valueIncrementPerHalfTick = 0;
-	}
-
-	return true;
+	applyValueIncrement(valueIncrement);
+	return currentValue != oldValue;
 }
 
 bool AutoParam::tickTicks(int32_t numTicks) {
@@ -852,9 +978,12 @@ bool AutoParam::tickTicks(int32_t numTicks) {
 		return false;
 	}
 
-	currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks * 2);
+	int32_t oldValue = currentValue;
+	int64_t valueIncrementQ32 = multiplySignedByUnsignedSaturating(valueIncrementPerHalfTick, (uint64_t)numTicks * 2);
+	int64_t valueIncrement = consumeValueIncrement(valueIncrementQ32);
 
-	return true;
+	applyValueIncrement(valueIncrement);
+	return currentValue != oldValue;
 }
 
 void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
@@ -1031,7 +1160,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 			mostRecentI = nodes.getNumElements() - 1;
 		}
 		if (mostRecentI == firstI) {
-			valueIncrementPerHalfTick = 0;
+			clearInterpolation();
 yesChangeCurrentValue:
 			currentValue = value;
 		}
@@ -1392,7 +1521,7 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
 
-	valueIncrementPerHalfTick = 0; // We may calculate this, below
+	clearInterpolation(); // We may calculate this, below
 	renewedOverridingAtTime = 0;
 	if (nodes.getNumElements()) {
 		int32_t oldValue = currentValue;
@@ -1848,8 +1977,8 @@ addNewNodeAt0IfNecessary:
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
 		}
-		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
-		valueIncrementPerHalfTick = 0; // In case we were interpolating.
+		nodes.empty(); // Delete them - either if no action, or if the above chose not to steal them.
+		clearInterpolation();
 	}
 }
 
@@ -2750,7 +2879,7 @@ setNodeValue:
 	}
 
 	if (!nodes.getNumElements()) {
-		valueIncrementPerHalfTick = 0; // In case we were interpolating.
+		clearInterpolation();
 	}
 
 	nodes.testSequentiality("E334");
@@ -2758,6 +2887,7 @@ setNodeValue:
 
 void AutoParam::notifyPingpongOccurred() {
 	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
+	interpolationRemainder = -interpolationRemainder;
 }
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
