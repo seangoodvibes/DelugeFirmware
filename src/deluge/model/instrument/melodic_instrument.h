@@ -69,7 +69,8 @@ public:
 	                             int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0);
 	void endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity = kDefaultLiftValue);
 	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
-	                                                                       ModelStackWithThreeMainThings* modelStack);
+	                                                                       ModelStackWithThreeMainThings* modelStack,
+	                                                                       bool allow_creation = true);
 	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                      ModelStackWithTimelineCounter* modelStack) override;
 
@@ -97,7 +98,8 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack) override;
+	                                                bool affectEntire, bool useMenuStack,
+	                                                bool allow_creation = true) override;
 
 private:
 	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);

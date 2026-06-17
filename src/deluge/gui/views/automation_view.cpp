@@ -691,7 +691,9 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+		bool allow_creation = outputType != OutputType::MIDI_OUT;
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, kNoSelection,
+		                                                    params::Kind::NONE, allow_creation);
 		if (inNoteEditor()) {
 			modelStackWithNoteRow = ((InstrumentClip*)clip)
 			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
@@ -846,8 +848,10 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 			else if (outputType == OutputType::MIDI_OUT) {
 				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+					bool allow_creation = false;
 					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay],
+					    params::Kind::MIDI, allow_creation);
 				}
 			}
 			else if (outputType == OutputType::CV) {
@@ -858,9 +862,9 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				}
 			}
 
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if (modelStackWithParam) {
 				// highlight pad white if the parameter it represents is currently automated
-				if (modelStackWithParam->autoParam->isAutomated()) {
+				if (modelStackWithParam->autoParam && modelStackWithParam->autoParam->isAutomated()) {
 					pixel = {
 					    .r = 130,
 					    .g = 120,
@@ -1093,8 +1097,10 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			Clip* clip = getCurrentClip();
+			bool allow_creation = clip->output->type != OutputType::MIDI_OUT;
 
-			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+			modelStackWithParam =
+			    getModelStackWithParamForClip(modelStack, clip, kNoSelection, params::Kind::NONE, allow_creation);
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1715,7 +1721,10 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+		bool allow_creation =
+		    ((OutputType != OutputType::MIDI_OUT) || (x < kDisplayWidth)); // not midi or editing automation
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, kNoSelection,
+		                                                    params::Kind::NONE, allow_creation);
 		if (inNoteEditor()) {
 			modelStackWithNoteRow = ((InstrumentClip*)clip)
 			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
@@ -2649,7 +2658,9 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		}
 		else {
 			modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+			bool allow_creation = outputType != OutputType::MIDI_OUT;
+			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, kNoSelection,
+			                                                    params::Kind::NONE, allow_creation);
 		}
 		int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 		int32_t xScroll = currentSong->xScroll[navSysId];
@@ -3085,7 +3096,7 @@ void AutomationView::initInterpolation() {
 // the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
 ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
                                                                        Clip* clip, int32_t paramID,
-                                                                       params::Kind paramKind) {
+                                                                       params::Kind paramKind, bool allow_creation) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (paramID == kNoParamID) {
@@ -3097,8 +3108,8 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 	// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
 	bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
 
-	modelStackWithParam =
-	    clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(), inSoundMenu);
+	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
+	                                                           inSoundMenu, allow_creation);
 
 	return modelStackWithParam;
 }

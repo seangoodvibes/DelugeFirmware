@@ -87,7 +87,8 @@ public:
 
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
-	                                                               ModelStackWithThreeMainThings* modelStack) override;
+	                                                               ModelStackWithThreeMainThings* modelStack,
+	                                                               bool allow_creation = true) override;
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);
 	int32_t getOutputMasterChannel();
 
@@ -123,7 +124,8 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack) override;
+	                                                bool affectEntire, bool useMenuStack,
+	                                                bool allow_creation = true) override;
 
 	bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                uint32_t paramID) override {

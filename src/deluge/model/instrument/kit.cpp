@@ -2001,7 +2001,7 @@ gotParamManager:
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                      int32_t paramID, params::Kind paramKind, bool affectEntire,
-                                                     bool useMenuStack) {
+                                                     bool useMenuStack, bool allow_creation) {
 	if (affectEntire) {
 		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack);
 	}

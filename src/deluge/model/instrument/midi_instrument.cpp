@@ -137,7 +137,8 @@ int32_t MIDIInstrument::getKnobPosForNonExistentParam(int32_t whichModEncoder, M
 }
 
 ModelStackWithAutoParam*
-MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack) {
+MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack,
+                                                      bool allow_creation) {
 
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
@@ -179,8 +180,8 @@ expressionParam:
 
 	return summary->paramCollection->getAutoParamFromId(
 	    modelStackWithParamId,
-	    true); // Yes we do want to force creating it even if we're not recording - so the level indicator can update
-	           // for the user
+	    allow_creation); // Yes we do want to force creating it even if we're not recording - so the level indicator can
+	                     // update for the user
 }
 
 void MIDIInstrument::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value,
@@ -1224,7 +1225,8 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                                 int32_t paramID,
                                                                 deluge::modulation::params::Kind paramKind,
-                                                                bool affectEntire, bool useMenuStack) {
+                                                                bool affectEntire, bool useMenuStack,
+                                                                bool allow_creation) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -1235,7 +1237,8 @@ ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTi
 
 		if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
 
-			modelStackWithParam = getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+			modelStackWithParam =
+			    getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings, allow_creation);
 		}
 	}
 

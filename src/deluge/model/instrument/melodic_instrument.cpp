@@ -594,7 +594,8 @@ bool MelodicInstrument::isAnyAuditioningHappening() {
 
 // Virtual function, gets overridden.
 ModelStackWithAutoParam*
-MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack) {
+MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack,
+                                                         bool allow_creation) {
 
 	modelStack->paramManager->ensureExpressionParamSetExists();
 	ParamCollectionSummary* summary = modelStack->paramManager->getExpressionParamSetSummary();
@@ -733,7 +734,8 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
                                                                    Clip* clip, int32_t paramID,
                                                                    deluge::modulation::params::Kind paramKind,
-                                                                   bool affectEntire, bool useMenuStack) {
+                                                                   bool affectEntire, bool useMenuStack,
+                                                                   bool allow_creation) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

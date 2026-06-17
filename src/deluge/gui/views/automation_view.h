@@ -136,7 +136,8 @@ public:
 	ModelStackWithAutoParam*
 	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                              int32_t paramID = deluge::modulation::params::kNoParamID,
-	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
+	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE,
+	                              bool allow_creation = true);
 
 	// public so instrument clip view can access it
 	void initParameterSelection(bool updateDisplay = true);

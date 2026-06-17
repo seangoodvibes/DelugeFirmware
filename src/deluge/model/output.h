@@ -195,7 +195,8 @@ public:
 
 	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                        int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                        bool affectEntire, bool useMenuStack) = 0;
+	                                                        bool affectEntire, bool useMenuStack,
+	                                                        bool allow_creation = true) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
 	bool hasRecorder() { return recorder; }
 	bool shouldRenderInSong() { return !(recorderIsEchoing); }
