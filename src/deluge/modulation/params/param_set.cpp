@@ -396,7 +396,14 @@ void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirection
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
-	return (modelStack->paramId == params::UNPATCHED_TEMPO);
+	// Global
+	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
+		switch (modelStack->paramId) {
+		case params::UNPATCHED_PITCH_ADJUST:
+			return true;
+		}
+	}
+	return false;
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
