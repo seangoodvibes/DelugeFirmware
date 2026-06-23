@@ -148,4 +148,5 @@ private:
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);
 	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_nod, bool use_float_interpolation);
 	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
+	void reverseInterpolationIncrement();
 };

@@ -828,6 +828,11 @@ void AutoParam::resetInterpolationIncrement() {
 	value_increment_per_half_tick_float = 0.0;
 }
 
+void AutoParam::reverseInterpolationIncrement() {
+	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
+	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+}
+
 void AutoParam::calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node, bool use_float_interpolation) {
 	if (use_float_interpolation) [[unlikely]] {
 		value_increment_per_half_tick_float = (float)half_distance / (float)ticks_til_next_node;
@@ -2823,8 +2828,7 @@ setNodeValue:
 }
 
 void AutoParam::notifyPingpongOccurred() {
-	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
-	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+	reverseInterpolationIncrement();
 }
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
