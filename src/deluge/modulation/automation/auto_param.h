@@ -131,6 +131,7 @@ public:
 	int32_t currentValue;
 
 	// interpolation to calculate current value
+	bool hasInterpolationIncrement();
 	void resetInterpolationIncrement();
 	int32_t valueIncrementPerHalfTick;
 	float value_increment_per_half_tick_float;
@@ -144,14 +145,18 @@ public:
 private:
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
-	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength, int32_t currentPos, bool reversed);
+	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,
+	                        int32_t currentPos, bool reversed);
 	void homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
 	                                 bool interpolateEnd);
 	void deleteNodesBeyondPos(int32_t pos);
 
 	// interpolation to calculate current value
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);
-	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_nod, bool use_float_interpolation);
+	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node,
+	                                     bool use_float_interpolation);
 	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
 	void reverseInterpolationIncrement();
+	int32_t consumeFloatInterpolationIncrement(float value_increment);
+	bool applyValueIncrement(int32_t value_increment);
 };

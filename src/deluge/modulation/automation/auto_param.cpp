@@ -69,6 +69,7 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 		nodes.init();
 	}
 	currentValue = otherParam->currentValue;
+	resetInterpolationIncrement();
 
 	renewedOverridingAtTime = 0;
 }
@@ -771,13 +772,29 @@ getOut:
 	return ticksTilNextNode;
 }
 
+bool AutoParam::hasInterpolationIncrement() {
+	return valueIncrementPerHalfTick != 0 || value_increment_per_half_tick_float != 0.0f;
+}
+
+void AutoParam::resetInterpolationIncrement() {
+	valueIncrementPerHalfTick = 0;
+	value_increment_per_half_tick_float = 0.0f;
+	interpolation_increment_remainder_float = 0.0f;
+}
+
+void AutoParam::reverseInterpolationIncrement() {
+	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
+	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+	interpolation_increment_remainder_float = -interpolation_increment_remainder_float;
+}
+
 bool AutoParam::useFloatInterpolation(ModelStackWithAutoParam const* modelStack) {
 	return modelStack->paramCollection->shouldInterpolateWithFloat(modelStack);
 }
 
 // You now much check before calling this that interpolation should happen at all
-void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNodeInOurDirection, int32_t effectiveLength, int32_t currentPos,
-                                   bool reversed) {
+void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNodeInOurDirection,
+                                   int32_t effectiveLength, int32_t currentPos, bool reversed) {
 
 	if (renewedOverridingAtTime == 1) {
 		return; // If it's latched-until-next-node-hit, we're not allowed to interpolate.
@@ -823,17 +840,10 @@ void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, Pa
 	}
 }
 
-void AutoParam::resetInterpolationIncrement() {
-	valueIncrementPerHalfTick = 0;
-	value_increment_per_half_tick_float = 0.0;
-}
+void AutoParam::calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node,
+                                                bool use_float_interpolation) {
+	resetInterpolationIncrement();
 
-void AutoParam::reverseInterpolationIncrement() {
-	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
-	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
-}
-
-void AutoParam::calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node, bool use_float_interpolation) {
 	if (use_float_interpolation) [[unlikely]] {
 		value_increment_per_half_tick_float = (float)half_distance / (float)ticks_til_next_node;
 	}
@@ -871,61 +881,69 @@ void AutoParam::potentiallyOverrideInterpolationIncrement(int32_t limit, bool us
 	}
 }
 
-bool AutoParam::tickSamples(int32_t numSamples) {
-	if (valueIncrementPerHalfTick == 0 && value_increment_per_half_tick_float == 0.0) {
+int32_t AutoParam::consumeFloatInterpolationIncrement(float value_increment) {
+	interpolation_increment_remainder_float += value_increment;
+
+	float whole_value_increment = truncf(interpolation_increment_remainder_float);
+	interpolation_increment_remainder_float -= whole_value_increment;
+
+	return (int32_t)whole_value_increment;
+}
+
+bool AutoParam::applyValueIncrement(int32_t value_increment) {
+	if (value_increment == 0) {
 		return false;
 	}
 
 	int32_t oldValue = currentValue;
-	bool overflow_occurred = false;
+	currentValue = add_saturate(currentValue, value_increment);
 
-	if (valueIncrementPerHalfTick != 0) [[likely]] {
-		currentValue +=
-			multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()) * 6
-			* numSamples;
-
-		// Ensure no overflow
-		overflow_occurred = (valueIncrementPerHalfTick >= 0) ? (currentValue < oldValue) : (currentValue > oldValue);
-		if (overflow_occurred) {
-			currentValue = (valueIncrementPerHalfTick >= 0) ? 2147483647 : -2147483648;
-		}
-	}
-	else {
-		currentValue = add_saturate(currentValue, std::round(value_increment_per_half_tick_float * playbackHandler.getTimePerInternalTickInverse() * 6 * numSamples));
-
-		// Ensure no overflow
-		overflow_occurred = (currentValue == oldValue);
-	}
-
+	bool overflow_occurred = (oldValue == currentValue)
+	                         && ((value_increment > 0 && currentValue == 2147483647)
+	                             || (value_increment < 0 && currentValue == -2147483648));
 	if (overflow_occurred) {
 		resetInterpolationIncrement();
 	}
 
-	return true;
+	return (currentValue != oldValue);
 }
 
-bool AutoParam::tickTicks(int32_t numTicks) {
-	if (valueIncrementPerHalfTick == 0 && value_increment_per_half_tick_float == 0.0) {
+bool AutoParam::tickSamples(int32_t numSamples) {
+	if (!hasInterpolationIncrement()) {
 		return false;
 	}
 
-	int32_t oldValue = currentValue;
-	bool overflow_occurred = false;
+	int32_t value_increment = 0;
 
 	if (valueIncrementPerHalfTick != 0) [[likely]] {
-		currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks * 2);
+		value_increment =
+		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse())
+		    * 6 * numSamples;
 	}
 	else {
-		currentValue = add_saturate(currentValue, std::round(value_increment_per_half_tick_float * numTicks * 2));
+		float half_ticks = 6.0f * (float)numSamples / playbackHandler.getTimePerInternalTickFloat();
+		value_increment = consumeFloatInterpolationIncrement(value_increment_per_half_tick_float * half_ticks);
 	}
 
-	bool overflow_occured = (currentValue == oldValue);
+	return applyValueIncrement(value_increment);
+}
 
-	if (overflow_occured) {
-		resetInterpolationIncrement();
+bool AutoParam::tickTicks(int32_t numTicks) {
+	if (!hasInterpolationIncrement()) {
+		return false;
 	}
 
-	return true;
+	int32_t value_increment = 0;
+	int32_t half_ticks = numTicks * 2;
+
+	if (valueIncrementPerHalfTick != 0) [[likely]] {
+		value_increment = valueIncrementPerHalfTick * half_ticks;
+	}
+	else {
+		value_increment = consumeFloatInterpolationIncrement(value_increment_per_half_tick_float * (float)half_ticks);
+	}
+
+	return applyValueIncrement(value_increment);
 }
 
 void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
