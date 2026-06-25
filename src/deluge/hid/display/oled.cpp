@@ -31,6 +31,7 @@
 #include "storage/flash_storage.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
+#include <algorithm>
 #include <string.h>
 #include <string_view>
 
@@ -156,6 +157,10 @@ struct ConsoleItem {
 ConsoleItem consoleItemStoreDontAccessDirectly[MAX_NUM_CONSOLE_ITEMS] = {0};
 int32_t numConsoleItems = 0;
 
+void sanitizeNumConsoleItems() {
+	numConsoleItems = std::clamp<int32_t>(numConsoleItems, 0, MAX_NUM_CONSOLE_ITEMS);
+}
+
 // There is suspicion that we're under or overflowing the memory for the consoleItems
 // array: so we've renamed it to consoleItemStoreDontAccessDirectly, and have this class
 // act as a guard to catch out of bounds accesses.
@@ -176,6 +181,7 @@ public:
 ConsoleItemAccessor consoleItems;
 
 void OLED::drawConsoleTopLine() {
+	sanitizeNumConsoleItems();
 	if (numConsoleItems <= 0) {
 		return;
 	}
@@ -184,6 +190,9 @@ void OLED::drawConsoleTopLine() {
 
 // Returns y position (minY)
 int32_t OLED::setupConsole(int32_t height) {
+	sanitizeNumConsoleItems();
+	height = std::clamp<int32_t>(height, 1, kConsoleImageHeight - 2);
+
 	consoleMinX = 4;
 	consoleMaxX = OLED_MAIN_WIDTH_PIXELS - consoleMinX;
 
@@ -193,7 +202,7 @@ int32_t OLED::setupConsole(int32_t height) {
 	if (numConsoleItems) {
 
 		// If hit max num console items...
-		if (numConsoleItems == MAX_NUM_CONSOLE_ITEMS) {
+		if (numConsoleItems >= MAX_NUM_CONSOLE_ITEMS) {
 			numConsoleItems--;
 			shouldRedrawTopLine = true;
 		}
@@ -226,6 +235,7 @@ int32_t OLED::setupConsole(int32_t height) {
 
 			// Do the actual copying
 			// numConsoleItems hasn't been updated yet - there's actually one more
+			numConsoleItems = std::max<int32_t>(numConsoleItems, 0);
 			moveAreaUpCrude(consoleMinX, consoleItems[numConsoleItems].minY - 1, consoleMaxX,
 			                consoleItems[1].maxY + howMuchTooLow, howMuchTooLow, console.hackGetImageStore());
 		}
@@ -340,10 +350,11 @@ void OLED::sendMainImage() {
 	if (!needsSending) {
 		return;
 	}
+	sanitizeNumConsoleItems();
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
-	if (numConsoleItems) {
+	if (numConsoleItems > 0) {
 		copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
 		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
 		                               OLED_MAIN_HEIGHT_PIXELS - 1);
@@ -828,9 +839,10 @@ void OLED::consoleText(char const* text) {
 
 	breakStringIntoLines(text, &textLineBreakdown, charHeight);
 
-	int32_t textPixelY = setupConsole(textLineBreakdown.numLines * charHeight + 1) + 1;
+	int32_t numLines = std::min<int32_t>(textLineBreakdown.numLines, (kConsoleImageHeight - 3) / charHeight);
+	int32_t textPixelY = setupConsole(numLines * charHeight + 1) + 1;
 
-	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
+	for (int32_t l = 0; l < numLines; l++) {
 		console.drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
 		                   textPixelY, charWidth, charHeight);
 		textPixelY += charHeight;
@@ -1048,7 +1060,8 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 void OLED::consoleTimerEvent() {
 	// If console active
-	if (!numConsoleItems) {
+	sanitizeNumConsoleItems();
+	if (numConsoleItems <= 0) {
 		return;
 	}
 
