@@ -251,8 +251,8 @@ void TaskManager::runTask(TaskID id) {
 		else {
 			if (countThisTask) {
 				if (runtime > Time(0.003)) {
-					D_PRINTLN("Task %s took too long: %.3fms. %s", current_task->name, double(runtime) * 1000.,
-					          current_task->yielded ? " (yielded)" : "");
+				//	D_PRINTLN("Task %s took too long: %.3fms. %s", current_task->name, double(runtime) * 1000.,
+				//	          current_task->yielded ? " (yielded)" : "");
 				}
 				current_task->updateNextTimes(start_time, runtime, timeNow);
 			}
@@ -298,7 +298,7 @@ bool TaskManager::yield(RunCondition until, Time timeout, bool returnOnIdle) {
 	}
 	if (countThisTask) {
 		if (runtime > Time(0.003)) {
-			D_PRINTLN("Task %s took too long before yielding: %.3fms", yielding_task->name, double(runtime) * 1000.);
+			// D_PRINTLN("Task %s took too long before yielding: %.3fms", yielding_task->name, double(runtime) * 1000.);
 		}
 		yielding_task->updateNextTimes(start_time, runtime, time_now);
 	}
@@ -318,7 +318,7 @@ bool TaskManager::yield(RunCondition until, Time timeout, bool returnOnIdle) {
 			if (!addedTask && new_time > lastPrintedStats + Time(10.0)) {
 				lastPrintedStats = new_time;
 				// couldn't find anything so here we go
-				printStats();
+				// printStats();
 			}
 			runHighestPriTask();
 			if (returnOnIdle) {
@@ -406,12 +406,13 @@ void TaskManager::resetStats() {
 }
 
 void TaskManager::printStats() {
-	D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
+	// D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
 	for (auto task : list) {
 		if (task.handle) {
 			constexpr float latencyScale = 1000.0;
 			constexpr float durationScale = 1000000.0;
 #if SCHEDULER_DETAILED_STATS
+/*
 			D_PRINTLN("Load: %5.2f, "                                                    //<
 			          "Dur: %8.3f/%8.3f/%9.3f us "                                       //<
 			          "Latency: %8.3f/%8.3f/%8.3f ms "                                   //<
@@ -424,21 +425,26 @@ void TaskManager::printStats() {
 			          latencyScale * double(task.latency.average),                       //<
 			          latencyScale * double(task.latency.max),                           //<
 			          task.timesCalled / 10, task.name);
+*/
 #else
 #ifdef NEVER
+/*
 			D_PRINTLN("Load: %5.2f "                  //<
 			          "Average Duration: %9.3f "      //<
 			          "Times Called: %10d, Task: %s", //<
 			          100.0 * task.totalTime / cpuTime, durationScale * task.durationStats.average, task.timesCalled,
 			          task.name);
+*/
 #endif
 #endif
 		}
 	}
 	auto totalTime = cpuTime + overhead;
+	/*
 	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds",
 	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime),
 	          double(runningTime));
+	*/
 	resetStats();
 }
 Time getTimerValueSeconds(int timerNo) {

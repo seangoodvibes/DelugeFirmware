@@ -294,8 +294,8 @@ void killOneVoice(size_t num_samples) {
 		voice->sound.freeActiveVoice(voice);
 	}
 
-	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
-	          getNumAudio());
+	// D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
+	//          getNumAudio());
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
@@ -322,8 +322,8 @@ void terminateOneVoice(size_t numSamples) {
 		voice->sound.freeActiveVoice(voice);
 	}
 
-	D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-	          getNumVoices(), getNumAudio());
+	// D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+	//          getNumVoices(), getNumAudio());
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
@@ -347,8 +347,8 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 	auto stage = voice->envelopes[0].state;
 	if (stage < EnvelopeStage::FAST_RELEASE) {
-		D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getNumAudio());
+	//	D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+	//	          getNumVoices(), getNumAudio());
 	}
 
 	bool still_rendering = voice->speedUpRelease();
@@ -420,7 +420,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
-			D_PRINTLN("Culling %d voices", num_to_cull);
+			// D_PRINTLN("Culling %d voices", num_to_cull);
 
 			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
 				// cull with fast release
@@ -433,7 +433,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			forceReleaseOneVoice(numSamples);
 
 #if ALPHA_OR_BETA_VERSION
-			logAction("hard cull");
+			// logAction("hard cull");
 
 #endif
 			culled = true;
@@ -444,10 +444,10 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		else if (num_samples_over_limit >= 0) {
 			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
 				forceReleaseOneVoice(numSamples);
-				logAction("soft cull");
+				// logAction("soft cull");
 				if (numRoutines > 0) {
 					culled = true;
-					D_PRINTLN("culling in second routine");
+					// D_PRINTLN("culling in second routine");
 				}
 			}
 		}
@@ -457,7 +457,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 		// Cull anyway if things are bad
 		if (numSamplesOverLimit >= 40) {
-			D_PRINTLN("under min voices but culling anyway");
+			// D_PRINTLN("under min voices but culling anyway");
 			terminateOneVoice(numSamples);
 			culled = true;
 		}
@@ -467,7 +467,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
-		D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
+		// D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
 	}
 }
 
@@ -513,7 +513,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 				cpuDireness = 0;
 			}
 			else {
-				D_PRINTLN("direness:  %d", cpuDireness);
+				// D_PRINTLN("direness:  %d", cpuDireness);
 			}
 		}
 	}
@@ -538,7 +538,7 @@ bool calledFromScheduler = false;
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
 		// If the audio routine is called at less than a 3ms interval, something is wrong
-		D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
+		// D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
 	}
 	last_call_time = current_time;
 #ifndef USE_TASK_MANAGER

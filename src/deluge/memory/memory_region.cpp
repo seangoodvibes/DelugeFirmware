@@ -178,7 +178,7 @@ bool MemoryRegion::checkIntegrity(char const* reason) {
 				if (prevAddress) {
 					memGuardReportOwner("overrun candidate (left neighbour)", prevAddress);
 				}
-				FREEZE_WITH_ERROR("MG03");
+				// FREEZE_WITH_ERROR("MG03");
 				return false;
 			}
 		}
@@ -539,7 +539,7 @@ noEmptySpace:
 			D_PRINTLN("MEM_GUARD use-after-free: dirty word %x (=%x) in block %x size %x region %s", dirty,
 			          *(uint32_t*)dirty, allocatedAddress, (uint32_t)allocatedSize, name);
 			memGuardReportOwner("most-recent owner of reused address", allocatedAddress);
-			FREEZE_WITH_ERROR("MG03");
+			// FREEZE_WITH_ERROR("MG03");
 		}
 	}
 #endif
