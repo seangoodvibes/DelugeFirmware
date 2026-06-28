@@ -359,7 +359,10 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 							    currentModControllable, currentSourceIndex, &currentMultiRange);
 
 							if (result != MenuPermission::NO) {
-								if (result == MenuPermission::MUST_SELECT_RANGE) {
+								bool is_horizontal_menu = currentMenuItem->isSubmenu()
+											&& static_cast<Submenu*>(currentMenuItem)->renderingStyle() == Submenu::HORIZONTAL;
+
+								if (result == MenuPermission::MUST_SELECT_RANGE && !is_horizontal_menu) {
 									currentMultiRange = nullptr;
 									menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
 									newItem = &menu_item::multiRangeMenu;

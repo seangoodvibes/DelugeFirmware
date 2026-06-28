@@ -37,6 +37,15 @@ namespace deluge::gui::menu_item {
 
 using namespace hid::display;
 
+MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing, ::MultiRange** currentRange) {
+	MenuPermission check_result = (*current_item_)->checkPermissionToBeginSession(modControllable, whichThing, currentRange);
+	if (check_result == MenuPermission::MUST_SELECT_RANGE) {
+		return MenuPermission::MUST_SELECT_RANGE;
+	}
+
+	return MenuPermission::YES;
+}
+
 void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	Submenu::beginSession(navigatedBackwardFrom);
 

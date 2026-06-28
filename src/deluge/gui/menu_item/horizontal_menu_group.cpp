@@ -28,6 +28,15 @@ std::string_view HorizontalMenuGroup::getTitle() const {
 	return current_menu_->getTitle();
 }
 
+MenuPermission HorizontalMenuGroup::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing, ::MultiRange** currentRange) {
+	MenuPermission check_result = (*current_item_)->checkPermissionToBeginSession(modControllable, whichThing, currentRange);
+	if (check_result == MenuPermission::MUST_SELECT_RANGE) {
+		return MenuPermission::MUST_SELECT_RANGE;
+	}
+
+	return MenuPermission::YES;
+}
+
 void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	navigated_backward_from = navigatedBackwardFrom;
