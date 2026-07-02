@@ -41,6 +41,53 @@ constexpr size_t kNumValues = 8;
 
 AudioInputSelector audioInputSelector{};
 
+namespace {
+
+bool canRecordFromOutput(AudioOutput* audioOutput, Output* sourceOutput) {
+	if (!audioOutput || !sourceOutput || sourceOutput == audioOutput) {
+		return false;
+	}
+	if (sourceOutput->type == OutputType::MIDI_OUT || sourceOutput->type == OutputType::CV) {
+		return false;
+	}
+
+	Output* nextOutput = sourceOutput;
+	for (int32_t i = 0; currentSong && i < currentSong->getNumOutputs(); ++i) {
+		if (nextOutput == audioOutput) {
+			return false;
+		}
+		if (!nextOutput || nextOutput->type != OutputType::AUDIO) {
+			return true;
+		}
+
+		auto* nextAudioOutput = static_cast<AudioOutput*>(nextOutput);
+		if (nextAudioOutput->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
+			return true;
+		}
+		nextOutput = nextAudioOutput->getOutputRecordingFrom();
+	}
+
+	return false;
+}
+
+Output* getFirstRecordableOutput(AudioOutput* audioOutput) {
+	if (!currentSong) {
+		return nullptr;
+	}
+
+	int32_t numOutputs = currentSong->getNumOutputs();
+	for (int32_t i = 0; i < numOutputs; ++i) {
+		Output* output = currentSong->getOutputFromIndex(i);
+		if (canRecordFromOutput(audioOutput, output)) {
+			return output;
+		}
+	}
+
+	return nullptr;
+}
+
+} // namespace
+
 char const* AudioInputSelector::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_AUDIO_SOURCE);
@@ -58,6 +105,11 @@ std::span<const char*> AudioInputSelector::getOptions() {
 
 bool AudioInputSelector::setupAndCheckAvailability() {
 	Value valueOption = Value::OFF;
+	if (!audioOutput) {
+		currentOption = static_cast<int32_t>(valueOption);
+		scrollPos = currentOption;
+		return false;
+	}
 
 	switch (audioOutput->inputChannel) {
 	case AudioInputChannel::LEFT:
@@ -99,15 +151,22 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 }
 
 bool AudioInputSelector::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	*rows = getRootUI()->getGreyedOutRowsNotRepresentingOutput(audioOutput);
+	RootUI* rootUI = getRootUI();
+	if (!rootUI || !audioOutput) {
+		return ContextMenu::getGreyoutColsAndRows(cols, rows);
+	}
+
+	*rows = rootUI->getGreyedOutRowsNotRepresentingOutput(audioOutput);
 	return true;
 }
 
 void AudioInputSelector::selectEncoderAction(int8_t offset) {
-	if (currentUIMode != 0u) {
+	if (currentUIMode != UI_MODE_NONE || !audioOutput) {
 		return;
 	}
 
+	int32_t previousOption = currentOption;
+	int32_t previousScrollPos = scrollPos;
 	ContextMenu::selectEncoderAction(offset);
 
 	auto valueOption = static_cast<Value>(currentOption);
@@ -143,10 +202,19 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	case Value::OUTPUT:
 		audioOutput->inputChannel = AudioInputChannel::OUTPUT;
 		break;
-	case Value::TRACK:
+	case Value::TRACK: {
+		Output* sourceOutput = getFirstRecordableOutput(audioOutput);
+		if (!sourceOutput) {
+			currentOption = previousOption;
+			scrollPos = previousScrollPos;
+			display->displayPopup("Can't record this track!");
+			renderUIsForOled();
+			return;
+		}
 		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-		audioOutput->setOutputRecordingFrom(currentSong->getOutputFromIndex(0));
+		audioOutput->setOutputRecordingFrom(sourceOutput);
 		break;
+	}
 
 	default:
 		audioOutput->inputChannel = AudioInputChannel::NONE;
@@ -159,7 +227,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && getUIUpOneLevel() == &sessionView) {
 		auto track = (&sessionView)->getOutputFromPad(x, y);
-		if (track && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
+		if (canRecordFromOutput(audioOutput, track)) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
 			display->popupTextTemporary(track->name.get());
@@ -169,7 +237,7 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 			renderUIsForOled();
 		}
 		else if (track) {
-			display->popupTextTemporary("Can't record MIDI or CV!");
+			display->popupTextTemporary("Can't record this track!");
 		}
 
 		return ActionResult::DEALT_WITH;
