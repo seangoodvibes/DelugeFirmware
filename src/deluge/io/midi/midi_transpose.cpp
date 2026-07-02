@@ -11,11 +11,18 @@
 #include "model/instrument/non_audio_instrument.h"
 #include "model/song/song.h"
 
+extern bool currentlyActioningSwungTickOrResettingPlayPos;
+
 namespace MIDITranspose {
 
 MIDITransposeControlMethod controlMethod;
 
-void doTranspose(bool on, int32_t newNoteOrCC) {
+namespace {
+bool pendingTranspose = false;
+int32_t pendingTransposeNote = 0;
+} // namespace
+
+static void doTransposeNow(bool on, int32_t newNoteOrCC) {
 	bool doRender = false;
 
 	if (on) {
@@ -33,6 +40,9 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 
 		int32_t semitones;
 		semitones = (newNoteOrCC + currentSong->transposeOffset) - currentSong->key.rootNote;
+		if (!semitones) {
+			return;
+		}
 
 		if (controlMethod == MIDITransposeControlMethod::INKEY) {
 
@@ -46,6 +56,9 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 					octaves = (semitones / 12);
 				}
 				int32_t steps = octaves * currentSong->key.modeNotes.count() + degree;
+				if (!steps) {
+					return;
+				}
 
 				currentSong->transposeAllScaleModeClips(steps, false);
 
@@ -90,6 +103,26 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 			sessionView.lastDisplayedRootNote = currentSong->key.rootNote;
 		}
 	}
+}
+
+void doTranspose(bool on, int32_t newNoteOrCC) {
+	if (on && currentlyActioningSwungTickOrResettingPlayPos) {
+		pendingTranspose = true;
+		pendingTransposeNote = newNoteOrCC;
+		return;
+	}
+
+	doTransposeNow(on, newNoteOrCC);
+}
+
+void flushPendingTranspose() {
+	if (!pendingTranspose) {
+		return;
+	}
+
+	int32_t transposeNote = pendingTransposeNote;
+	pendingTranspose = false;
+	doTransposeNow(true, transposeNote);
 }
 
 void exitScaleModeForMIDITransposeClips() {

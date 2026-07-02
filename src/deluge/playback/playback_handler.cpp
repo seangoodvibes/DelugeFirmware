@@ -561,6 +561,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	// Have to do this after calling AudioEngine::routine()
 	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
 	currentlyActioningSwungTickOrResettingPlayPos = false;
+	MIDITranspose::flushPendingTranspose();
 	AudioEngine::audioRoutineLocked = oldState;
 
 	posToNextContinuePlaybackFrom = playFromPos;
@@ -1076,6 +1077,7 @@ doMetronome:
 	}
 
 	currentlyActioningSwungTickOrResettingPlayPos = false;
+	MIDITranspose::flushPendingTranspose();
 }
 
 void PlaybackHandler::scheduleSwungTick() {
