@@ -25,6 +25,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/midi_transpose.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -310,6 +311,10 @@ justDoArp:
 
 			int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
 			nearestArpTickTime = std::min(ticksTilNextArpEvent, nearestArpTickTime);
+		}
+
+		if (iPass == 0) {
+			MIDITranspose::flushPendingTranspose();
 		}
 	}
 

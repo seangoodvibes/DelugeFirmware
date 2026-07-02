@@ -25,6 +25,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
+#include "io/midi/midi_transpose.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -2455,6 +2456,10 @@ void Session::doTickForward(int32_t posIncrement) {
 					view.activeModControllableModelStack.paramManager = &newClip->paramManager;
 				}
 			}
+		}
+
+		if (iPass == 1) {
+			MIDITranspose::flushPendingTranspose();
 		}
 	}
 
