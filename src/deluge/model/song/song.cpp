@@ -544,6 +544,8 @@ void Song::transposeAllScaleModeClips(int32_t interval) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+	MusicalKey newKey = key;
+	newKey.rootNote += interval;
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (instrumentClip->output->type == OutputType::KIT) {
@@ -553,11 +555,18 @@ void Song::transposeAllScaleModeClips(int32_t interval) {
 		if (instrumentClip->isScaleModeClip()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(instrumentClip);
-			instrumentClip->transpose(interval, modelStackWithTimelineCounter);
+			if (instrumentClip->output->type == OutputType::MIDI_OUT
+			    && ((NonAudioInstrument*)instrumentClip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
+				int32_t yNoteOnBottomRow = getYNoteFromYVisual(instrumentClip->yScroll, true, key);
+				instrumentClip->yScroll = getYVisualFromYNote(yNoteOnBottomRow, true, newKey);
+			}
+			else {
+				instrumentClip->transpose(interval, modelStackWithTimelineCounter);
+			}
 		}
 	}
 
-	key.rootNote += interval;
+	key = newKey;
 }
 
 bool Song::anyScaleModeClips() {
