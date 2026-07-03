@@ -73,18 +73,34 @@ This page is generated from the main-branch firmware input handlers rather than 
 
 ## Menus, Browsers, and Text Entry
 
+### All Menus
+
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
-| Context menus | Move selection | :key[TURN SELECT] |
-| Context menus | Accept current option | :key[SELECT] or the menu's accept button |
-| Context menus | Back/close | :key[BACK] |
-| Context menus | Close with pad | Any grid :key[PAD] |
+| All menus | Accept current option | :key[SELECT] or the menu's accept button |
+| All menus | Back/close | :key[BACK] |
+| All menus | Close with pad | Any grid :key[PAD] |
+
+### Vertical (List) Menus
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Vertical menus | Move selection | :key[TURN SELECT] |
+
+### Horizontal Menus
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
 | Horizontal menus | Select visible menu item 1-4 | :key[SYNTH], :key[KIT], :key[MIDI], or :key[CV] |
 | Horizontal menus | Move to next/previous menu page | :key[CROSSSCREEN] or :key[SCALE] |
 | Horizontal menus | Move to next/previous chained horizontal menu | :key[SHIFT] + :key[CROSSSCREEN] or :key[SHIFT] + :key[SCALE] |
 | Horizontal menu values | Edit selected value with menu acceleration | :key[TURN SELECT] |
-| Automatable parameter menu | Enter Automation View for this parameter | :key[CLIP] |
-| Automatable parameter menu | Delete this parameter automation | :key[SHIFT] + :key[SELECT] |
+| Horizontal menu decimal values | Edit selected decimal value with menu acceleration | :key[PRESS TURN SELECT] |
+
+### Other Menus
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
 | Browser | Move through files | :key[TURN SELECT] |
 | Browser | Confirm selected file / typed name | Short press :key[SELECT] |
 | Browser/load UIs | Load or confirm the current file | :key[LOAD] <br/> Song loading also accepts :key[SELECT] on press-down |
@@ -112,10 +128,12 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Rename UI | Exit without accepting | :key[BACK] or sidebar :key[PAD] |
 | Audio recorder UI | End recording soon | :key[BACK], :key[SELECT], or :key[RECORD] |
 
-## Sound Editor and Parameter Control
+### Sound Editor and Parameter Control
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
+| Automatable parameter menu | Enter Automation View for this parameter | :key[CLIP] |
+| Automatable parameter menu | Delete this parameter automation | :key[SHIFT] + :key[SELECT] |
 | Sound editor, clip views, arranger, session, performance | Select a gold-encoder parameter bank and display that bank's current settings | Mod-button bank :key[PAD] |
 | Song, Arranger, Performance, Arranger Automation | Toggle VU meter in sidebar | Select Level/Pan mod-button bank, then press the same mod button again |
 | Sound editor | Save current synth or kit preset | :key[SAVE] <br/> Only when Sound Editor is over an instrument clip and not in Settings |
