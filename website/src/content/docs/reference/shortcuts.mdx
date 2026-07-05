@@ -19,7 +19,44 @@ This page is generated from the main-branch firmware input handlers rather than 
 | All views | Gold encoder turns are explicitly accelerated by `calcNextKnobSpeed` | :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] |
 | All views | Select encoder speed-up in horizontal menus is handled by the horizontal menu code; decimal values in horizontal menus use fine steps while Select or Shift is held | :key[TURN SELECT], optionally :key[SELECT] or :key[SHIFT] |
 
-## All Views
+## Song (All Views)
+
+### Gold encoder parameter editing (non-MIDI/CV clips, non-MIDI/Gate drums)
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Gold encoders | Select a gold-encoder parameter bank and display that bank's current settings | Mod-button bank :key[PAD] |
+| Active parameter bank | Edit the lower or upper parameter | :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] <br/> Gold encoder turns are accelerated |
+| Active parameter bank | Delete automation for the lower or upper parameter | :key[SHIFT] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
+| Stutter bank / stutter-rate assignment | Momentary stutter | Hold :key[UPPER GOLD] |
+| Filter bank | Cycle filter target/type between LPF, HPF, and EQ where available | Press the gold encoder assigned to filter frequency/type |
+| Filter bank | Cycle LPF or HPF mode | Press the gold encoder assigned to LPF or HPF resonance |
+| Delay bank | Toggle delay ping-pong, or delay sync type when `AltGoldenKnobDelayParams` is on | Press the gold encoder assigned to delay rate |
+| Delay bank | Toggle delay analog mode, or delay sync level when `AltGoldenKnobDelayParams` is on | Press the gold encoder assigned to delay feedback |
+| Reverb / Sidechain bank on sounds and audio clips | Cycle reverb preset | Press the gold encoder assigned to reverb amount |
+| Reverb / Sidechain bank on sounds and audio clips | Toggle sidechain sync level | Press the gold encoder assigned to sidechain |
+| Reverb / Compressor bank on global effectable contexts | Cycle reverb preset, or cycle compressor parameter while compressor editing is active | Press :key[LOWER GOLD] |
+| Reverb / Compressor bank on global effectable contexts | Toggle compressor editing mode | Press :key[UPPER GOLD] |
+| Mod FX bank on global effectable contexts | Cycle Mod FX parameter | Press :key[LOWER GOLD] |
+| Mod FX bank on global effectable contexts | Cycle Mod FX type | Press :key[UPPER GOLD] |
+| Instrument clip and Automation View | Copy automation for the lower or upper parameter | :key[LEARN] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
+| Instrument clip and Automation View | Paste automation for the lower or upper parameter | :key[SHIFT] + :key[LEARN] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
+| Automation | Delete selected gold parameter automation | :key[SHIFT] + :key[LOWER GOLD] or :key[SHIFT] + :key[UPPER GOLD] |
+| Automation | Copy selected gold parameter automation | :key[LEARN] + :key[LOWER GOLD] or :key[LEARN] + :key[UPPER GOLD] |
+| Automation | Paste to selected gold parameter automation | :key[SHIFT] + :key[LEARN] + :key[LOWER GOLD] or :key[SHIFT] + :key[LEARN] + :key[UPPER GOLD] |
+
+### Gold encoder parameter editing (MIDI clips)
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+
+### VU Meter (Arranger and Session Views)
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Song, Arranger, Performance, Arranger Automation | Toggle VU meter in sidebar | Select Level/Pan mod-button bank, then press the same mod button again |
+
+### System
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -32,18 +69,32 @@ This page is generated from the main-branch firmware input handlers rather than 
 | System | New/clear song context menu | :key[SHIFT] + :key[LOAD] |
 | System | Toggle emulated display type | :key[SHIFT] + :key[LEARN] + :key[AFFECTENTIRE] <br/> Requires `EmulatedDisplay` not set to `Hardware` |
 | System | Adjust pad dimmer/brightness interval | :key[SHIFT] + :key[LEARN] + :key[TURN VERTICAL] |
-| System/debug | Adjust pad refresh time | Hold :key[CLIP] + :key[TURN SELECT] |
+| System | Adjust pad refresh time | Hold :key[CLIP] + :key[TURN SELECT] |
 | System | Sticky Shift toggle | Short press :key[SHIFT] <br/> Requires `Sticky Shift` on; long press remains momentary |
+
+### Transport
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
 | Transport | Start or stop playback | :key[PLAY] |
 | Transport | Restart playback / start from beginning vs current screen | :key[HORIZONTAL] + :key[PLAY] <br/> If accessibility shortcuts are enabled, use :key[CROSSSCREEN] + :key[PLAY] instead |
 | Transport | Flip plain Play vs restart shortcut start position | `Alternative Playback Start Behaviour` changes whether plain :key[PLAY] starts from the current scroll position or the start; the restart chord does the other action |
-| Transport | Start arranger playback from a held arranger clip pad | Hold arranger clip :key[PAD] + :key[PLAY] |
+
+### Recording
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
 | Recording | Toggle record | Short press :key[RECORD] |
 | Recording | Start output recording / resampling | :key[SHIFT] + :key[RECORD] |
 | Recording | Start or stop looped output recording at loop end | Hold :key[RECORD] + press :key[PLAY] |
 | Recording | Temporarily change threshold recording mode | Hold :key[RECORD] + :key[TURN SELECT] |
 | Audio export | Start clip/track/drum export | Hold :key[SAVE] + press :key[RECORD] <br/> Context determines clip, track, or drum export |
 | Audio export | Cancel export process | :key[BACK] |
+
+### Tempo
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
 | Tempo | Show tempo, then edit tempo | :key[TURN TEMPO] |
 | Tempo | Fine vs coarse tempo edit | With `Fine Tempo Knob` on: plain :key[TURN TEMPO] is fine and :key[TEMPO] + :key[TURN TEMPO] is coarse. With the setting off, this is reversed |
 | Tempo | Clear tempo automation | :key[SHIFT] + :key[TEMPO] |
@@ -53,117 +104,29 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Tempo | Edit clock output scale | :key[LEARN] + :key[TURN TEMPO] |
 | Tempo | Tap tempo | :key[TAPTEMPO] <br/> `Alternative Tap Tempo Behaviour` changes the tap count required |
 | Tempo | Toggle metronome | :key[SHIFT] + :key[TAPTEMPO] |
-| Sync/Fills | Toggle sync scaling for the current clip | :key[SYNCSCALING] <br/> Requires `SyncScalingAction = Sync Scaling` and a clip view context |
-| Sync/Fills | Toggle fill mode | :key[SYNCSCALING] <br/> Requires `SyncScalingAction = Fill` |
-| Sync/Fills | Cycle fill setting for held notes or held note row | Hold note :key[PAD] or :key[AUDITION PAD] + press :key[SYNCSCALING] <br/> Requires `SyncScalingAction = Fill` |
 
-## Timeline Navigation
+### Syncscaling / Fill
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Sync/Fills | Toggle fill mode | :key[SYNCSCALING] <br/> Requires `SyncScalingAction = Fill` |
+
+### Navigation
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
 | Timeline views | Scroll horizontally | :key[TURN HORIZONTAL] |
 | Timeline views | Show zoom level | :key[HORIZONTAL] |
-| Timeline views | Change zoom level | :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
+| Timeline views | Change zoom level | :key[PRESS TURN HORIZONTAL] |
 | Timeline views | Toggle triplets | :key[TRIPLETSVIEW] |
-| Clip timeline | Change clip length | :key[SHIFT] + :key[TURN HORIZONTAL] |
-| Clip timeline | Shift clip contents horizontally | :key[VERTICAL] + :key[TURN HORIZONTAL] |
-| Clip timeline | Shift clip contents horizontally from Automation View | :key[CLIP] + :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
-| Clip timeline | Shift automation with clip shift outside Automation View | Controlled by `Settings > Defaults > Automation > Shift`; when enabled, regular clip shifts leave automation to Automation View |
-| Arranger timeline | Insert/delete arrangement time at current screen position | :key[SHIFT] + :key[TURN HORIZONTAL] |
 
-## Menus, Browsers, and Text Entry
-
-### All Menus
+### Master Transpose
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
-| All menus | Accept current option | :key[SELECT] or the menu's accept button |
-| All menus | Back/close | :key[BACK] |
-| All menus | Close with pad | Any grid :key[PAD] |
+| Song | Transpose all song clips | :key[PRESS TURN VERTICAL] |
 
-### Vertical (List) Menus
-
-| Context | Action | Shortcut |
-| ------- | ------ | -------- |
-| Vertical menus | Move selection | :key[TURN SELECT] |
-
-### Horizontal Menus
-
-| Context | Action | Shortcut |
-| ------- | ------ | -------- |
-| Horizontal menus | Select visible menu item 1-4 | :key[SYNTH], :key[KIT], :key[MIDI], or :key[CV] |
-| Horizontal menus | Move to next/previous menu page | :key[CROSSSCREEN] or :key[SCALE] |
-| Horizontal menus | Move to next/previous chained horizontal menu | :key[SHIFT] + :key[CROSSSCREEN] or :key[SHIFT] + :key[SCALE] |
-| Horizontal menu values | Edit selected value with menu acceleration | :key[TURN SELECT] |
-| Horizontal menu decimal values | Edit selected decimal value with menu acceleration | :key[PRESS TURN SELECT] |
-
-### Other Menus
-
-| Context | Action | Shortcut |
-| ------- | ------ | -------- |
-| Browser | Move through files | :key[TURN SELECT] |
-| Browser | Confirm selected file / typed name | Short press :key[SELECT] |
-| Browser/load UIs | Load or confirm the current file | :key[LOAD] <br/> Song loading also accepts :key[SELECT] on press-down |
-| Browser | Open delete-file context menu | :key[SHIFT] + :key[SAVE] |
-| Browser | Go up one directory or exit at top | :key[BACK] |
-| Browser with favourites visible | Load favourite | Favourite-row :key[PAD] |
-| Browser with favourites visible | Set/unset favourite | :key[SHIFT] + favourite-row :key[PAD] |
-| Browser with favourites visible | Select favourites bank | Bank-row :key[PAD] |
-| Browser with favourites visible | Change favourite colour | :key[SHIFT] + :key[TURN VERTICAL] |
-| Slot browsers on 7SEG | Select digit position for numeric slot editing | :key[TURN HORIZONTAL] |
-| Song load UI | Toggle QWERTY keyboard visibility | :key[KEYBOARD] |
-| Song load UI during armed song swap | Preserve current tempo instead of adopting the new song tempo | Hold :key[TEMPO] while pressing :key[LOAD] or :key[SELECT] |
-| Pattern load UI | Preview selected pattern | :key[PLAY] |
-| Instrument preset load UI | Change output type being loaded/switched | :key[SYNTH], :key[KIT], :key[MIDI], or :key[CV] |
-| Sample browser | Toggle auto-load previewed sample into current instrument | :key[LOAD] |
-| Sample browser | Pin/unpin QWERTY keyboard visibility | :key[KEYBOARD] |
-| Sample browser | Enter audio recorder from sample browser | :key[RECORD] <br/> Only for non-audio clips and when no audio recorder source is active |
-| Sample browser waveform preview | Zoom waveform preview | :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
-| Sample browser waveform preview | Scroll waveform preview | :key[TURN HORIZONTAL] |
-| QWERTY text entry | Type character | Main grid keyboard :key[PAD] |
-| QWERTY text entry | Type shifted symbol for supported bottom-row characters | Hold QWERTY shift pad + character :key[PAD] |
-| QWERTY text entry | Backspace, repeating after hold | Backspace :key[PAD] |
-| QWERTY text entry | Enter/accept | Enter :key[PAD] or :key[SELECT] in rename UI |
-| QWERTY text entry | Move cursor / extend prediction | :key[TURN HORIZONTAL] |
-| Rename UI | Exit without accepting | :key[BACK] or sidebar :key[PAD] |
-| Audio recorder UI | End recording soon | :key[BACK], :key[SELECT], or :key[RECORD] |
-
-### Sound Editor and Parameter Control
-
-| Context | Action | Shortcut |
-| ------- | ------ | -------- |
-| Automatable parameter menu | Enter Automation View for this parameter | :key[CLIP] |
-| Automatable parameter menu | Delete this parameter automation | :key[SHIFT] + :key[SELECT] |
-| Sound editor, clip views, arranger, session, performance | Select a gold-encoder parameter bank and display that bank's current settings | Mod-button bank :key[PAD] |
-| Song, Arranger, Performance, Arranger Automation | Toggle VU meter in sidebar | Select Level/Pan mod-button bank, then press the same mod button again |
-| Sound editor | Save current synth or kit preset | :key[SAVE] <br/> Only when Sound Editor is over an instrument clip and not in Settings |
-| Sound editor multi-range menu | Delete current range | :key[SHIFT] + :key[SAVE] |
-| Sound editor | Enter MIDI learn for the current menu item | :key[LEARN] <br/> Only when the menu item allows learn mode |
-| Sound editor | Clear/unlearn the current MIDI-learn assignment | :key[SHIFT] + :key[LEARN] |
-| Sound editor kit-row parameter | Apply supported parameter edit to the whole kit | Hold :key[AFFECTENTIRE] while editing <br/> Only for menu items that opt into Affect Entire |
-| Sound editor | Exit menu to Session or Arranger View | :key[SONG] |
-| Sound editor over Instrument Clip or Automation View | Toggle Keyboard View behind the menu | :key[KEYBOARD] |
-| Active parameter bank | Edit the lower or upper parameter | :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] <br/> Gold encoder turns are accelerated |
-| Active parameter bank | Delete automation for the lower or upper parameter | :key[SHIFT] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
-| Instrument clip and Automation View | Copy automation for the lower or upper parameter | :key[LEARN] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
-| Instrument clip and Automation View | Paste automation for the lower or upper parameter | :key[SHIFT] + :key[LEARN] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
-| MIDI instrument clip | Select or assign the MIDI CC controlled by a gold encoder | Press and hold :key[LOWER GOLD] or :key[UPPER GOLD]; release to close CC selection |
-| Stutter bank / stutter-rate assignment | Momentary stutter | Hold :key[UPPER GOLD] |
-| Filter bank | Cycle filter target/type between LPF, HPF, and EQ where available | Press the gold encoder assigned to filter frequency/type |
-| Filter bank | Cycle LPF or HPF mode | Press the gold encoder assigned to LPF or HPF resonance |
-| Delay bank | Toggle delay ping-pong, or delay sync type when `AltGoldenKnobDelayParams` is on | Press the gold encoder assigned to delay rate |
-| Delay bank | Toggle delay analog mode, or delay sync level when `AltGoldenKnobDelayParams` is on | Press the gold encoder assigned to delay feedback |
-| Reverb / Sidechain bank on sounds and audio clips | Cycle reverb preset | Press the gold encoder assigned to reverb amount |
-| Reverb / Sidechain bank on sounds and audio clips | Toggle sidechain sync level | Press the gold encoder assigned to sidechain |
-| Reverb / Compressor bank on global effectable contexts | Cycle reverb preset, or cycle compressor parameter while compressor editing is active | Press :key[LOWER GOLD] |
-| Reverb / Compressor bank on global effectable contexts | Toggle compressor editing mode | Press :key[UPPER GOLD] |
-| Mod FX bank on global effectable contexts | Cycle Mod FX parameter | Press :key[LOWER GOLD] |
-| Mod FX bank on global effectable contexts | Cycle Mod FX type | Press :key[UPPER GOLD] |
-| Sound-editor shortcut grid | Open a parameter shortcut / menu item | Shortcut-grid :key[PAD] <br/> The exact parameter depends on the configured shortcuts version and the current sound/editor context |
-| Sound-editor shortcut grid | Select a parameter for Automation View from the overview | :key[SHIFT] + shortcut-grid :key[PAD], or audition-pad + shortcut-grid :key[PAD] when audition shortcuts are enabled |
-| Patch cable strength menu | Change patch cable polarity | :key[SELECT] + :key[TURN SELECT] <br/> On OLED, :key[MIDI] sets bipolar and :key[CV] sets unipolar |
-
-## Session View - Row Layout
+## Session View (Row Layout)
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -200,7 +163,7 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Record arming | Toggle clip recording arm | Hold :key[RECORD] + status :key[PAD] |
 | Record arming | Cycle audio clip arm / clone-output overdub / off | Hold :key[RECORD] + audio clip status :key[PAD] |
 
-## Session View - Grid Layout
+## Session View (Grid Layout)
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -230,6 +193,7 @@ This page is generated from the main-branch firmware input handlers rather than 
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
+| Arranger timeline | Insert/delete arrangement time at current screen position | :key[SHIFT] + :key[TURN HORIZONTAL] |
 | Arranger | Enter Automation Arranger View | :key[CLIP] |
 | Arranger | Return to Session View | :key[SONG] |
 | Arranger | Enter Performance View | :key[KEYBOARD] |
@@ -262,6 +226,114 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Arranger track row | Convert to audio track | Hold audition :key[PAD] + press :key[SELECT] |
 | Arranger track row | Rename output | Hold audition :key[PAD] + press Name shortcut pad |
 
+### Transport
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Transport | Start arranger playback from a held arranger clip pad | Hold arranger clip :key[PAD] + :key[PLAY] |
+
+## Clip Views (All Types)
+
+### Timeline
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Clip timeline | Change clip length | :key[SHIFT] + :key[TURN HORIZONTAL] |
+| Clip timeline | Shift clip contents horizontally | :key[VERTICAL] + :key[TURN HORIZONTAL] |
+| Clip timeline | Shift clip contents horizontally from Automation View | :key[CLIP] + :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
+| Clip timeline | Shift automation with clip shift outside Automation View | Controlled by `Settings > Defaults > Automation > Shift`; when enabled, regular clip shifts leave automation to Automation View |
+
+## Menus
+
+### All Menus
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| All menus | Accept current option | :key[SELECT] or the menu's accept button |
+| All menus | Back/close | :key[BACK] |
+| All menus | Close with dim pad | Dim (greyed out) pads in a menu indicate that you cannot interact with them while in the menu and will exit the menu instead - Press :key[PAD] |
+
+### Vertical (List) Menus
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Vertical menus | Move selection | :key[TURN SELECT] |
+
+### Horizontal Menus
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Horizontal menus | Select visible menu item 1-4 | :key[SYNTH], :key[KIT], :key[MIDI], or :key[CV] |
+| Horizontal menus | Move to next/previous menu page | :key[CROSSSCREEN] or :key[SCALE] |
+| Horizontal menus | Move to next/previous chained horizontal menu | :key[SHIFT] + :key[CROSSSCREEN] or :key[SHIFT] + :key[SCALE] |
+| Horizontal menu values | Edit selected value with menu acceleration | :key[TURN SELECT] |
+| Horizontal menu decimal values | Edit selected decimal value with menu acceleration | :key[PRESS TURN SELECT] |
+
+### Sound and Parameter editing
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Automatable parameter menu | Enter Automation View for this parameter | :key[CLIP] |
+| Automatable parameter menu | Delete this parameter automation | :key[SHIFT] + :key[SELECT] |
+| Sound editor | Save current synth or kit preset | :key[SAVE] <br/> Only when Sound Editor is over an instrument clip and not in Settings |
+| Sound editor | Enter MIDI learn for the current menu item | :key[LEARN] <br/> Only when the menu item allows learn mode |
+| Sound editor | Clear/unlearn the current MIDI-learn assignment | :key[SHIFT] + :key[LEARN] |
+| Sound editor kit-row parameter | Apply supported parameter edit to the whole kit | Hold :key[AFFECTENTIRE] while editing <br/> Only for menu items that opt into Affect Entire |
+| Sound editor | Exit menu to Session or Arranger View | :key[SONG] |
+| Sound editor over Instrument Clip or Automation View | Toggle Keyboard View behind the menu | :key[KEYBOARD] |
+| MIDI instrument clip | Select or assign the MIDI CC controlled by a gold encoder | Press and hold :key[LOWER GOLD] or :key[UPPER GOLD]; release to close CC selection |
+| Sound-editor shortcut grid | Open a parameter shortcut / menu item | Shortcut-grid :key[PAD] <br/> The exact parameter depends on the configured shortcuts version and the current sound/editor context |
+| Sound-editor shortcut grid | Select a parameter for Automation View from the overview | :key[SHIFT] + shortcut-grid :key[PAD], or audition-pad + shortcut-grid :key[PAD] when audition shortcuts are enabled |
+| Patch cable strength menu | Change patch cable polarity | :key[SELECT] + :key[TURN SELECT] <br/> On OLED, :key[MIDI] sets bipolar and :key[CV] sets unipolar |
+
+## Multi-sample Note Range editing
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Sound editor multi-range menu | Delete current range | :key[SHIFT] + :key[SAVE] |
+
+## File Browsers
+
+### All File Browsers
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Browser | Move through files | :key[TURN SELECT] |
+| Browser | Confirm selected file / typed name | Short press :key[SELECT] |
+| Browser | Load or confirm the current file | :key[LOAD] <br/> Song loading also accepts :key[SELECT] on press-down |
+| Browser | Open delete-file context menu | :key[SHIFT] + :key[SAVE] |
+| Browser | Go up one directory or exit at top | :key[BACK] |
+| Slot browsers on 7SEG | Select digit position for numeric slot editing | :key[TURN HORIZONTAL] |
+
+### File Browsers with Qwerty Keyboard for Text Entry
+| QWERTY text entry | Type character | Main grid keyboard :key[PAD] |
+| QWERTY text entry | Type shifted symbol for supported bottom-row characters | Hold QWERTY shift pad + character :key[PAD] |
+| QWERTY text entry | Backspace, repeating after hold | Backspace :key[PAD] |
+| QWERTY text entry | Enter/accept | Enter :key[PAD] or :key[SELECT] in rename UI |
+| QWERTY text entry | Move cursor / extend prediction | :key[TURN HORIZONTAL] |
+
+### File Browsers with Favourites and/or Banks
+| Browser with favourites and banks visible | Select favourites bank | Bank-row :key[PAD] |
+| Browser with favourites visible | Load favourite | Favourite-row :key[PAD] |
+| Browser with favourites visible | Set/unset favourite | :key[SHIFT] + favourite-row :key[PAD] |
+| Browser with favourites visible | Change favourite colour | :key[SHIFT] + :key[TURN VERTICAL] |
+
+### Load Browsers
+| Song load UI | Toggle QWERTY keyboard visibility | :key[KEYBOARD] |
+| Song load UI during armed song swap | Preserve current tempo instead of adopting the new song tempo | Hold :key[TEMPO] while pressing :key[LOAD] or :key[SELECT] |
+| Pattern load UI | Preview selected pattern | :key[PLAY] |
+| Instrument preset load UI | Change output type being loaded/switched | :key[SYNTH], :key[KIT], :key[MIDI], or :key[CV] |
+| Sample browser | Toggle auto-load previewed sample into current instrument | :key[LOAD] |
+| Sample browser | Pin/unpin QWERTY keyboard visibility | :key[KEYBOARD] |
+| Sample browser | Enter audio recorder from sample browser | :key[RECORD] <br/> Only for non-audio clips and when no audio recorder source is active |
+| Sample browser waveform preview | Zoom waveform preview | :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
+| Sample browser waveform preview | Scroll waveform preview | :key[TURN HORIZONTAL] |
+
+## Other UIS
+
+| Rename UI | Exit without accepting | :key[BACK] or sidebar :key[PAD] |
+| Audio recorder UI | End recording soon | :key[BACK], :key[SELECT], or :key[RECORD] |
+
 ## Performance View
 
 | Context | Action | Shortcut |
@@ -289,6 +361,8 @@ This page is generated from the main-branch firmware input handlers rather than 
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
+| Sync/Fills | Toggle sync scaling for the current clip | :key[SYNCSCALING] <br/> Requires `SyncScalingAction = Sync Scaling` and a clip view context |
+| Sync/Fills | Cycle fill setting for held notes or held note row | Hold note :key[PAD] or :key[AUDITION PAD] + press :key[SYNCSCALING] <br/> Requires `SyncScalingAction = Fill` |
 | Instrument clip | Return to Session/Arranger | Short press :key[SONG] |
 | Instrument clip | Enter Automation Clip View | :key[CLIP] |
 | Instrument clip | Enter Keyboard View | :key[KEYBOARD] |
@@ -333,9 +407,6 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Note row editor | Select different row | Press another :key[AUDITION PAD] |
 | Note row editor | Edit notes in selected row | Grid note :key[PAD] |
 | Note row editor | Mute selected row | Status :key[PAD] |
-| Automation | Delete selected gold parameter automation | :key[SHIFT] + :key[LOWER GOLD] or :key[SHIFT] + :key[UPPER GOLD] |
-| Automation | Copy selected gold parameter automation | :key[LEARN] + :key[LOWER GOLD] or :key[LEARN] + :key[UPPER GOLD] |
-| Automation | Paste to selected gold parameter automation | :key[SHIFT] + :key[LEARN] + :key[LOWER GOLD] or :key[SHIFT] + :key[LEARN] + :key[UPPER GOLD] |
 
 ## Kit Clip and Drum Rows
 
@@ -399,7 +470,9 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Manual slicer | Show selected slice transpose | :key[VERTICAL] |
 | Manual slicer | Edit selected slice transpose | :key[TURN VERTICAL] |
 
-## Automation View - Overview
+## Automation View
+
+### Overview
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -408,7 +481,6 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Automation overview | Return to parameter overview from editor | :key[AFFECTENTIRE], :key[SHIFT] + :key[CLIP], or held :key[AUDITION PAD] + :key[CLIP] |
 | Automation overview | Select automatable parameter | Illuminated shortcut grid :key[PAD] or :key[TURN SELECT] |
 | Automation overview | Select parameter by shortcut | :key[SHIFT] + shortcut grid :key[PAD] |
-| Automation overview | Select note velocity editor | Velocity shortcut :key[PAD] or :key[SHIFT] + Velocity shortcut :key[PAD] |
 | Automation overview | Clear all automation in current scope | :key[HORIZONTAL] + :key[BACK] |
 | Automation overview | Copy selected gold parameter automation | :key[LEARN] + :key[LOWER GOLD] or :key[LEARN] + :key[UPPER GOLD] |
 | Automation overview | Paste selected gold parameter automation | :key[SHIFT] + :key[LEARN] + :key[LOWER GOLD] or :key[SHIFT] + :key[LEARN] + :key[UPPER GOLD] |
@@ -416,7 +488,7 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Automation arranger overview | Toggle arranger auto-scroll | :key[CROSSSCREEN] |
 | Automation clip overview | Audition/select kit row overview | :key[AUDITION PAD] or status :key[PAD] |
 
-## Automation View - Parameter Editor
+### Sound Parameter Editor
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -439,25 +511,34 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Automation editor | Zoom | :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
 | Automation editor | Rename selected MIDI CC | :key[SHIFT] + Name shortcut :key[PAD] <br/> MIDI clip only |
 
-## Automation View - Note and Velocity Editors
+### Note Velocity Editor
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
-| Note/velocity editor | Select note row | :key[AUDITION PAD] or :key[TURN VERTICAL] |
-| Note/velocity editor | Add/select note | Grid note/velocity :key[PAD] |
-| Note/velocity editor | Short press top velocity pad removes note | Top velocity :key[PAD] |
-| Note/velocity editor | Long press note/velocity pad selects note for editing | Long press note/velocity :key[PAD] |
-| Note/velocity editor | Adjust selected note velocity | Hold note :key[PAD] + :key[TURN HORIZONTAL] |
-| Note/velocity editor | Adjust selected note probability/iterance | Hold note :key[PAD] + :key[TURN SELECT] |
-| Note/velocity editor | Adjust selected note repeat | Hold note :key[PAD] + :key[VERTICAL] + :key[TURN VERTICAL] |
-| Note/velocity editor | Adjust selected note automation/MPE values | Hold note :key[PAD] + :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] |
-| Note/velocity editor | Clear selected row notes/MPE | :key[HORIZONTAL] + :key[BACK] |
-| Note/velocity editor | Shift/rotate selected row | :key[VERTICAL] + :key[TURN HORIZONTAL] or :key[AUDITION PAD] + :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
-| Note/velocity editor | Change selected row length | :key[AUDITION PAD] + :key[TURN HORIZONTAL] |
-| Note/velocity editor | Quantize/humanize selected row | :key[AUDITION PAD] + :key[TURN TEMPO] |
-| Note/velocity editor | Toggle wrap/cross-screen editing | :key[CROSSSCREEN] |
+| Note velocity editor | Enter from Instrument Clip View or Automation Instrument Clip View | :key[AUDITION PAD] + :key[VELOCITY PAD] |
+| Note velocity editor | Select note row | :key[AUDITION PAD] or :key[TURN VERTICAL] |
+| Note velocity editor | Add/select note | Grid note/velocity :key[PAD] |
+| Note velocity editor | Short press top velocity pad removes note | Top velocity :key[PAD] |
+| Note velocity editor | Long press note/velocity pad selects note for editing | Long press note/velocity :key[PAD] |
+| Note velocity editor | Adjust selected note velocity | Hold note :key[PAD] + :key[TURN HORIZONTAL] |
+| Note velocity editor | Adjust selected note probability/iterance | Hold note :key[PAD] + :key[TURN SELECT] |
+| Note velocity editor | Adjust selected note repeat | Hold note :key[PAD] + :key[VERTICAL] + :key[TURN VERTICAL] |
+| Note velocity editor | Adjust selected note automation/MPE values | Hold note :key[PAD] + :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] |
+| Note velocity editor | Clear selected row notes/MPE | :key[HORIZONTAL] + :key[BACK] |
+| Note velocity editor | Shift/rotate selected row | :key[VERTICAL] + :key[TURN HORIZONTAL] or :key[AUDITION PAD] + :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
+| Note velocity editor | Change selected row length | :key[AUDITION PAD] + :key[TURN HORIZONTAL] |
+| Note velocity editor | Quantize/humanize selected row | :key[AUDITION PAD] + :key[TURN TEMPO] |
+| Note velocity editor | Toggle wrap/cross-screen editing | :key[CROSSSCREEN] |
+
+## Favourites UI
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Keyboard | Change clip colour | :key[SHIFT] + :key[TURN VERTICAL] |
 
 ## Keyboard View
+
+### All layouts
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -469,7 +550,11 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Keyboard | Select output type | :key[SYNTH], :key[KIT], :key[MIDI], or :key[CV] |
 | Keyboard | Toggle/cycle scale mode | :key[SCALE], :key[SHIFT] + :key[SCALE], :key[SCALE] + :key[SELECT], or :key[SCALE] + :key[TURN SELECT] |
 | Keyboard | Set scale root from played note | Hold one keyboard note :key[PAD] + press :key[SCALE] |
-| Keyboard | Change clip colour | :key[SHIFT] + :key[TURN VERTICAL] |
+
+### Specific layouts
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
 | Keyboard layouts | Layout-specific scroll/offset/voicing | :key[TURN HORIZONTAL], :key[TURN VERTICAL], and sometimes :key[HORIZONTAL] + :key[TURN HORIZONTAL] |
 | Keyboard layouts | Access Norns layout | Hold :key[KEYBOARD] + :key[TURN SELECT] <br/> Requires `Display Norns Layout` on |
 | Keyboard layouts | Access Chord / Chord Library layouts | Hold :key[KEYBOARD] + :key[TURN SELECT] <br/> Requires `Display Chord Keyboard` on |
@@ -477,6 +562,11 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Keyboard sidebar columns | Momentary value | Long press sidebar column :key[PAD] |
 | Keyboard sidebar columns | Latch value | Short press sidebar column :key[PAD] |
 | Keyboard sidebar menu exit | Exit menu from Keyboard View | Top-left sidebar :key[PAD] <br/> Requires `Enable Keyboard View Sidebar Menu Exit` on and current UI is Settings/Sound menu over Keyboard View |
+
+### Sidebar column controls
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
 | Scale sidebar column | Preview/temporarily set scale | Hold scale column :key[PAD] |
 | Scale sidebar column | Latch scale | Short press scale column :key[PAD] |
 | Scale sidebar column | Revert after preview | Long press/release scale column :key[PAD] |
