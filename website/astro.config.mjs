@@ -14,6 +14,8 @@ import { remarkDelugeScreen } from "./src/markdown-directives/remark-deluge-scre
 import remarkDirective from "remark-directive"
 import starlightSidebarTopics from "starlight-sidebar-topics"
 
+const isDev = process.env.NODE_ENV === "development"
+
 // https://astro.build/config
 const config = defineConfig({
   site: process.env.SITE_URL,
@@ -176,7 +178,10 @@ const config = defineConfig({
     rehypePlugins: [
       // Known issue: diagrams follow the browser preferred dark mode, not the one selected in the header.
       // See: https://github.com/remcohaszing/rehype-mermaid/issues/16
-      [rehypeMermaid, { strategy: "img-svg", dark: true }],
+      [
+        rehypeMermaid,
+        isDev ? { strategy: "pre-mermaid" } : { strategy: "img-svg", dark: true },
+      ],
     ],
   },
   vite: {

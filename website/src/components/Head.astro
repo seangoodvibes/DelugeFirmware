@@ -11,4 +11,24 @@ import Default from "@astrojs/starlight/components/Head.astro"
   })
 </script>
 
+<script>
+  import mermaid from "mermaid"
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "dark",
+  })
+
+  const renderMermaid = async () => {
+    if (!document.querySelector("pre.mermaid")) return
+
+    await mermaid.run({
+      querySelector: "pre.mermaid",
+    })
+  }
+
+  renderMermaid()
+  document.addEventListener("astro:page-load", renderMermaid)
+</script>
+
 <Default><slot /></Default>

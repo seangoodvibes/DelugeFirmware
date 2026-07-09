@@ -26,8 +26,12 @@ const getFromMetadataCache = (key: string) => metadataCache[key]
 const screenshot = async (page: Page) =>
   `\n\ndata:image/jpeg;base64,${(await page.screenshot({ type: "jpeg", quality: 30 })).toString("base64")}\n\n`
 
-// Shared global browser instance
-const browser = await chromium.launch()
+let browserPromise: ReturnType<typeof chromium.launch> | undefined
+
+const getBrowser = () => {
+  browserPromise ??= chromium.launch()
+  return browserPromise
+}
 
 export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
   const cached = getFromMetadataCache(href)
@@ -41,6 +45,7 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
   )
 
   const url = new URL(href)
+  const browser = await getBrowser()
 
   const page = await browser.newPage({
     extraHTTPHeaders: {
@@ -131,7 +136,7 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
       },
     )
   } catch (e) {
-    if (!page.isClosed) {
+    if (!page.isClosed()) {
       console.log(await screenshot(page))
       await page.close()
     }
