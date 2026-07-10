@@ -19,15 +19,41 @@ This page is generated from the main-branch firmware input handlers rather than 
 | All views | Gold encoder turns are explicitly accelerated by `calcNextKnobSpeed` | :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] |
 | All views | Select encoder speed-up in horizontal menus is handled by the horizontal menu code; decimal values in horizontal menus use fine steps while Select or Shift is held | :key[TURN SELECT], optionally :key[SELECT] or :key[SHIFT] |
 
+## Gold encoders for Parameter Editing
+
+### All Views
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Gold encoders | Select a parameter bank | Press Mod-button bank :key[PAD] |
+| Active parameter bank | Edit the lower or upper parameter | :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] <br/> Gold encoder turns are accelerated |
+| Active parameter bank | Delete automation for the lower or upper parameter | :key[SHIFT] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
+
+### All Views (except MIDI/CV clips and MIDI/Gate drums)
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Gold encoders | Display the selected parameter banks current settings | Hold Mod-button bank :key[PAD] |
+
+### Instrument Clip View and Automation View
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Active parameter bank | Copy automation for the lower or upper parameter | :key[LEARN] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
+| Active parameter bank | Paste automation for the lower or upper parameter | :key[SHIFT] + :key[LEARN] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
+
+### MIDI clips
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Gold encoders | Display the selected parameter banks current settings | press :key[LOWER GOLD] or :key[UPPER GOLD] |
+
 ## Song (All Views)
 
 ### Gold encoder parameter editing (non-MIDI/CV clips, non-MIDI/Gate drums)
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
-| Gold encoders | Select a gold-encoder parameter bank and display that bank's current settings | Mod-button bank :key[PAD] |
-| Active parameter bank | Edit the lower or upper parameter | :key[TURN LOWER GOLD] or :key[TURN UPPER GOLD] <br/> Gold encoder turns are accelerated |
-| Active parameter bank | Delete automation for the lower or upper parameter | :key[SHIFT] + press :key[LOWER GOLD] or :key[UPPER GOLD] |
 | Stutter bank / stutter-rate assignment | Momentary stutter | Hold :key[UPPER GOLD] |
 | Filter bank | Cycle filter target/type between LPF, HPF, and EQ where available | Press the gold encoder assigned to filter frequency/type |
 | Filter bank | Cycle LPF or HPF mode | Press the gold encoder assigned to LPF or HPF resonance |
