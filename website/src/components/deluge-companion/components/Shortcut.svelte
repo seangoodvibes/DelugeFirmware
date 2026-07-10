@@ -24,7 +24,7 @@
   }
 </script>
 
-<div class="rounded-lg border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg)] p-4 shadow-lg text-[var(--sl-color-text)]">
+<div class="shortcut-card rounded-lg p-4 text-[var(--sl-color-text)]">
   <div class="shortcut-header">
     <div class="mb-0 flex flex-wrap gap-1 leading-none">
       {#each views as view}
@@ -35,12 +35,12 @@
         </span>
       {/each}
     </div>
-    <h3 class="shortcut-title text-lg font-bold leading-none">
+    <h3 class="shortcut-title">
       {shortcut.name}
     </h3>
   </div>
   <button
-    class="m-0 inline-flex max-w-full flex-wrap items-end gap-x-1 gap-y-2 rounded-md border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-gray-6)] px-2 py-1 text-left"
+    class="shortcut-steps m-0 flex w-full max-w-full flex-wrap items-start gap-x-1 gap-y-1 rounded-md px-2 py-1 text-left"
     on:click={onStepsClicked}
   >
     {#each shortcut.steps as step}
@@ -58,6 +58,32 @@
 </div>
 
 <style>
+  .shortcut-card {
+    --dc-card-bg: rgb(70 84 104 / 0.22);
+    --dc-card-border: rgb(92 107 132 / 0.45);
+    --dc-strip-bg: rgb(83 98 120 / 0.3);
+    --dc-strip-border: rgb(102 118 143 / 0.45);
+    --dc-step-bg: rgb(13 18 30 / 0.45);
+    --dc-step-border: rgb(103 118 143 / 0.5);
+
+    border: 1px solid var(--dc-card-border);
+    background: var(--dc-card-bg);
+  }
+
+  .shortcut-steps {
+    border: 1px solid var(--dc-strip-border);
+    background: var(--dc-strip-bg);
+  }
+
+  :global(html[data-theme="light"]) .shortcut-card {
+    --dc-card-bg: rgb(241 245 249 / 0.92);
+    --dc-card-border: rgb(148 163 184 / 0.55);
+    --dc-strip-bg: rgb(226 232 240 / 0.9);
+    --dc-strip-border: rgb(148 163 184 / 0.7);
+    --dc-step-bg: rgb(248 250 252 / 0.96);
+    --dc-step-border: rgb(148 163 184 / 0.8);
+  }
+
   .shortcut-header {
     display: flex;
     flex-direction: column;
@@ -67,7 +93,14 @@
   .shortcut-title {
     margin: 0;
     padding: 0;
-    line-height: 1;
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2;
+  }
+
+  .shortcut-steps > :global(*) {
+    align-self: start;
+    margin-top: 0;
   }
 
   .dc-view-chip {

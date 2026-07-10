@@ -12,7 +12,7 @@
 </script>
 
 <div
-  class="rounded-md border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg)] align-bottom shadow-sm"
+  class="dc-step-card self-start rounded-md border"
   class:px-1={inline}
   class:px-2={!inline}
   class:py-1={!inline}
@@ -24,3 +24,10 @@
     <SubstepView bind:step bind:inline />
   {/if}
 </div>
+
+<style>
+  .dc-step-card {
+    border-color: var(--dc-step-border, rgb(103 118 143 / 0.5));
+    background: var(--dc-step-bg, rgb(13 18 30 / 0.45));
+  }
+</style>

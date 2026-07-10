@@ -35,21 +35,22 @@
 
 <style>
   .dc-filter-chip {
-    display: inline-grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
     white-space: nowrap;
     border-radius: 9999px;
     border: 1px solid var(--dc-chip-border);
     box-sizing: border-box;
     height: 1.875rem;
     min-height: 1.875rem;
-    padding: 0.125rem 0.75rem;
+    padding: 0 0.75rem;
     font-size: 0.875rem;
-    line-height: 1;
+    line-height: normal;
     font-weight: 500;
     color: var(--dc-chip-border);
     background: transparent;
-    vertical-align: middle;
   }
 
   .dc-filter-chip.is-active {
