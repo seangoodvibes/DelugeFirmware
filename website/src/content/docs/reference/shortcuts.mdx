@@ -56,7 +56,7 @@ This page is generated from the main-branch firmware input handlers rather than 
 | ------- | ------ | -------- |
 | Song, Arranger, Performance, Arranger Automation | Toggle VU meter in sidebar | Select Level/Pan mod-button bank, then press the same mod button again |
 
-### System
+### System Settings
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -72,7 +72,7 @@ This page is generated from the main-branch firmware input handlers rather than 
 | System | Adjust pad refresh time | Hold :key[CLIP] + :key[TURN SELECT] |
 | System | Sticky Shift toggle | Short press :key[SHIFT] <br/> Requires `Sticky Shift` on; long press remains momentary |
 
-### Transport
+### Playback
 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
@@ -85,11 +85,11 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Context | Action | Shortcut |
 | ------- | ------ | -------- |
 | Recording | Toggle record | Short press :key[RECORD] |
-| Recording | Start output recording / resampling | :key[SHIFT] + :key[RECORD] |
-| Recording | Start or stop looped output recording at loop end | Hold :key[RECORD] + press :key[PLAY] |
+| Recording | Start output recording / resampling | Hold :key[SHIFT] + press :key[RECORD] to start <br/> Press :key[RECORD] to stop |
+| Recording | Start or stop looped output recording at loop end | Hold :key[RECORD] + press :key[PLAY] to start <br/> Hold :key[RECORD] + press :key[PLAY] to stop |
 | Recording | Temporarily change threshold recording mode | Hold :key[RECORD] + :key[TURN SELECT] |
 | Audio export | Start clip/track/drum export | Hold :key[SAVE] + press :key[RECORD] <br/> Context determines clip, track, or drum export |
-| Audio export | Cancel export process | :key[BACK] |
+| Audio export | Cancel export process | Press :key[BACK] while audio export process is running and then press :key[SELECT] to confirm |
 
 ### Tempo
 
@@ -98,12 +98,17 @@ This page is generated from the main-branch firmware input handlers rather than 
 | Tempo | Show tempo, then edit tempo | :key[TURN TEMPO] |
 | Tempo | Fine vs coarse tempo edit | With `Fine Tempo Knob` on: plain :key[TURN TEMPO] is fine and :key[TEMPO] + :key[TURN TEMPO] is coarse. With the setting off, this is reversed |
 | Tempo | Clear tempo automation | :key[SHIFT] + :key[TEMPO] |
-| Tempo | Edit swing amount | :key[SHIFT] + :key[TURN TEMPO] |
-| Tempo | Show/edit swing interval | Hold :key[TAPTEMPO] + :key[TURN TEMPO] or hold :key[TAPTEMPO] + press :key[TEMPO] |
 | Tempo | Nudge clock | :key[HORIZONTAL] + :key[TURN TEMPO] |
 | Tempo | Edit clock output scale | :key[LEARN] + :key[TURN TEMPO] |
 | Tempo | Tap tempo | :key[TAPTEMPO] <br/> `Alternative Tap Tempo Behaviour` changes the tap count required |
 | Tempo | Toggle metronome | :key[SHIFT] + :key[TAPTEMPO] |
+
+### Swing
+
+| Context | Action | Shortcut |
+| ------- | ------ | -------- |
+| Swing | Edit swing amount | :key[SHIFT] + :key[TURN TEMPO] |
+| Swing | Show/edit swing interval | Hold :key[TAPTEMPO] + :key[TURN TEMPO] or hold :key[TAPTEMPO] + press :key[TEMPO] |
 
 ### Syncscaling / Fill
 
