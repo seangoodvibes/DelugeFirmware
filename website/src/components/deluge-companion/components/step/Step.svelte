@@ -1,0 +1,23 @@
+<script lang="ts">
+  import ControlView from "./StepControl.svelte";
+  import ActionView from "./StepAction.svelte";
+  import type { Step } from "../../types/shortcut";
+
+  export let step: Step;
+  export let inline: boolean = false;
+</script>
+
+<div class="step step grid items-baseline justify-items-center gap-x-1 gap-y-0 text-xs">
+  <ActionView {step} />
+  <ControlView {step} {inline} />
+</div>
+
+<style>
+  .step {
+    grid-template-columns: auto;
+    grid-template-rows: auto;
+    grid-template-areas:
+      ". target-icon"
+      "action target-title";
+  }
+</style>

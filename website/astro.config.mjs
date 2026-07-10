@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from "astro/config"
 import starlight from "@astrojs/starlight"
+import svelte from "@astrojs/svelte"
 import rehypeMermaid from "rehype-mermaid"
 import starlightLinksValidator from "starlight-links-validator"
 import remarkGfm from "remark-gfm"
@@ -22,6 +23,7 @@ const config = defineConfig({
   base: process.env.SITE_BASE_PATH || "",
   trailingSlash: "never",
   integrations: [
+    svelte(),
     starlight({
       title: "Deluge Community",
       logo: {
