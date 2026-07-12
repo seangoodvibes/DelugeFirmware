@@ -1,9 +1,37 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { controlDescriptions } from "../data/targets.js";
   import { isStep, type StepOrSubstep } from "../types/shortcut.js";
   import DelugeUiLabels from "./DelugeUiLabels.svelte";
+  import {
+    pickActiveDelugeDemo,
+    type DemoCell,
+    type DelugeDemoDefinition,
+    type DelugeDemoLoop,
+  } from "./demos/deluge_demos.js";
+
+  const GRID_ORIGIN_X = 5.2917;
+  const GRID_ORIGIN_Y = 75.406;
+  const GRID_STRIDE = 14.5523;
+  const GRID_PAD_SIZE = 9.2604;
+  const GRID_COLS = 16;
+  const GRID_ROWS = 8;
 
   export let steps: StepOrSubstep[];
+
+  let activeDemo: DelugeDemoDefinition | undefined;
+  let activeDemoId: string | undefined;
+  let activeDemoLoop: DelugeDemoLoop | undefined;
+  let demoCells: DemoCell[] = [];
+
+  function gridXForColumn(column: number): number {
+    return GRID_ORIGIN_X + (column - 1) * GRID_STRIDE;
+  }
+
+  function gridYForRow(row: number): number {
+    return GRID_ORIGIN_Y + (row - 1) * GRID_STRIDE;
+  }
+
   $: highlightedClasses = steps
     .flatMap((step) => {
       if (isStep(step)) {
@@ -15,8 +43,39 @@
     .map((control) => controlDescriptions[control])
     .flatMap((control) => control.classes && control.classes);
 
+  $: activeDemo = pickActiveDelugeDemo(steps);
+  $: {
+    const nextDemoId = activeDemo?.id;
+    if (nextDemoId !== activeDemoId) {
+      activeDemoLoop?.stop();
+      activeDemoLoop = undefined;
+      activeDemoId = undefined;
+      demoCells = [];
+
+      if (activeDemo) {
+        activeDemoLoop = activeDemo.createLoop((cells) => {
+          demoCells = cells;
+        });
+        activeDemoLoop.start();
+        activeDemoId = activeDemo.id;
+      }
+    }
+  }
+
+  onDestroy(() => {
+    activeDemoLoop?.stop();
+  });
+
   function isHighlighted(name: string): boolean {
     return highlightedClasses.includes(name);
+  }
+
+  function getActiveDemoCellFillStyle(cell: DemoCell): string {
+    return activeDemo ? activeDemo.getCellFillStyle(cell) : "";
+  }
+
+  function getActiveDemoCellDetailStyle(cell: DemoCell): string {
+    return activeDemo ? activeDemo.getCellDetailStyle(cell) : "";
   }
 </script>
 
@@ -1352,6 +1411,32 @@
       />
     </g>
   </g>
+
+  {#if activeDemo}
+    <g class="dc-demo-overlay" aria-label="Demo animation preview">
+      {#each demoCells as cell (cell.row * 100 + cell.col)}
+        <g>
+          <rect
+            x={gridXForColumn(cell.col)}
+            y={gridYForRow(cell.row)}
+            width={GRID_PAD_SIZE}
+            height={GRID_PAD_SIZE}
+            class="dc-demo-note"
+            style={getActiveDemoCellFillStyle(cell)}
+          />
+          <rect
+            x={gridXForColumn(cell.col) + 1.15}
+            y={gridYForRow(cell.row) + 1.15}
+            width={GRID_PAD_SIZE - 2.3}
+            height={GRID_PAD_SIZE - 2.3}
+            class="dc-demo-note-detail"
+            style={getActiveDemoCellDetailStyle(cell)}
+          />
+        </g>
+      {/each}
+
+    </g>
+  {/if}
 </svg>
 
 <style lang="postcss">
@@ -1365,6 +1450,19 @@
 
   .dc-gold-leds {
     fill: #64452f;
+  }
+
+  .dc-demo-overlay {
+    pointer-events: none;
+  }
+
+  .dc-demo-note {
+    stroke-width: 0.5;
+  }
+
+  .dc-demo-note-detail {
+    fill: rgb(255 255 255 / 0.92);
+    pointer-events: none;
   }
 
   .highlight {
