@@ -101,21 +101,21 @@
   .shortcut-steps {
     border: 1px solid var(--dc-strip-border);
     background: var(--dc-strip-bg);
-    display: block;
+    display: inline-block;
     box-sizing: border-box;
-    inline-size: 100%;
+    inline-size: fit-content;
     max-inline-size: 100%;
     min-inline-size: 0;
-    align-self: stretch;
-    overflow-x: hidden;
+    align-self: flex-start;
+    overflow-x: auto;
   }
 
   .shortcut-steps-inner {
-    display: flex;
+    display: inline-flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 0.25rem;
-    inline-size: 100%;
+    inline-size: fit-content;
     max-inline-size: 100%;
     min-inline-size: 0;
   }
@@ -181,6 +181,11 @@
   }
 
   .shortcut-aside {
+    display: inline-block;
+    box-sizing: border-box;
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    align-self: flex-start;
     border-inline-start: 0.25rem solid var(--dc-aside-border);
     background: var(--dc-aside-bg);
     color: var(--dc-aside-fg);
