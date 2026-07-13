@@ -3,6 +3,12 @@
   import { allFirmwares } from "../stores/firmware_store.js";
   import { shortcutGroups } from "../stores/group_store.js";
   import { shortcutControlGroups } from "../stores/control_store.js";
+  import {
+    availableControls,
+    availableFirmwares,
+    availableGroupIds,
+    availableViews,
+  } from "../stores/shortcut_store.js";
   import FirmwareFilterItem from "./FirmwareFilterItem.svelte";
   import GroupFilterItem from "./GroupFilterItem.svelte";
   import ControlFilterItem from "./ControlFilterItem.svelte";
@@ -15,7 +21,9 @@
       <summary class="filter-title">Firmware Filter</summary>
       <div class="filter-content flex flex-wrap items-center gap-2">
         {#each $allFirmwares as firmware}
-          <FirmwareFilterItem {firmware} />
+          {#if $availableFirmwares.has(firmware.id)}
+            <FirmwareFilterItem {firmware} />
+          {/if}
         {/each}
       </div>
     </details>
@@ -26,7 +34,9 @@
       <summary class="filter-title">Group Filter</summary>
       <div class="filter-content flex flex-wrap items-center gap-2">
         {#each shortcutGroups as group}
-          <GroupFilterItem {group} />
+          {#if $availableGroupIds.has(group.id)}
+            <GroupFilterItem {group} />
+          {/if}
         {/each}
       </div>
     </details>
@@ -37,7 +47,9 @@
       <summary class="filter-title">View Filter</summary>
       <div class="filter-content flex flex-wrap items-center gap-2">
         {#each $allViews as view}
-          <ViewFilterItem {view} />
+          {#if $availableViews.has(view.id)}
+            <ViewFilterItem {view} />
+          {/if}
         {/each}
       </div>
     </details>
@@ -52,7 +64,9 @@
             <h3 class="filter-subtitle">{controlGroup.title}</h3>
             <div class="flex flex-wrap items-center gap-2">
               {#each controlGroup.controls as control}
-                <ControlFilterItem {control} />
+                {#if $availableControls.has(control.id)}
+                  <ControlFilterItem {control} />
+                {/if}
               {/each}
             </div>
           </section>
