@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Shortcut } from "../types/shortcut.js";
   import StepContainerView from "./step/StepContainer.svelte";
-  import { firmwaresById } from "../data/firmware.js";
+  import { Firmwares, firmwaresById } from "../data/firmware.js";
   import { viewsById } from "../data/views.js";
   import DelugeView from "./DelugeUi.svelte";
   import ParagraphView from "./ParagraphView.svelte";
@@ -19,6 +19,11 @@
     purple: "dc-view-purple",
   };
 
+  const firmwareBadgeClassById: Record<number, string> = {
+    [Firmwares.OFFICIAL]: "dc-badge-note",
+    [Firmwares.COMMUNITY]: "dc-badge-tip",
+  };
+
   let showDetails: boolean = false;
 
   function onStepsClicked() {
@@ -31,10 +36,9 @@
     <div class="mb-0 flex flex-wrap gap-1 leading-none">
       {#each firmwares as firmware}
         <span
-          class={`dc-view-chip dc-firmware-chip ${viewClassByColor[firmware.color] ?? "dc-view-neutral"}`}
+          class={`dc-view-chip dc-firmware-chip ${firmwareBadgeClassById[firmware.id] ?? "dc-badge-note"}`}
         >
-          <span class="dc-firmware-chip-prefix">FW</span>
-          {firmware.title}
+          {firmware.title} Firmware
         </span>
       {/each}
       {#each views as view}
@@ -172,12 +176,13 @@
   }
 
   .dc-view-chip {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     white-space: nowrap;
     border-radius: 9999px;
-    padding: 0.125rem 0.5rem;
+    padding: 0.2rem 0.5rem;
     font-size: 0.75rem;
-    line-height: 1;
+    line-height: 1.1;
     font-weight: 500;
     background-color: var(--dc-chip-bg);
     color: var(--dc-chip-fg);
@@ -186,24 +191,40 @@
   .dc-firmware-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    border: 1px solid color-mix(in srgb, var(--dc-chip-fg) 22%, transparent);
+    border-radius: 0.45rem;
+    border: 1px solid var(--dc-badge-border);
+    padding: 0.18rem 0.54rem;
+    font-size: 0.75rem;
+    line-height: 1.15;
     font-weight: 600;
-    letter-spacing: 0.01em;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dc-chip-fg) 10%, transparent);
+    letter-spacing: 0;
+    font-family: var(--sl-font-system-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    background: var(--dc-badge-bg);
+    color: var(--dc-badge-fg);
   }
 
-  .dc-firmware-chip-prefix {
-    display: inline-block;
-    border-radius: 9999px;
-    padding: 0.08rem 0.33rem;
-    font-size: 0.62rem;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    background: color-mix(in srgb, var(--dc-chip-fg) 18%, transparent);
-    color: var(--dc-chip-fg);
+  .dc-badge-note {
+    --dc-badge-bg: rgb(38 67 188 / 0.22);
+    --dc-badge-border: rgb(75 112 255);
+    --dc-badge-fg: rgb(222 232 255);
+  }
+
+  .dc-badge-tip {
+    --dc-badge-bg: rgb(106 39 152 / 0.24);
+    --dc-badge-border: rgb(173 97 232);
+    --dc-badge-fg: rgb(241 218 255);
+  }
+
+  :global(html[data-theme="light"]) .dc-badge-note {
+    --dc-badge-bg: rgb(229 236 255);
+    --dc-badge-border: rgb(76 108 220);
+    --dc-badge-fg: rgb(36 55 123);
+  }
+
+  :global(html[data-theme="light"]) .dc-badge-tip {
+    --dc-badge-bg: rgb(245 231 255);
+    --dc-badge-border: rgb(138 77 184);
+    --dc-badge-fg: rgb(84 30 119);
   }
 
   .dc-view-blue {
