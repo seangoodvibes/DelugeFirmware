@@ -1,13 +1,26 @@
 <script lang="ts">
   import { allViews } from "../stores/view_store.js";
+  import { allFirmwares } from "../stores/firmware_store.js";
   import { shortcutGroups } from "../stores/group_store.js";
   import { shortcutControlGroups } from "../stores/control_store.js";
+  import FirmwareFilterItem from "./FirmwareFilterItem.svelte";
   import GroupFilterItem from "./GroupFilterItem.svelte";
   import ControlFilterItem from "./ControlFilterItem.svelte";
   import ViewFilterItem from "./ViewFilterItem.svelte";
 </script>
 
 <div class="filter-panel my-4">
+  <section>
+    <details class="filter-collapsible" open>
+      <summary class="filter-title">Firmware Filter</summary>
+      <div class="filter-content flex flex-wrap items-center gap-2">
+        {#each $allFirmwares as firmware}
+          <FirmwareFilterItem {firmware} />
+        {/each}
+      </div>
+    </details>
+  </section>
+
   <section>
     <details class="filter-collapsible" open>
       <summary class="filter-title">Group Filter</summary>

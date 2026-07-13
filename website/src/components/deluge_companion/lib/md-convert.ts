@@ -9,6 +9,7 @@ import type {
 import { Action } from "../data/actions.js"
 import { Control } from "../data/targets.js"
 import { Views } from "../data/views.js"
+import { Firmwares } from "../data/firmware.js"
 import { describeShortcutSteps } from "../data/shortcut_descriptions.js"
 
 /**
@@ -93,6 +94,21 @@ export const parseMd = (mdContent: string): Shortcut[] => {
   const results: Shortcut[] = []
 
   let current: Shortcut | null = null
+
+  const finalizeShortcut = (shortcut: Shortcut): Shortcut => {
+    const normalizedViews = [...new Set(shortcut.views)]
+    const normalizedFirmware = [...new Set(shortcut.firmware)]
+
+    return {
+      ...shortcut,
+      views: normalizedViews,
+      firmware:
+        normalizedFirmware.length > 0
+          ? normalizedFirmware
+          : [Firmwares.OFFICIAL, Firmwares.COMMUNITY],
+    }
+  }
+
   const tokens = marked.lexer(mdContent)
 
   tokens.forEach((t) => {
@@ -100,9 +116,15 @@ export const parseMd = (mdContent: string): Shortcut[] => {
       if (t.depth === 1) {
         // h1 header, meaning a new shortcut starts
         if (current) {
-          results.push(current)
+          results.push(finalizeShortcut(current))
         }
-        current = { name: t.text, steps: [], views: [], paragraphs: [] }
+        current = {
+          name: t.text,
+          steps: [],
+          views: [],
+          firmware: [],
+          paragraphs: [],
+        }
         return
       }
     }
@@ -115,30 +137,39 @@ export const parseMd = (mdContent: string): Shortcut[] => {
       }
     }
     if (t.type === "paragraph" && t.raw.startsWith("#") && current) {
-      // paragraph starting with '#', so it's probably a list of views
-      current.views.push(
-        ...t.raw
-          .trim()
-          .split(/[\s,]+/)
-          .map((viewTag) => {
-            const matches = viewTag.match(/^#(\w+)$/)
-            if (!matches) {
-              throw new Error(
-                "Could not parse a line that looked like a list of view tags: " +
-                  t.raw,
-              )
-            }
-            const [, view] = matches
-            const parsedView = Views[view.toUpperCase() as keyof typeof Views]
-            if (parsedView == null) {
-              throw new Error(
-                `Unknown view tag "#${view}" in shortcut "${current?.name}". Add it to Views in src/components/deluge_companion/data/views.ts.`,
-              )
-            }
-            return parsedView
-          })
-          .filter((v) => v != null),
-      )
+      // paragraph starting with '#', so it's probably a list of tags
+      t.raw
+        .trim()
+        .split(/[\s,]+/)
+        .forEach((tagToken) => {
+          const matches = tagToken.match(/^#(\w+)$/)
+          if (!matches) {
+            throw new Error(
+              "Could not parse a line that looked like a list of tags: " +
+                t.raw,
+            )
+          }
+
+          const [, rawTag] = matches
+          const upperTag = rawTag.toUpperCase()
+
+          const parsedView = Views[upperTag as keyof typeof Views]
+          if (parsedView != null) {
+            current.views.push(parsedView)
+            return
+          }
+
+          const parsedFirmware =
+            Firmwares[upperTag as keyof typeof Firmwares]
+          if (parsedFirmware != null) {
+            current.firmware.push(parsedFirmware)
+            return
+          }
+
+          throw new Error(
+            `Unknown tag "#${rawTag}" in shortcut "${current?.name}". Add it to Views in src/components/deluge_companion/data/views.ts or Firmwares in src/components/deluge_companion/data/firmware.ts.`,
+          )
+        })
       return
     }
 
@@ -174,7 +205,7 @@ export const parseMd = (mdContent: string): Shortcut[] => {
   })
 
   if (current) {
-    results.push(current)
+    results.push(finalizeShortcut(current))
   }
 
   return results

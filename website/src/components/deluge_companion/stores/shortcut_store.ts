@@ -3,20 +3,24 @@ import jsonData from "../data/v4.1.0.json"
 import fuzzysort from "fuzzysort"
 import { searchQuery } from "./search_store"
 import { activeView } from "./view_store"
+import { activeFirmware } from "./firmware_store"
 import { activeShortcutGroup } from "./group_store"
 import { activeControl } from "./control_store"
+import { Firmwares } from "../data/firmware"
 import type {
   Shortcut,
   StepOrSubstep,
   SubstepContainer,
-  Step,
 } from "../types/shortcut"
 
 type RawStep =
   | { action: number; control: number }
   | { substeps: { action: number; control: number }[] }
 
-type RawShortcut = Omit<Shortcut, "steps"> & { steps: RawStep[] }
+type RawShortcut = Omit<Shortcut, "steps" | "firmware"> & {
+  steps: RawStep[]
+  firmware?: number[]
+}
 
 const convertedRawShortcuts: Shortcut[] = (jsonData as RawShortcut[]).map(
   (shortcut) => {
@@ -30,7 +34,14 @@ const convertedRawShortcuts: Shortcut[] = (jsonData as RawShortcut[]).map(
       return step
     })
 
-    return { ...shortcut, steps }
+    return {
+      ...shortcut,
+      steps,
+      firmware:
+        shortcut.firmware && shortcut.firmware.length > 0
+          ? shortcut.firmware
+          : [Firmwares.OFFICIAL, Firmwares.COMMUNITY],
+    }
   },
 )
 
@@ -68,8 +79,21 @@ const filteredByGroups = derived(
   },
 )
 
+const filteredByFirmware = derived(
+  [filteredByGroups, activeFirmware],
+  ([$shortcuts, $activeFirmware]) => {
+    if ($activeFirmware === null) {
+      return $shortcuts
+    }
+
+    return $shortcuts.filter((shortcut) =>
+      shortcut.firmware.includes($activeFirmware),
+    )
+  },
+)
+
 const filteredByViews = derived(
-  [filteredByGroups, activeView],
+  [filteredByFirmware, activeView],
   ([$shortcuts, $activeView]) => {
     if ($activeView === null) {
       return $shortcuts

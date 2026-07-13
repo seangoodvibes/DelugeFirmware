@@ -8,8 +8,8 @@ const outputPath = "./src/components/deluge_companion/data/v4.1.0.json"
 
 function stringifyShortcutData(shortcuts: Shortcut[]) {
   return `${JSON.stringify(shortcuts, null, 2).replace(
-    /^(\s*)"views": \[\n((?:\s+\d+,?\n)+)\1\]/gm,
-    (_, indent: string, values: string) => {
+    /^(\s*)"(views|firmware)": \[\n((?:\s+\d+,?\n)+)\1\]/gm,
+    (_, indent: string, key: string, values: string) => {
       const compactValues = values
         .trim()
         .split("\n")
@@ -17,7 +17,7 @@ function stringifyShortcutData(shortcuts: Shortcut[]) {
         .filter(Boolean)
         .join(", ")
 
-      return `${indent}"views": [${compactValues}]`
+      return `${indent}"${key}": [${compactValues}]`
     },
   )}\n`
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { activeControl, type ShortcutControlFilter } from "../stores/control_store.js"
+  import { activeFirmware } from "../stores/firmware_store.js"
   import { activeShortcutGroup } from "../stores/group_store.js"
   import { activeView } from "../stores/view_store.js"
 
@@ -8,6 +9,7 @@
   $: isActive = $activeControl === control.id;
 
   function onClick() {
+    activeFirmware.set(null)
     activeShortcutGroup.set(null)
     activeView.set(null)
 

@@ -1,5 +1,6 @@
 import { ControlType, Control } from "../data/targets.js"
 import type { Views } from "../data/views.js"
+import type { Firmwares } from "../data/firmware.js"
 import type { Action } from "../data/actions.js"
 
 export type ActionDescriptions = Record<
@@ -23,6 +24,12 @@ export type View = {
   color: string
 }
 
+export type Firmware = {
+  id: Firmwares
+  title: string
+  color: string
+}
+
 export type Step = {
   action: Action
   control: Control
@@ -38,6 +45,7 @@ export type StepOrSubstep = Step | SubstepContainer
 export type Shortcut = {
   name: string
   group?: string
+  firmware: Firmwares[]
   views: Views[]
   steps: StepOrSubstep[]
   description?: string
