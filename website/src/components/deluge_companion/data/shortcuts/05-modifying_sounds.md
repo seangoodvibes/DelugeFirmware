@@ -56,6 +56,16 @@ press(KEY)
 
 For synth, MIDI, and CV clips this opens keyboard view. For kits it shows drum pads. You can still change presets and parameters while in keyboard view.
 
+# Create DX7 Synth
+
+#SYNTH
+
+```shortcut
+press(SYNTH)
+```
+
+With the DX7 community feature enabled and CUSTOM 1 active, this creates a new DX7 synth.
+
 # Clear notes and automation
 
 #SYNTH #KIT #MIDI #CV

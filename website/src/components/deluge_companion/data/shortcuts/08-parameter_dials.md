@@ -77,3 +77,23 @@ hold(GRID_LIT) + turn(PARAMETER)
 ```
 
 Changes or locks the selected parameter per clip in Song view.
+
+# FX Toggle Options - Upper Row
+
+#SYNTH #KIT #SONG #ARRANGER
+
+```shortcut
+press(UPPER_PARAM) + turn(UPPER_PARAM)
+```
+
+When the relevant parameter is selected, this toggles the upper FX option blocks such as LP/HP/EQ mode, Ping-Pong, compressor sync, effect type, or stutter mode.
+
+# FX Toggle Options - Lower Row
+
+#SYNTH #KIT #SONG #ARRANGER
+
+```shortcut
+press(LOWER_PARAM) + turn(LOWER_PARAM)
+```
+
+When the relevant parameter is selected, this toggles the paired lower FX option blocks such as slope type, delay style, room size, effect depth/offset/feedback, or stutter ramp speed.

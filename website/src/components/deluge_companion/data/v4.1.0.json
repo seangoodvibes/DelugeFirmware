@@ -1869,6 +1869,168 @@
     "group": "02-song_view"
   },
   {
+    "name": "Performance View",
+    "steps": [
+      {
+        "action": 0,
+        "control": 17
+      }
+    ],
+    "views": [1, 2, 3],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens Performance View from Song or Arranger View."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Key button (keyboard icon).",
+    "group": "02-song_view"
+  },
+  {
+    "name": "Performance View Editing Mode",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 17
+          }
+        ]
+      }
+    ],
+    "views": [1, 2, 3],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens the value and parameter editing modes for Performance View."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Key button (keyboard icon).",
+    "group": "02-song_view"
+  },
+  {
+    "name": "Save Performance View Changes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 17
+          }
+        ]
+      }
+    ],
+    "views": [1, 2, 3],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Saves edited Performance View values."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Save (Delete) button, press the Key button (keyboard icon).",
+    "group": "02-song_view"
+  },
+  {
+    "name": "Reload Performance View Changes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 17
+          }
+        ]
+      }
+    ],
+    "views": [1, 2, 3],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Reloads the saved Performance View layout."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Load (New) button, press the Key button (keyboard icon).",
+    "group": "02-song_view"
+  },
+  {
+    "name": "Clear Performance View Held Values",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [1, 2, 3],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Clears held FX values in Performance View."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button.",
+    "group": "02-song_view"
+  },
+  {
+    "name": "Master Compressor Mode",
+    "steps": [
+      {
+        "action": 0,
+        "control": 16
+      },
+      {
+        "action": 2,
+        "control": 35
+      }
+    ],
+    "views": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "When Affect Entire is on and Sidechain is enabled, this adjusts the master compressor mode."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Affect Entire button. Turn the upper parameter encoder.",
+    "group": "02-song_view"
+  },
+  {
     "name": "Resample / record all audio output",
     "steps": [
       {
@@ -2787,6 +2949,27 @@
       }
     ],
     "description": "Press the Key button (keyboard icon).",
+    "group": "05-modifying_sounds"
+  },
+  {
+    "name": "Create DX7 Synth",
+    "steps": [
+      {
+        "action": 0,
+        "control": 11
+      }
+    ],
+    "views": [4],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "With the DX7 community feature enabled and CUSTOM 1 active, this creates a new DX7 synth."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Synth button.",
     "group": "05-modifying_sounds"
   },
   {
@@ -4998,6 +5181,64 @@
     "group": "08-parameter_dials"
   },
   {
+    "name": "FX Toggle Options - Upper Row",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 35
+          },
+          {
+            "action": 2,
+            "control": 35
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 1, 2],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "When the relevant parameter is selected, this toggles the upper FX option blocks such as LP/HP/EQ mode, Ping-Pong, compressor sync, effect type, or stutter mode."
+          }
+        ]
+      }
+    ],
+    "description": "Press the upper parameter encoder, turn the upper parameter encoder.",
+    "group": "08-parameter_dials"
+  },
+  {
+    "name": "FX Toggle Options - Lower Row",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 34
+          },
+          {
+            "action": 2,
+            "control": 34
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 1, 2],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "When the relevant parameter is selected, this toggles the paired lower FX option blocks such as slope type, delay style, room size, effect depth/offset/feedback, or stutter ramp speed."
+          }
+        ]
+      }
+    ],
+    "description": "Press the lower parameter encoder, turn the lower parameter encoder.",
+    "group": "08-parameter_dials"
+  },
+  {
     "name": "Setup MIDI sequencing of notes",
     "steps": [
       {
@@ -5884,7 +6125,28 @@
     "group": "10-looper"
   },
   {
-    "name": "Audio Export (Start)",
+    "name": "Grid View Loop Pads",
+    "steps": [
+      {
+        "action": 0,
+        "control": 27
+      }
+    ],
+    "views": [1, 2],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Enables the Loop and Layering Loop grid sidebar pads so you can trigger LOOP and LAYERING LOOP without a MIDI controller."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Audition / Section button for row.",
+    "group": "10-looper"
+  },
+  {
+    "name": "Audio Export",
     "steps": [
       {
         "substeps": [
@@ -5899,13 +6161,21 @@
         ]
       }
     ],
-    "views": [0, 1, 2],
-    "paragraphs": [],
+    "views": [0, 1, 2, 5],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Starts audio export from Session/Arranger, or Kit drum export when you are in Kit Instrument Clip View."
+          }
+        ]
+      }
+    ],
     "description": "Press the Save (Delete) button, press the Record button.",
     "group": "11-community_features"
   },
   {
-    "name": "Velocity View (from Instrument Clip)",
+    "name": "Velocity View",
     "steps": [
       {
         "substeps": [
@@ -5921,46 +6191,1612 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
-    "paragraphs": [],
-    "description": "Hold the Audition / Section button for row, press the 'Velocity' patch source pad.",
-    "group": "11-community_features"
-  },
-  {
-    "name": "Velocity View (from Automation View)",
-    "steps": [
+    "paragraphs": [
       {
-        "substeps": [
+        "spans": [
           {
-            "action": 1,
-            "control": 27
-          },
-          {
-            "action": 0,
-            "control": 39
+            "text": "Opens the note velocity editor from Instrument Clip View or Automation View."
           }
         ]
       }
     ],
-    "views": [4, 5, 6, 7, 11, 12],
-    "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the 'Velocity' patch source pad.",
     "group": "11-community_features"
   },
   {
-    "name": "Performance View (from Song/Arranger)",
+    "name": "Enter Automation View",
     "steps": [
       {
         "action": 0,
-        "control": 17
+        "control": 10
       }
     ],
-    "views": [1, 2, 3],
-    "paragraphs": [],
-    "description": "Press the Key button (keyboard icon).",
+    "views": [11, 1, 2, 4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens Automation View from Arranger View or any clip view."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Clip button.",
     "group": "11-community_features"
   },
   {
-    "name": "Master Transpose (Chromatic)",
+    "name": "Toggle Automation Editor from Menu",
+    "steps": [
+      {
+        "action": 0,
+        "control": 10
+      }
+    ],
+    "views": [11, 1, 2, 4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens or closes the Automation Editor for the selected parameter while in a Sound menu."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Clip button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Automation Overview",
+    "steps": [
+      {
+        "action": 0,
+        "control": 16
+      }
+    ],
+    "views": [11, 2],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Returns from Automation Arranger View to Automation Overview."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Affect Entire button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Automation Overview from Clip View",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 10
+          }
+        ]
+      }
+    ],
+    "views": [11, 4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Returns from Automation Clip View to Automation Overview."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Clip button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Automation Overview from Clip Pad Shortcut",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 10
+          }
+        ]
+      }
+    ],
+    "views": [11, 4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Alternative shortcut for returning from Automation Clip View to Automation Overview."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, press the Clip button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Clear Automations",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [11, 2, 4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Clears all automations in the current clip or row."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Automation Arranger Auto-Scroll",
+    "steps": [
+      {
+        "action": 0,
+        "control": 15
+      }
+    ],
+    "views": [11, 2],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Toggles automatic scrolling during playback in Automation Arranger View."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Cross-screen button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Select Note Row in Velocity Editor",
+    "steps": [
+      {
+        "action": 0,
+        "control": 27
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Selects the current note row in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Audition / Section button for row.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Select Note Row in Velocity Editor with Vertical Encoder",
+    "steps": [
+      {
+        "action": 2,
+        "control": 21
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Alternative way to select a different note row in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Turn the Vertical (Up/Down) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Row Probability",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts the selected note row's probability in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, turn the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Row Iterance",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts the selected note row's iterance in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, turn the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Row Velocity",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts the selected note's velocity in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Row Fill",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 8
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts the selected note row's fill setting when the Community Feature is enabled."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, press the Sync-Scaling button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Row Automation",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts the selected note's automation value in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Grid pad (lit or unlit), turn the parameter encoders.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Repeat",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts note repeat for the selected note in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Grid pad (lit or unlit), press the Vertical (Up/Down) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Enter Note Editor",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens the note editor menu for the held note."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Exit Note Editor",
+    "steps": [
+      {
+        "action": 0,
+        "control": 5
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Exits the note editor menu."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Back / Undo (Redo) button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Editor Cross-Screen Editing",
+    "steps": [
+      {
+        "action": 0,
+        "control": 15
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Edits notes across multiple screens while in the note editor."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Cross-screen button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Enter Note Row Editor",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens the note row editor menu for the held note row."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, press the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Exit Note Row Editor",
+    "steps": [
+      {
+        "action": 0,
+        "control": 5
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Exits the note row editor menu."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Back / Undo (Redo) button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Note Row Transpose",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Transposes the selected note row while editing velocity data."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Add or Remove Notes with Euclidean",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adds or removes Euclidean notes in the selected row while using the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Change Clip Length",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Changes the clip length from the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Change Selected Note Row Length",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Changes the length of the currently selected note row."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Clear Selected Note Row",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Clears the notes in the currently selected note row."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Rotate Note Row",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Rotates the selected note row horizontally."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Rotate Note Row from Pad Selection",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 20
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Rotates notes while pad selection mode is active."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, press the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Quantize or Humanize Notes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 23
+          },
+          {
+            "action": 2,
+            "control": 23
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts note quantize or humanize amount in the velocity editor."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, press the Tempo (Swing) encoder, turn the Tempo (Swing) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Horizontal Menu Item Selection - Synth",
+    "steps": [
+      {
+        "action": 0,
+        "control": 11
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Selects the Synth column item on the current horizontal menu page."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Synth button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Horizontal Menu Item Selection - Kit",
+    "steps": [
+      {
+        "action": 0,
+        "control": 12
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Selects the Kit column item on the current horizontal menu page."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Kit button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Horizontal Menu Item Selection - MIDI",
+    "steps": [
+      {
+        "action": 0,
+        "control": 13
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Selects the MIDI column item on the current horizontal menu page."
+          }
+        ]
+      }
+    ],
+    "description": "Press the MIDI button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Horizontal Menu Item Selection - CV",
+    "steps": [
+      {
+        "action": 0,
+        "control": 14
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Selects the CV column item on the current horizontal menu page."
+          }
+        ]
+      }
+    ],
+    "description": "Press the CV button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Horizontal Menu Value Change",
+    "steps": [
+      {
+        "action": 2,
+        "control": 22
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Changes the value of the selected item on the current horizontal menu page."
+          }
+        ]
+      }
+    ],
+    "description": "Turn the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Horizontal Menu Fine Tune",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 22
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Fine-tunes a horizontal menu value with the select encoder."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Select (Settings) encoder, turn the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Horizontal Menu Fine Tune with Shift",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Alternative fine-tune gesture for horizontal menu values."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, turn the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Next Horizontal Menu Page",
+    "steps": [
+      {
+        "action": 0,
+        "control": 15
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Moves to the next horizontal menu page."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Cross-screen button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Previous Horizontal Menu Page",
+    "steps": [
+      {
+        "action": 0,
+        "control": 18
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Moves to the previous horizontal menu page."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Scale button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Next Adjacent Horizontal Menu",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 15
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Moves to the next adjacent horizontal menu."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Cross-screen button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Previous Adjacent Horizontal Menu",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 18
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Moves to the previous adjacent horizontal menu."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Scale button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Change Keyboard Layout",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 17
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7, 5],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Cycles through the available keyboard layouts, including the chord layouts when enabled."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Key button (keyboard icon), turn the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Chord Keyboard Row / Column Mode",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Switches between row mode and column mode in the chord keyboard."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Chord Keyboard Navigation",
+    "steps": [
+      {
+        "action": 2,
+        "control": 20
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Moves across scale degrees in the chord keyboard."
+          }
+        ]
+      }
+    ],
+    "description": "Turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Chord Keyboard Navigation",
+    "steps": [
+      {
+        "action": 2,
+        "control": 21
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Moves vertically through scale degrees in the chord keyboard."
+          }
+        ]
+      }
+    ],
+    "description": "Turn the Vertical (Up/Down) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Chord Library Voicing",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Changes voicing for all chords in the selected row."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Save MIDI CC Labels to Song",
+    "steps": [
+      {
+        "action": 0,
+        "control": 6
+      }
+    ],
+    "views": [6],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Saves renamed MIDI CC labels into the current song."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Save (Delete) button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Save MIDI CC Labels to Preset",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 13
+          }
+        ]
+      }
+    ],
+    "views": [6],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Saves renamed MIDI CC labels into the current MIDI preset."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Save (Delete) button, press the MIDI button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Save MIDI CC Labels to File",
+    "steps": [
+      {
+        "action": 0,
+        "control": 6
+      },
+      {
+        "action": 2,
+        "control": 33
+      }
+    ],
+    "views": [6],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Writes the current MIDI CC labels to a MIDI device definition file."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Save (Delete) button. Turn the parameter encoders.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Load MIDI CC Labels from File",
+    "steps": [
+      {
+        "action": 0,
+        "control": 3
+      },
+      {
+        "action": 2,
+        "control": 33
+      }
+    ],
+    "views": [6],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Loads MIDI CC labels from a MIDI device definition file."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Load (New) button. Turn the parameter encoders.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Unlink MIDI Device Definition",
+    "steps": [
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [6],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Used on the File Linked setting to unlink the current MIDI device definition file."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Select (Settings) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "MIDI Follow Unlearn",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          }
+        ]
+      }
+    ],
+    "views": [6],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Unlearns a MIDI Follow channel or device from the current MIDI Follow submenu."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, hold the Learn / Input button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Save Melodic Pattern",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Saves the current melodic pattern to a pattern file."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Save (Delete) button, press the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Load Melodic Pattern",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Loads a melodic pattern from a pattern file."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Load (New) button, press the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Load Melodic Pattern without Overwriting Notes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 15
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Loads a pattern into the clipboard without replacing the existing notes."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Save (Delete) button, press the Cross-screen button, press the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Load Melodic Pattern without Scaling",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 18
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Loads a pattern without scaling the original file."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Load (New) button, press the Scale button, press the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Paste Loaded Pattern",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7, 5],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Pastes a loaded pattern from the clipboard."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Learn / Input button, press the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Gentle Paste Loaded Pattern",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 15
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7, 5],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Gentle-pastes a loaded pattern from the clipboard."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Cross-screen button, press the Horizontal (Left/Right) encoder.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Layered Shortcuts",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Cycles through layered shortcuts when a shortcut pad has multiple actions assigned."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Grid pad (lit or unlit).",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Interpolation On or Off",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 26
+          }
+        ]
+      }
+    ],
+    "views": [11, 4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Toggles interpolation in Automation View."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Lit grid pad.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Pad Selection Mode",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 25
+          }
+        ]
+      }
+    ],
+    "views": [11, 4, 5, 6, 7],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Toggles pad selection mode in Automation View."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Unlit grid pad.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Return to Song or Arranger from Menu",
+    "steps": [
+      {
+        "action": 0,
+        "control": 19
+      }
+    ],
+    "views": [0, 1, 2],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Exits a menu and returns to Song or Arranger View."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Song button.",
+    "group": "11-community_features"
+  },
+  {
+    "name": "Master Transpose",
     "steps": [
       {
         "substeps": [
@@ -5976,12 +7812,20 @@
       }
     ],
     "views": [1, 2, 3],
-    "paragraphs": [],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Transposes the song or active clip chromatically by semitone."
+          }
+        ]
+      }
+    ],
     "description": "Press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
     "group": "11-community_features"
   },
   {
-    "name": "Master Transpose (Customize Semitones)",
+    "name": "Master Transpose by Semitones",
     "steps": [
       {
         "substeps": [
@@ -6001,7 +7845,15 @@
       }
     ],
     "views": [1, 2],
-    "paragraphs": [],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Changes the number of semitones used by the master transpose shortcut."
+          }
+        ]
+      }
+    ],
     "description": "Hold the Shift button, press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
     "group": "11-community_features"
   }

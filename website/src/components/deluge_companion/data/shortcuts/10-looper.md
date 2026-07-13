@@ -85,3 +85,13 @@ hold(TEMPO) + press(GRID_LIT)
 ```shortcut
 hold(SHIFT) + press(SELECT), menu(NONE), menu(NONE)
 ```
+
+# Grid View Loop Pads
+
+#SONG #ARRANGER
+
+```shortcut
+press(AUDITION)
+```
+
+Enables the Loop and Layering Loop grid sidebar pads so you can trigger LOOP and LAYERING LOOP without a MIDI controller.

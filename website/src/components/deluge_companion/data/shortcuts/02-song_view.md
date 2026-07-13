@@ -233,3 +233,63 @@ hold(SONG) + turn(SELECT)
 ```
 
 Changes song view between rows and grid.
+
+# Performance View
+
+#SONG #ARRANGER #PERFORMANCE
+
+```shortcut
+press(KEY)
+```
+
+Opens Performance View from Song or Arranger View.
+
+# Performance View Editing Mode
+
+#SONG #ARRANGER #PERFORMANCE
+
+```shortcut
+hold(SHIFT) + press(KEY)
+```
+
+Opens the value and parameter editing modes for Performance View.
+
+# Save Performance View Changes
+
+#SONG #ARRANGER #PERFORMANCE
+
+```shortcut
+press(SAVE) + press(KEY)
+```
+
+Saves edited Performance View values.
+
+# Reload Performance View Changes
+
+#SONG #ARRANGER #PERFORMANCE
+
+```shortcut
+press(LOAD) + press(KEY)
+```
+
+Reloads the saved Performance View layout.
+
+# Clear Performance View Held Values
+
+#SONG #ARRANGER #PERFORMANCE
+
+```shortcut
+hold(X) + press(BACK)
+```
+
+Clears held FX values in Performance View.
+
+# Master Compressor Mode
+
+#SONG
+
+```shortcut
+press(ENTIRE), turn(UPPER_PARAM)
+```
+
+When Affect Entire is on and Sidechain is enabled, this adjusts the master compressor mode.
