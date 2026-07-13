@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { Shortcut } from "../types/shortcut.js";
   import StepContainerView from "./step/StepContainer.svelte";
+  import { firmwaresById } from "../data/firmware.js";
   import { viewsById } from "../data/views.js";
   import DelugeView from "./DelugeUi.svelte";
   import ParagraphView from "./ParagraphView.svelte";
 
   export let shortcut: Shortcut;
+  $: firmwares = shortcut.firmware.map((f) => firmwaresById[f]);
   $: views = shortcut.views.map((v) => viewsById[v]);
 
   const viewClassByColor: Record<string, string> = {
@@ -27,6 +29,14 @@
 <div class="shortcut-card rounded-lg p-4 text-[var(--sl-color-text)]">
   <div class="shortcut-header">
     <div class="mb-0 flex flex-wrap gap-1 leading-none">
+      {#each firmwares as firmware}
+        <span
+          class={`dc-view-chip dc-firmware-chip ${viewClassByColor[firmware.color] ?? "dc-view-neutral"}`}
+        >
+          <span class="dc-firmware-chip-prefix">FW</span>
+          {firmware.title}
+        </span>
+      {/each}
       {#each views as view}
         <span
           class={`dc-view-chip ${viewClassByColor[view.color] ?? "dc-view-neutral"}`}
@@ -170,6 +180,29 @@
     line-height: 1;
     font-weight: 500;
     background-color: var(--dc-chip-bg);
+    color: var(--dc-chip-fg);
+  }
+
+  .dc-firmware-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border: 1px solid color-mix(in srgb, var(--dc-chip-fg) 22%, transparent);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dc-chip-fg) 10%, transparent);
+  }
+
+  .dc-firmware-chip-prefix {
+    display: inline-block;
+    border-radius: 9999px;
+    padding: 0.08rem 0.33rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--dc-chip-fg) 18%, transparent);
     color: var(--dc-chip-fg);
   }
 
