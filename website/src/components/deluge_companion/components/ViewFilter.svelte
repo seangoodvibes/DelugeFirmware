@@ -9,37 +9,43 @@
 
 <div class="filter-panel my-4">
   <section>
-    <h2 class="filter-title">Group Filter:</h2>
-    <div class="flex flex-wrap items-center gap-2">
-      {#each shortcutGroups as group}
-        <GroupFilterItem {group} />
-      {/each}
-    </div>
+    <details class="filter-collapsible" open>
+      <summary class="filter-title">Group Filter</summary>
+      <div class="filter-content flex flex-wrap items-center gap-2">
+        {#each shortcutGroups as group}
+          <GroupFilterItem {group} />
+        {/each}
+      </div>
+    </details>
   </section>
 
   <section>
-    <h2 class="filter-title">View Filter:</h2>
-    <div class="flex flex-wrap items-center gap-2">
-      {#each $allViews as view}
-        <ViewFilterItem {view} />
-      {/each}
-    </div>
+    <details class="filter-collapsible" open>
+      <summary class="filter-title">View Filter</summary>
+      <div class="filter-content flex flex-wrap items-center gap-2">
+        {#each $allViews as view}
+          <ViewFilterItem {view} />
+        {/each}
+      </div>
+    </details>
   </section>
 
   <section>
-    <h2 class="filter-title">Control Filter:</h2>
-    <div class="filter-groups">
-      {#each shortcutControlGroups as controlGroup}
-        <section class="filter-subgroup">
-          <h3 class="filter-subtitle">{controlGroup.title}</h3>
-          <div class="flex flex-wrap items-center gap-2">
-            {#each controlGroup.controls as control}
-              <ControlFilterItem {control} />
-            {/each}
-          </div>
-        </section>
-      {/each}
-    </div>
+    <details class="filter-collapsible">
+      <summary class="filter-title">Control Filter</summary>
+      <div class="filter-content filter-groups">
+        {#each shortcutControlGroups as controlGroup}
+          <section class="filter-subgroup">
+            <h3 class="filter-subtitle">{controlGroup.title}</h3>
+            <div class="flex flex-wrap items-center gap-2">
+              {#each controlGroup.controls as control}
+                <ControlFilterItem {control} />
+              {/each}
+            </div>
+          </section>
+        {/each}
+      </div>
+    </details>
   </section>
 </div>
 
@@ -61,10 +67,37 @@
   }
 
   .filter-title {
-    margin: 0 0 0.75rem 0;
+    margin: 0;
     font-size: 1.15rem;
     font-weight: 700;
     line-height: 1.2;
+    display: flex;
+    align-items: center;
+  }
+
+  .filter-collapsible > .filter-title {
+    cursor: pointer;
+    gap: 0.5rem;
+    list-style: none;
+  }
+
+  .filter-collapsible > .filter-title::before {
+    content: "▸";
+    font-size: 0.9rem;
+    line-height: 1;
+    transform: translateY(-0.02rem);
+  }
+
+  .filter-collapsible[open] > .filter-title::before {
+    content: "▾";
+  }
+
+  .filter-collapsible > .filter-title::-webkit-details-marker {
+    display: none;
+  }
+
+  .filter-content {
+    margin-top: 0.75rem;
   }
 
   .filter-groups {
