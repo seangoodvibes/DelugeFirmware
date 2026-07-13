@@ -1,6 +1,6 @@
 # Resample / record all audio output
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SHIFT) + press(RECORD)
@@ -10,7 +10,7 @@ Records or resamples all audio output. Press Record again to stop.
 
 # Loop resample
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(RECORD) + press(PLAY), hold(RECORD) + press(PLAY)
@@ -20,7 +20,7 @@ Repeat Record + Play before the end of the loop. If already playing, hold Record
 
 # Record sample into a kit
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SHIFT) + press(KIT), press(RECORD)
@@ -30,7 +30,7 @@ Better for offline recording than using audio clips or live looper recording.
 
 # Load sample into a kit row
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(AUDITION) + press(LOAD), turn(SELECT), press(SELECT)
@@ -40,7 +40,7 @@ Scroll to a sample and press Select. Shift + Browse/Grid shortcut on an existing
 
 # Load sample into a kit row silently
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SHIFT) + hold(AUDITION) + press(LOAD), turn(SELECT), press(SELECT)
@@ -48,7 +48,7 @@ hold(SHIFT) + hold(AUDITION) + press(LOAD), turn(SELECT), press(SELECT)
 
 # Synth resample
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(RECORD) + press(AUDITION), hold(RECORD) + press(GRID)
@@ -58,7 +58,7 @@ Press Record to stop.
 
 # Load all samples from folder to kit
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SHIFT) + press(KIT), turn(SELECT), hold(SELECT), menu(NONE), press(SELECT)
@@ -70,7 +70,7 @@ Beware of CPU and memory overhead when loading large amounts of samples into kit
 
 # Slice sample
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SHIFT), press(KIT), turn(SELECT), hold(SELECT), menu(NONE), press(SELECT), menu(NONE), press(SELECT)
@@ -82,7 +82,7 @@ You can add more samples to sliced kits, but not more slices to existing kits. O
 
 # Rename kit row or instrument
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(AUDITION) + press(GRID)

@@ -1,6 +1,6 @@
 # Launch clip - queue
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(LAUNCH)
@@ -10,7 +10,7 @@ Queues the clip to stop or start at the next loop.
 
 # Launch clip - immediately
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + press(LAUNCH)
@@ -20,7 +20,7 @@ Stops or starts the clip immediately.
 
 # Fast scroll song list
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(LOAD), hold(SHIFT) + turn(SELECT)
@@ -28,7 +28,7 @@ press(LOAD), hold(SHIFT) + turn(SELECT)
 
 # Create clip (empty row)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(GRID_UNLIT)
@@ -38,7 +38,7 @@ Creates the clip and enters clip view. You can create unlimited clips. Scroll up
 
 # Enter clip (non-empty row)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(GRID)
@@ -48,7 +48,7 @@ Enters the clip to view or edit it. Return to song mode with the Song button.
 
 # Move row clip up or down
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + turn(Y)
@@ -56,7 +56,7 @@ hold(GRID) + turn(Y)
 
 # Clip section color - change or create new
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + press(AUDITION)
@@ -66,7 +66,7 @@ Cycles through existing section colors. If the end is reached, a new color is cr
 
 # Launch section
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(AUDITION)
@@ -76,7 +76,7 @@ All audition / section rows of the same color flash, then launch together when t
 
 # Section repeat (hold audition for 1 sec)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(AUDITION), turn(SELECT)
@@ -86,7 +86,7 @@ Changes INFInite to a repeat count for the section. The display counts down; pre
 
 # Clone/duplicate clip (hold source, press destination)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + press(GRID)
@@ -96,7 +96,7 @@ Destination row can be another existing clip. The cloned clip is inserted.
 
 # Delete clip
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + press(SAVE)
@@ -106,7 +106,7 @@ Cannot undo delete.
 
 # Solo clip - queue
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(X) + press(LAUNCH)
@@ -116,7 +116,7 @@ The soloed clip turns blue and other mute pads dim. You can solo more than one c
 
 # Solo clip - immediately
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + hold(X) + press(LAUNCH)
@@ -126,7 +126,7 @@ Immediately solos the clip. You can solo more than one clip.
 
 # Clip parameter change (per clip)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + turn(PARAMETER)
@@ -134,7 +134,7 @@ hold(GRID) + turn(PARAMETER)
 
 # Clip parameter change (per song)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(ENTIRE), turn(PARAMETER)
@@ -142,7 +142,7 @@ press(ENTIRE), turn(PARAMETER)
 
 # Change existing clip preset
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + turn(SELECT)
@@ -150,7 +150,7 @@ hold(GRID) + turn(SELECT)
 
 # Change existing clip to synth
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + press(SYNTH)
@@ -160,7 +160,7 @@ On an empty clip, pressing SYNTH also changes it to a synth clip.
 
 # Change existing clip to MIDI
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + press(MIDI)
@@ -170,7 +170,7 @@ On an empty clip, pressing MIDI also changes it to a MIDI clip.
 
 # Change existing clip to CV
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + press(CV)
@@ -180,7 +180,7 @@ On an empty clip, pressing CV also changes it to a CV clip.
 
 # Create audio track (in empty clip)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + press(SELECT)
@@ -188,7 +188,7 @@ hold(GRID) + press(SELECT)
 
 # Check name and type of non-empty clip
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID)
@@ -198,7 +198,7 @@ The LED flashes with the clip name and the clip-type LED lights up, for example 
 
 # Clip Settings Menu (Song Grid View)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + press(SELECT)
@@ -206,7 +206,7 @@ hold(GRID) + press(SELECT)
 
 # Clip Settings Menu (Song Row View)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(LAUNCH) + press(SELECT)
@@ -216,7 +216,7 @@ Uses status pad (mute/launch) in first column of sidebar.
 
 # Row colour from song row view
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID) + hold(SHIFT) + turn(Y)
@@ -226,7 +226,7 @@ In Song Row view, cycle through colors for the held pad row.
 
 # Song views
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SONG) + turn(SELECT)
@@ -236,7 +236,7 @@ Changes song view between rows and grid.
 
 # Performance View
 
-#SONG #ARRANGER #PERFORMANCE
+#OFFICIAL #SONG #ARRANGER #PERFORMANCE
 
 ```shortcut
 press(KEY)
@@ -246,7 +246,7 @@ Opens Performance View from Song or Arranger View.
 
 # Performance View Editing Mode
 
-#SONG #ARRANGER #PERFORMANCE
+#OFFICIAL #SONG #ARRANGER #PERFORMANCE
 
 ```shortcut
 hold(SHIFT) + press(KEY)
@@ -256,7 +256,7 @@ Opens the value and parameter editing modes for Performance View.
 
 # Save Performance View Changes
 
-#SONG #ARRANGER #PERFORMANCE
+#OFFICIAL #SONG #ARRANGER #PERFORMANCE
 
 ```shortcut
 press(SAVE) + press(KEY)
@@ -266,7 +266,7 @@ Saves edited Performance View values.
 
 # Reload Performance View Changes
 
-#SONG #ARRANGER #PERFORMANCE
+#OFFICIAL #SONG #ARRANGER #PERFORMANCE
 
 ```shortcut
 press(LOAD) + press(KEY)
@@ -276,7 +276,7 @@ Reloads the saved Performance View layout.
 
 # Clear Performance View Held Values
 
-#SONG #ARRANGER #PERFORMANCE
+#OFFICIAL #SONG #ARRANGER #PERFORMANCE
 
 ```shortcut
 hold(X) + press(BACK)
@@ -286,7 +286,7 @@ Clears held FX values in Performance View.
 
 # Master Compressor Mode
 
-#SONG
+#COMMUNITY #SONG
 
 ```shortcut
 press(ENTIRE), turn(UPPER_PARAM)

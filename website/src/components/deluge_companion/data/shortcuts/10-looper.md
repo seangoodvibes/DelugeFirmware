@@ -1,6 +1,6 @@
 # Toggle record arm
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(RECORD) + press(LAUNCH)
@@ -8,7 +8,7 @@ hold(RECORD) + press(LAUNCH)
 
 # Start loop record
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(RECORD), press(PLAY)
@@ -16,7 +16,7 @@ press(RECORD), press(PLAY)
 
 # Close loop recording - on recording clip row
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(LAUNCH)
@@ -24,7 +24,7 @@ press(LAUNCH)
 
 # Close loop recording and immediately play in solo
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(X) + press(LAUNCH)
@@ -32,7 +32,7 @@ hold(X) + press(LAUNCH)
 
 # Record loop during playback
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(RECORD), press(PLAY), press(LAUNCH)
@@ -40,7 +40,7 @@ press(RECORD), press(PLAY), press(LAUNCH)
 
 # Record overdub - press grid directly underneath existing audio clip
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(RECORD), press(PLAY), hold(RECORD) + press(GRID)
@@ -48,7 +48,7 @@ press(RECORD), press(PLAY), hold(RECORD) + press(GRID)
 
 # Record overdub - with continuous layering - press grid directly underneath existing audio clip
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(RECORD), press(PLAY), hold(RECORD) + press(AUDITION)
@@ -56,7 +56,7 @@ press(RECORD), press(PLAY), hold(RECORD) + press(AUDITION)
 
 # Tempo detection for loop pedal recording - start with a blank song
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + press(TAP)
@@ -64,7 +64,7 @@ hold(SHIFT) + press(TAP)
 
 # Preset tempo for loop recording
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 press(GRID_UNLIT), press(KIT), turn(TEMPO)
@@ -72,7 +72,7 @@ press(GRID_UNLIT), press(KIT), turn(TEMPO)
 
 # Grab tempo from existing audio clip
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(TEMPO) + press(GRID_LIT)
@@ -80,7 +80,7 @@ hold(TEMPO) + press(GRID_LIT)
 
 # Enable count-in before audio recording
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + press(SELECT), menu(NONE), menu(NONE)
@@ -88,7 +88,7 @@ hold(SHIFT) + press(SELECT), menu(NONE), menu(NONE)
 
 # Grid View Loop Pads
 
-#SONG #ARRANGER
+#OFFICIAL #SONG #ARRANGER
 
 ```shortcut
 press(AUDITION)

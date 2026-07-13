@@ -1,6 +1,6 @@
 # Assign gold dial control of parameters - first select parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 hold(LEARN) + turn(PARAMETER)
@@ -10,7 +10,7 @@ More assignable options are available through the sound editor. Make sure the pa
 
 # Check gold dial control of parameters - first select parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 turn(PARAMETER)
@@ -20,7 +20,7 @@ Check the LCD screen for parameter variation when selected and adjusted.
 
 # Record automation of parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 press(RECORD), press(PLAY), turn(PARAMETER)
@@ -30,7 +30,7 @@ Records automation for the chosen parameter while playback is running.
 
 # Delete automation of recorded parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 hold(SHIFT) + press(PARAMETER)
@@ -40,7 +40,7 @@ Deletes recorded automation for the selected parameter.
 
 # Copy automation of parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 hold(LEARN) + press(PARAMETER)
@@ -50,7 +50,7 @@ Automation is copied one parameter at a time at the current zoom level. You can 
 
 # Paste automation of parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 hold(SHIFT) + hold(LEARN) + press(PARAMETER)
@@ -60,7 +60,7 @@ Press Select to cancel section switching during countdown.
 
 # Parameter change / lock per note in clip view
 
-#CLIP
+#OFFICIAL #CLIP
 
 ```shortcut
 hold(GRID_LIT) + turn(PARAMETER)
@@ -70,7 +70,7 @@ Press any column pad to set the automation value manually between 0 on the botto
 
 # Parameter change / lock per clip in song view
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(GRID_LIT) + turn(PARAMETER)
@@ -80,7 +80,7 @@ Changes or locks the selected parameter per clip in Song view.
 
 # FX Toggle Options - Upper Row
 
-#SYNTH #KIT #SONG #ARRANGER
+#OFFICIAL #SYNTH #KIT #SONG #ARRANGER
 
 ```shortcut
 press(UPPER_PARAM) + turn(UPPER_PARAM)
@@ -90,7 +90,7 @@ When the relevant parameter is selected, this toggles the upper FX option blocks
 
 # FX Toggle Options - Lower Row
 
-#SYNTH #KIT #SONG #ARRANGER
+#OFFICIAL #SYNTH #KIT #SONG #ARRANGER
 
 ```shortcut
 press(LOWER_PARAM) + turn(LOWER_PARAM)

@@ -1,6 +1,6 @@
 # Setup MIDI sequencing of notes
 
-#SYNTH #KIT #CV
+#OFFICIAL #SYNTH #KIT #CV
 
 ```shortcut
 press(MIDI), turn(SELECT)
@@ -10,7 +10,7 @@ Select MIDI channel 1-16 for note output.
 
 # MIDI sequencing of parameters - first select parameter
 
-#MIDI
+#OFFICIAL #MIDI
 
 ```shortcut
 hold(PARAMETER) + turn(SELECT), turn(PARAMETER)
@@ -20,7 +20,7 @@ Deluge labels do not apply. Use any button to map the function. 'None' means not
 
 # Record MIDI automation
 
-#MIDI
+#OFFICIAL #MIDI
 
 ```shortcut
 press(RECORD), press(PLAY), turn(PARAMETER)
@@ -30,7 +30,7 @@ CC with a '.' shown on the LCD indicates automation is already recorded.
 
 # Record MIDI step automation
 
-#MIDI
+#OFFICIAL #MIDI
 
 ```shortcut
 hold(GRID) + turn(PARAMETER)
@@ -40,7 +40,7 @@ Records MIDI automation per step.
 
 # Change dial control, but keep automation
 
-#MIDI
+#OFFICIAL #MIDI
 
 ```shortcut
 hold(PARAMETER) + hold(SELECT) + turn(SELECT)
@@ -50,7 +50,7 @@ Parameters with recorded automation are not shown with the normal Change MIDI Pa
 
 # MIDI note output in a kit clip
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(AUDITION) + press(MIDI)
@@ -60,7 +60,7 @@ Multiple MIDI channels or notes can be set on each row of a kit.
 
 # MIDI note output in a kit clip: MIDI channel assign
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(AUDITION) + turn(LOWER_PARAM)
@@ -68,7 +68,7 @@ hold(AUDITION) + turn(LOWER_PARAM)
 
 # MIDI note output in a kit clip: MIDI note value
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(AUDITION) + turn(UPPER_PARAM)
@@ -76,7 +76,7 @@ hold(AUDITION) + turn(UPPER_PARAM)
 
 # Settings menu for additional MIDI, CV, and Gate parameters
 
-#MIDI
+#OFFICIAL #MIDI
 
 ```shortcut
 hold(SHIFT) + press(SELECT)
@@ -86,7 +86,7 @@ Contains additional MIDI, CV, and Gate parameters not specified above, including
 
 # External controller to play synth or kit
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(LEARN) + hold(AUDITION) + press(EXTERNAL)
@@ -96,7 +96,7 @@ In Synth, any audition / row pressed assigns all. In Kit, only the pressed instr
 
 # External controller to trigger clip (from song mode)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(LEARN) + hold(AUDITION) + press(EXTERNAL)
@@ -106,7 +106,7 @@ Can trigger clip mutes from Song mode via an external MIDI controller. Deluge us
 
 # External controller to trigger play (from song mode)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(LEARN) + hold(PLAY) + press(EXTERNAL)
@@ -116,7 +116,7 @@ Can trigger Play from Song mode via an external MIDI controller. Deluge uses MID
 
 # External controller to trigger record (from song mode)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(LEARN) + hold(RECORD) + press(EXTERNAL)
@@ -126,7 +126,7 @@ Can trigger Record from Song mode via an external MIDI controller. Deluge uses M
 
 # Unlearn external controller to play synth or kit
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + hold(LEARN) + press(AUDITION)
@@ -136,7 +136,7 @@ Any already learned MIDI functions flash when the Learn/Input button alone is he
 
 # Unlearn external controller to trigger clip (from song mode)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + hold(LEARN) + hold(AUDITION)
@@ -144,7 +144,7 @@ hold(SHIFT) + hold(LEARN) + hold(AUDITION)
 
 # Unlearn external controller to trigger play (from song mode)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + hold(LEARN) + hold(PLAY)
@@ -152,7 +152,7 @@ hold(SHIFT) + hold(LEARN) + hold(PLAY)
 
 # Unlearn external controller to trigger record (from song mode)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(SHIFT) + hold(LEARN) + hold(RECORD)
@@ -160,7 +160,7 @@ hold(SHIFT) + hold(LEARN) + hold(RECORD)
 
 # External control of parameter - first select parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 hold(LEARN) + press(EXTERNAL)
@@ -170,7 +170,7 @@ Learns external control of the selected Deluge parameter.
 
 # Unlearn external control of parameter - first select parameter
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 hold(SHIFT) + hold(LEARN)
@@ -178,7 +178,7 @@ hold(SHIFT) + hold(LEARN)
 
 # Nudge MIDI clock
 
-#MIDI
+#OFFICIAL #MIDI
 
 ```shortcut
 hold(X) + turn(TEMPO)
@@ -186,7 +186,7 @@ hold(X) + turn(TEMPO)
 
 # Record external notes
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 press(RECORD), press(PLAY), press(EXTERNAL)
@@ -196,7 +196,7 @@ Once learned, the clip does not need to be visible to record incoming external n
 
 # Sync scaling for unusual time signitures
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 press(SYNC)
@@ -206,7 +206,7 @@ Press on the loaded clip and it flashes to show sync scaling is enabled. On all 
 
 # Mute by external MIDI for individual kit rows - in kit mode
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(LEARN) + hold(LAUNCH) + press(EXTERNAL)

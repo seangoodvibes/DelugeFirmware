@@ -1,6 +1,6 @@
 # Add clip into arranger
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(GRID_UNLIT)
@@ -8,7 +8,7 @@ press(GRID_UNLIT)
 
 # Change / select instance's clip
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(GRID) + turn(SELECT)
@@ -18,7 +18,7 @@ This command is fundamental to arranger principles. You can switch between Arran
 
 # Delete clip instance from arranger (left-most clip grid button)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(GRID_LIT)
@@ -28,7 +28,7 @@ The fully lit left-most grid button deletes the instance from arranger only. Thi
 
 # Clear arranger clips (all clip instances)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(X) + press(BACK)
@@ -36,7 +36,7 @@ hold(X) + press(BACK)
 
 # Move clip instance horizontally
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(GRID_LIT) + turn(X)
@@ -44,7 +44,7 @@ hold(GRID_LIT) + turn(X)
 
 # Move row vertically
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + turn(Y)
@@ -52,7 +52,7 @@ hold(AUDITION) + turn(Y)
 
 # Change instance length of clip
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(GRID) + press(GRID)
@@ -62,7 +62,7 @@ Used to shorten as well as lengthen clip instances.
 
 # Mute / unmute
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(LAUNCH)
@@ -72,7 +72,7 @@ Mute/unmute an instrument instance.
 
 # Audition
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(AUDITION)
@@ -82,7 +82,7 @@ Audition sounds a synth's root note or a kit row instance.
 
 # Solo instrument
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(X) + press(LAUNCH)
@@ -92,7 +92,7 @@ Mute pads turn blue. You can solo more than one instrument at the same time. Pre
 
 # Enter clip (anything besides left-most grid button)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(GRID_LIT)
@@ -102,7 +102,7 @@ Click on the instance tail only. Pressing Play after entering a clip this way co
 
 # Scroll timeline with progress bar
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(CROSS)
@@ -112,7 +112,7 @@ Only works when playback is on and the progress bar is visible.
 
 # Start playback from current screen
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(X) + press(PLAY)
@@ -122,7 +122,7 @@ Playback begins from the left-most visible column.
 
 # Make clip instance unique (white; left-most clip grid button)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(SHIFT) + press(GRID_LIT)
@@ -132,7 +132,7 @@ The colored instance turns white to indicate a unique instance. It contains note
 
 # Adjust clip parameter of clip instance
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(GRID_LIT) + turn(PARAMETER)
@@ -140,7 +140,7 @@ hold(GRID_LIT) + turn(PARAMETER)
 
 # Copy clip from arranger to song mode, eg to save white instance as its own clip
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(GRID_LIT) + press(SONG), turn(Y)
@@ -150,7 +150,7 @@ Useful for saving a white instance as its own clip. You can scroll before releas
 
 # Copy clip from song to arranger mode
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(GRID_LIT) + press(SONG), turn(X)
@@ -160,7 +160,7 @@ You can scroll before releasing to place the instance.
 
 # Insert / delete time; applies to currently visible screen (clockwise: insert; counter: delete)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(SHIFT) + turn(X)
@@ -170,7 +170,7 @@ Applies to the currently visible screen. Notes falling off the left side are del
 
 # Enable loop play mode from arrange to song mode
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(AUDITION)
@@ -180,7 +180,7 @@ Playing instruments are indicated by colored lit audition buttons. Once a button
 
 # Disable loop play mode from arrange to song mode
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 press(LAUNCH)
@@ -190,7 +190,7 @@ Play switches from clip loop mode back to arranger at the left-most visible colu
 
 # Change instrument preset
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + turn(SELECT)
@@ -200,7 +200,7 @@ Not for audio clips.
 
 # Change clip type to synth
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(SYNTH)
@@ -208,7 +208,7 @@ hold(AUDITION) + press(SYNTH)
 
 # Change clip type to MIDI
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(MIDI)
@@ -216,7 +216,7 @@ hold(AUDITION) + press(MIDI)
 
 # Change clip type to CV
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(CV)
@@ -224,7 +224,7 @@ hold(AUDITION) + press(CV)
 
 # Add new instrument clip from arranger view (unused row)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + turn(SELECT)
@@ -234,7 +234,7 @@ Uses a greyed-out button on an unused row.
 
 # Add new synth clip type (unused row)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(SYNTH)
@@ -242,7 +242,7 @@ hold(AUDITION) + press(SYNTH)
 
 # Add new MIDI clip type (unused row)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(MIDI)
@@ -250,7 +250,7 @@ hold(AUDITION) + press(MIDI)
 
 # Add new CV clip type (unused row)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(CV)
@@ -258,7 +258,7 @@ hold(AUDITION) + press(CV)
 
 # Delete instrument row from arranger
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(SAVE)
@@ -268,7 +268,7 @@ If the row contains unique / white instances they are lost completely.
 
 # Rename track
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 hold(AUDITION) + press(GRID)

@@ -1,6 +1,6 @@
 # New synth
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(SYNTH)
@@ -8,7 +8,7 @@ hold(SHIFT) + press(SYNTH)
 
 # New kit
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(KIT)
@@ -16,7 +16,7 @@ hold(SHIFT) + press(KIT)
 
 # View synth preset browser
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(LOAD) + press(SYNTH)
@@ -24,7 +24,7 @@ hold(LOAD) + press(SYNTH)
 
 # View kit preset browser
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(LOAD) + press(KIT)
@@ -32,7 +32,7 @@ hold(LOAD) + press(KIT)
 
 # Save synth preset
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 hold(SAVE) + press(SYNTH), turn(SELECT), press(SELECT)
@@ -40,7 +40,7 @@ hold(SAVE) + press(SYNTH), turn(SELECT), press(SELECT)
 
 # Save kit preset
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SAVE) + press(KIT), turn(SELECT), press(SELECT)
@@ -48,7 +48,7 @@ hold(SAVE) + press(KIT), turn(SELECT), press(SELECT)
 
 # Note keyboard view
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 press(KEY)
@@ -58,7 +58,7 @@ For synth, MIDI, and CV clips this opens keyboard view. For kits it shows drum p
 
 # Create DX7 Synth
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 press(SYNTH)
@@ -68,7 +68,7 @@ With the DX7 community feature enabled and CUSTOM 1 active, this creates a new D
 
 # Clear notes and automation
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(X) + press(BACK)
@@ -76,7 +76,7 @@ hold(X) + press(BACK)
 
 # Setting up choke group
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(AUDITION) + press(GRID), turn(SELECT), menu(NONE), press(SELECT)
@@ -86,7 +86,7 @@ Select CHOKe. When playing, this stops all other notes in the same kit that are 
 
 # Cycle default scales
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(SCALE)
@@ -94,7 +94,7 @@ hold(SHIFT) + press(SCALE)
 
 # Change root note
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(SCALE) + press(AUDITION)
@@ -104,7 +104,7 @@ Sets the new root note. This can also be set from keyboard view.
 
 # Alter current scale
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(AUDITION) + turn(SELECT)
@@ -114,7 +114,7 @@ Sharpens or flattens a note. Scale must be lit; otherwise all notes / semitones 
 
 # Clone synth preset
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 hold(LOAD) + press(SYNTH), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
@@ -124,7 +124,7 @@ A single preset can only appear in one active clip, so clone the original preset
 
 # Clone kit preset
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(LOAD) + press(KIT), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
@@ -134,7 +134,7 @@ A single preset can only appear in one active clip, so clone the original preset
 
 # Kit clip affect all - first select parameter
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SHIFT) + hold(GRID), hold(ENTIRE) + turn(SELECT)
@@ -144,7 +144,7 @@ Applies to all rows in a kit.
 
 # Select kit/ instrument row silently
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(SHIFT) + press(AUDITION)
@@ -154,7 +154,7 @@ The row is selected and the instrument or sample name flashes on the LCD, but no
 
 # Change clip preset
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 turn(SELECT)
@@ -164,7 +164,7 @@ Changes the current clip preset.
 
 # Keyboard mode view
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(KEY) + turn(SELECT)
@@ -174,7 +174,7 @@ Changes keyboard mode between Isomorphic, In-Key, Piano, Chord, Chord Library, a
 
 # Keyboard scale / root
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(SCALE) + press(SELECT)
@@ -184,7 +184,7 @@ Changes keyboard scale or root from keyboard view.
 
 # Keyboard note offset
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + turn(X)
@@ -194,7 +194,7 @@ Changes keyboard note offset.
 
 # Transpose clip by octave
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(Y) + turn(Y)
@@ -202,7 +202,7 @@ hold(Y) + turn(Y)
 
 # Transpose current clip by semitone (scale off)
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + hold(Y) + turn(Y)
@@ -210,7 +210,7 @@ hold(SHIFT) + hold(Y) + turn(Y)
 
 # Transpose all clips by semitone (scale on)
 
-#SYNTH #MIDI #CV
+#OFFICIAL #SYNTH #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + hold(Y) + turn(Y)
@@ -218,7 +218,7 @@ hold(SHIFT) + hold(Y) + turn(Y)
 
 # Randomize drum sample (selected drum)
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(LOAD) + press(RANDOM_PATCH_SOURCE)
@@ -228,7 +228,7 @@ Randomizes the sample or preset for the selected row.
 
 # Randomize drum sample (multiple selected)
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(LOAD) + hold(AUDITION) + press(RANDOM_PATCH_SOURCE)
@@ -236,7 +236,7 @@ hold(LOAD) + hold(AUDITION) + press(RANDOM_PATCH_SOURCE)
 
 # Randomize all active drums
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(LOAD) + hold(ENTIRE) + press(RANDOM_PATCH_SOURCE)
@@ -244,7 +244,7 @@ hold(LOAD) + hold(ENTIRE) + press(RANDOM_PATCH_SOURCE)
 
 # Delete unused kit rows
 
-#KIT
+#OFFICIAL #KIT
 
 ```shortcut
 hold(KIT) + hold(SHIFT) + press(SAVE)
@@ -252,7 +252,7 @@ hold(KIT) + hold(SHIFT) + press(SAVE)
 
 # Note Probability
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(NOTE_PATCH_SOURCE)
@@ -260,7 +260,7 @@ hold(SHIFT) + press(NOTE_PATCH_SOURCE)
 
 # Randomizer Lock
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(RANDOM_PATCH_SOURCE)
@@ -268,7 +268,7 @@ hold(SHIFT) + press(RANDOM_PATCH_SOURCE)
 
 # Velocity Probability
 
-#SYNTH #KIT #MIDI #CV
+#OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(VELOCITY_PATCH_SOURCE)
@@ -276,7 +276,7 @@ hold(SHIFT) + press(VELOCITY_PATCH_SOURCE)
 
 # Manual Slicing (Lazy Chop)
 
-#KIT
+#COMMUNITY #KIT
 
 ```shortcut
 press(X)

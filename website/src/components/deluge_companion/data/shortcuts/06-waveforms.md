@@ -1,6 +1,6 @@
 # Chromatic sample - same sample, different pitches (on new synth)
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), press(SELECT)
@@ -12,7 +12,7 @@ Deluge detects the pitch of provided samples regardless of filename, though for 
 
 # Basic sample - load sample with no pitch detection
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT) + menu(NONE), press(SELECT)
@@ -22,7 +22,7 @@ Hold Select and turn to choose BASIc, which loads a sample with no pitch detecti
 
 # Multi-sampling
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT) + menu(NONE), press(SELECT)
@@ -32,7 +32,7 @@ Hold Select and turn to choose MULTi for multi-sampling. Scroll through folders 
 
 # Single cycle waveforms
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT) + menu(NONE), press(SELECT)
@@ -42,7 +42,7 @@ Single-cycle waveforms should be under 20ms. Deluge automatically transposes to 
 
 # External sound source
 
-#SYNTH
+#OFFICIAL #SYNTH
 
 ```shortcut
 hold(SHIFT) + press(GRID), turn(SELECT), menu(NONE), press(PLAY)
@@ -52,7 +52,7 @@ Use an external input as an oscillator source by selecting IN. You can pitch-shi
 
 # Record to arranger - live record parameter changes and MIDI notes (RECORD to end)
 
-#SONG
+#OFFICIAL #SONG
 
 ```shortcut
 hold(RECORD) + press(SONG)
@@ -64,7 +64,7 @@ Live recording can capture parameter changes, MIDI notes, and parameter changes 
 
 # Append recording to existing arrangement (from arrangement mode; RECORD to end)
 
-#ARRANGER
+#OFFICIAL #ARRANGER
 
 ```shortcut
 turn(X), press(SONG), hold(RECORD) + press(SONG)
@@ -74,7 +74,7 @@ Move the play bar to the point where you want to append new live recording to th
 
 # Waveform edit view - change start / end / loop
 
-#SYNTH #KIT
+#OFFICIAL #SYNTH #KIT
 
 ```shortcut
 hold(SHIFT) + press(GRID)
@@ -82,7 +82,7 @@ hold(SHIFT) + press(GRID)
 
 # Zoom in and out
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 hold(X) + turn(X)
@@ -90,7 +90,7 @@ hold(X) + turn(X)
 
 # Move along waveform
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 turn(X)
@@ -98,7 +98,7 @@ turn(X)
 
 # Change start
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 press(WAVE_START), press(GRID)
@@ -108,7 +108,7 @@ Click anywhere on the green start bar until it flashes, then click the target co
 
 # Change end
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 press(WAVE_END), press(GRID)
@@ -118,7 +118,7 @@ Click anywhere on the red end bar until it flashes, then click the target column
 
 # Create loop start point
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 hold(WAVE_START) + press(GRID)
@@ -128,7 +128,7 @@ Hold the green start bar and click on the grid to the right to create the loop s
 
 # Delete loop start point
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 hold(WAVE_LOOP_START) + press(WAVE_START)
@@ -138,7 +138,7 @@ Hold anywhere on the blue loop-start bar and press the green start bar. The loop
 
 # Create loop end point
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 hold(WAVE_END) + press(GRID)
@@ -148,7 +148,7 @@ Hold the red end bar and click on the grid to the left to create the loop end po
 
 # Delete loop end point
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 hold(WAVE_LOOP_END) + press(WAVE_END)
@@ -158,7 +158,7 @@ Hold anywhere on the purple loop-end bar and press the red end bar. The loop poi
 
 # Waveform Loop Lock
 
-#WAVEFORM
+#OFFICIAL #WAVEFORM
 
 ```shortcut
 hold(WAVE_LOOP_START) + press(WAVE_LOOP_END)

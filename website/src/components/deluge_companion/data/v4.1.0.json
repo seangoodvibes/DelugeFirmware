@@ -8,6 +8,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Horizontal (Left/Right) encoder.",
     "group": "00-global"
@@ -29,6 +30,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -86,6 +88,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -107,6 +110,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -128,6 +132,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -157,6 +162,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -186,6 +192,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -227,6 +234,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -256,6 +264,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -292,6 +301,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -313,6 +323,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -342,6 +353,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -371,6 +383,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -400,6 +413,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -429,6 +443,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -450,6 +465,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -483,6 +499,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Learn / Input button, turn the Vertical (Up/Down) encoder.",
     "group": "00-global"
@@ -504,6 +521,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Select (Settings) encoder.",
     "group": "00-global"
@@ -529,6 +547,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -558,6 +577,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -579,6 +599,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -608,6 +629,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -637,6 +659,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -674,6 +697,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -703,6 +727,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -732,6 +757,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -761,6 +787,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -790,6 +817,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -823,6 +851,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -844,6 +873,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -881,6 +911,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -906,6 +937,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Play button. Press the Record button.",
     "group": "01-sequencing"
@@ -927,6 +959,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -956,6 +989,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder.",
     "group": "01-sequencing"
@@ -977,6 +1011,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1006,6 +1041,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button.",
     "group": "01-sequencing"
@@ -1027,6 +1063,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, turn the Vertical (Up/Down) encoder.",
     "group": "01-sequencing"
@@ -1052,6 +1089,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Audition / Section button for row, turn the Vertical (Up/Down) encoder.",
     "group": "01-sequencing"
@@ -1077,6 +1115,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, hold the Mute / Launch button for row, turn the Vertical (Up/Down) encoder.",
     "group": "01-sequencing"
@@ -1102,6 +1141,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Lit grid pad, hold the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder.",
     "group": "01-sequencing"
@@ -1123,6 +1163,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1156,6 +1197,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
     "group": "01-sequencing"
@@ -1177,6 +1219,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, turn the Horizontal (Left/Right) encoder.",
     "group": "01-sequencing"
@@ -1202,6 +1245,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder.",
     "group": "01-sequencing"
@@ -1223,6 +1267,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1244,6 +1289,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1273,6 +1319,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1306,6 +1353,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Load (New) button. Hold the Shift button, turn the Select (Settings) encoder.",
     "group": "02-song_view"
@@ -1319,6 +1367,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1340,6 +1389,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1369,6 +1419,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Grid pad (lit or unlit), turn the Vertical (Up/Down) encoder.",
     "group": "02-song_view"
@@ -1390,6 +1441,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1411,6 +1463,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1436,6 +1489,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1465,6 +1519,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1494,6 +1549,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1523,6 +1579,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1556,6 +1613,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1585,6 +1643,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Grid pad (lit or unlit), turn the parameter encoders.",
     "group": "02-song_view"
@@ -1602,6 +1661,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Affect Entire button. Turn the parameter encoders.",
     "group": "02-song_view"
@@ -1623,6 +1683,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder.",
     "group": "02-song_view"
@@ -1644,6 +1705,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1673,6 +1735,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1702,6 +1765,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1731,6 +1795,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder.",
     "group": "02-song_view"
@@ -1744,6 +1809,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1773,6 +1839,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder.",
     "group": "02-song_view"
@@ -1794,6 +1861,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1827,6 +1895,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1856,6 +1925,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1877,6 +1947,7 @@
       }
     ],
     "views": [1, 2, 3],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1906,6 +1977,7 @@
       }
     ],
     "views": [1, 2, 3],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1935,6 +2007,7 @@
       }
     ],
     "views": [1, 2, 3],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1964,6 +2037,7 @@
       }
     ],
     "views": [1, 2, 3],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -1993,6 +2067,7 @@
       }
     ],
     "views": [1, 2, 3],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2018,6 +2093,7 @@
       }
     ],
     "views": [1],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -2047,6 +2123,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2088,6 +2165,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2121,6 +2199,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2158,6 +2237,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2199,6 +2279,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Audition / Section button for row, press the Load (New) button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder.",
     "group": "03-recording_and_resampling"
@@ -2232,6 +2313,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2277,6 +2359,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2333,6 +2416,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2369,6 +2453,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2398,6 +2483,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2435,6 +2521,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Learn / Input button, press the Grid pad (lit or unlit). Turn the Select (Settings) encoder. Press the Select (Settings) encoder.",
     "group": "04-audio_clips"
@@ -2452,6 +2539,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2502,6 +2590,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2539,6 +2628,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Learn / Input button, press the Audition / Section button for row. Turn the Select (Settings) encoder. Press the Select (Settings) encoder.",
     "group": "04-audio_clips"
@@ -2560,6 +2650,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2610,6 +2701,7 @@
       }
     ],
     "views": [8],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2639,6 +2731,7 @@
       }
     ],
     "views": [8],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2664,6 +2757,7 @@
       }
     ],
     "views": [8],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2693,6 +2787,7 @@
       }
     ],
     "views": [8],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2722,6 +2817,7 @@
       }
     ],
     "views": [8],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2751,6 +2847,7 @@
       }
     ],
     "views": [8],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2784,6 +2881,7 @@
       }
     ],
     "views": [8],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder.",
     "group": "04-audio_clips"
@@ -2805,6 +2903,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Synth button.",
     "group": "05-modifying_sounds"
@@ -2826,6 +2925,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Kit button.",
     "group": "05-modifying_sounds"
@@ -2847,6 +2947,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Load (New) button, press the Synth button.",
     "group": "05-modifying_sounds"
@@ -2868,6 +2969,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Load (New) button, press the Kit button.",
     "group": "05-modifying_sounds"
@@ -2897,6 +2999,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Save (Delete) button, press the Synth button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder.",
     "group": "05-modifying_sounds"
@@ -2926,6 +3029,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Save (Delete) button, press the Kit button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder.",
     "group": "05-modifying_sounds"
@@ -2939,6 +3043,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2960,6 +3065,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -2989,6 +3095,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button.",
     "group": "05-modifying_sounds"
@@ -3022,6 +3129,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3051,6 +3159,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Scale button.",
     "group": "05-modifying_sounds"
@@ -3072,6 +3181,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3101,6 +3211,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3150,6 +3261,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3199,6 +3311,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3240,6 +3353,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3269,6 +3383,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3290,6 +3405,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3319,6 +3435,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3348,6 +3465,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3377,6 +3495,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3406,6 +3525,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
     "group": "05-modifying_sounds"
@@ -3431,6 +3551,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
     "group": "05-modifying_sounds"
@@ -3456,6 +3577,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder.",
     "group": "05-modifying_sounds"
@@ -3477,6 +3599,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3510,6 +3633,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Load (New) button, hold the Audition / Section button for row, press the 'Random' patch source pad.",
     "group": "05-modifying_sounds"
@@ -3535,6 +3659,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Load (New) button, hold the Affect Entire button, press the 'Random' patch source pad.",
     "group": "05-modifying_sounds"
@@ -3560,6 +3685,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Kit button, hold the Shift button, press the Save (Delete) button.",
     "group": "05-modifying_sounds"
@@ -3581,6 +3707,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the 'Note' patch source pad.",
     "group": "05-modifying_sounds"
@@ -3602,6 +3729,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the 'Random' patch source pad.",
     "group": "05-modifying_sounds"
@@ -3623,6 +3751,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the 'Velocity' patch source pad.",
     "group": "05-modifying_sounds"
@@ -3636,6 +3765,7 @@
       }
     ],
     "views": [5],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -3684,6 +3814,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3744,6 +3875,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3797,6 +3929,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3850,6 +3983,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3891,6 +4025,7 @@
       }
     ],
     "views": [4],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3920,6 +4055,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3964,6 +4100,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -3993,6 +4130,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Grid pad (lit or unlit).",
     "group": "06-waveforms"
@@ -4014,6 +4152,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder.",
     "group": "06-waveforms"
@@ -4027,6 +4166,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Turn the Horizontal (Left/Right) encoder.",
     "group": "06-waveforms"
@@ -4044,6 +4184,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4069,6 +4210,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4098,6 +4240,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4127,6 +4270,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4156,6 +4300,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4185,6 +4330,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4214,6 +4360,7 @@
       }
     ],
     "views": [9],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4235,6 +4382,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Unlit grid pad.",
     "group": "07-arranger"
@@ -4256,6 +4404,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4277,6 +4426,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4306,6 +4456,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button.",
     "group": "07-arranger"
@@ -4327,6 +4478,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Lit grid pad, turn the Horizontal (Left/Right) encoder.",
     "group": "07-arranger"
@@ -4348,6 +4500,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, turn the Vertical (Up/Down) encoder.",
     "group": "07-arranger"
@@ -4369,6 +4522,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4390,6 +4544,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4411,6 +4566,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4440,6 +4596,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4461,6 +4618,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4482,6 +4640,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4511,6 +4670,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4540,6 +4700,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4569,6 +4730,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Lit grid pad, turn the parameter encoders.",
     "group": "07-arranger"
@@ -4594,6 +4756,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4627,6 +4790,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4656,6 +4820,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4677,6 +4842,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4698,6 +4864,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4727,6 +4894,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4756,6 +4924,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the Synth button.",
     "group": "07-arranger"
@@ -4777,6 +4946,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the MIDI button.",
     "group": "07-arranger"
@@ -4798,6 +4968,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the CV button.",
     "group": "07-arranger"
@@ -4819,6 +4990,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4848,6 +5020,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the Synth button.",
     "group": "07-arranger"
@@ -4869,6 +5042,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the MIDI button.",
     "group": "07-arranger"
@@ -4890,6 +5064,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, press the CV button.",
     "group": "07-arranger"
@@ -4911,6 +5086,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4940,6 +5116,7 @@
       }
     ],
     "views": [2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4969,6 +5146,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -4990,6 +5168,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5019,6 +5198,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5048,6 +5228,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5077,6 +5258,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5110,6 +5292,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5139,6 +5322,7 @@
       }
     ],
     "views": [10],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5168,6 +5352,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5197,6 +5382,7 @@
       }
     ],
     "views": [4, 5, 1, 2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5226,6 +5412,7 @@
       }
     ],
     "views": [4, 5, 1, 2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5251,6 +5438,7 @@
       }
     ],
     "views": [4, 5, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5284,6 +5472,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5313,6 +5502,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5342,6 +5532,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5375,6 +5566,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5404,6 +5596,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5433,6 +5626,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, turn the lower parameter encoder.",
     "group": "09-midi_commands"
@@ -5454,6 +5648,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Audition / Section button for row, turn the upper parameter encoder.",
     "group": "09-midi_commands"
@@ -5475,6 +5670,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5508,6 +5704,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5541,6 +5738,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5574,6 +5772,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5607,6 +5806,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5640,6 +5840,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5673,6 +5874,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Learn / Input button, hold the Audition / Section button for row.",
     "group": "09-midi_commands"
@@ -5698,6 +5900,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Learn / Input button, hold the Play button.",
     "group": "09-midi_commands"
@@ -5723,6 +5926,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Learn / Input button, hold the Record button.",
     "group": "09-midi_commands"
@@ -5744,6 +5948,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5773,6 +5978,7 @@
       }
     ],
     "views": [4, 5],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, hold the Learn / Input button.",
     "group": "09-midi_commands"
@@ -5794,6 +6000,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Horizontal (Left/Right) encoder, turn the Tempo (Swing) encoder.",
     "group": "09-midi_commands"
@@ -5815,6 +6022,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5836,6 +6044,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5869,6 +6078,7 @@
       }
     ],
     "views": [5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -5898,6 +6108,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Record button, press the Mute / Launch button for row.",
     "group": "10-looper"
@@ -5915,6 +6126,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Record button. Press the Play button.",
     "group": "10-looper"
@@ -5928,6 +6140,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Mute / Launch button for row.",
     "group": "10-looper"
@@ -5949,6 +6162,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Horizontal (Left/Right) encoder, press the Mute / Launch button for row.",
     "group": "10-looper"
@@ -5970,6 +6184,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Record button. Press the Play button. Press the Mute / Launch button for row.",
     "group": "10-looper"
@@ -5999,6 +6214,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Record button. Press the Play button. Hold the Record button, press the Grid pad (lit or unlit).",
     "group": "10-looper"
@@ -6028,6 +6244,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Record button. Press the Play button. Hold the Record button, press the Audition / Section button for row.",
     "group": "10-looper"
@@ -6049,6 +6266,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Tap Tempo (Metronome) button.",
     "group": "10-looper"
@@ -6070,6 +6288,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Press the Unlit grid pad. Press the Kit button. Turn the Tempo (Swing) encoder.",
     "group": "10-looper"
@@ -6091,6 +6310,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Tempo (Swing) encoder, press the Lit grid pad.",
     "group": "10-looper"
@@ -6120,6 +6340,7 @@
       }
     ],
     "views": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Select (Settings) encoder. Select an option from the on-screen menu. Select an option from the on-screen menu.",
     "group": "10-looper"
@@ -6133,6 +6354,7 @@
       }
     ],
     "views": [1, 2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -6162,6 +6384,7 @@
       }
     ],
     "views": [0, 1, 2, 5],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6191,6 +6414,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6212,6 +6436,7 @@
       }
     ],
     "views": [11, 1, 2, 4, 5, 6, 7],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6233,6 +6458,7 @@
       }
     ],
     "views": [11, 1, 2, 4, 5, 6, 7],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6254,6 +6480,7 @@
       }
     ],
     "views": [11, 2],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6283,6 +6510,7 @@
       }
     ],
     "views": [11, 4, 5, 6, 7],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6312,6 +6540,7 @@
       }
     ],
     "views": [11, 4, 5, 6, 7],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6341,6 +6570,7 @@
       }
     ],
     "views": [11, 2, 4, 5, 6, 7],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6362,6 +6592,7 @@
       }
     ],
     "views": [11, 2],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6383,6 +6614,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6404,6 +6636,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6433,6 +6666,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6462,6 +6696,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6491,6 +6726,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6520,6 +6756,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6549,6 +6786,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6578,6 +6816,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6607,6 +6846,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6628,6 +6868,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6649,6 +6890,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6678,6 +6920,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6699,6 +6942,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6728,6 +6972,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6761,6 +7006,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6790,6 +7036,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6819,6 +7066,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6848,6 +7096,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6877,6 +7126,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6910,6 +7160,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6943,6 +7194,7 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -6964,6 +7216,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -6985,6 +7238,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7006,6 +7260,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7027,6 +7282,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7048,6 +7304,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7077,6 +7334,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7106,6 +7364,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7127,6 +7386,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7148,6 +7408,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7177,6 +7438,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7206,6 +7468,7 @@
       }
     ],
     "views": [4, 5, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7235,6 +7498,7 @@
       }
     ],
     "views": [4, 6, 7, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7264,6 +7528,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7285,6 +7550,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7306,6 +7572,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7335,6 +7602,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7356,6 +7624,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7385,6 +7654,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7410,6 +7680,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7435,6 +7706,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7456,6 +7728,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7485,6 +7758,7 @@
       }
     ],
     "views": [6],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7514,6 +7788,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7543,6 +7818,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7576,6 +7852,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7609,6 +7886,7 @@
       }
     ],
     "views": [4, 6, 7],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7642,6 +7920,7 @@
       }
     ],
     "views": [4, 6, 7, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7675,6 +7954,7 @@
       }
     ],
     "views": [4, 6, 7, 5],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7704,6 +7984,7 @@
       }
     ],
     "views": [0],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7733,6 +8014,7 @@
       }
     ],
     "views": [11, 4, 5, 6, 7],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -7762,6 +8044,7 @@
       }
     ],
     "views": [11, 4, 5, 6, 7],
+    "firmware": [1],
     "paragraphs": [
       {
         "spans": [
@@ -7783,6 +8066,7 @@
       }
     ],
     "views": [0, 1, 2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7812,6 +8096,7 @@
       }
     ],
     "views": [1, 2, 3],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
@@ -7845,6 +8130,7 @@
       }
     ],
     "views": [1, 2],
+    "firmware": [0],
     "paragraphs": [
       {
         "spans": [
