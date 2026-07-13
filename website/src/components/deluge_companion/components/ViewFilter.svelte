@@ -18,7 +18,7 @@
   </section>
 
   <section>
-    <h2 class="filter-title">Tag Filter:</h2>
+    <h2 class="filter-title">View Filter:</h2>
     <div class="flex flex-wrap items-center gap-2">
       {#each $allViews as view}
         <ViewFilterItem {view} />
