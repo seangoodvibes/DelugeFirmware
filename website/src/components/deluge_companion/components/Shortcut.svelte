@@ -101,19 +101,23 @@
   .shortcut-steps {
     border: 1px solid var(--dc-strip-border);
     background: var(--dc-strip-bg);
-    display: inline-block;
-    inline-size: max-content;
+    display: block;
+    box-sizing: border-box;
+    inline-size: 100%;
     max-inline-size: 100%;
-    align-self: flex-start;
+    min-inline-size: 0;
+    align-self: stretch;
+    overflow-x: hidden;
   }
 
   .shortcut-steps-inner {
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 0.25rem;
-    inline-size: max-content;
+    inline-size: 100%;
     max-inline-size: 100%;
+    min-inline-size: 0;
   }
 
   .shortcut-steps-inner > :global(*) {
@@ -136,20 +140,31 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
   }
 
   .shortcut-card {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .shortcut-title {
+    display: block;
+    width: 100%;
+    max-width: 100%;
     margin: 0;
     padding: 0;
     font-size: 1.15rem !important;
     font-weight: 700 !important;
     line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .shortcut-steps-inner > :global(*) {
