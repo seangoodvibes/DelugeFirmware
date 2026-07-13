@@ -40,12 +40,14 @@
     </h3>
   </div>
   <button
-    class="shortcut-steps m-0 flex w-full max-w-full flex-wrap items-start gap-x-1 gap-y-1 rounded-md px-2 py-1 text-left"
+    class="shortcut-steps m-0 inline-block w-fit max-w-full rounded-md p-1 text-left"
     on:click={onStepsClicked}
   >
-    {#each shortcut.steps as step}
-      <StepContainerView bind:step />
-    {/each}
+    <span class="shortcut-steps-inner inline-flex max-w-full flex-wrap items-start gap-x-1 gap-y-1">
+      {#each shortcut.steps as step}
+        <StepContainerView bind:step />
+      {/each}
+    </span>
   </button>
   {#if shortcut.description}
     <p class="shortcut-description mt-2 mb-0 text-sm leading-6">
@@ -87,6 +89,10 @@
     background: var(--dc-strip-bg);
   }
 
+  .shortcut-steps-inner > :global(*) {
+    flex: 0 0 auto;
+  }
+
   :global(html[data-theme="light"]) .shortcut-card {
     --dc-card-bg: rgb(241 245 249 / 0.92);
     --dc-card-border: rgb(148 163 184 / 0.55);
@@ -113,7 +119,7 @@
     line-height: 1.2;
   }
 
-  .shortcut-steps > :global(*) {
+  .shortcut-steps-inner > :global(*) {
     align-self: start;
     margin-top: 0;
   }

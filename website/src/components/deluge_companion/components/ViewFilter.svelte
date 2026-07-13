@@ -1,7 +1,9 @@
 <script lang="ts">
   import { allViews } from "../stores/view_store.js";
   import { shortcutGroups } from "../stores/group_store.js";
+  import { shortcutControlGroups } from "../stores/control_store.js";
   import GroupFilterItem from "./GroupFilterItem.svelte";
+  import ControlFilterItem from "./ControlFilterItem.svelte";
   import ViewFilterItem from "./ViewFilterItem.svelte";
 </script>
 
@@ -20,6 +22,22 @@
     <div class="flex flex-wrap items-center gap-2">
       {#each $allViews as view}
         <ViewFilterItem {view} />
+      {/each}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="filter-title">Control Filter:</h2>
+    <div class="filter-groups">
+      {#each shortcutControlGroups as controlGroup}
+        <section class="filter-subgroup">
+          <h3 class="filter-subtitle">{controlGroup.title}</h3>
+          <div class="flex flex-wrap items-center gap-2">
+            {#each controlGroup.controls as control}
+              <ControlFilterItem {control} />
+            {/each}
+          </div>
+        </section>
       {/each}
     </div>
   </section>
@@ -47,5 +65,25 @@
     font-size: 1.15rem;
     font-weight: 700;
     line-height: 1.2;
+  }
+
+  .filter-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+  }
+
+  .filter-subgroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .filter-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--sl-color-gray-2);
   }
 </style>

@@ -4,10 +4,12 @@ import fuzzysort from "fuzzysort"
 import { searchQuery } from "./search_store"
 import { activeView } from "./view_store"
 import { activeShortcutGroup } from "./group_store"
+import { activeControl } from "./control_store"
 import type {
   Shortcut,
   StepOrSubstep,
   SubstepContainer,
+  Step,
 } from "../types/shortcut"
 
 type RawStep =
@@ -33,6 +35,18 @@ const convertedRawShortcuts: Shortcut[] = (jsonData as RawShortcut[]).map(
 )
 
 const rawShortcuts = writable(convertedRawShortcuts)
+
+const stepContainsControl = (step: StepOrSubstep, control: number): boolean => {
+  if ("substeps" in step) {
+    return step.substeps.some((substep) => stepContainsControl(substep, control))
+  }
+
+  return step.control === control
+}
+
+const shortcutContainsControl = (shortcut: Shortcut, control: number) => {
+  return shortcut.steps.some((step) => stepContainsControl(step, control))
+}
 
 const allShortcuts = derived(rawShortcuts, ($rawShortcuts) => {
   return $rawShortcuts.map((shortcut) => ({
@@ -64,8 +78,21 @@ const filteredByViews = derived(
   },
 )
 
+const filteredByControls = derived(
+  [filteredByViews, activeControl],
+  ([$shortcuts, $activeControl]) => {
+    if ($activeControl === null) {
+      return $shortcuts
+    }
+
+    return $shortcuts.filter((shortcut) =>
+      shortcutContainsControl(shortcut, $activeControl),
+    )
+  },
+)
+
 export const filteredShortcuts = derived(
-  [filteredByViews, searchQuery],
+  [filteredByControls, searchQuery],
   ([$shortcuts, $searchQuery]) => {
     return fuzzysort
       .go($searchQuery, $shortcuts, {
