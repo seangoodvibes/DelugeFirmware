@@ -40,10 +40,10 @@
     </h3>
   </div>
   <button
-    class="shortcut-steps m-0 inline-block w-fit max-w-full rounded-md p-1 text-left"
+    class="shortcut-steps m-0 rounded-md p-1 text-left"
     on:click={onStepsClicked}
   >
-    <span class="shortcut-steps-inner inline-flex max-w-full flex-wrap items-start gap-x-1 gap-y-1">
+    <span class="shortcut-steps-inner">
       {#each shortcut.steps as step}
         <StepContainerView bind:step />
       {/each}
@@ -87,6 +87,19 @@
   .shortcut-steps {
     border: 1px solid var(--dc-strip-border);
     background: var(--dc-strip-bg);
+    display: inline-block;
+    inline-size: max-content;
+    max-inline-size: 100%;
+    align-self: flex-start;
+  }
+
+  .shortcut-steps-inner {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.25rem;
+    inline-size: max-content;
+    max-inline-size: 100%;
   }
 
   .shortcut-steps-inner > :global(*) {
@@ -109,6 +122,12 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .shortcut-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .shortcut-title {

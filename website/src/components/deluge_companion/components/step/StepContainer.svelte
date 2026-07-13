@@ -16,7 +16,6 @@
   class:px-1={inline}
   class:px-2={!inline}
   class:py-1={!inline}
-  class:inline-block={inline}
 >
   {#if isStep(step)}
     <StepView bind:step bind:inline />
@@ -27,7 +26,9 @@
 
 <style>
   .dc-step-card {
+    display: inline-block;
     box-sizing: border-box;
+    width: max-content;
     max-width: 100%;
     min-width: 0;
     border-color: var(--dc-step-border, rgb(103 118 143 / 0.5));
