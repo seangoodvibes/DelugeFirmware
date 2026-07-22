@@ -1563,10 +1563,16 @@ menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TIT
                                                 HorizontalMenu::Layout::FIXED,
                                                 2};
 
+Submenu soundEditorRootActionsMenuMIDIOrCV{
+    STRING_FOR_ACTIONS,
+    {&nameEditMenu},
+};
+
 // Root menu for MIDI / CV
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &soundEditorRootActionsMenuMIDIOrCV,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,
