@@ -4873,7 +4873,12 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 }
 
 const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
-	if (voices_.size() >= maxVoiceCount) {
+	auto count_toward_voice_limit = [](const ActiveVoice& voice) {
+		return voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
+		       || voice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT;
+	};
+
+	if (std::ranges::count_if(voices_, count_toward_voice_limit) >= maxVoiceCount) {
 		this->terminateOneActiveVoice();
 	}
 
@@ -4981,9 +4986,9 @@ void Sound::forceReleaseOneActiveVoice() {
 	// front voice (highest rating) soaks up every call in the window.
 	ActiveVoice* best = nullptr;
 	for (ActiveVoice& voice : voices_) {
-		// skip voices releasing faster than this - we'd rather release another voice
+		// Skip voices already disappearing at the cull fade rate - we'd rather release another voice.
 		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
+		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
 			continue;
 		}
 		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {

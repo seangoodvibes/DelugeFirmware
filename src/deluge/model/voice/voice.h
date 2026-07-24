@@ -122,7 +122,7 @@ public:
 
 	bool forceNormalRelease();
 
-	bool speedUpRelease();
+	bool speedUpRelease(uint32_t minFastReleaseIncrement = SOFT_CULL_INCREMENT);
 	bool shouldBeDeleted() { return delete_this_voice_; }
 
 	// This compares based on the priority of two voices
