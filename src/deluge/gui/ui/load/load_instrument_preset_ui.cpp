@@ -721,7 +721,7 @@ doSlotNumber:
 
 				buffer[3] = 'A' + subSlot;
 
-				int32_t i = fileItems.search(buffer);
+				int32_t i = searchFileItems(buffer, nullptr, FileItemSearchScope::Files);
 				if (i >= fileItems.getNumElements()) {
 					break;
 				}
@@ -749,7 +749,7 @@ tryWholeNewSlotNumbers:
 					}
 					intToString(slotNumber, buffer, 3);
 
-					int32_t i = fileItems.search(buffer);
+					int32_t i = searchFileItems(buffer, nullptr, FileItemSearchScope::Files);
 					if (i >= fileItems.getNumElements()) {
 						break;
 					}
@@ -829,7 +829,7 @@ addNumber:
 			newName->concatenateInt(oldNumber + 1);
 			char const* newNameChars = newName->get();
 
-			int32_t i = fileItems.search(newNameChars);
+			int32_t i = searchFileItems(newNameChars, nullptr, FileItemSearchScope::Files);
 			if (i >= fileItems.getNumElements()) {
 				break;
 			}

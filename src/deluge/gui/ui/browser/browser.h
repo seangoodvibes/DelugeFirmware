@@ -61,6 +61,12 @@ struct Slot {
 
 extern char const* allowedFileExtensionsXML[];
 
+enum class FileItemSearchScope : uint8_t {
+	Any,
+	Folders,
+	Files,
+};
+
 class Browser : public QwertyUI {
 public:
 	Browser();
@@ -81,6 +87,10 @@ public:
 	                             int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
 	Error setFileByFullPath(OutputType outputType, char const* fullPath);
 	void sortFileItems();
+	static int32_t searchFileItems(char const* searchString, bool* foundExact = nullptr,
+	                               FileItemSearchScope scope = FileItemSearchScope::Any);
+	static int32_t searchFileItemsForPrefix(char const* searchString, int32_t prefixLength,
+	                                        FileItemSearchScope scope = FileItemSearchScope::Any);
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
@@ -102,6 +112,8 @@ public:
 	// sortFileItems(). (See the kit-copy use-after-free fix.)
 	static String firstFileItemRemaining;
 	static String lastFileItemRemaining;
+	static bool firstFileItemRemainingWasFolder;
+	static bool lastFileItemRemainingWasFolder;
 
 	static OutputType outputTypeToLoad;
 	static char const* filenameToStartSearchAt;

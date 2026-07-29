@@ -200,6 +200,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Browser Folders First
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::BrowserFoldersFirst],
+	                  STRING_FOR_COMMUNITY_FEATURE_BROWSER_FOLDERS_FIRST, "browserFoldersFirst",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

@@ -31,6 +31,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "model/instrument/instrument.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -55,6 +56,8 @@ int32_t Browser::numFileItemsDeletedAtStart;
 int32_t Browser::numFileItemsDeletedAtEnd;
 String Browser::firstFileItemRemaining{};
 String Browser::lastFileItemRemaining{};
+bool Browser::firstFileItemRemainingWasFolder;
+bool Browser::lastFileItemRemainingWasFolder;
 OutputType Browser::outputTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
@@ -65,6 +68,52 @@ int8_t Browser::numberEditPos;
 NumericLayerScrollingText* Browser::scrollingText;
 
 char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
+
+namespace {
+bool browserFoldersFirstEnabled() {
+	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::BrowserFoldersFirst) == RuntimeFeatureStateToggle::On;
+}
+
+bool fileItemMatchesScope(FileItem const* item, FileItemSearchScope scope) {
+	switch (scope) {
+	case FileItemSearchScope::Any:
+		return true;
+	case FileItemSearchScope::Folders:
+		return item->isFolder;
+	case FileItemSearchScope::Files:
+		return !item->isFolder;
+	}
+	__builtin_unreachable();
+}
+
+int32_t compareFileItems(FileItem const* left, FileItem const* right) {
+	if (browserFoldersFirstEnabled() && left->isFolder != right->isFolder) {
+		return left->isFolder ? -1 : 1;
+	}
+	return strcmpspecial(left->displayName, right->displayName);
+}
+
+bool fileNameMatchesFolder(FileItem const* folderItem, FileItem const* fileItem) {
+	if (fileItem->isFolder) {
+		return false;
+	}
+
+	int32_t nameLength = strlen(folderItem->filename.get());
+	char const* fileItemFilename = fileItem->filename.get();
+	return !memcasecmp(folderItem->filename.get(), fileItemFilename, nameLength) && fileItemFilename[nameLength] == '.'
+	       && !strchr(&fileItemFilename[nameLength + 1], '.');
+}
+
+bool folderSharesNameWithFile(FileItem const* folderItem) {
+	for (int32_t i = 0; i < Browser::fileItems.getNumElements(); i++) {
+		auto* fileItem = (FileItem*)Browser::fileItems.getElementAddress(i);
+		if (fileNameMatchesFolder(folderItem, fileItem)) {
+			return true;
+		}
+	}
+	return false;
+}
+} // namespace
 
 Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;
@@ -162,6 +211,52 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 	fileItems.deleteAtIndex(startAt, stopAt - startAt);
 }
 
+int32_t Browser::searchFileItems(char const* searchString, bool* foundExact, FileItemSearchScope scope) {
+	if (!browserFoldersFirstEnabled() && scope == FileItemSearchScope::Any) {
+		return fileItems.search(searchString, foundExact);
+	}
+
+	int32_t lowerBound = fileItems.getNumElements();
+	for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
+		auto* item = (FileItem*)fileItems.getElementAddress(i);
+		if (!fileItemMatchesScope(item, scope)) {
+			continue;
+		}
+
+		int32_t result = strcmpspecial(item->displayName, searchString);
+		if (!result) {
+			if (foundExact) {
+				*foundExact = true;
+			}
+			return i;
+		}
+		if (result > 0 && lowerBound == fileItems.getNumElements()) {
+			lowerBound = i;
+		}
+	}
+
+	if (foundExact) {
+		*foundExact = false;
+	}
+	return lowerBound;
+}
+
+int32_t Browser::searchFileItemsForPrefix(char const* searchString, int32_t prefixLength, FileItemSearchScope scope) {
+	if (!browserFoldersFirstEnabled() && scope == FileItemSearchScope::Any) {
+		return searchFileItems(searchString);
+	}
+
+	for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
+		auto* item = (FileItem*)fileItems.getElementAddress(i);
+		if (fileItemMatchesScope(item, scope) && strcmpspecial(item->displayName, searchString) >= 0
+		    && !memcasecmp(item->displayName, searchString, prefixLength)) {
+			return i;
+		}
+	}
+
+	return searchFileItems(searchString, nullptr, scope);
+}
+
 int32_t maxNumFileItemsNow;
 
 int32_t catalogSearchDirection;
@@ -208,14 +303,18 @@ deleteFromLeftSide:
 		numFileItemsDeletedAtStart += numFileItemsDeletingNow;
 		startAt = 0;
 		stopAt = numFileItemsDeletingNow;
-		firstFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow))->displayName);
+		auto* firstRemainingItem = (FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow);
+		firstFileItemRemaining.set(firstRemainingItem->displayName);
+		firstFileItemRemainingWasFolder = firstRemainingItem->isFolder;
 	}
 	else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
 deleteFromRightSide:
 		numFileItemsDeletedAtEnd += numFileItemsDeletingNow;
 		stopAt = fileItems.getNumElements();
 		startAt = stopAt - numFileItemsDeletingNow;
-		lastFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(startAt - 1))->displayName);
+		auto* lastRemainingItem = (FileItem*)fileItems.getElementAddress(startAt - 1);
+		lastFileItemRemaining.set(lastRemainingItem->displayName);
+		lastFileItemRemainingWasFolder = lastRemainingItem->isFolder;
 	}
 
 	// Or if we've been using a search term *and* searching both directions, try to tend towards keeping equal amounts
@@ -224,7 +323,7 @@ deleteFromRightSide:
 
 		shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 		octaveStartsFromA = false;
-		int32_t foundIndex = fileItems.search(filenameToStartSearchAt);
+		int32_t foundIndex = searchFileItemsForPrefix(filenameToStartSearchAt, strlen(filenameToStartSearchAt));
 
 		// If search-item is in second half, delete from start.
 		if ((foundIndex << 1) >= fileItems.getNumElements()) {
@@ -278,6 +377,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	numFileItemsDeletedAtEnd = 0;
 	firstFileItemRemaining.clear();
 	lastFileItemRemaining.clear();
+	firstFileItemRemainingWasFolder = false;
+	lastFileItemRemainingWasFolder = false;
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
@@ -359,14 +460,13 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 
 			// If we're a folder, and the next item is a file of the same name, delete this item.
 			if (readItem->isFolder) {
-				if (!nextItem->isFolder) {
-					int32_t nameLength = readItem->filename.getLength();
-					char const* nextItemFilename = nextItem->filename.get();
-					if (!memcasecmp(readItem->filename.get(), nextItemFilename, nameLength)) {
-						if (nextItemFilename[nameLength] == '.' && !strchr(&nextItemFilename[nameLength + 1], '.')) {
-							goto deleteThisItem;
-						}
+				if (browserFoldersFirstEnabled()) {
+					if (folderSharesNameWithFile(readItem)) {
+						goto deleteThisItem;
 					}
+				}
+				else if (fileNameMatchesFolder(readItem, nextItem)) {
+					goto deleteThisItem;
 				}
 			}
 
@@ -466,8 +566,9 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	}
 
 	//  Get the File Index
-	fileIndexSelected = fileItems.search(fileName);
-	if (fileIndexSelected > fileItems.getNumElements()) {
+	bool foundExact = false;
+	fileIndexSelected = searchFileItems(fileName, &foundExact, FileItemSearchScope::Files);
+	if (!foundExact) {
 		return Error::FILE_NOT_FOUND;
 	}
 
@@ -558,7 +659,7 @@ class BrowserFileListView final : public deluge::gui::browser::FileListView {
 public:
 	bool contains(char const* nameWithExtension) const override {
 		bool foundExact = false;
-		Browser::fileItems.search(nameWithExtension, &foundExact);
+		Browser::searchFileItems(nameWithExtension, &foundExact, FileItemSearchScope::Files);
 		return foundExact;
 	}
 };
@@ -637,7 +738,7 @@ useFoundFile:
 			}
 		}
 
-		int32_t i = fileItems.search(filenameToStartAt, &foundExact);
+		int32_t i = searchFileItems(filenameToStartAt, &foundExact);
 		if (!foundExact) {
 			goto noExactFileFound;
 		}
@@ -781,7 +882,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		newFileIndex = fileItems.search(enteredText.get());
+		newFileIndex = searchFileItems(enteredText.get());
 		if (offset < 0) {
 			newFileIndex--;
 		}
@@ -836,7 +937,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				pos++;
 				*pos = 0;
 			}
-			newFileIndex = fileItems.search(searchString);
+			newFileIndex = searchFileItems(searchString, nullptr, FileItemSearchScope::Files);
 			if (offset < 0) {
 				newFileIndex--;
 			}
@@ -867,7 +968,7 @@ gotErrorAfterAllocating:
 				// TODO - need to close UI or something?
 			}
 
-			newFileIndex = fileItems.search(enteredText.get()) + offset;
+			newFileIndex = searchFileItems(enteredText.get()) + offset;
 			D_PRINTLN("new file Index is %d", newFileIndex);
 		}
 
@@ -1029,7 +1130,13 @@ gotError:
 	// because 2 is the closest number to 1 that comes after 1. So now we just search for the string as is. The major
 	// impact is this now returns the first match instead of the last match.
 doSearch:
-	int32_t i = fileItems.search(searchString.get());
+	int32_t i = searchFileItems(searchString.get());
+	if (browserFoldersFirstEnabled()) {
+		int32_t prefixIndex = searchFileItemsForPrefix(searchString.get(), enteredTextEditPos);
+		if (prefixIndex < fileItems.getNumElements()) {
+			i = prefixIndex;
+		}
+	}
 
 	// If that search takes us off the right-hand end of the list...
 	if (i >= fileItems.getNumElements()) {
@@ -1640,15 +1747,31 @@ void Browser::sortFileItems() {
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
 
-	fileItems.sortForStrings();
+	if (browserFoldersFirstEnabled()) {
+		for (int32_t i = 1; i < fileItems.getNumElements(); i++) {
+			for (int32_t j = i; j > 0; j--) {
+				auto* item = (FileItem*)fileItems.getElementAddress(j);
+				auto* previousItem = (FileItem*)fileItems.getElementAddress(j - 1);
+				if (compareFileItems(previousItem, item) <= 0) {
+					break;
+				}
+				fileItems.swapElements(j - 1, j);
+			}
+		}
+	}
+	else {
+		fileItems.sortForStrings();
+	}
 
 	// If we're just wanting to look to one side or the other of a given filename, then delete everything in the other
 	// direction.
 	if (filenameToStartSearchAt && *filenameToStartSearchAt) {
 
 		if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
-			bool foundExact;
-			int32_t searchIndex = fileItems.search(filenameToStartSearchAt, &foundExact);
+			int32_t searchIndex = searchFileItemsForPrefix(filenameToStartSearchAt, strlen(filenameToStartSearchAt));
+			bool foundExact = searchIndex < fileItems.getNumElements()
+			                  && !strcmpspecial(((FileItem*)fileItems.getElementAddress(searchIndex))->displayName,
+			                                    filenameToStartSearchAt);
 			// Check for duplicates.
 			if (foundExact) {
 				int32_t prevIndex = searchIndex - 1;
@@ -1666,8 +1789,10 @@ void Browser::sortFileItems() {
 			}
 		}
 		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
-			bool foundExact;
-			int32_t searchIndex = fileItems.search(filenameToStartSearchAt, &foundExact);
+			int32_t searchIndex = searchFileItemsForPrefix(filenameToStartSearchAt, strlen(filenameToStartSearchAt));
+			bool foundExact = searchIndex < fileItems.getNumElements()
+			                  && !strcmpspecial(((FileItem*)fileItems.getElementAddress(searchIndex))->displayName,
+			                                    filenameToStartSearchAt);
 			// Check for duplicates.
 			if (foundExact) {
 				int32_t nextIndex = searchIndex + 1;
@@ -1689,17 +1814,23 @@ void Browser::sortFileItems() {
 	// If we'd previously deleted items from either end of the list (apart from due to search direction as above),
 	// we need to now delete any items which would have fallen in that region.
 	if (!lastFileItemRemaining.isEmpty()) {
-		int32_t searchIndex = fileItems.search(lastFileItemRemaining.get());
-		int32_t itemsToDeleteAtEnd = fileItems.getNumElements() - searchIndex - 1;
-		if (itemsToDeleteAtEnd > 0) {
-			deleteSomeFileItems(searchIndex + 1, fileItems.getNumElements());
-			numFileItemsDeletedAtEnd += itemsToDeleteAtEnd;
+		FileItemSearchScope scope =
+		    lastFileItemRemainingWasFolder ? FileItemSearchScope::Folders : FileItemSearchScope::Files;
+		int32_t searchIndex = searchFileItems(lastFileItemRemaining.get(), nullptr, scope);
+		if (searchIndex < fileItems.getNumElements()) {
+			int32_t itemsToDeleteAtEnd = fileItems.getNumElements() - searchIndex - 1;
+			if (itemsToDeleteAtEnd > 0) {
+				deleteSomeFileItems(searchIndex + 1, fileItems.getNumElements());
+				numFileItemsDeletedAtEnd += itemsToDeleteAtEnd;
+			}
 		}
 	}
 
 	if (!firstFileItemRemaining.isEmpty()) {
-		int32_t itemsToDeleteAtStart = fileItems.search(firstFileItemRemaining.get());
-		if (itemsToDeleteAtStart) {
+		FileItemSearchScope scope =
+		    firstFileItemRemainingWasFolder ? FileItemSearchScope::Folders : FileItemSearchScope::Files;
+		int32_t itemsToDeleteAtStart = searchFileItems(firstFileItemRemaining.get(), nullptr, scope);
+		if (itemsToDeleteAtStart > 0 && itemsToDeleteAtStart < fileItems.getNumElements()) {
 			deleteSomeFileItems(0, itemsToDeleteAtStart);
 			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
 		}
