@@ -16,12 +16,14 @@
  */
 
 #pragma once
+#include "deluge/io/midi/midi_queue_definitions.h"
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "util/container/vector/named_thing_vector.h"
+#include <array>
 class Serializer;
 class Deserializer;
 
@@ -37,10 +39,6 @@ struct MIDICableUSB;
 // Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config but I
 // haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
 #define MIDI_SEND_BUFFER_LEN_INNER_HOST 2
-
-// MUST be an exact power of two
-#define MIDI_SEND_BUFFER_LEN_RING 1024
-#define MIDI_SEND_RING_MASK (MIDI_SEND_BUFFER_LEN_RING - 1)
 
 #ifdef __cplusplus
 /*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
@@ -62,7 +60,7 @@ class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	void bufferMessage(uint32_t fullMessage);
+	void bufferMessage(uint32_t fullMessage, QueuePriority priority);
 	void setup();
 
 	// move data from ring buffer to dataSendingNow, assuming it is free
@@ -93,9 +91,16 @@ struct ConnectedUSBMIDIDevice {
 	// Any code which wants to send midi data would use the writing side and append more messages.
 	// When we are ready to send data on this device, we consume data on the reading side and move it into the
 	// smaller dataSendingNow buffer above.
-	uint32_t sendDataRingBuf[MIDI_SEND_BUFFER_LEN_RING];
-	uint32_t ringBufWriteIdx;
-	uint32_t ringBufReadIdx;
+	// Messages are queued in priority-specific rings and consumed in priority order.
+#ifdef __cplusplus
+	std::array<std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING>, QUEUE_PRIORITY_COUNT> sendDataRingBuf{};
+	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufWriteIdx{};
+	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufReadIdx{};
+#else
+	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
+	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];
+	uint16_t ringBufReadIdx[QUEUE_PRIORITY_COUNT];
+#endif
 
 	uint8_t maxPortConnected;
 };
