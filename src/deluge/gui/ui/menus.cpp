@@ -107,6 +107,7 @@
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/program.h"
+#include "gui/menu_item/midi/queuing/decimation_rates.h"
 #include "gui/menu_item/midi/receive_clock.h"
 #include "gui/menu_item/midi/send_clock.h"
 #include "gui/menu_item/midi/sound/channel.h"
@@ -1004,6 +1005,27 @@ ToggleBool midiThruMenu{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, midiEngine.m
 // MIDI Takeover
 midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
+// LinnStrument-inspired MIDI expression decimation window (ms).
+midi::CCDecimation midiCCDecimationMenu{STRING_FOR_CC, STRING_FOR_CC};
+midi::ExpressionDecimation midiExpressionDecimationMenu{STRING_FOR_EXPRESSION, STRING_FOR_EXPRESSION};
+
+Submenu midiDecimationRatesMenu{
+    STRING_FOR_DECIMATION_RATES,
+    STRING_FOR_DECIMATION_RATES,
+    {
+        &midiCCDecimationMenu,
+        &midiExpressionDecimationMenu,
+    },
+};
+
+Submenu midiQueuingMenu{
+    STRING_FOR_MIDI_QUEUING,
+    STRING_FOR_MIDI_QUEUING,
+    {
+        &midiDecimationRatesMenu,
+    },
+};
+
 // MIDI Follow
 midi::FollowChannel midiFollowChannelAMenu{STRING_FOR_FOLLOW_CHANNEL_A, STRING_FOR_FOLLOW_CHANNEL_A,
                                            MIDIFollowChannelType::A};
@@ -1173,6 +1195,7 @@ Submenu midiMenu{
         &midiThruMenu,
         &midiTransposeMenu,
         &midiTakeoverMenu,
+        &midiQueuingMenu,
         &midiCommandsMenu,
         &midiInputDifferentiationMenu,
         &midi::devicesMenu,

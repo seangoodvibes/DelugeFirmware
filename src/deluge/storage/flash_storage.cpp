@@ -22,6 +22,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_queue_manager.h"
 #include "io/midi/midi_transpose.h"
 #include "model/scale/preset_scales.h"
 #include "processing/engines/audio_engine.h"
@@ -188,6 +189,8 @@ enum Entries {
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
+196: MIDI CC decimation rate in milliseconds (LinnStrument-inspired)
+197: MIDI expression decimation rate in milliseconds (LinnStrument-inspired)
 */
 
 uint8_t defaultScale;
@@ -283,6 +286,8 @@ void resetSettings() {
 	midiEngine.midiThru = false;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 	midiEngine.midiSelectKitRow = false;
+	midiQueueManager.setCcDecimationRateMs(1);
+	midiQueueManager.setExpressionDecimationRateMs(1);
 
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
 		globalMIDICommand.clear();
@@ -761,6 +766,20 @@ void readSettings() {
 		defaultLoopRecordingCommand = static_cast<GlobalMIDICommand>(buffer[186]);
 	}
 
+	if (buffer[196] < 1 || buffer[196] > 20) {
+		midiQueueManager.setCcDecimationRateMs(1);
+	}
+	else {
+		midiQueueManager.setCcDecimationRateMs(buffer[196]);
+	}
+
+	if (buffer[197] < 1 || buffer[197] > 20) {
+		midiQueueManager.setExpressionDecimationRateMs(1);
+	}
+	else {
+		midiQueueManager.setExpressionDecimationRateMs(buffer[197]);
+	}
+
 	if (buffer[188] != 0 && buffer[188] != 1) {
 		defaultUseSharps = true;
 	}
@@ -1008,6 +1027,9 @@ void writeSettings() {
 	buffer[188] = defaultUseSharps;
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
+
+	buffer[196] = midiQueueManager.getCcDecimationRateMs();
+	buffer[197] = midiQueueManager.getExpressionDecimationRateMs();
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

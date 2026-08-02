@@ -26,6 +26,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_queue_manager.h"
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
@@ -258,6 +259,9 @@ MidiEngine::MidiEngine() {
 	}
 
 	eventStackTop_ = eventStack_.begin();
+	// Start DIN pacing "now" and with no preloaded token budget.
+	midiQueueManager.resetSerialState(AudioEngine::audioSampleTimer);
+	midiQueueManager.resetMessageDecimationState();
 }
 
 void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
@@ -414,7 +418,12 @@ getOut: {}
 }
 
 bool MidiEngine::anythingInOutputBuffer() {
-	return anythingInUSBOutputBuffer || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
+	// Report pending outbound MIDI from all layers:
+	// 1) USB queued packets waiting for transfer scheduling,
+	// 2) MidiQueueManager serial-priority lanes waiting to flush into UART, and
+	// 3) bytes already accepted by the UART TX FIFO but not yet transmitted.
+	return anythingInUSBOutputBuffer || midiQueueManager.hasSerialData()
+	       || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
 }
 
 void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter) {
@@ -501,6 +510,13 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 		return;
 	}
 
+	// Drop duplicate/high-rate CC and expression updates when they arrive sooner
+	// than the configured decimation window. This keeps outbound MIDI bandwidth
+	// available for timing-critical traffic such as clock and note events.
+	if (!midiQueueManager.shouldSendAfterDecimation(message)) {
+		return;
+	}
+
 	EventStackStorage::const_iterator stackSearchIt{eventStackTop_};
 	while (stackSearchIt != eventStack_.begin()) {
 		stackSearchIt--;
@@ -545,7 +561,10 @@ uint32_t setupUSBMessage(MIDIMessage message) {
 
 void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// TODO: Differentiate between ports on usb midi
-	bool isSystemMessage = message.isSystemMessage();
+	// Reuse the same message classification as DIN so USB and DIN stay behaviorally
+	// aligned with the LinnStrument-inspired priority policy.
+	MidiQueueManager::QueuePriority serialPriority = MidiQueueManager::classifyMessage(message);
+	uint8_t usbPriority = MidiQueueManager::toUsbPriority(serialPriority);
 
 	// formats message per USB midi spec on virtual cable 0
 	uint32_t fullMessage = setupUSBMessage(message);
@@ -569,7 +588,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 						// Or with the port to add the cable number to the full message. This
 						// is a bit hacky but it works
 						uint32_t channeled_message = fullMessage | (p << 4);
-						connectedDevice->bufferMessage(channeled_message);
+						connectedDevice->bufferMessage(channeled_message, usbPriority);
 					}
 				}
 			}
@@ -580,22 +599,17 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushMIDI() {
 	flushUSBMIDIOutput();
+	midiQueueManager.flushSerialOutput(AudioEngine::audioSampleTimer);
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
 void MidiEngine::sendSerialMidi(MIDIMessage message) {
+	// Queue by priority; actual UART transmission is paced in midiQueueManager.flushSerialOutput().
+	midiQueueManager.enqueueSerialMidiMessage(message);
+}
 
-	uint8_t statusByte = message.channel | (message.statusType << 4);
-	int32_t messageLength = bytesPerStatusMessage(statusByte);
-	bufferMIDIUart(statusByte);
-
-	if (messageLength >= 2) {
-		bufferMIDIUart(message.data1);
-
-		if (messageLength == 3) {
-			bufferMIDIUart(message.data2);
-		}
-	}
+void MidiEngine::sendSerialSysex(uint8_t const* data, int32_t len) {
+	midiQueueManager.enqueueSerialSysex(data, len);
 }
 
 bool MidiEngine::checkIncomingSerialMidi() {
