@@ -16,12 +16,15 @@
  */
 
 #pragma once
+#include "deluge/io/midi/midi_queue_definitions.h"
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
+#include "model/midi/message.h"
 #include "util/container/vector/named_thing_vector.h"
+#include <array>
 class Serializer;
 class Deserializer;
 
@@ -37,10 +40,6 @@ struct MIDICableUSB;
 // Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config but I
 // haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
 #define MIDI_SEND_BUFFER_LEN_INNER_HOST 2
-
-// MUST be an exact power of two
-#define MIDI_SEND_BUFFER_LEN_RING 1024
-#define MIDI_SEND_RING_MASK (MIDI_SEND_BUFFER_LEN_RING - 1)
 
 #ifdef __cplusplus
 /*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
@@ -62,7 +61,7 @@ class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	void bufferMessage(uint32_t fullMessage);
+	void bufferMessage(uint32_t fullMessage, QueuePriority priority);
 	void setup();
 
 	// move data from ring buffer to dataSendingNow, assuming it is free
@@ -85,17 +84,118 @@ struct ConnectedUSBMIDIDevice {
 	// This will show a value after the general flush function is called, throughout other Devices being sent to before
 	// this one, and until we've completed our send
 	uint8_t numBytesSendingNow;
+	uint8_t maxPortConnected;
 
+#ifdef __cplusplus
+	/* ------------ MIDI Queue Manager ------------ */
 	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
 	// Any code which wants to send midi data would use the writing side and append more messages.
 	// When we are ready to send data on this device, we consume data on the reading side and move it into the
 	// smaller dataSendingNow buffer above.
-	uint32_t sendDataRingBuf[MIDI_SEND_BUFFER_LEN_RING];
-	uint32_t ringBufWriteIdx;
-	uint32_t ringBufReadIdx;
+	// Messages are queued in priority-specific rings and consumed in priority order.
+	std::array<std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING>, QUEUE_PRIORITY_COUNT> sendDataRingBuf{};
+	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufWriteIdx{};
+	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufReadIdx{};
 
-	uint8_t maxPortConnected;
+	/// Clears all queue storage and fairness bookkeeping for this upstream USB device.
+	void reset_queue_storage();
+	/// Returns the queued packet count for one upstream USB priority lane.
+	uint16_t queue_count(QueuePriority priority);
+	/// Returns the total number of queued upstream USB packets across all priority lanes.
+	uint32_t total_queued_messages();
+
+	/// Pushes one packed USB MIDI packet into the selected priority lane with CC coalescing/fairness tracking.
+	void push_priority_message(QueuePriority priority, uint32_t message);
+	// USB CC fairness/coalescing state mirrors DIN behavior per connected USB device.
+	/// Replaces newest pending matching CC packet value instead of appending another packet.
+	bool coalesce_queued_cc(uint32_t message);
+	/// Removes queued CC packet at target offset and compacts remaining packets in-order.
+	bool remove_queued_cc_message_at_offset(uint16_t target_offset, uint32_t& message_out);
+
+	/// Pops one highest-priority eligible packet, applying CC fairness and CC budget limits.
+	bool pop_priority_message(uint32_t& message_out, int32_t& cc_budget_packets_remaining);
+	/// Pops one queued CC packet chosen by shared round-robin/debt fairness policy.
+	bool pop_fair_queued_cc_message(uint32_t& message_out);
+
+	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
+	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> usb_cc_reorder_scratch{};
+	/// Snapshot of first queued CC offset per controller for fair candidate selection.
+	std::array<uint16_t, kMaxMIDIValue + 1> usb_cc_fair_first_offsets{};
+	/// Saturating per-controller enqueue pressure used by debt-aware fair dequeue.
+	std::array<uint8_t, kMaxMIDIValue + 1> usb_cc_fair_controller_debt{};
+	/// Round-robin controller cursor used as fairness baseline between dequeues.
+	uint8_t usb_cc_fair_next_controller{0};
+	/* ------------ MIDI Queue Manager ------------ */
+#endif
 };
+
+#ifdef __cplusplus
+class ConnectedDINMIDIDevice {
+public:
+	ConnectedDINMIDIDevice() = default;
+
+	/// Resets serial pacing/budget state to a known baseline at the provided sample timestamp.
+	void reset_serial_state(uint32_t now_sample_timer);
+	/// Returns true when any DIN priority lane has queued bytes waiting to be flushed.
+	[[nodiscard]] bool has_serial_data() const;
+	/// Classifies, optionally coalesces, and enqueues one outgoing MIDI message into DIN priority lanes.
+	void enqueue_serial_message(MIDIMessage message);
+	/// Drains queued DIN bytes into UART using pacing budget, lane priorities, and CC gating.
+	void flush_serial_output(uint32_t now_sample_timer);
+
+private:
+	struct SerialByteQueue {
+		static constexpr uint16_t k_capacity = 512;
+
+		std::array<uint8_t, k_capacity> data{};
+		uint16_t read_pos{0};
+		uint16_t write_pos{0};
+
+		[[nodiscard]] bool empty() const { return read_pos == write_pos; }
+		[[nodiscard]] uint16_t size() const { return (write_pos - read_pos) & (k_capacity - 1); }
+		[[nodiscard]] uint16_t space() const { return (k_capacity - 1) - size(); }
+		[[nodiscard]] uint8_t peek(uint16_t offset = 0) const { return data[(read_pos + offset) & (k_capacity - 1)]; }
+		/// Pushes one byte into the ring if space exists; returns false when full.
+		bool push(uint8_t byte);
+		/// Pops one byte from the ring head into out; returns false when empty.
+		bool pop(uint8_t& out);
+		/// Atomically pops count bytes into out; returns false unless the full span is available.
+		bool pop_many(uint8_t* out, uint16_t count);
+	};
+
+	/// Number of active serial-priority lanes [clock..CC] scanned during dequeue.
+	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_CC + 1;
+	/// Per-priority byte rings holding pending DIN output grouped by queue policy.
+	std::array<SerialByteQueue, k_serial_priority_count> serial_priority_queues_{};
+	/// Last sample-timer tick used to accrue DIN pacing budget.
+	uint32_t serial_budget_last_update_{0};
+	/// Token-bucket send budget in Q8 bytes (8 fractional bits).
+	int32_t serial_budget_Q8_{0};
+	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
+	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
+	/// Snapshot of first queued CC offset per controller for fair candidate selection.
+	std::array<uint16_t, kMaxMIDIValue + 1> cc_fair_first_offsets_{};
+	/// Round-robin controller cursor used as fairness baseline between dequeues.
+	uint8_t cc_fair_next_controller_{0};
+	/// Saturating per-controller enqueue pressure used by debt-aware fair dequeue.
+	std::array<uint8_t, kMaxMIDIValue + 1> cc_fair_controller_debt_{};
+
+	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
+	void update_serial_budget(uint32_t now_sample_timer);
+	/// Replaces the newest queued matching CC value instead of appending a duplicate write.
+	bool coalesce_queued_cc(MIDIMessage message);
+	/// Pops one queued 3-byte CC message selected by round-robin/debt fairness policy.
+	bool pop_fair_queued_cc_message(uint8_t* out_bytes, int32_t budget_bytes, int32_t uart_space, int32_t max_len,
+	                                QueuePriority& popped_priority);
+	/// Removes one queued CC frame at target offset and compacts remaining queue bytes in-order.
+	bool remove_queued_cc_message_at_offset(uint16_t target_offset, uint8_t* out_bytes);
+	/// Enqueues one complete byte span atomically into the selected priority lane.
+	bool enqueue_serial_bytes(QueuePriority priority, uint8_t const* bytes, int32_t len);
+	/// Pops the next eligible realtime or full MIDI message under budget/space constraints.
+	int32_t pop_next_prioritized_bytes(uint8_t* out_bytes, int32_t max_len, int32_t budget_bytes, int32_t uart_space,
+	                                   int32_t cc_uart_budget, QueuePriority& popped_priority);
+};
+#endif
 
 #ifdef __cplusplus
 namespace MIDIDeviceManager {
@@ -126,3 +226,6 @@ extern bool anyChangesToSave;
 #endif
 
 extern struct ConnectedUSBMIDIDevice connectedUSBMIDIDevices[][MAX_NUM_USB_MIDI_DEVICES];
+#ifdef __cplusplus
+extern ConnectedDINMIDIDevice connectedDINMIDIDevice;
+#endif
