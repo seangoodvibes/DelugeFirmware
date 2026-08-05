@@ -1414,6 +1414,20 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	}
 
 	yScroll += change;
+
+	// Keep viewport clamping behaviour aligned with normal vertical scrolling.
+	// Clamp only the boundary in the direction we just nudged.
+	if (change > 0) {
+		while (!isScrollWithinRange(0, getYNoteFromYDisplay(kDisplayHeight - 1, modelStack->song))) {
+			yScroll--;
+		}
+	}
+	else {
+		while (!isScrollWithinRange(0, getYNoteFromYDisplay(0, modelStack->song))) {
+			yScroll++;
+		}
+	}
+
 	return true;
 }
 
