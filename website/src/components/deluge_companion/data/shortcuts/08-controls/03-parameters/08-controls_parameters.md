@@ -3,6 +3,16 @@ capability-order: 9
 sub-capability: Controls (Parameters)
 sub-capability-order: 3
 
+# Change a selected clips parameters with gold dials
+
+#OFFICIAL #ARRANGER #SESSION
+
+```shortcut
+hold(GRID_LIT), press(PARAMBUTTON), press(PARAMETER), turn(PARAMETER)
+```
+
+Hold a clip instance in arranger or session view and use the gold dial controls to adjust that clips parameters.
+
 # Assign gold dial control of parameters - first select parameter
 
 #OFFICIAL #SYNTH #KIT

@@ -9591,6 +9591,44 @@
     "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder."
   },
   {
+    "name": "Change a selected clips parameters with gold dials",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 1,
+        "control": 38
+      },
+      {
+        "action": 0,
+        "control": 17
+      },
+      {
+        "action": 0,
+        "control": 45
+      },
+      {
+        "action": 2,
+        "control": 45
+      }
+    ],
+    "views": [1, 2],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Hold a clip instance in arranger or session view and use the gold dial controls to adjust that clips parameters."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Lit grid pad. Press the PARAM BUTTON. Press the parameter encoders. Turn the parameter encoders."
+  },
+  {
     "name": "Assign gold dial control of parameters - first select parameter",
     "capability": "08-controls_parameters",
     "capabilityParentId": "CONTROLS",
@@ -10902,40 +10940,6 @@
       }
     ],
     "description": "Press the Clip button, press the Grid pad (lit or unlit)."
-  },
-  {
-    "name": "Hold clip for editing and gold encoders",
-    "capability": "09-reference_beta_missing",
-    "capabilityParentId": "REFERENCE_SHORTCUTS",
-    "capabilityOrder": 99,
-    "subCapabilityTitle": "Reference shortcuts (beta missing set)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 10
-          },
-          {
-            "action": 0,
-            "control": 36
-          }
-        ]
-      }
-    ],
-    "views": [],
-    "firmware": [0, 1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Context: Clip row pad.\nImported shortcut text: Hold clip-row main PAD."
-          }
-        ]
-      }
-    ],
-    "description": "Hold the Clip button, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Clone clip to another row",

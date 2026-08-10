@@ -179,17 +179,6 @@ press(CLIP) + press(GRID)
 Context: Clip row pad.
 Imported shortcut text: Clip-row main PAD.
 
-# Hold clip for editing and gold encoders
-
-#OFFICIAL #COMMUNITY
-
-```shortcut
-hold(CLIP) + press(GRID)
-```
-
-Context: Clip row pad.
-Imported shortcut text: Hold clip-row main PAD.
-
 # Clone clip to another row
 
 #OFFICIAL #COMMUNITY
