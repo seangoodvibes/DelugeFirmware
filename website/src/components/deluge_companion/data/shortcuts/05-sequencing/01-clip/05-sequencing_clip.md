@@ -28,3 +28,13 @@ Duplicates the clip content, doubles the clip length, and appends the duplicate.
 ```shortcut
 hold(SHIFT) + turn(X)
 ```
+
+# Shift clip contents horizontally
+
+#OFFICIAL #AUDIO #SYNTH #KIT #MIDI #CV
+
+```shortcut
+hold(Y) + turn(X), hold(clip) + press(X) + turn(X)
+```
+
+Shifts all clip contents horizontally left or right.

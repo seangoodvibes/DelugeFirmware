@@ -751,28 +751,6 @@ hold(AUDITION) + press(GRID)
 Context: Arranger track row.
 Imported shortcut text: Hold audition PAD + press Name shortcut pad.
 
-# Shift clip contents horizontally
-
-#OFFICIAL #COMMUNITY
-
-```shortcut
-press(Y) + turn(X)
-```
-
-Context: Clip timeline.
-Imported shortcut text: VERTICAL + TURN HORIZONTAL.
-
-# Shift clip contents horizontally from Automation View
-
-#OFFICIAL #COMMUNITY
-
-```shortcut
-press(CLIP) + press(X)
-```
-
-Context: Clip timeline.
-Imported shortcut text: CLIP + HORIZONTAL + TURN HORIZONTAL.
-
 # Shift automation with clip shift outside Automation View
 
 #OFFICIAL #COMMUNITY
@@ -783,50 +761,6 @@ press(SHIFT), press(CLIP) + press(SHIFT)
 
 Context: Clip timeline.
 Imported shortcut text: Controlled by Settings > Defaults > Automation > Shift; when enabled, regular clip shifts leave automation to Automation View.
-
-# Accept current option
-
-#OFFICIAL #COMMUNITY
-
-```shortcut
-press(SELECT)
-```
-
-Context: All menus.
-Imported shortcut text: SELECT or the menu's accept button.
-
-# Back/close
-
-#OFFICIAL #COMMUNITY
-
-```shortcut
-press(BACK)
-```
-
-Context: All menus.
-Imported shortcut text: BACK.
-
-# Close with dim pad
-
-#OFFICIAL #COMMUNITY
-
-```shortcut
-press(GRID), press(GRID)
-```
-
-Context: All menus.
-Imported shortcut text: Dim (greyed out) pads in a menu indicate that you cannot interact with them while in the menu and will exit the menu instead - Press PAD.
-
-# Edit selected decimal value with menu acceleration
-
-#OFFICIAL #COMMUNITY
-
-```shortcut
-turn(SELECT)
-```
-
-Context: Horizontal menu decimal values.
-Imported shortcut text: PRESS TURN SELECT.
 
 # Save current synth or kit preset
 

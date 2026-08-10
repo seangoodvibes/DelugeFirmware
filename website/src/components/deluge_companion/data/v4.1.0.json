@@ -769,7 +769,7 @@
     "description": "Hold the Shift button, press the Scale button. Hold the Shift button, press the Cross-screen button."
   },
   {
-    "name": "Enter / Step into the currently selected menu",
+    "name": "Navigate Forwards / Accept Current Option in Menu / Browser",
     "capability": "02-system_controls_navigation",
     "capabilityParentId": "SYSTEM",
     "capabilityOrder": 1,
@@ -790,7 +790,15 @@
       {
         "spans": [
           {
-            "text": "Press select encoder to enter the currently selected menu."
+            "text": "Press select encoder to a confirm selection."
+          }
+        ]
+      },
+      {
+        "type": "list",
+        "spans": [
+          {
+            "text": "- In Menus this means this includes navigating forwards / entering the selected menu.\n- In File Browser this includes navigating into a selected folder or loading a selected file.\n- In Action Popups this includes confirming that you want to proceed."
           }
         ]
       }
@@ -798,7 +806,7 @@
     "description": "Press the Select (Settings) encoder."
   },
   {
-    "name": "Navigate Backwards in Menu",
+    "name": "Navigate Backwards in Menu / Browser",
     "capability": "02-system_controls_navigation",
     "capabilityParentId": "SYSTEM",
     "capabilityOrder": 1,
@@ -825,6 +833,79 @@
       }
     ],
     "description": "Press the Back / Undo (Redo) button."
+  },
+  {
+    "name": "Exit Menu / Browser completely",
+    "capability": "02-system_controls_navigation",
+    "capabilityParentId": "SYSTEM",
+    "capabilityOrder": 1,
+    "subCapabilityTitle": "System (Controls)",
+    "subCapabilityOrder": 2,
+    "subSubCapabilityId": "02-system_controls_navigation::system-navigation",
+    "subSubCapabilityTitle": "System (Navigation)",
+    "subSubCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 1,
+        "control": 5
+      }
+    ],
+    "views": [19],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Hold back for 1 second to exit menu / browser completely."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Back / Undo (Redo) button."
+  },
+  {
+    "name": "Exit Menu with Dim Pad",
+    "capability": "02-system_controls_navigation",
+    "capabilityParentId": "SYSTEM",
+    "capabilityOrder": 1,
+    "subCapabilityTitle": "System (Controls)",
+    "subCapabilityOrder": 2,
+    "subSubCapabilityId": "02-system_controls_navigation::system-navigation",
+    "subSubCapabilityTitle": "System (Navigation)",
+    "subSubCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 36
+      },
+      {
+        "action": 0,
+        "control": 40
+      },
+      {
+        "action": 0,
+        "control": 39
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Dim (greyed out) pads in a menu indicate that you cannot interact with them while in the menu and will exit the menu instead - Press PAD."
+          }
+        ]
+      },
+      {
+        "spans": [
+          {
+            "text": "Which pads are dim and can be used to exit the menu differs based on context."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Grid pad (lit or unlit). Press the Mute / Launch button for row. Press the Audition / Section button for row."
   },
   {
     "name": "Exit Menu to Session View or Arranger View",
@@ -6322,6 +6403,56 @@
     "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder."
   },
   {
+    "name": "Shift clip contents horizontally",
+    "capability": "05-sequencing_clip",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Clip)",
+    "subCapabilityOrder": 1,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 33
+          },
+          {
+            "action": 2,
+            "control": 32
+          }
+        ]
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 10
+          },
+          {
+            "action": 0,
+            "control": 32
+          },
+          {
+            "action": 2,
+            "control": 32
+          }
+        ]
+      }
+    ],
+    "views": [8, 9, 10, 11, 12],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Shifts all clip contents horizontally left or right."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder. Hold the Clip button, press the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
+  },
+  {
     "name": "Make long note",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
@@ -6700,40 +6831,6 @@
       }
     ],
     "description": "Hold the Audition / Section button for row, press the Kit button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
-  },
-  {
-    "name": "Shift all notes horizontally",
-    "capability": "05-sequencing_note",
-    "capabilityParentId": "SEQUENCING",
-    "capabilityOrder": 6,
-    "subCapabilityTitle": "Sequencing (Note)",
-    "subCapabilityOrder": 2,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 33
-          },
-          {
-            "action": 2,
-            "control": 32
-          }
-        ]
-      }
-    ],
-    "views": [9, 10, 11, 12],
-    "firmware": [0],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Shifts all clip notes horizontally left or right."
-          }
-        ]
-      }
-    ],
-    "description": "Hold the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Clear clip",
@@ -12627,74 +12724,6 @@
     "description": "Hold the Audition / Section button for row, press the Grid pad (lit or unlit)."
   },
   {
-    "name": "Shift clip contents horizontally",
-    "capability": "09-reference_beta_missing",
-    "capabilityParentId": "REFERENCE_SHORTCUTS",
-    "capabilityOrder": 99,
-    "subCapabilityTitle": "Reference shortcuts (beta missing set)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 0,
-            "control": 33
-          },
-          {
-            "action": 2,
-            "control": 32
-          }
-        ]
-      }
-    ],
-    "views": [],
-    "firmware": [0, 1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Context: Clip timeline.\nImported shortcut text: VERTICAL + TURN HORIZONTAL."
-          }
-        ]
-      }
-    ],
-    "description": "Press the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder."
-  },
-  {
-    "name": "Shift clip contents horizontally from Automation View",
-    "capability": "09-reference_beta_missing",
-    "capabilityParentId": "REFERENCE_SHORTCUTS",
-    "capabilityOrder": 99,
-    "subCapabilityTitle": "Reference shortcuts (beta missing set)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 0,
-            "control": 10
-          },
-          {
-            "action": 0,
-            "control": 32
-          }
-        ]
-      }
-    ],
-    "views": [],
-    "firmware": [0, 1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Context: Clip timeline.\nImported shortcut text: CLIP + HORIZONTAL + TURN HORIZONTAL."
-          }
-        ]
-      }
-    ],
-    "description": "Press the Clip button, press the Horizontal (Left/Right) encoder."
-  },
-  {
     "name": "Shift automation with clip shift outside Automation View",
     "capability": "09-reference_beta_missing",
     "capabilityParentId": "REFERENCE_SHORTCUTS",
@@ -12731,114 +12760,6 @@
       }
     ],
     "description": "Press the Shift button. Press the Clip button, press the Shift button."
-  },
-  {
-    "name": "Accept current option",
-    "capability": "09-reference_beta_missing",
-    "capabilityParentId": "REFERENCE_SHORTCUTS",
-    "capabilityOrder": 99,
-    "subCapabilityTitle": "Reference shortcuts (beta missing set)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "action": 0,
-        "control": 34
-      }
-    ],
-    "views": [],
-    "firmware": [0, 1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Context: All menus.\nImported shortcut text: SELECT or the menu's accept button."
-          }
-        ]
-      }
-    ],
-    "description": "Press the Select (Settings) encoder."
-  },
-  {
-    "name": "Back/close",
-    "capability": "09-reference_beta_missing",
-    "capabilityParentId": "REFERENCE_SHORTCUTS",
-    "capabilityOrder": 99,
-    "subCapabilityTitle": "Reference shortcuts (beta missing set)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "action": 0,
-        "control": 5
-      }
-    ],
-    "views": [],
-    "firmware": [0, 1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Context: All menus.\nImported shortcut text: BACK."
-          }
-        ]
-      }
-    ],
-    "description": "Press the Back / Undo (Redo) button."
-  },
-  {
-    "name": "Close with dim pad",
-    "capability": "09-reference_beta_missing",
-    "capabilityParentId": "REFERENCE_SHORTCUTS",
-    "capabilityOrder": 99,
-    "subCapabilityTitle": "Reference shortcuts (beta missing set)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "action": 0,
-        "control": 36
-      },
-      {
-        "action": 0,
-        "control": 36
-      }
-    ],
-    "views": [],
-    "firmware": [0, 1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Context: All menus.\nImported shortcut text: Dim (greyed out) pads in a menu indicate that you cannot interact with them while in the menu and will exit the menu instead - Press PAD."
-          }
-        ]
-      }
-    ],
-    "description": "Press the Grid pad (lit or unlit). Press the Grid pad (lit or unlit)."
-  },
-  {
-    "name": "Edit selected decimal value with menu acceleration",
-    "capability": "09-reference_beta_missing",
-    "capabilityParentId": "REFERENCE_SHORTCUTS",
-    "capabilityOrder": 99,
-    "subCapabilityTitle": "Reference shortcuts (beta missing set)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "action": 2,
-        "control": 34
-      }
-    ],
-    "views": [],
-    "firmware": [0, 1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Context: Horizontal menu decimal values.\nImported shortcut text: PRESS TURN SELECT."
-          }
-        ]
-      }
-    ],
-    "description": "Turn the Select (Settings) encoder."
   },
   {
     "name": "Save current synth or kit preset",

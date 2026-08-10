@@ -97,7 +97,7 @@ Press shift + cross screen to navigate to the next adjacent horizontal menu.
 
 Moves to the next adjacent horizontal menu.
 
-# Enter / Step into the currently selected menu
+# Navigate Forwards / Accept Current Option in Menu / Browser
 
 #OFFICIAL #MENU
 
@@ -105,9 +105,12 @@ Moves to the next adjacent horizontal menu.
 press(SELECT)
 ```
 
-Press select encoder to enter the currently selected menu.
+Press select encoder to a confirm selection.
+- In Menus this means this includes navigating forwards / entering the selected menu.
+- In File Browser this includes navigating into a selected folder or loading a selected file.
+- In Action Popups this includes confirming that you want to proceed.
 
-# Navigate Backwards in Menu
+# Navigate Backwards in Menu / Browser
 
 #OFFICIAL #MENU
 
@@ -116,6 +119,28 @@ press(BACK)
 ```
 
 Go back up one level from within the menu / browser / file system.
+
+# Exit Menu / Browser completely
+
+#COMMUNITY #MENU
+
+```shortcut
+hold(BACK)
+```
+
+Hold back for 1 second to exit menu / browser completely.
+
+# Exit Menu with Dim Pad
+
+#OFFICIAL
+
+```shortcut
+press(GRID), press(LAUNCH), press(AUDITION)
+```
+
+Dim (greyed out) pads in a menu indicate that you cannot interact with them while in the menu and will exit the menu instead - Press PAD.
+
+Which pads are dim and can be used to exit the menu differs based on context.
 
 # Exit Menu to Session View or Arranger View
 

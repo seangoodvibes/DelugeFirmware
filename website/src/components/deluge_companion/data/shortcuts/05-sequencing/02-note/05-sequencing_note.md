@@ -122,16 +122,6 @@ hold(AUDITION) + press(KIT), turn(SELECT), press(SELECT)
 
 Scroll to a sample. Press Back to go up one folder level.
 
-# Shift all notes horizontally
-
-#OFFICIAL #SYNTH #KIT #MIDI #CV
-
-```shortcut
-hold(Y) + turn(X)
-```
-
-Shifts all clip notes horizontally left or right.
-
 # Clear clip
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV
