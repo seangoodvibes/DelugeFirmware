@@ -73,13 +73,25 @@ All audition / section rows of the same color flash, then launch together when t
 
 # Section repeat
 
-#OFFICIAL #SESSION
+#OFFICIAL #SESSION #SESSION_ROW
 
 ```shortcut
 hold(AUDITION), turn(SELECT)
 ```
 
 Hold audition for 1 sec to show repeat popup and then turn select.
+
+Changes INFInite to a repeat count for the section. The display counts down; press Select to cancel the section switch during countdown.
+
+# Section repeat
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+hold(LAUNCH), turn(SELECT)
+```
+
+Hold section launch for 1 sec to show repeat popup and then turn select.
 
 Changes INFInite to a repeat count for the section. The display counts down; press Select to cancel the section switch during countdown.
 

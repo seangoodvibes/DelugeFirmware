@@ -21,6 +21,8 @@ export enum Views {
   AUTOMATION_PARAMETER,
   AUTOMATION_VELOCITY,
   MENU,
+  MENU_VERTICAL,
+  MENU_HORIZONTAL,
   MENU_SETTINGS,
   MENU_SOUND,
   MENU_NOTE,
@@ -128,6 +130,16 @@ export const viewsById: ViewsMap = {
   [Views.MENU]: {
     id: Views.MENU,
     title: "Menu",
+    color: "neutral",
+  },
+  [Views.MENU_VERTICAL]: {
+    id: Views.MENU_VERTICAL,
+    title: "Menu (Vertical)",
+    color: "neutral",
+  },
+  [Views.MENU_HORIZONTAL]: {
+    id: Views.MENU_HORIZONTAL,
+    title: "Menu (Horizontal)",
     color: "neutral",
   },
   [Views.MENU_SETTINGS]: {

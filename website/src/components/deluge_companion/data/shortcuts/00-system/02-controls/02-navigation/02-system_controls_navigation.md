@@ -55,7 +55,7 @@ Scroll up and down across the main grid or sidebar.
 
 # Navigate in Vertical Menu
 
-#OFFICIAL #MENU
+#OFFICIAL #MENU #MENU_VERTICAL
 
 ```shortcut
 turn(SELECT)
@@ -65,7 +65,7 @@ Turn select encoder to scroll up and down in a vertical menu.
 
 # Navigate on Current Horizontal Menu Page
 
-#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
+#COMMUNITY #MENU #MENU_HORIZONTAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 press(SYNTH), press(KIT), press(MIDI), press(CV)
@@ -75,7 +75,7 @@ With the current horizontal menu page open, press Synth, Kit, MIDI, or CV to sel
 
 # Navigate to the Previous or Next Horizontal Menu Page
 
-#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
+#COMMUNITY #MENU #MENU_HORIZONTAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 press(SCALE), press(CROSS)
@@ -86,7 +86,7 @@ Press cross screen to navigate to the next horizontal menu page.
 
 # Navigate to the Previous or Next Adjacent Horizontal Menu
 
-#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
+#COMMUNITY #MENU #MENU_HORIZONTAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(SCALE), hold(SHIFT) + press(CROSS)

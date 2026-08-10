@@ -55,7 +55,7 @@ turn(SELECT)
 
 # Fine tune decimal value in vertical menu
 
-#OFFICIAL #MENU
+#OFFICIAL #MENU #MENU_VERTICAL
 
 ```shortcut
 turn(X), turn(SELECT)
@@ -65,7 +65,7 @@ To edit decimal values in the currently selected vertical menu, use the horizont
 
 # Fine tune decimal value in horizontal menu
 
-#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
+#COMMUNITY #MENU #MENU_HORIZONTAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 press(SELECT) + turn(SELECT), hold(SHIFT) + turn(SELECT)
