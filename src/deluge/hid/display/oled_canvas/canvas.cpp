@@ -303,9 +303,10 @@ void Canvas::drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool f
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
-	int32_t lastIndex = string.length() - 1;
+	int32_t lastIndex = static_cast<int32_t>(string.length()) - 1;
 	int32_t charIdx = 0;
-	int32_t charWidth = textWidth;
+	int32_t advanceWidth = textWidth;
+	int32_t drawWidth = textWidth;
 	// if the string is currently scrolling we want to identify the number of characters
 	// that should be visible on the screen based on the current scroll position
 	// to do iterate through each character in the string, based on its size in pixels
@@ -318,10 +319,9 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		for (int32_t i = 0; i < static_cast<int32_t>(string.size()); ++i) {
 			char const previous_char = (i > 0) ? string[i - 1] : '\0';
 			char const current_char = string[i];
-			char const next_char = (i + 1 < static_cast<int32_t>(string.size())) ? string[i + 1] : '\0';
 			if (!useTextWidth) {
 				int32_t charSpacing = getCharSpacingInPixels(current_char, textHeight, charIdx == lastIndex);
-				charWidth = getCharWidthInPixels(current_char, textHeight) + charSpacing;
+				advanceWidth = getCharWidthInPixels(current_char, textHeight) + charSpacing;
 			}
 
 			// if we're not on the first character
@@ -329,11 +329,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 				charStartX += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
 			}
 
-			charStartX += charWidth;
-
-			//	if (charIdx != lastIndex) {
-			//		charStartX += getNextCharSpacingAdjustmentInPixels(current_char, next_char, textHeight);
-			//	}
+			charStartX += advanceWidth;
 
 			// are we past the scroll position?
 			// if so no more characters to chop off
@@ -343,7 +339,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 			// we haven't reached scroll position yet, so chop off these characters
 			else {
 				numCharsToChopOff++;
-				widthOfCharsToChopOff += charWidth;
+				widthOfCharsToChopOff += advanceWidth;
 			}
 			charIdx++;
 		}
@@ -353,20 +349,24 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		// adjust scroll position to indicate how far we've scrolled
 		scrollPos -= widthOfCharsToChopOff;
 		// calculate new last index
-		lastIndex = string.length() - 1;
+		lastIndex = static_cast<int32_t>(string.length()) - 1;
 		// reset index
 		charIdx = 0;
 	}
 
-	// if we scrolled above, then the string, ScrollPos, stringLength will have been adjusted
+	// if we scrolled above, then the string and scroll position will have been adjusted
 	// here we're going to draw the remaining characters in the string
 	for (int32_t i = 0; i < static_cast<int32_t>(string.size()); ++i) {
 		char const previous_char = (i > 0) ? string[i - 1] : '\0';
 		char const current_char = string[i];
-		char const next_char = (i + 1 < static_cast<int32_t>(string.size())) ? string[i + 1] : '\0';
 		if (!useTextWidth) {
-			int32_t charSpacing = getCharSpacingInPixels(current_char, textHeight, charIdx == lastIndex);
-			charWidth = getCharWidthInPixels(current_char, textHeight) + charSpacing;
+			const int32_t charWidth = getCharWidthInPixels(current_char, textHeight);
+			// drawChar centres the glyph inside this width. Keep that draw box independent of final-character
+			// spacing, so the same glyph pixels do not shift when a word is drawn alone vs. as a prefix.
+			const int32_t advanceSpacing = getCharSpacingInPixels(current_char, textHeight, charIdx == lastIndex);
+			const int32_t drawSpacing = getCharSpacingInPixels(current_char, textHeight, false);
+			advanceWidth = charWidth + advanceSpacing;
+			drawWidth = charWidth + drawSpacing;
 		}
 
 		// if we're not on the first character
@@ -374,15 +374,10 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 			pixelX += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
 		}
 
-		drawChar(current_char, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
+		drawChar(current_char, pixelX, pixelY, drawWidth, textHeight, scrollPos, endX);
 
 		// calculate the X coordinate to draw the next character
-		pixelX += (charWidth - scrollPos);
-
-		// if we're not on the last character
-		//	if (charIdx != lastIndex) {
-		//		pixelX += getNextCharSpacingAdjustmentInPixels(current_char, next_char, textHeight);
-		//	}
+		pixelX += (advanceWidth - scrollPos);
 
 		// if we've reached the endX coordinate then we won't draw anymore characters
 		if (pixelX >= endX) {
@@ -655,6 +650,10 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 	// adjust font spacing for certain character combinations in the 9px font (e.g. menu titles)
 	else if (textHeight == 10) {
 		if (currentChar == 'A' || currentChar == 'a') {
+			// B then A: 0
+			if (previousChar == 'B' || previousChar == 'b') {
+				return 0;
+			}
 			// E then A: 0
 			if (previousChar == 'E' || previousChar == 'e') {
 				return 0;
@@ -671,6 +670,10 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'N' || previousChar == 'n') {
 				return 0;
 			}
+			// O then A: +1
+			if (previousChar == 'O' || previousChar == 'o') {
+				return 1;
+			}
 			// P then A: -1
 			if (previousChar == 'P' || previousChar == 'p') {
 				return -1;
@@ -679,9 +682,13 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'R' || previousChar == 'r') {
 				return 0;
 			}
-			// W then A: -1
+			// S then A: 0
+			if (previousChar == 'S' || previousChar == 's') {
+				return 0;
+			}
+			// W then A: -2
 			if (previousChar == 'W' || previousChar == 'w') {
-				return -1;
+				return -2;
 			}
 			// Y then A: -2
 			if (previousChar == 'Y' || previousChar == 'y') {
@@ -701,19 +708,19 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == 'D' || currentChar == 'd') {
-			// N then D: +
+			// N then D: 0
 			if (previousChar == 'N' || previousChar == 'n') {
-				return 1;
+				return 0;
 			}
 		}
 		if (currentChar == 'E' || currentChar == 'e') {
-			// D then E: +1
+			// D then E: +0
 			if (previousChar == 'D' || previousChar == 'd') {
-				return 1;
+				return 0;
 			}
-			// M then E: +1
+			// M then E: +0
 			if (previousChar == 'M' || previousChar == 'm') {
-				return 1;
+				return 0;
 			}
 			// T then E: 0
 			if (previousChar == 'T' || previousChar == 't') {
@@ -721,9 +728,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == 'H' || currentChar == 'h') {
-			// T then H: +1
+			// T then H: 0
 			if (previousChar == 'T' || previousChar == 't') {
-				return 1;
+				return 0;
 			}
 		}
 		if (currentChar == 'J' || currentChar == 'j') {
@@ -732,9 +739,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == 'L' || currentChar == 'l') {
-			// E then L: +1
+			// E then L: 0
 			if (previousChar == 'E' || previousChar == 'e') {
-				return 1;
+				return 0;
 			}
 		}
 		if (currentChar == 'M' || currentChar == 'm') {
@@ -744,9 +751,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == 'N' || currentChar == 'n') {
-			// A then N: +1
+			// A then N: 0
 			if (previousChar == 'A' || previousChar == 'a') {
-				return +1;
+				return 0;
 			}
 			// Y then N: 0
 			if (previousChar == 'Y' || previousChar == 'y') {
@@ -762,9 +769,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'D' || previousChar == 'd') {
 				return -1;
 			}
-			// T then O: -1
+			// T then O: 0
 			if (previousChar == 'T' || previousChar == 't') {
-				return -1;
+				return 0;
 			}
 			// W then O: -1
 			if (previousChar == 'W' || previousChar == 'w') {
@@ -780,9 +787,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'N' || previousChar == 'n') {
 				return 1;
 			}
-			// A then R: -1
+			// A then R: 0
 			if (previousChar == 'A' || previousChar == 'a') {
-				return -1;
+				return 0;
 			}
 		}
 		if (currentChar == 'S' || currentChar == 's') {
@@ -790,17 +797,17 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'A' || previousChar == 'a') {
 				return 0;
 			}
-			// G then S: +1
+			// G then S: 0
 			if (previousChar == 'G' || previousChar == 'g') {
-				return 1;
+				return 0;
 			}
-			// N then S: +1
+			// N then S: 0
 			if (previousChar == 'N' || previousChar == 'n') {
-				return 1;
+				return 0;
 			}
-			// R then S: +1
+			// R then S: 0
 			if (previousChar == 'R' || previousChar == 'r') {
-				return 1;
+				return 0;
 			}
 			// Y then S: -1
 			if (previousChar == 'Y' || previousChar == 'y') {
@@ -850,9 +857,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == 'V' || currentChar == 'v') {
-			// A then V: -1 (possibly -2)
+			// A then V: -2
 			if (previousChar == 'A' || previousChar == 'a') {
-				return -1;
+				return -2;
 			}
 		}
 		if (currentChar == 'W' || currentChar == 'w') {
@@ -874,8 +881,18 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'S' || previousChar == 's') {
 				return 0;
 			}
+			// X then Y: +0
+			if (previousChar == 'X' || previousChar == 'x') {
+				return 0;
+			}
 			// any char then Y: -1
 			return -1;
+		}
+		if (currentChar == 'Z' || currentChar == 'z') {
+			// Y then Z: +0
+			if (previousChar == 'Y' || previousChar == 'y') {
+				return 0;
+			}
 		}
 		if (previousChar == 'Y' || previousChar == 'y') {
 			// Y then any char: -1
@@ -919,15 +936,15 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'B' || previousChar == 'b') {
 				return -1;
 			}
-			// W then A: -3
+			// W then A: -4
 			if (previousChar == 'W' || previousChar == 'w') {
-				return -3;
+				return -4;
 			}
 		}
 		if (currentChar == 'G' || currentChar == 'g') {
-			// N then G: +1
+			// N then G: 0
 			if (previousChar == 'N' || previousChar == 'n') {
-				return 1;
+				return 0;
 			}
 		}
 		if (currentChar == 'N' || currentChar == 'n') {
@@ -1219,27 +1236,35 @@ int32_t Canvas::getNextCharSpacingAdjustmentInPixels(uint8_t currentChar, uint8_
 
 int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 	std::string_view str{string};
-	int32_t stringLength = str.length();
-	int32_t stringWidth = 0;
+	int32_t lastIndex = static_cast<int32_t>(str.length()) - 1;
+	int32_t advanceX = 0;
+	int32_t maxGlyphEndX = 0;
 	int32_t charIdx = 0;
 	for (int32_t i = 0; i < static_cast<int32_t>(str.size()); ++i) {
 		char const previous_char = (i > 0) ? str[i - 1] : '\0';
 		char const current_char = str[i];
-		char const next_char = (i + 1 < static_cast<int32_t>(str.size())) ? str[i + 1] : '\0';
-		int32_t charSpacing = getCharSpacingInPixels(current_char, textHeight, charIdx == stringLength);
+		const int32_t charWidth = getCharWidthInPixels(current_char, textHeight);
+		const int32_t advanceSpacing = getCharSpacingInPixels(current_char, textHeight, charIdx == lastIndex);
+		const int32_t drawSpacing = getCharSpacingInPixels(current_char, textHeight, false);
+		const int32_t drawWidth = charWidth + drawSpacing;
+		const int32_t advanceWidth = charWidth + advanceSpacing;
+
 		// if we're not on the first character
 		if (charIdx > 0) {
-			charSpacing += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
+			advanceX += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
 		}
-		// if we're not on the last character
-		//	if (charIdx != stringLength) {
-		//		charSpacing += getNextCharSpacingAdjustmentInPixels(current_char, next_char, textHeight);
-		//	}
-		int32_t charWidth = getCharWidthInPixels(current_char, textHeight) + charSpacing;
-		stringWidth += charWidth;
+
+		// Match drawString(): final-character spacing affects cursor advance, while glyph extents are measured
+		// from the stable draw box used when the bitmap is centred.
+		if (charWidth > 0) {
+			const int32_t glyphStartX = advanceX + ((drawWidth - charWidth) >> 1);
+			maxGlyphEndX = std::max(maxGlyphEndX, glyphStartX + charWidth);
+		}
+
+		advanceX += advanceWidth;
 		charIdx++;
 	}
-	return stringWidth;
+	return std::max(advanceX, maxGlyphEndX);
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,
