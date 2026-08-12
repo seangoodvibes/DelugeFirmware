@@ -317,18 +317,23 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		int32_t widthOfCharsToChopOff = 0;
 		int32_t charStartX = 0;
 		for (int32_t i = 0; i < static_cast<int32_t>(string.size()); ++i) {
-			char const previous_char = (i > 0) ? string[i - 1] : '\0';
 			char const current_char = string[i];
 			if (!useTextWidth) {
 				int32_t charSpacing = getCharSpacingInPixels(current_char, textHeight, charIdx == lastIndex);
+				// calculate the width of the current character in pixels, including any spacing adjustments
 				advanceWidth = getCharWidthInPixels(current_char, textHeight) + charSpacing;
 			}
 
 			// if we're not on the first character
 			if (charIdx > 0) {
+				// get the previous character in the string
+				char const previous_char = (i > 0) ? string[i - 1] : '\0';
+				// calculate the starting X position for the current character, taking into account any spacing
+				// adjustments based on the previous character
 				charStartX += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
 			}
 
+			// calculate the X coordinate to draw the next character
 			charStartX += advanceWidth;
 
 			// are we past the scroll position?
@@ -339,8 +344,11 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 			// we haven't reached scroll position yet, so chop off these characters
 			else {
 				numCharsToChopOff++;
+				// we need to keep track of the width of the characters that are being chopped off, so we can adjust the
+				// scroll position accordingly
 				widthOfCharsToChopOff += advanceWidth;
 			}
+			// increment the character index for the next iteration
 			charIdx++;
 		}
 
@@ -348,7 +356,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		string = string.substr(numCharsToChopOff);
 		// adjust scroll position to indicate how far we've scrolled
 		scrollPos -= widthOfCharsToChopOff;
-		// calculate new last index
+		// update the last index to reflect the new string length
 		lastIndex = static_cast<int32_t>(string.length()) - 1;
 		// reset index
 		charIdx = 0;
@@ -357,7 +365,6 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// if we scrolled above, then the string and scroll position will have been adjusted
 	// here we're going to draw the remaining characters in the string
 	for (int32_t i = 0; i < static_cast<int32_t>(string.size()); ++i) {
-		char const previous_char = (i > 0) ? string[i - 1] : '\0';
 		char const current_char = string[i];
 		if (!useTextWidth) {
 			const int32_t charWidth = getCharWidthInPixels(current_char, textHeight);
@@ -371,6 +378,10 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 
 		// if we're not on the first character
 		if (charIdx > 0) {
+			// get the previous character in the string
+			char const previous_char = (i > 0) ? string[i - 1] : '\0';
+			// calculate the starting X position for the current character, taking into account any spacing adjustments
+			// based on the previous character
 			pixelX += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
 		}
 
