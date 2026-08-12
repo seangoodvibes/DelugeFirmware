@@ -657,11 +657,6 @@ constexpr uint8_t normaliseKerningChar(uint8_t theChar) {
 	return theChar;
 }
 
-// Check if the rule character matches the string character
-constexpr bool kerningCharMatches(uint8_t ruleChar, uint8_t stringChar) {
-	return ruleChar == stringChar;
-}
-
 // Kerning rules for specific character pairs at different text heights
 // Format: {textHeight, previousChar, currentChar, adjustment}
 constexpr KerningRule kKerningRules[] = {
@@ -723,14 +718,17 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 	}
 
 	// normalise the characters to uppercase for kerning rules, since lowercase letters use the same spacing
+	// e.g. a becomes A
+	// if in the future we treat lowercase letters differently,
+	// we can remove this normalisation and add specific kerning rules for lowercase letters
 	previousChar = normaliseKerningChar(previousChar);
 	currentChar = normaliseKerningChar(currentChar);
 
-	// check for a kerning rule that matches the previous and current characters at the given text height
+	// loop through all configured kerning adjustment rules
 	for (const KerningRule& rule : kKerningRules) {
-		// if the text height and characters match, return the adjustment value
-		if (rule.textHeight == textHeight && kerningCharMatches(rule.previousChar, previousChar)
-		    && kerningCharMatches(rule.currentChar, currentChar)) {
+		// check for a kerning rule that matches the previous and current characters at the given text height
+		if (rule.textHeight == textHeight && rule.previousChar == previousChar && rule.currentChar == currentChar) {
+			// rule found, return kerning adjustment
 			return rule.adjustment;
 		}
 	}
