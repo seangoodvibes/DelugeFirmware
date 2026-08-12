@@ -226,13 +226,6 @@ public:
 	/// @param textHeight The height of the character ((to distinguish between non-bold and bold characters))
 	int32_t getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, uint8_t currentChar, int32_t textHeight);
 
-	/// Returns spacing adjustment in pixels between characters drawn in a string
-	///
-	/// @param currentChar The current character in the string
-	/// @param nextChar A single character being drawn after the current character in the string
-	/// @param textHeight The height of the character ((to distinguish between non-bold and bold characters))
-	int32_t getNextCharSpacingAdjustmentInPixels(uint8_t currentChar, uint8_t nextChar, int32_t textHeight);
-
 	/// Returns width of a string in pixels
 	///
 	/// @param string A null-terminated C string

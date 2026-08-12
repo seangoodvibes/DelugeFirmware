@@ -654,12 +654,28 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'B' || previousChar == 'b') {
 				return 0;
 			}
+			// D then A: 0
+			if (previousChar == 'D' || previousChar == 'd') {
+				return 0;
+			}
 			// E then A: 0
 			if (previousChar == 'E' || previousChar == 'e') {
 				return 0;
 			}
+			// G then A: 0
+			if (previousChar == 'G' || previousChar == 'g') {
+				return 0;
+			}
+			// H then A: 0
+			if (previousChar == 'H' || previousChar == 'h') {
+				return 0;
+			}
 			// I then A: 0
 			if (previousChar == 'I' || previousChar == 'i') {
+				return 0;
+			}
+			// L then A: 0
+			if (previousChar == 'L' || previousChar == 'l') {
 				return 0;
 			}
 			// M then A: 0
@@ -760,14 +776,14 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 				return 0;
 			}
 		}
-		if (currentChar == 'O') {
+		if (currentChar == 'O' || currentChar == 'o') {
 			// A then O: -1
 			if (previousChar == 'A' || previousChar == 'a') {
 				return -1;
 			}
-			// D then O: -1
+			// D then O: 0
 			if (previousChar == 'D' || previousChar == 'd') {
-				return -1;
+				return 0;
 			}
 			// T then O: 0
 			if (previousChar == 'T' || previousChar == 't') {
@@ -776,6 +792,12 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			// W then O: -1
 			if (previousChar == 'W' || previousChar == 'w') {
 				return -1;
+			}
+		}
+		if (currentChar == 'P' || currentChar == 'p') {
+			// Y then P: 0
+			if (previousChar == 'Y' || previousChar == 'y') {
+				return 0;
 			}
 		}
 		if (currentChar == 'R' || currentChar == 'r') {
@@ -815,9 +837,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == 'T' || currentChar == 't') {
-			// A then T: -2
+			// A then T: -1
 			if (previousChar == 'A' || previousChar == 'a') {
-				return -2;
+				return -1;
 			}
 			// E then T: 0
 			if (previousChar == 'E' || previousChar == 'e') {
@@ -827,9 +849,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'L' || previousChar == 'l') {
 				return -1;
 			}
-			// O then T: -1
+			// O then T: 0
 			if (previousChar == 'O' || previousChar == 'o') {
-				return -1;
+				return 0;
 			}
 			// S then T: 0
 			if (previousChar == 'S' || previousChar == 's') {
@@ -857,9 +879,9 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == 'V' || currentChar == 'v') {
-			// A then V: -2
+			// A then V: -1
 			if (previousChar == 'A' || previousChar == 'a') {
-				return -2;
+				return -1;
 			}
 		}
 		if (currentChar == 'W' || currentChar == 'w') {
@@ -871,14 +893,34 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			if (previousChar == 'D' || previousChar == 'd') {
 				return -1;
 			}
-			// O then W: -1
+			// O then W: 0
 			if (previousChar == 'O' || previousChar == 'o') {
-				return -1;
+				return 0;
 			}
 		}
 		if (currentChar == 'Y' || currentChar == 'y') {
+			// A then Y: -2
+			if (previousChar == 'A' || previousChar == 'a') {
+				return -2;
+			}
+			// C then Y: 0
+			if (previousChar == 'C' || previousChar == 'c') {
+				return 0;
+			}
+			// E then Y: 0
+			if (previousChar == 'E' || previousChar == 'e') {
+				return 0;
+			}
+			// R then Y: 0
+			if (previousChar == 'R' || previousChar == 'r') {
+				return 0;
+			}
 			// S then Y: 0
 			if (previousChar == 'S' || previousChar == 's') {
+				return 0;
+			}
+			// T then Y: 0
+			if (previousChar == 'T' || previousChar == 't') {
 				return 0;
 			}
 			// X then Y: +0
@@ -916,6 +958,12 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			// L then ": -2
 			if (previousChar == 'L' || previousChar == 'l') {
 				return -2;
+			}
+		}
+		if (currentChar == '/') {
+			// V then /: -1
+			if (previousChar == 'V' || previousChar == 'v') {
+				return -1;
 			}
 		}
 		if (previousChar == '1') {
@@ -1012,6 +1060,10 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			}
 		}
 		if (currentChar == '9') {
+			// 2 then 9: -1
+			if (previousChar == '2') {
+				return -1;
+			}
 			// 7 then 9: -1
 			if (previousChar == '7') {
 				return -1;
@@ -1022,212 +1074,24 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 			return 1;
 		}
 	}
-
-	return 0;
-}
-
-int32_t Canvas::getNextCharSpacingAdjustmentInPixels(uint8_t currentChar, uint8_t nextChar, int32_t textHeight) {
-	// don't adjust spacing around a space character
-	if (currentChar == ' ' || nextChar == ' ') {
-		return 0;
-	}
-	// adjust font spacing for certain character combinations in the 9px font (e.g. menu titles)
-	else if (textHeight == 10) {
-		if (nextChar == 'A' || nextChar == 'a') {
-			// I then A: 0
-			if (currentChar == 'I' || currentChar == 'i') {
-				// return 0;
-			}
-			// W then A: -3
-			if (currentChar == 'W' || currentChar == 'w') {
-				// return -1;
-			}
-			// Y then A: -2
-			if (currentChar == 'Y' || currentChar == 'y') {
-				// return -2;
-			}
-			// any other char then A: -1 (what abut 1?)
-			// return -1;
-		}
-		if (nextChar == 'C' || nextChar == 'c') {
-			// A then C: -1
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'E' || nextChar == 'e') {
-			// T then E: -1
-			if (currentChar == 'T' || currentChar == 't') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'H' || nextChar == 'h') {
-			if (currentChar == 'T' || currentChar == 't') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'J' || nextChar == 'j') {
-			if (currentChar == '7') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'M' || nextChar == 'm') {
-			// A then M: -1
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'N' || nextChar == 'n') {
-			// A then N: -1
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'O') {
-			// A then O: -1
-			// D then O: -1
-			// T then O: -1
-			// W then O: -1
-			if (currentChar == 'A' || currentChar == 'a' || currentChar == 'D' || currentChar == 'd'
-			    || currentChar == 'T' || currentChar == 't' || currentChar == 'W' || currentChar == 'w') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'S' || nextChar == 's') {
-			// A then S: -1
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'T' || nextChar == 't') {
-			// A then T: -2
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -2;
-			}
-			// E then T: -1
-			// L then T: -1
-			// O then T: -1
-			// S then T: -1
-			// T then T: -1
-			// ' then T: -1
-			// " then T: -1
-			// 4 then T: -1
-			// 6 then T: -1
-			if (currentChar == 'E' || currentChar == 'e' || currentChar == 'L' || currentChar == 'l'
-			    || currentChar == 'O' || currentChar == 'o' || currentChar == 'S' || currentChar == 's'
-			    || currentChar == 'T' || currentChar == 't' || currentChar == '\'' || currentChar == '\"'
-			    || currentChar == '4' || currentChar == '6') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'V' || nextChar == 'v') {
-			// A then V: -1 (possibly -2)
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -1;
-			}
-		}
-		if (nextChar == 'W' || nextChar == 'w') {
-			// A then W: -2
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -2;
-			}
-			// D then W: -1
-			// O then W: -1
-			if (currentChar == 'D' || currentChar == 'd' || currentChar == 'O' || currentChar == 'o') {
-				// return -1;
-			}
-		}
-		if (currentChar == 'Y' || currentChar == 'y' || nextChar == 'Y' || nextChar == 'y') {
-			// any char then Y: -1
-			// Y then any char: -1
-			// return -1;
-		}
-		if (nextChar == '.') {
-			// W then .: -2
-			// F then .: -2
-			if (currentChar == 'W' || currentChar == 'w' || currentChar == 'F' || currentChar == 'f') {
-				// return -2;
-			}
-		}
-		if (nextChar == '\"') {
-			// A then ": -1
-			if (currentChar == 'A' || currentChar == 'a') {
-				// return -1;
-			}
-			// L then ": -2
-			if (currentChar == 'L' || currentChar == 'l') {
-				// return -2;
-			}
-		}
+	else if (textHeight == 20) {
 		if (currentChar == '1') {
-			// 1 then any char: +1
-			// return 1;
-		}
-		if (nextChar == '4') {
-			// 7 then 4: -1
-			if (currentChar == '7') {
-				// return -1;
+			// 2 then 1: -1
+			if (previousChar == '2') {
+				return -1;
 			}
 		}
-	}
-	// adjust font spacing for certain character combinations in the 13px font
-	else if (textHeight == 13) {
-		if (nextChar == 'A' || nextChar == 'a') {
-			// B then A: -1
-			if (currentChar == 'B' || currentChar == 'b') {
-				// return -1;
+		if (currentChar == '2') {
+			// 1 then 2: -1
+			if (previousChar == '1') {
+				return -1;
 			}
 		}
-		if (nextChar == 'T' || nextChar == 't') {
-			// L then T: -1
-			// O then T: -1
-			// 4 then T: -1
-			// 6 then T: -1
-			if (currentChar == 'L' || currentChar == 'l' || currentChar == 'O' || currentChar == 'o'
-			    || currentChar == '4' || currentChar == '6') {
-				// return -1;
+		if (currentChar == '7') {
+			// 2 then 7: -1
+			if (previousChar == '2') {
+				return -1;
 			}
-		}
-		if (nextChar == '-') {
-			// any char then -: +1
-			// return 1;
-		}
-		if (currentChar == '-') {
-			// - then any char: +3
-			// return 3;
-		}
-		if (nextChar == '4') {
-			// 1 then 4: -1
-			// 6 then 4: -1
-			if (currentChar == '1' || currentChar == '6') {
-				// return -1;
-			}
-			// 7 then 4: -2
-			if (currentChar == '7') {
-				// return -2;
-			}
-		}
-		if (nextChar == '6') {
-			// 7 then 6: -1
-			if (currentChar == '7') {
-				// return -1;
-			}
-		}
-		if (nextChar == '8') {
-			// 7 then 8: -1
-			if (currentChar == '7') {
-				// return -1;
-			}
-		}
-		if (nextChar == '9') {
-			// 7 then 9: -1
-			if (currentChar == '7') {
-				// return -1;
-			}
-		}
-		if (currentChar == '1') {
-			// 1 then any char: +1
-			// return 1;
 		}
 	}
 
