@@ -737,36 +737,56 @@ int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, u
 	return 0;
 }
 
+// Calculate the width of a string in pixels, taking into account character widths, spacing, and kerning adjustments
 int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 	std::string_view str{string};
+	// Get the index of the last character in the string
 	int32_t lastIndex = static_cast<int32_t>(str.length()) - 1;
+	// Initialize variables to track the total advance width and the maximum glyph end position
 	int32_t advanceX = 0;
 	int32_t maxGlyphEndX = 0;
+	// Initialize a variable to track the current character index
 	int32_t charIdx = 0;
+
+	// Loop through each character in the string
 	for (int32_t i = 0; i < static_cast<int32_t>(str.size()); ++i) {
+		// Get the previous character (or '\0' if it's the first character)
 		char const previous_char = (i > 0) ? str[i - 1] : '\0';
+		// Get the current character
 		char const current_char = str[i];
+		// Calculate the width of the current character in pixels
 		const int32_t charWidth = getCharWidthInPixels(current_char, textHeight);
+		// Calculate the spacing for the current character based on whether it's the last character in the string
 		const int32_t advanceSpacing = getCharSpacingInPixels(current_char, textHeight, charIdx == lastIndex);
+		// Calculate the spacing for drawing the current character (not considering last character)
 		const int32_t drawSpacing = getCharSpacingInPixels(current_char, textHeight, false);
+		// Calculate the total width for drawing and advancing the cursor for the current character
 		const int32_t drawWidth = charWidth + drawSpacing;
+		// Calculate the total width for advancing the cursor after drawing the current character
 		const int32_t advanceWidth = charWidth + advanceSpacing;
 
 		// if we're not on the first character
 		if (charIdx > 0) {
+			// Adjust the advanceX position based on any kerning adjustments between the previous and current characters
 			advanceX += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
 		}
 
 		// Match drawString(): final-character spacing affects cursor advance, while glyph extents are measured
 		// from the stable draw box used when the bitmap is centred.
 		if (charWidth > 0) {
+			// Calculate the starting X position for the glyph, centering it within the draw width
 			const int32_t glyphStartX = advanceX + ((drawWidth - charWidth) >> 1);
+			// Update the maximum glyph end position based on the current glyph's end position
 			maxGlyphEndX = std::max(maxGlyphEndX, glyphStartX + charWidth);
 		}
 
+		// Update the advanceX position for the next character
 		advanceX += advanceWidth;
+		// Increment the character index
 		charIdx++;
 	}
+	// Return the maximum of the total advance width and the maximum glyph end position to ensure the string width
+	// accounts for both cursor advancement and glyph size
 	return std::max(advanceX, maxGlyphEndX);
 }
 
