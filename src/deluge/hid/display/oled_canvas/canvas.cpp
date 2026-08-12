@@ -642,8 +642,6 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 }
 
 namespace {
-constexpr uint8_t kAnyKerningChar = 0;
-
 struct KerningRule {
 	uint8_t textHeight;
 	uint8_t previousChar;
@@ -659,61 +657,24 @@ constexpr uint8_t normaliseKerningChar(uint8_t theChar) {
 	return theChar;
 }
 
-// A rule char of kAnyKerningChar is a wildcard for fallback rules like "Y before any char".
+// Check if the rule character matches the string character
 constexpr bool kerningCharMatches(uint8_t ruleChar, uint8_t stringChar) {
-	return ruleChar == kAnyKerningChar || ruleChar == stringChar;
+	return ruleChar == stringChar;
 }
 
 constexpr KerningRule kKerningRules[] = {
     // Title/menu font (textHeight 10): exact pairs. Zero adjustments here can block broader wildcard rules below.
-    //   {10, 'B', 'A', 0},
-    //   {10, 'D', 'A', 0},
-    //   {10, 'E', 'A', 0},
-    //   {10, 'G', 'A', 0},
-    //   {10, 'H', 'A', 0},
-    //   {10, 'I', 'A', 0},
-    //   {10, 'L', 'A', 0},
-    //   {10, 'M', 'A', 0},
-    //   {10, 'N', 'A', 0},
-    //   {10, 'O', 'A', 0},
     {10, 'P', 'A', -1},
-    //   {10, 'R', 'A', 0},
-    //   {10, 'S', 'A', 0},
     {10, 'W', 'A', -2},
     {10, 'Y', 'A', -2},
-    //   {10, 'Z', 'A', 0},
-    //	  {10, 'Y', 'B', 0},
-    //   {10, 'A', 'C', 0},
-    //   {10, 'N', 'D', 0},
-    //   {10, 'D', 'E', 0},
-    //   {10, 'M', 'E', 0},
-    //   {10, 'T', 'E', 0},
-    //   {10, 'T', 'H', 0},
     {10, '7', 'J', -1},
-    //   {10, 'E', 'L', 0},
-    //   {10, 'A', 'M', 0},
-    //   {10, 'A', 'N', 0},
-    //   {10, 'Y', 'N', 0},
     {10, 'A', 'O', -1},
-    //   {10, 'D', 'O', 0},
-    //   {10, 'T', 'O', 0},
     {10, 'W', 'O', -1},
     {10, 'Y', 'O', -1},
-    //   {10, 'Y', 'P', 0},
-    //   {10, 'E', 'R', 0},
     {10, 'N', 'R', 1},
-    //   {10, 'A', 'R', 0},
-    //   {10, 'A', 'S', 0},
-    //   {10, 'G', 'S', 0},
-    //   {10, 'N', 'S', 0},
-    //   {10, 'R', 'S', 0},
     {10, 'Y', 'S', -1},
     {10, 'A', 'T', -1},
-    //   {10, 'E', 'T', 0},
     {10, 'L', 'T', -1},
-    //   {10, 'O', 'T', 0},
-    //   {10, 'S', 'T', 0},
-    //   {10, 'T', 'T', 0},
     {10, '\'', 'T', -1},
     {10, '"', 'T', -1},
     {10, '4', 'T', -1},
@@ -721,15 +682,7 @@ constexpr KerningRule kKerningRules[] = {
     {10, 'A', 'V', -1},
     {10, 'A', 'W', -4},
     {10, 'D', 'W', -1},
-    //    {10, 'O', 'W', 0},
     {10, 'A', 'Y', -2},
-    //    {10, 'C', 'Y', 0},
-    //    {10, 'E', 'Y', 0},
-    //    {10, 'R', 'Y', 0},
-    //    {10, 'S', 'Y', 0},
-    //    {10, 'T', 'Y', 0},
-    //    {10, 'X', 'Y', 0},
-    //    {10, 'Y', 'Z', 0},
     {10, 'W', '.', -2},
     {10, 'F', '.', -2},
     {10, 'A', '"', -1},
@@ -737,21 +690,12 @@ constexpr KerningRule kKerningRules[] = {
     {10, 'V', '/', -1},
     {10, '7', '4', -1},
 
-    // Title/menu font (textHeight 10): wildcard fallbacks. Current-character wildcards come first, so cases
-    // like "1A" keep the "any char then A" adjustment.
-    //    {10, kAnyKerningChar, 'A', -1},
-    //    {10, kAnyKerningChar, 'Y', -1},
-    //    {10, 'Y', kAnyKerningChar, -1},
-    //    {10, '1', kAnyKerningChar, 1},
-
     // 13px font: exact pairs.
     {13, 'B', 'A', -1},
     {13, 'W', 'A', -4},
-    //    {13, 'N', 'G', 0},
     {13, '-', 'N', 2},
     {13, 'E', 'S', 1},
     {13, 'L', 'T', -1},
-    //    {13, 'O', 'T', 0},
     {13, '4', 'T', -1},
     {13, '6', 'T', -1},
     {13, '1', '4', -1},
@@ -761,11 +705,6 @@ constexpr KerningRule kKerningRules[] = {
     {13, '7', '8', -1},
     {13, '2', '9', -1},
     {13, '7', '9', -1},
-
-    // 13px font: wildcard fallbacks.
-    //   {13, kAnyKerningChar, '-', 1},
-    //   {13, '-', kAnyKerningChar, 3},
-    //   {13, '1', kAnyKerningChar, 1},
 
     // 20px font: exact pairs.
     {20, '2', '1', -1},
