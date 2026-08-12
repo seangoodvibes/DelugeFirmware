@@ -663,7 +663,7 @@ constexpr bool kerningCharMatches(uint8_t ruleChar, uint8_t stringChar) {
 }
 
 constexpr KerningRule kKerningRules[] = {
-    // Title/menu font (textHeight 10): exact pairs. Zero adjustments here can block broader wildcard rules below.
+    // Title/menu font (textHeight 10): exact pairs
     {10, 'P', 'A', -1},
     {10, 'W', 'A', -2},
     {10, 'Y', 'A', -2},
