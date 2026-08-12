@@ -662,6 +662,8 @@ constexpr bool kerningCharMatches(uint8_t ruleChar, uint8_t stringChar) {
 	return ruleChar == stringChar;
 }
 
+// Kerning rules for specific character pairs at different text heights
+// Format: {textHeight, previousChar, currentChar, adjustment}
 constexpr KerningRule kKerningRules[] = {
     // Title/menu font (textHeight 10): exact pairs
     {10, 'P', 'A', -1},
