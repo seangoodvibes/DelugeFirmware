@@ -641,460 +641,160 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 	}
 }
 
+namespace {
+constexpr uint8_t kAnyKerningChar = 0;
+
+struct KerningRule {
+	uint8_t textHeight;
+	uint8_t previousChar;
+	uint8_t currentChar;
+	int8_t adjustment;
+};
+
+// Store letter kerning rules once using uppercase chars; lowercase input should use the same spacing.
+constexpr uint8_t normaliseKerningChar(uint8_t theChar) {
+	if (theChar >= 'a' && theChar <= 'z') {
+		return static_cast<uint8_t>(theChar - ('a' - 'A'));
+	}
+	return theChar;
+}
+
+// A rule char of kAnyKerningChar is a wildcard for fallback rules like "Y before any char".
+constexpr bool kerningCharMatches(uint8_t ruleChar, uint8_t stringChar) {
+	return ruleChar == kAnyKerningChar || ruleChar == stringChar;
+}
+
+constexpr KerningRule kKerningRules[] = {
+    // Title/menu font (textHeight 10): exact pairs. Zero adjustments here can block broader wildcard rules below.
+    //   {10, 'B', 'A', 0},
+    //   {10, 'D', 'A', 0},
+    //   {10, 'E', 'A', 0},
+    //   {10, 'G', 'A', 0},
+    //   {10, 'H', 'A', 0},
+    //   {10, 'I', 'A', 0},
+    //   {10, 'L', 'A', 0},
+    //   {10, 'M', 'A', 0},
+    //   {10, 'N', 'A', 0},
+    //   {10, 'O', 'A', 0},
+    {10, 'P', 'A', -1},
+    //   {10, 'R', 'A', 0},
+    //   {10, 'S', 'A', 0},
+    {10, 'W', 'A', -2},
+    {10, 'Y', 'A', -2},
+    //   {10, 'Z', 'A', 0},
+    //	  {10, 'Y', 'B', 0},
+    //   {10, 'A', 'C', 0},
+    //   {10, 'N', 'D', 0},
+    //   {10, 'D', 'E', 0},
+    //   {10, 'M', 'E', 0},
+    //   {10, 'T', 'E', 0},
+    //   {10, 'T', 'H', 0},
+    {10, '7', 'J', -1},
+    //   {10, 'E', 'L', 0},
+    //   {10, 'A', 'M', 0},
+    //   {10, 'A', 'N', 0},
+    //   {10, 'Y', 'N', 0},
+    {10, 'A', 'O', -1},
+    //   {10, 'D', 'O', 0},
+    //   {10, 'T', 'O', 0},
+    {10, 'W', 'O', -1},
+    {10, 'Y', 'O', -1},
+    //   {10, 'Y', 'P', 0},
+    //   {10, 'E', 'R', 0},
+    {10, 'N', 'R', 1},
+    //   {10, 'A', 'R', 0},
+    //   {10, 'A', 'S', 0},
+    //   {10, 'G', 'S', 0},
+    //   {10, 'N', 'S', 0},
+    //   {10, 'R', 'S', 0},
+    {10, 'Y', 'S', -1},
+    {10, 'A', 'T', -1},
+    //   {10, 'E', 'T', 0},
+    {10, 'L', 'T', -1},
+    //   {10, 'O', 'T', 0},
+    //   {10, 'S', 'T', 0},
+    //   {10, 'T', 'T', 0},
+    {10, '\'', 'T', -1},
+    {10, '"', 'T', -1},
+    {10, '4', 'T', -1},
+    {10, '6', 'T', -1},
+    {10, 'A', 'V', -1},
+    {10, 'A', 'W', -4},
+    {10, 'D', 'W', -1},
+    //    {10, 'O', 'W', 0},
+    {10, 'A', 'Y', -2},
+    //    {10, 'C', 'Y', 0},
+    //    {10, 'E', 'Y', 0},
+    //    {10, 'R', 'Y', 0},
+    //    {10, 'S', 'Y', 0},
+    //    {10, 'T', 'Y', 0},
+    //    {10, 'X', 'Y', 0},
+    //    {10, 'Y', 'Z', 0},
+    {10, 'W', '.', -2},
+    {10, 'F', '.', -2},
+    {10, 'A', '"', -1},
+    {10, 'L', '"', -2},
+    {10, 'V', '/', -1},
+    {10, '7', '4', -1},
+
+    // Title/menu font (textHeight 10): wildcard fallbacks. Current-character wildcards come first, so cases
+    // like "1A" keep the "any char then A" adjustment.
+    //    {10, kAnyKerningChar, 'A', -1},
+    //    {10, kAnyKerningChar, 'Y', -1},
+    //    {10, 'Y', kAnyKerningChar, -1},
+    //    {10, '1', kAnyKerningChar, 1},
+
+    // 13px font: exact pairs.
+    {13, 'B', 'A', -1},
+    {13, 'W', 'A', -4},
+    //    {13, 'N', 'G', 0},
+    {13, '-', 'N', 2},
+    {13, 'E', 'S', 1},
+    {13, 'L', 'T', -1},
+    //    {13, 'O', 'T', 0},
+    {13, '4', 'T', -1},
+    {13, '6', 'T', -1},
+    {13, '1', '4', -1},
+    {13, '6', '4', -1},
+    {13, '7', '4', -2},
+    {13, '7', '6', -1},
+    {13, '7', '8', -1},
+    {13, '2', '9', -1},
+    {13, '7', '9', -1},
+
+    // 13px font: wildcard fallbacks.
+    //   {13, kAnyKerningChar, '-', 1},
+    //   {13, '-', kAnyKerningChar, 3},
+    //   {13, '1', kAnyKerningChar, 1},
+
+    // 20px font: exact pairs.
+    {20, '2', '1', -1},
+    {20, '2', '7', -1},
+};
+
+} // namespace
+
 int32_t Canvas::getPreviousCharSpacingAdjustmentInPixels(uint8_t previousChar, uint8_t currentChar,
                                                          int32_t textHeight) {
 	// don't adjust spacing around a space character
 	if (previousChar == ' ' || currentChar == ' ') {
 		return 0;
 	}
-	// adjust font spacing for certain character combinations in the 9px font (e.g. menu titles)
-	else if (textHeight == 10) {
-		if (currentChar == 'A' || currentChar == 'a') {
-			// B then A: 0
-			if (previousChar == 'B' || previousChar == 'b') {
-				return 0;
-			}
-			// D then A: 0
-			if (previousChar == 'D' || previousChar == 'd') {
-				return 0;
-			}
-			// E then A: 0
-			if (previousChar == 'E' || previousChar == 'e') {
-				return 0;
-			}
-			// G then A: 0
-			if (previousChar == 'G' || previousChar == 'g') {
-				return 0;
-			}
-			// H then A: 0
-			if (previousChar == 'H' || previousChar == 'h') {
-				return 0;
-			}
-			// I then A: 0
-			if (previousChar == 'I' || previousChar == 'i') {
-				return 0;
-			}
-			// L then A: 0
-			if (previousChar == 'L' || previousChar == 'l') {
-				return 0;
-			}
-			// M then A: 0
-			if (previousChar == 'M' || previousChar == 'm') {
-				return 0;
-			}
-			// N then A: 0
-			if (previousChar == 'N' || previousChar == 'n') {
-				return 0;
-			}
-			// O then A: +1
-			if (previousChar == 'O' || previousChar == 'o') {
-				return 1;
-			}
-			// P then A: -1
-			if (previousChar == 'P' || previousChar == 'p') {
-				return -1;
-			}
-			// R then A: 0
-			if (previousChar == 'R' || previousChar == 'r') {
-				return 0;
-			}
-			// S then A: 0
-			if (previousChar == 'S' || previousChar == 's') {
-				return 0;
-			}
-			// W then A: -2
-			if (previousChar == 'W' || previousChar == 'w') {
-				return -2;
-			}
-			// Y then A: -2
-			if (previousChar == 'Y' || previousChar == 'y') {
-				return -2;
-			}
-			// Z then A: 0
-			if (previousChar == 'Z' || previousChar == 'z') {
-				return 0;
-			}
-			// any other char then A: -1 (what abut 1?)
-			return -1;
-		}
-		if (currentChar == 'C' || currentChar == 'c') {
-			// A then C: 0
-			if (previousChar == 'A' || previousChar == 'a') {
-				return 0;
-			}
-		}
-		if (currentChar == 'D' || currentChar == 'd') {
-			// N then D: 0
-			if (previousChar == 'N' || previousChar == 'n') {
-				return 0;
-			}
-		}
-		if (currentChar == 'E' || currentChar == 'e') {
-			// D then E: +0
-			if (previousChar == 'D' || previousChar == 'd') {
-				return 0;
-			}
-			// M then E: +0
-			if (previousChar == 'M' || previousChar == 'm') {
-				return 0;
-			}
-			// T then E: 0
-			if (previousChar == 'T' || previousChar == 't') {
-				return 0;
-			}
-		}
-		if (currentChar == 'H' || currentChar == 'h') {
-			// T then H: 0
-			if (previousChar == 'T' || previousChar == 't') {
-				return 0;
-			}
-		}
-		if (currentChar == 'J' || currentChar == 'j') {
-			if (previousChar == '7') {
-				return -1;
-			}
-		}
-		if (currentChar == 'L' || currentChar == 'l') {
-			// E then L: 0
-			if (previousChar == 'E' || previousChar == 'e') {
-				return 0;
-			}
-		}
-		if (currentChar == 'M' || currentChar == 'm') {
-			// A then M: 0
-			if (previousChar == 'A' || previousChar == 'a') {
-				return 0;
-			}
-		}
-		if (currentChar == 'N' || currentChar == 'n') {
-			// A then N: 0
-			if (previousChar == 'A' || previousChar == 'a') {
-				return 0;
-			}
-			// Y then N: 0
-			if (previousChar == 'Y' || previousChar == 'y') {
-				return 0;
-			}
-		}
-		if (currentChar == 'O' || currentChar == 'o') {
-			// A then O: -1
-			if (previousChar == 'A' || previousChar == 'a') {
-				return -1;
-			}
-			// D then O: 0
-			if (previousChar == 'D' || previousChar == 'd') {
-				return 0;
-			}
-			// T then O: 0
-			if (previousChar == 'T' || previousChar == 't') {
-				return 0;
-			}
-			// W then O: -1
-			if (previousChar == 'W' || previousChar == 'w') {
-				return -1;
-			}
-		}
-		if (currentChar == 'P' || currentChar == 'p') {
-			// Y then P: 0
-			if (previousChar == 'Y' || previousChar == 'y') {
-				return 0;
-			}
-		}
-		if (currentChar == 'R' || currentChar == 'r') {
-			// E then R: +0
-			if (previousChar == 'E' || previousChar == 'e') {
-				return 0;
-			}
-			// N then R: +1
-			if (previousChar == 'N' || previousChar == 'n') {
-				return 1;
-			}
-			// A then R: 0
-			if (previousChar == 'A' || previousChar == 'a') {
-				return 0;
-			}
-		}
-		if (currentChar == 'S' || currentChar == 's') {
-			// A then S: 0
-			if (previousChar == 'A' || previousChar == 'a') {
-				return 0;
-			}
-			// G then S: 0
-			if (previousChar == 'G' || previousChar == 'g') {
-				return 0;
-			}
-			// N then S: 0
-			if (previousChar == 'N' || previousChar == 'n') {
-				return 0;
-			}
-			// R then S: 0
-			if (previousChar == 'R' || previousChar == 'r') {
-				return 0;
-			}
-			// Y then S: -1
-			if (previousChar == 'Y' || previousChar == 'y') {
-				return -1;
-			}
-		}
-		if (currentChar == 'T' || currentChar == 't') {
-			// A then T: -1
-			if (previousChar == 'A' || previousChar == 'a') {
-				return -1;
-			}
-			// E then T: 0
-			if (previousChar == 'E' || previousChar == 'e') {
-				return 0;
-			}
-			// L then T: -1
-			if (previousChar == 'L' || previousChar == 'l') {
-				return -1;
-			}
-			// O then T: 0
-			if (previousChar == 'O' || previousChar == 'o') {
-				return 0;
-			}
-			// S then T: 0
-			if (previousChar == 'S' || previousChar == 's') {
-				return 0;
-			}
-			// T then T: 0
-			if (previousChar == 'T' || previousChar == 't') {
-				return 0;
-			}
-			// ' then T: -1
-			if (previousChar == '\'') {
-				return -1;
-			}
-			// "" then T: -1
-			if (previousChar == '\"') {
-				return -1;
-			}
-			// 4 then T: -1
-			if (previousChar == '4') {
-				return -1;
-			}
-			// 6 then T: -1
-			if (previousChar == '6') {
-				return -1;
-			}
-		}
-		if (currentChar == 'V' || currentChar == 'v') {
-			// A then V: -1
-			if (previousChar == 'A' || previousChar == 'a') {
-				return -1;
-			}
-		}
-		if (currentChar == 'W' || currentChar == 'w') {
-			// A then W: -4
-			if (previousChar == 'A' || previousChar == 'a') {
-				return -4;
-			}
-			// D then W: -1
-			if (previousChar == 'D' || previousChar == 'd') {
-				return -1;
-			}
-			// O then W: 0
-			if (previousChar == 'O' || previousChar == 'o') {
-				return 0;
-			}
-		}
-		if (currentChar == 'Y' || currentChar == 'y') {
-			// A then Y: -2
-			if (previousChar == 'A' || previousChar == 'a') {
-				return -2;
-			}
-			// C then Y: 0
-			if (previousChar == 'C' || previousChar == 'c') {
-				return 0;
-			}
-			// E then Y: 0
-			if (previousChar == 'E' || previousChar == 'e') {
-				return 0;
-			}
-			// R then Y: 0
-			if (previousChar == 'R' || previousChar == 'r') {
-				return 0;
-			}
-			// S then Y: 0
-			if (previousChar == 'S' || previousChar == 's') {
-				return 0;
-			}
-			// T then Y: 0
-			if (previousChar == 'T' || previousChar == 't') {
-				return 0;
-			}
-			// X then Y: +0
-			if (previousChar == 'X' || previousChar == 'x') {
-				return 0;
-			}
-			// any char then Y: -1
-			return -1;
-		}
-		if (currentChar == 'Z' || currentChar == 'z') {
-			// Y then Z: +0
-			if (previousChar == 'Y' || previousChar == 'y') {
-				return 0;
-			}
-		}
-		if (previousChar == 'Y' || previousChar == 'y') {
-			// Y then any char: -1
-			return -1;
-		}
-		if (currentChar == '.') {
-			// W then .: -2
-			if (previousChar == 'W' || previousChar == 'w') {
-				return -2;
-			}
-			// F then .: -2
-			if (previousChar == 'F' || previousChar == 'f') {
-				return -2;
-			}
-		}
-		if (currentChar == '\"') {
-			// A then ": -1
-			if (previousChar == 'A' || previousChar == 'a') {
-				return -1;
-			}
-			// L then ": -2
-			if (previousChar == 'L' || previousChar == 'l') {
-				return -2;
-			}
-		}
-		if (currentChar == '/') {
-			// V then /: -1
-			if (previousChar == 'V' || previousChar == 'v') {
-				return -1;
-			}
-		}
-		if (previousChar == '1') {
-			// 1 then any char: +1
-			return 1;
-		}
-		if (currentChar == '4') {
-			// 7 then 4: -1
-			if (previousChar == '7') {
-				return -1;
-			}
-		}
-	}
-	// adjust font spacing for certain character combinations in the 13px font
-	else if (textHeight == 13) {
-		if (currentChar == 'A' || currentChar == 'a') {
-			// B then A: -1
-			if (previousChar == 'B' || previousChar == 'b') {
-				return -1;
-			}
-			// W then A: -4
-			if (previousChar == 'W' || previousChar == 'w') {
-				return -4;
-			}
-		}
-		if (currentChar == 'G' || currentChar == 'g') {
-			// N then G: 0
-			if (previousChar == 'N' || previousChar == 'n') {
-				return 0;
-			}
-		}
-		if (currentChar == 'N' || currentChar == 'n') {
-			// - then N: +2
-			if (previousChar == '-') {
-				return 2;
-			}
-		}
-		if (currentChar == 'S' || currentChar == 's') {
-			// E then S: +1
-			if (previousChar == 'E' || previousChar == 'e') {
-				return 1;
-			}
-		}
-		if (currentChar == 'T' || currentChar == 't') {
-			// L then T: -1
-			if (previousChar == 'L' || previousChar == 'l') {
-				return -1;
-			}
-			// O then T: 0
-			if (previousChar == 'O' || previousChar == 'o') {
-				return 0;
-			}
-			// 4 then T: -1
-			if (previousChar == '4') {
-				return -1;
-			}
-			// 6 then T: -1
-			if (previousChar == '6') {
-				return -1;
-			}
-		}
-		if (currentChar == '-') {
-			// any char then -: +1
-			return 1;
-		}
-		if (previousChar == '-') {
-			// - then any char: +3
-			return 3;
-		}
-		if (currentChar == '4') {
-			// 1 then 4: -1
-			if (previousChar == '1') {
-				return -1;
-			}
-			// 6 then 4: -1
-			if (previousChar == '6') {
-				return -1;
-			}
-			// 7 then 4: -2
-			if (previousChar == '7') {
-				return -2;
-			}
-		}
-		if (currentChar == '6') {
-			// 7 then 6: -1
-			if (previousChar == '7') {
-				return -1;
-			}
-		}
-		if (currentChar == '8') {
-			// 7 then 8: -1
-			if (previousChar == '7') {
-				return -1;
-			}
-		}
-		if (currentChar == '9') {
-			// 2 then 9: -1
-			if (previousChar == '2') {
-				return -1;
-			}
-			// 7 then 9: -1
-			if (previousChar == '7') {
-				return -1;
-			}
-		}
-		if (previousChar == '1') {
-			// 1 then any char: +1
-			return 1;
-		}
-	}
-	else if (textHeight == 20) {
-		if (currentChar == '1') {
-			// 2 then 1: -1
-			if (previousChar == '2') {
-				return -1;
-			}
-		}
-		if (currentChar == '2') {
-			// 1 then 2: -1
-			if (previousChar == '1') {
-				return -1;
-			}
-		}
-		if (currentChar == '7') {
-			// 2 then 7: -1
-			if (previousChar == '2') {
-				return -1;
-			}
+
+	// normalise the characters to uppercase for kerning rules, since lowercase letters use the same spacing
+	previousChar = normaliseKerningChar(previousChar);
+	currentChar = normaliseKerningChar(currentChar);
+
+	// check for a kerning rule that matches the previous and current characters at the given text height
+	for (const KerningRule& rule : kKerningRules) {
+		// if the text height and characters match, return the adjustment value
+		if (rule.textHeight == textHeight && kerningCharMatches(rule.previousChar, previousChar)
+		    && kerningCharMatches(rule.currentChar, currentChar)) {
+			return rule.adjustment;
 		}
 	}
 
+	// if no matching kerning rule is found, return 0 (no adjustment)
 	return 0;
 }
 
