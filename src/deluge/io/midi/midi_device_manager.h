@@ -99,7 +99,7 @@ struct ConnectedUSBMIDIDevice {
 	/// Clears all queue storage and fairness bookkeeping for this upstream USB device.
 	void reset_queue_storage();
 	/// Returns the queued packet count for one upstream USB priority lane.
-	uint16_t queue_count(QueuePriority priority);
+	[[nodiscard]] uint16_t queue_count(QueuePriority priority) const;
 	/// Returns the total number of queued upstream USB packets across all priority lanes.
 	uint32_t total_queued_messages();
 
@@ -151,7 +151,6 @@ struct ConnectedUSBMIDIDevice {
 
 	struct USBPriorityPopContext;
 
-	[[nodiscard]] bool priority_lane_has_data(QueuePriority priority) const;
 	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
 	                                                                       USBPriorityPopContext& context);
 	bool pop_priority_lane_message(QueuePriority priority, USBPriorityPopContext& context);
@@ -180,6 +179,8 @@ private:
 	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_CC + 1;
 	/// Per-priority byte rings holding pending DIN output grouped by queue policy.
 	MIDIQueueManagerState<uint8_t, 512, k_serial_priority_count> queue_manager_{};
+	/// Returns the queued byte count for one DIN priority lane.
+	[[nodiscard]] uint16_t queue_count(QueuePriority priority) const;
 	/// Last sample-timer tick used to accrue DIN pacing budget.
 	uint32_t serial_budget_last_update_{0};
 	/// Token-bucket send budget in Q8 bytes (8 fractional bits).
@@ -189,7 +190,6 @@ private:
 
 	struct SerialPriorityPopContext;
 
-	[[nodiscard]] bool priority_lane_has_data(QueuePriority priority) const;
 	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
 	                                                                       SerialPriorityPopContext& context);
 	bool pop_priority_lane_message(QueuePriority priority, SerialPriorityPopContext& context);

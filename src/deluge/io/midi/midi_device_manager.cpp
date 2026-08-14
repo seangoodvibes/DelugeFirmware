@@ -712,7 +712,7 @@ void ConnectedUSBMIDIDevice::reset_queue_storage() {
 }
 
 /// Returns queued USB packet count for one lane via monotonic write/read counters.
-uint16_t ConnectedUSBMIDIDevice::queue_count(QueuePriority priority) {
+uint16_t ConnectedUSBMIDIDevice::queue_count(QueuePriority priority) const {
 	uint8_t p = static_cast<uint8_t>(priority);
 	return queue_manager_.queue_count(p);
 }
@@ -895,12 +895,8 @@ bool ConnectedUSBMIDIDevice::pop_priority_message(uint32_t& message_out, int32_t
 	USBPriorityPopContext context{message_out, cc_budget_packets_remaining};
 	return MIDIQueueManager::pop_priority_lanes_with_cc_fairness(
 	    *this, QUEUE_PRIORITY_CLOCK, static_cast<QueuePriority>(QUEUE_PRIORITY_COUNT - 1),
-	    &ConnectedUSBMIDIDevice::priority_lane_has_data, &ConnectedUSBMIDIDevice::handle_priority_lane_pop,
+	    &ConnectedUSBMIDIDevice::queue_count, &ConnectedUSBMIDIDevice::handle_priority_lane_pop,
 	    &ConnectedUSBMIDIDevice::pop_priority_lane_message, context);
-}
-
-bool ConnectedUSBMIDIDevice::priority_lane_has_data(QueuePriority priority) const {
-	return queue_manager_.queue_count(static_cast<uint8_t>(priority)) > 0;
 }
 
 MIDIQueueManager::PriorityLaneTraversalResult
@@ -1027,6 +1023,10 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 	numBytesSendingNow = i * 4;
 	// Tell caller whether we assembled at least one packet to transmit.
 	return i > 0;
+}
+
+uint16_t ConnectedDINMIDIDevice::queue_count(QueuePriority priority) const {
+	return queue_manager_.queue_count(static_cast<uint8_t>(priority));
 }
 
 /// Resets serial pacing state so the next flush starts from a known baseline.
@@ -1245,12 +1245,8 @@ int32_t ConnectedDINMIDIDevice::pop_next_prioritized_bytes(uint8_t* out_bytes, i
 	SerialPriorityPopContext context{out_bytes, budget_bytes, uart_space, max_len, cc_uart_budget, popped_priority};
 	return MIDIQueueManager::pop_priority_lanes_with_cc_fairness(
 	    *this, static_cast<QueuePriority>(k_clock_idx), static_cast<QueuePriority>(k_cc_idx),
-	    &ConnectedDINMIDIDevice::priority_lane_has_data, &ConnectedDINMIDIDevice::handle_priority_lane_pop,
+	    &ConnectedDINMIDIDevice::queue_count, &ConnectedDINMIDIDevice::handle_priority_lane_pop,
 	    &ConnectedDINMIDIDevice::pop_priority_lane_message, context);
-}
-
-bool ConnectedDINMIDIDevice::priority_lane_has_data(QueuePriority priority) const {
-	return queue_manager_.queue_count(static_cast<uint8_t>(priority)) > 0;
 }
 
 MIDIQueueManager::PriorityLaneTraversalResult

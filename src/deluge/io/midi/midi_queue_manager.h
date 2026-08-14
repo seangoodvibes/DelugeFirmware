@@ -142,10 +142,10 @@ public:
 	}
 
 	/// Shared strict-priority lane traversal with CC fairness handling for the CC lane.
-	template <typename Owner, typename Context>
+	template <typename Owner, typename Context, typename HasDataFn>
 	static bool
 	pop_priority_lanes_with_cc_fairness(Owner& owner, QueuePriority first_priority, QueuePriority last_priority,
-	                                    bool (Owner::*has_data)(QueuePriority) const,
+	                                    HasDataFn has_data,
 	                                    PriorityLaneTraversalResult (Owner::*handle_cc_lane)(QueuePriority, Context&),
 	                                    bool (Owner::*pop_lane)(QueuePriority, Context&), Context& context) {
 		for (uint8_t lane = static_cast<uint8_t>(first_priority); lane <= static_cast<uint8_t>(last_priority); lane++) {
