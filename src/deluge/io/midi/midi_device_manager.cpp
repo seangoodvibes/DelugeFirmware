@@ -32,6 +32,20 @@
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
 
+struct ConnectedUSBMIDIDevice::USBPriorityPopContext {
+	uint32_t& message_out;
+	int32_t& cc_budget_packets_remaining;
+};
+
+struct ConnectedDINMIDIDevice::SerialPriorityPopContext {
+	uint8_t* out_bytes;
+	int32_t budget_bytes;
+	int32_t uart_space;
+	int32_t max_len;
+	int32_t cc_uart_budget;
+	QueuePriority& popped_priority;
+};
+
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"

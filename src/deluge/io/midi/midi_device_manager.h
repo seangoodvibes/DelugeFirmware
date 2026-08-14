@@ -149,10 +149,7 @@ struct ConnectedUSBMIDIDevice {
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
 
-	struct USBPriorityPopContext {
-		uint32_t& message_out;
-		int32_t& cc_budget_packets_remaining;
-	};
+	struct USBPriorityPopContext;
 
 	[[nodiscard]] bool priority_lane_has_data(QueuePriority priority) const;
 	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
@@ -190,14 +187,7 @@ private:
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
 
-	struct SerialPriorityPopContext {
-		uint8_t* out_bytes;
-		int32_t budget_bytes;
-		int32_t uart_space;
-		int32_t max_len;
-		int32_t cc_uart_budget;
-		QueuePriority& popped_priority;
-	};
+	struct SerialPriorityPopContext;
 
 	[[nodiscard]] bool priority_lane_has_data(QueuePriority priority) const;
 	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
