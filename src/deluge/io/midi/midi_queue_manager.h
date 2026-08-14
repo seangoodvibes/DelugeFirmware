@@ -155,6 +155,61 @@ public:
 	}
 };
 
+/// Power-of-two ring buffer lane shared by transport-specific queue managers.
+template <typename T, uint16_t Capacity>
+class MIDIQueueLane {
+public:
+	static_assert(Capacity != 0);
+	static_assert((Capacity & (Capacity - 1)) == 0);
+	static constexpr uint16_t k_capacity = Capacity;
+
+	std::array<T, Capacity> data{};
+	uint16_t read_pos{0};
+	uint16_t write_pos{0};
+
+	[[nodiscard]] bool empty() const { return read_pos == write_pos; }
+	[[nodiscard]] uint16_t size() const { return static_cast<uint16_t>((write_pos - read_pos) & (Capacity - 1)); }
+	[[nodiscard]] uint16_t space() const { return static_cast<uint16_t>((Capacity - 1) - size()); }
+	[[nodiscard]] T peek(uint16_t offset = 0) const { return data[(read_pos + offset) & (Capacity - 1)]; }
+
+	bool push(T value) {
+		uint16_t next = static_cast<uint16_t>((write_pos + 1) & (Capacity - 1));
+		if (next == read_pos) {
+			return false;
+		}
+		data[write_pos] = value;
+		write_pos = next;
+		return true;
+	}
+
+	bool pop(T& out) {
+		if (empty()) {
+			return false;
+		}
+		out = data[read_pos];
+		read_pos = static_cast<uint16_t>((read_pos + 1) & (Capacity - 1));
+		return true;
+	}
+
+	bool pop_many(T* out, uint16_t count) {
+		if (size() < count) {
+			return false;
+		}
+		for (uint16_t i = 0; i < count; i++) {
+			out[i] = data[(read_pos + i) & (Capacity - 1)];
+		}
+		read_pos = static_cast<uint16_t>((read_pos + count) & (Capacity - 1));
+		return true;
+	}
+
+	void clear() {
+		read_pos = 0;
+		write_pos = 0;
+	}
+
+	void overwrite_at(uint16_t logical_offset, T value) { data[(read_pos + logical_offset) & (Capacity - 1)] = value; }
+};
+
 /// Stateful queue-policy facade instantiated per transport/device.
 ///
 /// Owns controller-fairness state and the policy algorithms that operate on it,

@@ -94,9 +94,7 @@ struct ConnectedUSBMIDIDevice {
 	// When we are ready to send data on this device, we consume data on the reading side and move it into the
 	// smaller dataSendingNow buffer above.
 	// Messages are queued in priority-specific rings and consumed in priority order.
-	std::array<std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING>, QUEUE_PRIORITY_COUNT> sendDataRingBuf{};
-	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufWriteIdx{};
-	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufReadIdx{};
+	std::array<MIDIQueueLane<uint32_t, MIDI_SEND_BUFFER_LEN_RING>, QUEUE_PRIORITY_COUNT> sendDataRingBuf{};
 
 	/// Clears all queue storage and fairness bookkeeping for this upstream USB device.
 	void reset_queue_storage();
@@ -171,24 +169,7 @@ public:
 	void flush_serial_output(uint32_t now_sample_timer);
 
 private:
-	struct SerialByteQueue {
-		static constexpr uint16_t k_capacity = 512;
-
-		std::array<uint8_t, k_capacity> data{};
-		uint16_t read_pos{0};
-		uint16_t write_pos{0};
-
-		[[nodiscard]] bool empty() const { return read_pos == write_pos; }
-		[[nodiscard]] uint16_t size() const { return (write_pos - read_pos) & (k_capacity - 1); }
-		[[nodiscard]] uint16_t space() const { return (k_capacity - 1) - size(); }
-		[[nodiscard]] uint8_t peek(uint16_t offset = 0) const { return data[(read_pos + offset) & (k_capacity - 1)]; }
-		/// Pushes one byte into the ring if space exists; returns false when full.
-		bool push(uint8_t byte);
-		/// Pops one byte from the ring head into out; returns false when empty.
-		bool pop(uint8_t& out);
-		/// Atomically pops count bytes into out; returns false unless the full span is available.
-		bool pop_many(uint8_t* out, uint16_t count);
-	};
+	using SerialByteQueue = MIDIQueueLane<uint8_t, 512>;
 
 	/// Number of active serial-priority lanes [clock..CC] scanned during dequeue.
 	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_CC + 1;

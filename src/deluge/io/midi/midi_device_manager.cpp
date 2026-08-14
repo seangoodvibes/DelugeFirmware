@@ -695,17 +695,14 @@ void ConnectedUSBMIDIDevice::setup() {
 void ConnectedUSBMIDIDevice::reset_queue_storage() {
 	// storage cleared for deterministic startup, and read/write cursors reset to zero.
 	for (auto& queue_lane : sendDataRingBuf) {
-		queue_lane.fill(0);
+		queue_lane.clear();
 	}
-	ringBufWriteIdx.fill(0);
-	ringBufReadIdx.fill(0);
 }
 
 /// Returns queued USB packet count for one lane via monotonic write/read counters.
 uint16_t ConnectedUSBMIDIDevice::queue_count(QueuePriority priority) {
-	// Monotonic write/read counters: occupancy is their difference for each lane.
 	uint8_t p = static_cast<uint8_t>(priority);
-	return static_cast<uint16_t>(ringBufWriteIdx[p] - ringBufReadIdx[p]);
+	return sendDataRingBuf[p].size();
 }
 
 /// Returns total queued USB packet count across all priority lanes.
@@ -775,7 +772,7 @@ bool ConnectedUSBMIDIDevice::enqueue_priority_message(QueuePriority priority, ui
 
 uint32_t ConnectedUSBMIDIDevice::read_priority_queue_message_at(QueuePriority priority, uint16_t logical_offset) const {
 	uint8_t p = static_cast<uint8_t>(priority);
-	return sendDataRingBuf[p][(ringBufReadIdx[p] + logical_offset) & MIDI_SEND_RING_MASK];
+	return sendDataRingBuf[p].peek(logical_offset);
 }
 
 uint32_t ConnectedUSBMIDIDevice::read_priority_queue_head(QueuePriority priority) const {
@@ -788,16 +785,12 @@ bool ConnectedUSBMIDIDevice::pop_priority_queue_head(QueuePriority priority, uin
 	}
 
 	uint8_t p = static_cast<uint8_t>(priority);
-	message_out = sendDataRingBuf[p][ringBufReadIdx[p] & MIDI_SEND_RING_MASK];
-	ringBufReadIdx[p]++;
-	return true;
+	return sendDataRingBuf[p].pop(message_out);
 }
 
 void ConnectedUSBMIDIDevice::append_priority_queue_message(QueuePriority priority, uint32_t message) {
-	// Power-of-two mask wraps index without modulo cost.
 	uint8_t p = static_cast<uint8_t>(priority);
-	sendDataRingBuf[p][ringBufWriteIdx[p] & MIDI_SEND_RING_MASK] = message;
-	ringBufWriteIdx[p]++;
+	(void)sendDataRingBuf[p].push(message);
 }
 
 /// Coalesces queued USB channel-CC packets by controller/status.
@@ -824,10 +817,10 @@ bool ConnectedUSBMIDIDevice::coalesce_queued_cc(uint32_t message) {
 
 	// Replace value byte in-place while preserving queue order for all packets.
 	constexpr uint8_t p = QUEUE_PRIORITY_CC;
-	uint16_t target_idx = (ringBufReadIdx[p] + latest_offset) & MIDI_SEND_RING_MASK;
 	// Keep CIN/status/data1 (low 24 bits) and overwrite only data2 (high byte).
-	sendDataRingBuf[p][target_idx] =
-	    (sendDataRingBuf[p][target_idx] & 0x00FFFFFFu) | (static_cast<uint32_t>(data_2(message)) << 24);
+	uint32_t queued = sendDataRingBuf[p].peek(static_cast<uint16_t>(latest_offset));
+	sendDataRingBuf[p].overwrite_at(static_cast<uint16_t>(latest_offset),
+	                                (queued & 0x00FFFFFFu) | (static_cast<uint32_t>(data_2(message)) << 24));
 	// Treat this coalesced write as fresh controller pressure for fair dequeue.
 	cc_policy.bump_controller_debt(wanted_controller);
 	return true;
@@ -835,7 +828,7 @@ bool ConnectedUSBMIDIDevice::coalesce_queued_cc(uint32_t message) {
 
 bool ConnectedUSBMIDIDevice::begin_coalesce_cc_scan(uint16_t& cursor, uint16_t& limit) const {
 	cursor = 0;
-	limit = static_cast<uint16_t>(ringBufWriteIdx[QUEUE_PRIORITY_CC] - ringBufReadIdx[QUEUE_PRIORITY_CC]);
+	limit = sendDataRingBuf[QUEUE_PRIORITY_CC].size();
 	return limit > 0;
 }
 
@@ -864,13 +857,11 @@ uint32_t ConnectedUSBMIDIDevice::read_cc_queue_message_at(uint16_t logical_offse
 }
 
 void ConnectedUSBMIDIDevice::reset_cc_queue() {
-	constexpr uint8_t p = QUEUE_PRIORITY_CC;
-	ringBufReadIdx[p] = 0;
-	ringBufWriteIdx[p] = 0;
+	sendDataRingBuf[QUEUE_PRIORITY_CC].clear();
 }
 
 void ConnectedUSBMIDIDevice::append_cc_queue_message(uint32_t message) {
-	append_priority_queue_message(QUEUE_PRIORITY_CC, message);
+	(void)sendDataRingBuf[QUEUE_PRIORITY_CC].push(message);
 }
 
 /// Removes one queued USB CC packet at a logical offset, atomically.
@@ -945,7 +936,7 @@ bool ConnectedUSBMIDIDevice::collect_fair_cc_candidates(std::array<uint16_t, kMa
 
 bool ConnectedUSBMIDIDevice::begin_fair_cc_candidate_scan(uint16_t& cursor, uint16_t& limit) const {
 	cursor = 0;
-	limit = static_cast<uint16_t>(ringBufWriteIdx[QUEUE_PRIORITY_CC] - ringBufReadIdx[QUEUE_PRIORITY_CC]);
+	limit = sendDataRingBuf[QUEUE_PRIORITY_CC].size();
 	return limit > 0;
 }
 
@@ -1035,46 +1026,6 @@ void ConnectedDINMIDIDevice::reset_serial_state(uint32_t now_sample_timer) {
 	serial_budget_Q8_ = 0;
 }
 
-/// Pushes one byte into a serial-priority ring buffer lane.
-bool ConnectedDINMIDIDevice::SerialByteQueue::push(uint8_t byte) {
-	// Ring wraps with a mask because capacity is a power of two.
-	uint16_t next = (write_pos + 1) & (k_capacity - 1);
-	// Keep one slot open so full vs empty remains distinguishable.
-	if (next == read_pos) {
-		return false;
-	}
-	data[write_pos] = byte;
-	write_pos = next;
-	return true;
-}
-
-/// Pops one byte from a serial-priority ring buffer lane.
-bool ConnectedDINMIDIDevice::SerialByteQueue::pop(uint8_t& out) {
-	// read_pos == write_pos means queue is empty.
-	if (read_pos == write_pos) {
-		return false;
-	}
-	out = data[read_pos];
-	// Consume one byte and wrap cursor within ring capacity.
-	read_pos = (read_pos + 1) & (k_capacity - 1);
-	return true;
-}
-
-/// Pops `count` bytes atomically from a serial-priority ring buffer lane.
-bool ConnectedDINMIDIDevice::SerialByteQueue::pop_many(uint8_t* out, uint16_t count) {
-	// All-or-nothing pop to preserve complete MIDI message boundaries.
-	if (size() < count) {
-		return false;
-	}
-	// Copy the logical span out of the ring, wrapping with the capacity mask.
-	for (uint16_t i = 0; i < count; i++) {
-		out[i] = data[(read_pos + i) & (k_capacity - 1)];
-	}
-	// Consume the copied span and wrap the cursor within ring capacity.
-	read_pos = (read_pos + count) & (k_capacity - 1);
-	return true;
-}
-
 /// Refills DIN serial pacing tokens from elapsed sample time.
 void ConnectedDINMIDIDevice::update_serial_budget(uint32_t now_sample_timer) {
 	uint32_t delta_samples = now_sample_timer - serial_budget_last_update_;
@@ -1127,8 +1078,7 @@ uint8_t ConnectedDINMIDIDevice::read_cc_queue_byte_at(uint16_t logical_offset) c
 
 void ConnectedDINMIDIDevice::reset_cc_queue() {
 	SerialByteQueue& queue = serial_priority_queues_[QUEUE_PRIORITY_CC];
-	queue.read_pos = 0;
-	queue.write_pos = 0;
+	queue.clear();
 }
 
 void ConnectedDINMIDIDevice::append_cc_queue_byte(uint8_t byte) {
@@ -1245,8 +1195,7 @@ bool ConnectedDINMIDIDevice::coalesce_queued_cc(MIDIMessage message) {
 
 	// Patch only the value byte of the newest matching queued packet.
 	SerialByteQueue& queue = serial_priority_queues_[QUEUE_PRIORITY_CC];
-	uint16_t value_index = (queue.read_pos + latest_match_offset + 2) & (SerialByteQueue::k_capacity - 1);
-	queue.data[value_index] = message.data2;
+	queue.overwrite_at(static_cast<uint16_t>(latest_match_offset + 2), message.data2);
 	// Treat coalesce as fresh pressure so fairness can compensate relative enqueue rate.
 	cc_policy_.bump_controller_debt(message.data1);
 	return true;
