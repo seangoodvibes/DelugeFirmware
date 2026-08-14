@@ -694,9 +694,7 @@ void ConnectedUSBMIDIDevice::setup() {
 /// Resets all USB per-priority queues and read/write cursors.
 void ConnectedUSBMIDIDevice::reset_queue_storage() {
 	// storage cleared for deterministic startup, and read/write cursors reset to zero.
-	for (auto& queue_lane : queue_manager_.queue_storage.lanes) {
-		queue_lane.clear();
-	}
+	queue_manager_.clear_all();
 }
 
 /// Returns queued USB packet count for one lane via monotonic write/read counters.
@@ -1043,13 +1041,7 @@ void ConnectedDINMIDIDevice::update_serial_budget(uint32_t now_sample_timer) {
 /// Returns whether any serial-priority lane currently has data pending.
 bool ConnectedDINMIDIDevice::has_serial_data() const {
 	// Fast pre-check before attempting a paced drain pass.
-	for (auto const& queue : queue_manager_.queue_storage.lanes) {
-		if (!queue.empty()) {
-			// One populated lane is enough to indicate pending serial output work.
-			return true;
-		}
-	}
-	return false;
+	return queue_manager_.has_any_data();
 }
 
 /// Removes a 3-byte CC message from an arbitrary byte offset in the CC ring.
@@ -1278,7 +1270,7 @@ int32_t ConnectedDINMIDIDevice::pop_next_prioritized_bytes(uint8_t* out_bytes, i
 
 		// For channel messages, prefer popping whole messages to avoid fragmentation.
 		// Keep this final guard even after fit checks: pop_many is the atomic boundary.
-		if (!queue_manager_.queue_storage.lanes[static_cast<uint8_t>(idx)].pop_many(out_bytes, message_len)) {
+		if (!queue_manager_.pop_many(static_cast<uint8_t>(idx), out_bytes, message_len)) {
 			return 0;
 		}
 		// Report both the source lane and actual byte count so caller accounting stays correct.

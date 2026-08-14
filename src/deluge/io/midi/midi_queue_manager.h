@@ -480,6 +480,13 @@ public:
 	}
 	[[nodiscard]] bool empty(uint8_t lane) const { return queue_storage.empty(lane); }
 	[[nodiscard]] uint16_t space(uint8_t lane) const { return queue_storage.space(lane); }
+	[[nodiscard]] bool has_any_data() const { return queue_storage.total_queued_messages() > 0; }
+	void clear_all() {
+		for (auto& queue_lane : queue_storage.lanes) {
+			queue_lane.clear();
+		}
+	}
+	bool pop_many(uint8_t lane, T* out, uint16_t count) { return queue_storage.lanes[lane].pop_many(out, count); }
 
 	template <typename Owner>
 	bool collect_first_controller_offsets_from_scan(
