@@ -132,8 +132,6 @@ struct ConnectedUSBMIDIDevice {
 	void append_cc_queue_message(uint32_t message);
 	/// Removes queued CC packet at target offset and compacts remaining packets in-order.
 	bool remove_queued_cc_message_at_offset(uint16_t target_offset, uint32_t& message_out);
-	/// Collects first queued CC offsets per controller for fair USB dequeue.
-	bool collect_fair_cc_candidates(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets);
 	/// Initializes scan bounds for USB fair-CC candidate collection.
 	bool begin_fair_cc_candidate_scan(uint16_t& cursor, uint16_t& limit) const;
 	/// Advances USB fair-CC candidate scan by one step.
@@ -209,8 +207,6 @@ private:
 	/// Pops one queued 3-byte CC message selected by round-robin/debt fairness policy.
 	bool pop_fair_queued_cc_message(uint8_t* out_bytes, int32_t budget_bytes, int32_t uart_space, int32_t max_len,
 	                                QueuePriority& popped_priority);
-	/// Collects first queued CC offsets per controller for fair DIN dequeue.
-	bool collect_fair_cc_candidates(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets);
 	/// Initializes scan bounds for DIN fair-CC candidate collection.
 	bool begin_fair_cc_candidate_scan(uint16_t& cursor, uint16_t& limit) const;
 	/// Advances DIN fair-CC candidate scan by one step.

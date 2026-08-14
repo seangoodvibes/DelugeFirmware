@@ -928,16 +928,10 @@ bool ConnectedUSBMIDIDevice::pop_priority_lane_message(QueuePriority priority, U
 /// 3. Prefer highest-debt controller when debt is non-zero.
 /// 4. Remove selected packet atomically and commit fairness state.
 bool ConnectedUSBMIDIDevice::pop_fair_queued_cc_message(uint32_t& message_out) {
-	return queue_manager_.pop_fair_cc_candidate(*this, &ConnectedUSBMIDIDevice::collect_fair_cc_candidates,
+	return queue_manager_.pop_fair_cc_candidate(*this, &ConnectedUSBMIDIDevice::begin_fair_cc_candidate_scan,
+	                                            &ConnectedUSBMIDIDevice::next_fair_cc_candidate_scan_step,
 	                                            &ConnectedUSBMIDIDevice::remove_queued_cc_message_at_offset,
 	                                            message_out);
-}
-
-bool ConnectedUSBMIDIDevice::collect_fair_cc_candidates(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets) {
-	(void)first_offsets;
-	return queue_manager_.collect_first_controller_offsets_from_scan(
-	    *this, &ConnectedUSBMIDIDevice::begin_fair_cc_candidate_scan,
-	    &ConnectedUSBMIDIDevice::next_fair_cc_candidate_scan_step);
 }
 
 bool ConnectedUSBMIDIDevice::begin_fair_cc_candidate_scan(uint16_t& cursor, uint16_t& limit) const {
@@ -1110,20 +1104,14 @@ bool ConnectedDINMIDIDevice::pop_fair_queued_cc_message(uint8_t* out_bytes, int3
 	}
 
 	bool popped =
-	    queue_manager_.pop_fair_cc_candidate(*this, &ConnectedDINMIDIDevice::collect_fair_cc_candidates,
+	    queue_manager_.pop_fair_cc_candidate(*this, &ConnectedDINMIDIDevice::begin_fair_cc_candidate_scan,
+	                                         &ConnectedDINMIDIDevice::next_fair_cc_candidate_scan_step,
 	                                         &ConnectedDINMIDIDevice::remove_queued_cc_message_at_offset, out_bytes);
 
 	if (popped) {
 		popped_priority = QUEUE_PRIORITY_CC;
 	}
 	return popped;
-}
-
-bool ConnectedDINMIDIDevice::collect_fair_cc_candidates(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets) {
-	(void)first_offsets;
-	return queue_manager_.collect_first_controller_offsets_from_scan(
-	    *this, &ConnectedDINMIDIDevice::begin_fair_cc_candidate_scan,
-	    &ConnectedDINMIDIDevice::next_fair_cc_candidate_scan_step);
 }
 
 bool ConnectedDINMIDIDevice::begin_fair_cc_candidate_scan(uint16_t& cursor, uint16_t& limit) const {

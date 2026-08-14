@@ -394,10 +394,13 @@ public:
 
 	/// Pops the fair CC candidate selected from the current queue snapshot.
 	template <typename Owner, typename RemoveArg, typename CallArg>
-	bool pop_fair_cc_candidate(Owner& owner,
-	                           bool (Owner::*collect_candidates)(std::array<uint16_t, kMaxMIDIValue + 1>&),
+	bool pop_fair_cc_candidate(Owner& owner, bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
+	                           MIDIQueueManager::CandidateScanResult (Owner::*next_scan)(uint16_t& cursor,
+	                                                                                     uint16_t limit,
+	                                                                                     uint16_t& candidate_offset,
+	                                                                                     uint8_t& controller) const,
 	                           bool (Owner::*remove_selected)(uint16_t, RemoveArg), CallArg&& out_arg) {
-		if (!(owner.*collect_candidates)(first_offsets)) {
+		if (!collect_first_controller_offsets_from_scan(owner, begin_scan, next_scan)) {
 			// No CC candidates were present in the snapshot.
 			return false;
 		}
@@ -555,10 +558,13 @@ public:
 	}
 
 	template <typename Owner, typename RemoveArg, typename CallArg>
-	bool pop_fair_cc_candidate(Owner& owner,
-	                           bool (Owner::*collect_candidates)(std::array<uint16_t, kMaxMIDIValue + 1>&),
+	bool pop_fair_cc_candidate(Owner& owner, bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
+	                           MIDIQueueManager::CandidateScanResult (Owner::*next_scan)(uint16_t& cursor,
+	                                                                                     uint16_t limit,
+	                                                                                     uint16_t& candidate_offset,
+	                                                                                     uint8_t& controller) const,
 	                           bool (Owner::*remove_selected)(uint16_t, RemoveArg), CallArg&& out_arg) {
-		return cc_policy.pop_fair_cc_candidate(owner, collect_candidates, remove_selected,
+		return cc_policy.pop_fair_cc_candidate(owner, begin_scan, next_scan, remove_selected,
 		                                       std::forward<CallArg>(out_arg));
 	}
 
