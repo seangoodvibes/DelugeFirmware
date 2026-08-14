@@ -210,6 +210,34 @@ public:
 	void overwrite_at(uint16_t logical_offset, T value) { data[(read_pos + logical_offset) & (Capacity - 1)] = value; }
 };
 
+/// Fixed set of power-of-two queue lanes shared by a transport-specific manager.
+template <typename T, uint16_t Capacity, size_t LaneCount>
+class MIDIQueueStorage {
+public:
+	std::array<MIDIQueueLane<T, Capacity>, LaneCount> lanes{};
+
+	[[nodiscard]] uint16_t queue_count(uint8_t lane) const { return lanes[lane].size(); }
+	[[nodiscard]] uint32_t total_queued_messages() const {
+		uint32_t queued = 0;
+		for (auto const& queue_lane : lanes) {
+			queued += queue_lane.size();
+		}
+		return queued;
+	}
+
+	[[nodiscard]] T read_at(uint8_t lane, uint16_t logical_offset) const { return lanes[lane].peek(logical_offset); }
+	[[nodiscard]] T head(uint8_t lane) const { return lanes[lane].peek(); }
+
+	bool pop_head(uint8_t lane, T& out) { return lanes[lane].pop(out); }
+	void push(uint8_t lane, T value) { (void)lanes[lane].push(value); }
+	void clear(uint8_t lane) { lanes[lane].clear(); }
+	void overwrite_at(uint8_t lane, uint16_t logical_offset, T value) {
+		lanes[lane].overwrite_at(logical_offset, value);
+	}
+	[[nodiscard]] bool empty(uint8_t lane) const { return lanes[lane].empty(); }
+	[[nodiscard]] uint16_t space(uint8_t lane) const { return lanes[lane].space(); }
+};
+
 /// Stateful queue-policy facade instantiated per transport/device.
 ///
 /// Owns controller-fairness state and the policy algorithms that operate on it,
