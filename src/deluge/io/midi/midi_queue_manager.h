@@ -74,6 +74,12 @@ public:
 		PopFailed,
 		Popped,
 	};
+	enum class PriorityLaneTraversalResult {
+		PopLane,
+		SkipLane,
+		Popped,
+		Abort,
+	};
 
 	enum class HeadMessageCheckResult : uint8_t {
 		Invalid,
@@ -133,6 +139,43 @@ public:
 			return CCFairPopResult::Popped;
 		}
 		return CCFairPopResult::PopFailed;
+	}
+
+	/// Shared strict-priority lane traversal with CC fairness handling for the CC lane.
+	template <typename Owner, typename Context>
+	static bool
+	pop_priority_lanes_with_cc_fairness(Owner& owner, QueuePriority first_priority, QueuePriority last_priority,
+	                                    bool (Owner::*has_data)(QueuePriority) const,
+	                                    PriorityLaneTraversalResult (Owner::*handle_cc_lane)(QueuePriority, Context&),
+	                                    bool (Owner::*pop_lane)(QueuePriority, Context&), Context& context) {
+		for (uint8_t lane = static_cast<uint8_t>(first_priority); lane <= static_cast<uint8_t>(last_priority); lane++) {
+			QueuePriority priority = static_cast<QueuePriority>(lane);
+			if (!(owner.*has_data)(priority)) {
+				continue;
+			}
+
+			if (priority == QUEUE_PRIORITY_CC) {
+				auto cc_result = (owner.*handle_cc_lane)(priority, context);
+				if (cc_result == PriorityLaneTraversalResult::Popped) {
+					return true;
+				}
+				if (cc_result == PriorityLaneTraversalResult::Abort) {
+					return false;
+				}
+				if (cc_result == PriorityLaneTraversalResult::SkipLane) {
+					continue;
+				}
+				if (cc_result != PriorityLaneTraversalResult::PopLane) {
+					continue;
+				}
+			}
+
+			if ((owner.*pop_lane)(priority, context)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/// Shared parser+fit gate for queued non-realtime MIDI messages.

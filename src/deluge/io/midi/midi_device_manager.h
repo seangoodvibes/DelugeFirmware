@@ -148,6 +148,16 @@ struct ConnectedUSBMIDIDevice {
 
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
+
+	struct USBPriorityPopContext {
+		uint32_t& message_out;
+		int32_t& cc_budget_packets_remaining;
+	};
+
+	[[nodiscard]] bool priority_lane_has_data(QueuePriority priority) const;
+	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
+	                                                                       USBPriorityPopContext& context);
+	bool pop_priority_lane_message(QueuePriority priority, USBPriorityPopContext& context);
 	/* ------------ MIDI Queue Manager ------------ */
 #endif
 };
@@ -179,6 +189,20 @@ private:
 	int32_t serial_budget_Q8_{0};
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
+
+	struct SerialPriorityPopContext {
+		uint8_t* out_bytes;
+		int32_t budget_bytes;
+		int32_t uart_space;
+		int32_t max_len;
+		int32_t cc_uart_budget;
+		QueuePriority& popped_priority;
+	};
+
+	[[nodiscard]] bool priority_lane_has_data(QueuePriority priority) const;
+	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
+	                                                                       SerialPriorityPopContext& context);
+	bool pop_priority_lane_message(QueuePriority priority, SerialPriorityPopContext& context);
 
 	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
 	void update_serial_budget(uint32_t now_sample_timer);

@@ -878,34 +878,36 @@ bool ConnectedUSBMIDIDevice::remove_queued_cc_message_at_offset(uint16_t target_
 
 /// Pops one USB packet using strict priority ordering, with fair CC selection.
 bool ConnectedUSBMIDIDevice::pop_priority_message(uint32_t& message_out, int32_t& cc_budget_packets_remaining) {
-	for (uint8_t p = QUEUE_PRIORITY_CLOCK; p < QUEUE_PRIORITY_COUNT; p++) {
-		QueuePriority priority = static_cast<QueuePriority>(p);
-		if (!queue_count(priority)) {
-			continue;
-		}
+	USBPriorityPopContext context{message_out, cc_budget_packets_remaining};
+	return MIDIQueueManager::pop_priority_lanes_with_cc_fairness(
+	    *this, QUEUE_PRIORITY_CLOCK, static_cast<QueuePriority>(QUEUE_PRIORITY_COUNT - 1),
+	    &ConnectedUSBMIDIDevice::priority_lane_has_data, &ConnectedUSBMIDIDevice::handle_priority_lane_pop,
+	    &ConnectedUSBMIDIDevice::pop_priority_lane_message, context);
+}
 
-		if (priority == QUEUE_PRIORITY_CC) {
-			// Inspect the CC-lane head packet to decide whether CC fairness rules apply.
-			uint32_t head_message = read_priority_queue_head(priority);
+bool ConnectedUSBMIDIDevice::priority_lane_has_data(QueuePriority priority) const {
+	return queue_manager_.queue_count(static_cast<uint8_t>(priority)) > 0;
+}
 
-			auto cc_result = MIDIQueueManager::try_fair_pop_cc(
-			    *this, is_packed_channel_cc(head_message), cc_budget_packets_remaining > 0,
-			    &ConnectedUSBMIDIDevice::pop_fair_queued_cc_message, message_out);
-			if (cc_result == MIDIQueueManager::CCFairPopResult::Popped) {
-				// Charge one CC slot so the cap is enforced across this transfer assembly.
-				cc_budget_packets_remaining--;
-				return true;
-			}
-			if (cc_result != MIDIQueueManager::CCFairPopResult::NotCC) {
-				// If CC is blocked or fair-pop fails, do not dequeue arbitrary CC head data.
-				continue;
-			}
-			// Non-CC packets living in the CC lane are handled by the generic dequeue path below.
-		}
-		return pop_priority_queue_head(priority, message_out);
+MIDIQueueManager::PriorityLaneTraversalResult
+ConnectedUSBMIDIDevice::handle_priority_lane_pop(QueuePriority priority, USBPriorityPopContext& context) {
+	uint32_t head_message = read_priority_queue_head(priority);
+	auto cc_result = MIDIQueueManager::try_fair_pop_cc(
+	    *this, is_packed_channel_cc(head_message), context.cc_budget_packets_remaining > 0,
+	    &ConnectedUSBMIDIDevice::pop_fair_queued_cc_message, context.message_out);
+	if (cc_result == MIDIQueueManager::CCFairPopResult::Popped) {
+		// Charge one CC slot so the cap is enforced across this transfer assembly.
+		context.cc_budget_packets_remaining--;
+		return MIDIQueueManager::PriorityLaneTraversalResult::Popped;
 	}
+	if (cc_result == MIDIQueueManager::CCFairPopResult::NotCC) {
+		return MIDIQueueManager::PriorityLaneTraversalResult::PopLane;
+	}
+	return MIDIQueueManager::PriorityLaneTraversalResult::SkipLane;
+}
 
-	return false;
+bool ConnectedUSBMIDIDevice::pop_priority_lane_message(QueuePriority priority, USBPriorityPopContext& context) {
+	return pop_priority_queue_head(priority, context.message_out);
 }
 
 /// Pops one queued USB channel-CC packet using controller fairness.
@@ -1226,59 +1228,70 @@ int32_t ConnectedDINMIDIDevice::pop_next_prioritized_bytes(uint8_t* out_bytes, i
 
 	constexpr size_t k_clock_idx = QUEUE_PRIORITY_CLOCK;
 	constexpr size_t k_cc_idx = QUEUE_PRIORITY_CC;
+	SerialPriorityPopContext context{out_bytes, budget_bytes, uart_space, max_len, cc_uart_budget, popped_priority};
+	return MIDIQueueManager::pop_priority_lanes_with_cc_fairness(
+	    *this, static_cast<QueuePriority>(k_clock_idx), static_cast<QueuePriority>(k_cc_idx),
+	    &ConnectedDINMIDIDevice::priority_lane_has_data, &ConnectedDINMIDIDevice::handle_priority_lane_pop,
+	    &ConnectedDINMIDIDevice::pop_priority_lane_message, context);
+}
 
-	// Scan lanes in strict priority order (clock -> notes -> expression -> CC)
-	// and stop at the first lane that can produce a full eligible payload.
-	for (size_t idx = k_clock_idx; idx <= k_cc_idx; idx++) {
-		if (queue_manager_.empty(static_cast<uint8_t>(idx))) {
-			// This lane has no work; advance to the next priority lane in-order.
-			continue;
-		}
+bool ConnectedDINMIDIDevice::priority_lane_has_data(QueuePriority priority) const {
+	return queue_manager_.queue_count(static_cast<uint8_t>(priority)) > 0;
+}
 
-		if (idx == k_clock_idx) {
-			// Realtime/clock lane is byte-oriented: emit at most one byte per call.
-			if (budget_bytes < 1 || uart_space < 1 || max_len < 1) {
-				return 0;
-			}
-			queue_manager_.pop_head(static_cast<uint8_t>(idx), out_bytes[0]);
-			// Report the lane and exact byte count so caller accounting stays correct.
-			popped_priority = static_cast<QueuePriority>(idx);
-			return 1;
-		}
-
-		uint8_t status = queue_manager_.head(static_cast<uint8_t>(idx));
-		int32_t message_len = 0;
-		auto head_check =
-		    MIDIQueueManager::validate_head_message_pop(status, queue_manager_.queue_count(static_cast<uint8_t>(idx)),
-		                                                budget_bytes, uart_space, max_len, message_len);
-		if (head_check != MIDIQueueManager::HeadMessageCheckResult::Ready) {
-			return 0;
-		}
-
-		if (idx == k_cc_idx) {
-			bool head_is_cc = MIDIQueueManager::is_three_byte_channel_cc(status, message_len);
-			auto cc_result = MIDIQueueManager::try_fair_pop_cc(
-			    *this, head_is_cc, cc_uart_budget >= 3, &ConnectedDINMIDIDevice::pop_fair_queued_cc_message, out_bytes,
-			    budget_bytes, uart_space, max_len, popped_priority);
-			if (cc_result == MIDIQueueManager::CCFairPopResult::Popped) {
-				return 3;
-			}
-			if (cc_result != MIDIQueueManager::CCFairPopResult::NotCC) {
-				return 0;
-			}
-		}
-
-		// For channel messages, prefer popping whole messages to avoid fragmentation.
-		// Keep this final guard even after fit checks: pop_many is the atomic boundary.
-		if (!queue_manager_.pop_many(static_cast<uint8_t>(idx), out_bytes, message_len)) {
-			return 0;
-		}
-		// Report both the source lane and actual byte count so caller accounting stays correct.
-		popped_priority = static_cast<QueuePriority>(idx);
-		return message_len;
+MIDIQueueManager::PriorityLaneTraversalResult
+ConnectedDINMIDIDevice::handle_priority_lane_pop(QueuePriority priority, SerialPriorityPopContext& context) {
+	uint8_t status = queue_manager_.head(static_cast<uint8_t>(priority));
+	int32_t message_len = 0;
+	auto head_check = MIDIQueueManager::validate_head_message_pop(
+	    status, queue_manager_.queue_count(static_cast<uint8_t>(priority)), context.budget_bytes, context.uart_space,
+	    context.max_len, message_len);
+	if (head_check != MIDIQueueManager::HeadMessageCheckResult::Ready) {
+		return MIDIQueueManager::PriorityLaneTraversalResult::Abort;
 	}
 
-	return 0;
+	bool head_is_cc = MIDIQueueManager::is_three_byte_channel_cc(status, message_len);
+	auto cc_result = MIDIQueueManager::try_fair_pop_cc(
+	    *this, head_is_cc, context.cc_uart_budget >= 3, &ConnectedDINMIDIDevice::pop_fair_queued_cc_message,
+	    context.out_bytes, context.budget_bytes, context.uart_space, context.max_len, context.popped_priority);
+	if (cc_result == MIDIQueueManager::CCFairPopResult::Popped) {
+		return MIDIQueueManager::PriorityLaneTraversalResult::Popped;
+	}
+	if (cc_result == MIDIQueueManager::CCFairPopResult::NotCC) {
+		return MIDIQueueManager::PriorityLaneTraversalResult::PopLane;
+	}
+
+	// Budget-blocked or failed CC fairness should stop this drain pass, matching the previous behavior.
+	return MIDIQueueManager::PriorityLaneTraversalResult::Abort;
+}
+
+bool ConnectedDINMIDIDevice::pop_priority_lane_message(QueuePriority priority, SerialPriorityPopContext& context) {
+	if (priority == QUEUE_PRIORITY_CLOCK) {
+		// Realtime/clock lane is byte-oriented: emit at most one byte per call.
+		if (context.budget_bytes < 1 || context.uart_space < 1 || context.max_len < 1) {
+			return false;
+		}
+		queue_manager_.pop_head(static_cast<uint8_t>(priority), context.out_bytes[0]);
+		context.popped_priority = priority;
+		return true;
+	}
+
+	uint8_t status = queue_manager_.head(static_cast<uint8_t>(priority));
+	int32_t message_len = 0;
+	auto head_check = MIDIQueueManager::validate_head_message_pop(
+	    status, queue_manager_.queue_count(static_cast<uint8_t>(priority)), context.budget_bytes, context.uart_space,
+	    context.max_len, message_len);
+	if (head_check != MIDIQueueManager::HeadMessageCheckResult::Ready) {
+		return false;
+	}
+
+	// For channel messages, prefer popping whole messages to avoid fragmentation.
+	// Keep this final guard even after fit checks: pop_many is the atomic boundary.
+	if (!queue_manager_.pop_many(static_cast<uint8_t>(priority), context.out_bytes, message_len)) {
+		return false;
+	}
+	context.popped_priority = priority;
+	return true;
 }
 
 /// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
