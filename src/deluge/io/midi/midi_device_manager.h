@@ -149,13 +149,9 @@ struct ConnectedUSBMIDIDevice {
 	bool pop_fair_queued_cc_message(uint32_t& message_out);
 
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
-	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> usb_cc_reorder_scratch{};
-	/// Snapshot of first queued CC offset per controller for fair candidate selection.
-	std::array<uint16_t, kMaxMIDIValue + 1> usb_cc_fair_first_offsets{};
-	/// Saturating per-controller enqueue pressure used by debt-aware fair dequeue.
-	std::array<uint8_t, kMaxMIDIValue + 1> usb_cc_fair_controller_debt{};
-	/// Round-robin controller cursor used as fairness baseline between dequeues.
-	uint8_t usb_cc_fair_next_controller{0};
+	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
+	/// Per-device CC fairness state used by shared queue policy helpers.
+	MIDICCQueuePolicy cc_policy{};
 	/* ------------ MIDI Queue Manager ------------ */
 #endif
 };
@@ -204,12 +200,8 @@ private:
 	int32_t serial_budget_Q8_{0};
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
-	/// Snapshot of first queued CC offset per controller for fair candidate selection.
-	std::array<uint16_t, kMaxMIDIValue + 1> cc_fair_first_offsets_{};
-	/// Round-robin controller cursor used as fairness baseline between dequeues.
-	uint8_t cc_fair_next_controller_{0};
-	/// Saturating per-controller enqueue pressure used by debt-aware fair dequeue.
-	std::array<uint8_t, kMaxMIDIValue + 1> cc_fair_controller_debt_{};
+	/// Per-device CC fairness state used by shared queue policy helpers.
+	MIDICCQueuePolicy cc_policy_{};
 
 	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
 	void update_serial_budget(uint32_t now_sample_timer);

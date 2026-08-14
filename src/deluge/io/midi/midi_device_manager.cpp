@@ -761,11 +761,11 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage, QueuePriority p
 
 /// Pushes one USB packet onto a selected priority lane.
 void ConnectedUSBMIDIDevice::push_priority_message(QueuePriority priority, uint32_t message) {
-	MIDIQueueManager::enqueue_with_cc_policy(*this, priority, message,
-	                                         /*allow_coalesce=*/true,
-	                                         /*track_debt=*/is_packed_channel_cc(message), data_1(message),
-	                                         usb_cc_fair_controller_debt, &ConnectedUSBMIDIDevice::coalesce_queued_cc,
-	                                         &ConnectedUSBMIDIDevice::enqueue_priority_message);
+	cc_policy.enqueue_with_cc_policy(*this, priority, message,
+	                                 /*allow_coalesce=*/true,
+	                                 /*track_debt=*/is_packed_channel_cc(message), data_1(message),
+	                                 &ConnectedUSBMIDIDevice::coalesce_queued_cc,
+	                                 &ConnectedUSBMIDIDevice::enqueue_priority_message);
 }
 
 bool ConnectedUSBMIDIDevice::enqueue_priority_message(QueuePriority priority, uint32_t message) {
@@ -813,7 +813,7 @@ bool ConnectedUSBMIDIDevice::coalesce_queued_cc(uint32_t message) {
 
 	uint8_t wanted_status = status_byte(message);
 	uint8_t wanted_controller = data_1(message);
-	int32_t latest_offset = MIDIQueueManager::find_latest_matching_cc_offset(
+	int32_t latest_offset = cc_policy.find_latest_matching_cc_offset(
 	    *this, wanted_status, wanted_controller, &ConnectedUSBMIDIDevice::begin_coalesce_cc_scan,
 	    &ConnectedUSBMIDIDevice::next_coalesce_cc_scan_step);
 
@@ -829,7 +829,7 @@ bool ConnectedUSBMIDIDevice::coalesce_queued_cc(uint32_t message) {
 	sendDataRingBuf[p][target_idx] =
 	    (sendDataRingBuf[p][target_idx] & 0x00FFFFFFu) | (static_cast<uint32_t>(data_2(message)) << 24);
 	// Treat this coalesced write as fresh controller pressure for fair dequeue.
-	MIDIQueueManager::bump_controller_debt(usb_cc_fair_controller_debt.data(), wanted_controller);
+	cc_policy.bump_controller_debt(wanted_controller);
 	return true;
 }
 
@@ -882,7 +882,7 @@ bool ConnectedUSBMIDIDevice::remove_queued_cc_message_at_offset(uint16_t target_
 	uint16_t queue_size = queue_count(QUEUE_PRIORITY_CC);
 	uint32_t removed_message[1] = {0};
 	if (!MIDIQueueManager::remove_logical_span_and_repack(
-	        queue_size, target_offset, 1, *this, removed_message, usb_cc_reorder_scratch.data(),
+	        queue_size, target_offset, 1, *this, removed_message, cc_reorder_scratch.data(),
 	        &ConnectedUSBMIDIDevice::read_cc_queue_message_at, &ConnectedUSBMIDIDevice::reset_cc_queue,
 	        &ConnectedUSBMIDIDevice::append_cc_queue_message)) {
 		return false;
@@ -932,15 +932,14 @@ bool ConnectedUSBMIDIDevice::pop_priority_message(uint32_t& message_out, int32_t
 /// 3. Prefer highest-debt controller when debt is non-zero.
 /// 4. Remove selected packet atomically and commit fairness state.
 bool ConnectedUSBMIDIDevice::pop_fair_queued_cc_message(uint32_t& message_out) {
-	return MIDIQueueManager::pop_fair_cc_candidate(
-	    usb_cc_fair_first_offsets, usb_cc_fair_controller_debt, usb_cc_fair_next_controller, *this,
-	    &ConnectedUSBMIDIDevice::collect_fair_cc_candidates,
-	    &ConnectedUSBMIDIDevice::remove_queued_cc_message_at_offset, message_out);
+	return cc_policy.pop_fair_cc_candidate(*this, &ConnectedUSBMIDIDevice::collect_fair_cc_candidates,
+	                                       &ConnectedUSBMIDIDevice::remove_queued_cc_message_at_offset, message_out);
 }
 
 bool ConnectedUSBMIDIDevice::collect_fair_cc_candidates(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets) {
-	return MIDIQueueManager::collect_first_controller_offsets_from_scan(
-	    first_offsets, *this, &ConnectedUSBMIDIDevice::begin_fair_cc_candidate_scan,
+	(void)first_offsets;
+	return cc_policy.collect_first_controller_offsets_from_scan(
+	    *this, &ConnectedUSBMIDIDevice::begin_fair_cc_candidate_scan,
 	    &ConnectedUSBMIDIDevice::next_fair_cc_candidate_scan_step);
 }
 
@@ -1140,7 +1139,7 @@ void ConnectedDINMIDIDevice::append_cc_queue_byte(uint8_t byte) {
 ///
 /// Selection policy:
 /// 1. Collect each controller's first queued CC offset.
-/// 2. Start from `cc_fair_next_controller_` for round-robin ordering.
+/// 2. Start from `cc_policy_.next_controller` for round-robin ordering.
 /// 3. Prefer highest controller debt; use RR order as tie-break.
 /// 4. Remove the selected message atomically via offset-based removal.
 ///
@@ -1160,10 +1159,9 @@ bool ConnectedDINMIDIDevice::pop_fair_queued_cc_message(uint8_t* out_bytes, int3
 		return false;
 	}
 
-	bool popped = MIDIQueueManager::pop_fair_cc_candidate(
-	    cc_fair_first_offsets_, cc_fair_controller_debt_, cc_fair_next_controller_, *this,
-	    &ConnectedDINMIDIDevice::collect_fair_cc_candidates,
-	    &ConnectedDINMIDIDevice::remove_queued_cc_message_at_offset, out_bytes);
+	bool popped =
+	    cc_policy_.pop_fair_cc_candidate(*this, &ConnectedDINMIDIDevice::collect_fair_cc_candidates,
+	                                     &ConnectedDINMIDIDevice::remove_queued_cc_message_at_offset, out_bytes);
 
 	if (popped) {
 		popped_priority = QUEUE_PRIORITY_CC;
@@ -1172,8 +1170,9 @@ bool ConnectedDINMIDIDevice::pop_fair_queued_cc_message(uint8_t* out_bytes, int3
 }
 
 bool ConnectedDINMIDIDevice::collect_fair_cc_candidates(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets) {
-	return MIDIQueueManager::collect_first_controller_offsets_from_scan(
-	    first_offsets, *this, &ConnectedDINMIDIDevice::begin_fair_cc_candidate_scan,
+	(void)first_offsets;
+	return cc_policy_.collect_first_controller_offsets_from_scan(
+	    *this, &ConnectedDINMIDIDevice::begin_fair_cc_candidate_scan,
 	    &ConnectedDINMIDIDevice::next_fair_cc_candidate_scan_step);
 }
 
@@ -1235,7 +1234,7 @@ bool ConnectedDINMIDIDevice::coalesce_queued_cc(MIDIMessage message) {
 	// Match only the same channel+status byte; sentinel -1 means no queued
 	// packet for this controller/channel pair has been found yet.
 	uint8_t wanted_status = message.channel | (message.statusType << 4);
-	int32_t latest_match_offset = MIDIQueueManager::find_latest_matching_cc_offset(
+	int32_t latest_match_offset = cc_policy_.find_latest_matching_cc_offset(
 	    *this, wanted_status, message.data1, &ConnectedDINMIDIDevice::begin_coalesce_cc_scan,
 	    &ConnectedDINMIDIDevice::next_coalesce_cc_scan_step);
 
@@ -1249,7 +1248,7 @@ bool ConnectedDINMIDIDevice::coalesce_queued_cc(MIDIMessage message) {
 	uint16_t value_index = (queue.read_pos + latest_match_offset + 2) & (SerialByteQueue::k_capacity - 1);
 	queue.data[value_index] = message.data2;
 	// Treat coalesce as fresh pressure so fairness can compensate relative enqueue rate.
-	MIDIQueueManager::bump_controller_debt(cc_fair_controller_debt_.data(), message.data1);
+	cc_policy_.bump_controller_debt(message.data1);
 	return true;
 }
 
@@ -1353,11 +1352,10 @@ int32_t ConnectedDINMIDIDevice::pop_next_prioritized_bytes(uint8_t* out_bytes, i
 /// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
 void ConnectedDINMIDIDevice::enqueue_serial_message(MIDIMessage message) {
 	QueuePriority priority = MIDIQueueManager::classify_message(message);
-	MIDIQueueManager::enqueue_with_cc_policy(*this, priority, message,
-	                                         /*allow_coalesce=*/true,
-	                                         /*track_debt=*/true, message.data1, cc_fair_controller_debt_,
-	                                         &ConnectedDINMIDIDevice::coalesce_queued_cc,
-	                                         &ConnectedDINMIDIDevice::enqueue_priority_message);
+	cc_policy_.enqueue_with_cc_policy(*this, priority, message,
+	                                  /*allow_coalesce=*/true,
+	                                  /*track_debt=*/true, message.data1, &ConnectedDINMIDIDevice::coalesce_queued_cc,
+	                                  &ConnectedDINMIDIDevice::enqueue_priority_message);
 }
 
 bool ConnectedDINMIDIDevice::enqueue_priority_message(QueuePriority priority, MIDIMessage message) {
@@ -1430,7 +1428,7 @@ void ConnectedDINMIDIDevice::flush_serial_output(uint32_t now_sample_timer) {
 		    && bytes_to_send[1] <= kMaxMIDIValue) {
 			uint8_t dequeued_controller = bytes_to_send[1];
 			// Successful transmit repays that controller's pressure.
-			cc_fair_controller_debt_[dequeued_controller] = 0;
+			cc_policy_.clear_controller_debt(dequeued_controller);
 		}
 		uart_space -= bytes_popped;
 		send_allowance_bytes -= bytes_popped;
