@@ -1074,7 +1074,7 @@ void ConnectedDINMIDIDevice::append_cc_queue_byte(uint8_t byte) {
 ///
 /// Selection policy:
 /// 1. Collect each controller's first queued CC offset.
-/// 2. Start from `queue_manager_.cc_policy.next_controller` for round-robin ordering.
+/// 2. Start from the queue manager's round-robin cursor for ordering.
 /// 3. Prefer highest controller debt; use RR order as tie-break.
 /// 4. Remove the selected message atomically via offset-based removal.
 ///

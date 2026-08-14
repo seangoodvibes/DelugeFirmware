@@ -463,9 +463,6 @@ private:
 template <typename T, uint16_t Capacity, size_t LaneCount>
 class MIDIQueueManagerState {
 public:
-	MIDIQueueStorage<T, Capacity, LaneCount> queue_storage{};
-	MIDICCQueuePolicy cc_policy{};
-
 	[[nodiscard]] uint16_t queue_count(uint8_t lane) const { return queue_storage.queue_count(lane); }
 	[[nodiscard]] uint32_t total_queued_messages() const { return queue_storage.total_queued_messages(); }
 	[[nodiscard]] T read_at(uint8_t lane, uint16_t logical_offset) const {
@@ -524,4 +521,8 @@ public:
 
 	void bump_controller_debt(uint8_t controller) { cc_policy.bump_controller_debt(controller); }
 	void clear_controller_debt(uint8_t controller) { cc_policy.clear_controller_debt(controller); }
+
+private:
+	MIDIQueueStorage<T, Capacity, LaneCount> queue_storage{};
+	MIDICCQueuePolicy cc_policy{};
 };
