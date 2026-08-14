@@ -459,3 +459,62 @@ private:
 		next_controller = static_cast<uint8_t>((selected_controller + 1) & kMaxMIDIValue);
 	}
 };
+
+template <typename T, uint16_t Capacity, size_t LaneCount>
+class MIDIQueueManagerState {
+public:
+	MIDIQueueStorage<T, Capacity, LaneCount> queue_storage{};
+	MIDICCQueuePolicy cc_policy{};
+
+	[[nodiscard]] uint16_t queue_count(uint8_t lane) const { return queue_storage.queue_count(lane); }
+	[[nodiscard]] uint32_t total_queued_messages() const { return queue_storage.total_queued_messages(); }
+	[[nodiscard]] T read_at(uint8_t lane, uint16_t logical_offset) const {
+		return queue_storage.read_at(lane, logical_offset);
+	}
+	[[nodiscard]] T head(uint8_t lane) const { return queue_storage.head(lane); }
+	bool pop_head(uint8_t lane, T& out) { return queue_storage.pop_head(lane, out); }
+	void push(uint8_t lane, T value) { queue_storage.push(lane, value); }
+	void clear(uint8_t lane) { queue_storage.clear(lane); }
+	void overwrite_at(uint8_t lane, uint16_t logical_offset, T value) {
+		queue_storage.overwrite_at(lane, logical_offset, value);
+	}
+	[[nodiscard]] bool empty(uint8_t lane) const { return queue_storage.empty(lane); }
+	[[nodiscard]] uint16_t space(uint8_t lane) const { return queue_storage.space(lane); }
+
+	template <typename Owner>
+	bool collect_first_controller_offsets_from_scan(
+	    Owner& owner, bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
+	    MIDIQueueManager::CandidateScanResult (Owner::*next_scan)(uint16_t& cursor, uint16_t limit,
+	                                                              uint16_t& candidate_offset, uint8_t& controller)
+	        const) {
+		return cc_policy.collect_first_controller_offsets_from_scan(owner, begin_scan, next_scan);
+	}
+
+	template <typename Owner>
+	int32_t find_latest_matching_cc_offset(Owner const& owner, uint8_t wanted_status, uint8_t wanted_controller,
+	                                       bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
+	                                       MIDIQueueManager::CoalesceScanResult (Owner::*next_scan)(
+	                                           uint16_t& cursor, uint16_t limit, uint16_t& candidate_offset,
+	                                           uint8_t& status, uint8_t& controller) const) const {
+		return cc_policy.find_latest_matching_cc_offset(owner, wanted_status, wanted_controller, begin_scan, next_scan);
+	}
+
+	template <typename Owner, typename MessageT>
+	bool enqueue_with_cc_policy(Owner& owner, QueuePriority priority, MessageT message, bool allow_coalesce,
+	                            bool track_debt, uint8_t controller, bool (Owner::*coalesce)(MessageT),
+	                            bool (Owner::*enqueue_priority_message)(QueuePriority, MessageT)) {
+		return cc_policy.enqueue_with_cc_policy(owner, priority, message, allow_coalesce, track_debt, controller,
+		                                        coalesce, enqueue_priority_message);
+	}
+
+	template <typename Owner, typename RemoveArg, typename CallArg>
+	bool pop_fair_cc_candidate(Owner& owner,
+	                           bool (Owner::*collect_candidates)(std::array<uint16_t, kMaxMIDIValue + 1>&),
+	                           bool (Owner::*remove_selected)(uint16_t, RemoveArg), CallArg&& out_arg) {
+		return cc_policy.pop_fair_cc_candidate(owner, collect_candidates, remove_selected,
+		                                       std::forward<CallArg>(out_arg));
+	}
+
+	void bump_controller_debt(uint8_t controller) { cc_policy.bump_controller_debt(controller); }
+	void clear_controller_debt(uint8_t controller) { cc_policy.clear_controller_debt(controller); }
+};

@@ -94,7 +94,7 @@ struct ConnectedUSBMIDIDevice {
 	// When we are ready to send data on this device, we consume data on the reading side and move it into the
 	// smaller dataSendingNow buffer above.
 	// Messages are queued in priority-specific rings and consumed in priority order.
-	MIDIQueueStorage<uint32_t, MIDI_SEND_BUFFER_LEN_RING, QUEUE_PRIORITY_COUNT> queue_storage{};
+	MIDIQueueManagerState<uint32_t, MIDI_SEND_BUFFER_LEN_RING, QUEUE_PRIORITY_COUNT> queue_manager_{};
 
 	/// Clears all queue storage and fairness bookkeeping for this upstream USB device.
 	void reset_queue_storage();
@@ -148,8 +148,6 @@ struct ConnectedUSBMIDIDevice {
 
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
-	/// Per-device CC fairness state used by shared queue policy helpers.
-	MIDICCQueuePolicy cc_policy{};
 	/* ------------ MIDI Queue Manager ------------ */
 #endif
 };
@@ -174,15 +172,13 @@ private:
 	/// Number of active serial-priority lanes [clock..CC] scanned during dequeue.
 	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_CC + 1;
 	/// Per-priority byte rings holding pending DIN output grouped by queue policy.
-	MIDIQueueStorage<uint8_t, 512, k_serial_priority_count> queue_storage_{};
+	MIDIQueueManagerState<uint8_t, 512, k_serial_priority_count> queue_manager_{};
 	/// Last sample-timer tick used to accrue DIN pacing budget.
 	uint32_t serial_budget_last_update_{0};
 	/// Token-bucket send budget in Q8 bytes (8 fractional bits).
 	int32_t serial_budget_Q8_{0};
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
-	/// Per-device CC fairness state used by shared queue policy helpers.
-	MIDICCQueuePolicy cc_policy_{};
 
 	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
 	void update_serial_budget(uint32_t now_sample_timer);
