@@ -901,7 +901,20 @@ bool ConnectedUSBMIDIDevice::pop_priority_message(uint32_t& message_out, int32_t
 
 MIDIQueueManager::PriorityLaneTraversalResult
 ConnectedUSBMIDIDevice::handle_priority_lane_pop(QueuePriority priority, USBPriorityPopContext& context) {
-	uint32_t head_message = read_priority_queue_head(priority);
+	if (priority == QUEUE_PRIORITY_CC) {
+		return pop_cc_priority_lane(context);
+	}
+
+	return MIDIQueueManager::PriorityLaneTraversalResult::PopLane;
+}
+
+bool ConnectedUSBMIDIDevice::pop_priority_lane_message(QueuePriority priority, USBPriorityPopContext& context) {
+	return pop_plain_priority_lane(priority, context);
+}
+
+MIDIQueueManager::PriorityLaneTraversalResult
+ConnectedUSBMIDIDevice::pop_cc_priority_lane(USBPriorityPopContext& context) {
+	uint32_t head_message = read_priority_queue_head(QUEUE_PRIORITY_CC);
 	auto cc_result = MIDIQueueManager::try_fair_pop_cc(
 	    *this, is_packed_channel_cc(head_message), context.cc_budget_packets_remaining > 0,
 	    &ConnectedUSBMIDIDevice::pop_fair_queued_cc_message, context.message_out);
@@ -916,7 +929,7 @@ ConnectedUSBMIDIDevice::handle_priority_lane_pop(QueuePriority priority, USBPrio
 	return MIDIQueueManager::PriorityLaneTraversalResult::SkipLane;
 }
 
-bool ConnectedUSBMIDIDevice::pop_priority_lane_message(QueuePriority priority, USBPriorityPopContext& context) {
+bool ConnectedUSBMIDIDevice::pop_plain_priority_lane(QueuePriority priority, USBPriorityPopContext& context) {
 	return pop_priority_queue_head(priority, context.message_out);
 }
 
@@ -1265,15 +1278,23 @@ ConnectedDINMIDIDevice::handle_priority_lane_pop(QueuePriority priority, SerialP
 
 bool ConnectedDINMIDIDevice::pop_priority_lane_message(QueuePriority priority, SerialPriorityPopContext& context) {
 	if (priority == QUEUE_PRIORITY_CLOCK) {
-		// Realtime/clock lane is byte-oriented: emit at most one byte per call.
-		if (context.budget_bytes < 1 || context.uart_space < 1 || context.max_len < 1) {
-			return false;
-		}
-		queue_manager_.pop_head(static_cast<uint8_t>(priority), context.out_bytes[0]);
-		context.popped_priority = priority;
-		return true;
+		return pop_clock_priority_lane(context);
 	}
 
+	return pop_framed_priority_lane(priority, context);
+}
+
+bool ConnectedDINMIDIDevice::pop_clock_priority_lane(SerialPriorityPopContext& context) {
+	// Realtime/clock lane is byte-oriented: emit at most one byte per call.
+	if (context.budget_bytes < 1 || context.uart_space < 1 || context.max_len < 1) {
+		return false;
+	}
+	queue_manager_.pop_head(QUEUE_PRIORITY_CLOCK, context.out_bytes[0]);
+	context.popped_priority = QUEUE_PRIORITY_CLOCK;
+	return true;
+}
+
+bool ConnectedDINMIDIDevice::pop_framed_priority_lane(QueuePriority priority, SerialPriorityPopContext& context) {
 	uint8_t status = queue_manager_.head(static_cast<uint8_t>(priority));
 	int32_t message_len = 0;
 	auto head_check = MIDIQueueManager::validate_head_message_pop(

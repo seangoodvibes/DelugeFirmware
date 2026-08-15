@@ -152,6 +152,8 @@ struct ConnectedUSBMIDIDevice {
 	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
 	                                                                       USBPriorityPopContext& context);
 	bool pop_priority_lane_message(QueuePriority priority, USBPriorityPopContext& context);
+	MIDIQueueManager::PriorityLaneTraversalResult pop_cc_priority_lane(USBPriorityPopContext& context);
+	bool pop_plain_priority_lane(QueuePriority priority, USBPriorityPopContext& context);
 	/* ------------ MIDI Queue Manager ------------ */
 #endif
 };
@@ -191,6 +193,8 @@ private:
 	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
 	                                                                       SerialPriorityPopContext& context);
 	bool pop_priority_lane_message(QueuePriority priority, SerialPriorityPopContext& context);
+	bool pop_clock_priority_lane(SerialPriorityPopContext& context);
+	bool pop_framed_priority_lane(QueuePriority priority, SerialPriorityPopContext& context);
 
 	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
 	void update_serial_budget(uint32_t now_sample_timer);
