@@ -146,14 +146,9 @@ struct ConnectedUSBMIDIDevice {
 
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
+	friend struct USBPriorityPopAdapter;
 
 	struct USBPriorityPopContext;
-
-	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
-	                                                                       USBPriorityPopContext& context);
-	bool pop_priority_lane_message(QueuePriority priority, USBPriorityPopContext& context);
-	MIDIQueueManager::PriorityLaneTraversalResult pop_cc_priority_lane(USBPriorityPopContext& context);
-	bool pop_plain_priority_lane(QueuePriority priority, USBPriorityPopContext& context);
 	/* ------------ MIDI Queue Manager ------------ */
 #endif
 };
@@ -181,20 +176,21 @@ private:
 	MIDIQueueManagerState<uint8_t, 512, k_serial_priority_count> queue_manager_{};
 	/// Returns the queued byte count for one DIN priority lane.
 	[[nodiscard]] uint16_t queue_count(QueuePriority priority) const;
+	/// Returns the current head byte from one DIN priority lane.
+	[[nodiscard]] uint8_t read_priority_queue_head_byte(QueuePriority priority) const;
+	/// Pops one byte from the head of one DIN priority lane.
+	bool pop_priority_queue_head_byte(QueuePriority priority, uint8_t& out_byte);
+	/// Pops one whole MIDI message payload from one DIN priority lane.
+	bool pop_priority_queue_message_bytes(QueuePriority priority, uint8_t* out_bytes, int32_t message_len);
 	/// Last sample-timer tick used to accrue DIN pacing budget.
 	uint32_t serial_budget_last_update_{0};
 	/// Token-bucket send budget in Q8 bytes (8 fractional bits).
 	int32_t serial_budget_Q8_{0};
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
+	friend struct DINPriorityPopAdapter;
 
 	struct SerialPriorityPopContext;
-
-	MIDIQueueManager::PriorityLaneTraversalResult handle_priority_lane_pop(QueuePriority priority,
-	                                                                       SerialPriorityPopContext& context);
-	bool pop_priority_lane_message(QueuePriority priority, SerialPriorityPopContext& context);
-	bool pop_clock_priority_lane(SerialPriorityPopContext& context);
-	bool pop_framed_priority_lane(QueuePriority priority, SerialPriorityPopContext& context);
 
 	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
 	void update_serial_budget(uint32_t now_sample_timer);
