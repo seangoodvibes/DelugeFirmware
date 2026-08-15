@@ -721,7 +721,7 @@ uint32_t ConnectedUSBMIDIDevice::total_queued_messages() {
 }
 
 /// Queues one USB-MIDI packet into the selected priority lane with backpressure handling.
-void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
+void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage) {
 	QueuePriority priority = classify_packed_usb_priority(fullMessage);
 
 	// Total packets currently queued across all priority lanes for this device.
@@ -827,7 +827,7 @@ int ConnectedUSBMIDIDevice::sendBufferSpace() {
 }
 
 /// Moves queued USB packets into the contiguous transfer buffer for the next hardware send.
-bool ConnectedUSBMIDIDevice::consumeSendData() {
+bool ConnectedUSBMIDIDevice::consume_queued_messages() {
 	// Snapshot total queued packets across all priority lanes.
 	uint32_t queued = total_queued_messages();
 	if (queued == 0) {
@@ -887,7 +887,7 @@ bool ConnectedDINMIDIDevice::has_serial_data() const {
 }
 
 /// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
-void ConnectedDINMIDIDevice::enqueue_serial_message(MIDIMessage message) {
+void ConnectedDINMIDIDevice::enqueue_message(MIDIMessage message) {
 	QueuePriority priority = MIDIQueueManager::classify_message(message);
 	auto coalesce_fn = [this](MIDIMessage queued_message) {
 		if (!MIDIQueueManager::is_channel_cc_status_type(queued_message.statusType)) {
@@ -958,7 +958,7 @@ void ConnectedDINMIDIDevice::enqueue_serial_message(MIDIMessage message) {
 }
 
 /// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.
-void ConnectedDINMIDIDevice::flush_serial_output(uint32_t now_sample_timer) {
+void ConnectedDINMIDIDevice::consume_queued_messages(uint32_t now_sample_timer) {
 	if (!has_serial_data()) {
 		// Fast exit when all lanes are empty; avoids pacing/space calculations.
 		return;

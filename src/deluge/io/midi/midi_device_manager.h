@@ -62,12 +62,12 @@ class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	void bufferMessage(uint32_t fullMessage);
+	void enqueue_message(uint32_t fullMessage);
 	void setup();
 
 	// move data from ring buffer to dataSendingNow, assuming it is free
 	/// Drains queued USB data into the hardware-send buffer.
-	bool consumeSendData();
+	bool consume_queued_messages();
 	/// Queue occupancy check (boolean form): true when any USB lane has queued output.
 	/// Conceptually matches DIN `has_serial_data()`.
 	bool hasBufferedSendData();
@@ -128,9 +128,9 @@ public:
 	/// Conceptually matches USB `hasBufferedSendData()`.
 	[[nodiscard]] bool has_serial_data() const;
 	/// Classifies, optionally coalesces, and enqueues one outgoing MIDI message into DIN priority lanes.
-	void enqueue_serial_message(MIDIMessage message);
+	void enqueue_message(MIDIMessage message);
 	/// Drains queued DIN bytes into UART using pacing budget, lane priorities, and CC gating.
-	void flush_serial_output(uint32_t now_sample_timer);
+	void consume_queued_messages(uint32_t now_sample_timer);
 
 private:
 	/// Number of active serial-priority lanes [clock..CC] scanned during dequeue.

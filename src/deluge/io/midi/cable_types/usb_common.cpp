@@ -47,7 +47,7 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			if (connectedDevice->canHaveMIDISent) {
 				uint32_t channeled_message = full_message | (portNumber << 4);
-				connectedDevice->bufferMessage(channeled_message);
+				connectedDevice->enqueue_message(channeled_message);
 			}
 		}
 	}
@@ -106,7 +106,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		// Since the message ends with 0xF7, we can assume that data[5] does exist.
 		// fake 0xF0, 0x7D, data[5] for first send
 		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
-		connectedDevice->bufferMessage(packed);
+		connectedDevice->enqueue_message(packed);
 		pos = 6;
 	}
 
@@ -131,7 +131,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		}
 		status |= (portNumber << 4);
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
-		connectedDevice->bufferMessage(packed);
+		connectedDevice->enqueue_message(packed);
 	}
 }
 

@@ -7,6 +7,7 @@ The short version is:
 - Both transports enqueue into the shared `MIDIQueueManagerDeviceState` / `MIDIQueueManager` policy layer.
 - Both transports drain through the shared traversal API `pop_priority_lanes_with_transport_rules`.
 - USB drains packed 32-bit USB-MIDI events into a transfer buffer.
+- USB packed-message priority classification is transport-local (`classify_packed_usb_priority`) and then delegates non-SysEx cases to `MIDIQueueManager::classify_message`.
 - DIN drains a paced UART byte stream with clock-lane and message-fit constraints.
 
 ## Shared Queuing Model
@@ -27,14 +28,18 @@ flowchart TD
 
 USB output is packet-based. Each queued item is a packed 32-bit USB-MIDI event.
 
+Priority selection for USB is computed inside `ConnectedUSBMIDIDevice::enqueue_message()` via
+`classify_packed_usb_priority()`: CIN `0x4..0x7` is treated as SysEx, all other packets are decoded to
+`MIDIMessage` and classified by shared `MIDIQueueManager::classify_message()`.
+
 ```mermaid
 flowchart TD
-    U1[bufferMessage] --> U2{Selected lane full?}
+    U1[enqueue_message] --> U2{Selected lane full?}
     U2 -- yes --> U3[Try flushUSBMIDIOutput if idle]
     U2 -- no --> U4[queue_manager_.enqueue_with_cc_policy]
     U3 --> U4
     U4 --> U5[Packets wait in USB priority lanes]
-    U5 --> U6[consumeSendData]
+    U5 --> U6[consume_queued_messages]
     U6 --> U7[Set max packets and CC packet budget]
     U7 --> U8[USBSendRules + USBSendContext]
     U8 --> U9[MIDIQueueManager::pop_priority_lanes_with_transport_rules]
@@ -56,10 +61,10 @@ DIN output is byte-based and time-based.
 
 ```mermaid
 flowchart TD
-    D1[enqueue_serial_message] --> D2[classify_message]
+    D1[enqueue_message] --> D2[classify_message]
     D2 --> D3[queue_manager_.enqueue_with_cc_policy]
     D3 --> D4[Bytes wait in DIN priority lanes]
-    D4 --> D5[flush_serial_output]
+    D4 --> D5[consume_queued_messages]
     D5 --> D6[update local Q8 pacing budget]
     D6 --> D7[measure UART space and CC UART budget]
     D7 --> D8[DINSendRules + DINSendContext]
@@ -82,7 +87,7 @@ flowchart TD
 | --- | --- | --- |
 | Transport unit | 4-byte USB-MIDI event packet | Raw MIDI bytes |
 | Occupancy check API | `hasBufferedSendData()` (bool), `total_queued_messages()` (count) | `has_serial_data()` (bool) |
-| Drain trigger | Build transfer buffer in `consumeSendData()` | Fill UART TX while pacing allows in `flush_serial_output()` |
+| Drain trigger | Build transfer buffer in `consume_queued_messages()` | Fill UART TX while pacing allows in `consume_queued_messages()` |
 | Budgeting | CC packet budget during transfer assembly | Q8 pacing budget + UART space + CC UART budget |
 | Clock lane handling | No byte-level special lane handling | Clock lane emits one byte at a time |
 | Framed-message fit checks | Not needed (already packetized) | Required for non-clock message pop |
@@ -96,8 +101,8 @@ If you want to follow this in code, the most useful entry points are:
 - [src/deluge/io/midi/midi_send_rules.h](../../src/deluge/io/midi/midi_send_rules.h)
 - [src/deluge/io/midi/midi_queue_manager.h](../../src/deluge/io/midi/midi_queue_manager.h)
 
-USB starts at `ConnectedUSBMIDIDevice::bufferMessage()` and drains through `consumeSendData()`.
-DIN starts at `ConnectedDINMIDIDevice::enqueue_serial_message()` and drains through `flush_serial_output()`.
+USB starts at `ConnectedUSBMIDIDevice::enqueue_message()` and drains through `consume_queued_messages()`.
+DIN starts at `ConnectedDINMIDIDevice::enqueue_message()` and drains through `consume_queued_messages()`.
 
 ## Code-Centric Call Chains
 
@@ -111,13 +116,14 @@ sequenceDiagram
     participant QM as MIDIQueueManager
     participant Rules as USBSendRules
 
-    Caller->>USB: bufferMessage(fullMessage, priority)
+    Caller->>USB: enqueue_message(fullMessage)
+    USB->>USB: classify_packed_usb_priority(fullMessage)
     USB->>USB: total_queued_messages() and queue_count(priority)
     USB->>MQ: enqueue_with_cc_policy(priority, fullMessage, ...)
     MQ->>QM: enqueue_with_cc_policy(...)
     Note over QM: CC may coalesce or track debt before enqueue
 
-    Caller->>USB: consumeSendData()
+    Caller->>USB: consume_queued_messages()
     USB->>USB: total_queued_messages()
     USB->>Rules: build USBSendContext(message_out, cc_budget)
     USB->>QM: pop_priority_lanes_with_transport_rules(device, rules, first, last, context)
@@ -138,13 +144,13 @@ sequenceDiagram
     participant QM as MIDIQueueManager
     participant Rules as DINSendRules
 
-    Caller->>DIN: enqueue_serial_message(message)
+    Caller->>DIN: enqueue_message(message)
     DIN->>QM: classify_message(message)
     DIN->>MQ: enqueue_with_cc_policy(priority, message, ...)
     MQ->>QM: enqueue_with_cc_policy(...)
     Note over QM: CC may coalesce or track debt before enqueue
 
-    Caller->>DIN: flush_serial_output(now)
+    Caller->>DIN: consume_queued_messages(now)
     DIN->>DIN: update local pacing budget and UART limits
     DIN->>Rules: build DINSendContext(out, budget, uart, max, ccBudget, poppedPriority)
     DIN->>QM: pop_priority_lanes_with_transport_rules(device, rules, first, last, context)
@@ -157,8 +163,8 @@ sequenceDiagram
 
 ## Step By Step
 
-1. USB starts at `ConnectedUSBMIDIDevice::bufferMessage()` and drains via `consumeSendData()`.
-2. DIN starts at `ConnectedDINMIDIDevice::enqueue_serial_message()` and drains via `flush_serial_output()`.
+1. USB starts at `ConnectedUSBMIDIDevice::enqueue_message()` and drains via `consume_queued_messages()`.
+2. DIN starts at `ConnectedDINMIDIDevice::enqueue_message()` and drains via `consume_queued_messages()`.
 3. Both enqueue through `MIDIQueueManagerDeviceState::enqueue_with_cc_policy()`, forwarding to `MIDIQueueManager::enqueue_with_cc_policy()`.
 4. Both dequeue through `MIDIQueueManager::pop_priority_lanes_with_transport_rules()`.
 5. Transport-specific behavior lives in `USBSendRules` and `DINSendRules`, including CC-lane fair-pop decisions.

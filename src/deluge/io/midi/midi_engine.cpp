@@ -87,7 +87,7 @@ void usbSendCompleteAsHost(int32_t ip) {
 	connectedDevice->numBytesSendingNow = 0; // We just do this instead from caller on A1 (see comment above)
 
 	// check if there was more to send on the same device, then resume sending
-	bool has_more = connectedDevice->consumeSendData();
+	bool has_more = connectedDevice->consume_queued_messages();
 	if (has_more) {
 		// TODO: do some cooperative scheduling here. so if there is a flood of data
 		// on connected device 1 and we just want to send a few notes on device 2,
@@ -154,7 +154,7 @@ void usbSendCompleteAsPeripheral(int32_t ip) {
 		return;
 	}
 
-	bool has_more = connectedDevice->consumeSendData();
+	bool has_more = connectedDevice->consume_queued_messages();
 	if (has_more) {
 		// this is already the case:
 		// anyUSBSendingStillHappening[ip] = 1;
@@ -327,7 +327,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 		if (aPeripheral) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
-			if (!connectedDevice->consumeSendData()) {
+			if (!connectedDevice->consume_queued_messages()) {
 				continue;
 			}
 
@@ -394,7 +394,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 
 				if (connectedDevice->cable[0]) {
-					connectedDevice->consumeSendData();
+					connectedDevice->consume_queued_messages();
 				}
 				if (d == newStopSendingAfter) {
 					break;
@@ -575,7 +575,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 						// Or with the port to add the cable number to the full message. This
 						// is a bit hacky but it works
 						uint32_t channeled_message = fullMessage | (p << 4);
-						connectedDevice->bufferMessage(channeled_message);
+						connectedDevice->enqueue_message(channeled_message);
 					}
 				}
 			}
@@ -587,13 +587,13 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 void MidiEngine::flushMIDI() {
 	flushUSBMIDIOutput();
 	// Drain prioritized DIN queues using the current audio-timer tick as the pacing clock.
-	connectedDINMIDIDevice.flush_serial_output(AudioEngine::audioSampleTimer);
+	connectedDINMIDIDevice.consume_queued_messages(AudioEngine::audioSampleTimer);
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
 void MidiEngine::sendSerialMidi(MIDIMessage message) {
-	// Queue by priority; actual UART transmission is paced in connectedDINMIDIDevice.flush_serial_output().
-	connectedDINMIDIDevice.enqueue_serial_message(message);
+	// Queue by priority; actual UART transmission is paced in connectedDINMIDIDevice.consume_queued_messages().
+	connectedDINMIDIDevice.enqueue_message(message);
 }
 
 bool MidiEngine::checkIncomingSerialMidi() {
