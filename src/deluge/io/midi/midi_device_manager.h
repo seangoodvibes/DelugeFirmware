@@ -98,7 +98,7 @@ struct ConnectedUSBMIDIDevice {
 	// When we are ready to send data on this device, we consume data on the reading side and move it into the
 	// smaller dataSendingNow buffer above.
 	// Messages are queued in priority-specific rings and consumed in priority order.
-	MIDIQueueManagerState<uint32_t, MIDI_SEND_BUFFER_LEN_RING, QUEUE_PRIORITY_COUNT> queue_manager_{};
+	MIDIQueueManagerDeviceState<uint32_t, MIDI_SEND_BUFFER_LEN_RING, QUEUE_PRIORITY_COUNT> queue_manager_{};
 
 	/// Clears USB queue contents and fairness bookkeeping for this device.
 	/// This is the queue-reset counterpart to DIN output-state reset.
@@ -136,7 +136,7 @@ private:
 	/// Number of active serial-priority lanes [clock..CC] scanned during dequeue.
 	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_CC + 1;
 	/// Per-priority byte rings holding pending DIN output grouped by queue policy.
-	MIDIQueueManagerState<uint8_t, 512, k_serial_priority_count> queue_manager_{};
+	MIDIQueueManagerDeviceState<uint8_t, 512, k_serial_priority_count> queue_manager_{};
 	/// Last sample-timer tick used to accrue DIN pacing budget.
 	uint32_t serial_budget_last_update_{0};
 	/// Token-bucket send budget in Q8 bytes (8 fractional bits).

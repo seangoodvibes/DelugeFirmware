@@ -532,7 +532,7 @@ private:
 };
 
 template <typename T, uint16_t Capacity, size_t LaneCount>
-class MIDIQueueManagerState {
+class MIDIQueueManagerDeviceState {
 public:
 	[[nodiscard]] uint16_t queue_count(uint8_t lane) const { return queue_storage.queue_count(lane); }
 	[[nodiscard]] uint32_t total_queued_messages() const { return queue_storage.total_queued_messages(); }
