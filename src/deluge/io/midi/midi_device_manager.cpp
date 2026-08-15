@@ -860,7 +860,7 @@ bool ConnectedUSBMIDIDevice::remove_queued_cc_message_at_offset(uint16_t target_
 
 /// Pops one USB packet using strict priority ordering, with fair CC selection.
 bool ConnectedUSBMIDIDevice::pop_priority_message(uint32_t& message_out, int32_t& cc_budget_packets_remaining) {
-	USBPriorityPopContext context{message_out, cc_budget_packets_remaining};
+	USBSendContext context{message_out, cc_budget_packets_remaining};
 	USBSendRules rules{};
 	return MIDIQueueManager::pop_priority_lanes_with_transport_rules(
 	    *this, rules, QUEUE_PRIORITY_CLOCK, static_cast<QueuePriority>(QUEUE_PRIORITY_COUNT - 1), context);
@@ -1172,7 +1172,7 @@ int32_t ConnectedDINMIDIDevice::pop_next_prioritized_bytes(uint8_t* out_bytes, i
 
 	constexpr size_t k_clock_idx = QUEUE_PRIORITY_CLOCK;
 	constexpr size_t k_cc_idx = QUEUE_PRIORITY_CC;
-	SerialPriorityPopContext context{out_bytes, budget_bytes, uart_space, max_len, cc_uart_budget, popped_priority};
+	DINSendContext context{out_bytes, budget_bytes, uart_space, max_len, cc_uart_budget, popped_priority};
 	DINSendRules rules{};
 	return MIDIQueueManager::pop_priority_lanes_with_transport_rules(
 	    *this, rules, static_cast<QueuePriority>(k_clock_idx), static_cast<QueuePriority>(k_cc_idx), context);

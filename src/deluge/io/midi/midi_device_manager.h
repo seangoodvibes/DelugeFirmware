@@ -142,7 +142,7 @@ struct ConnectedUSBMIDIDevice {
 	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
 	friend struct USBSendRules;
 
-	struct USBPriorityPopContext;
+	struct USBSendContext;
 	/* ------------ MIDI Queue Manager ------------ */
 #endif
 };
@@ -176,7 +176,7 @@ private:
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
 	friend struct DINSendRules;
 
-	struct SerialPriorityPopContext;
+	struct DINSendContext;
 
 	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
 	void update_serial_budget(uint32_t now_sample_timer);

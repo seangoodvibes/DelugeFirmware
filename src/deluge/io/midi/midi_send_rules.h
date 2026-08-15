@@ -20,12 +20,12 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_queue_manager.h"
 
-struct ConnectedUSBMIDIDevice::USBPriorityPopContext {
+struct ConnectedUSBMIDIDevice::USBSendContext {
 	uint32_t& message_out;
 	int32_t& cc_budget_packets_remaining;
 };
 
-struct ConnectedDINMIDIDevice::SerialPriorityPopContext {
+struct ConnectedDINMIDIDevice::DINSendContext {
 	uint8_t* out_bytes;
 	int32_t budget_bytes;
 	int32_t uart_space;
@@ -40,7 +40,7 @@ struct USBSendRules {
 	}
 	MIDIQueueManager::PriorityLaneTraversalResult
 	handle_cc_lane(ConnectedUSBMIDIDevice& device, QueuePriority priority,
-	               ConnectedUSBMIDIDevice::USBPriorityPopContext& context) const {
+	               ConnectedUSBMIDIDevice::USBSendContext& context) const {
 		(void)priority;
 		uint32_t head_message = device.queue_manager_.head(QUEUE_PRIORITY_CC);
 		auto cc_result = MIDIQueueManager::try_fair_pop_cc(
@@ -57,7 +57,7 @@ struct USBSendRules {
 		return MIDIQueueManager::PriorityLaneTraversalResult::SkipLane;
 	}
 	bool pop_lane(ConnectedUSBMIDIDevice& device, QueuePriority priority,
-	              ConnectedUSBMIDIDevice::USBPriorityPopContext& context) const {
+	              ConnectedUSBMIDIDevice::USBSendContext& context) const {
 		return device.queue_manager_.pop_head(static_cast<uint8_t>(priority), context.message_out);
 	}
 };
@@ -68,7 +68,7 @@ struct DINSendRules {
 	}
 	MIDIQueueManager::PriorityLaneTraversalResult
 	handle_cc_lane(ConnectedDINMIDIDevice& device, QueuePriority priority,
-	               ConnectedDINMIDIDevice::SerialPriorityPopContext& context) const {
+	               ConnectedDINMIDIDevice::DINSendContext& context) const {
 		uint8_t status = device.queue_manager_.head(static_cast<uint8_t>(priority));
 		int32_t message_len = 0;
 		auto head_check = MIDIQueueManager::validate_head_message_pop(
@@ -92,7 +92,7 @@ struct DINSendRules {
 		return MIDIQueueManager::PriorityLaneTraversalResult::Abort;
 	}
 	bool pop_lane(ConnectedDINMIDIDevice& device, QueuePriority priority,
-	              ConnectedDINMIDIDevice::SerialPriorityPopContext& context) const {
+	              ConnectedDINMIDIDevice::DINSendContext& context) const {
 		if (priority == QUEUE_PRIORITY_CLOCK) {
 			if (context.budget_bytes < 1 || context.uart_space < 1 || context.max_len < 1) {
 				return false;
