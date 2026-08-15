@@ -175,6 +175,49 @@ public:
 		return false;
 	}
 
+	/// Shared strict-priority traversal driven by transport rules.
+	///
+	/// This is a scaffolding entry point for routing different transport types
+	/// (USB packet output, DIN byte-stream output, etc.) through one scheduler
+	/// while keeping transport-specific behavior in per-device rules.
+	///
+	/// Rules contract (methods expected on `rules`):
+	/// - `uint16_t queue_count(Device&, QueuePriority)`
+	/// - `PriorityLaneTraversalResult handle_cc_lane(Device&, QueuePriority, Context&)`
+	/// - `bool pop_lane(Device&, QueuePriority, Context&)`
+	template <typename Device, typename Rules, typename Context>
+	static bool pop_priority_lanes_with_transport_rules(Device& device, Rules& rules, QueuePriority first_priority,
+	                                                    QueuePriority last_priority, Context& context) {
+		for (uint8_t lane = static_cast<uint8_t>(first_priority); lane <= static_cast<uint8_t>(last_priority); lane++) {
+			QueuePriority priority = static_cast<QueuePriority>(lane);
+			if (!rules.queue_count(device, priority)) {
+				continue;
+			}
+
+			if (priority == QUEUE_PRIORITY_CC) {
+				auto cc_result = rules.handle_cc_lane(device, priority, context);
+				if (cc_result == PriorityLaneTraversalResult::Popped) {
+					return true;
+				}
+				if (cc_result == PriorityLaneTraversalResult::Abort) {
+					return false;
+				}
+				if (cc_result == PriorityLaneTraversalResult::SkipLane) {
+					continue;
+				}
+				if (cc_result != PriorityLaneTraversalResult::PopLane) {
+					continue;
+				}
+			}
+
+			if (rules.pop_lane(device, priority, context)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	/// Shared parser+fit gate for queued non-realtime MIDI messages.
 	///
 	/// Returns Ready only when the queue head decodes to a valid message length

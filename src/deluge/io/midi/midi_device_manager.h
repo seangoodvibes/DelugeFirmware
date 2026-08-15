@@ -98,8 +98,6 @@ struct ConnectedUSBMIDIDevice {
 
 	/// Clears all queue storage and fairness bookkeeping for this upstream USB device.
 	void reset_queue_storage();
-	/// Returns the queued packet count for one upstream USB priority lane.
-	[[nodiscard]] uint16_t queue_count(QueuePriority priority) const;
 	/// Returns the total number of queued upstream USB packets across all priority lanes.
 	uint32_t total_queued_messages();
 
@@ -118,10 +116,6 @@ struct ConnectedUSBMIDIDevice {
 	bool enqueue_priority_message(QueuePriority priority, uint32_t message);
 	/// Reads one logical packet from any USB priority lane by offset from lane head.
 	uint32_t read_priority_queue_message_at(QueuePriority priority, uint16_t logical_offset) const;
-	/// Reads the current head packet from any USB priority lane.
-	uint32_t read_priority_queue_head(QueuePriority priority) const;
-	/// Pops one head packet from any USB priority lane.
-	bool pop_priority_queue_head(QueuePriority priority, uint32_t& message_out);
 	/// Appends one packet into any USB priority lane.
 	void append_priority_queue_message(QueuePriority priority, uint32_t message);
 	/// Reads one logical entry from the USB CC lane snapshot by offset from lane head.
@@ -146,7 +140,7 @@ struct ConnectedUSBMIDIDevice {
 
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
-	friend struct USBPriorityPopAdapter;
+	friend struct USBSendRules;
 
 	struct USBPriorityPopContext;
 	/* ------------ MIDI Queue Manager ------------ */
@@ -174,21 +168,13 @@ private:
 	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_CC + 1;
 	/// Per-priority byte rings holding pending DIN output grouped by queue policy.
 	MIDIQueueManagerState<uint8_t, 512, k_serial_priority_count> queue_manager_{};
-	/// Returns the queued byte count for one DIN priority lane.
-	[[nodiscard]] uint16_t queue_count(QueuePriority priority) const;
-	/// Returns the current head byte from one DIN priority lane.
-	[[nodiscard]] uint8_t read_priority_queue_head_byte(QueuePriority priority) const;
-	/// Pops one byte from the head of one DIN priority lane.
-	bool pop_priority_queue_head_byte(QueuePriority priority, uint8_t& out_byte);
-	/// Pops one whole MIDI message payload from one DIN priority lane.
-	bool pop_priority_queue_message_bytes(QueuePriority priority, uint8_t* out_bytes, int32_t message_len);
 	/// Last sample-timer tick used to accrue DIN pacing budget.
 	uint32_t serial_budget_last_update_{0};
 	/// Token-bucket send budget in Q8 bytes (8 fractional bits).
 	int32_t serial_budget_Q8_{0};
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
-	friend struct DINPriorityPopAdapter;
+	friend struct DINSendRules;
 
 	struct SerialPriorityPopContext;
 
