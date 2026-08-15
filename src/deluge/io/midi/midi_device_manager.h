@@ -62,7 +62,7 @@ class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	void bufferMessage(uint32_t fullMessage, QueuePriority priority);
+	void bufferMessage(uint32_t fullMessage);
 	void setup();
 
 	// move data from ring buffer to dataSendingNow, assuming it is free

@@ -553,10 +553,6 @@ uint32_t setupUSBMessage(MIDIMessage message) {
 
 void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// TODO: Differentiate between ports on usb midi
-	// Reuse the same message classification as DIN so USB and DIN stay behaviorally
-	// aligned with the LinnStrument-inspired priority policy.
-	QueuePriority usb_priority = MIDIQueueManager::classify_message(message);
-
 	// formats message per USB midi spec on virtual cable 0
 	uint32_t fullMessage = setupUSBMessage(message);
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
@@ -579,7 +575,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 						// Or with the port to add the cable number to the full message. This
 						// is a bit hacky but it works
 						uint32_t channeled_message = fullMessage | (p << 4);
-						connectedDevice->bufferMessage(channeled_message, usb_priority);
+						connectedDevice->bufferMessage(channeled_message);
 					}
 				}
 			}

@@ -661,6 +661,23 @@ inline bool is_packed_channel_cc(uint32_t packed) {
 	return MIDIQueueManager::is_channel_cc_status_byte(status_byte(packed));
 }
 
+inline QueuePriority classify_packed_usb_priority(uint32_t packed) {
+	uint8_t cin = static_cast<uint8_t>(packed & 0x0F);
+	if (cin >= 0x4 && cin <= 0x7) {
+		// USB-MIDI CIN values 0x4..0x7 are SysEx start/continue/end fragments.
+		return QUEUE_PRIORITY_SYSEX;
+	}
+
+	uint8_t status = status_byte(packed);
+	MIDIMessage decoded{
+	    .statusType = static_cast<uint8_t>((status >> 4) & 0x0F),
+	    .channel = static_cast<uint8_t>(status & 0x0F),
+	    .data1 = data_1(packed),
+	    .data2 = data_2(packed),
+	};
+	return MIDIQueueManager::classify_message(decoded);
+}
+
 // DIN link throughput in Q8 fixed-point bytes/second (31.25 kbps ~= 3125 bytes/s).
 constexpr int32_t k_serial_bytes_per_second_Q8 = 3125 * 256;
 // Maximum accumulated send budget (Q8 bytes) allowed for one burst after idle time.
@@ -704,11 +721,8 @@ uint32_t ConnectedUSBMIDIDevice::total_queued_messages() {
 }
 
 /// Queues one USB-MIDI packet into the selected priority lane with backpressure handling.
-void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage, QueuePriority priority) {
-	// Defensive fallback: unknown priority values are treated as regular CC lane.
-	if (priority >= QUEUE_PRIORITY_COUNT) {
-		priority = QUEUE_PRIORITY_CC;
-	}
+void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
+	QueuePriority priority = classify_packed_usb_priority(fullMessage);
 
 	// Total packets currently queued across all priority lanes for this device.
 	uint32_t queued = total_queued_messages();
