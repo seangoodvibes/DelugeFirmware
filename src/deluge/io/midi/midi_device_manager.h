@@ -92,6 +92,8 @@ struct ConnectedUSBMIDIDevice {
 	uint8_t maxPortConnected;
 
 #ifdef __cplusplus
+
+private:
 	/* ------------ MIDI Queue Manager ------------ */
 	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
 	// Any code which wants to send midi data would use the writing side and append more messages.
