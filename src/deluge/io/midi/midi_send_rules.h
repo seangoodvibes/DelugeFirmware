@@ -43,11 +43,55 @@ struct USBSendRules {
 	               ConnectedUSBMIDIDevice::USBSendContext& context) const {
 		(void)priority;
 		uint32_t head_message = device.queue_manager_.head(QUEUE_PRIORITY_CC);
+		auto pop_fair_cc = [&device](uint32_t& message_out) -> bool {
+			auto begin_scan = [&device](uint16_t& cursor, uint16_t& limit) -> bool {
+				cursor = 0;
+				limit = device.queue_manager_.queue_count(QUEUE_PRIORITY_CC);
+				return limit > 0;
+			};
+			auto next_scan = [&device](uint16_t& cursor, uint16_t limit, uint16_t& candidate_offset,
+			                           uint8_t& controller) -> MIDIQueueManager::CandidateScanResult {
+				if (cursor >= limit) {
+					return MIDIQueueManager::CandidateScanResult::NoMore;
+				}
+
+				uint16_t offset = cursor;
+				cursor++;
+				uint32_t queued = device.queue_manager_.read_at(QUEUE_PRIORITY_CC, offset);
+				uint8_t status = static_cast<uint8_t>((queued >> 8) & 0xFF);
+				if (!MIDIQueueManager::is_channel_cc_status_byte(status)) {
+					return MIDIQueueManager::CandidateScanResult::Skip;
+				}
+
+				controller = static_cast<uint8_t>((queued >> 16) & 0xFF);
+				candidate_offset = offset;
+				return MIDIQueueManager::CandidateScanResult::Candidate;
+			};
+			auto remove_selected = [&device](uint16_t target_offset, uint32_t& popped_out) -> bool {
+				uint16_t queue_size = device.queue_manager_.queue_count(QUEUE_PRIORITY_CC);
+				uint32_t removed_message[1] = {0};
+				auto read_at = [&device](uint16_t logical_offset) -> uint32_t {
+					return device.queue_manager_.read_at(QUEUE_PRIORITY_CC, logical_offset);
+				};
+				auto reset_queue = [&device]() { device.queue_manager_.clear(QUEUE_PRIORITY_CC); };
+				auto append_from_scratch = [&device](uint32_t value) {
+					device.queue_manager_.push(QUEUE_PRIORITY_CC, value);
+				};
+				if (!MIDIQueueManager::remove_logical_span_and_repack(queue_size, target_offset, 1, removed_message,
+				                                                      device.cc_reorder_scratch.data(), read_at,
+				                                                      reset_queue, append_from_scratch)) {
+					return false;
+				}
+
+				popped_out = removed_message[0];
+				return true;
+			};
+
+			return device.queue_manager_.pop_fair_cc_candidate(begin_scan, next_scan, remove_selected, message_out);
+		};
 		auto cc_result = MIDIQueueManager::try_fair_pop_cc(
 		    MIDIQueueManager::is_channel_cc_status_byte(static_cast<uint8_t>((head_message >> 8) & 0xFF)),
-		    context.cc_budget_packets_remaining > 0,
-		    [&device](uint32_t& message_out) { return device.pop_fair_queued_cc_message(message_out); },
-		    context.message_out);
+		    context.cc_budget_packets_remaining > 0, pop_fair_cc, context.message_out);
 		if (cc_result == MIDIQueueManager::CCFairPopResult::Popped) {
 			context.cc_budget_packets_remaining--;
 			return MIDIQueueManager::PriorityLaneTraversalResult::Popped;

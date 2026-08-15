@@ -738,14 +738,6 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage, QueuePriority p
 	}
 
 	// Write the packet through shared queue-state helper.
-	push_priority_message(priority, fullMessage);
-
-	// Signal that at least one USB packet is waiting so flush logic can schedule transmission.
-	anythingInUSBOutputBuffer = true;
-}
-
-/// Pushes one USB packet onto a selected priority lane.
-void ConnectedUSBMIDIDevice::push_priority_message(QueuePriority priority, uint32_t message) {
 	auto coalesce_fn = [this](uint32_t queued_message) -> bool {
 		if (!is_packed_channel_cc(queued_message)) {
 			return false;
@@ -789,75 +781,18 @@ void ConnectedUSBMIDIDevice::push_priority_message(QueuePriority priority, uint3
 		queue_manager_.bump_controller_debt(wanted_controller);
 		return true;
 	};
-
 	auto enqueue_fn = [this](QueuePriority lane_priority, uint32_t queued_message) -> bool {
 		queue_manager_.push(static_cast<uint8_t>(lane_priority), queued_message);
 		return true;
 	};
 
-	queue_manager_.enqueue_with_cc_policy(priority, message,
+	queue_manager_.enqueue_with_cc_policy(priority, fullMessage,
 	                                      /*allow_coalesce=*/true,
-	                                      /*track_debt=*/is_packed_channel_cc(message), data_1(message), coalesce_fn,
-	                                      enqueue_fn);
-}
+	                                      /*track_debt=*/is_packed_channel_cc(fullMessage), data_1(fullMessage),
+	                                      coalesce_fn, enqueue_fn);
 
-/// Pops one USB packet using strict priority ordering, with fair CC selection.
-bool ConnectedUSBMIDIDevice::pop_priority_message(uint32_t& message_out, int32_t& cc_budget_packets_remaining) {
-	USBSendContext context{message_out, cc_budget_packets_remaining};
-	USBSendRules rules{};
-	return MIDIQueueManager::pop_priority_lanes_with_transport_rules(
-	    *this, rules, QUEUE_PRIORITY_CLOCK, static_cast<QueuePriority>(QUEUE_PRIORITY_COUNT - 1), context);
-}
-
-/// Pops one queued USB channel-CC packet using controller fairness.
-///
-/// Selection flow:
-/// 1. Capture each controller's first queued CC offset.
-/// 2. Establish RR baseline from rotating controller cursor.
-/// 3. Prefer highest-debt controller when debt is non-zero.
-/// 4. Remove selected packet atomically and commit fairness state.
-bool ConnectedUSBMIDIDevice::pop_fair_queued_cc_message(uint32_t& message_out) {
-	auto begin_scan = [this](uint16_t& cursor, uint16_t& limit) -> bool {
-		cursor = 0;
-		limit = queue_manager_.queue_count(QUEUE_PRIORITY_CC);
-		return limit > 0;
-	};
-	auto next_scan = [this](uint16_t& cursor, uint16_t limit, uint16_t& candidate_offset,
-	                        uint8_t& controller) -> MIDIQueueManager::CandidateScanResult {
-		if (cursor >= limit) {
-			return MIDIQueueManager::CandidateScanResult::NoMore;
-		}
-
-		uint16_t offset = cursor;
-		cursor++;
-		uint32_t queued = queue_manager_.read_at(QUEUE_PRIORITY_CC, offset);
-		if (!is_packed_channel_cc(queued)) {
-			return MIDIQueueManager::CandidateScanResult::Skip;
-		}
-
-		controller = data_1(queued);
-		candidate_offset = offset;
-		return MIDIQueueManager::CandidateScanResult::Candidate;
-	};
-	auto remove_selected = [this](uint16_t target_offset, uint32_t& popped_out) -> bool {
-		uint16_t queue_size = queue_manager_.queue_count(QUEUE_PRIORITY_CC);
-		uint32_t removed_message[1] = {0};
-		auto read_at = [this](uint16_t logical_offset) -> uint32_t {
-			return queue_manager_.read_at(QUEUE_PRIORITY_CC, logical_offset);
-		};
-		auto reset_queue = [this]() { queue_manager_.clear(QUEUE_PRIORITY_CC); };
-		auto append_from_scratch = [this](uint32_t value) { queue_manager_.push(QUEUE_PRIORITY_CC, value); };
-		if (!MIDIQueueManager::remove_logical_span_and_repack(queue_size, target_offset, 1, removed_message,
-		                                                      cc_reorder_scratch.data(), read_at, reset_queue,
-		                                                      append_from_scratch)) {
-			return false;
-		}
-
-		popped_out = removed_message[0];
-		return true;
-	};
-
-	return queue_manager_.pop_fair_cc_candidate(begin_scan, next_scan, remove_selected, message_out);
+	// Signal that at least one USB packet is waiting so flush logic can schedule transmission.
+	anythingInUSBOutputBuffer = true;
 }
 
 /// Returns whether this device has at least one queued USB-MIDI packet to send.
@@ -906,7 +841,11 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 	for (i = 0; i < to_send; i++) {
 		uint32_t message = 0;
 		// Pull one prioritized USB-MIDI packet (4 bytes) from the multi-lane ring queues.
-		if (!pop_priority_message(message, cc_budget_packets_remaining)) {
+		USBSendContext context{message, cc_budget_packets_remaining};
+		USBSendRules rules{};
+		bool popped = MIDIQueueManager::pop_priority_lanes_with_transport_rules(
+		    *this, rules, QUEUE_PRIORITY_CLOCK, static_cast<QueuePriority>(QUEUE_PRIORITY_COUNT - 1), context);
+		if (!popped) {
 			// Queue state changed unexpectedly (or became empty); stop assembling this transfer.
 			break;
 		}

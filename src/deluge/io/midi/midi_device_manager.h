@@ -101,14 +101,6 @@ struct ConnectedUSBMIDIDevice {
 	/// Returns the total number of queued upstream USB packets across all priority lanes.
 	uint32_t total_queued_messages();
 
-	/// Pushes one packed USB MIDI packet into the selected priority lane with CC coalescing/fairness tracking.
-	void push_priority_message(QueuePriority priority, uint32_t message);
-
-	/// Pops one highest-priority eligible packet, applying CC fairness and CC budget limits.
-	bool pop_priority_message(uint32_t& message_out, int32_t& cc_budget_packets_remaining);
-	/// Pops one queued CC packet chosen by shared round-robin/debt fairness policy.
-	bool pop_fair_queued_cc_message(uint32_t& message_out);
-
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
 	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch{};
 	friend struct USBSendRules;
@@ -133,8 +125,6 @@ public:
 	void flush_serial_output(uint32_t now_sample_timer);
 
 private:
-	using SerialByteQueue = MIDIQueueLane<uint8_t, 512>;
-
 	/// Number of active serial-priority lanes [clock..CC] scanned during dequeue.
 	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_CC + 1;
 	/// Per-priority byte rings holding pending DIN output grouped by queue policy.
@@ -144,7 +134,7 @@ private:
 	/// Token-bucket send budget in Q8 bytes (8 fractional bits).
 	int32_t serial_budget_Q8_{0};
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
-	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
+	std::array<uint8_t, MIDIQueueLane<uint8_t, 512>::k_capacity> cc_reorder_scratch_{};
 	friend struct DINSendRules;
 
 	struct DINSendContext;
