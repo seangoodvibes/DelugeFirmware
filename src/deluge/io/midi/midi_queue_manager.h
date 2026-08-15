@@ -92,21 +92,21 @@ public:
 
 	/// Shared queue-mutation primitive: remove a logical span and repack survivors.
 	///
-	/// Callers provide transport-specific queue read/reset/append member callbacks,
+	/// Callers provide transport-specific queue read/reset/append callables,
 	/// while this helper centralizes the in-bounds check, removed-span skip, and
 	/// survivor compaction flow.
-	template <typename Owner, typename QueueValue, typename ScratchValue>
+	template <typename QueueValue, typename ScratchValue, typename ReadAtFn, typename ResetQueueFn,
+	          typename AppendFromScratchFn>
 	static bool remove_logical_span_and_repack(uint16_t queue_size, uint16_t target_offset, uint16_t remove_count,
-	                                           Owner& owner, QueueValue* removed_out, ScratchValue* scratch_buffer,
-	                                           QueueValue (Owner::*read_at)(uint16_t) const,
-	                                           void (Owner::*reset_queue)(),
-	                                           void (Owner::*append_from_scratch)(ScratchValue)) {
+	                                           QueueValue* removed_out, ScratchValue* scratch_buffer,
+	                                           ReadAtFn&& read_at, ResetQueueFn&& reset_queue,
+	                                           AppendFromScratchFn&& append_from_scratch) {
 		if (target_offset + remove_count > queue_size) {
 			return false;
 		}
 
 		for (uint16_t i = 0; i < remove_count; i++) {
-			removed_out[i] = (owner.*read_at)(static_cast<uint16_t>(target_offset + i));
+			removed_out[i] = read_at(static_cast<uint16_t>(target_offset + i));
 		}
 
 		uint16_t scratch_size = 0;
@@ -114,28 +114,27 @@ public:
 			if (i >= target_offset && i < static_cast<uint16_t>(target_offset + remove_count)) {
 				continue;
 			}
-			scratch_buffer[scratch_size] = static_cast<ScratchValue>((owner.*read_at)(i));
+			scratch_buffer[scratch_size] = static_cast<ScratchValue>(read_at(i));
 			scratch_size++;
 		}
 
-		(owner.*reset_queue)();
+		reset_queue();
 		for (uint16_t i = 0; i < scratch_size; i++) {
-			(owner.*append_from_scratch)(scratch_buffer[i]);
+			append_from_scratch(scratch_buffer[i]);
 		}
 		return true;
 	}
 
 	/// Shared CC gate helper: if head is CC and budget allows, attempt fair-pop.
-	template <typename Owner, typename PopFn, typename... Args>
-	static CCFairPopResult try_fair_pop_cc(Owner& owner, bool head_is_cc, bool budget_ok, PopFn pop_fair_fn,
-	                                       Args&&... args) {
+	template <typename PopFn, typename... Args>
+	static CCFairPopResult try_fair_pop_cc(bool head_is_cc, bool budget_ok, PopFn pop_fair_fn, Args&&... args) {
 		if (!head_is_cc) {
 			return CCFairPopResult::NotCC;
 		}
 		if (!budget_ok) {
 			return CCFairPopResult::BudgetBlocked;
 		}
-		if ((owner.*pop_fair_fn)(std::forward<Args>(args)...)) {
+		if (pop_fair_fn(std::forward<Args>(args)...)) {
 			return CCFairPopResult::Popped;
 		}
 		return CCFairPopResult::PopFailed;
@@ -333,17 +332,13 @@ public:
 	uint8_t next_controller{0};
 
 	/// Collects the first queued CC offset for each controller from a scan snapshot.
-	template <typename Owner>
-	bool collect_first_controller_offsets_from_scan(
-	    Owner& owner, bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
-	    MIDIQueueManager::CandidateScanResult (Owner::*next_scan)(uint16_t& cursor, uint16_t limit,
-	                                                              uint16_t& candidate_offset, uint8_t& controller)
-	        const) {
+	template <typename BeginScanFn, typename NextScanFn>
+	bool collect_first_controller_offsets_from_scan(BeginScanFn&& begin_scan, NextScanFn&& next_scan) {
 		first_offsets.fill(k_no_controller_offset);
 
 		uint16_t cursor = 0;
 		uint16_t limit = 0;
-		if (!(owner.*begin_scan)(cursor, limit)) {
+		if (!begin_scan(cursor, limit)) {
 			return false;
 		}
 
@@ -352,8 +347,7 @@ public:
 			uint16_t candidate_offset = 0;
 			uint8_t controller = 0;
 			// Walk the queue snapshot until the scan reports exhaustion or error.
-			MIDIQueueManager::CandidateScanResult step =
-			    (owner.*next_scan)(cursor, limit, candidate_offset, controller);
+			MIDIQueueManager::CandidateScanResult step = next_scan(cursor, limit, candidate_offset, controller);
 			if (step == MIDIQueueManager::CandidateScanResult::NoMore) {
 				// No more scan entries remain in this snapshot.
 				break;
@@ -375,15 +369,12 @@ public:
 	}
 
 	/// Returns the latest matching CC offset from a coalesce scan snapshot.
-	template <typename Owner>
-	int32_t find_latest_matching_cc_offset(Owner const& owner, uint8_t wanted_status, uint8_t wanted_controller,
-	                                       bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
-	                                       MIDIQueueManager::CoalesceScanResult (Owner::*next_scan)(
-	                                           uint16_t& cursor, uint16_t limit, uint16_t& candidate_offset,
-	                                           uint8_t& status, uint8_t& controller) const) const {
+	template <typename BeginScanFn, typename NextScanFn>
+	int32_t find_latest_matching_cc_offset(uint8_t wanted_status, uint8_t wanted_controller, BeginScanFn&& begin_scan,
+	                                       NextScanFn&& next_scan) const {
 		uint16_t cursor = 0;
 		uint16_t limit = 0;
-		if (!(owner.*begin_scan)(cursor, limit)) {
+		if (!begin_scan(cursor, limit)) {
 			return -1;
 		}
 
@@ -393,8 +384,7 @@ public:
 			uint8_t status = 0;
 			uint8_t controller = 0;
 			// Scan the snapshot once and remember the newest matching CC entry.
-			MIDIQueueManager::CoalesceScanResult step =
-			    (owner.*next_scan)(cursor, limit, candidate_offset, status, controller);
+			MIDIQueueManager::CoalesceScanResult step = next_scan(cursor, limit, candidate_offset, status, controller);
 			if (step == MIDIQueueManager::CoalesceScanResult::NoMore) {
 				// Nothing else to inspect in this queue snapshot.
 				break;
@@ -414,16 +404,15 @@ public:
 	}
 
 	/// Enqueues with CC coalescing and fairness debt tracking.
-	template <typename Owner, typename MessageT>
-	bool enqueue_with_cc_policy(Owner& owner, QueuePriority priority, MessageT message, bool allow_coalesce,
-	                            bool track_debt, uint8_t controller, bool (Owner::*coalesce)(MessageT),
-	                            bool (Owner::*enqueue_priority_message)(QueuePriority, MessageT)) {
-		if (priority == QUEUE_PRIORITY_CC && allow_coalesce && (owner.*coalesce)(message)) {
+	template <typename MessageT, typename CoalesceFn, typename EnqueueFn>
+	bool enqueue_with_cc_policy(QueuePriority priority, MessageT message, bool allow_coalesce, bool track_debt,
+	                            uint8_t controller, CoalesceFn&& coalesce, EnqueueFn&& enqueue_priority_message) {
+		if (priority == QUEUE_PRIORITY_CC && allow_coalesce && coalesce(message)) {
 			// Coalesced CC messages do not need a fresh enqueue.
 			return true;
 		}
 
-		bool queued_ok = (owner.*enqueue_priority_message)(priority, message);
+		bool queued_ok = enqueue_priority_message(priority, message);
 		if (queued_ok && priority == QUEUE_PRIORITY_CC && track_debt && controller <= kMaxMIDIValue) {
 			// Remember that this controller has pending pressure for fair dequeue.
 			bump_controller_debt(controller);
@@ -433,14 +422,10 @@ public:
 	}
 
 	/// Pops the fair CC candidate selected from the current queue snapshot.
-	template <typename Owner, typename RemoveArg, typename CallArg>
-	bool pop_fair_cc_candidate(Owner& owner, bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
-	                           MIDIQueueManager::CandidateScanResult (Owner::*next_scan)(uint16_t& cursor,
-	                                                                                     uint16_t limit,
-	                                                                                     uint16_t& candidate_offset,
-	                                                                                     uint8_t& controller) const,
-	                           bool (Owner::*remove_selected)(uint16_t, RemoveArg), CallArg&& out_arg) {
-		if (!collect_first_controller_offsets_from_scan(owner, begin_scan, next_scan)) {
+	template <typename BeginScanFn, typename NextScanFn, typename RemoveSelectedFn, typename CallArg>
+	bool pop_fair_cc_candidate(BeginScanFn&& begin_scan, NextScanFn&& next_scan, RemoveSelectedFn&& remove_selected,
+	                           CallArg&& out_arg) {
+		if (!collect_first_controller_offsets_from_scan(begin_scan, next_scan)) {
 			// No CC candidates were present in the snapshot.
 			return false;
 		}
@@ -452,7 +437,7 @@ public:
 			return false;
 		}
 
-		if (!(owner.*remove_selected)(selected_offset, std::forward<CallArg>(out_arg))) {
+		if (!remove_selected(selected_offset, std::forward<CallArg>(out_arg))) {
 			// The selected CC disappeared before removal could complete.
 			return false;
 		}
@@ -571,41 +556,34 @@ public:
 	}
 	bool pop_many(uint8_t lane, T* out, uint16_t count) { return queue_storage.lanes[lane].pop_many(out, count); }
 
-	template <typename Owner>
-	bool collect_first_controller_offsets_from_scan(
-	    Owner& owner, bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
-	    MIDIQueueManager::CandidateScanResult (Owner::*next_scan)(uint16_t& cursor, uint16_t limit,
-	                                                              uint16_t& candidate_offset, uint8_t& controller)
-	        const) {
-		return cc_policy.collect_first_controller_offsets_from_scan(owner, begin_scan, next_scan);
+	template <typename BeginScanFn, typename NextScanFn>
+	bool collect_first_controller_offsets_from_scan(BeginScanFn&& begin_scan, NextScanFn&& next_scan) {
+		return cc_policy.collect_first_controller_offsets_from_scan(std::forward<BeginScanFn>(begin_scan),
+		                                                            std::forward<NextScanFn>(next_scan));
 	}
 
-	template <typename Owner>
-	int32_t find_latest_matching_cc_offset(Owner const& owner, uint8_t wanted_status, uint8_t wanted_controller,
-	                                       bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
-	                                       MIDIQueueManager::CoalesceScanResult (Owner::*next_scan)(
-	                                           uint16_t& cursor, uint16_t limit, uint16_t& candidate_offset,
-	                                           uint8_t& status, uint8_t& controller) const) const {
-		return cc_policy.find_latest_matching_cc_offset(owner, wanted_status, wanted_controller, begin_scan, next_scan);
+	template <typename BeginScanFn, typename NextScanFn>
+	int32_t find_latest_matching_cc_offset(uint8_t wanted_status, uint8_t wanted_controller, BeginScanFn&& begin_scan,
+	                                       NextScanFn&& next_scan) const {
+		return cc_policy.find_latest_matching_cc_offset(wanted_status, wanted_controller,
+		                                                std::forward<BeginScanFn>(begin_scan),
+		                                                std::forward<NextScanFn>(next_scan));
 	}
 
-	template <typename Owner, typename MessageT>
-	bool enqueue_with_cc_policy(Owner& owner, QueuePriority priority, MessageT message, bool allow_coalesce,
-	                            bool track_debt, uint8_t controller, bool (Owner::*coalesce)(MessageT),
-	                            bool (Owner::*enqueue_priority_message)(QueuePriority, MessageT)) {
-		return cc_policy.enqueue_with_cc_policy(owner, priority, message, allow_coalesce, track_debt, controller,
-		                                        coalesce, enqueue_priority_message);
+	template <typename MessageT, typename CoalesceFn, typename EnqueueFn>
+	bool enqueue_with_cc_policy(QueuePriority priority, MessageT message, bool allow_coalesce, bool track_debt,
+	                            uint8_t controller, CoalesceFn&& coalesce, EnqueueFn&& enqueue_priority_message) {
+		return cc_policy.enqueue_with_cc_policy(priority, message, allow_coalesce, track_debt, controller,
+		                                        std::forward<CoalesceFn>(coalesce),
+		                                        std::forward<EnqueueFn>(enqueue_priority_message));
 	}
 
-	template <typename Owner, typename RemoveArg, typename CallArg>
-	bool pop_fair_cc_candidate(Owner& owner, bool (Owner::*begin_scan)(uint16_t& cursor, uint16_t& limit) const,
-	                           MIDIQueueManager::CandidateScanResult (Owner::*next_scan)(uint16_t& cursor,
-	                                                                                     uint16_t limit,
-	                                                                                     uint16_t& candidate_offset,
-	                                                                                     uint8_t& controller) const,
-	                           bool (Owner::*remove_selected)(uint16_t, RemoveArg), CallArg&& out_arg) {
-		return cc_policy.pop_fair_cc_candidate(owner, begin_scan, next_scan, remove_selected,
-		                                       std::forward<CallArg>(out_arg));
+	template <typename BeginScanFn, typename NextScanFn, typename RemoveSelectedFn, typename CallArg>
+	bool pop_fair_cc_candidate(BeginScanFn&& begin_scan, NextScanFn&& next_scan, RemoveSelectedFn&& remove_selected,
+	                           CallArg&& out_arg) {
+		return cc_policy.pop_fair_cc_candidate(
+		    std::forward<BeginScanFn>(begin_scan), std::forward<NextScanFn>(next_scan),
+		    std::forward<RemoveSelectedFn>(remove_selected), std::forward<CallArg>(out_arg));
 	}
 
 	void bump_controller_debt(uint8_t controller) { cc_policy.bump_controller_debt(controller); }

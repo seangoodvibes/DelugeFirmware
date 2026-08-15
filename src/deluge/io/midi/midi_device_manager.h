@@ -103,35 +103,6 @@ struct ConnectedUSBMIDIDevice {
 
 	/// Pushes one packed USB MIDI packet into the selected priority lane with CC coalescing/fairness tracking.
 	void push_priority_message(QueuePriority priority, uint32_t message);
-	// USB CC fairness/coalescing state mirrors DIN behavior per connected USB device.
-	/// Replaces newest pending matching CC packet value instead of appending another packet.
-	bool coalesce_queued_cc(uint32_t message);
-	/// Initializes scan bounds for USB CC coalescing.
-	bool begin_coalesce_cc_scan(uint16_t& cursor, uint16_t& limit) const;
-	/// Advances USB CC coalescing scan by one step.
-	MIDIQueueManager::CoalesceScanResult next_coalesce_cc_scan_step(uint16_t& cursor, uint16_t limit,
-	                                                                uint16_t& candidate_offset, uint8_t& status,
-	                                                                uint8_t& controller) const;
-	/// Appends one packet into the selected USB priority lane.
-	bool enqueue_priority_message(QueuePriority priority, uint32_t message);
-	/// Reads one logical packet from any USB priority lane by offset from lane head.
-	uint32_t read_priority_queue_message_at(QueuePriority priority, uint16_t logical_offset) const;
-	/// Appends one packet into any USB priority lane.
-	void append_priority_queue_message(QueuePriority priority, uint32_t message);
-	/// Reads one logical entry from the USB CC lane snapshot by offset from lane head.
-	uint32_t read_cc_queue_message_at(uint16_t logical_offset) const;
-	/// Resets USB CC lane cursors to an empty queue image.
-	void reset_cc_queue();
-	/// Appends one packet to USB CC lane during replay of compacted survivors.
-	void append_cc_queue_message(uint32_t message);
-	/// Removes queued CC packet at target offset and compacts remaining packets in-order.
-	bool remove_queued_cc_message_at_offset(uint16_t target_offset, uint32_t& message_out);
-	/// Initializes scan bounds for USB fair-CC candidate collection.
-	bool begin_fair_cc_candidate_scan(uint16_t& cursor, uint16_t& limit) const;
-	/// Advances USB fair-CC candidate scan by one step.
-	MIDIQueueManager::CandidateScanResult next_fair_cc_candidate_scan_step(uint16_t& cursor, uint16_t limit,
-	                                                                       uint16_t& candidate_offset,
-	                                                                       uint8_t& controller) const;
 
 	/// Pops one highest-priority eligible packet, applying CC fairness and CC budget limits.
 	bool pop_priority_message(uint32_t& message_out, int32_t& cc_budget_packets_remaining);
@@ -177,45 +148,6 @@ private:
 	friend struct DINSendRules;
 
 	struct DINSendContext;
-
-	/// Refills Q8 pacing budget from elapsed sample time and applies idle-burst capping.
-	void update_serial_budget(uint32_t now_sample_timer);
-	/// Replaces the newest queued matching CC value instead of appending a duplicate write.
-	bool coalesce_queued_cc(MIDIMessage message);
-	/// Initializes scan bounds for DIN CC coalescing.
-	bool begin_coalesce_cc_scan(uint16_t& cursor, uint16_t& limit) const;
-	/// Advances DIN CC coalescing scan by one step.
-	MIDIQueueManager::CoalesceScanResult next_coalesce_cc_scan_step(uint16_t& cursor, uint16_t limit,
-	                                                                uint16_t& candidate_offset, uint8_t& status,
-	                                                                uint8_t& controller) const;
-	/// Encodes and appends one message into the selected DIN priority lane.
-	bool enqueue_priority_message(QueuePriority priority, MIDIMessage message);
-	/// Pops one queued 3-byte CC message selected by round-robin/debt fairness policy.
-	bool pop_fair_queued_cc_message(uint8_t* out_bytes, int32_t budget_bytes, int32_t uart_space, int32_t max_len,
-	                                QueuePriority& popped_priority);
-	/// Initializes scan bounds for DIN fair-CC candidate collection.
-	bool begin_fair_cc_candidate_scan(uint16_t& cursor, uint16_t& limit) const;
-	/// Advances DIN fair-CC candidate scan by one step.
-	MIDIQueueManager::CandidateScanResult next_fair_cc_candidate_scan_step(uint16_t& cursor, uint16_t limit,
-	                                                                       uint16_t& candidate_offset,
-	                                                                       uint8_t& controller) const;
-	/// Shared DIN CC-lane scan step used by fair-candidate and coalesce scans.
-	MIDIQueueManager::CoalesceScanResult next_din_cc_scan_step(uint16_t& cursor, uint16_t limit,
-	                                                           uint16_t& candidate_offset, uint8_t& status,
-	                                                           uint8_t& controller) const;
-	/// Reads one logical byte from the DIN CC lane snapshot by offset from lane head.
-	uint8_t read_cc_queue_byte_at(uint16_t logical_offset) const;
-	/// Resets DIN CC lane cursors to an empty queue image.
-	void reset_cc_queue();
-	/// Appends one byte to DIN CC lane during replay of compacted survivors.
-	void append_cc_queue_byte(uint8_t byte);
-	/// Removes one queued CC frame at target offset and compacts remaining queue bytes in-order.
-	bool remove_queued_cc_message_at_offset(uint16_t target_offset, uint8_t* out_bytes);
-	/// Enqueues one complete byte span atomically into the selected priority lane.
-	bool enqueue_serial_bytes(QueuePriority priority, uint8_t const* bytes, int32_t len);
-	/// Pops the next eligible realtime or full MIDI message under budget/space constraints.
-	int32_t pop_next_prioritized_bytes(uint8_t* out_bytes, int32_t max_len, int32_t budget_bytes, int32_t uart_space,
-	                                   int32_t cc_uart_budget, QueuePriority& popped_priority);
 };
 #endif
 
