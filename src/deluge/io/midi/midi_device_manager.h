@@ -66,8 +66,12 @@ public:
 	void setup();
 
 	// move data from ring buffer to dataSendingNow, assuming it is free
+	/// Drains queued USB data into the hardware-send buffer.
 	bool consumeSendData();
+	/// Queue occupancy check (boolean form): true when any USB lane has queued output.
+	/// Conceptually matches DIN `has_serial_data()`.
 	bool hasBufferedSendData();
+	/// Remaining USB queue capacity (reported in serial-MIDI-byte equivalent units).
 	int sendBufferSpace();
 #else
 // warning - accessed as a C struct from usb driver
@@ -96,9 +100,11 @@ struct ConnectedUSBMIDIDevice {
 	// Messages are queued in priority-specific rings and consumed in priority order.
 	MIDIQueueManagerState<uint32_t, MIDI_SEND_BUFFER_LEN_RING, QUEUE_PRIORITY_COUNT> queue_manager_{};
 
-	/// Clears all queue storage and fairness bookkeeping for this upstream USB device.
+	/// Clears USB queue contents and fairness bookkeeping for this device.
+	/// This is the queue-reset counterpart to DIN output-state reset.
 	void reset_queue_storage();
-	/// Returns the total number of queued upstream USB packets across all priority lanes.
+	/// Queue occupancy (count form): total queued USB packets across all priority lanes.
+	/// Conceptually the counted version of DIN `has_serial_data()`.
 	uint32_t total_queued_messages();
 
 	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
@@ -115,9 +121,11 @@ class ConnectedDINMIDIDevice {
 public:
 	ConnectedDINMIDIDevice() = default;
 
-	/// Resets serial pacing/budget state to a known baseline at the provided sample timestamp.
+	/// Resets DIN pacing/budget state to a known baseline at the provided sample timestamp.
+	/// Note: this does not clear queued DIN bytes.
 	void reset_serial_state(uint32_t now_sample_timer);
-	/// Returns true when any DIN priority lane has queued bytes waiting to be flushed.
+	/// Queue occupancy check (boolean form): true when any DIN lane has queued output.
+	/// Conceptually matches USB `hasBufferedSendData()`.
 	[[nodiscard]] bool has_serial_data() const;
 	/// Classifies, optionally coalesces, and enqueues one outgoing MIDI message into DIN priority lanes.
 	void enqueue_serial_message(MIDIMessage message);
