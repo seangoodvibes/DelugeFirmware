@@ -15,12 +15,12 @@
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
     ],
-    "views": [19, 20],
+    "views": [19, 22],
     "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Select (Settings) encoder."
@@ -45,7 +45,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -71,7 +71,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -202,7 +202,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 51
+        "control": 53
       }
     ],
     "views": [],
@@ -231,7 +231,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -252,11 +252,11 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -287,11 +287,11 @@
         "substeps": [
           {
             "action": 0,
-            "control": 32
+            "control": 34
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       },
@@ -303,7 +303,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -334,7 +334,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [1, 3, 5, 15],
@@ -357,11 +357,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -378,7 +378,7 @@
             "steps": [
               {
                 "action": 2,
-                "control": 30
+                "control": 32
               }
             ]
           },
@@ -396,7 +396,7 @@
             "steps": [
               {
                 "action": 2,
-                "control": 30
+                "control": 32
               }
             ]
           },
@@ -436,7 +436,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [1, 3, 5, 13, 14, 15],
@@ -465,7 +465,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [0, 1, 2, 6, 14, 15],
@@ -494,7 +494,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -653,7 +653,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -711,7 +711,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 29
+        "control": 31
       }
     ],
     "views": [19],
@@ -746,12 +746,12 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
     ],
-    "views": [19, 21, 9, 10],
+    "views": [19, 23, 9, 10],
     "firmware": [1],
     "paragraphs": [
       {
@@ -783,11 +783,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -824,11 +824,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -869,7 +869,7 @@
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -910,7 +910,7 @@
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -951,7 +951,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -992,7 +992,7 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -1087,7 +1087,7 @@
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -1153,11 +1153,11 @@
           },
           {
             "action": 1,
-            "control": 38
+            "control": 40
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -1260,7 +1260,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "substeps": [
@@ -1306,7 +1306,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
@@ -1340,11 +1340,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 33
+        "control": 35
       },
       {
         "action": 0,
@@ -1385,7 +1385,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
@@ -1425,7 +1425,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -1449,11 +1449,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [],
@@ -1483,15 +1483,15 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [],
@@ -1517,7 +1517,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 33
+        "control": 35
       }
     ],
     "views": [],
@@ -1546,11 +1546,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 33
+            "control": 35
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1585,7 +1585,7 @@
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1615,11 +1615,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 33
+            "control": 35
           },
           {
             "action": 0,
-            "control": 36
+            "control": 38
           }
         ]
       }
@@ -1641,11 +1641,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1711,7 +1711,7 @@
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1895,7 +1895,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -1931,7 +1931,7 @@
       },
       {
         "action": 2,
-        "control": 45
+        "control": 47
       }
     ],
     "views": [0, 1, 2],
@@ -1987,7 +1987,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 35
+        "control": 37
       }
     ],
     "views": [1],
@@ -2007,11 +2007,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -2039,7 +2039,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 36
+        "control": 38
       }
     ],
     "views": [1],
@@ -2067,7 +2067,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -2093,11 +2093,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -2119,11 +2119,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -2145,11 +2145,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -2177,7 +2177,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [1],
@@ -2203,7 +2203,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [1],
@@ -2231,11 +2231,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -2263,7 +2263,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 36
+        "control": 38
       }
     ],
     "views": [1],
@@ -2317,7 +2317,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -2355,7 +2355,7 @@
           },
           {
             "action": 0,
-            "control": 36
+            "control": 38
           }
         ]
       }
@@ -2385,11 +2385,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -2411,17 +2411,17 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       },
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [1],
@@ -2449,17 +2449,17 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       },
       {
         "action": 2,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [1],
@@ -2491,7 +2491,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -2519,7 +2519,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [1],
@@ -2545,7 +2545,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [1],
@@ -2573,11 +2573,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -2607,7 +2607,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2633,7 +2633,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2659,7 +2659,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2685,11 +2685,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -2719,7 +2719,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2745,7 +2745,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2771,7 +2771,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2797,7 +2797,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2831,11 +2831,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 50
+            "control": 52
           }
         ]
       }
@@ -2891,7 +2891,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -2923,7 +2923,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 35
+        "control": 37
       }
     ],
     "views": [3],
@@ -2949,7 +2949,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [2],
@@ -2975,7 +2975,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [2],
@@ -3007,7 +3007,7 @@
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -3037,11 +3037,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -3067,7 +3067,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -3095,7 +3095,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [2],
@@ -3121,11 +3121,11 @@
     "steps": [
       {
         "action": 1,
-        "control": 37
+        "control": 39
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [2],
@@ -3160,11 +3160,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -3201,7 +3201,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3235,11 +3235,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -3273,11 +3273,11 @@
           },
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -3307,11 +3307,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -3335,7 +3335,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [2],
@@ -3355,11 +3355,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3381,7 +3381,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3415,7 +3415,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3449,7 +3449,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3483,11 +3483,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3507,7 +3507,7 @@
     "steps": [
       {
         "action": 1,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [2],
@@ -3535,11 +3535,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3561,11 +3561,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 38
+            "control": 40
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3595,7 +3595,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 1,
@@ -3603,7 +3603,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -3633,11 +3633,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 29
+            "control": 31
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3667,11 +3667,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 35
+            "control": 37
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3705,17 +3705,17 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [2],
@@ -3742,11 +3742,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [2],
@@ -3775,11 +3775,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3813,17 +3813,17 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [1],
@@ -3843,11 +3843,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3882,7 +3882,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -3910,11 +3910,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       },
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [8],
@@ -3946,7 +3946,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -3980,7 +3980,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -4010,11 +4010,11 @@
         "substeps": [
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -4049,11 +4049,11 @@
           },
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -4084,7 +4084,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -4177,7 +4177,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4218,7 +4218,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "substeps": [
@@ -4234,7 +4234,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4275,11 +4275,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4339,7 +4339,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4349,15 +4349,15 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4395,7 +4395,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4405,17 +4405,17 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "substeps": [
           {
             "action": 1,
-            "control": 32
+            "control": 34
           },
           {
             "action": 3,
@@ -4425,7 +4425,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4456,7 +4456,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4466,17 +4466,17 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "substeps": [
           {
             "action": 1,
-            "control": 32
+            "control": 34
           },
           {
             "action": 3,
@@ -4486,7 +4486,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4517,7 +4517,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4527,17 +4527,17 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "substeps": [
           {
             "action": 1,
-            "control": 32
+            "control": 34
           },
           {
             "action": 3,
@@ -4547,7 +4547,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4582,13 +4582,13 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 3,
@@ -4629,7 +4629,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [11],
@@ -4660,17 +4660,17 @@
         "substeps": [
           {
             "action": 1,
-            "control": 43
+            "control": 45
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -4701,15 +4701,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 43
+            "control": 45
           },
           {
             "action": 1,
-            "control": 32
+            "control": 34
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -4884,7 +4884,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -4917,7 +4917,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -4946,7 +4946,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [11],
@@ -5004,7 +5004,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -5034,11 +5034,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -5118,7 +5118,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5156,11 +5156,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5190,7 +5190,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "substeps": [
@@ -5206,7 +5206,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5234,7 +5234,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5244,11 +5244,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5280,7 +5280,7 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5290,11 +5290,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5324,11 +5324,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 32
+        "control": 34
       },
       {
         "action": 3,
@@ -5336,7 +5336,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5377,11 +5377,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 32
+        "control": 34
       },
       {
         "action": 3,
@@ -5389,7 +5389,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 3,
@@ -5397,7 +5397,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5432,17 +5432,17 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 3,
@@ -5450,7 +5450,7 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5478,11 +5478,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 50
+            "control": 52
           }
         ]
       }
@@ -5504,7 +5504,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5538,7 +5538,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5572,11 +5572,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 44
+            "control": 46
           }
         ]
       }
@@ -5598,11 +5598,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 45
+            "control": 47
           }
         ]
       }
@@ -5628,7 +5628,7 @@
           },
           {
             "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -5662,11 +5662,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -5696,7 +5696,7 @@
           },
           {
             "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -5746,7 +5746,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [10],
@@ -5785,7 +5785,7 @@
           },
           {
             "action": 1,
-            "control": 34
+            "control": 36
           }
         ]
       },
@@ -5797,7 +5797,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -5831,7 +5831,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -5861,7 +5861,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -5891,7 +5891,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -5925,7 +5925,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -5947,11 +5947,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 35
+            "control": 37
           }
         ]
       }
@@ -5979,21 +5979,21 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       },
       {
         "action": 2,
-        "control": 30
+        "control": 32
       },
       {
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 35
+            "control": 37
           }
         ]
       }
@@ -6023,11 +6023,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6057,11 +6057,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -6091,11 +6091,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -6129,7 +6129,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6167,7 +6167,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6223,7 +6223,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -6233,11 +6233,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -6265,11 +6265,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6299,7 +6299,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -6329,7 +6329,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6355,11 +6355,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6381,15 +6381,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 1,
-            "control": 38
+            "control": 40
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6411,15 +6411,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6445,7 +6445,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -6475,15 +6475,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6513,11 +6513,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6547,15 +6547,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6585,11 +6585,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -6619,11 +6619,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 49
+            "control": 51
           }
         ]
       }
@@ -6651,7 +6651,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [9, 10, 11, 12, 15, 18],
@@ -6677,7 +6677,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [9, 10, 11, 12, 15, 18],
@@ -6705,11 +6705,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -6739,11 +6739,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -6773,11 +6773,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6807,7 +6807,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -6841,11 +6841,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6875,11 +6875,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -6961,11 +6961,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -7021,11 +7021,11 @@
         "substeps": [
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7055,7 +7055,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -7089,11 +7089,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7123,15 +7123,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 33
+            "control": 35
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -7161,11 +7161,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7187,15 +7187,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7221,7 +7221,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7255,7 +7255,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7293,7 +7293,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7331,7 +7331,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7369,7 +7369,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7407,7 +7407,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7441,7 +7441,7 @@
           },
           {
             "action": 0,
-            "control": 47
+            "control": 49
           }
         ]
       }
@@ -7467,7 +7467,7 @@
           },
           {
             "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -7493,7 +7493,7 @@
           },
           {
             "action": 0,
-            "control": 49
+            "control": 51
           }
         ]
       }
@@ -7515,11 +7515,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7545,11 +7545,11 @@
           },
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7575,11 +7575,11 @@
           },
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7669,7 +7669,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -7703,7 +7703,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -7767,7 +7767,7 @@
           },
           {
             "action": 0,
-            "control": 36
+            "control": 38
           }
         ]
       }
@@ -7801,7 +7801,7 @@
           },
           {
             "action": 0,
-            "control": 35
+            "control": 37
           }
         ]
       }
@@ -7831,11 +7831,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -7865,11 +7865,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -7897,11 +7897,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [17],
@@ -8087,7 +8087,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -8189,7 +8189,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -8276,7 +8276,7 @@
       },
       {
         "action": 0,
-        "control": 46
+        "control": 48
       }
     ],
     "views": [9, 10, 11, 12],
@@ -8338,7 +8338,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [9, 10],
@@ -8375,7 +8375,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -8406,11 +8406,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -8444,7 +8444,7 @@
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       }
@@ -8479,11 +8479,11 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       },
       {
         "action": 0,
-        "control": 29
+        "control": 31
       },
       {
         "substeps": [
@@ -8493,7 +8493,7 @@
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       }
@@ -8527,7 +8527,7 @@
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -8569,7 +8569,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [2],
@@ -8589,11 +8589,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -8621,7 +8621,7 @@
       },
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [2],
@@ -8653,7 +8653,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -8687,7 +8687,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -8733,7 +8733,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 35
+        "control": 37
       },
       {
         "action": 0,
@@ -8741,7 +8741,7 @@
       },
       {
         "action": 2,
-        "control": 33
+        "control": 35
       }
     ],
     "views": [2],
@@ -8765,7 +8765,7 @@
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       },
@@ -8793,7 +8793,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [1, 2],
@@ -8816,10 +8816,10 @@
     "steps": [
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
-    "views": [19, 21],
+    "views": [19, 23],
     "firmware": [0],
     "paragraphs": [],
     "description": "Press the Select (Settings) encoder."
@@ -8866,7 +8866,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -8900,7 +8900,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -8928,7 +8928,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [14, 9, 11, 12],
@@ -8954,7 +8954,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [14, 9, 11, 12],
@@ -8982,11 +8982,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -9020,7 +9020,7 @@
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -9054,7 +9054,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -9088,7 +9088,7 @@
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9116,7 +9116,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [9, 10],
@@ -9183,7 +9183,7 @@
           },
           {
             "action": 0,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9217,7 +9217,7 @@
           },
           {
             "action": 0,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9255,7 +9255,7 @@
           },
           {
             "action": 0,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9285,11 +9285,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9319,11 +9319,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9351,7 +9351,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 45
+        "control": 47
       }
     ],
     "views": [9, 10, 1, 2],
@@ -9377,7 +9377,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 44
+        "control": 46
       }
     ],
     "views": [9, 10, 1, 2],
@@ -9409,7 +9409,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -9429,11 +9429,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 39
+        "control": 41
       },
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [13],
@@ -9459,11 +9459,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 40
+        "control": 42
       },
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [13],
@@ -9491,11 +9491,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 39
+            "control": 41
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -9525,11 +9525,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 41
+            "control": 43
           },
           {
             "action": 0,
-            "control": 39
+            "control": 41
           }
         ]
       }
@@ -9559,11 +9559,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 40
+            "control": 42
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -9593,11 +9593,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 42
+            "control": 44
           },
           {
             "action": 0,
-            "control": 40
+            "control": 42
           }
         ]
       }
@@ -9627,11 +9627,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 41
+            "control": 43
           },
           {
             "action": 0,
-            "control": 42
+            "control": 44
           }
         ]
       }
