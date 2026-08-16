@@ -16,14 +16,15 @@
  */
 
 #pragma once
-#include "deluge/io/midi/midi_queue_definitions.h"
+#include "midi_queue_definitions.h"
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
+#include "io/midi/midi_queue_manager.h"
+#include "model/midi/message.h"
 #include "util/container/vector/named_thing_vector.h"
-#include <array>
 class Serializer;
 class Deserializer;
 
@@ -31,14 +32,6 @@ class Deserializer;
 #include "definitions.h"
 struct MIDICableUSB;
 #endif
-
-// size in 32-bit messages
-// NOTE: increasing this even more doesn't work.
-// Looks like a hardware limitation (maybe we more in FS mode)?
-#define MIDI_SEND_BUFFER_LEN_INNER 32
-// Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config but I
-// haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
-#define MIDI_SEND_BUFFER_LEN_INNER_HOST 2
 
 #ifdef __cplusplus
 /*A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
@@ -60,12 +53,16 @@ class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	void bufferMessage(uint32_t fullMessage, QueuePriority priority);
+	void enqueue_message(uint32_t fullMessage);
 	void setup();
 
 	// move data from ring buffer to dataSendingNow, assuming it is free
-	bool consumeSendData();
+	/// Drains queued USB data into the hardware-send buffer.
+	bool consume_queued_messages();
+	/// Queue occupancy check (boolean form): true when any USB lane has queued output.
+	/// Conceptually matches DIN `has_serial_data()`.
 	bool hasBufferedSendData();
+	/// Remaining USB queue capacity (reported in serial-MIDI-byte equivalent units).
 	int sendBufferSpace();
 #else
 // warning - accessed as a C struct from usb driver
@@ -86,24 +83,35 @@ struct ConnectedUSBMIDIDevice {
 	// This will show a value after the general flush function is called, throughout other Devices being sent to before
 	// this one, and until we've completed our send
 	uint8_t numBytesSendingNow;
-
-	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
-	// Any code which wants to send midi data would use the writing side and append more messages.
-	// When we are ready to send data on this device, we consume data on the reading side and move it into the
-	// smaller dataSendingNow buffer above.
-	// Messages are queued in priority-specific rings and consumed in priority order.
-#ifdef __cplusplus
-	std::array<std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING>, QUEUE_PRIORITY_COUNT> sendDataRingBuf{};
-	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufWriteIdx{};
-	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufReadIdx{};
-#else
-	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
-	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];
-	uint16_t ringBufReadIdx[QUEUE_PRIORITY_COUNT];
-#endif
-
 	uint8_t maxPortConnected;
+
+#ifdef __cplusplus
+
+private:
+	MIDIQueueManagerUSB queue_manager_{};
+#endif
 };
+
+#ifdef __cplusplus
+class ConnectedDINMIDIDevice {
+public:
+	ConnectedDINMIDIDevice() = default;
+
+	/// Resets DIN pacing/budget state to a known baseline at the provided sample timestamp.
+	/// Note: this does not clear queued DIN bytes.
+	void reset_serial_state(uint32_t now_sample_timer);
+	/// Queue occupancy check (boolean form): true when any DIN lane has queued output.
+	/// Conceptually matches USB `hasBufferedSendData()`.
+	[[nodiscard]] bool has_serial_data() const;
+	/// Classifies, optionally coalesces, and enqueues one outgoing MIDI message into DIN priority lanes.
+	void enqueue_message(MIDIMessage message);
+	/// Drains queued DIN bytes into UART using pacing budget, lane priorities, and CC gating.
+	void consume_queued_messages(uint32_t now_sample_timer);
+
+private:
+	MIDIQueueManagerDIN queue_manager_{};
+};
+#endif
 
 #ifdef __cplusplus
 namespace MIDIDeviceManager {
@@ -135,3 +143,6 @@ extern bool anyChangesToSave;
 #endif
 
 extern struct ConnectedUSBMIDIDevice connectedUSBMIDIDevices[][MAX_NUM_USB_MIDI_DEVICES];
+#ifdef __cplusplus
+extern ConnectedDINMIDIDevice connectedDINMIDIDevice;
+#endif

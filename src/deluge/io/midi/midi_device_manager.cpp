@@ -35,6 +35,7 @@
 #include <new>
 
 extern "C" {
+#include "RZA1/uart/sio_char.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
 #include "drivers/uart/uart.h"
 
@@ -48,6 +49,9 @@ extern uint8_t anyUSBSendingStillHappening[];
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
 
 PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+PLACE_SDRAM_BSS ConnectedDINMIDIDevice connectedDINMIDIDevice{};
+
+namespace {} // namespace
 
 namespace MIDIDeviceManager {
 
@@ -660,102 +664,24 @@ checkDevice:
 } // namespace MIDIDeviceManager
 
 /// Queues one USB-MIDI packet into the selected priority lane with backpressure handling.
-void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage, QueuePriority priority) {
-	// Defensive fallback: unknown priority values are treated as regular CC lane.
-	if (priority >= QUEUE_PRIORITY_COUNT) {
-		priority = QUEUE_PRIORITY_CC;
-	}
-
-	// Total packets currently queued across all priority lanes for this device.
-	uint32_t queued = MidiQueueManager::usbTotalQueuedMessages(this);
-	// If backlog grows, opportunistically kick a flush to keep latency bounded.
-	if (queued > 16) {
-		// Only trigger a new flush when a send transaction is not already active.
-		if (anyUSBSendingStillHappening[0] == 0) {
-			midiEngine.flushUSBMIDIOutput();
-		}
-	}
-
-	// Occupancy of just the selected priority lane we are about to enqueue into.
-	uint16_t queue_size = MidiQueueManager::usbQueueCount(this, priority);
-	// Keep one slot free in a ring buffer so full/empty states stay distinguishable.
-	if (queue_size >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
-		// If nothing is currently transmitting, try flushing now to free space.
-		if (anyUSBSendingStillHappening[0] == 0) {
-			midiEngine.flushUSBMIDIOutput();
-		}
-		// Re-check after opportunistic flush.
-		queue_size = MidiQueueManager::usbQueueCount(this, priority);
-		if (queue_size >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
-			// Still full: drop this message rather than overwrite unread queued data.
-			// TODO: show some error message
-			return;
-		}
-	}
-
-	// Write the packet through shared queue-state helper.
-	MidiQueueManager::usbPushPriorityMessage(this, priority, fullMessage);
-
-	// Signal that at least one USB packet is waiting so flush logic can schedule transmission.
-	anythingInUSBOutputBuffer = true;
+void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage) {
+	queue_manager_.enqueue_message(fullMessage);
 }
 
 /// Returns whether this device has at least one queued USB-MIDI packet to send.
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
 	// True when at least one queued USB-MIDI packet exists across any priority lane.
-	return MidiQueueManager::usbTotalQueuedMessages(this) > 0;
+	return queue_manager_.has_buffered_send_data();
 }
 
 /// Reports remaining send capacity in serial-MIDI-byte units across all USB priority lanes.
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
-	// Total queued USB-MIDI packets currently buffered across all priority lanes.
-	uint32_t queued = MidiQueueManager::usbTotalQueuedMessages(this);
-	// Maximum packets we can queue: usable slots per lane (ring-1) times number of lanes.
-	uint32_t totalCapacity = (MIDI_SEND_BUFFER_LEN_RING - 1) * QUEUE_PRIORITY_COUNT;
-	// each 4-byte MIDI-USB message contains 3 bytes of serial MIDI data
-	// Report remaining space in serial-MIDI-byte units to match caller expectations.
-	return (totalCapacity - queued) * 3;
+	return queue_manager_.send_buffer_space();
 }
 
 /// Moves queued USB packets into the contiguous transfer buffer for the next hardware send.
-bool ConnectedUSBMIDIDevice::consumeSendData() {
-	// Snapshot total queued packets across all priority lanes.
-	uint32_t queued = MidiQueueManager::usbTotalQueuedMessages(this);
-	if (queued == 0) {
-		// Nothing pending: caller should not start a USB send transfer.
-		return false;
-	}
-
-	int32_t i = 0;
-	uint32_t max_size = MIDI_SEND_BUFFER_LEN_INNER;
-	if (g_usb_usbmode == USB_HOST) {
-		// many devices do not accept more than 64 bytes of data at a time
-		// likely this can be inferred from the device metadata somehow?
-
-		// some seem to take even less, especially with hubs involved. The hydrasynth seems to only respond to a max of
-		// 2 messages per transfer, the third gets blocked. For MPE this leads to ignoring note ons as the x and y
-		// resets are sent before the note on
-		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
-	}
-
-	// Build at most one USB transfer worth of packets: no more than queued, and no more than the mode/device cap.
-	int32_t to_send = std::min<uint32_t>(queued, max_size);
-	// Serialize `to_send` prioritized 4-byte USB-MIDI packets into dataSendingNow.
-	for (i = 0; i < to_send; i++) {
-		uint32_t message = 0;
-		// Pull one prioritized USB-MIDI packet (4 bytes) from the multi-lane ring queues.
-		if (!MidiQueueManager::usbPopPriorityMessage(this, message)) {
-			// Queue state changed unexpectedly (or became empty); stop assembling this transfer.
-			break;
-		}
-		// Pack each 32-bit USB-MIDI event contiguously for the driver DMA/transfer buffer.
-		memcpy(dataSendingNow + (i * 4), &message, 4);
-	}
-
-	// `i` is the number of USB-MIDI event packets queued, each packet is 4 bytes.
-	numBytesSendingNow = i * 4;
-	// Tell caller whether we assembled at least one packet to transmit.
-	return i > 0;
+bool ConnectedUSBMIDIDevice::consume_queued_messages() {
+	return queue_manager_.consume_queued_messages(dataSendingNow, numBytesSendingNow, g_usb_usbmode == USB_HOST);
 }
 
 /// Resets volatile USB transfer state for a newly connected/initialized device.
@@ -770,23 +696,32 @@ void ConnectedUSBMIDIDevice::setup() {
 
 /// Initializes all USB device send/receive buffers and per-priority queue cursors.
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
-	currentlyWaitingToReceive = 0;
 	sq = 0;
-	canHaveMIDISent = 0;
-	numBytesReceived = 0;
+	canHaveMIDISent = false;
+	setup();
 	memset(receiveData, 0, sizeof(receiveData));
 	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
-	numBytesSendingNow = 0;
-	// Start with an empty per-priority ring state.
-	MidiQueueManager::resetUsbQueueStorage(this);
-
-	maxPortConnected = 0;
+	queue_manager_.reset_queue_storage();
 }
 
-/*
-    for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-        MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
+/// Resets serial pacing state so the next flush starts from a known baseline.
+void ConnectedDINMIDIDevice::reset_serial_state(uint32_t now_sample_timer) {
+	queue_manager_.reset_serial_state(now_sample_timer);
+}
 
-    }
- */
+/// Returns whether any serial-priority lane currently has data pending.
+bool ConnectedDINMIDIDevice::has_serial_data() const {
+	return queue_manager_.has_serial_data();
+}
+
+/// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
+void ConnectedDINMIDIDevice::enqueue_message(MIDIMessage message) {
+	queue_manager_.enqueue_message(message);
+}
+
+/// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.
+void ConnectedDINMIDIDevice::consume_queued_messages(uint32_t now_sample_timer) {
+	queue_manager_.consume_queued_messages(now_sample_timer);
+}
+
 #pragma GCC diagnostic pop
