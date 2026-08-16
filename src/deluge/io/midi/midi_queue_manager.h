@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/midi/message.h"
 #include <array>
+#include <limits>
 #include <utility>
 
 class ConnectedUSBMIDIDevice;
@@ -69,6 +70,26 @@ public:
 		return message_len == 3 && is_channel_cc_status_byte(status);
 	}
 
+	enum class CandidateScanResult : uint8_t {
+		NoMore,
+		Skip,
+		Candidate,
+		Invalid,
+	};
+
+	enum class CoalesceScanResult : uint8_t {
+		NoMore,
+		Skip,
+		Matchable,
+		Invalid,
+	};
+
+	enum class CCFairPopResult : uint8_t {
+		NotCC,
+		BudgetBlocked,
+		PopFailed,
+		Popped,
+	};
 	enum class PriorityLaneTraversalResult {
 		PopLane,
 		SkipLane,
@@ -118,6 +139,55 @@ public:
 			append_from_scratch(scratch_buffer[i]);
 		}
 		return true;
+	}
+
+	/// Shared CC gate helper: if head is CC and budget allows, attempt fair-pop.
+	template <typename PopFn, typename... Args>
+	static CCFairPopResult try_fair_pop_cc(bool head_is_cc, bool budget_ok, PopFn pop_fair_fn, Args&&... args) {
+		if (!head_is_cc) {
+			return CCFairPopResult::NotCC;
+		}
+		if (!budget_ok) {
+			return CCFairPopResult::BudgetBlocked;
+		}
+		if (pop_fair_fn(std::forward<Args>(args)...)) {
+			return CCFairPopResult::Popped;
+		}
+		return CCFairPopResult::PopFailed;
+	}
+
+	/// Shared strict-priority lane traversal with CC fairness handling for the CC lane.
+	template <typename Adapter, typename Context>
+	static bool pop_priority_lanes_with_cc_fairness(Adapter& adapter, QueuePriority first_priority,
+	                                                QueuePriority last_priority, Context& context) {
+		for (uint8_t lane = static_cast<uint8_t>(first_priority); lane <= static_cast<uint8_t>(last_priority); lane++) {
+			QueuePriority priority = static_cast<QueuePriority>(lane);
+			if (!adapter.queue_count(priority)) {
+				continue;
+			}
+
+			if (priority == QUEUE_PRIORITY_CC) {
+				auto cc_result = adapter.handle_cc_lane(priority, context);
+				if (cc_result == PriorityLaneTraversalResult::Popped) {
+					return true;
+				}
+				if (cc_result == PriorityLaneTraversalResult::Abort) {
+					return false;
+				}
+				if (cc_result == PriorityLaneTraversalResult::SkipLane) {
+					continue;
+				}
+				if (cc_result != PriorityLaneTraversalResult::PopLane) {
+					continue;
+				}
+			}
+
+			if (adapter.pop_lane(priority, context)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/// Shared strict-priority traversal driven by transport rules.
@@ -180,6 +250,217 @@ public:
 		}
 		message_len_out = message_len;
 		return HeadMessageCheckResult::Ready;
+	}
+};
+
+/// Stateful queue-policy facade instantiated per transport/device.
+///
+/// Owns controller-fairness state and the policy algorithms that operate on it,
+/// while delegating
+/// transport-specific queue storage and mutation to caller-provided adapters.
+class MIDICCQueuePolicy {
+public:
+	std::array<uint16_t, kMaxMIDIValue + 1> first_offsets{};
+	std::array<uint8_t, kMaxMIDIValue + 1> controller_debt{};
+	uint8_t next_controller{0};
+
+	/// Collects the first queued CC offset for each controller from a scan snapshot.
+	template <typename BeginScanFn, typename NextScanFn>
+	bool collect_first_controller_offsets_from_scan(BeginScanFn&& begin_scan, NextScanFn&& next_scan) {
+		first_offsets.fill(k_no_controller_offset);
+
+		uint16_t cursor = 0;
+		uint16_t limit = 0;
+		if (!begin_scan(cursor, limit)) {
+			return false;
+		}
+
+		bool saw_any_cc = false;
+		while (true) {
+			uint16_t candidate_offset = 0;
+			uint8_t controller = 0;
+			// Walk the queue snapshot until the scan reports exhaustion or error.
+			MIDIQueueManager::CandidateScanResult step = next_scan(cursor, limit, candidate_offset, controller);
+			if (step == MIDIQueueManager::CandidateScanResult::NoMore) {
+				// No more scan entries remain in this snapshot.
+				break;
+			}
+			if (step == MIDIQueueManager::CandidateScanResult::Invalid) {
+				// The snapshot was malformed; abort so callers can fall back safely.
+				return false;
+			}
+			if (step == MIDIQueueManager::CandidateScanResult::Candidate) {
+				saw_any_cc = true;
+				// Keep the first queued CC offset for each controller only.
+				if (controller <= kMaxMIDIValue && first_offsets[controller] == k_no_controller_offset) {
+					first_offsets[controller] = candidate_offset;
+				}
+			}
+		}
+
+		return saw_any_cc;
+	}
+
+	/// Returns the latest matching CC offset from a coalesce scan snapshot.
+	template <typename BeginScanFn, typename NextScanFn>
+	int32_t find_latest_matching_cc_offset(uint8_t wanted_status, uint8_t wanted_controller, BeginScanFn&& begin_scan,
+	                                       NextScanFn&& next_scan) const {
+		uint16_t cursor = 0;
+		uint16_t limit = 0;
+		if (!begin_scan(cursor, limit)) {
+			return -1;
+		}
+
+		int32_t latest_offset = -1;
+		while (true) {
+			uint16_t candidate_offset = 0;
+			uint8_t status = 0;
+			uint8_t controller = 0;
+			// Scan the snapshot once and remember the newest matching CC entry.
+			MIDIQueueManager::CoalesceScanResult step = next_scan(cursor, limit, candidate_offset, status, controller);
+			if (step == MIDIQueueManager::CoalesceScanResult::NoMore) {
+				// Nothing else to inspect in this queue snapshot.
+				break;
+			}
+			if (step == MIDIQueueManager::CoalesceScanResult::Invalid) {
+				// Invalid data cannot be coalesced safely.
+				break;
+			}
+			if (step == MIDIQueueManager::CoalesceScanResult::Matchable && status == wanted_status
+			    && controller == wanted_controller) {
+				// Later matching entries supersede earlier ones in-place.
+				latest_offset = static_cast<int32_t>(candidate_offset);
+			}
+		}
+
+		return latest_offset;
+	}
+
+	/// Enqueues with CC coalescing and fairness debt tracking.
+	template <typename MessageT, typename CoalesceFn, typename EnqueueFn>
+	bool enqueue_with_cc_policy(QueuePriority priority, MessageT message, bool allow_coalesce, bool track_debt,
+	                            uint8_t controller, CoalesceFn&& coalesce, EnqueueFn&& enqueue_priority_message) {
+		if (priority == QUEUE_PRIORITY_CC && allow_coalesce && coalesce(message)) {
+			// Coalesced CC messages do not need a fresh enqueue.
+			return true;
+		}
+
+		bool queued_ok = enqueue_priority_message(priority, message);
+		if (queued_ok && priority == QUEUE_PRIORITY_CC && track_debt && controller <= kMaxMIDIValue) {
+			// Remember that this controller has pending pressure for fair dequeue.
+			bump_controller_debt(controller);
+		}
+
+		return queued_ok;
+	}
+
+	/// Pops the fair CC candidate selected from the current queue snapshot.
+	template <typename BeginScanFn, typename NextScanFn, typename RemoveSelectedFn, typename CallArg>
+	bool pop_fair_cc_candidate(BeginScanFn&& begin_scan, NextScanFn&& next_scan, RemoveSelectedFn&& remove_selected,
+	                           CallArg&& out_arg) {
+		if (!collect_first_controller_offsets_from_scan(begin_scan, next_scan)) {
+			// No CC candidates were present in the snapshot.
+			return false;
+		}
+
+		uint16_t selected_offset = 0;
+		uint8_t selected_controller = 0;
+		if (!select_fair_controller_candidate(selected_offset, selected_controller)) {
+			// The scan snapshot did not yield a viable controller target.
+			return false;
+		}
+
+		if (!remove_selected(selected_offset, std::forward<CallArg>(out_arg))) {
+			// The selected CC disappeared before removal could complete.
+			return false;
+		}
+
+		commit_fair_controller_service(selected_controller);
+		return true;
+	}
+
+	/// Saturating increment for per-controller fairness debt.
+	///
+	/// Debt models relative enqueue pressure: controllers that accumulate more
+	/// unsent writes become more likely to be selected by fair dequeue.
+	void bump_controller_debt(uint8_t controller) {
+		if (controller <= kMaxMIDIValue && controller_debt[controller] < k_max_controller_debt) {
+			controller_debt[controller]++;
+		}
+	}
+
+	/// Clears the tracked fairness debt for one controller.
+	void clear_controller_debt(uint8_t controller) {
+		if (controller <= kMaxMIDIValue) {
+			controller_debt[controller] = 0;
+		}
+	}
+
+private:
+	static constexpr uint16_t k_no_controller_offset = 0xFFFF;
+	static constexpr uint8_t k_max_controller_debt = std::numeric_limits<uint8_t>::max();
+
+	/// Selects one controller candidate using RR baseline with debt override.
+	///
+	/// - RR baseline: first eligible controller encountered in rotated order.
+	/// - Debt override: if any eligible controller has positive debt, pick the
+	///   highest-debt one (rotation order implicitly breaks ties).
+	bool select_fair_controller_candidate(uint16_t& selected_offset, uint8_t& selected_controller) const {
+		uint16_t first_round_robin_offset = k_no_controller_offset;
+		uint8_t first_round_robin_controller = 0;
+		uint16_t debt_selected_offset = k_no_controller_offset;
+		uint8_t debt_selected_controller = 0;
+		uint8_t debt_selected_value = 0;
+
+		for (uint16_t search = 0; search < (kMaxMIDIValue + 1); search++) {
+			// Rotate from the RR start cursor and wrap into the MIDI controller domain.
+			uint8_t controller = static_cast<uint8_t>((next_controller + search) & kMaxMIDIValue);
+			// Sentinel means this controller has no queued CC candidate in this snapshot.
+			uint16_t target_offset = first_offsets[controller];
+			if (target_offset == k_no_controller_offset) {
+				continue;
+			}
+
+			if (first_round_robin_offset == k_no_controller_offset) {
+				// Latch the first eligible hit in rotated order as the RR fallback.
+				first_round_robin_offset = target_offset;
+				first_round_robin_controller = controller;
+			}
+
+			// Debt tracks relative enqueue pressure; keep the highest-debt eligible candidate.
+			uint8_t debt = controller_debt[controller];
+			if (debt_selected_offset == k_no_controller_offset || debt > debt_selected_value) {
+				debt_selected_offset = target_offset;
+				debt_selected_controller = controller;
+				debt_selected_value = debt;
+			}
+		}
+
+		if (first_round_robin_offset == k_no_controller_offset) {
+			// No controller had a queued CC candidate in this snapshot.
+			return false;
+		}
+
+		// Default to RR baseline; override only when a valid debt candidate has pressure.
+		selected_offset = first_round_robin_offset;
+		selected_controller = first_round_robin_controller;
+		if (debt_selected_offset != k_no_controller_offset && debt_selected_value > 0) {
+			// Positive debt wins over the RR baseline to keep fairness moving.
+			selected_offset = debt_selected_offset;
+			selected_controller = debt_selected_controller;
+		}
+
+		return true;
+	}
+
+	/// Commits fair-dequeue service for one controller: clear debt and rotate RR cursor.
+	void commit_fair_controller_service(uint8_t selected_controller) {
+		if (selected_controller <= kMaxMIDIValue) {
+			// The selected controller has just been serviced, so clear its debt.
+			controller_debt[selected_controller] = 0;
+		}
+		// Advance the RR cursor to the next controller after the serviced one.
+		next_controller = static_cast<uint8_t>((selected_controller + 1) & kMaxMIDIValue);
 	}
 };
 
@@ -291,6 +572,40 @@ public:
 	}
 	bool pop_many(uint8_t lane, T* out, uint16_t count) { return queue_storage.lanes[lane].pop_many(out, count); }
 
+	template <typename BeginScanFn, typename NextScanFn>
+	bool collect_first_controller_offsets_from_scan(BeginScanFn&& begin_scan, NextScanFn&& next_scan) {
+		return cc_policy.collect_first_controller_offsets_from_scan(std::forward<BeginScanFn>(begin_scan),
+		                                                            std::forward<NextScanFn>(next_scan));
+	}
+
+	template <typename BeginScanFn, typename NextScanFn>
+	int32_t find_latest_matching_cc_offset(uint8_t wanted_status, uint8_t wanted_controller, BeginScanFn&& begin_scan,
+	                                       NextScanFn&& next_scan) const {
+		return cc_policy.find_latest_matching_cc_offset(wanted_status, wanted_controller,
+		                                                std::forward<BeginScanFn>(begin_scan),
+		                                                std::forward<NextScanFn>(next_scan));
+	}
+
+	template <typename MessageT, typename CoalesceFn, typename EnqueueFn>
+	bool enqueue_with_cc_policy(QueuePriority priority, MessageT message, bool allow_coalesce, bool track_debt,
+	                            uint8_t controller, CoalesceFn&& coalesce, EnqueueFn&& enqueue_priority_message) {
+		return cc_policy.enqueue_with_cc_policy(priority, message, allow_coalesce, track_debt, controller,
+		                                        std::forward<CoalesceFn>(coalesce),
+		                                        std::forward<EnqueueFn>(enqueue_priority_message));
+	}
+
+	template <typename BeginScanFn, typename NextScanFn, typename RemoveSelectedFn, typename CallArg>
+	bool pop_fair_cc_candidate(BeginScanFn&& begin_scan, NextScanFn&& next_scan, RemoveSelectedFn&& remove_selected,
+	                           CallArg&& out_arg) {
+		return cc_policy.pop_fair_cc_candidate(
+		    std::forward<BeginScanFn>(begin_scan), std::forward<NextScanFn>(next_scan),
+		    std::forward<RemoveSelectedFn>(remove_selected), std::forward<CallArg>(out_arg));
+	}
+
+	void bump_controller_debt(uint8_t controller) { cc_policy.bump_controller_debt(controller); }
+	void clear_controller_debt(uint8_t controller) { cc_policy.clear_controller_debt(controller); }
+
 private:
 	MIDIQueueStorage<T, Capacity, LaneCount> queue_storage{};
+	MIDICCQueuePolicy cc_policy{};
 };
