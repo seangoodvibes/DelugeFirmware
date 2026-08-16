@@ -15,19 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/toggle.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
+#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::midi {
-class DeviceReceiveClock final : public Toggle {
+namespace deluge::gui::menu_item::midi::devices {
+class DefaultVelocityToLevel final : public IntegerWithOff {
 public:
-	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->receiveClock); }
+	using IntegerWithOff::IntegerWithOff;
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	void readCurrentValue() override {
+		this->setValue(((int64_t)soundEditor.currentMIDICable->defaultVelocityToLevel * kMaxMenuValue + 536870912)
+		               >> 30);
+	}
 	void writeCurrentValue() override {
-		soundEditor.currentMIDICable->receiveClock = this->getValue();
+		soundEditor.currentMIDICable->defaultVelocityToLevel = this->getValue() * (2147483648 / (kMaxMenuValue * 2));
+		currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(*soundEditor.currentMIDICable);
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };
-} // namespace deluge::gui::menu_item::midi
+} // namespace deluge::gui::menu_item::midi::devices

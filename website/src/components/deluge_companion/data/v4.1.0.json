@@ -80,7 +80,7 @@
         ]
       }
     ],
-    "views": [19, 20],
+    "views": [19, 22],
     "firmware": [0],
     "paragraphs": [],
     "description": "Hold the Shift button, press the Select (Settings) encoder."
@@ -879,7 +879,7 @@
         ]
       }
     ],
-    "views": [19, 21, 9, 10],
+    "views": [19, 23, 9, 10],
     "firmware": [1],
     "paragraphs": [
       {
@@ -9203,7 +9203,7 @@
         "control": 34
       }
     ],
-    "views": [19, 21],
+    "views": [19, 23],
     "firmware": [0],
     "paragraphs": [],
     "description": "Press the Select (Settings) encoder."
@@ -10012,7 +10012,7 @@
         ]
       }
     ],
-    "views": [19, 21],
+    "views": [19, 23],
     "firmware": [0],
     "paragraphs": [
       {

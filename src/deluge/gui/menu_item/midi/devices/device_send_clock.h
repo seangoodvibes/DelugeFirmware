@@ -20,14 +20,14 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 
-namespace deluge::gui::menu_item::midi {
-class DeviceIsRelative final : public Toggle {
+namespace deluge::gui::menu_item::midi::devices {
+class DeviceSendClock final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->is_relative); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->sendClock); }
 	void writeCurrentValue() override {
-		soundEditor.currentMIDICable->is_relative = this->getValue();
+		soundEditor.currentMIDICable->sendClock = this->getValue();
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };
-} // namespace deluge::gui::menu_item::midi
+} // namespace deluge::gui::menu_item::midi::devices
