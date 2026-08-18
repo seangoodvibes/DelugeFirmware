@@ -83,10 +83,21 @@ public:
 			return;
 		}
 
+		SquareInfo& squareInfo = instrumentClipView.gridSquareInfo[yDisplay][xDisplay];
+		Note* selectedNote = squareInfo.firstNote;
+		if (!selectedNote) {
+			this->setValue(0);
+			return;
+		}
+
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    modelStack->addNoteRow(getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex), noteRow);
+		uint32_t squareLength = (squareInfo.squareEndPos > squareInfo.squareStartPos)
+		                            ? (uint32_t)(squareInfo.squareEndPos - squareInfo.squareStartPos)
+		                            : 0;
+		view.setModRegion(squareInfo.squareStartPos, squareLength, modelStackWithNoteRow->noteRowId);
 
 		ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
 		ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
@@ -101,7 +112,8 @@ public:
 		AutoParam* param = &mpeParams->params[expressionDimension];
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    modelStackWithParamCollection->addAutoParam(expressionDimension, param);
-		this->setValue(param->getValuePossiblyAtPos(view.modPos, modelStackWithAutoParam) >> 16);
+		int32_t rawValue = param->getValuePossiblyAtPos(view.modPos, modelStackWithAutoParam);
+		this->setValue(expressionDimension == Expression::X_PITCH_BEND ? rawValue >> 16 : rawValue >> 24);
 	}
 
 	void selectEncoderAction(int32_t offset) override {
@@ -113,7 +125,8 @@ public:
 		if (!instrumentClipView.gridSquareInfo[yDisplay][xDisplay].isValid) {
 			return;
 		}
-		Note* selectedNote = instrumentClipView.gridSquareInfo[yDisplay][xDisplay].firstNote;
+		SquareInfo& squareInfo = instrumentClipView.gridSquareInfo[yDisplay][xDisplay];
+		Note* selectedNote = squareInfo.firstNote;
 		if (!selectedNote) {
 			return;
 		}
@@ -131,8 +144,13 @@ public:
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    modelStack->addNoteRow(getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex), noteRow);
-		if (noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, ((int32_t)newValue) << 16,
-		                                             expressionDimension, false)) {
+		uint32_t squareLength = (squareInfo.squareEndPos > squareInfo.squareStartPos)
+		                            ? (uint32_t)(squareInfo.squareEndPos - squareInfo.squareStartPos)
+		                            : 0;
+		view.setModRegion(squareInfo.squareStartPos, squareLength, modelStackWithNoteRow->noteRowId);
+		int32_t valueBig =
+		    expressionDimension == Expression::X_PITCH_BEND ? ((int32_t)newValue) << 16 : ((int32_t)newValue) << 24;
+		if (noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, valueBig, expressionDimension, false)) {
 			this->setValue(newValue);
 		}
 		readValueAgain();
