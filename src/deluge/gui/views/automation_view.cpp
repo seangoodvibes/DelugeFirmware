@@ -1179,7 +1179,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// Does not currently work for Automation
 	else if (b == CROSS_SCREEN_EDIT) {
 		// toggle auto scroll or cross screen editing
-		if (onArrangerView || inNoteEditor()) {
+		if (onArrangerView || inNoteVelocityEditor()) {
 			handleCrossScreenButtonAction(on);
 		}
 		// don't toggle for automation editing
@@ -1388,7 +1388,7 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 							clip->wrapEditing = true;
 						}
 						// If in we're in the note editor, we can check if the note row has multiple screens
-						else if (inNoteEditor()) {
+						else if (inNoteVelocityEditor()) {
 							char modelStackMemory[MODEL_STACK_MAX_SIZE];
 							ModelStackWithTimelineCounter* modelStack =
 							    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1599,7 +1599,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 			displayAutomation(padSelectionOn, !display->have7SEG());
 		}
 	}
-	else if (on && inNoteEditor()) {
+	else if (on && inNoteVelocityEditor()) {
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1624,7 +1624,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 // handle by button action if b == Y_ENC
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 	if (on) {
-		if (inNoteEditor()) {
+		if (inNoteVelocityEditor()) {
 			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 				// Just pop up number - don't do anything
 				instrumentClipView.editNoteRepeat(0);
@@ -1858,7 +1858,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		if (Buttons::isShiftButtonPressed()
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
-			if (!inNoteEditor()) {
+			if (!inNoteNonExpressionEditor()) {
 				// toggle interpolation on / off
 				// not relevant for note editor because interpolation doesn't apply to note params
 				if ((x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
@@ -1888,7 +1888,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 
 					// if you're in not in note editor, turn led off if it's on
 					if (((InstrumentClip*)clip)->wrapEditing) {
-						indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
+						indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteVelocityEditor());
 					}
 				}
 			}
@@ -2286,7 +2286,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_RIGHT));
 			}
 		}
-		else if (inNoteEditor()) {
+		else if (inNoteVelocityEditor()) {
 			instrumentClipView.rotateNoteRowHorizontally(offset);
 		}
 
@@ -2306,7 +2306,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 
 	// fine tune note velocity
 	// If holding down notes and nothing else is held down, adjust velocity
-	else if (inNoteEditor() && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
+	else if (inNoteVelocityEditor() && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 		if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 			if (!instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
 				instrumentClipView.adjustVelocity(offset);
@@ -2370,7 +2370,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 
 	// If encoder button pressed
 	if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
-		if (inNoteEditor() && currentUIMode != UI_MODE_NONE) {
+		if (inNoteVelocityEditor() && currentUIMode != UI_MODE_NONE) {
 			// only allow editing note repeats when selecting a note
 			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 				instrumentClipView.editNoteRepeat(offset);
@@ -2616,7 +2616,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		return;
 	}
 	// edit row or note probability or iterance
-	else if (inNoteEditor()) {
+	else if (inNoteVelocityEditor()) {
 		// only allow adjusting probability / iterance while holding note
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 			instrumentClipView.handleProbabilityOrIteranceEditing(offset, false);
@@ -3238,6 +3238,10 @@ bool AutomationView::inNoteVelocityEditor() {
 	return (automationParamType == AutomationParamType::NOTE_VELOCITY);
 }
 
+bool AutomationView::inNoteNonExpressionEditor() {
+	return inNoteEditor() && !inNoteExpressionEditor();
+}
+
 bool AutomationView::inNoteExpressionEditor() {
 	return (automationParamType == AutomationParamType::NOTE_X_PITCH_BEND
 	        || automationParamType == AutomationParamType::NOTE_Y_SLIDE_TIMBRE
@@ -3293,7 +3297,7 @@ void AutomationView::blinkShortcuts() {
 			resetParameterShortcutBlinking();
 		}
 	}
-	if (interpolation && !inNoteEditor()) {
+	if (interpolation && !inNoteNonExpressionEditor()) {
 		if (!interpolationShortcutBlinking) {
 			blinkInterpolationShortcut();
 		}

@@ -74,6 +74,7 @@ public:
 	bool inAutomationEditor();
 	bool inNoteEditor();
 	bool inNoteVelocityEditor();
+	bool inNoteNonExpressionEditor();
 	bool inNoteExpressionEditor();
 
 	// rendering
