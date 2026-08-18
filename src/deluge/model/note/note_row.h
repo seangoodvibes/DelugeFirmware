@@ -236,6 +236,8 @@ public:
 	SequenceDirection getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
 	bool recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStackWithNoteRow, int32_t newValueBig,
 	                                     int32_t expressionDimension, bool forDrum);
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithNoteRow* modelStack, int32_t paramID,
+	                                                deluge::modulation::params::Kind paramKind, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 

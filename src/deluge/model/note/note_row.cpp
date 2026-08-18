@@ -4489,6 +4489,26 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 	return true;
 }
 
+ModelStackWithAutoParam* NoteRow::getModelStackWithParam(ModelStackWithNoteRow* modelStack, int32_t paramID,
+                                                         deluge::modulation::params::Kind paramKind, bool forDrum) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	if (paramKind == deluge::modulation::params::Kind::EXPRESSION) {
+		paramManager.ensureExpressionParamSetExists(forDrum);
+		ParamCollectionSummary* mpeParamsSummary = paramManager.getExpressionParamSetSummary();
+		ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
+		if (!mpeParams) {
+			return nullptr;
+		}
+
+		AutoParam* param = &mpeParams->params[paramID];
+		modelStackWithParam = modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParam(
+		    mpeParams, mpeParamsSummary, paramID, param);
+	}
+
+	return modelStackWithParam;
+}
+
 void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode) {
 	int32_t lastProcessedPosBefore = modelStack->getLastProcessedPos();
 
