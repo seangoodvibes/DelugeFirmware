@@ -224,6 +224,9 @@ enum class UIModControllableContext : uint8_t {
 enum class AutomationParamType : uint8_t {
 	PER_SOUND,
 	NOTE_VELOCITY,
+	NOTE_X_PITCH_BEND,
+	NOTE_Y_SLIDE_TIMBRE,
+	NOTE_Z_PRESSURE,
 };
 
 // BEWARE! Something in Kit loading or InstrumentClip::changeOutputType() is sensitive to output type order. There's a

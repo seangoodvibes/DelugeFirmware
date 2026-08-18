@@ -1833,6 +1833,18 @@ bool AutomationView::isNoteVelocityEditorShortcut(int32_t x, int32_t y) {
 	return (x == kVelocityShortcutX && y == kVelocityShortcutY);
 }
 
+bool AutomationView::isNoteXPitchBendEditorShortcut(int32_t x, int32_t y) {
+	return params::expressionParamFromShortcut(x, y) == Expression::X_PITCH_BEND;
+}
+
+bool AutomationView::isNoteYSlideTimbreEditorShortcut(int32_t x, int32_t y) {
+	return params::expressionParamFromShortcut(x, y) == Expression::Y_SLIDE_TIMBRE;
+}
+
+bool AutomationView::isNoteZPressureEditorShortcut(int32_t x, int32_t y) {
+	return params::expressionParamFromShortcut(x, y) == Expression::Z_PRESSURE;
+}
+
 /// handles shortcut pad actions, including:
 /// 1) toggle interpolation on / off
 /// 2) select parameter on automation overview
@@ -3204,6 +3216,15 @@ void AutomationView::setAutomationParamType() {
 		if (isNoteVelocityEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
 		}
+		else if (isNoteXPitchBendEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
+			automationParamType = AutomationParamType::NOTE_X_PITCH_BEND;
+		}
+		else if (isNoteYSlideTimbreEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
+			automationParamType = AutomationParamType::NOTE_Y_SLIDE_TIMBRE;
+		}
+		else if (isNoteZPressureEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
+			automationParamType = AutomationParamType::NOTE_Z_PRESSURE;
+		}
 	}
 }
 
@@ -3211,6 +3232,16 @@ void AutomationView::setAutomationParamType() {
 // e.g. velocity, probability, poly expression, etc.
 bool AutomationView::inNoteEditor() {
 	return (automationParamType != AutomationParamType::PER_SOUND);
+}
+
+bool AutomationView::inNoteVelocityEditor() {
+	return (automationParamType == AutomationParamType::NOTE_VELOCITY);
+}
+
+bool AutomationView::inNoteExpressionEditor() {
+	return (automationParamType == AutomationParamType::NOTE_X_PITCH_BEND
+	        || automationParamType == AutomationParamType::NOTE_Y_SLIDE_TIMBRE
+	        || automationParamType == AutomationParamType::NOTE_Z_PRESSURE);
 }
 
 // used to determine the affect entire context
