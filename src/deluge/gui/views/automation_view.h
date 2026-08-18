@@ -73,6 +73,8 @@ public:
 	bool onAutomationOverview();
 	bool inAutomationEditor();
 	bool inNoteEditor();
+	bool inNoteVelocityEditor();
+	bool inNoteExpressionEditor();
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
@@ -174,6 +176,9 @@ public:
 	int32_t lastPadSelectedKnobPos;
 
 	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
+	bool isNoteXPitchBendEditorShortcut(int32_t x, int32_t y);
+	bool isNoteYSlideTimbreEditorShortcut(int32_t x, int32_t y);
+	bool isNoteZPressureEditorShortcut(int32_t x, int32_t y);
 
 private:
 	// button action functions
