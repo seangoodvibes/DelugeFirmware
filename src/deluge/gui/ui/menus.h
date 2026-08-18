@@ -34,6 +34,9 @@ namespace deluge::gui::menu_item {
 class HorizontalMenu;
 class HorizontalMenuGroup;
 class HorizontalMenuContainer;
+namespace note {
+class ExpressionValue;
+}
 } // namespace deluge::gui::menu_item
 
 extern gui::menu_item::patched_param::IntegerNonFM noiseMenu;
@@ -89,6 +92,9 @@ extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep6;
 extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep7;
 extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep8;
 extern gui::menu_item::note::Fill noteFillMenu;
+extern gui::menu_item::note::ExpressionValue noteExpressionPitchBendMenu;
+extern gui::menu_item::note::ExpressionValue noteExpressionModWheelMenu;
+extern gui::menu_item::note::ExpressionValue noteExpressionPressureMenu;
 // note row editor menu's
 extern gui::menu_item::HorizontalMenu noteRowEditorRootMenu;
 extern gui::menu_item::note_row::Probability noteRowProbabilityMenu;

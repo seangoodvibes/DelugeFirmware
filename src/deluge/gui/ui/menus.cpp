@@ -127,6 +127,7 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/note/expression.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
@@ -1622,6 +1623,12 @@ PLACE_SDRAM_BSS menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITO
 PLACE_SDRAM_BSS menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
 PLACE_SDRAM_BSS menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
 PLACE_SDRAM_BSS menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+PLACE_SDRAM_BSS menu_item::note::ExpressionValue noteExpressionPitchBendMenu{STRING_FOR_PITCH_BEND,
+                                                                             Expression::X_PITCH_BEND};
+PLACE_SDRAM_BSS menu_item::note::ExpressionValue noteExpressionModWheelMenu{STRING_FOR_MOD_WHEEL,
+                                                                            Expression::Y_SLIDE_TIMBRE};
+PLACE_SDRAM_BSS menu_item::note::ExpressionValue noteExpressionPressureMenu{STRING_FOR_CHANNEL_PRESSURE,
+                                                                            Expression::Z_PRESSURE};
 
 // Root menu for Note Editor
 PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
@@ -1630,6 +1637,9 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteProbabilityMenu,
                                                       &noteIteranceMenu,
                                                       &noteFillMenu,
+                                                      &noteExpressionPitchBendMenu,
+                                                      &noteExpressionModWheelMenu,
+                                                      &noteExpressionPressureMenu,
                                                   }};
 
 PLACE_SDRAM_BSS menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};

@@ -3654,8 +3654,8 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// to allow you to switch between items in horizontal menu
-	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+	// to allow you to switch between items and pages in a horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV, CROSS_SCREEN_EDIT, SCALE_MODE})) {
 		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
 	}
 
@@ -3893,8 +3893,8 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// to allow you to switch between items in horizontal menu
-	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+	// to allow you to switch between items and pages in a horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV, CROSS_SCREEN_EDIT, SCALE_MODE})) {
 		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
 	}
 

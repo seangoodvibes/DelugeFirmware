@@ -111,7 +111,8 @@ void HorizontalMenu::renderOLED() {
 		return Submenu::renderOLED();
 	}
 
-	const auto& paging = preparePaging(items, *current_item_);
+	this->paging = preparePaging(items, *current_item_);
+	const auto& paging = this->paging;
 
 	// Light up the scale and cross-screen buttons LEDs to indicate they can be used to switch between pages
 	const auto has_pages = paging.totalPages > 1;
@@ -325,6 +326,7 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 
 	child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
 	focusChild(child);
+	renderUIsForOled();
 	displayNotification(child);
 
 	// We don't want to return true for selectEncoderEditsInstrument(), since

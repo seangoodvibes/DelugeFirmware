@@ -10,6 +10,7 @@
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/note/expression.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -1900,6 +1901,10 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 		else if (currentMenuItem == &noteRowFillMenu) {
 			newMenuItem = &noteFillMenu;
 		}
+		else if (currentMenuItem == &noteExpressionPitchBendMenu || currentMenuItem == &noteExpressionModWheelMenu
+		         || currentMenuItem == &noteExpressionPressureMenu) {
+			newMenuItem = &noteEditorRootMenu;
+		}
 		else if (currentMenuItem == &noteRowEditorRootMenu && inHorizontalMenu) {
 			newMenuItem = &noteEditorRootMenu;
 		}
@@ -1916,6 +1921,10 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 		}
 		else if (currentMenuItem == &noteFillMenu) {
 			newMenuItem = &noteRowFillMenu;
+		}
+		else if (currentMenuItem == &noteExpressionPitchBendMenu || currentMenuItem == &noteExpressionModWheelMenu
+		         || currentMenuItem == &noteExpressionPressureMenu) {
+			newMenuItem = &noteRowEditorRootMenu;
 		}
 		else if (currentMenuItem == &noteEditorRootMenu && inHorizontalMenu) {
 			newMenuItem = &noteRowEditorRootMenu;
