@@ -39,17 +39,35 @@ void AutomationEditorLayoutNoteExpression::expressionEditPadAction(ModelStackWit
 		return;
 	}
 
+	auto squareType = squareInfo.squareType;
+
 	// blurred note, can't edit note expression
-	if (squareInfo.squareType == SQUARE_BLURRED) {
+	if (squareType == SQUARE_BLURRED) {
 		return;
 	}
 
-	int32_t max_x = effectiveLength;
+	int32_t max_x = 0;
 	Note* selected_note = squareInfo.firstNote;
 	int32_t noteEnd = selected_note->pos + selected_note->getLength();
-	// if the note is not wrapped, then max editable length is the note end
-	if (noteEnd <= squareInfo.squareEndPos) {
+
+	// scenarios:
+	// note is part of square - max_x = noteEnd
+	// note is to the right of square (wrapped) - max_x = noteEnd
+	// note is to the left of square (not wrapped) - max_x = noteEnd
+	// note  is to the left of square but wrapped - max_x = effective length
+	if (squareType == SQUARE_NOTE_HEAD) {
 		max_x = noteEnd;
+	}
+	else if (squareType == SQUARE_NOTE_TAIL) {
+		max_x = noteEnd;
+	}
+	else if (squareType == SQUARE_NOTE_TAIL_WRAPPED) {
+		if (selected_note->pos > squareInfo.squareStartPos) {
+			max_x = noteEnd;
+		}
+		else {
+			max_x = effectiveLength;
+		}
 	}
 
 	params::Kind paramKind = params::Kind::EXPRESSION;
