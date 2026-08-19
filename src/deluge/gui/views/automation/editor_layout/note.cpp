@@ -16,6 +16,7 @@
  */
 
 #include "gui/views/automation/editor_layout/note.h"
+#include "gui/views/automation/editor_layout/note/expression.h"
 #include "gui/views/automation/editor_layout/note/velocity.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
@@ -155,6 +156,10 @@ void AutomationEditorLayoutNote::noteEditPadAction(ModelStackWithNoteRow* modelS
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 		automationEditorLayoutNoteVelocity.velocityEditPadAction(modelStackWithNoteRow, noteRow, clip, x, y, velocity,
 		                                                         effectiveLength, squareInfo);
+	}
+	else {
+		automationEditorLayoutNoteExpression.expressionEditPadAction(modelStackWithNoteRow, noteRow, clip, x, y,
+		                                                             velocity, effectiveLength, squareInfo);
 	}
 }
 
