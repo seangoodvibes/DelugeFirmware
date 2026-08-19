@@ -311,7 +311,7 @@ void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squa
 /// 1) empty (SQUARE_NO_NOTE)
 ///	2) has one note which is aligned to the very first position in the square (SQUARE_NOTE_HEAD)
 /// 3) has multiple notes or one note which is not aligned to the very first position (SQUARE_BLURRED)
-/// 4) the square is part of a tail of a previous note (SQUARE_NOTE_TAIL)
+/// 4) the square is part of a tail of a previous note (SQUARE_NOTE_TAIL or SQUARE_NOTE_TAIL_WRAPPED)
 /// returns number of notes in a square
 /// returns average velocity for a square
 void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareInfo, int32_t& noteIndex, Note** note) {
@@ -361,7 +361,7 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 		if (noteEnd > squareInfo.squareStartPos) {
 			squareInfo.firstNote = *note;
 			squareInfo.numNotes += 1;
-			squareInfo.squareType = SQUARE_NOTE_TAIL;
+			squareInfo.squareType = wrapping ? SQUARE_NOTE_TAIL_WRAPPED : SQUARE_NOTE_TAIL;
 			squareInfo.averageVelocity += (*note)->getVelocity();
 			squareInfo.probability = (*note)->getProbability();
 			squareInfo.iterance = (*note)->getIterance();

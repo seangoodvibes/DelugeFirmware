@@ -88,7 +88,7 @@ void AutomationEditorLayoutNoteVelocity::renderNoteSquare(RGB image[][kDisplayWi
 			if (squareType == SQUARE_NOTE_HEAD) {
 				pixel = velocityRowColour[yDisplay];
 			}
-			else if (squareType == SQUARE_NOTE_TAIL) {
+			else if (squareType == SQUARE_NOTE_TAIL || squareType == SQUARE_NOTE_TAIL_WRAPPED) {
 				pixel = velocityRowTailColour[yDisplay];
 			}
 			else if (squareType == SQUARE_BLURRED) {
@@ -193,7 +193,8 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 					// find total number of notes in note row (excluding the first note)
 					for (int32_t i = getLeftPadSelectedX(); i <= getRightPadSelectedX(); i++) {
 						// don't include note tails in note count
-						if (rowSquareInfo[i].numNotes != 0 && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
+						if (rowSquareInfo[i].numNotes != 0 && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL
+						    && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL_WRAPPED) {
 							numSquares++;
 						}
 					}
@@ -483,7 +484,8 @@ void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* 
 			}
 
 			// don't include note tails in note count
-			if (rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
+			if (rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL
+			    && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL_WRAPPED) {
 				squaresProcessed++;
 			}
 		}
