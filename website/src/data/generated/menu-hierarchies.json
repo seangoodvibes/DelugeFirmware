@@ -1,11 +1,17 @@
 {
-  "generatedAt": "2026-08-22T23:02:41.414Z",
+  "generatedAt": "2026-08-22T23:22:57.036Z",
   "sourceFiles": {
     "menusCpp": "src/deluge/gui/ui/menus.cpp",
     "generatedMenus": "src/deluge/gui/menu_item/generate/g_menus.inc",
     "clipSettings": "src/deluge/gui/context_menu/clip_settings/clip_settings.cpp",
     "clipLaunchStyle": "src/deluge/gui/context_menu/clip_settings/launch_style.cpp",
+    "instrumentClipViewCpp": "src/deluge/gui/views/instrument_clip_view.cpp",
+    "syncHeader": "src/deluge/model/sync.h",
+    "syncCpp": "src/deluge/model/sync.cpp",
+    "utilFunctionsCpp": "src/deluge/util/functions.cpp",
+    "flashStorageCpp": "src/deluge/storage/flash_storage.cpp",
     "menuItemRoot": "src/deluge/gui/menu_item",
+    "presetScalesHeader": "src/deluge/model/scale/preset_scales.h",
     "english": "src/deluge/gui/l10n/english.json",
     "sevenSeg": "src/deluge/gui/l10n/seven_segment.json"
   },
@@ -1579,7 +1585,15 @@
               "token": "STRING_FOR_SWING_INTERVAL",
               "oled": "Swing Interval",
               "code": "SWII",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSwingInterval_defaultSwingIntervalMenu",
+                  "token": "LITERAL_defaultSwingIntervalMenu_intervals",
+                  "oled": "Selectable intervals",
+                  "code": "INTV",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "defaultKeyMenu",
@@ -1606,7 +1620,120 @@
                   "token": "STRING_FOR_ACTIVE_SCALES",
                   "oled": "Active Scales",
                   "code": "Active Scales",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_0",
+                      "token": "LITERAL_defaultActiveScaleMenu_0",
+                      "oled": "MAJOR",
+                      "code": "MAJOR",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_1",
+                      "token": "LITERAL_defaultActiveScaleMenu_1",
+                      "oled": "MINOR",
+                      "code": "MINOR",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_2",
+                      "token": "LITERAL_defaultActiveScaleMenu_2",
+                      "oled": "DORIAN",
+                      "code": "DORIAN",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_3",
+                      "token": "LITERAL_defaultActiveScaleMenu_3",
+                      "oled": "PHRYGIAN",
+                      "code": "PHRYGIAN",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_4",
+                      "token": "LITERAL_defaultActiveScaleMenu_4",
+                      "oled": "LYDIAN",
+                      "code": "LYDIAN",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_5",
+                      "token": "LITERAL_defaultActiveScaleMenu_5",
+                      "oled": "MIXOLYDIAN",
+                      "code": "MIXOLYDIAN",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_6",
+                      "token": "LITERAL_defaultActiveScaleMenu_6",
+                      "oled": "LOCRIAN",
+                      "code": "LOCRIAN",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_7",
+                      "token": "LITERAL_defaultActiveScaleMenu_7",
+                      "oled": "MELODIC MINOR",
+                      "code": "MELODIC MINOR",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_8",
+                      "token": "LITERAL_defaultActiveScaleMenu_8",
+                      "oled": "HARMONIC MINOR",
+                      "code": "HARMONIC MINOR",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_9",
+                      "token": "LITERAL_defaultActiveScaleMenu_9",
+                      "oled": "HUNGARIAN MINOR",
+                      "code": "HUNGARIAN MINOR",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_10",
+                      "token": "LITERAL_defaultActiveScaleMenu_10",
+                      "oled": "MARVA",
+                      "code": "MARVA",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_11",
+                      "token": "LITERAL_defaultActiveScaleMenu_11",
+                      "oled": "ARABIAN",
+                      "code": "ARABIAN",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_12",
+                      "token": "LITERAL_defaultActiveScaleMenu_12",
+                      "oled": "WHOLE TONE",
+                      "code": "WHOLE TONE",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_13",
+                      "token": "LITERAL_defaultActiveScaleMenu_13",
+                      "oled": "BLUES",
+                      "code": "BLUES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_14",
+                      "token": "LITERAL_defaultActiveScaleMenu_14",
+                      "oled": "PENTATONIC MINOR",
+                      "code": "PENTATONIC MINOR",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualActiveScale_defaultActiveScaleMenu_15",
+                      "token": "LITERAL_defaultActiveScaleMenu_15",
+                      "oled": "HIRAJOSHI",
+                      "code": "HIRAJOSHI",
+                      "children": []
+                    }
+                  ]
                 }
               ]
             },
@@ -2382,7 +2509,204 @@
               "token": "STRING_FOR_QUANTIZATION",
               "oled": "Quantization",
               "code": "Quantization",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_1",
+                  "token": "LITERAL_recordQuantizeMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_2",
+                  "token": "LITERAL_recordQuantizeMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_3",
+                  "token": "LITERAL_recordQuantizeMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_4",
+                  "token": "LITERAL_recordQuantizeMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_5",
+                  "token": "LITERAL_recordQuantizeMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_6",
+                  "token": "LITERAL_recordQuantizeMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_7",
+                  "token": "LITERAL_recordQuantizeMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_8",
+                  "token": "LITERAL_recordQuantizeMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_9",
+                  "token": "LITERAL_recordQuantizeMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_10",
+                  "token": "LITERAL_recordQuantizeMenu_10",
+                  "oled": "2-bar-tplts",
+                  "code": "2BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_11",
+                  "token": "LITERAL_recordQuantizeMenu_11",
+                  "oled": "1-bar-tplts",
+                  "code": "1BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_12",
+                  "token": "LITERAL_recordQuantizeMenu_12",
+                  "oled": "2nd-tplts",
+                  "code": "2ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_13",
+                  "token": "LITERAL_recordQuantizeMenu_13",
+                  "oled": "4th-tplts",
+                  "code": "4TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_14",
+                  "token": "LITERAL_recordQuantizeMenu_14",
+                  "oled": "8th-tplts",
+                  "code": "8TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_15",
+                  "token": "LITERAL_recordQuantizeMenu_15",
+                  "oled": "16th-tplts",
+                  "code": "16TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_16",
+                  "token": "LITERAL_recordQuantizeMenu_16",
+                  "oled": "32nd-tplts",
+                  "code": "32ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_17",
+                  "token": "LITERAL_recordQuantizeMenu_17",
+                  "oled": "64th-tplts",
+                  "code": "64TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_18",
+                  "token": "LITERAL_recordQuantizeMenu_18",
+                  "oled": "128th-tplts",
+                  "code": "128T-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_19",
+                  "token": "LITERAL_recordQuantizeMenu_19",
+                  "oled": "2-bar-dtted",
+                  "code": "2BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_20",
+                  "token": "LITERAL_recordQuantizeMenu_20",
+                  "oled": "1-bar-dtted",
+                  "code": "1BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_21",
+                  "token": "LITERAL_recordQuantizeMenu_21",
+                  "oled": "2nd-dtted",
+                  "code": "2ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_22",
+                  "token": "LITERAL_recordQuantizeMenu_22",
+                  "oled": "4th-dtted",
+                  "code": "4TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_23",
+                  "token": "LITERAL_recordQuantizeMenu_23",
+                  "oled": "8th-dtted",
+                  "code": "8TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_24",
+                  "token": "LITERAL_recordQuantizeMenu_24",
+                  "oled": "16th-dtted",
+                  "code": "16TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_25",
+                  "token": "LITERAL_recordQuantizeMenu_25",
+                  "oled": "32nd-dtted",
+                  "code": "32ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_26",
+                  "token": "LITERAL_recordQuantizeMenu_26",
+                  "oled": "64th-dtted",
+                  "code": "64TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_recordQuantizeMenu_27",
+                  "token": "LITERAL_recordQuantizeMenu_27",
+                  "oled": "128th-dtted",
+                  "code": "128T-DTTED",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "recordMarginsMenu",
@@ -2901,7 +3225,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_delaySyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_1",
+                      "token": "LITERAL_delaySyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_2",
+                      "token": "LITERAL_delaySyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_3",
+                      "token": "LITERAL_delaySyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_4",
+                      "token": "LITERAL_delaySyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_5",
+                      "token": "LITERAL_delaySyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_6",
+                      "token": "LITERAL_delaySyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_7",
+                      "token": "LITERAL_delaySyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_8",
+                      "token": "LITERAL_delaySyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_9",
+                      "token": "LITERAL_delaySyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_10",
+                      "token": "LITERAL_delaySyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_11",
+                      "token": "LITERAL_delaySyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_12",
+                      "token": "LITERAL_delaySyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_13",
+                      "token": "LITERAL_delaySyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_14",
+                      "token": "LITERAL_delaySyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_15",
+                      "token": "LITERAL_delaySyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_16",
+                      "token": "LITERAL_delaySyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_17",
+                      "token": "LITERAL_delaySyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_18",
+                      "token": "LITERAL_delaySyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_19",
+                      "token": "LITERAL_delaySyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_20",
+                      "token": "LITERAL_delaySyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_21",
+                      "token": "LITERAL_delaySyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_22",
+                      "token": "LITERAL_delaySyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_23",
+                      "token": "LITERAL_delaySyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_24",
+                      "token": "LITERAL_delaySyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_25",
+                      "token": "LITERAL_delaySyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_26",
+                      "token": "LITERAL_delaySyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_27",
+                      "token": "LITERAL_delaySyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "globalDelayRateMenu",
@@ -3064,7 +3585,78 @@
                       "token": "STRING_FOR_SYNC",
                       "oled": "Sync",
                       "code": "Sync",
-                      "children": []
+                      "children": [
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_0",
+                          "token": "STRING_FOR_OFF",
+                          "oled": "Off",
+                          "code": "Off",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_1",
+                          "token": "LITERAL_reverbSidechainSyncMenu_1",
+                          "oled": "2-bar",
+                          "code": "2BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_2",
+                          "token": "LITERAL_reverbSidechainSyncMenu_2",
+                          "oled": "1-bar",
+                          "code": "1BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_3",
+                          "token": "LITERAL_reverbSidechainSyncMenu_3",
+                          "oled": "2nd-notes",
+                          "code": "2ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_4",
+                          "token": "LITERAL_reverbSidechainSyncMenu_4",
+                          "oled": "4th-notes",
+                          "code": "4TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_5",
+                          "token": "LITERAL_reverbSidechainSyncMenu_5",
+                          "oled": "8th-notes",
+                          "code": "8TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_6",
+                          "token": "LITERAL_reverbSidechainSyncMenu_6",
+                          "oled": "16th-notes",
+                          "code": "16TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_7",
+                          "token": "LITERAL_reverbSidechainSyncMenu_7",
+                          "oled": "32nd-notes",
+                          "code": "32ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_8",
+                          "token": "LITERAL_reverbSidechainSyncMenu_8",
+                          "oled": "64th-notes",
+                          "code": "64TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_9",
+                          "token": "LITERAL_reverbSidechainSyncMenu_9",
+                          "oled": "128th-notes",
+                          "code": "128T-NOTES",
+                          "children": []
+                        }
+                      ]
                     }
                   ]
                 }
@@ -3229,14 +3821,135 @@
           "token": "STRING_FOR_SWING_INTERVAL",
           "oled": "Swing Interval",
           "code": "SWII",
-          "children": []
+          "children": [
+            {
+              "varName": "virtualSwingInterval_swingIntervalMenu",
+              "token": "LITERAL_swingIntervalMenu_intervals",
+              "oled": "Selectable intervals",
+              "code": "INTV",
+              "children": []
+            }
+          ]
         },
         {
           "varName": "activeScaleMenu",
           "token": "STRING_FOR_ACTIVE_SCALES",
           "oled": "Active Scales",
           "code": "Active Scales",
-          "children": []
+          "children": [
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_0",
+              "token": "LITERAL_activeScaleMenu_0",
+              "oled": "MAJOR",
+              "code": "MAJOR",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_1",
+              "token": "LITERAL_activeScaleMenu_1",
+              "oled": "MINOR",
+              "code": "MINOR",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_2",
+              "token": "LITERAL_activeScaleMenu_2",
+              "oled": "DORIAN",
+              "code": "DORIAN",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_3",
+              "token": "LITERAL_activeScaleMenu_3",
+              "oled": "PHRYGIAN",
+              "code": "PHRYGIAN",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_4",
+              "token": "LITERAL_activeScaleMenu_4",
+              "oled": "LYDIAN",
+              "code": "LYDIAN",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_5",
+              "token": "LITERAL_activeScaleMenu_5",
+              "oled": "MIXOLYDIAN",
+              "code": "MIXOLYDIAN",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_6",
+              "token": "LITERAL_activeScaleMenu_6",
+              "oled": "LOCRIAN",
+              "code": "LOCRIAN",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_7",
+              "token": "LITERAL_activeScaleMenu_7",
+              "oled": "MELODIC MINOR",
+              "code": "MELODIC MINOR",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_8",
+              "token": "LITERAL_activeScaleMenu_8",
+              "oled": "HARMONIC MINOR",
+              "code": "HARMONIC MINOR",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_9",
+              "token": "LITERAL_activeScaleMenu_9",
+              "oled": "HUNGARIAN MINOR",
+              "code": "HUNGARIAN MINOR",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_10",
+              "token": "LITERAL_activeScaleMenu_10",
+              "oled": "MARVA",
+              "code": "MARVA",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_11",
+              "token": "LITERAL_activeScaleMenu_11",
+              "oled": "ARABIAN",
+              "code": "ARABIAN",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_12",
+              "token": "LITERAL_activeScaleMenu_12",
+              "oled": "WHOLE TONE",
+              "code": "WHOLE TONE",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_13",
+              "token": "LITERAL_activeScaleMenu_13",
+              "oled": "BLUES",
+              "code": "BLUES",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_14",
+              "token": "LITERAL_activeScaleMenu_14",
+              "oled": "PENTATONIC MINOR",
+              "code": "PENTATONIC MINOR",
+              "children": []
+            },
+            {
+              "varName": "virtualActiveScale_activeScaleMenu_15",
+              "token": "LITERAL_activeScaleMenu_15",
+              "oled": "HIRAJOSHI",
+              "code": "HIRAJOSHI",
+              "children": []
+            }
+          ]
         },
         {
           "varName": "songThresholdRecordingSubmenu",
@@ -3813,7 +4526,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_delaySyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_1",
+                      "token": "LITERAL_delaySyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_2",
+                      "token": "LITERAL_delaySyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_3",
+                      "token": "LITERAL_delaySyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_4",
+                      "token": "LITERAL_delaySyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_5",
+                      "token": "LITERAL_delaySyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_6",
+                      "token": "LITERAL_delaySyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_7",
+                      "token": "LITERAL_delaySyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_8",
+                      "token": "LITERAL_delaySyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_9",
+                      "token": "LITERAL_delaySyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_10",
+                      "token": "LITERAL_delaySyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_11",
+                      "token": "LITERAL_delaySyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_12",
+                      "token": "LITERAL_delaySyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_13",
+                      "token": "LITERAL_delaySyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_14",
+                      "token": "LITERAL_delaySyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_15",
+                      "token": "LITERAL_delaySyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_16",
+                      "token": "LITERAL_delaySyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_17",
+                      "token": "LITERAL_delaySyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_18",
+                      "token": "LITERAL_delaySyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_19",
+                      "token": "LITERAL_delaySyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_20",
+                      "token": "LITERAL_delaySyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_21",
+                      "token": "LITERAL_delaySyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_22",
+                      "token": "LITERAL_delaySyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_23",
+                      "token": "LITERAL_delaySyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_24",
+                      "token": "LITERAL_delaySyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_25",
+                      "token": "LITERAL_delaySyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_26",
+                      "token": "LITERAL_delaySyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_27",
+                      "token": "LITERAL_delaySyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "globalDelayRateMenu",
@@ -3976,7 +4886,78 @@
                       "token": "STRING_FOR_SYNC",
                       "oled": "Sync",
                       "code": "Sync",
-                      "children": []
+                      "children": [
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_0",
+                          "token": "STRING_FOR_OFF",
+                          "oled": "Off",
+                          "code": "Off",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_1",
+                          "token": "LITERAL_reverbSidechainSyncMenu_1",
+                          "oled": "2-bar",
+                          "code": "2BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_2",
+                          "token": "LITERAL_reverbSidechainSyncMenu_2",
+                          "oled": "1-bar",
+                          "code": "1BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_3",
+                          "token": "LITERAL_reverbSidechainSyncMenu_3",
+                          "oled": "2nd-notes",
+                          "code": "2ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_4",
+                          "token": "LITERAL_reverbSidechainSyncMenu_4",
+                          "oled": "4th-notes",
+                          "code": "4TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_5",
+                          "token": "LITERAL_reverbSidechainSyncMenu_5",
+                          "oled": "8th-notes",
+                          "code": "8TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_6",
+                          "token": "LITERAL_reverbSidechainSyncMenu_6",
+                          "oled": "16th-notes",
+                          "code": "16TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_7",
+                          "token": "LITERAL_reverbSidechainSyncMenu_7",
+                          "oled": "32nd-notes",
+                          "code": "32ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_8",
+                          "token": "LITERAL_reverbSidechainSyncMenu_8",
+                          "oled": "64th-notes",
+                          "code": "64TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_9",
+                          "token": "LITERAL_reverbSidechainSyncMenu_9",
+                          "oled": "128th-notes",
+                          "code": "128T-NOTES",
+                          "children": []
+                        }
+                      ]
                     }
                   ]
                 }
@@ -4614,7 +5595,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_delaySyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_1",
+                      "token": "LITERAL_delaySyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_2",
+                      "token": "LITERAL_delaySyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_3",
+                      "token": "LITERAL_delaySyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_4",
+                      "token": "LITERAL_delaySyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_5",
+                      "token": "LITERAL_delaySyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_6",
+                      "token": "LITERAL_delaySyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_7",
+                      "token": "LITERAL_delaySyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_8",
+                      "token": "LITERAL_delaySyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_9",
+                      "token": "LITERAL_delaySyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_10",
+                      "token": "LITERAL_delaySyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_11",
+                      "token": "LITERAL_delaySyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_12",
+                      "token": "LITERAL_delaySyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_13",
+                      "token": "LITERAL_delaySyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_14",
+                      "token": "LITERAL_delaySyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_15",
+                      "token": "LITERAL_delaySyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_16",
+                      "token": "LITERAL_delaySyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_17",
+                      "token": "LITERAL_delaySyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_18",
+                      "token": "LITERAL_delaySyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_19",
+                      "token": "LITERAL_delaySyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_20",
+                      "token": "LITERAL_delaySyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_21",
+                      "token": "LITERAL_delaySyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_22",
+                      "token": "LITERAL_delaySyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_23",
+                      "token": "LITERAL_delaySyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_24",
+                      "token": "LITERAL_delaySyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_25",
+                      "token": "LITERAL_delaySyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_26",
+                      "token": "LITERAL_delaySyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_27",
+                      "token": "LITERAL_delaySyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "globalDelayRateMenu",
@@ -4777,7 +5955,78 @@
                       "token": "STRING_FOR_SYNC",
                       "oled": "Sync",
                       "code": "Sync",
-                      "children": []
+                      "children": [
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_0",
+                          "token": "STRING_FOR_OFF",
+                          "oled": "Off",
+                          "code": "Off",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_1",
+                          "token": "LITERAL_reverbSidechainSyncMenu_1",
+                          "oled": "2-bar",
+                          "code": "2BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_2",
+                          "token": "LITERAL_reverbSidechainSyncMenu_2",
+                          "oled": "1-bar",
+                          "code": "1BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_3",
+                          "token": "LITERAL_reverbSidechainSyncMenu_3",
+                          "oled": "2nd-notes",
+                          "code": "2ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_4",
+                          "token": "LITERAL_reverbSidechainSyncMenu_4",
+                          "oled": "4th-notes",
+                          "code": "4TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_5",
+                          "token": "LITERAL_reverbSidechainSyncMenu_5",
+                          "oled": "8th-notes",
+                          "code": "8TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_6",
+                          "token": "LITERAL_reverbSidechainSyncMenu_6",
+                          "oled": "16th-notes",
+                          "code": "16TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_7",
+                          "token": "LITERAL_reverbSidechainSyncMenu_7",
+                          "oled": "32nd-notes",
+                          "code": "32ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_8",
+                          "token": "LITERAL_reverbSidechainSyncMenu_8",
+                          "oled": "64th-notes",
+                          "code": "64TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_9",
+                          "token": "LITERAL_reverbSidechainSyncMenu_9",
+                          "oled": "128th-notes",
+                          "code": "128T-NOTES",
+                          "children": []
+                        }
+                      ]
                     }
                   ]
                 }
@@ -4962,7 +6211,78 @@
               "token": "STRING_FOR_SYNC",
               "oled": "Sync",
               "code": "Sync",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_1",
+                  "token": "LITERAL_sidechainSyncMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_2",
+                  "token": "LITERAL_sidechainSyncMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_3",
+                  "token": "LITERAL_sidechainSyncMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_4",
+                  "token": "LITERAL_sidechainSyncMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_5",
+                  "token": "LITERAL_sidechainSyncMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_6",
+                  "token": "LITERAL_sidechainSyncMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_7",
+                  "token": "LITERAL_sidechainSyncMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_8",
+                  "token": "LITERAL_sidechainSyncMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_9",
+                  "token": "LITERAL_sidechainSyncMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "sidechainShapeMenu",
@@ -5345,7 +6665,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_arpSyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_1",
+                      "token": "LITERAL_arpSyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_2",
+                      "token": "LITERAL_arpSyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_3",
+                      "token": "LITERAL_arpSyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_4",
+                      "token": "LITERAL_arpSyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_5",
+                      "token": "LITERAL_arpSyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_6",
+                      "token": "LITERAL_arpSyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_7",
+                      "token": "LITERAL_arpSyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_8",
+                      "token": "LITERAL_arpSyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_9",
+                      "token": "LITERAL_arpSyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_10",
+                      "token": "LITERAL_arpSyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_11",
+                      "token": "LITERAL_arpSyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_12",
+                      "token": "LITERAL_arpSyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_13",
+                      "token": "LITERAL_arpSyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_14",
+                      "token": "LITERAL_arpSyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_15",
+                      "token": "LITERAL_arpSyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_16",
+                      "token": "LITERAL_arpSyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_17",
+                      "token": "LITERAL_arpSyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_18",
+                      "token": "LITERAL_arpSyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_19",
+                      "token": "LITERAL_arpSyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_20",
+                      "token": "LITERAL_arpSyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_21",
+                      "token": "LITERAL_arpSyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_22",
+                      "token": "LITERAL_arpSyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_23",
+                      "token": "LITERAL_arpSyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_24",
+                      "token": "LITERAL_arpSyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_25",
+                      "token": "LITERAL_arpSyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_26",
+                      "token": "LITERAL_arpSyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_27",
+                      "token": "LITERAL_arpSyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "arpRateMenu",
@@ -5745,21 +7262,7 @@
               "children": []
             },
             {
-              "varName": "spreadGateMenuMIDIOrCV",
-              "token": "STRING_FOR_SPREAD_GATE",
-              "oled": "Gate Spread",
-              "code": "Gate Spread",
-              "children": []
-            },
-            {
               "varName": "spreadOctaveMenu",
-              "token": "STRING_FOR_SPREAD_OCTAVE",
-              "oled": "Octave Spread",
-              "code": "Octave Spread",
-              "children": []
-            },
-            {
-              "varName": "spreadOctaveMenuMIDIOrCV",
               "token": "STRING_FOR_SPREAD_OCTAVE",
               "oled": "Octave Spread",
               "code": "Octave Spread",
@@ -5773,21 +7276,7 @@
               "children": []
             },
             {
-              "varName": "spreadVelocityMenuMIDIOrCV",
-              "token": "STRING_FOR_SPREAD_VELOCITY",
-              "oled": "Velocity Spread",
-              "code": "Velocity Spread",
-              "children": []
-            },
-            {
               "varName": "ratchetAmountMenu",
-              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
-              "oled": "Ratchet Amount",
-              "code": "RATC",
-              "children": []
-            },
-            {
-              "varName": "ratchetAmountMenuMIDIOrCV",
               "token": "STRING_FOR_NUMBER_OF_RATCHETS",
               "oled": "Ratchet Amount",
               "code": "RATC",
@@ -5801,21 +7290,7 @@
               "children": []
             },
             {
-              "varName": "ratchetProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_RATCHET_PROBABILITY",
-              "oled": "Ratchet Probability",
-              "code": "RPRO",
-              "children": []
-            },
-            {
               "varName": "chordPolyphonyMenu",
-              "token": "STRING_FOR_CHORD_POLYPHONY",
-              "oled": "Chord Polyphony",
-              "code": "CHRD",
-              "children": []
-            },
-            {
-              "varName": "chordPolyphonyMenuMIDIOrCV",
               "token": "STRING_FOR_CHORD_POLYPHONY",
               "oled": "Chord Polyphony",
               "code": "CHRD",
@@ -5829,21 +7304,7 @@
               "children": []
             },
             {
-              "varName": "chordProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_CHORD_PROBABILITY",
-              "oled": "Chord Probability",
-              "code": "CPRO",
-              "children": []
-            },
-            {
               "varName": "randomizerNoteProbabilityMenu",
-              "token": "STRING_FOR_NOTE_PROBABILITY",
-              "oled": "Note Probability",
-              "code": "NOTE",
-              "children": []
-            },
-            {
-              "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
               "token": "STRING_FOR_NOTE_PROBABILITY",
               "oled": "Note Probability",
               "code": "NOTE",
@@ -5857,13 +7318,6 @@
               "children": []
             },
             {
-              "varName": "swapProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_SWAP_PROBABILITY",
-              "oled": "Swap Probability",
-              "code": "SWAP",
-              "children": []
-            },
-            {
               "varName": "bassProbabilityMenu",
               "token": "STRING_FOR_BASS_PROBABILITY",
               "oled": "Bass Probability",
@@ -5871,21 +7325,7 @@
               "children": []
             },
             {
-              "varName": "bassProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_BASS_PROBABILITY",
-              "oled": "Bass Probability",
-              "code": "BASS",
-              "children": []
-            },
-            {
               "varName": "glideProbabilityMenu",
-              "token": "STRING_FOR_GLIDE_PROBABILITY",
-              "oled": "Glide Probability",
-              "code": "GLID",
-              "children": []
-            },
-            {
-              "varName": "glideProbabilityMenuMIDIOrCV",
               "token": "STRING_FOR_GLIDE_PROBABILITY",
               "oled": "Glide Probability",
               "code": "GLID",
@@ -6297,7 +7737,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_delaySyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_1",
+                      "token": "LITERAL_delaySyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_2",
+                      "token": "LITERAL_delaySyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_3",
+                      "token": "LITERAL_delaySyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_4",
+                      "token": "LITERAL_delaySyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_5",
+                      "token": "LITERAL_delaySyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_6",
+                      "token": "LITERAL_delaySyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_7",
+                      "token": "LITERAL_delaySyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_8",
+                      "token": "LITERAL_delaySyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_9",
+                      "token": "LITERAL_delaySyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_10",
+                      "token": "LITERAL_delaySyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_11",
+                      "token": "LITERAL_delaySyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_12",
+                      "token": "LITERAL_delaySyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_13",
+                      "token": "LITERAL_delaySyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_14",
+                      "token": "LITERAL_delaySyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_15",
+                      "token": "LITERAL_delaySyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_16",
+                      "token": "LITERAL_delaySyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_17",
+                      "token": "LITERAL_delaySyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_18",
+                      "token": "LITERAL_delaySyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_19",
+                      "token": "LITERAL_delaySyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_20",
+                      "token": "LITERAL_delaySyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_21",
+                      "token": "LITERAL_delaySyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_22",
+                      "token": "LITERAL_delaySyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_23",
+                      "token": "LITERAL_delaySyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_24",
+                      "token": "LITERAL_delaySyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_25",
+                      "token": "LITERAL_delaySyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_26",
+                      "token": "LITERAL_delaySyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_27",
+                      "token": "LITERAL_delaySyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "delayRateMenu",
@@ -6460,7 +8097,78 @@
                       "token": "STRING_FOR_SYNC",
                       "oled": "Sync",
                       "code": "Sync",
-                      "children": []
+                      "children": [
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_0",
+                          "token": "STRING_FOR_OFF",
+                          "oled": "Off",
+                          "code": "Off",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_1",
+                          "token": "LITERAL_reverbSidechainSyncMenu_1",
+                          "oled": "2-bar",
+                          "code": "2BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_2",
+                          "token": "LITERAL_reverbSidechainSyncMenu_2",
+                          "oled": "1-bar",
+                          "code": "1BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_3",
+                          "token": "LITERAL_reverbSidechainSyncMenu_3",
+                          "oled": "2nd-notes",
+                          "code": "2ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_4",
+                          "token": "LITERAL_reverbSidechainSyncMenu_4",
+                          "oled": "4th-notes",
+                          "code": "4TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_5",
+                          "token": "LITERAL_reverbSidechainSyncMenu_5",
+                          "oled": "8th-notes",
+                          "code": "8TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_6",
+                          "token": "LITERAL_reverbSidechainSyncMenu_6",
+                          "oled": "16th-notes",
+                          "code": "16TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_7",
+                          "token": "LITERAL_reverbSidechainSyncMenu_7",
+                          "oled": "32nd-notes",
+                          "code": "32ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_8",
+                          "token": "LITERAL_reverbSidechainSyncMenu_8",
+                          "oled": "64th-notes",
+                          "code": "64TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_9",
+                          "token": "LITERAL_reverbSidechainSyncMenu_9",
+                          "oled": "128th-notes",
+                          "code": "128T-NOTES",
+                          "children": []
+                        }
+                      ]
                     }
                   ]
                 }
@@ -6659,7 +8367,78 @@
               "token": "STRING_FOR_SYNC",
               "oled": "Sync",
               "code": "Sync",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_1",
+                  "token": "LITERAL_sidechainSyncMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_2",
+                  "token": "LITERAL_sidechainSyncMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_3",
+                  "token": "LITERAL_sidechainSyncMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_4",
+                  "token": "LITERAL_sidechainSyncMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_5",
+                  "token": "LITERAL_sidechainSyncMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_6",
+                  "token": "LITERAL_sidechainSyncMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_7",
+                  "token": "LITERAL_sidechainSyncMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_8",
+                  "token": "LITERAL_sidechainSyncMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_9",
+                  "token": "LITERAL_sidechainSyncMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "sidechainShapeMenu",
@@ -7569,7 +9348,204 @@
               "token": "STRING_FOR_SYNC",
               "oled": "Sync",
               "code": "Sync",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_1",
+                  "token": "LITERAL_lfo1SyncMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_2",
+                  "token": "LITERAL_lfo1SyncMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_3",
+                  "token": "LITERAL_lfo1SyncMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_4",
+                  "token": "LITERAL_lfo1SyncMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_5",
+                  "token": "LITERAL_lfo1SyncMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_6",
+                  "token": "LITERAL_lfo1SyncMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_7",
+                  "token": "LITERAL_lfo1SyncMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_8",
+                  "token": "LITERAL_lfo1SyncMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_9",
+                  "token": "LITERAL_lfo1SyncMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_10",
+                  "token": "LITERAL_lfo1SyncMenu_10",
+                  "oled": "2-bar-tplts",
+                  "code": "2BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_11",
+                  "token": "LITERAL_lfo1SyncMenu_11",
+                  "oled": "1-bar-tplts",
+                  "code": "1BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_12",
+                  "token": "LITERAL_lfo1SyncMenu_12",
+                  "oled": "2nd-tplts",
+                  "code": "2ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_13",
+                  "token": "LITERAL_lfo1SyncMenu_13",
+                  "oled": "4th-tplts",
+                  "code": "4TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_14",
+                  "token": "LITERAL_lfo1SyncMenu_14",
+                  "oled": "8th-tplts",
+                  "code": "8TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_15",
+                  "token": "LITERAL_lfo1SyncMenu_15",
+                  "oled": "16th-tplts",
+                  "code": "16TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_16",
+                  "token": "LITERAL_lfo1SyncMenu_16",
+                  "oled": "32nd-tplts",
+                  "code": "32ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_17",
+                  "token": "LITERAL_lfo1SyncMenu_17",
+                  "oled": "64th-tplts",
+                  "code": "64TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_18",
+                  "token": "LITERAL_lfo1SyncMenu_18",
+                  "oled": "128th-tplts",
+                  "code": "128T-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_19",
+                  "token": "LITERAL_lfo1SyncMenu_19",
+                  "oled": "2-bar-dtted",
+                  "code": "2BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_20",
+                  "token": "LITERAL_lfo1SyncMenu_20",
+                  "oled": "1-bar-dtted",
+                  "code": "1BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_21",
+                  "token": "LITERAL_lfo1SyncMenu_21",
+                  "oled": "2nd-dtted",
+                  "code": "2ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_22",
+                  "token": "LITERAL_lfo1SyncMenu_22",
+                  "oled": "4th-dtted",
+                  "code": "4TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_23",
+                  "token": "LITERAL_lfo1SyncMenu_23",
+                  "oled": "8th-dtted",
+                  "code": "8TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_24",
+                  "token": "LITERAL_lfo1SyncMenu_24",
+                  "oled": "16th-dtted",
+                  "code": "16TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_25",
+                  "token": "LITERAL_lfo1SyncMenu_25",
+                  "oled": "32nd-dtted",
+                  "code": "32ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_26",
+                  "token": "LITERAL_lfo1SyncMenu_26",
+                  "oled": "64th-dtted",
+                  "code": "64TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo1SyncMenu_27",
+                  "token": "LITERAL_lfo1SyncMenu_27",
+                  "oled": "128th-dtted",
+                  "code": "128T-DTTED",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "lfo1RateMenu",
@@ -7655,7 +9631,204 @@
               "token": "STRING_FOR_SYNC",
               "oled": "Sync",
               "code": "Sync",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_1",
+                  "token": "LITERAL_lfo2SyncMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_2",
+                  "token": "LITERAL_lfo2SyncMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_3",
+                  "token": "LITERAL_lfo2SyncMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_4",
+                  "token": "LITERAL_lfo2SyncMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_5",
+                  "token": "LITERAL_lfo2SyncMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_6",
+                  "token": "LITERAL_lfo2SyncMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_7",
+                  "token": "LITERAL_lfo2SyncMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_8",
+                  "token": "LITERAL_lfo2SyncMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_9",
+                  "token": "LITERAL_lfo2SyncMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_10",
+                  "token": "LITERAL_lfo2SyncMenu_10",
+                  "oled": "2-bar-tplts",
+                  "code": "2BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_11",
+                  "token": "LITERAL_lfo2SyncMenu_11",
+                  "oled": "1-bar-tplts",
+                  "code": "1BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_12",
+                  "token": "LITERAL_lfo2SyncMenu_12",
+                  "oled": "2nd-tplts",
+                  "code": "2ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_13",
+                  "token": "LITERAL_lfo2SyncMenu_13",
+                  "oled": "4th-tplts",
+                  "code": "4TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_14",
+                  "token": "LITERAL_lfo2SyncMenu_14",
+                  "oled": "8th-tplts",
+                  "code": "8TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_15",
+                  "token": "LITERAL_lfo2SyncMenu_15",
+                  "oled": "16th-tplts",
+                  "code": "16TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_16",
+                  "token": "LITERAL_lfo2SyncMenu_16",
+                  "oled": "32nd-tplts",
+                  "code": "32ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_17",
+                  "token": "LITERAL_lfo2SyncMenu_17",
+                  "oled": "64th-tplts",
+                  "code": "64TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_18",
+                  "token": "LITERAL_lfo2SyncMenu_18",
+                  "oled": "128th-tplts",
+                  "code": "128T-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_19",
+                  "token": "LITERAL_lfo2SyncMenu_19",
+                  "oled": "2-bar-dtted",
+                  "code": "2BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_20",
+                  "token": "LITERAL_lfo2SyncMenu_20",
+                  "oled": "1-bar-dtted",
+                  "code": "1BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_21",
+                  "token": "LITERAL_lfo2SyncMenu_21",
+                  "oled": "2nd-dtted",
+                  "code": "2ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_22",
+                  "token": "LITERAL_lfo2SyncMenu_22",
+                  "oled": "4th-dtted",
+                  "code": "4TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_23",
+                  "token": "LITERAL_lfo2SyncMenu_23",
+                  "oled": "8th-dtted",
+                  "code": "8TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_24",
+                  "token": "LITERAL_lfo2SyncMenu_24",
+                  "oled": "16th-dtted",
+                  "code": "16TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_25",
+                  "token": "LITERAL_lfo2SyncMenu_25",
+                  "oled": "32nd-dtted",
+                  "code": "32ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_26",
+                  "token": "LITERAL_lfo2SyncMenu_26",
+                  "oled": "64th-dtted",
+                  "code": "64TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo2SyncMenu_27",
+                  "token": "LITERAL_lfo2SyncMenu_27",
+                  "oled": "128th-dtted",
+                  "code": "128T-DTTED",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "lfo2RateMenu",
@@ -7741,7 +9914,204 @@
               "token": "STRING_FOR_SYNC",
               "oled": "Sync",
               "code": "Sync",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_1",
+                  "token": "LITERAL_lfo3SyncMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_2",
+                  "token": "LITERAL_lfo3SyncMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_3",
+                  "token": "LITERAL_lfo3SyncMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_4",
+                  "token": "LITERAL_lfo3SyncMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_5",
+                  "token": "LITERAL_lfo3SyncMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_6",
+                  "token": "LITERAL_lfo3SyncMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_7",
+                  "token": "LITERAL_lfo3SyncMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_8",
+                  "token": "LITERAL_lfo3SyncMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_9",
+                  "token": "LITERAL_lfo3SyncMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_10",
+                  "token": "LITERAL_lfo3SyncMenu_10",
+                  "oled": "2-bar-tplts",
+                  "code": "2BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_11",
+                  "token": "LITERAL_lfo3SyncMenu_11",
+                  "oled": "1-bar-tplts",
+                  "code": "1BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_12",
+                  "token": "LITERAL_lfo3SyncMenu_12",
+                  "oled": "2nd-tplts",
+                  "code": "2ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_13",
+                  "token": "LITERAL_lfo3SyncMenu_13",
+                  "oled": "4th-tplts",
+                  "code": "4TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_14",
+                  "token": "LITERAL_lfo3SyncMenu_14",
+                  "oled": "8th-tplts",
+                  "code": "8TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_15",
+                  "token": "LITERAL_lfo3SyncMenu_15",
+                  "oled": "16th-tplts",
+                  "code": "16TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_16",
+                  "token": "LITERAL_lfo3SyncMenu_16",
+                  "oled": "32nd-tplts",
+                  "code": "32ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_17",
+                  "token": "LITERAL_lfo3SyncMenu_17",
+                  "oled": "64th-tplts",
+                  "code": "64TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_18",
+                  "token": "LITERAL_lfo3SyncMenu_18",
+                  "oled": "128th-tplts",
+                  "code": "128T-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_19",
+                  "token": "LITERAL_lfo3SyncMenu_19",
+                  "oled": "2-bar-dtted",
+                  "code": "2BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_20",
+                  "token": "LITERAL_lfo3SyncMenu_20",
+                  "oled": "1-bar-dtted",
+                  "code": "1BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_21",
+                  "token": "LITERAL_lfo3SyncMenu_21",
+                  "oled": "2nd-dtted",
+                  "code": "2ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_22",
+                  "token": "LITERAL_lfo3SyncMenu_22",
+                  "oled": "4th-dtted",
+                  "code": "4TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_23",
+                  "token": "LITERAL_lfo3SyncMenu_23",
+                  "oled": "8th-dtted",
+                  "code": "8TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_24",
+                  "token": "LITERAL_lfo3SyncMenu_24",
+                  "oled": "16th-dtted",
+                  "code": "16TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_25",
+                  "token": "LITERAL_lfo3SyncMenu_25",
+                  "oled": "32nd-dtted",
+                  "code": "32ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_26",
+                  "token": "LITERAL_lfo3SyncMenu_26",
+                  "oled": "64th-dtted",
+                  "code": "64TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo3SyncMenu_27",
+                  "token": "LITERAL_lfo3SyncMenu_27",
+                  "oled": "128th-dtted",
+                  "code": "128T-DTTED",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "lfo3RateMenu",
@@ -7827,7 +10197,204 @@
               "token": "STRING_FOR_SYNC",
               "oled": "Sync",
               "code": "Sync",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_1",
+                  "token": "LITERAL_lfo4SyncMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_2",
+                  "token": "LITERAL_lfo4SyncMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_3",
+                  "token": "LITERAL_lfo4SyncMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_4",
+                  "token": "LITERAL_lfo4SyncMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_5",
+                  "token": "LITERAL_lfo4SyncMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_6",
+                  "token": "LITERAL_lfo4SyncMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_7",
+                  "token": "LITERAL_lfo4SyncMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_8",
+                  "token": "LITERAL_lfo4SyncMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_9",
+                  "token": "LITERAL_lfo4SyncMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_10",
+                  "token": "LITERAL_lfo4SyncMenu_10",
+                  "oled": "2-bar-tplts",
+                  "code": "2BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_11",
+                  "token": "LITERAL_lfo4SyncMenu_11",
+                  "oled": "1-bar-tplts",
+                  "code": "1BAR-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_12",
+                  "token": "LITERAL_lfo4SyncMenu_12",
+                  "oled": "2nd-tplts",
+                  "code": "2ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_13",
+                  "token": "LITERAL_lfo4SyncMenu_13",
+                  "oled": "4th-tplts",
+                  "code": "4TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_14",
+                  "token": "LITERAL_lfo4SyncMenu_14",
+                  "oled": "8th-tplts",
+                  "code": "8TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_15",
+                  "token": "LITERAL_lfo4SyncMenu_15",
+                  "oled": "16th-tplts",
+                  "code": "16TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_16",
+                  "token": "LITERAL_lfo4SyncMenu_16",
+                  "oled": "32nd-tplts",
+                  "code": "32ND-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_17",
+                  "token": "LITERAL_lfo4SyncMenu_17",
+                  "oled": "64th-tplts",
+                  "code": "64TH-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_18",
+                  "token": "LITERAL_lfo4SyncMenu_18",
+                  "oled": "128th-tplts",
+                  "code": "128T-TPLTS",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_19",
+                  "token": "LITERAL_lfo4SyncMenu_19",
+                  "oled": "2-bar-dtted",
+                  "code": "2BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_20",
+                  "token": "LITERAL_lfo4SyncMenu_20",
+                  "oled": "1-bar-dtted",
+                  "code": "1BAR-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_21",
+                  "token": "LITERAL_lfo4SyncMenu_21",
+                  "oled": "2nd-dtted",
+                  "code": "2ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_22",
+                  "token": "LITERAL_lfo4SyncMenu_22",
+                  "oled": "4th-dtted",
+                  "code": "4TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_23",
+                  "token": "LITERAL_lfo4SyncMenu_23",
+                  "oled": "8th-dtted",
+                  "code": "8TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_24",
+                  "token": "LITERAL_lfo4SyncMenu_24",
+                  "oled": "16th-dtted",
+                  "code": "16TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_25",
+                  "token": "LITERAL_lfo4SyncMenu_25",
+                  "oled": "32nd-dtted",
+                  "code": "32ND-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_26",
+                  "token": "LITERAL_lfo4SyncMenu_26",
+                  "oled": "64th-dtted",
+                  "code": "64TH-DTTED",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_lfo4SyncMenu_27",
+                  "token": "LITERAL_lfo4SyncMenu_27",
+                  "oled": "128th-dtted",
+                  "code": "128T-DTTED",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "lfo4RateMenu",
@@ -8002,7 +10569,46 @@
           "token": "STRING_FOR_MOD_MATRIX",
           "oled": "Mod matrix",
           "code": "MMTX",
-          "children": []
+          "children": [
+            {
+              "varName": "virtualPatchCableSelection",
+              "token": "LITERAL_patchCablesMenu_selected",
+              "oled": "Selected Patch Cable",
+              "code": "PATCH",
+              "children": [
+                {
+                  "varName": "virtualPatchCableRegular",
+                  "token": "LITERAL_patchCablesMenu_regular",
+                  "oled": "Regular destination",
+                  "code": "REG",
+                  "children": [
+                    {
+                      "varName": "virtualPatchCableRegularStrength",
+                      "token": "LITERAL_patchCablesMenu_regular_strength",
+                      "oled": "Strength",
+                      "code": "STR",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "virtualPatchCableRange",
+                  "token": "LITERAL_patchCablesMenu_range",
+                  "oled": "Range destination",
+                  "code": "RNG",
+                  "children": [
+                    {
+                      "varName": "virtualPatchCableRangeStrength",
+                      "token": "LITERAL_patchCablesMenu_range_strength",
+                      "oled": "Strength",
+                      "code": "STR",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         },
         {
           "varName": "sequenceDirectionMenu",
@@ -8365,7 +10971,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_arpSyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_1",
+                      "token": "LITERAL_arpSyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_2",
+                      "token": "LITERAL_arpSyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_3",
+                      "token": "LITERAL_arpSyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_4",
+                      "token": "LITERAL_arpSyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_5",
+                      "token": "LITERAL_arpSyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_6",
+                      "token": "LITERAL_arpSyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_7",
+                      "token": "LITERAL_arpSyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_8",
+                      "token": "LITERAL_arpSyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_9",
+                      "token": "LITERAL_arpSyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_10",
+                      "token": "LITERAL_arpSyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_11",
+                      "token": "LITERAL_arpSyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_12",
+                      "token": "LITERAL_arpSyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_13",
+                      "token": "LITERAL_arpSyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_14",
+                      "token": "LITERAL_arpSyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_15",
+                      "token": "LITERAL_arpSyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_16",
+                      "token": "LITERAL_arpSyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_17",
+                      "token": "LITERAL_arpSyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_18",
+                      "token": "LITERAL_arpSyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_19",
+                      "token": "LITERAL_arpSyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_20",
+                      "token": "LITERAL_arpSyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_21",
+                      "token": "LITERAL_arpSyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_22",
+                      "token": "LITERAL_arpSyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_23",
+                      "token": "LITERAL_arpSyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_24",
+                      "token": "LITERAL_arpSyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_25",
+                      "token": "LITERAL_arpSyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_26",
+                      "token": "LITERAL_arpSyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_27",
+                      "token": "LITERAL_arpSyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "arpKitRateMenu",
@@ -8704,21 +11507,7 @@
                   "children": []
                 },
                 {
-                  "varName": "spreadGateMenuMIDIOrCV",
-                  "token": "STRING_FOR_SPREAD_GATE",
-                  "oled": "Gate Spread",
-                  "code": "Gate Spread",
-                  "children": []
-                },
-                {
                   "varName": "spreadOctaveMenu",
-                  "token": "STRING_FOR_SPREAD_OCTAVE",
-                  "oled": "Octave Spread",
-                  "code": "Octave Spread",
-                  "children": []
-                },
-                {
-                  "varName": "spreadOctaveMenuMIDIOrCV",
                   "token": "STRING_FOR_SPREAD_OCTAVE",
                   "oled": "Octave Spread",
                   "code": "Octave Spread",
@@ -8732,21 +11521,7 @@
                   "children": []
                 },
                 {
-                  "varName": "spreadVelocityMenuMIDIOrCV",
-                  "token": "STRING_FOR_SPREAD_VELOCITY",
-                  "oled": "Velocity Spread",
-                  "code": "Velocity Spread",
-                  "children": []
-                },
-                {
                   "varName": "ratchetAmountMenu",
-                  "token": "STRING_FOR_NUMBER_OF_RATCHETS",
-                  "oled": "Ratchet Amount",
-                  "code": "RATC",
-                  "children": []
-                },
-                {
-                  "varName": "ratchetAmountMenuMIDIOrCV",
                   "token": "STRING_FOR_NUMBER_OF_RATCHETS",
                   "oled": "Ratchet Amount",
                   "code": "RATC",
@@ -8760,21 +11535,7 @@
                   "children": []
                 },
                 {
-                  "varName": "ratchetProbabilityMenuMIDIOrCV",
-                  "token": "STRING_FOR_RATCHET_PROBABILITY",
-                  "oled": "Ratchet Probability",
-                  "code": "RPRO",
-                  "children": []
-                },
-                {
                   "varName": "chordPolyphonyMenu",
-                  "token": "STRING_FOR_CHORD_POLYPHONY",
-                  "oled": "Chord Polyphony",
-                  "code": "CHRD",
-                  "children": []
-                },
-                {
-                  "varName": "chordPolyphonyMenuMIDIOrCV",
                   "token": "STRING_FOR_CHORD_POLYPHONY",
                   "oled": "Chord Polyphony",
                   "code": "CHRD",
@@ -8788,21 +11549,7 @@
                   "children": []
                 },
                 {
-                  "varName": "chordProbabilityMenuMIDIOrCV",
-                  "token": "STRING_FOR_CHORD_PROBABILITY",
-                  "oled": "Chord Probability",
-                  "code": "CPRO",
-                  "children": []
-                },
-                {
                   "varName": "randomizerNoteProbabilityMenu",
-                  "token": "STRING_FOR_NOTE_PROBABILITY",
-                  "oled": "Note Probability",
-                  "code": "NOTE",
-                  "children": []
-                },
-                {
-                  "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
                   "token": "STRING_FOR_NOTE_PROBABILITY",
                   "oled": "Note Probability",
                   "code": "NOTE",
@@ -8816,13 +11563,6 @@
                   "children": []
                 },
                 {
-                  "varName": "swapProbabilityMenuMIDIOrCV",
-                  "token": "STRING_FOR_SWAP_PROBABILITY",
-                  "oled": "Swap Probability",
-                  "code": "SWAP",
-                  "children": []
-                },
-                {
                   "varName": "bassProbabilityMenu",
                   "token": "STRING_FOR_BASS_PROBABILITY",
                   "oled": "Bass Probability",
@@ -8830,21 +11570,7 @@
                   "children": []
                 },
                 {
-                  "varName": "bassProbabilityMenuMIDIOrCV",
-                  "token": "STRING_FOR_BASS_PROBABILITY",
-                  "oled": "Bass Probability",
-                  "code": "BASS",
-                  "children": []
-                },
-                {
                   "varName": "glideProbabilityMenu",
-                  "token": "STRING_FOR_GLIDE_PROBABILITY",
-                  "oled": "Glide Probability",
-                  "code": "GLID",
-                  "children": []
-                },
-                {
-                  "varName": "glideProbabilityMenuMIDIOrCV",
                   "token": "STRING_FOR_GLIDE_PROBABILITY",
                   "oled": "Glide Probability",
                   "code": "GLID",
@@ -9258,7 +11984,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_delaySyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_1",
+                      "token": "LITERAL_delaySyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_2",
+                      "token": "LITERAL_delaySyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_3",
+                      "token": "LITERAL_delaySyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_4",
+                      "token": "LITERAL_delaySyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_5",
+                      "token": "LITERAL_delaySyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_6",
+                      "token": "LITERAL_delaySyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_7",
+                      "token": "LITERAL_delaySyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_8",
+                      "token": "LITERAL_delaySyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_9",
+                      "token": "LITERAL_delaySyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_10",
+                      "token": "LITERAL_delaySyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_11",
+                      "token": "LITERAL_delaySyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_12",
+                      "token": "LITERAL_delaySyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_13",
+                      "token": "LITERAL_delaySyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_14",
+                      "token": "LITERAL_delaySyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_15",
+                      "token": "LITERAL_delaySyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_16",
+                      "token": "LITERAL_delaySyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_17",
+                      "token": "LITERAL_delaySyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_18",
+                      "token": "LITERAL_delaySyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_19",
+                      "token": "LITERAL_delaySyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_20",
+                      "token": "LITERAL_delaySyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_21",
+                      "token": "LITERAL_delaySyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_22",
+                      "token": "LITERAL_delaySyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_23",
+                      "token": "LITERAL_delaySyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_24",
+                      "token": "LITERAL_delaySyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_25",
+                      "token": "LITERAL_delaySyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_26",
+                      "token": "LITERAL_delaySyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_delaySyncMenu_27",
+                      "token": "LITERAL_delaySyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "globalDelayRateMenu",
@@ -9421,7 +12344,78 @@
                       "token": "STRING_FOR_SYNC",
                       "oled": "Sync",
                       "code": "Sync",
-                      "children": []
+                      "children": [
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_0",
+                          "token": "STRING_FOR_OFF",
+                          "oled": "Off",
+                          "code": "Off",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_1",
+                          "token": "LITERAL_reverbSidechainSyncMenu_1",
+                          "oled": "2-bar",
+                          "code": "2BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_2",
+                          "token": "LITERAL_reverbSidechainSyncMenu_2",
+                          "oled": "1-bar",
+                          "code": "1BAR-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_3",
+                          "token": "LITERAL_reverbSidechainSyncMenu_3",
+                          "oled": "2nd-notes",
+                          "code": "2ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_4",
+                          "token": "LITERAL_reverbSidechainSyncMenu_4",
+                          "oled": "4th-notes",
+                          "code": "4TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_5",
+                          "token": "LITERAL_reverbSidechainSyncMenu_5",
+                          "oled": "8th-notes",
+                          "code": "8TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_6",
+                          "token": "LITERAL_reverbSidechainSyncMenu_6",
+                          "oled": "16th-notes",
+                          "code": "16TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_7",
+                          "token": "LITERAL_reverbSidechainSyncMenu_7",
+                          "oled": "32nd-notes",
+                          "code": "32ND-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_8",
+                          "token": "LITERAL_reverbSidechainSyncMenu_8",
+                          "oled": "64th-notes",
+                          "code": "64TH-NOTES",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualSync_reverbSidechainSyncMenu_9",
+                          "token": "LITERAL_reverbSidechainSyncMenu_9",
+                          "oled": "128th-notes",
+                          "code": "128T-NOTES",
+                          "children": []
+                        }
+                      ]
                     }
                   ]
                 }
@@ -9599,7 +12593,78 @@
               "token": "STRING_FOR_SYNC",
               "oled": "Sync",
               "code": "Sync",
-              "children": []
+              "children": [
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_0",
+                  "token": "STRING_FOR_OFF",
+                  "oled": "Off",
+                  "code": "Off",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_1",
+                  "token": "LITERAL_sidechainSyncMenu_1",
+                  "oled": "2-bar",
+                  "code": "2BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_2",
+                  "token": "LITERAL_sidechainSyncMenu_2",
+                  "oled": "1-bar",
+                  "code": "1BAR-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_3",
+                  "token": "LITERAL_sidechainSyncMenu_3",
+                  "oled": "2nd-notes",
+                  "code": "2ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_4",
+                  "token": "LITERAL_sidechainSyncMenu_4",
+                  "oled": "4th-notes",
+                  "code": "4TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_5",
+                  "token": "LITERAL_sidechainSyncMenu_5",
+                  "oled": "8th-notes",
+                  "code": "8TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_6",
+                  "token": "LITERAL_sidechainSyncMenu_6",
+                  "oled": "16th-notes",
+                  "code": "16TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_7",
+                  "token": "LITERAL_sidechainSyncMenu_7",
+                  "oled": "32nd-notes",
+                  "code": "32ND-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_8",
+                  "token": "LITERAL_sidechainSyncMenu_8",
+                  "oled": "64th-notes",
+                  "code": "64TH-NOTES",
+                  "children": []
+                },
+                {
+                  "varName": "virtualSync_sidechainSyncMenu_9",
+                  "token": "LITERAL_sidechainSyncMenu_9",
+                  "oled": "128th-notes",
+                  "code": "128T-NOTES",
+                  "children": []
+                }
+              ]
             },
             {
               "varName": "sidechainShapeMenu",
@@ -9846,7 +12911,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_arpSyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_1",
+                      "token": "LITERAL_arpSyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_2",
+                      "token": "LITERAL_arpSyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_3",
+                      "token": "LITERAL_arpSyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_4",
+                      "token": "LITERAL_arpSyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_5",
+                      "token": "LITERAL_arpSyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_6",
+                      "token": "LITERAL_arpSyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_7",
+                      "token": "LITERAL_arpSyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_8",
+                      "token": "LITERAL_arpSyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_9",
+                      "token": "LITERAL_arpSyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_10",
+                      "token": "LITERAL_arpSyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_11",
+                      "token": "LITERAL_arpSyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_12",
+                      "token": "LITERAL_arpSyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_13",
+                      "token": "LITERAL_arpSyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_14",
+                      "token": "LITERAL_arpSyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_15",
+                      "token": "LITERAL_arpSyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_16",
+                      "token": "LITERAL_arpSyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_17",
+                      "token": "LITERAL_arpSyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_18",
+                      "token": "LITERAL_arpSyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_19",
+                      "token": "LITERAL_arpSyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_20",
+                      "token": "LITERAL_arpSyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_21",
+                      "token": "LITERAL_arpSyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_22",
+                      "token": "LITERAL_arpSyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_23",
+                      "token": "LITERAL_arpSyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_24",
+                      "token": "LITERAL_arpSyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_25",
+                      "token": "LITERAL_arpSyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_26",
+                      "token": "LITERAL_arpSyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_27",
+                      "token": "LITERAL_arpSyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "arpRateMenuMIDIOrCV",
@@ -10246,21 +13508,7 @@
               "children": []
             },
             {
-              "varName": "spreadGateMenuMIDIOrCV",
-              "token": "STRING_FOR_SPREAD_GATE",
-              "oled": "Gate Spread",
-              "code": "Gate Spread",
-              "children": []
-            },
-            {
               "varName": "spreadOctaveMenu",
-              "token": "STRING_FOR_SPREAD_OCTAVE",
-              "oled": "Octave Spread",
-              "code": "Octave Spread",
-              "children": []
-            },
-            {
-              "varName": "spreadOctaveMenuMIDIOrCV",
               "token": "STRING_FOR_SPREAD_OCTAVE",
               "oled": "Octave Spread",
               "code": "Octave Spread",
@@ -10274,21 +13522,7 @@
               "children": []
             },
             {
-              "varName": "spreadVelocityMenuMIDIOrCV",
-              "token": "STRING_FOR_SPREAD_VELOCITY",
-              "oled": "Velocity Spread",
-              "code": "Velocity Spread",
-              "children": []
-            },
-            {
               "varName": "ratchetAmountMenu",
-              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
-              "oled": "Ratchet Amount",
-              "code": "RATC",
-              "children": []
-            },
-            {
-              "varName": "ratchetAmountMenuMIDIOrCV",
               "token": "STRING_FOR_NUMBER_OF_RATCHETS",
               "oled": "Ratchet Amount",
               "code": "RATC",
@@ -10302,21 +13536,7 @@
               "children": []
             },
             {
-              "varName": "ratchetProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_RATCHET_PROBABILITY",
-              "oled": "Ratchet Probability",
-              "code": "RPRO",
-              "children": []
-            },
-            {
               "varName": "chordPolyphonyMenu",
-              "token": "STRING_FOR_CHORD_POLYPHONY",
-              "oled": "Chord Polyphony",
-              "code": "CHRD",
-              "children": []
-            },
-            {
-              "varName": "chordPolyphonyMenuMIDIOrCV",
               "token": "STRING_FOR_CHORD_POLYPHONY",
               "oled": "Chord Polyphony",
               "code": "CHRD",
@@ -10330,21 +13550,7 @@
               "children": []
             },
             {
-              "varName": "chordProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_CHORD_PROBABILITY",
-              "oled": "Chord Probability",
-              "code": "CPRO",
-              "children": []
-            },
-            {
               "varName": "randomizerNoteProbabilityMenu",
-              "token": "STRING_FOR_NOTE_PROBABILITY",
-              "oled": "Note Probability",
-              "code": "NOTE",
-              "children": []
-            },
-            {
-              "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
               "token": "STRING_FOR_NOTE_PROBABILITY",
               "oled": "Note Probability",
               "code": "NOTE",
@@ -10358,13 +13564,6 @@
               "children": []
             },
             {
-              "varName": "swapProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_SWAP_PROBABILITY",
-              "oled": "Swap Probability",
-              "code": "SWAP",
-              "children": []
-            },
-            {
               "varName": "bassProbabilityMenu",
               "token": "STRING_FOR_BASS_PROBABILITY",
               "oled": "Bass Probability",
@@ -10372,21 +13571,7 @@
               "children": []
             },
             {
-              "varName": "bassProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_BASS_PROBABILITY",
-              "oled": "Bass Probability",
-              "code": "BASS",
-              "children": []
-            },
-            {
               "varName": "glideProbabilityMenu",
-              "token": "STRING_FOR_GLIDE_PROBABILITY",
-              "oled": "Glide Probability",
-              "code": "GLID",
-              "children": []
-            },
-            {
-              "varName": "glideProbabilityMenuMIDIOrCV",
               "token": "STRING_FOR_GLIDE_PROBABILITY",
               "oled": "Glide Probability",
               "code": "GLID",
@@ -10791,7 +13976,204 @@
                   "token": "STRING_FOR_SYNC",
                   "oled": "Sync",
                   "code": "Sync",
-                  "children": []
+                  "children": [
+                    {
+                      "varName": "virtualSync_arpSyncMenu_0",
+                      "token": "STRING_FOR_OFF",
+                      "oled": "Off",
+                      "code": "Off",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_1",
+                      "token": "LITERAL_arpSyncMenu_1",
+                      "oled": "2-bar",
+                      "code": "2BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_2",
+                      "token": "LITERAL_arpSyncMenu_2",
+                      "oled": "1-bar",
+                      "code": "1BAR-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_3",
+                      "token": "LITERAL_arpSyncMenu_3",
+                      "oled": "2nd-notes",
+                      "code": "2ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_4",
+                      "token": "LITERAL_arpSyncMenu_4",
+                      "oled": "4th-notes",
+                      "code": "4TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_5",
+                      "token": "LITERAL_arpSyncMenu_5",
+                      "oled": "8th-notes",
+                      "code": "8TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_6",
+                      "token": "LITERAL_arpSyncMenu_6",
+                      "oled": "16th-notes",
+                      "code": "16TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_7",
+                      "token": "LITERAL_arpSyncMenu_7",
+                      "oled": "32nd-notes",
+                      "code": "32ND-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_8",
+                      "token": "LITERAL_arpSyncMenu_8",
+                      "oled": "64th-notes",
+                      "code": "64TH-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_9",
+                      "token": "LITERAL_arpSyncMenu_9",
+                      "oled": "128th-notes",
+                      "code": "128T-NOTES",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_10",
+                      "token": "LITERAL_arpSyncMenu_10",
+                      "oled": "2-bar-tplts",
+                      "code": "2BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_11",
+                      "token": "LITERAL_arpSyncMenu_11",
+                      "oled": "1-bar-tplts",
+                      "code": "1BAR-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_12",
+                      "token": "LITERAL_arpSyncMenu_12",
+                      "oled": "2nd-tplts",
+                      "code": "2ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_13",
+                      "token": "LITERAL_arpSyncMenu_13",
+                      "oled": "4th-tplts",
+                      "code": "4TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_14",
+                      "token": "LITERAL_arpSyncMenu_14",
+                      "oled": "8th-tplts",
+                      "code": "8TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_15",
+                      "token": "LITERAL_arpSyncMenu_15",
+                      "oled": "16th-tplts",
+                      "code": "16TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_16",
+                      "token": "LITERAL_arpSyncMenu_16",
+                      "oled": "32nd-tplts",
+                      "code": "32ND-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_17",
+                      "token": "LITERAL_arpSyncMenu_17",
+                      "oled": "64th-tplts",
+                      "code": "64TH-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_18",
+                      "token": "LITERAL_arpSyncMenu_18",
+                      "oled": "128th-tplts",
+                      "code": "128T-TPLTS",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_19",
+                      "token": "LITERAL_arpSyncMenu_19",
+                      "oled": "2-bar-dtted",
+                      "code": "2BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_20",
+                      "token": "LITERAL_arpSyncMenu_20",
+                      "oled": "1-bar-dtted",
+                      "code": "1BAR-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_21",
+                      "token": "LITERAL_arpSyncMenu_21",
+                      "oled": "2nd-dtted",
+                      "code": "2ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_22",
+                      "token": "LITERAL_arpSyncMenu_22",
+                      "oled": "4th-dtted",
+                      "code": "4TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_23",
+                      "token": "LITERAL_arpSyncMenu_23",
+                      "oled": "8th-dtted",
+                      "code": "8TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_24",
+                      "token": "LITERAL_arpSyncMenu_24",
+                      "oled": "16th-dtted",
+                      "code": "16TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_25",
+                      "token": "LITERAL_arpSyncMenu_25",
+                      "oled": "32nd-dtted",
+                      "code": "32ND-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_26",
+                      "token": "LITERAL_arpSyncMenu_26",
+                      "oled": "64th-dtted",
+                      "code": "64TH-DTTED",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualSync_arpSyncMenu_27",
+                      "token": "LITERAL_arpSyncMenu_27",
+                      "oled": "128th-dtted",
+                      "code": "128T-DTTED",
+                      "children": []
+                    }
+                  ]
                 },
                 {
                   "varName": "arpRateMenuMIDIOrCV",
@@ -11191,21 +14573,7 @@
               "children": []
             },
             {
-              "varName": "spreadGateMenuMIDIOrCV",
-              "token": "STRING_FOR_SPREAD_GATE",
-              "oled": "Gate Spread",
-              "code": "Gate Spread",
-              "children": []
-            },
-            {
               "varName": "spreadOctaveMenu",
-              "token": "STRING_FOR_SPREAD_OCTAVE",
-              "oled": "Octave Spread",
-              "code": "Octave Spread",
-              "children": []
-            },
-            {
-              "varName": "spreadOctaveMenuMIDIOrCV",
               "token": "STRING_FOR_SPREAD_OCTAVE",
               "oled": "Octave Spread",
               "code": "Octave Spread",
@@ -11219,21 +14587,7 @@
               "children": []
             },
             {
-              "varName": "spreadVelocityMenuMIDIOrCV",
-              "token": "STRING_FOR_SPREAD_VELOCITY",
-              "oled": "Velocity Spread",
-              "code": "Velocity Spread",
-              "children": []
-            },
-            {
               "varName": "ratchetAmountMenu",
-              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
-              "oled": "Ratchet Amount",
-              "code": "RATC",
-              "children": []
-            },
-            {
-              "varName": "ratchetAmountMenuMIDIOrCV",
               "token": "STRING_FOR_NUMBER_OF_RATCHETS",
               "oled": "Ratchet Amount",
               "code": "RATC",
@@ -11247,21 +14601,7 @@
               "children": []
             },
             {
-              "varName": "ratchetProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_RATCHET_PROBABILITY",
-              "oled": "Ratchet Probability",
-              "code": "RPRO",
-              "children": []
-            },
-            {
               "varName": "chordPolyphonyMenu",
-              "token": "STRING_FOR_CHORD_POLYPHONY",
-              "oled": "Chord Polyphony",
-              "code": "CHRD",
-              "children": []
-            },
-            {
-              "varName": "chordPolyphonyMenuMIDIOrCV",
               "token": "STRING_FOR_CHORD_POLYPHONY",
               "oled": "Chord Polyphony",
               "code": "CHRD",
@@ -11275,21 +14615,7 @@
               "children": []
             },
             {
-              "varName": "chordProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_CHORD_PROBABILITY",
-              "oled": "Chord Probability",
-              "code": "CPRO",
-              "children": []
-            },
-            {
               "varName": "randomizerNoteProbabilityMenu",
-              "token": "STRING_FOR_NOTE_PROBABILITY",
-              "oled": "Note Probability",
-              "code": "NOTE",
-              "children": []
-            },
-            {
-              "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
               "token": "STRING_FOR_NOTE_PROBABILITY",
               "oled": "Note Probability",
               "code": "NOTE",
@@ -11303,13 +14629,6 @@
               "children": []
             },
             {
-              "varName": "swapProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_SWAP_PROBABILITY",
-              "oled": "Swap Probability",
-              "code": "SWAP",
-              "children": []
-            },
-            {
               "varName": "bassProbabilityMenu",
               "token": "STRING_FOR_BASS_PROBABILITY",
               "oled": "Bass Probability",
@@ -11317,21 +14636,7 @@
               "children": []
             },
             {
-              "varName": "bassProbabilityMenuMIDIOrCV",
-              "token": "STRING_FOR_BASS_PROBABILITY",
-              "oled": "Bass Probability",
-              "code": "BASS",
-              "children": []
-            },
-            {
               "varName": "glideProbabilityMenu",
-              "token": "STRING_FOR_GLIDE_PROBABILITY",
-              "oled": "Glide Probability",
-              "code": "GLID",
-              "children": []
-            },
-            {
-              "varName": "glideProbabilityMenuMIDIOrCV",
               "token": "STRING_FOR_GLIDE_PROBABILITY",
               "oled": "Glide Probability",
               "code": "GLID",
@@ -11541,14 +14846,228 @@
           "token": "STRING_FOR_NOTE_EDITOR_ITERANCE",
           "oled": "Iterance",
           "code": "ITER",
-          "children": []
+          "children": [
+            {
+              "varName": "virtualNoteIteranceCustom",
+              "token": "STRING_FOR_CUSTOM",
+              "oled": "Custom",
+              "code": "CUST",
+              "children": [
+                {
+                  "varName": "noteCustomIteranceDivisor",
+                  "token": "STRING_FOR_ITERANCE_DIVISOR",
+                  "oled": "Divisor",
+                  "code": "DIVI",
+                  "children": []
+                },
+                {
+                  "varName": "noteCustomIteranceStep1",
+                  "token": "STRING_FOR_ITERATION_STEP_1",
+                  "oled": "Iteration 1",
+                  "code": "IT 1",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep1_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep1_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteCustomIteranceStep2",
+                  "token": "STRING_FOR_ITERATION_STEP_2",
+                  "oled": "Iteration 2",
+                  "code": "IT 2",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep2_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep2_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteCustomIteranceStep3",
+                  "token": "STRING_FOR_ITERATION_STEP_3",
+                  "oled": "Iteration 3",
+                  "code": "IT 3",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep3_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep3_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteCustomIteranceStep4",
+                  "token": "STRING_FOR_ITERATION_STEP_4",
+                  "oled": "Iteration 4",
+                  "code": "IT 4",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep4_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep4_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteCustomIteranceStep5",
+                  "token": "STRING_FOR_ITERATION_STEP_5",
+                  "oled": "Iteration 5",
+                  "code": "IT 5",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep5_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep5_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteCustomIteranceStep6",
+                  "token": "STRING_FOR_ITERATION_STEP_6",
+                  "oled": "Iteration 6",
+                  "code": "IT 6",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep6_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep6_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteCustomIteranceStep7",
+                  "token": "STRING_FOR_ITERATION_STEP_7",
+                  "oled": "Iteration 7",
+                  "code": "IT 7",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep7_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep7_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteCustomIteranceStep8",
+                  "token": "STRING_FOR_ITERATION_STEP_8",
+                  "oled": "Iteration 8",
+                  "code": "IT 8",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep8_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteCustomIteranceStep8_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         },
         {
           "varName": "noteFillMenu",
           "token": "STRING_FOR_NOTE_EDITOR_FILL",
           "oled": "Fill",
           "code": "FILL",
-          "children": []
+          "children": [
+            {
+              "varName": "virtualFill_noteFillMenu_0",
+              "token": "LITERAL_noteFillMenu_0",
+              "oled": "FILL",
+              "code": "FILL",
+              "children": []
+            },
+            {
+              "varName": "virtualFill_noteFillMenu_1",
+              "token": "LITERAL_noteFillMenu_1",
+              "oled": "NOT FILL",
+              "code": "NOT FILL",
+              "children": []
+            },
+            {
+              "varName": "virtualFill_noteFillMenu_2",
+              "token": "LITERAL_noteFillMenu_2",
+              "oled": "OFF",
+              "code": "OFF",
+              "children": []
+            }
+          ]
         }
       ]
     },
@@ -11606,14 +15125,228 @@
           "token": "STRING_FOR_NOTE_ROW_EDITOR_ITERANCE",
           "oled": "Iterance",
           "code": "ITER",
-          "children": []
+          "children": [
+            {
+              "varName": "virtualNoteRowIteranceCustom",
+              "token": "STRING_FOR_CUSTOM",
+              "oled": "Custom",
+              "code": "CUST",
+              "children": [
+                {
+                  "varName": "noteRowCustomIteranceDivisor",
+                  "token": "STRING_FOR_ITERANCE_DIVISOR",
+                  "oled": "Divisor",
+                  "code": "DIVI",
+                  "children": []
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep1",
+                  "token": "STRING_FOR_ITERATION_STEP_1",
+                  "oled": "Iteration 1",
+                  "code": "IT 1",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep1_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep1_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep2",
+                  "token": "STRING_FOR_ITERATION_STEP_2",
+                  "oled": "Iteration 2",
+                  "code": "IT 2",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep2_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep2_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep3",
+                  "token": "STRING_FOR_ITERATION_STEP_3",
+                  "oled": "Iteration 3",
+                  "code": "IT 3",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep3_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep3_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep4",
+                  "token": "STRING_FOR_ITERATION_STEP_4",
+                  "oled": "Iteration 4",
+                  "code": "IT 4",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep4_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep4_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep5",
+                  "token": "STRING_FOR_ITERATION_STEP_5",
+                  "oled": "Iteration 5",
+                  "code": "IT 5",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep5_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep5_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep6",
+                  "token": "STRING_FOR_ITERATION_STEP_6",
+                  "oled": "Iteration 6",
+                  "code": "IT 6",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep6_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep6_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep7",
+                  "token": "STRING_FOR_ITERATION_STEP_7",
+                  "oled": "Iteration 7",
+                  "code": "IT 7",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep7_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep7_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "noteRowCustomIteranceStep8",
+                  "token": "STRING_FOR_ITERATION_STEP_8",
+                  "oled": "Iteration 8",
+                  "code": "IT 8",
+                  "children": [
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep8_0",
+                      "token": "STRING_FOR_DISABLED",
+                      "oled": "Disabled",
+                      "code": "OFF",
+                      "children": []
+                    },
+                    {
+                      "varName": "virtualToggle_noteRowCustomIteranceStep8_1",
+                      "token": "STRING_FOR_ENABLED",
+                      "oled": "Enabled",
+                      "code": "ON",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         },
         {
           "varName": "noteRowFillMenu",
           "token": "STRING_FOR_NOTE_ROW_EDITOR_FILL",
           "oled": "Fill",
           "code": "FILL",
-          "children": []
+          "children": [
+            {
+              "varName": "virtualFill_noteRowFillMenu_0",
+              "token": "LITERAL_noteRowFillMenu_0",
+              "oled": "FILL",
+              "code": "FILL",
+              "children": []
+            },
+            {
+              "varName": "virtualFill_noteRowFillMenu_1",
+              "token": "LITERAL_noteRowFillMenu_1",
+              "oled": "NOT FILL",
+              "code": "NOT FILL",
+              "children": []
+            },
+            {
+              "varName": "virtualFill_noteRowFillMenu_2",
+              "token": "LITERAL_noteRowFillMenu_2",
+              "oled": "OFF",
+              "code": "OFF",
+              "children": []
+            }
+          ]
         }
       ]
     },

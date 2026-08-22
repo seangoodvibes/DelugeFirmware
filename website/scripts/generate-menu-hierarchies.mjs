@@ -20,7 +20,19 @@ const input = {
     repoRoot,
     "src/deluge/gui/context_menu/clip_settings/launch_style.cpp",
   ),
+  instrumentClipViewCpp: path.join(
+    repoRoot,
+    "src/deluge/gui/views/instrument_clip_view.cpp",
+  ),
+  syncHeader: path.join(repoRoot, "src/deluge/model/sync.h"),
+  syncCpp: path.join(repoRoot, "src/deluge/model/sync.cpp"),
+  utilFunctionsCpp: path.join(repoRoot, "src/deluge/util/functions.cpp"),
+  flashStorageCpp: path.join(repoRoot, "src/deluge/storage/flash_storage.cpp"),
   menuItemRoot: path.join(repoRoot, "src/deluge/gui/menu_item"),
+  presetScalesHeader: path.join(
+    repoRoot,
+    "src/deluge/model/scale/preset_scales.h",
+  ),
   english: path.join(repoRoot, "src/deluge/gui/l10n/english.json"),
   sevenSeg: path.join(repoRoot, "src/deluge/gui/l10n/seven_segment.json"),
 }
@@ -110,6 +122,293 @@ function collectVarToType(sourceText) {
   return map
 }
 
+function extractPresetScaleNames(sourceText) {
+  const names = []
+  for (const match of sourceText.matchAll(
+    /DEF\(\s*[A-Z0-9_]+\s*,\s*"([^"]+)"\s*,/g,
+  )) {
+    names.push(match[1])
+  }
+  return unique(names)
+}
+
+function extractFillOptionLabels(sourceText) {
+  const signatureMatch =
+    /const\s+char\*\s+InstrumentClipView::getFillString\s*\([^)]*\)/m.exec(
+      sourceText,
+    )
+  if (!signatureMatch || signatureMatch.index === undefined) {
+    return []
+  }
+
+  const openBraceIndex = sourceText.indexOf("{", signatureMatch.index)
+  if (openBraceIndex < 0) {
+    return []
+  }
+
+  const closeBraceIndex = findMatchingBrace(sourceText, openBraceIndex)
+  if (closeBraceIndex < 0) {
+    return []
+  }
+
+  const body = sourceText.slice(openBraceIndex + 1, closeBraceIndex)
+  const labels = []
+  for (const match of body.matchAll(/return\s+"([^"]+)"\s*;/g)) {
+    labels.push(match[1])
+  }
+
+  return unique(labels)
+}
+
+function extractNumericDefines(sourceText) {
+  const defines = new Map()
+  for (const match of sourceText.matchAll(
+    /^\s*#define\s+([A-Z_][A-Z0-9_]*)\s+(-?\d+)\s*$/gm,
+  )) {
+    defines.set(match[1], Number.parseInt(match[2], 10))
+  }
+  return defines
+}
+
+function extractDefaultMagnitude(sourceText) {
+  const directMatch =
+    /defaultMagnitude\s*=\s*(-?\d+)\s*;[\s\S]*?defaultSwingInterval\s*=\s*8\s*-\s*defaultMagnitude/m.exec(
+      sourceText,
+    )
+  return directMatch ? Number.parseInt(directMatch[1], 10) : null
+}
+
+function extractNoteMagnitudeBase(sourceText) {
+  const match =
+    /getNoteMagnitudeFfromNoteLength\s*\([^)]*\)\s*\{[\s\S]*?noteMagnitude\s*=\s*(-?\d+)\s*-\s*tickMagnitude\s*;/m.exec(
+      sourceText,
+    )
+  return match ? Number.parseInt(match[1], 10) : null
+}
+
+function extractSyncTypeSuffixes(sourceText) {
+  const suffixes = new Map()
+  for (const match of sourceText.matchAll(
+    /case\s+([A-Z_][A-Z0-9_]*)\s*:\s*([\s\S]*?)break\s*;/g,
+  )) {
+    const typeName = match[1]
+    const caseBody = match[2]
+    const suffixMatch = /typeStr\s*=\s*"([^"]+)"\s*;/.exec(caseBody)
+    suffixes.set(typeName, suffixMatch ? suffixMatch[1] : "")
+  }
+  return suffixes
+}
+
+function extractEnumEntries(sourceText, enumName) {
+  const enumMatch = new RegExp(
+    `enum\\s+${escapeForRegex(enumName)}\\s*:\\s*\\w+\\s*\\{([\\s\\S]*?)\\}`,
+    "m",
+  ).exec(sourceText)
+  if (!enumMatch) {
+    return []
+  }
+
+  const entries = []
+  for (const match of enumMatch[1].matchAll(
+    /\b([A-Z_][A-Z0-9_]*)\s*=\s*(-?\d+)/g,
+  )) {
+    entries.push({
+      name: match[1],
+      value: Number.parseInt(match[2], 10),
+    })
+  }
+
+  return entries.sort((a, b) => a.value - b.value)
+}
+
+function findConstantInExpression(sourceText, expressionPattern) {
+  const match = expressionPattern.exec(sourceText)
+  return match ? match[1] : null
+}
+
+function getSyncTypeEntryForOption(option, syncTypeEntries) {
+  let resolved = null
+  for (const entry of syncTypeEntries) {
+    if (option >= entry.value) {
+      resolved = entry
+    } else {
+      break
+    }
+  }
+  return resolved
+}
+
+function getSyncTypeGroupIndex(syncTypeEntries, typeName) {
+  return syncTypeEntries.findIndex((entry) => entry.name === typeName)
+}
+
+function syncLevelForOption(option, syncTypeEntries, syncTypeName) {
+  const groupIndex = getSyncTypeGroupIndex(syncTypeEntries, syncTypeName)
+  if (groupIndex < 0) {
+    return option
+  }
+
+  const groupStart = syncTypeEntries[groupIndex]?.value ?? 0
+  const offset = groupIndex > 0 ? 1 : 0
+  return option - groupStart + offset
+}
+
+function buildSyncOptionContext(
+  syncHeader,
+  syncCpp,
+  utilFunctionsCpp,
+  flashStorageCpp,
+) {
+  const syncTypeEntries = extractEnumEntries(syncHeader, "SyncType")
+  const syncLevelEntries = extractEnumEntries(syncHeader, "SyncLevel")
+  if (syncTypeEntries.length === 0 || syncLevelEntries.length === 0) {
+    return null
+  }
+
+  const syncLevelValues = new Map(
+    syncLevelEntries.map((entry) => [entry.name, entry.value]),
+  )
+  const shiftAnchorName = findConstantInExpression(
+    syncCpp,
+    /shift\s*=\s*([A-Z_][A-Z0-9_]*)\s*-\s*level/,
+  )
+  const barLevelName = findConstantInExpression(
+    syncCpp,
+    /magnitudeLevelBars\s*=\s*([A-Z_][A-Z0-9_]*)\s*-\s*tickMagnitude/,
+  )
+  if (!shiftAnchorName || !barLevelName) {
+    return null
+  }
+
+  const shiftAnchor = syncLevelValues.get(shiftAnchorName)
+  const barLevelBase = syncLevelValues.get(barLevelName)
+  const defaultMagnitude = extractDefaultMagnitude(flashStorageCpp)
+  const noteMagnitudeBase = extractNoteMagnitudeBase(utilFunctionsCpp)
+  if (
+    shiftAnchor === undefined ||
+    barLevelBase === undefined ||
+    defaultMagnitude === null ||
+    noteMagnitudeBase === null
+  ) {
+    return null
+  }
+
+  return {
+    syncTypeEntries,
+    syncTypeSuffixes: extractSyncTypeSuffixes(syncCpp),
+    shiftAnchor,
+    barLevelBase,
+    defaultMagnitude,
+    noteMagnitudeBase,
+  }
+}
+
+function getNoteMagnitudeFromSyncLevel(
+  syncLevel,
+  syncLevel256th,
+  defaultMagnitude,
+  noteMagnitudeBase,
+) {
+  const noteLength = 3 << (syncLevel256th - syncLevel)
+
+  let noteMagnitude = noteMagnitudeBase - defaultMagnitude
+  let level = 3
+  while (level < noteLength) {
+    noteMagnitude += 1
+    level <<= 1
+  }
+
+  return noteMagnitude
+}
+
+function buildOledSyncLabel(noteMagnitude, suffix, appendSuffixForBars) {
+  if (noteMagnitude < 0) {
+    const division = 1 << -noteMagnitude
+    const ordinal = division % 10 === 2 ? "nd" : "th"
+    return `${division}${ordinal}${suffix ?? ""}`
+  }
+
+  const bars = 1 << noteMagnitude
+  return appendSuffixForBars && suffix ? `${bars}-bar${suffix}` : `${bars}-bar`
+}
+
+function buildSevenSegSyncLabel(noteMagnitude, suffix) {
+  const upperSuffix = (suffix ?? "").toUpperCase()
+
+  if (noteMagnitude < 0) {
+    const division = 1 << -noteMagnitude
+    let base = ""
+    if (division <= 9999) {
+      base = `${division}`
+      if (division === 2 || division === 32) {
+        base += "ND"
+      } else if (division <= 99) {
+        base += "TH"
+      } else if (division <= 999) {
+        base += "T"
+      }
+    } else {
+      base = "TINY"
+    }
+
+    return `${base}${upperSuffix}`
+  }
+
+  const bars = 1 << noteMagnitude
+  let base = ""
+  if (bars <= 9999) {
+    base = `${bars}`
+    if (base.length === 1) {
+      base += "BAR"
+    } else if (base.length <= 3) {
+      base += "B"
+    }
+  } else {
+    base = "BIG"
+  }
+
+  return `${base}${upperSuffix}`
+}
+
+function buildSyncLabelForOption(option, syncContext) {
+  const syncTypeEntry = getSyncTypeEntryForOption(
+    option,
+    syncContext.syncTypeEntries,
+  )
+  if (!syncTypeEntry) {
+    return null
+  }
+
+  const syncType = syncTypeEntry.name
+  const syncTypeGroupIndex = getSyncTypeGroupIndex(
+    syncContext.syncTypeEntries,
+    syncType,
+  )
+  const syncLevel = syncLevelForOption(
+    option,
+    syncContext.syncTypeEntries,
+    syncType,
+  )
+  const suffix = syncContext.syncTypeSuffixes.get(syncType) ?? ""
+
+  const noteMagnitude = getNoteMagnitudeFromSyncLevel(
+    syncLevel,
+    syncContext.shiftAnchor,
+    syncContext.defaultMagnitude,
+    syncContext.noteMagnitudeBase,
+  )
+
+  const magnitudeLevelBars =
+    syncContext.barLevelBase - syncContext.defaultMagnitude
+  const appendSuffixForBars =
+    syncTypeGroupIndex > 0 && syncLevel <= magnitudeLevelBars
+
+  return {
+    oled: buildOledSyncLabel(noteMagnitude, suffix, appendSuffixForBars),
+    code: buildSevenSegSyncLabel(noteMagnitude, suffix),
+  }
+}
+
 function extractInitializerBody(sourceText, varName) {
   const markerPattern = new RegExp(`\\b${varName}\\s*\\{`, "m")
   const markerMatch = markerPattern.exec(sourceText)
@@ -183,6 +482,15 @@ function build() {
   const generatedMenus = fs.readFileSync(input.generatedMenus, "utf8")
   const clipSettingsCpp = fs.readFileSync(input.clipSettings, "utf8")
   const clipLaunchStyleCpp = fs.readFileSync(input.clipLaunchStyle, "utf8")
+  const instrumentClipViewCpp = fs.readFileSync(
+    input.instrumentClipViewCpp,
+    "utf8",
+  )
+  const syncHeader = fs.readFileSync(input.syncHeader, "utf8")
+  const syncCpp = fs.readFileSync(input.syncCpp, "utf8")
+  const utilFunctionsCpp = fs.readFileSync(input.utilFunctionsCpp, "utf8")
+  const flashStorageCpp = fs.readFileSync(input.flashStorageCpp, "utf8")
+  const presetScalesHeader = fs.readFileSync(input.presetScalesHeader, "utf8")
   const menuItemFiles = listFilesRecursive(input.menuItemRoot, [
     ".h",
     ".hpp",
@@ -206,13 +514,29 @@ function build() {
     ...collectVarToType(menuItemCorpus),
   ])
   const arrayChildren = extractArrayChildren(combined)
+  const syncOptionContext = buildSyncOptionContext(
+    syncHeader,
+    syncCpp,
+    utilFunctionsCpp,
+    flashStorageCpp,
+  )
+  const numericDefines = new Map([
+    ...extractNumericDefines(syncHeader),
+    ...extractNumericDefines(syncCpp),
+  ])
+  const syncOffLabel = labelFromToken(english, sevenSeg, "STRING_FOR_OFF")
   const sourceStructure = {
     combined,
     arrayChildren,
     varToToken,
     varToType,
     menuItemCorpus,
+    numericDefines,
     typeInheritanceCache: new Map(),
+    presetScaleNames: extractPresetScaleNames(presetScalesHeader),
+    fillOptionLabels: extractFillOptionLabels(instrumentClipViewCpp),
+    syncOptionContext,
+    syncOffLabel,
   }
 
   const trees = {}
@@ -247,7 +571,16 @@ function build() {
       generatedMenus: path.relative(repoRoot, input.generatedMenus),
       clipSettings: path.relative(repoRoot, input.clipSettings),
       clipLaunchStyle: path.relative(repoRoot, input.clipLaunchStyle),
+      instrumentClipViewCpp: path.relative(
+        repoRoot,
+        input.instrumentClipViewCpp,
+      ),
+      syncHeader: path.relative(repoRoot, input.syncHeader),
+      syncCpp: path.relative(repoRoot, input.syncCpp),
+      utilFunctionsCpp: path.relative(repoRoot, input.utilFunctionsCpp),
+      flashStorageCpp: path.relative(repoRoot, input.flashStorageCpp),
       menuItemRoot: path.relative(repoRoot, input.menuItemRoot),
+      presetScalesHeader: path.relative(repoRoot, input.presetScalesHeader),
       english: path.relative(repoRoot, input.english),
       sevenSeg: path.relative(repoRoot, input.sevenSeg),
     },
@@ -638,6 +971,105 @@ function resolveVarTypeFromCorpus(menuItemCorpus, varName) {
   return normalizeTypeName(match[1])
 }
 
+function extractSizeReturnForType(menuItemCorpus, typeName) {
+  const typeCandidates = unique([typeName, simpleTypeName(typeName)]).filter(
+    Boolean,
+  )
+
+  for (const candidate of typeCandidates) {
+    const qualifiedMatch = new RegExp(
+      `${escapeForRegex(candidate)}::size\\s*\\([^)]*\\)\\s*(?:const\\s*)?(?:override\\s*)?\\{[\\s\\S]*?return\\s+([A-Za-z_][A-Za-z0-9_]*|\\d+)\\s*;`,
+      "m",
+    ).exec(menuItemCorpus)
+    if (qualifiedMatch) {
+      return qualifiedMatch[1]
+    }
+  }
+
+  const classBody = extractClassBody(menuItemCorpus, typeName)
+  if (!classBody) {
+    return null
+  }
+
+  const unqualifiedMatch =
+    /size\s*\([^)]*\)\s*(?:const\s*)?(?:override\s*)?\{[\s\S]*?return\s+([A-Za-z_][A-Za-z0-9_]*|\d+)\s*;/.exec(
+      classBody,
+    )
+  return unqualifiedMatch ? unqualifiedMatch[1] : null
+}
+
+function resolveTypeSize(typeName, sourceStructure, seen = new Set()) {
+  if (!typeName || seen.has(typeName)) {
+    return null
+  }
+  seen.add(typeName)
+
+  const sizeExpr = extractSizeReturnForType(
+    sourceStructure.menuItemCorpus,
+    typeName,
+  )
+  if (sizeExpr) {
+    if (/^\d+$/.test(sizeExpr)) {
+      return Number.parseInt(sizeExpr, 10)
+    }
+    const definedValue = sourceStructure.numericDefines.get(sizeExpr)
+    if (definedValue !== undefined) {
+      return definedValue
+    }
+  }
+
+  const baseTypes = extractDirectBaseTypes(
+    sourceStructure.menuItemCorpus,
+    typeName,
+  )
+  for (const baseType of baseTypes) {
+    const resolved = resolveTypeSize(baseType, sourceStructure, seen)
+    if (resolved !== null) {
+      return resolved
+    }
+  }
+
+  return null
+}
+
+function buildSyncLevelChildren(varName, sourceStructure) {
+  if (!sourceStructure.syncOptionContext) {
+    return []
+  }
+
+  const typeName = sourceStructure.varToType.get(varName) ?? ""
+  const size = resolveTypeSize(typeName, sourceStructure)
+  const maxCount = size ?? 0
+
+  const children = []
+  for (let option = 0; option < Math.max(0, maxCount); option += 1) {
+    const label =
+      option === 0
+        ? sourceStructure.syncOffLabel
+          ? {
+              oled: sourceStructure.syncOffLabel.oled,
+              code: sourceStructure.syncOffLabel.code,
+              token: sourceStructure.syncOffLabel.token,
+            }
+          : buildSyncLabelForOption(option, sourceStructure.syncOptionContext)
+        : buildSyncLabelForOption(option, sourceStructure.syncOptionContext)
+
+    if (!label) {
+      continue
+    }
+
+    children.push({
+      varName: `virtualSync_${varName}_${option}`,
+      token: label.token ?? `LITERAL_${varName}_${option}`,
+      oled: label.oled,
+      code: label.code,
+      children: [],
+    })
+  }
+
+  return children
+}
+
 function buildSelectorOptionChildren(
   selectorVar,
   english,
@@ -777,6 +1209,92 @@ function buildDynamicSelectionChildren(
   sevenSeg,
   sourceStructure,
 ) {
+  if (
+    varName === "swingIntervalMenu" ||
+    varName === "defaultSwingIntervalMenu"
+  ) {
+    return [
+      {
+        varName: `virtualSwingInterval_${varName}`,
+        token: `LITERAL_${varName}_intervals`,
+        oled: "Selectable intervals",
+        code: "INTV",
+        children: [],
+      },
+    ]
+  }
+
+  if (varName === "noteIteranceMenu") {
+    const customRoot = buildNode(
+      sourceStructure.combined,
+      sourceStructure.arrayChildren,
+      sourceStructure.varToToken,
+      english,
+      sevenSeg,
+      sourceStructure,
+      "noteCustomIteranceRootMenu",
+      ["noteIteranceMenu"],
+      1,
+    )
+
+    const customNode = makeVirtualNode(
+      english,
+      sevenSeg,
+      "STRING_FOR_CUSTOM",
+      "virtualNoteIteranceCustom",
+      customRoot?.children ?? [],
+    )
+    return customNode ? [customNode] : []
+  }
+
+  if (varName === "noteRowIteranceMenu") {
+    const customRoot = buildNode(
+      sourceStructure.combined,
+      sourceStructure.arrayChildren,
+      sourceStructure.varToToken,
+      english,
+      sevenSeg,
+      sourceStructure,
+      "noteRowCustomIteranceRootMenu",
+      ["noteRowIteranceMenu"],
+      1,
+    )
+
+    const customNode = makeVirtualNode(
+      english,
+      sevenSeg,
+      "STRING_FOR_CUSTOM",
+      "virtualNoteRowIteranceCustom",
+      customRoot?.children ?? [],
+    )
+    return customNode ? [customNode] : []
+  }
+
+  const typeName = sourceStructure.varToType.get(varName) ?? ""
+  if (typeExtends(typeName, "SyncLevel", sourceStructure)) {
+    return buildSyncLevelChildren(varName, sourceStructure)
+  }
+
+  if (varName === "noteFillMenu" || varName === "noteRowFillMenu") {
+    return sourceStructure.fillOptionLabels.map((label, index) => ({
+      varName: `virtualFill_${varName}_${index}`,
+      token: `LITERAL_${varName}_${index}`,
+      oled: label,
+      code: label,
+      children: [],
+    }))
+  }
+
+  if (varName === "activeScaleMenu" || varName === "defaultActiveScaleMenu") {
+    return sourceStructure.presetScaleNames.map((scaleName, index) => ({
+      varName: `virtualActiveScale_${varName}_${index}`,
+      token: `LITERAL_${varName}_${index}`,
+      oled: scaleName,
+      code: scaleName,
+      children: [],
+    }))
+  }
+
   if (varName === "cvSelectionMenu") {
     const volts = makeVirtualNode(
       english,
@@ -879,6 +1397,49 @@ function buildDynamicSelectionChildren(
 
   if (varName === "devicesMenu") {
     return buildDevicesFromSource(english, sevenSeg, sourceStructure)
+  }
+
+  if (varName === "patchCablesMenu") {
+    return [
+      {
+        varName: "virtualPatchCableSelection",
+        token: "LITERAL_patchCablesMenu_selected",
+        oled: "Selected Patch Cable",
+        code: "PATCH",
+        children: [
+          {
+            varName: "virtualPatchCableRegular",
+            token: "LITERAL_patchCablesMenu_regular",
+            oled: "Regular destination",
+            code: "REG",
+            children: [
+              {
+                varName: "virtualPatchCableRegularStrength",
+                token: "LITERAL_patchCablesMenu_regular_strength",
+                oled: "Strength",
+                code: "STR",
+                children: [],
+              },
+            ],
+          },
+          {
+            varName: "virtualPatchCableRange",
+            token: "LITERAL_patchCablesMenu_range",
+            oled: "Range destination",
+            code: "RNG",
+            children: [
+              {
+                varName: "virtualPatchCableRangeStrength",
+                token: "LITERAL_patchCablesMenu_range_strength",
+                oled: "Strength",
+                code: "STR",
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ]
   }
 
   return null
@@ -1030,12 +1591,27 @@ function buildNode(
   const children =
     childrenFromStructure.length > 0 ? childrenFromStructure : selectionChildren
 
+  const dedupedChildren =
+    varName === "randomizerMenu"
+      ? (() => {
+          const seen = new Set()
+          return children.filter((child) => {
+            const key = `${child.oled}|${child.code}`
+            if (seen.has(key)) {
+              return false
+            }
+            seen.add(key)
+            return true
+          })
+        })()
+      : children
+
   return {
     varName,
     token,
     oled: varAwareLabel.oled,
     code: varAwareLabel.code,
-    children,
+    children: dedupedChildren,
   }
 }
 
