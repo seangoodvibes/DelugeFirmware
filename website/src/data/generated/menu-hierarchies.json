@@ -1,0 +1,5782 @@
+{
+  "generatedAt": "2026-08-22T22:13:00.225Z",
+  "sourceFiles": {
+    "menusCpp": "src/deluge/gui/ui/menus.cpp",
+    "generatedMenus": "src/deluge/gui/menu_item/generate/g_menus.inc",
+    "clipSettings": "src/deluge/gui/context_menu/clip_settings/clip_settings.cpp",
+    "clipLaunchStyle": "src/deluge/gui/context_menu/clip_settings/launch_style.cpp",
+    "english": "src/deluge/gui/l10n/english.json",
+    "sevenSeg": "src/deluge/gui/l10n/seven_segment.json"
+  },
+  "trees": {
+    "settingsMenu": {
+      "varName": "settingsRootMenu",
+      "token": "STRING_FOR_SETTINGS",
+      "oled": "Settings",
+      "code": "Settings",
+      "children": [
+        {
+          "varName": "settingsActionsSubmenu",
+          "token": "STRING_FOR_ACTIONS",
+          "oled": "Actions",
+          "code": "ACT",
+          "children": [
+            {
+              "varName": "resetSettingsSubmenu",
+              "token": "STRING_FOR_RESET_SETTINGS",
+              "oled": "Reset Settings",
+              "code": "RSET",
+              "children": [
+                {
+                  "varName": "resetFlashSettingsMenu",
+                  "token": "STRING_FOR_RESET_FLASH",
+                  "oled": "Reset Flash",
+                  "code": "FLSH",
+                  "children": []
+                },
+                {
+                  "varName": "resetCommunityFeaturesSettingsMenu",
+                  "token": "STRING_FOR_RESET_COMMUNITY_FEATURES",
+                  "oled": "Reset Community Features",
+                  "code": "COMM",
+                  "children": []
+                },
+                {
+                  "varName": "resetMidiFollowSettingsMenu",
+                  "token": "STRING_FOR_RESET_MIDI_FOLLOW",
+                  "oled": "Reset MIDI Follow",
+                  "code": "FOLO",
+                  "children": []
+                },
+                {
+                  "varName": "resetMidiDevicesSettingsMenu",
+                  "token": "STRING_FOR_RESET_MIDI_DEVICES",
+                  "oled": "Reset MIDI Devices",
+                  "code": "DEVI",
+                  "children": []
+                },
+                {
+                  "varName": "resetAllSettingsMenu",
+                  "token": "STRING_FOR_FACTORY_RESET",
+                  "oled": "Factory Reset",
+                  "code": "RESET",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "cvSelectionMenu",
+          "token": "STRING_FOR_CV",
+          "oled": "CV",
+          "code": "CV",
+          "children": [
+            {
+              "varName": "virtualCvOutput1",
+              "token": "STRING_FOR_CV_OUTPUT_1",
+              "oled": "CV Output 1",
+              "code": "OUT1",
+              "children": [
+                {
+                  "varName": "virtualCvVolts",
+                  "token": "STRING_FOR_VOLTS_PER_OCTAVE",
+                  "oled": "Volts per Octave",
+                  "code": "Volts per Octave",
+                  "children": []
+                },
+                {
+                  "varName": "virtualCvTranspose",
+                  "token": "STRING_FOR_TRANSPOSE",
+                  "oled": "Transpose",
+                  "code": "Transpose",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "virtualCvOutput2",
+              "token": "STRING_FOR_CV_OUTPUT_2",
+              "oled": "CV Output 2",
+              "code": "OUT2",
+              "children": [
+                {
+                  "varName": "virtualCvVolts",
+                  "token": "STRING_FOR_VOLTS_PER_OCTAVE",
+                  "oled": "Volts per Octave",
+                  "code": "Volts per Octave",
+                  "children": []
+                },
+                {
+                  "varName": "virtualCvTranspose",
+                  "token": "STRING_FOR_TRANSPOSE",
+                  "oled": "Transpose",
+                  "code": "Transpose",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "gateSelectionMenu",
+          "token": "STRING_FOR_GATE",
+          "oled": "Gate",
+          "code": "Gate",
+          "children": [
+            {
+              "varName": "virtualGateOutput1",
+              "token": "STRING_FOR_GATE_OUTPUT_1",
+              "oled": "Gate Output 1",
+              "code": "OUT1",
+              "children": [
+                {
+                  "varName": "virtualGateVTrig",
+                  "token": "STRING_FOR_V_TRIGGER",
+                  "oled": "V-Trig",
+                  "code": "VTRI",
+                  "children": []
+                },
+                {
+                  "varName": "virtualGateSTrig",
+                  "token": "STRING_FOR_S_TRIGGER",
+                  "oled": "S-Trig",
+                  "code": "STRI",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "virtualGateOutput2",
+              "token": "STRING_FOR_GATE_OUTPUT_2",
+              "oled": "Gate Output 2",
+              "code": "OUT2",
+              "children": [
+                {
+                  "varName": "virtualGateVTrig",
+                  "token": "STRING_FOR_V_TRIGGER",
+                  "oled": "V-Trig",
+                  "code": "VTRI",
+                  "children": []
+                },
+                {
+                  "varName": "virtualGateSTrig",
+                  "token": "STRING_FOR_S_TRIGGER",
+                  "oled": "S-Trig",
+                  "code": "STRI",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "virtualGateOutput3",
+              "token": "STRING_FOR_GATE_OUTPUT_3",
+              "oled": "Gate Output 3",
+              "code": "OUT3",
+              "children": [
+                {
+                  "varName": "virtualGateVTrig",
+                  "token": "STRING_FOR_V_TRIGGER",
+                  "oled": "V-Trig",
+                  "code": "VTRI",
+                  "children": []
+                },
+                {
+                  "varName": "virtualGateSTrig",
+                  "token": "STRING_FOR_S_TRIGGER",
+                  "oled": "S-Trig",
+                  "code": "STRI",
+                  "children": []
+                },
+                {
+                  "varName": "virtualGateRun",
+                  "token": "STRING_FOR_RUN_SIGNAL",
+                  "oled": "Run signal",
+                  "code": "RUN",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "virtualGateOutput4",
+              "token": "STRING_FOR_GATE_OUTPUT_4",
+              "oled": "Gate Output 4",
+              "code": "OUT4",
+              "children": [
+                {
+                  "varName": "virtualGateVTrig",
+                  "token": "STRING_FOR_V_TRIGGER",
+                  "oled": "V-Trig",
+                  "code": "VTRI",
+                  "children": []
+                },
+                {
+                  "varName": "virtualGateSTrig",
+                  "token": "STRING_FOR_S_TRIGGER",
+                  "oled": "S-Trig",
+                  "code": "STRI",
+                  "children": []
+                },
+                {
+                  "varName": "virtualGateClock",
+                  "token": "STRING_FOR_CLOCK",
+                  "oled": "Clock",
+                  "code": "CLK",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "virtualGateOffTime",
+              "token": "STRING_FOR_MINIMUM_OFF_TIME",
+              "oled": "Minimum Off-Time",
+              "code": "OFFT",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "triggerClockMenu",
+          "token": "STRING_FOR_TRIGGER_CLOCK",
+          "oled": "Trigger Clock",
+          "code": "TCLOCK",
+          "children": [
+            {
+              "varName": "triggerClockInMenu",
+              "token": "STRING_FOR_INPUT",
+              "oled": "Input",
+              "code": "IN",
+              "children": [
+                {
+                  "varName": "triggerInPPQNMenu",
+                  "token": "STRING_FOR_PPQN",
+                  "oled": "PPQN",
+                  "code": "PPQN",
+                  "children": []
+                },
+                {
+                  "varName": "triggerInAutoStartMenu",
+                  "token": "STRING_FOR_AUTO_START",
+                  "oled": "Auto-Start",
+                  "code": "Auto-Start",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "triggerClockOutMenu",
+              "token": "STRING_FOR_OUTPUT",
+              "oled": "Output",
+              "code": "OUT",
+              "children": [
+                {
+                  "varName": "triggerOutPPQNMenu",
+                  "token": "STRING_FOR_PPQN",
+                  "oled": "PPQN",
+                  "code": "PPQN",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "midiMenu",
+          "token": "STRING_FOR_MIDI",
+          "oled": "MIDI",
+          "code": "MIDI",
+          "children": [
+            {
+              "varName": "midiClockMenu",
+              "token": "STRING_FOR_CLOCK",
+              "oled": "Clock",
+              "code": "CLK",
+              "children": [
+                {
+                  "varName": "send_clock_menu",
+                  "token": "STRING_FOR_OUTPUT",
+                  "oled": "Output",
+                  "code": "OUT",
+                  "children": []
+                },
+                {
+                  "varName": "receive_clock_menu",
+                  "token": "STRING_FOR_INPUT",
+                  "oled": "Input",
+                  "code": "IN",
+                  "children": []
+                },
+                {
+                  "varName": "tempoMagnitudeMatchingMenu",
+                  "token": "STRING_FOR_TEMPO_MAGNITUDE_MATCHING",
+                  "oled": "Tempo Magnitude Matching",
+                  "code": "MAGN",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "midiFollowSubmenu",
+              "token": "STRING_FOR_FOLLOW_TITLE",
+              "oled": "MIDI-Follow",
+              "code": "FOLO",
+              "children": [
+                {
+                  "varName": "midiFollowChannelSubmenu",
+                  "token": "STRING_FOR_CHANNEL",
+                  "oled": "Channel",
+                  "code": "CHAN",
+                  "children": [
+                    {
+                      "varName": "midiFollowChannelAMenu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_A",
+                      "oled": "Channel A",
+                      "code": "A",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelBMenu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_B",
+                      "oled": "Channel B",
+                      "code": "B",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelCMenu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_C",
+                      "oled": "Channel C",
+                      "code": "C",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack1Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track01",
+                      "code": "TR01",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack2Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track02",
+                      "code": "TR02",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack3Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track03",
+                      "code": "TR03",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack4Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track04",
+                      "code": "TR04",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack5Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track05",
+                      "code": "TR05",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack6Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track06",
+                      "code": "TR06",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack7Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track07",
+                      "code": "TR07",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack8Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track08",
+                      "code": "TR08",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack9Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track09",
+                      "code": "TR09",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack10Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track10",
+                      "code": "TR10",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack11Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track11",
+                      "code": "TR11",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack12Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track12",
+                      "code": "TR12",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack13Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track13",
+                      "code": "TR13",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack14Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track14",
+                      "code": "TR14",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack15Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track15",
+                      "code": "TR15",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowChannelTrack16Menu",
+                      "token": "STRING_FOR_FOLLOW_CHANNEL_TRACK",
+                      "oled": "Channel Track16",
+                      "code": "TR16",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "midiFollowKitRootNoteMenu",
+                  "token": "STRING_FOR_FOLLOW_KIT_ROOT_NOTE",
+                  "oled": "Kit Root Note",
+                  "code": "KIT",
+                  "children": []
+                },
+                {
+                  "varName": "midiFollowFeedbackSubmenu",
+                  "token": "STRING_FOR_FOLLOW_FEEDBACK",
+                  "oled": "Feedback",
+                  "code": "FEED",
+                  "children": [
+                    {
+                      "varName": "midiFollowFeedbackChannelMenu",
+                      "token": "STRING_FOR_CHANNEL",
+                      "oled": "Channel",
+                      "code": "CHAN",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowFeedbackAutomationMenu",
+                      "token": "STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION",
+                      "oled": "Automation Feedback",
+                      "code": "AUTO",
+                      "children": []
+                    },
+                    {
+                      "varName": "midiFollowFeedbackFilterMenu",
+                      "token": "STRING_FOR_FOLLOW_FEEDBACK_FILTER",
+                      "oled": "Filter Responses",
+                      "code": "FLTR",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "midiFollowDisplayParamMenu",
+                  "token": "STRING_FOR_FOLLOW_DISPLAY_PARAM",
+                  "oled": "Display Param",
+                  "code": "DISP",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "midiSelectKitRowMenu",
+              "token": "STRING_FOR_SELECT_KIT_ROW",
+              "oled": "Select Kit Row",
+              "code": "KROW",
+              "children": []
+            },
+            {
+              "varName": "midiThruMenu",
+              "token": "STRING_FOR_MIDI_THRU",
+              "oled": "MIDI-Thru",
+              "code": "THRU",
+              "children": []
+            },
+            {
+              "varName": "midiTransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "midiTakeoverMenu",
+              "token": "STRING_FOR_TAKEOVER",
+              "oled": "Takeover",
+              "code": "TOVR",
+              "children": []
+            },
+            {
+              "varName": "midiCommandsMenu",
+              "token": "STRING_FOR_COMMANDS",
+              "oled": "Commands",
+              "code": "CMD",
+              "children": [
+                {
+                  "varName": "playMidiCommand",
+                  "token": "STRING_FOR_PLAY",
+                  "oled": "Play",
+                  "code": "Play",
+                  "children": []
+                },
+                {
+                  "varName": "playbackRestartMidiCommand",
+                  "token": "STRING_FOR_RESTART",
+                  "oled": "Restart",
+                  "code": "Restart",
+                  "children": []
+                },
+                {
+                  "varName": "recordMidiCommand",
+                  "token": "STRING_FOR_RECORD",
+                  "oled": "Record",
+                  "code": "REC",
+                  "children": []
+                },
+                {
+                  "varName": "tapMidiCommand",
+                  "token": "STRING_FOR_TAP_TEMPO",
+                  "oled": "Tap tempo",
+                  "code": "Tap tempo",
+                  "children": []
+                },
+                {
+                  "varName": "undoMidiCommand",
+                  "token": "STRING_FOR_UNDO",
+                  "oled": "Undo",
+                  "code": "Undo",
+                  "children": []
+                },
+                {
+                  "varName": "redoMidiCommand",
+                  "token": "STRING_FOR_REDO",
+                  "oled": "Redo",
+                  "code": "Redo",
+                  "children": []
+                },
+                {
+                  "varName": "loopMidiCommand",
+                  "token": "STRING_FOR_LOOP",
+                  "oled": "Loop",
+                  "code": "Loop",
+                  "children": []
+                },
+                {
+                  "varName": "loopContinuousLayeringMidiCommand",
+                  "token": "STRING_FOR_LAYERING_LOOP",
+                  "oled": "Layering Loop",
+                  "code": "Layering Loop",
+                  "children": []
+                },
+                {
+                  "varName": "fillMidiCommand",
+                  "token": "STRING_FOR_FILL",
+                  "oled": "FILL",
+                  "code": "FILL",
+                  "children": []
+                },
+                {
+                  "varName": "transposeMidiCommand",
+                  "token": "STRING_FOR_TRANSPOSE",
+                  "oled": "Transpose",
+                  "code": "Transpose",
+                  "children": []
+                },
+                {
+                  "varName": "nextSongMidiCommand",
+                  "token": "STRING_FOR_SONG_LOAD_NEXT",
+                  "oled": "Load Next Song",
+                  "code": "SONG",
+                  "children": []
+                },
+                {
+                  "varName": "shiftMidiCommand",
+                  "token": "STRING_FOR_SHIFT",
+                  "oled": "SHIFT",
+                  "code": "SHFT",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "midiInputDifferentiationMenu",
+              "token": "STRING_FOR_DIFFERENTIATE_INPUTS",
+              "oled": "Differentiate inputs",
+              "code": "Differentiate inputs",
+              "children": []
+            },
+            {
+              "varName": "devicesMenu",
+              "token": "STRING_FOR_DEVICES",
+              "oled": "Devices",
+              "code": "Devices",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "defaultsSubmenu",
+          "token": "STRING_FOR_DEFAULTS",
+          "oled": "Defaults",
+          "code": "Defaults",
+          "children": [
+            {
+              "varName": "defaultUI",
+              "token": "STRING_FOR_DEFAULT_UI",
+              "oled": "UI",
+              "code": "UI",
+              "children": [
+                {
+                  "varName": "defaultAccessibilityMenu",
+                  "token": "STRING_FOR_DEFAULT_ACCESSIBILITY",
+                  "oled": "Accessibility",
+                  "code": "ACCE",
+                  "children": [
+                    {
+                      "varName": "defaultAccessibilityShortcuts",
+                      "token": "STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS",
+                      "oled": "Shortcuts",
+                      "code": "SHOR",
+                      "children": []
+                    },
+                    {
+                      "varName": "defaultAccessibilityMenuHighlighting",
+                      "token": "STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING",
+                      "oled": "Menu Highlighting",
+                      "code": "HIGH",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "defaultUISession",
+                  "token": "STRING_FOR_DEFAULT_UI_SONG",
+                  "oled": "Song",
+                  "code": "SONG",
+                  "children": [
+                    {
+                      "varName": "defaultSessionLayoutMenu",
+                      "token": "STRING_FOR_DEFAULT_UI_LAYOUT",
+                      "oled": "Layout",
+                      "code": "LAYT",
+                      "children": []
+                    },
+                    {
+                      "varName": "defaultSessionGridMenu",
+                      "token": "STRING_FOR_DEFAULT_UI_GRID",
+                      "oled": "Grid",
+                      "code": "GRID",
+                      "children": [
+                        {
+                          "varName": "defaultGridDefaultActiveMode",
+                          "token": "STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE",
+                          "oled": "Default active mode",
+                          "code": "DEFMODE",
+                          "children": []
+                        },
+                        {
+                          "varName": "defaultGridAllowGreenSelection",
+                          "token": "STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION",
+                          "oled": "Select in green mode",
+                          "code": "GREENSELECT",
+                          "children": []
+                        },
+                        {
+                          "varName": "defaultEmptyPadMenu",
+                          "token": "STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS",
+                          "oled": "Empty pads",
+                          "code": "EMPTY",
+                          "children": [
+                            {
+                              "varName": "defaultgridEmptyPadsUnarm",
+                              "token": "STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM",
+                              "oled": "Unarm",
+                              "code": "UNARM",
+                              "children": []
+                            },
+                            {
+                              "varName": "defaultGridEmptyPadsCreateRec",
+                              "token": "STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC",
+                              "oled": "Create + Record",
+                              "code": "CREATE+REC",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "varName": "defaultUIKeyboard",
+                  "token": "STRING_FOR_DEFAULT_UI_KEYBOARD",
+                  "oled": "Keyboard",
+                  "code": "KBD",
+                  "children": [
+                    {
+                      "varName": "defaultKeyboardLayoutMenu",
+                      "token": "STRING_FOR_DEFAULT_UI_LAYOUT",
+                      "oled": "Layout",
+                      "code": "LAYT",
+                      "children": []
+                    },
+                    {
+                      "varName": "defaultKeyboardFunctionsMenu",
+                      "token": "STRING_FOR_DEFAULT_UI_KB_CONTROLS",
+                      "oled": "Sidebar Controls",
+                      "code": "CTRL",
+                      "children": [
+                        {
+                          "varName": "defaultUIKeyboardFunctionsVelocityGlide",
+                          "token": "STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY",
+                          "oled": "Momentary Velocity",
+                          "code": "MVEL",
+                          "children": []
+                        },
+                        {
+                          "varName": "defaultUIKeyboardFunctionsModwheelGlide",
+                          "token": "STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY",
+                          "oled": "Momentary Modwheel",
+                          "code": "MMOD",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "varName": "defaultFavouritesLayout",
+                      "token": "STRING_FOR_DEFAULT_UI_FAVOURITES",
+                      "oled": "Favourites",
+                      "code": "FAV",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "defaultClipTypeMenu",
+                  "token": "STRING_FOR_DEFAULT_CLIP_TYPE",
+                  "oled": "Clip Type",
+                  "code": "Clip Type",
+                  "children": [
+                    {
+                      "varName": "defaultNewClipTypeMenu",
+                      "token": "STRING_FOR_DEFAULT_NEW_CLIP_TYPE",
+                      "oled": "New Clip Type",
+                      "code": "TYPE",
+                      "children": []
+                    },
+                    {
+                      "varName": "defaultUseLastClipTypeMenu",
+                      "token": "STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE",
+                      "oled": "Use Last Clip Type",
+                      "code": "LAST",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "varName": "defaultUseSharps",
+                  "token": "STRING_FOR_DEFAULT_UI_SHARPS",
+                  "oled": "Use Sharps (#)",
+                  "code": "SHRP",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "defaultAutomationMenu",
+              "token": "STRING_FOR_AUTOMATION",
+              "oled": "Automation",
+              "code": "AUTO",
+              "children": [
+                {
+                  "varName": "defaultAutomationInterpolateMenu",
+                  "token": "STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION",
+                  "oled": "INTERPOLATION",
+                  "code": "INTE",
+                  "children": []
+                },
+                {
+                  "varName": "defaultAutomationClearMenu",
+                  "token": "STRING_FOR_DEFAULT_AUTOMATION_CLEAR",
+                  "oled": "Clear",
+                  "code": "CLEA",
+                  "children": []
+                },
+                {
+                  "varName": "defaultAutomationShiftMenu",
+                  "token": "STRING_FOR_DEFAULT_AUTOMATION_SHIFT",
+                  "oled": "Shift",
+                  "code": "SHIF",
+                  "children": []
+                },
+                {
+                  "varName": "defaultAutomationNudgeNoteMenu",
+                  "token": "STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE",
+                  "oled": "Nudge Note",
+                  "code": "NUDG",
+                  "children": []
+                },
+                {
+                  "varName": "defaultAutomationDisableAuditionPadShortcutsMenu",
+                  "token": "STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS",
+                  "oled": "Disable Audition Pad Shortcuts",
+                  "code": "SCUT",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "defaultTempoMenu",
+              "token": "STRING_FOR_TEMPO",
+              "oled": "TEMPO",
+              "code": "TEMPO",
+              "children": []
+            },
+            {
+              "varName": "defaultSwingAmountMenu",
+              "token": "STRING_FOR_SWING_AMOUNT",
+              "oled": "Swing Amount",
+              "code": "SWIA",
+              "children": []
+            },
+            {
+              "varName": "defaultSwingIntervalMenu",
+              "token": "STRING_FOR_SWING_INTERVAL",
+              "oled": "Swing Interval",
+              "code": "SWII",
+              "children": []
+            },
+            {
+              "varName": "defaultKeyMenu",
+              "token": "STRING_FOR_KEY",
+              "oled": "Key",
+              "code": "Key",
+              "children": []
+            },
+            {
+              "varName": "defaultScalesSubmenu",
+              "token": "STRING_FOR_SCALE",
+              "oled": "Scale",
+              "code": "SCAL",
+              "children": [
+                {
+                  "varName": "defaultScaleMenu",
+                  "token": "STRING_FOR_INIT_SCALE",
+                  "oled": "Init Scale",
+                  "code": "Init Scale",
+                  "children": []
+                },
+                {
+                  "varName": "defaultActiveScaleMenu",
+                  "token": "STRING_FOR_ACTIVE_SCALES",
+                  "oled": "Active Scales",
+                  "code": "Active Scales",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "defaultVelocityMenu",
+              "token": "STRING_FOR_VELOCITY",
+              "oled": "Velocity",
+              "code": "Velocity",
+              "children": []
+            },
+            {
+              "varName": "defaultMagnitudeMenu",
+              "token": "STRING_FOR_RESOLUTION",
+              "oled": "RESOLUTION",
+              "code": "RESOLUTION",
+              "children": []
+            },
+            {
+              "varName": "defaultBendRangeMenu",
+              "token": "STRING_FOR_BEND_RANGE",
+              "oled": "Bend range",
+              "code": "Bend range",
+              "children": []
+            },
+            {
+              "varName": "defaultMetronomeVolumeMenu",
+              "token": "STRING_FOR_METRONOME",
+              "oled": "METRONOME",
+              "code": "METRONOME",
+              "children": []
+            },
+            {
+              "varName": "defaultPatchCablePolarityMenu",
+              "token": "STRING_FOR_DEFAULT_POLARITY",
+              "oled": "Patch cable polarity",
+              "code": "POLA",
+              "children": []
+            },
+            {
+              "varName": "defaultStartupSongMenu",
+              "token": "STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE",
+              "oled": "Startup Song",
+              "code": "SONG",
+              "children": []
+            },
+            {
+              "varName": "defaultPadBrightness",
+              "token": "STRING_FOR_DEFAULT_PAD_BRIGHTNESS",
+              "oled": "Pad Brightness",
+              "code": "BRIG",
+              "children": []
+            },
+            {
+              "varName": "defaultSliceMode",
+              "token": "STRING_FOR_DEFAULT_SLICE_MODE",
+              "oled": "Sample Slice Mode",
+              "code": "SLIM",
+              "children": []
+            },
+            {
+              "varName": "defaultHighCPUUsageIndicatorMode",
+              "token": "STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR",
+              "oled": "High CPU Indicator",
+              "code": "CPU",
+              "children": []
+            },
+            {
+              "varName": "defaultHoldTimeMenu",
+              "token": "STRING_FOR_HOLD_TIME",
+              "oled": "Hold Press Time",
+              "code": "HOLD",
+              "children": []
+            },
+            {
+              "varName": "screensaverSubmenu",
+              "token": "STRING_FOR_SCREENSAVER",
+              "oled": "Screensaver",
+              "code": "Screensaver",
+              "children": [
+                {
+                  "varName": "screensaverModeMenu",
+                  "token": "STRING_FOR_SCREENSAVER_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "screensaverTimeoutMenu",
+                  "token": "STRING_FOR_SCREENSAVER_TIMEOUT",
+                  "oled": "Timeout",
+                  "code": "Timeout",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "padsSubmenu",
+          "token": "STRING_FOR_PADS",
+          "oled": "Pads",
+          "code": "Pads",
+          "children": [
+            {
+              "varName": "shortcutsVersionMenu",
+              "token": "STRING_FOR_SHORTCUTS_VERSION",
+              "oled": "Shortcut Version",
+              "code": "SHOR",
+              "children": []
+            },
+            {
+              "varName": "keyboardLayoutMenu",
+              "token": "STRING_FOR_KEYBOARD_FOR_TEXT",
+              "oled": "Keyboard for Text",
+              "code": "KEYB",
+              "children": []
+            },
+            {
+              "varName": "coloursSubmenu",
+              "token": "STRING_FOR_COLOURS",
+              "oled": "COLOURS",
+              "code": "COLOURS",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "sampleBrowserPreviewModeMenu",
+          "token": "STRING_FOR_SAMPLE_PREVIEW",
+          "oled": "Sample Preview",
+          "code": "PREV",
+          "children": []
+        },
+        {
+          "varName": "flashStatusMenu",
+          "token": "STRING_FOR_PLAY_CURSOR",
+          "oled": "Play-Cursor",
+          "code": "CURS",
+          "children": []
+        },
+        {
+          "varName": "recordSubmenu",
+          "token": "STRING_FOR_RECORDING",
+          "oled": "Recording",
+          "code": "Recording",
+          "children": [
+            {
+              "varName": "recordCountInMenu",
+              "token": "STRING_FOR_COUNT_IN",
+              "oled": "Count-in bars",
+              "code": "Count-in bars",
+              "children": []
+            },
+            {
+              "varName": "recordQuantizeMenu",
+              "token": "STRING_FOR_QUANTIZATION",
+              "oled": "Quantization",
+              "code": "Quantization",
+              "children": []
+            },
+            {
+              "varName": "recordMarginsMenu",
+              "token": "STRING_FOR_LOOP_MARGINS",
+              "oled": "Loop margins",
+              "code": "MARGINS",
+              "children": []
+            },
+            {
+              "varName": "monitorModeMenu",
+              "token": "STRING_FOR_SAMPLING_MONITORING",
+              "oled": "Sampling monitoring",
+              "code": "MONITORING",
+              "children": []
+            },
+            {
+              "varName": "defaultThresholdRecordingSubmenu",
+              "token": "STRING_FOR_THRESHOLD_RECORDING",
+              "oled": "Threshold Recording",
+              "code": "THRE",
+              "children": [
+                {
+                  "varName": "defaultThresholdRecordingModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "defaultLoopCommandMenu",
+              "token": "STRING_FOR_LOOP_COMMAND",
+              "oled": "Loop Command",
+              "code": "LOOP",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "runtimeFeatureSettingsMenu",
+          "token": "STRING_FOR_COMMUNITY_FTS",
+          "oled": "Community Features",
+          "code": "FEAT",
+          "children": []
+        },
+        {
+          "varName": "batteryLevelMenu",
+          "token": "STRING_FOR_BATTERY_LEVEL",
+          "oled": "Battery level",
+          "code": "BATT",
+          "children": []
+        },
+        {
+          "varName": "firmwareVersionMenu",
+          "token": "STRING_FOR_FIRMWARE_VERSION",
+          "oled": "Firmware Version",
+          "code": "FIRM",
+          "children": []
+        }
+      ]
+    },
+    "songMenu": {
+      "varName": "soundEditorRootMenuSongView",
+      "token": "STRING_FOR_SONG",
+      "oled": "Song",
+      "code": "Song",
+      "children": [
+        {
+          "varName": "songMasterMenu",
+          "token": "STRING_FOR_MASTER",
+          "oled": "Master",
+          "code": "MSTR",
+          "children": [
+            {
+              "varName": "globalLevelMenu",
+              "token": "STRING_FOR_VOLUME_LEVEL",
+              "oled": "Volume",
+              "code": "VOLUME",
+              "children": []
+            },
+            {
+              "varName": "globalPanMenu",
+              "token": "STRING_FOR_PAN",
+              "oled": "Pan",
+              "code": "Pan",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "globalFiltersMenu",
+          "token": "STRING_FOR_FILTERS",
+          "oled": "Filters",
+          "code": "FLTR",
+          "children": [
+            {
+              "varName": "globalLPFMenu",
+              "token": "STRING_FOR_LPF",
+              "oled": "LPF",
+              "code": "LPF",
+              "children": [
+                {
+                  "varName": "lpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalHPFMenu",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": [
+                {
+                  "varName": "hpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "filterRoutingMenu",
+              "token": "STRING_FOR_FILTER_ROUTE",
+              "oled": "Filter Route",
+              "code": "ROUT",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "globalFXMenu",
+          "token": "STRING_FOR_FX",
+          "oled": "FX",
+          "code": "FX",
+          "children": [
+            {
+              "varName": "globalEQMenu",
+              "token": "STRING_FOR_EQ",
+              "oled": "EQ",
+              "code": "EQ",
+              "children": [
+                {
+                  "varName": "bassMenu",
+                  "token": "STRING_FOR_BASS",
+                  "oled": "Bass",
+                  "code": "Bass",
+                  "children": []
+                },
+                {
+                  "varName": "trebleMenu",
+                  "token": "STRING_FOR_TREBLE",
+                  "oled": "TREBLE",
+                  "code": "TREBLE",
+                  "children": []
+                },
+                {
+                  "varName": "bassFreqMenu",
+                  "token": "STRING_FOR_BASS_FREQUENCY",
+                  "oled": "Bass Frequency",
+                  "code": "BAFR",
+                  "children": []
+                },
+                {
+                  "varName": "trebleFreqMenu",
+                  "token": "STRING_FOR_TREBLE_FREQUENCY",
+                  "oled": "Treble Frequency",
+                  "code": "TRFR",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalDelayMenu",
+              "token": "STRING_FOR_DELAY",
+              "oled": "DELAY",
+              "code": "DELAY",
+              "children": [
+                {
+                  "varName": "globalDelayFeedbackMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "delayPingPongMenu",
+                  "token": "STRING_FOR_PINGPONG",
+                  "oled": "Pingpong",
+                  "code": "Pingpong",
+                  "children": []
+                },
+                {
+                  "varName": "delaySyncMenu",
+                  "token": "STRING_FOR_SYNC",
+                  "oled": "Sync",
+                  "code": "Sync",
+                  "children": []
+                },
+                {
+                  "varName": "globalDelayRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "delayAnalogMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalReverbMenu",
+              "token": "STRING_FOR_REVERB",
+              "oled": "REVERB",
+              "code": "REVERB",
+              "children": [
+                {
+                  "varName": "globalReverbSendAmountMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "reverbRoomSizeMenu",
+                  "token": "STRING_FOR_ROOM_SIZE",
+                  "oled": "Room Size",
+                  "code": "SIZE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbDampingMenu",
+                  "token": "STRING_FOR_DAMPING",
+                  "oled": "DAMPING",
+                  "code": "DAMPING",
+                  "children": []
+                },
+                {
+                  "varName": "reverbWidthMenu",
+                  "token": "STRING_FOR_WIDTH",
+                  "oled": "WIDTH",
+                  "code": "WIDTH",
+                  "children": []
+                },
+                {
+                  "varName": "reverbModelMenu",
+                  "token": "STRING_FOR_MODEL",
+                  "oled": "Model",
+                  "code": "MODE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbPanMenu",
+                  "token": "STRING_FOR_PAN",
+                  "oled": "Pan",
+                  "code": "Pan",
+                  "children": []
+                },
+                {
+                  "varName": "reverbHPFMenu",
+                  "token": "STRING_FOR_HPF",
+                  "oled": "HPF",
+                  "code": "HPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbLPFMenu",
+                  "token": "STRING_FOR_LPF",
+                  "oled": "LPF",
+                  "code": "LPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbSidechainMenu",
+                  "token": "STRING_FOR_REVERB_SIDECHAIN",
+                  "oled": "Sidechain",
+                  "code": "SIDE",
+                  "children": [
+                    {
+                      "varName": "reverbSidechainVolumeMenu",
+                      "token": "STRING_FOR_VOLUME_DUCKING",
+                      "oled": "Volume ducking",
+                      "code": "Volume ducking",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainShapeMenu",
+                      "token": "STRING_FOR_SHAPE",
+                      "oled": "Shape",
+                      "code": "TYPE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainAttackMenu",
+                      "token": "STRING_FOR_ATTACK",
+                      "oled": "ATTACK",
+                      "code": "ATTACK",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainReleaseMenu",
+                      "token": "STRING_FOR_RELEASE",
+                      "oled": "RELEASE",
+                      "code": "RELEASE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainSyncMenu",
+                      "token": "STRING_FOR_SYNC",
+                      "oled": "Sync",
+                      "code": "Sync",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "varName": "globalModFXMenu",
+              "token": "STRING_FOR_MOD_FX",
+              "oled": "Mod-FX",
+              "code": "MODU",
+              "children": [
+                {
+                  "varName": "modFXTypeMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXDepthMenu",
+                  "token": "STRING_FOR_DEPTH",
+                  "oled": "DEPTH",
+                  "code": "DEPTH",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "modFXFeedbackMenu",
+                  "token": "STRING_FOR_FEEDBACK",
+                  "oled": "FEEDBACK",
+                  "code": "FEEDBACK",
+                  "children": []
+                },
+                {
+                  "varName": "modFXOffsetMenu",
+                  "token": "STRING_FOR_OFFSET",
+                  "oled": "OFFSET",
+                  "code": "OFFSET",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "swingIntervalMenu",
+          "token": "STRING_FOR_SWING_INTERVAL",
+          "oled": "Swing Interval",
+          "code": "SWII",
+          "children": []
+        },
+        {
+          "varName": "activeScaleMenu",
+          "token": "STRING_FOR_ACTIVE_SCALES",
+          "oled": "Active Scales",
+          "code": "Active Scales",
+          "children": []
+        },
+        {
+          "varName": "songThresholdRecordingSubmenu",
+          "token": "STRING_FOR_THRESHOLD_RECORDING",
+          "oled": "Threshold Recording",
+          "code": "THRE",
+          "children": [
+            {
+              "varName": "songThresholdRecordingModeMenu",
+              "token": "STRING_FOR_MODE",
+              "oled": "Mode",
+              "code": "Mode",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "configureSongMacrosMenu",
+          "token": "STRING_FOR_CONFIGURE_SONG_MACROS",
+          "oled": "Configure Macros",
+          "code": "MACRO",
+          "children": []
+        },
+        {
+          "varName": "midiLearnMenu",
+          "token": "STRING_FOR_MIDI_LEARN",
+          "oled": "Midi Learn",
+          "code": "MIDI",
+          "children": []
+        },
+        {
+          "varName": "stemExportMenu",
+          "token": "STRING_FOR_EXPORT_AUDIO",
+          "oled": "Export Audio",
+          "code": "EXPO",
+          "children": [
+            {
+              "varName": "startStemExportMenu",
+              "token": "STRING_FOR_START_EXPORT",
+              "oled": "Start Export",
+              "code": "START",
+              "children": []
+            },
+            {
+              "varName": "configureStemExportMenu",
+              "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS",
+              "oled": "Configure Export",
+              "code": "CONF",
+              "children": [
+                {
+                  "varName": "configureNormalizationMenu",
+                  "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION",
+                  "oled": "Normalization",
+                  "code": "NORM",
+                  "children": []
+                },
+                {
+                  "varName": "configureSilenceMenu",
+                  "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE",
+                  "oled": "Export to Silence",
+                  "code": "SILE",
+                  "children": []
+                },
+                {
+                  "varName": "configureSongFXMenu",
+                  "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX",
+                  "oled": "Song FX",
+                  "code": "SONG",
+                  "children": []
+                },
+                {
+                  "varName": "configureOfflineRenderingMenu",
+                  "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING",
+                  "oled": "Offline Rendering",
+                  "code": "OFFR",
+                  "children": []
+                },
+                {
+                  "varName": "configureMixdownMenu",
+                  "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN",
+                  "oled": "Export Mixdown",
+                  "code": "MIXD",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "performFxMenu": {
+      "varName": "soundEditorRootMenuPerformanceView",
+      "token": "STRING_FOR_PERFORM_FX",
+      "oled": "Perform FX",
+      "code": "Perform FX",
+      "children": [
+        {
+          "varName": "performEditorMenu",
+          "token": "STRING_FOR_PERFORM_EDITOR",
+          "oled": "Editing Mode",
+          "code": "Editing Mode",
+          "children": []
+        },
+        {
+          "varName": "globalFiltersMenu",
+          "token": "STRING_FOR_FILTERS",
+          "oled": "Filters",
+          "code": "FLTR",
+          "children": [
+            {
+              "varName": "globalLPFMenu",
+              "token": "STRING_FOR_LPF",
+              "oled": "LPF",
+              "code": "LPF",
+              "children": [
+                {
+                  "varName": "lpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalHPFMenu",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": [
+                {
+                  "varName": "hpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "filterRoutingMenu",
+              "token": "STRING_FOR_FILTER_ROUTE",
+              "oled": "Filter Route",
+              "code": "ROUT",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "globalFXMenu",
+          "token": "STRING_FOR_FX",
+          "oled": "FX",
+          "code": "FX",
+          "children": [
+            {
+              "varName": "globalEQMenu",
+              "token": "STRING_FOR_EQ",
+              "oled": "EQ",
+              "code": "EQ",
+              "children": [
+                {
+                  "varName": "bassMenu",
+                  "token": "STRING_FOR_BASS",
+                  "oled": "Bass",
+                  "code": "Bass",
+                  "children": []
+                },
+                {
+                  "varName": "trebleMenu",
+                  "token": "STRING_FOR_TREBLE",
+                  "oled": "TREBLE",
+                  "code": "TREBLE",
+                  "children": []
+                },
+                {
+                  "varName": "bassFreqMenu",
+                  "token": "STRING_FOR_BASS_FREQUENCY",
+                  "oled": "Bass Frequency",
+                  "code": "BAFR",
+                  "children": []
+                },
+                {
+                  "varName": "trebleFreqMenu",
+                  "token": "STRING_FOR_TREBLE_FREQUENCY",
+                  "oled": "Treble Frequency",
+                  "code": "TRFR",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalDelayMenu",
+              "token": "STRING_FOR_DELAY",
+              "oled": "DELAY",
+              "code": "DELAY",
+              "children": [
+                {
+                  "varName": "globalDelayFeedbackMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "delayPingPongMenu",
+                  "token": "STRING_FOR_PINGPONG",
+                  "oled": "Pingpong",
+                  "code": "Pingpong",
+                  "children": []
+                },
+                {
+                  "varName": "delaySyncMenu",
+                  "token": "STRING_FOR_SYNC",
+                  "oled": "Sync",
+                  "code": "Sync",
+                  "children": []
+                },
+                {
+                  "varName": "globalDelayRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "delayAnalogMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalReverbMenu",
+              "token": "STRING_FOR_REVERB",
+              "oled": "REVERB",
+              "code": "REVERB",
+              "children": [
+                {
+                  "varName": "globalReverbSendAmountMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "reverbRoomSizeMenu",
+                  "token": "STRING_FOR_ROOM_SIZE",
+                  "oled": "Room Size",
+                  "code": "SIZE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbDampingMenu",
+                  "token": "STRING_FOR_DAMPING",
+                  "oled": "DAMPING",
+                  "code": "DAMPING",
+                  "children": []
+                },
+                {
+                  "varName": "reverbWidthMenu",
+                  "token": "STRING_FOR_WIDTH",
+                  "oled": "WIDTH",
+                  "code": "WIDTH",
+                  "children": []
+                },
+                {
+                  "varName": "reverbModelMenu",
+                  "token": "STRING_FOR_MODEL",
+                  "oled": "Model",
+                  "code": "MODE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbPanMenu",
+                  "token": "STRING_FOR_PAN",
+                  "oled": "Pan",
+                  "code": "Pan",
+                  "children": []
+                },
+                {
+                  "varName": "reverbHPFMenu",
+                  "token": "STRING_FOR_HPF",
+                  "oled": "HPF",
+                  "code": "HPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbLPFMenu",
+                  "token": "STRING_FOR_LPF",
+                  "oled": "LPF",
+                  "code": "LPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbSidechainMenu",
+                  "token": "STRING_FOR_REVERB_SIDECHAIN",
+                  "oled": "Sidechain",
+                  "code": "SIDE",
+                  "children": [
+                    {
+                      "varName": "reverbSidechainVolumeMenu",
+                      "token": "STRING_FOR_VOLUME_DUCKING",
+                      "oled": "Volume ducking",
+                      "code": "Volume ducking",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainShapeMenu",
+                      "token": "STRING_FOR_SHAPE",
+                      "oled": "Shape",
+                      "code": "TYPE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainAttackMenu",
+                      "token": "STRING_FOR_ATTACK",
+                      "oled": "ATTACK",
+                      "code": "ATTACK",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainReleaseMenu",
+                      "token": "STRING_FOR_RELEASE",
+                      "oled": "RELEASE",
+                      "code": "RELEASE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainSyncMenu",
+                      "token": "STRING_FOR_SYNC",
+                      "oled": "Sync",
+                      "code": "Sync",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "varName": "globalModFXMenu",
+              "token": "STRING_FOR_MOD_FX",
+              "oled": "Mod-FX",
+              "code": "MODU",
+              "children": [
+                {
+                  "varName": "modFXTypeMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXDepthMenu",
+                  "token": "STRING_FOR_DEPTH",
+                  "oled": "DEPTH",
+                  "code": "DEPTH",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "modFXFeedbackMenu",
+                  "token": "STRING_FOR_FEEDBACK",
+                  "oled": "FEEDBACK",
+                  "code": "FEEDBACK",
+                  "children": []
+                },
+                {
+                  "varName": "modFXOffsetMenu",
+                  "token": "STRING_FOR_OFFSET",
+                  "oled": "OFFSET",
+                  "code": "OFFSET",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "audioClipMenu": {
+      "varName": "soundEditorRootMenuAudioClip",
+      "token": "STRING_FOR_AUDIO_CLIP",
+      "oled": "Audio clip",
+      "code": "Audio clip",
+      "children": [
+        {
+          "varName": "audioClipActionsMenu",
+          "token": "STRING_FOR_ACTIONS",
+          "oled": "Actions",
+          "code": "ACT",
+          "children": [
+            {
+              "varName": "editNameMenu",
+              "token": "STRING_FOR_EDIT_NAME",
+              "oled": "Edit Name",
+              "code": "NAME",
+              "children": [
+                {
+                  "varName": "audioOutputNameEditMenu",
+                  "token": "STRING_FOR_EDIT_TRACK_NAME",
+                  "oled": "Edit Track Name",
+                  "code": "TRAK",
+                  "children": []
+                },
+                {
+                  "varName": "audioClipNameEditMenu",
+                  "token": "STRING_FOR_EDIT_CLIP_NAME",
+                  "oled": "Edit Clip Name",
+                  "code": "CLIP",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "setClipLengthMenu",
+              "token": "STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH",
+              "oled": "Set Clip Length Equal to Sample Length",
+              "code": "LEN",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "audioClipMasterMenu",
+          "token": "STRING_FOR_MASTER",
+          "oled": "Master",
+          "code": "MSTR",
+          "children": [
+            {
+              "varName": "globalLevelMenu",
+              "token": "STRING_FOR_VOLUME_LEVEL",
+              "oled": "Volume",
+              "code": "VOLUME",
+              "children": []
+            },
+            {
+              "varName": "globalPanMenu",
+              "token": "STRING_FOR_PAN",
+              "oled": "Pan",
+              "code": "Pan",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "audioCompMenu",
+          "token": "STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR",
+          "oled": "Compressor",
+          "code": "COMP",
+          "children": [
+            {
+              "varName": "threshold",
+              "token": "STRING_FOR_THRESHOLD",
+              "oled": "Threshold",
+              "code": "Threshold",
+              "children": []
+            },
+            {
+              "varName": "compRatio",
+              "token": "STRING_FOR_RATIO",
+              "oled": "Ratio",
+              "code": "Ratio",
+              "children": []
+            },
+            {
+              "varName": "compBlend",
+              "token": "STRING_FOR_BLEND",
+              "oled": "Blend",
+              "code": "Blend",
+              "children": []
+            },
+            {
+              "varName": "compAttack",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "compRelease",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            },
+            {
+              "varName": "compHPF",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "globalFiltersMenu",
+          "token": "STRING_FOR_FILTERS",
+          "oled": "Filters",
+          "code": "FLTR",
+          "children": [
+            {
+              "varName": "globalLPFMenu",
+              "token": "STRING_FOR_LPF",
+              "oled": "LPF",
+              "code": "LPF",
+              "children": [
+                {
+                  "varName": "lpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalHPFMenu",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": [
+                {
+                  "varName": "hpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "filterRoutingMenu",
+              "token": "STRING_FOR_FILTER_ROUTE",
+              "oled": "Filter Route",
+              "code": "ROUT",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "audioClipFXMenu",
+          "token": "STRING_FOR_FX",
+          "oled": "FX",
+          "code": "FX",
+          "children": [
+            {
+              "varName": "eqMenu",
+              "token": "STRING_FOR_EQ",
+              "oled": "EQ",
+              "code": "EQ",
+              "children": [
+                {
+                  "varName": "bassMenu",
+                  "token": "STRING_FOR_BASS",
+                  "oled": "Bass",
+                  "code": "Bass",
+                  "children": []
+                },
+                {
+                  "varName": "trebleMenu",
+                  "token": "STRING_FOR_TREBLE",
+                  "oled": "TREBLE",
+                  "code": "TREBLE",
+                  "children": []
+                },
+                {
+                  "varName": "bassFreqMenu",
+                  "token": "STRING_FOR_BASS_FREQUENCY",
+                  "oled": "Bass Frequency",
+                  "code": "BAFR",
+                  "children": []
+                },
+                {
+                  "varName": "trebleFreqMenu",
+                  "token": "STRING_FOR_TREBLE_FREQUENCY",
+                  "oled": "Treble Frequency",
+                  "code": "TRFR",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalDelayMenu",
+              "token": "STRING_FOR_DELAY",
+              "oled": "DELAY",
+              "code": "DELAY",
+              "children": [
+                {
+                  "varName": "globalDelayFeedbackMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "delayPingPongMenu",
+                  "token": "STRING_FOR_PINGPONG",
+                  "oled": "Pingpong",
+                  "code": "Pingpong",
+                  "children": []
+                },
+                {
+                  "varName": "delaySyncMenu",
+                  "token": "STRING_FOR_SYNC",
+                  "oled": "Sync",
+                  "code": "Sync",
+                  "children": []
+                },
+                {
+                  "varName": "globalDelayRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "delayAnalogMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalReverbMenu",
+              "token": "STRING_FOR_REVERB",
+              "oled": "REVERB",
+              "code": "REVERB",
+              "children": [
+                {
+                  "varName": "globalReverbSendAmountMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "reverbRoomSizeMenu",
+                  "token": "STRING_FOR_ROOM_SIZE",
+                  "oled": "Room Size",
+                  "code": "SIZE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbDampingMenu",
+                  "token": "STRING_FOR_DAMPING",
+                  "oled": "DAMPING",
+                  "code": "DAMPING",
+                  "children": []
+                },
+                {
+                  "varName": "reverbWidthMenu",
+                  "token": "STRING_FOR_WIDTH",
+                  "oled": "WIDTH",
+                  "code": "WIDTH",
+                  "children": []
+                },
+                {
+                  "varName": "reverbModelMenu",
+                  "token": "STRING_FOR_MODEL",
+                  "oled": "Model",
+                  "code": "MODE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbPanMenu",
+                  "token": "STRING_FOR_PAN",
+                  "oled": "Pan",
+                  "code": "Pan",
+                  "children": []
+                },
+                {
+                  "varName": "reverbHPFMenu",
+                  "token": "STRING_FOR_HPF",
+                  "oled": "HPF",
+                  "code": "HPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbLPFMenu",
+                  "token": "STRING_FOR_LPF",
+                  "oled": "LPF",
+                  "code": "LPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbSidechainMenu",
+                  "token": "STRING_FOR_REVERB_SIDECHAIN",
+                  "oled": "Sidechain",
+                  "code": "SIDE",
+                  "children": [
+                    {
+                      "varName": "reverbSidechainVolumeMenu",
+                      "token": "STRING_FOR_VOLUME_DUCKING",
+                      "oled": "Volume ducking",
+                      "code": "Volume ducking",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainShapeMenu",
+                      "token": "STRING_FOR_SHAPE",
+                      "oled": "Shape",
+                      "code": "TYPE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainAttackMenu",
+                      "token": "STRING_FOR_ATTACK",
+                      "oled": "ATTACK",
+                      "code": "ATTACK",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainReleaseMenu",
+                      "token": "STRING_FOR_RELEASE",
+                      "oled": "RELEASE",
+                      "code": "RELEASE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainSyncMenu",
+                      "token": "STRING_FOR_SYNC",
+                      "oled": "Sync",
+                      "code": "Sync",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "varName": "globalModFXMenu",
+              "token": "STRING_FOR_MOD_FX",
+              "oled": "Mod-FX",
+              "code": "MODU",
+              "children": [
+                {
+                  "varName": "modFXTypeMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXDepthMenu",
+                  "token": "STRING_FOR_DEPTH",
+                  "oled": "DEPTH",
+                  "code": "DEPTH",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "modFXFeedbackMenu",
+                  "token": "STRING_FOR_FEEDBACK",
+                  "oled": "FEEDBACK",
+                  "code": "FEEDBACK",
+                  "children": []
+                },
+                {
+                  "varName": "modFXOffsetMenu",
+                  "token": "STRING_FOR_OFFSET",
+                  "oled": "OFFSET",
+                  "code": "OFFSET",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "globalSidechainMenu",
+          "token": "STRING_FOR_SIDECHAIN",
+          "oled": "Sidechain",
+          "code": "Sidechain",
+          "children": [
+            {
+              "varName": "globalSidechainVolumeMenu",
+              "token": "STRING_FOR_VOLUME_DUCKING",
+              "oled": "Volume ducking",
+              "code": "Volume ducking",
+              "children": []
+            },
+            {
+              "varName": "sidechainSyncMenu",
+              "token": "STRING_FOR_SYNC",
+              "oled": "Sync",
+              "code": "Sync",
+              "children": []
+            },
+            {
+              "varName": "sidechainShapeMenu",
+              "token": "STRING_FOR_SHAPE",
+              "oled": "Shape",
+              "code": "TYPE",
+              "children": []
+            },
+            {
+              "varName": "sidechainAttackMenu",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "sidechainReleaseMenu",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "audioClipSampleMenu",
+          "token": "STRING_FOR_SAMPLE",
+          "oled": "Sample",
+          "code": "SAMP",
+          "children": [
+            {
+              "varName": "file0SelectorMenu",
+              "token": "STRING_FOR_FILE_BROWSER",
+              "oled": "File browser",
+              "code": "File browser",
+              "children": []
+            },
+            {
+              "varName": "audioClipTransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "audioClipReverseMenu",
+              "token": "STRING_FOR_REVERSE",
+              "oled": "REVERSE",
+              "code": "REVERSE",
+              "children": []
+            },
+            {
+              "varName": "sample0PitchSpeedMenu",
+              "token": "STRING_FOR_PITCH_SPEED",
+              "oled": "Pitch/Speed",
+              "code": "PISP",
+              "children": []
+            },
+            {
+              "varName": "audioClipSampleMarkerEditorMenuEnd",
+              "token": "STRING_FOR_WAVEFORM",
+              "oled": "WAVEFORM",
+              "code": "WAVEFORM",
+              "children": []
+            },
+            {
+              "varName": "audioClipInterpolationMenu",
+              "token": "STRING_FOR_INTERPOLATION",
+              "oled": "INTERPOLATION",
+              "code": "INTERPOLATION",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "audioClipAttackMenu",
+          "token": "STRING_FOR_ATTACK",
+          "oled": "ATTACK",
+          "code": "ATTACK",
+          "children": []
+        },
+        {
+          "varName": "priorityMenu",
+          "token": "STRING_FOR_PRIORITY",
+          "oled": "PRIORITY",
+          "code": "PRIORITY",
+          "children": []
+        }
+      ]
+    },
+    "soundMenu": {
+      "varName": "soundEditorRootMenu",
+      "token": "STRING_FOR_SOUND",
+      "oled": "Sound",
+      "code": "Sound",
+      "children": [
+        {
+          "varName": "soundEditorRootActionsMenu",
+          "token": "STRING_FOR_ACTIONS",
+          "oled": "Actions",
+          "code": "ACT",
+          "children": [
+            {
+              "varName": "editNameMenu",
+              "token": "STRING_FOR_EDIT_NAME",
+              "oled": "Edit Name",
+              "code": "NAME",
+              "children": [
+                {
+                  "varName": "audioOutputNameEditMenu",
+                  "token": "STRING_FOR_EDIT_TRACK_NAME",
+                  "oled": "Edit Track Name",
+                  "code": "TRAK",
+                  "children": []
+                },
+                {
+                  "varName": "audioClipNameEditMenu",
+                  "token": "STRING_FOR_EDIT_CLIP_NAME",
+                  "oled": "Edit Clip Name",
+                  "code": "CLIP",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "sample0RecorderMenu",
+              "token": "STRING_FOR_RECORD_TO_SAMPLE",
+              "oled": "Record to sample *",
+              "code": "REC*",
+              "children": []
+            },
+            {
+              "varName": "sample1RecorderMenu",
+              "token": "STRING_FOR_RECORD_TO_SAMPLE",
+              "oled": "Record to sample *",
+              "code": "REC*",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "soundMasterMenu",
+          "token": "STRING_FOR_MASTER",
+          "oled": "Master",
+          "code": "MSTR",
+          "children": [
+            {
+              "varName": "synthModeMenu",
+              "token": "STRING_FOR_SYNTH_MODE",
+              "oled": "Synth Mode",
+              "code": "MODE",
+              "children": []
+            },
+            {
+              "varName": "volumeMenu",
+              "token": "STRING_FOR_VOLUME_LEVEL",
+              "oled": "Volume",
+              "code": "VOLUME",
+              "children": []
+            },
+            {
+              "varName": "panMenu",
+              "token": "STRING_FOR_PAN",
+              "oled": "Pan",
+              "code": "Pan",
+              "children": []
+            },
+            {
+              "varName": "masterTransposeMenu",
+              "token": "STRING_FOR_MASTER_TRANSPOSE",
+              "oled": "Master transpose",
+              "code": "TRANSPOSE",
+              "children": []
+            },
+            {
+              "varName": "vibratoMenu",
+              "token": "STRING_FOR_VIBRATO",
+              "oled": "Vibrato",
+              "code": "Vibrato",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "arpMenu",
+          "token": "STRING_FOR_ARPEGGIATOR",
+          "oled": "ARPEGGIATOR",
+          "code": "ARPEGGIATOR",
+          "children": [
+            {
+              "varName": "arpPatternMenu",
+              "token": "STRING_FOR_PATTERN",
+              "oled": "Pattern",
+              "code": "PATT",
+              "children": [
+                {
+                  "varName": "arpOctavesMenu",
+                  "token": "STRING_FOR_NUMBER_OF_OCTAVES",
+                  "oled": "Octaves",
+                  "code": "OCTA",
+                  "children": []
+                },
+                {
+                  "varName": "arpStepRepeatMenu",
+                  "token": "STRING_FOR_STEP_REPEAT",
+                  "oled": "Step Repeat",
+                  "code": "REPE",
+                  "children": []
+                },
+                {
+                  "varName": "arpOctaveModeMenu",
+                  "token": "STRING_FOR_OCTAVE_MODE",
+                  "oled": "Octave Mode",
+                  "code": "OMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenu",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenuForDrums",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpChordSimulatorMenuKit",
+                  "token": "STRING_FOR_CHORD_SIMULATOR",
+                  "oled": "Chord Simulator",
+                  "code": "CSIM",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenu",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenuMIDIOrCV",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenu",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenuMIDIOrCV",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "arpMpeMenu",
+              "token": "STRING_FOR_MPE",
+              "oled": "MPE",
+              "code": "MPE",
+              "children": [
+                {
+                  "varName": "arpMpeVelocityMenu",
+                  "token": "STRING_FOR_VELOCITY",
+                  "oled": "Velocity",
+                  "code": "Velocity",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "arpIncludeInKitArpMenu",
+              "token": "STRING_FOR_INCLUDE_IN_KIT_ARP",
+              "oled": "Include in Kit Arp",
+              "code": "KARP",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "randomizerMenu",
+          "token": "STRING_FOR_RANDOMIZER",
+          "oled": "RANDOMIZER",
+          "code": "RANDOMIZER",
+          "children": [
+            {
+              "varName": "randomizerLockMenu",
+              "token": "STRING_FOR_RANDOMIZER_LOCK",
+              "oled": "Lock Randomizer",
+              "code": "LOCK",
+              "children": []
+            },
+            {
+              "varName": "spreadGateMenu",
+              "token": "STRING_FOR_SPREAD_GATE",
+              "oled": "Gate Spread",
+              "code": "Gate Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadGateMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_GATE",
+              "oled": "Gate Spread",
+              "code": "Gate Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadOctaveMenu",
+              "token": "STRING_FOR_SPREAD_OCTAVE",
+              "oled": "Octave Spread",
+              "code": "Octave Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadOctaveMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_OCTAVE",
+              "oled": "Octave Spread",
+              "code": "Octave Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadVelocityMenu",
+              "token": "STRING_FOR_SPREAD_VELOCITY",
+              "oled": "Velocity Spread",
+              "code": "Velocity Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadVelocityMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_VELOCITY",
+              "oled": "Velocity Spread",
+              "code": "Velocity Spread",
+              "children": []
+            },
+            {
+              "varName": "ratchetAmountMenu",
+              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+              "oled": "Ratchet Amount",
+              "code": "RATC",
+              "children": []
+            },
+            {
+              "varName": "ratchetAmountMenuMIDIOrCV",
+              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+              "oled": "Ratchet Amount",
+              "code": "RATC",
+              "children": []
+            },
+            {
+              "varName": "ratchetProbabilityMenu",
+              "token": "STRING_FOR_RATCHET_PROBABILITY",
+              "oled": "Ratchet Probability",
+              "code": "RPRO",
+              "children": []
+            },
+            {
+              "varName": "ratchetProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_RATCHET_PROBABILITY",
+              "oled": "Ratchet Probability",
+              "code": "RPRO",
+              "children": []
+            },
+            {
+              "varName": "chordPolyphonyMenu",
+              "token": "STRING_FOR_CHORD_POLYPHONY",
+              "oled": "Chord Polyphony",
+              "code": "CHRD",
+              "children": []
+            },
+            {
+              "varName": "chordPolyphonyMenuMIDIOrCV",
+              "token": "STRING_FOR_CHORD_POLYPHONY",
+              "oled": "Chord Polyphony",
+              "code": "CHRD",
+              "children": []
+            },
+            {
+              "varName": "chordProbabilityMenu",
+              "token": "STRING_FOR_CHORD_PROBABILITY",
+              "oled": "Chord Probability",
+              "code": "CPRO",
+              "children": []
+            },
+            {
+              "varName": "chordProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_CHORD_PROBABILITY",
+              "oled": "Chord Probability",
+              "code": "CPRO",
+              "children": []
+            },
+            {
+              "varName": "randomizerNoteProbabilityMenu",
+              "token": "STRING_FOR_NOTE_PROBABILITY",
+              "oled": "Note Probability",
+              "code": "NOTE",
+              "children": []
+            },
+            {
+              "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_NOTE_PROBABILITY",
+              "oled": "Note Probability",
+              "code": "NOTE",
+              "children": []
+            },
+            {
+              "varName": "swapProbabilityMenu",
+              "token": "STRING_FOR_SWAP_PROBABILITY",
+              "oled": "Swap Probability",
+              "code": "SWAP",
+              "children": []
+            },
+            {
+              "varName": "swapProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_SWAP_PROBABILITY",
+              "oled": "Swap Probability",
+              "code": "SWAP",
+              "children": []
+            },
+            {
+              "varName": "bassProbabilityMenu",
+              "token": "STRING_FOR_BASS_PROBABILITY",
+              "oled": "Bass Probability",
+              "code": "BASS",
+              "children": []
+            },
+            {
+              "varName": "bassProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_BASS_PROBABILITY",
+              "oled": "Bass Probability",
+              "code": "BASS",
+              "children": []
+            },
+            {
+              "varName": "glideProbabilityMenu",
+              "token": "STRING_FOR_GLIDE_PROBABILITY",
+              "oled": "Glide Probability",
+              "code": "GLID",
+              "children": []
+            },
+            {
+              "varName": "glideProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_GLIDE_PROBABILITY",
+              "oled": "Glide Probability",
+              "code": "GLID",
+              "children": []
+            },
+            {
+              "varName": "reverseProbabilityMenu",
+              "token": "STRING_FOR_REVERSE_PROBABILITY",
+              "oled": "Reverse Probability",
+              "code": "RVRS",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "audioCompMenu",
+          "token": "STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR",
+          "oled": "Compressor",
+          "code": "COMP",
+          "children": [
+            {
+              "varName": "threshold",
+              "token": "STRING_FOR_THRESHOLD",
+              "oled": "Threshold",
+              "code": "Threshold",
+              "children": []
+            },
+            {
+              "varName": "compRatio",
+              "token": "STRING_FOR_RATIO",
+              "oled": "Ratio",
+              "code": "Ratio",
+              "children": []
+            },
+            {
+              "varName": "compBlend",
+              "token": "STRING_FOR_BLEND",
+              "oled": "Blend",
+              "code": "Blend",
+              "children": []
+            },
+            {
+              "varName": "compAttack",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "compRelease",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            },
+            {
+              "varName": "compHPF",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "soundFiltersMenu",
+          "token": "STRING_FOR_FILTERS",
+          "oled": "Filters",
+          "code": "FLTR",
+          "children": [
+            {
+              "varName": "lpfMenu",
+              "token": "STRING_FOR_LPF",
+              "oled": "LPF",
+              "code": "LPF",
+              "children": [
+                {
+                  "varName": "lpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "lpfFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "lpfResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "lpfMorphMenu",
+                  "token": "STRING_FOR_LPF_MORPH",
+                  "oled": "LPF morph",
+                  "code": "LPF morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "hpfMenu",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": [
+                {
+                  "varName": "hpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "hpfFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "hpfResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "hpfMorphMenu",
+                  "token": "STRING_FOR_HPF_MORPH",
+                  "oled": "HPF morph",
+                  "code": "HPF morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "filterRoutingMenu",
+              "token": "STRING_FOR_FILTER_ROUTE",
+              "oled": "Filter Route",
+              "code": "ROUT",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "soundFXMenu",
+          "token": "STRING_FOR_FX",
+          "oled": "FX",
+          "code": "FX",
+          "children": [
+            {
+              "varName": "eqMenu",
+              "token": "STRING_FOR_EQ",
+              "oled": "EQ",
+              "code": "EQ",
+              "children": [
+                {
+                  "varName": "bassMenu",
+                  "token": "STRING_FOR_BASS",
+                  "oled": "Bass",
+                  "code": "Bass",
+                  "children": []
+                },
+                {
+                  "varName": "trebleMenu",
+                  "token": "STRING_FOR_TREBLE",
+                  "oled": "TREBLE",
+                  "code": "TREBLE",
+                  "children": []
+                },
+                {
+                  "varName": "bassFreqMenu",
+                  "token": "STRING_FOR_BASS_FREQUENCY",
+                  "oled": "Bass Frequency",
+                  "code": "BAFR",
+                  "children": []
+                },
+                {
+                  "varName": "trebleFreqMenu",
+                  "token": "STRING_FOR_TREBLE_FREQUENCY",
+                  "oled": "Treble Frequency",
+                  "code": "TRFR",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "delayMenu",
+              "token": "STRING_FOR_DELAY",
+              "oled": "DELAY",
+              "code": "DELAY",
+              "children": [
+                {
+                  "varName": "delayFeedbackMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "delayPingPongMenu",
+                  "token": "STRING_FOR_PINGPONG",
+                  "oled": "Pingpong",
+                  "code": "Pingpong",
+                  "children": []
+                },
+                {
+                  "varName": "delaySyncMenu",
+                  "token": "STRING_FOR_SYNC",
+                  "oled": "Sync",
+                  "code": "Sync",
+                  "children": []
+                },
+                {
+                  "varName": "delayRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "delayAnalogMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "reverbMenu",
+              "token": "STRING_FOR_REVERB",
+              "oled": "REVERB",
+              "code": "REVERB",
+              "children": [
+                {
+                  "varName": "reverbAmountMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "reverbRoomSizeMenu",
+                  "token": "STRING_FOR_ROOM_SIZE",
+                  "oled": "Room Size",
+                  "code": "SIZE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbDampingMenu",
+                  "token": "STRING_FOR_DAMPING",
+                  "oled": "DAMPING",
+                  "code": "DAMPING",
+                  "children": []
+                },
+                {
+                  "varName": "reverbWidthMenu",
+                  "token": "STRING_FOR_WIDTH",
+                  "oled": "WIDTH",
+                  "code": "WIDTH",
+                  "children": []
+                },
+                {
+                  "varName": "reverbModelMenu",
+                  "token": "STRING_FOR_MODEL",
+                  "oled": "Model",
+                  "code": "MODE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbPanMenu",
+                  "token": "STRING_FOR_PAN",
+                  "oled": "Pan",
+                  "code": "Pan",
+                  "children": []
+                },
+                {
+                  "varName": "reverbHPFMenu",
+                  "token": "STRING_FOR_HPF",
+                  "oled": "HPF",
+                  "code": "HPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbLPFMenu",
+                  "token": "STRING_FOR_LPF",
+                  "oled": "LPF",
+                  "code": "LPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbSidechainMenu",
+                  "token": "STRING_FOR_REVERB_SIDECHAIN",
+                  "oled": "Sidechain",
+                  "code": "SIDE",
+                  "children": [
+                    {
+                      "varName": "reverbSidechainVolumeMenu",
+                      "token": "STRING_FOR_VOLUME_DUCKING",
+                      "oled": "Volume ducking",
+                      "code": "Volume ducking",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainShapeMenu",
+                      "token": "STRING_FOR_SHAPE",
+                      "oled": "Shape",
+                      "code": "TYPE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainAttackMenu",
+                      "token": "STRING_FOR_ATTACK",
+                      "oled": "ATTACK",
+                      "code": "ATTACK",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainReleaseMenu",
+                      "token": "STRING_FOR_RELEASE",
+                      "oled": "RELEASE",
+                      "code": "RELEASE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainSyncMenu",
+                      "token": "STRING_FOR_SYNC",
+                      "oled": "Sync",
+                      "code": "Sync",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "varName": "modFXMenu",
+              "token": "STRING_FOR_MOD_FX",
+              "oled": "Mod-FX",
+              "code": "MODU",
+              "children": [
+                {
+                  "varName": "modFXTypeMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                },
+                {
+                  "varName": "modFXDepthMenu",
+                  "token": "STRING_FOR_DEPTH",
+                  "oled": "DEPTH",
+                  "code": "DEPTH",
+                  "children": []
+                },
+                {
+                  "varName": "modFXRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "modFXFeedbackMenu",
+                  "token": "STRING_FOR_FEEDBACK",
+                  "oled": "FEEDBACK",
+                  "code": "FEEDBACK",
+                  "children": []
+                },
+                {
+                  "varName": "modFXOffsetMenu",
+                  "token": "STRING_FOR_OFFSET",
+                  "oled": "OFFSET",
+                  "code": "OFFSET",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "noiseMenu",
+              "token": "STRING_FOR_NOISE_LEVEL",
+              "oled": "Noise level",
+              "code": "NOISE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "sidechainMenu",
+          "token": "STRING_FOR_SIDECHAIN",
+          "oled": "Sidechain",
+          "code": "Sidechain",
+          "children": [
+            {
+              "varName": "sidechainVolumeShortcutMenu",
+              "token": "STRING_FOR_VOLUME_DUCKING",
+              "oled": "Volume ducking",
+              "code": "Volume ducking",
+              "children": []
+            },
+            {
+              "varName": "sidechainSyncMenu",
+              "token": "STRING_FOR_SYNC",
+              "oled": "Sync",
+              "code": "Sync",
+              "children": []
+            },
+            {
+              "varName": "sidechainShapeMenu",
+              "token": "STRING_FOR_SHAPE",
+              "oled": "Shape",
+              "code": "TYPE",
+              "children": []
+            },
+            {
+              "varName": "sidechainSendMenu",
+              "token": "STRING_FOR_SEND_TO_SIDECHAIN",
+              "oled": "Send to sidechain",
+              "code": "Send to sidechain",
+              "children": []
+            },
+            {
+              "varName": "sidechainAttackMenu",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "sidechainReleaseMenu",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "source0Menu",
+          "token": "STRING_FOR_OSCILLATOR_1",
+          "oled": "Oscillator 1",
+          "code": "OSC1",
+          "children": [
+            {
+              "varName": "osc0TypeMenu",
+              "token": "STRING_FOR_TYPE",
+              "oled": "Type",
+              "code": "Type",
+              "children": []
+            },
+            {
+              "varName": "file0SelectorMenu",
+              "token": "STRING_FOR_FILE_BROWSER",
+              "oled": "File browser",
+              "code": "File browser",
+              "children": []
+            },
+            {
+              "varName": "source0TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "source0WaveIndexMenu",
+              "token": "STRING_FOR_WAVE_INDEX",
+              "oled": "Wave-index",
+              "code": "Wave-index",
+              "children": []
+            },
+            {
+              "varName": "osc0PulseWidthMenu",
+              "token": "STRING_FOR_PULSE_WIDTH",
+              "oled": "PULSE WIDTH",
+              "code": "PULSE WIDTH",
+              "children": []
+            },
+            {
+              "varName": "source0FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "FEEDBACK",
+              "code": "FEEDBACK",
+              "children": []
+            },
+            {
+              "varName": "osc0PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            },
+            {
+              "varName": "sample0ReverseMenu",
+              "token": "STRING_FOR_REVERSE",
+              "oled": "REVERSE",
+              "code": "REVERSE",
+              "children": []
+            },
+            {
+              "varName": "sample0RepeatMenu",
+              "token": "STRING_FOR_REPEAT_MODE",
+              "oled": "Repeat Mode",
+              "code": "MODE",
+              "children": []
+            },
+            {
+              "varName": "sample0TimeStretchMenu",
+              "token": "STRING_FOR_SPEED",
+              "oled": "SPEED",
+              "code": "SPEED",
+              "children": []
+            },
+            {
+              "varName": "sample0PitchSpeedMenu",
+              "token": "STRING_FOR_PITCH_SPEED",
+              "oled": "Pitch/Speed",
+              "code": "PISP",
+              "children": []
+            },
+            {
+              "varName": "sample0InterpolationMenu",
+              "token": "STRING_FOR_INTERPOLATION",
+              "oled": "INTERPOLATION",
+              "code": "INTERPOLATION",
+              "children": []
+            },
+            {
+              "varName": "sample0StartMenu",
+              "token": "STRING_FOR_START_POINT",
+              "oled": "Start-point",
+              "code": "Start-point",
+              "children": []
+            },
+            {
+              "varName": "sample0EndMenu",
+              "token": "STRING_FOR_END_POINT",
+              "oled": "End-point",
+              "code": "End-point",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "source1Menu",
+          "token": "STRING_FOR_OSCILLATOR_2",
+          "oled": "Oscillator 2",
+          "code": "OSC2",
+          "children": [
+            {
+              "varName": "osc1TypeMenu",
+              "token": "STRING_FOR_TYPE",
+              "oled": "Type",
+              "code": "Type",
+              "children": []
+            },
+            {
+              "varName": "file1SelectorMenu",
+              "token": "STRING_FOR_FILE_BROWSER",
+              "oled": "File browser",
+              "code": "File browser",
+              "children": []
+            },
+            {
+              "varName": "source1TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "source1WaveIndexMenu",
+              "token": "STRING_FOR_WAVE_INDEX",
+              "oled": "Wave-index",
+              "code": "Wave-index",
+              "children": []
+            },
+            {
+              "varName": "osc1PulseWidthMenu",
+              "token": "STRING_FOR_PULSE_WIDTH",
+              "oled": "PULSE WIDTH",
+              "code": "PULSE WIDTH",
+              "children": []
+            },
+            {
+              "varName": "source1FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "FEEDBACK",
+              "code": "FEEDBACK",
+              "children": []
+            },
+            {
+              "varName": "osc1PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            },
+            {
+              "varName": "sample1ReverseMenu",
+              "token": "STRING_FOR_REVERSE",
+              "oled": "REVERSE",
+              "code": "REVERSE",
+              "children": []
+            },
+            {
+              "varName": "sample1RepeatMenu",
+              "token": "STRING_FOR_REPEAT_MODE",
+              "oled": "Repeat Mode",
+              "code": "MODE",
+              "children": []
+            },
+            {
+              "varName": "sample1TimeStretchMenu",
+              "token": "STRING_FOR_SPEED",
+              "oled": "SPEED",
+              "code": "SPEED",
+              "children": []
+            },
+            {
+              "varName": "sample1PitchSpeedMenu",
+              "token": "STRING_FOR_PITCH_SPEED",
+              "oled": "Pitch/Speed",
+              "code": "PISP",
+              "children": []
+            },
+            {
+              "varName": "sample1InterpolationMenu",
+              "token": "STRING_FOR_INTERPOLATION",
+              "oled": "INTERPOLATION",
+              "code": "INTERPOLATION",
+              "children": []
+            },
+            {
+              "varName": "sample1StartMenu",
+              "token": "STRING_FOR_START_POINT",
+              "oled": "Start-point",
+              "code": "Start-point",
+              "children": []
+            },
+            {
+              "varName": "sample1EndMenu",
+              "token": "STRING_FOR_END_POINT",
+              "oled": "End-point",
+              "code": "End-point",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "modulator0Menu",
+          "token": "STRING_FOR_FM_MODULATOR_1",
+          "oled": "FM mod 1",
+          "code": "MOD1",
+          "children": [
+            {
+              "varName": "modulator0TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "modulator0FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "FEEDBACK",
+              "code": "FEEDBACK",
+              "children": []
+            },
+            {
+              "varName": "modulator0PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "modulator1Menu",
+          "token": "STRING_FOR_FM_MODULATOR_2",
+          "oled": "FM mod 2",
+          "code": "MOD2",
+          "children": [
+            {
+              "varName": "modulator1TransposeMenu",
+              "token": "STRING_FOR_TRANSPOSE",
+              "oled": "Transpose",
+              "code": "Transpose",
+              "children": []
+            },
+            {
+              "varName": "modulator1FeedbackMenu",
+              "token": "STRING_FOR_FEEDBACK",
+              "oled": "FEEDBACK",
+              "code": "FEEDBACK",
+              "children": []
+            },
+            {
+              "varName": "modulator1PhaseMenu",
+              "token": "STRING_FOR_RETRIGGER_PHASE",
+              "oled": "Retrigger phase",
+              "code": "Retrigger phase",
+              "children": []
+            },
+            {
+              "varName": "modulatorDestMenu",
+              "token": "STRING_FOR_DESTINATION",
+              "oled": "Destination",
+              "code": "Destination",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "oscMixerMenu",
+          "token": "STRING_FOR_OSCILLATOR_MIXER",
+          "oled": "Osc mixer",
+          "code": "OMIX",
+          "children": [
+            {
+              "varName": "source0VolumeMenu",
+              "token": "STRING_FOR_OSC_LEVEL_MENU_TITLE",
+              "oled": "Osc* level",
+              "code": "Osc* level",
+              "children": []
+            },
+            {
+              "varName": "source1VolumeMenu",
+              "token": "STRING_FOR_OSC_LEVEL_MENU_TITLE",
+              "oled": "Osc* level",
+              "code": "Osc* level",
+              "children": []
+            },
+            {
+              "varName": "modulator0Volume",
+              "token": "STRING_FOR_FM_MOD_LEVEL_MENU_TITLE",
+              "oled": "FM Mod* level",
+              "code": "FM Mod* level",
+              "children": []
+            },
+            {
+              "varName": "modulator1Volume",
+              "token": "STRING_FOR_FM_MOD_LEVEL_MENU_TITLE",
+              "oled": "FM Mod* level",
+              "code": "FM Mod* level",
+              "children": []
+            },
+            {
+              "varName": "noiseMenu",
+              "token": "STRING_FOR_NOISE_LEVEL",
+              "oled": "Noise level",
+              "code": "NOISE",
+              "children": []
+            },
+            {
+              "varName": "oscSyncMenu",
+              "token": "STRING_FOR_OSCILLATOR_SYNC",
+              "oled": "Oscillator sync",
+              "code": "SYNC",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "env1Menu",
+          "token": "STRING_FOR_ENVELOPE_MENU_TITLE",
+          "oled": "Envelope *",
+          "code": "ENV*",
+          "children": [
+            {
+              "varName": "env1AttackMenu",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "env1DecayMenu",
+              "token": "STRING_FOR_DECAY",
+              "oled": "DECAY",
+              "code": "DECAY",
+              "children": []
+            },
+            {
+              "varName": "env1SustainMenu",
+              "token": "STRING_FOR_SUSTAIN",
+              "oled": "SUSTAIN",
+              "code": "SUSTAIN",
+              "children": []
+            },
+            {
+              "varName": "env1ReleaseMenu",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "env2Menu",
+          "token": "STRING_FOR_ENVELOPE_MENU_TITLE",
+          "oled": "Envelope *",
+          "code": "ENV*",
+          "children": [
+            {
+              "varName": "env2AttackMenu",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "env2DecayMenu",
+              "token": "STRING_FOR_DECAY",
+              "oled": "DECAY",
+              "code": "DECAY",
+              "children": []
+            },
+            {
+              "varName": "env2SustainMenu",
+              "token": "STRING_FOR_SUSTAIN",
+              "oled": "SUSTAIN",
+              "code": "SUSTAIN",
+              "children": []
+            },
+            {
+              "varName": "env2ReleaseMenu",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "env3Menu",
+          "token": "STRING_FOR_ENVELOPE_MENU_TITLE",
+          "oled": "Envelope *",
+          "code": "ENV*",
+          "children": [
+            {
+              "varName": "env3AttackMenu",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "env3DecayMenu",
+              "token": "STRING_FOR_DECAY",
+              "oled": "DECAY",
+              "code": "DECAY",
+              "children": []
+            },
+            {
+              "varName": "env3SustainMenu",
+              "token": "STRING_FOR_SUSTAIN",
+              "oled": "SUSTAIN",
+              "code": "SUSTAIN",
+              "children": []
+            },
+            {
+              "varName": "env3ReleaseMenu",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "env4Menu",
+          "token": "STRING_FOR_ENVELOPE_MENU_TITLE",
+          "oled": "Envelope *",
+          "code": "ENV*",
+          "children": [
+            {
+              "varName": "env4AttackMenu",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "env4DecayMenu",
+              "token": "STRING_FOR_DECAY",
+              "oled": "DECAY",
+              "code": "DECAY",
+              "children": []
+            },
+            {
+              "varName": "env4SustainMenu",
+              "token": "STRING_FOR_SUSTAIN",
+              "oled": "SUSTAIN",
+              "code": "SUSTAIN",
+              "children": []
+            },
+            {
+              "varName": "env4ReleaseMenu",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "lfo1Menu",
+          "token": "STRING_FOR_LFO1",
+          "oled": "LFO 1",
+          "code": "LFO1",
+          "children": [
+            {
+              "varName": "lfo1TypeMenu",
+              "token": "STRING_FOR_SHAPE",
+              "oled": "Shape",
+              "code": "TYPE",
+              "children": []
+            },
+            {
+              "varName": "lfo1SyncMenu",
+              "token": "STRING_FOR_SYNC",
+              "oled": "Sync",
+              "code": "Sync",
+              "children": []
+            },
+            {
+              "varName": "lfo1RateMenu",
+              "token": "STRING_FOR_RATE",
+              "oled": "Rate",
+              "code": "Rate",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "lfo2Menu",
+          "token": "STRING_FOR_LFO2",
+          "oled": "LFO 2",
+          "code": "LFO2",
+          "children": [
+            {
+              "varName": "lfo2TypeMenu",
+              "token": "STRING_FOR_SHAPE",
+              "oled": "Shape",
+              "code": "TYPE",
+              "children": []
+            },
+            {
+              "varName": "lfo2SyncMenu",
+              "token": "STRING_FOR_SYNC",
+              "oled": "Sync",
+              "code": "Sync",
+              "children": []
+            },
+            {
+              "varName": "lfo2RateMenu",
+              "token": "STRING_FOR_RATE",
+              "oled": "Rate",
+              "code": "Rate",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "lfo3Menu",
+          "token": "STRING_FOR_LFO3",
+          "oled": "LFO 3",
+          "code": "LFO3",
+          "children": [
+            {
+              "varName": "lfo3TypeMenu",
+              "token": "STRING_FOR_SHAPE",
+              "oled": "Shape",
+              "code": "TYPE",
+              "children": []
+            },
+            {
+              "varName": "lfo3SyncMenu",
+              "token": "STRING_FOR_SYNC",
+              "oled": "Sync",
+              "code": "Sync",
+              "children": []
+            },
+            {
+              "varName": "lfo3RateMenu",
+              "token": "STRING_FOR_RATE",
+              "oled": "Rate",
+              "code": "Rate",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "lfo4Menu",
+          "token": "STRING_FOR_LFO4",
+          "oled": "LFO 4",
+          "code": "LFO4",
+          "children": [
+            {
+              "varName": "lfo4TypeMenu",
+              "token": "STRING_FOR_SHAPE",
+              "oled": "Shape",
+              "code": "TYPE",
+              "children": []
+            },
+            {
+              "varName": "lfo4SyncMenu",
+              "token": "STRING_FOR_SYNC",
+              "oled": "Sync",
+              "code": "Sync",
+              "children": []
+            },
+            {
+              "varName": "lfo4RateMenu",
+              "token": "STRING_FOR_RATE",
+              "oled": "Rate",
+              "code": "Rate",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "voiceMenu",
+          "token": "STRING_FOR_VOICE",
+          "oled": "VOICE",
+          "code": "VOICE",
+          "children": [
+            {
+              "varName": "priorityMenu",
+              "token": "STRING_FOR_PRIORITY",
+              "oled": "PRIORITY",
+              "code": "PRIORITY",
+              "children": []
+            },
+            {
+              "varName": "polyphonyMenu",
+              "token": "STRING_FOR_POLYPHONY",
+              "oled": "POLYPHONY",
+              "code": "POLYPHONY",
+              "children": []
+            },
+            {
+              "varName": "polyphonicVoiceCountMenu",
+              "token": "STRING_FOR_MAX_VOICES",
+              "oled": "Max Voices",
+              "code": "VCNT",
+              "children": []
+            },
+            {
+              "varName": "unisonMenu",
+              "token": "STRING_FOR_UNISON",
+              "oled": "UNISON",
+              "code": "UNISON",
+              "children": [
+                {
+                  "varName": "numUnisonMenu",
+                  "token": "STRING_FOR_UNISON_NUMBER",
+                  "oled": "Number",
+                  "code": "NUM",
+                  "children": []
+                },
+                {
+                  "varName": "unisonDetuneMenu",
+                  "token": "STRING_FOR_UNISON_DETUNE",
+                  "oled": "Detune",
+                  "code": "DETUNE",
+                  "children": []
+                },
+                {
+                  "varName": "stereoSpreadMenu",
+                  "token": "STRING_FOR_UNISON_STEREO_SPREAD",
+                  "oled": "Spread",
+                  "code": "SPREAD",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "bendMenu",
+          "token": "STRING_FOR_BEND_RANGE",
+          "oled": "Bend range",
+          "code": "Bend range",
+          "children": [
+            {
+              "varName": "mainBendRangeMenu",
+              "token": "STRING_FOR_NORMAL",
+              "oled": "Normal",
+              "code": "Normal",
+              "children": []
+            },
+            {
+              "varName": "perFingerBendRangeMenu",
+              "token": "STRING_FOR_POLY_FINGER_MPE",
+              "oled": "Poly / Finger / MPE",
+              "code": "MPE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "drumBendRangeMenu",
+          "token": "STRING_FOR_BEND_RANGE",
+          "oled": "Bend range",
+          "code": "Bend range",
+          "children": []
+        },
+        {
+          "varName": "patchCablesMenu",
+          "token": "STRING_FOR_MOD_MATRIX",
+          "oled": "Mod matrix",
+          "code": "MMTX",
+          "children": []
+        },
+        {
+          "varName": "sequenceDirectionMenu",
+          "token": "STRING_FOR_PLAY_DIRECTION",
+          "oled": "Play direction",
+          "code": "DIRECTION",
+          "children": []
+        },
+        {
+          "varName": "outputMidiSubmenu",
+          "token": "STRING_FOR_MIDI",
+          "oled": "MIDI",
+          "code": "MIDI",
+          "children": [
+            {
+              "varName": "outputMidiChannelMenu",
+              "token": "STRING_FOR_CHANNEL",
+              "oled": "Channel",
+              "code": "CHAN",
+              "children": []
+            },
+            {
+              "varName": "outputMidiNoteForDrumMenu",
+              "token": "STRING_FOR_NOTE",
+              "oled": "Note",
+              "code": "Note",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    "kitFxMenu": {
+      "varName": "soundEditorRootMenuKitGlobalFX",
+      "token": "STRING_FOR_KIT_GLOBAL_FX",
+      "oled": "Kit FX",
+      "code": "Kit FX",
+      "children": [
+        {
+          "varName": "kitGlobalFXActionsMenu",
+          "token": "STRING_FOR_ACTIONS",
+          "oled": "Actions",
+          "code": "ACT",
+          "children": [
+            {
+              "varName": "editNameMenu",
+              "token": "STRING_FOR_EDIT_NAME",
+              "oled": "Edit Name",
+              "code": "NAME",
+              "children": [
+                {
+                  "varName": "audioOutputNameEditMenu",
+                  "token": "STRING_FOR_EDIT_TRACK_NAME",
+                  "oled": "Edit Track Name",
+                  "code": "TRAK",
+                  "children": []
+                },
+                {
+                  "varName": "audioClipNameEditMenu",
+                  "token": "STRING_FOR_EDIT_CLIP_NAME",
+                  "oled": "Edit Clip Name",
+                  "code": "CLIP",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "kitGlobalFXStemExportMenu",
+              "token": "STRING_FOR_EXPORT_AUDIO",
+              "oled": "Export Audio",
+              "code": "EXPO",
+              "children": [
+                {
+                  "varName": "startStemExportMenu",
+                  "token": "STRING_FOR_START_EXPORT",
+                  "oled": "Start Export",
+                  "code": "START",
+                  "children": []
+                },
+                {
+                  "varName": "kitGlobalFXConfigureStemExportMenu",
+                  "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS",
+                  "oled": "Configure Export",
+                  "code": "CONF",
+                  "children": [
+                    {
+                      "varName": "configureKitFXMenu",
+                      "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX",
+                      "oled": "Kit FX",
+                      "code": "KIT",
+                      "children": []
+                    },
+                    {
+                      "varName": "configureNormalizationForDrumsMenu",
+                      "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION",
+                      "oled": "Normalization",
+                      "code": "NORM",
+                      "children": []
+                    },
+                    {
+                      "varName": "configureSilenceMenu",
+                      "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE",
+                      "oled": "Export to Silence",
+                      "code": "SILE",
+                      "children": []
+                    },
+                    {
+                      "varName": "configureSongFXMenu",
+                      "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX",
+                      "oled": "Song FX",
+                      "code": "SONG",
+                      "children": []
+                    },
+                    {
+                      "varName": "configureOfflineRenderingMenu",
+                      "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING",
+                      "oled": "Offline Rendering",
+                      "code": "OFFR",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "kitClipMasterMenu",
+          "token": "STRING_FOR_MASTER",
+          "oled": "Master",
+          "code": "MSTR",
+          "children": [
+            {
+              "varName": "globalLevelMenu",
+              "token": "STRING_FOR_VOLUME_LEVEL",
+              "oled": "Volume",
+              "code": "VOLUME",
+              "children": []
+            },
+            {
+              "varName": "globalPanMenu",
+              "token": "STRING_FOR_PAN",
+              "oled": "Pan",
+              "code": "Pan",
+              "children": []
+            },
+            {
+              "varName": "globalPitchMenu",
+              "token": "STRING_FOR_PITCH",
+              "oled": "Pitch",
+              "code": "Pitch",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "kitArpMenu",
+          "token": "STRING_FOR_KIT_ARPEGGIATOR",
+          "oled": "Kit Arpeggiator",
+          "code": "KARP",
+          "children": [
+            {
+              "varName": "arpPatternMenu",
+              "token": "STRING_FOR_PATTERN",
+              "oled": "Pattern",
+              "code": "PATT",
+              "children": [
+                {
+                  "varName": "arpOctavesMenu",
+                  "token": "STRING_FOR_NUMBER_OF_OCTAVES",
+                  "oled": "Octaves",
+                  "code": "OCTA",
+                  "children": []
+                },
+                {
+                  "varName": "arpStepRepeatMenu",
+                  "token": "STRING_FOR_STEP_REPEAT",
+                  "oled": "Step Repeat",
+                  "code": "REPE",
+                  "children": []
+                },
+                {
+                  "varName": "arpOctaveModeMenu",
+                  "token": "STRING_FOR_OCTAVE_MODE",
+                  "oled": "Octave Mode",
+                  "code": "OMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenu",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenuForDrums",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpChordSimulatorMenuKit",
+                  "token": "STRING_FOR_CHORD_SIMULATOR",
+                  "oled": "Chord Simulator",
+                  "code": "CSIM",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenu",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenuMIDIOrCV",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenu",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenuMIDIOrCV",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "randomizerMenu",
+              "token": "STRING_FOR_RANDOMIZER",
+              "oled": "RANDOMIZER",
+              "code": "RANDOMIZER",
+              "children": [
+                {
+                  "varName": "randomizerLockMenu",
+                  "token": "STRING_FOR_RANDOMIZER_LOCK",
+                  "oled": "Lock Randomizer",
+                  "code": "LOCK",
+                  "children": []
+                },
+                {
+                  "varName": "spreadGateMenu",
+                  "token": "STRING_FOR_SPREAD_GATE",
+                  "oled": "Gate Spread",
+                  "code": "Gate Spread",
+                  "children": []
+                },
+                {
+                  "varName": "spreadGateMenuMIDIOrCV",
+                  "token": "STRING_FOR_SPREAD_GATE",
+                  "oled": "Gate Spread",
+                  "code": "Gate Spread",
+                  "children": []
+                },
+                {
+                  "varName": "spreadOctaveMenu",
+                  "token": "STRING_FOR_SPREAD_OCTAVE",
+                  "oled": "Octave Spread",
+                  "code": "Octave Spread",
+                  "children": []
+                },
+                {
+                  "varName": "spreadOctaveMenuMIDIOrCV",
+                  "token": "STRING_FOR_SPREAD_OCTAVE",
+                  "oled": "Octave Spread",
+                  "code": "Octave Spread",
+                  "children": []
+                },
+                {
+                  "varName": "spreadVelocityMenu",
+                  "token": "STRING_FOR_SPREAD_VELOCITY",
+                  "oled": "Velocity Spread",
+                  "code": "Velocity Spread",
+                  "children": []
+                },
+                {
+                  "varName": "spreadVelocityMenuMIDIOrCV",
+                  "token": "STRING_FOR_SPREAD_VELOCITY",
+                  "oled": "Velocity Spread",
+                  "code": "Velocity Spread",
+                  "children": []
+                },
+                {
+                  "varName": "ratchetAmountMenu",
+                  "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+                  "oled": "Ratchet Amount",
+                  "code": "RATC",
+                  "children": []
+                },
+                {
+                  "varName": "ratchetAmountMenuMIDIOrCV",
+                  "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+                  "oled": "Ratchet Amount",
+                  "code": "RATC",
+                  "children": []
+                },
+                {
+                  "varName": "ratchetProbabilityMenu",
+                  "token": "STRING_FOR_RATCHET_PROBABILITY",
+                  "oled": "Ratchet Probability",
+                  "code": "RPRO",
+                  "children": []
+                },
+                {
+                  "varName": "ratchetProbabilityMenuMIDIOrCV",
+                  "token": "STRING_FOR_RATCHET_PROBABILITY",
+                  "oled": "Ratchet Probability",
+                  "code": "RPRO",
+                  "children": []
+                },
+                {
+                  "varName": "chordPolyphonyMenu",
+                  "token": "STRING_FOR_CHORD_POLYPHONY",
+                  "oled": "Chord Polyphony",
+                  "code": "CHRD",
+                  "children": []
+                },
+                {
+                  "varName": "chordPolyphonyMenuMIDIOrCV",
+                  "token": "STRING_FOR_CHORD_POLYPHONY",
+                  "oled": "Chord Polyphony",
+                  "code": "CHRD",
+                  "children": []
+                },
+                {
+                  "varName": "chordProbabilityMenu",
+                  "token": "STRING_FOR_CHORD_PROBABILITY",
+                  "oled": "Chord Probability",
+                  "code": "CPRO",
+                  "children": []
+                },
+                {
+                  "varName": "chordProbabilityMenuMIDIOrCV",
+                  "token": "STRING_FOR_CHORD_PROBABILITY",
+                  "oled": "Chord Probability",
+                  "code": "CPRO",
+                  "children": []
+                },
+                {
+                  "varName": "randomizerNoteProbabilityMenu",
+                  "token": "STRING_FOR_NOTE_PROBABILITY",
+                  "oled": "Note Probability",
+                  "code": "NOTE",
+                  "children": []
+                },
+                {
+                  "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
+                  "token": "STRING_FOR_NOTE_PROBABILITY",
+                  "oled": "Note Probability",
+                  "code": "NOTE",
+                  "children": []
+                },
+                {
+                  "varName": "swapProbabilityMenu",
+                  "token": "STRING_FOR_SWAP_PROBABILITY",
+                  "oled": "Swap Probability",
+                  "code": "SWAP",
+                  "children": []
+                },
+                {
+                  "varName": "swapProbabilityMenuMIDIOrCV",
+                  "token": "STRING_FOR_SWAP_PROBABILITY",
+                  "oled": "Swap Probability",
+                  "code": "SWAP",
+                  "children": []
+                },
+                {
+                  "varName": "bassProbabilityMenu",
+                  "token": "STRING_FOR_BASS_PROBABILITY",
+                  "oled": "Bass Probability",
+                  "code": "BASS",
+                  "children": []
+                },
+                {
+                  "varName": "bassProbabilityMenuMIDIOrCV",
+                  "token": "STRING_FOR_BASS_PROBABILITY",
+                  "oled": "Bass Probability",
+                  "code": "BASS",
+                  "children": []
+                },
+                {
+                  "varName": "glideProbabilityMenu",
+                  "token": "STRING_FOR_GLIDE_PROBABILITY",
+                  "oled": "Glide Probability",
+                  "code": "GLID",
+                  "children": []
+                },
+                {
+                  "varName": "glideProbabilityMenuMIDIOrCV",
+                  "token": "STRING_FOR_GLIDE_PROBABILITY",
+                  "oled": "Glide Probability",
+                  "code": "GLID",
+                  "children": []
+                },
+                {
+                  "varName": "reverseProbabilityMenu",
+                  "token": "STRING_FOR_REVERSE_PROBABILITY",
+                  "oled": "Reverse Probability",
+                  "code": "RVRS",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "audioCompMenu",
+          "token": "STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR",
+          "oled": "Compressor",
+          "code": "COMP",
+          "children": [
+            {
+              "varName": "threshold",
+              "token": "STRING_FOR_THRESHOLD",
+              "oled": "Threshold",
+              "code": "Threshold",
+              "children": []
+            },
+            {
+              "varName": "compRatio",
+              "token": "STRING_FOR_RATIO",
+              "oled": "Ratio",
+              "code": "Ratio",
+              "children": []
+            },
+            {
+              "varName": "compBlend",
+              "token": "STRING_FOR_BLEND",
+              "oled": "Blend",
+              "code": "Blend",
+              "children": []
+            },
+            {
+              "varName": "compAttack",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "compRelease",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            },
+            {
+              "varName": "compHPF",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "globalFiltersMenu",
+          "token": "STRING_FOR_FILTERS",
+          "oled": "Filters",
+          "code": "FLTR",
+          "children": [
+            {
+              "varName": "globalLPFMenu",
+              "token": "STRING_FOR_LPF",
+              "oled": "LPF",
+              "code": "LPF",
+              "children": [
+                {
+                  "varName": "lpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalLPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalHPFMenu",
+              "token": "STRING_FOR_HPF",
+              "oled": "HPF",
+              "code": "HPF",
+              "children": [
+                {
+                  "varName": "hpfModeMenu",
+                  "token": "STRING_FOR_MODE",
+                  "oled": "Mode",
+                  "code": "Mode",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFFreqMenu",
+                  "token": "STRING_FOR_FREQUENCY",
+                  "oled": "Frequency",
+                  "code": "Frequency",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFResMenu",
+                  "token": "STRING_FOR_RESONANCE",
+                  "oled": "Resonance",
+                  "code": "Resonance",
+                  "children": []
+                },
+                {
+                  "varName": "globalHPFMorphMenu",
+                  "token": "STRING_FOR_MORPH",
+                  "oled": "Morph",
+                  "code": "Morph",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "filterRoutingMenu",
+              "token": "STRING_FOR_FILTER_ROUTE",
+              "oled": "Filter Route",
+              "code": "ROUT",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "globalFXMenu",
+          "token": "STRING_FOR_FX",
+          "oled": "FX",
+          "code": "FX",
+          "children": [
+            {
+              "varName": "globalEQMenu",
+              "token": "STRING_FOR_EQ",
+              "oled": "EQ",
+              "code": "EQ",
+              "children": [
+                {
+                  "varName": "bassMenu",
+                  "token": "STRING_FOR_BASS",
+                  "oled": "Bass",
+                  "code": "Bass",
+                  "children": []
+                },
+                {
+                  "varName": "trebleMenu",
+                  "token": "STRING_FOR_TREBLE",
+                  "oled": "TREBLE",
+                  "code": "TREBLE",
+                  "children": []
+                },
+                {
+                  "varName": "bassFreqMenu",
+                  "token": "STRING_FOR_BASS_FREQUENCY",
+                  "oled": "Bass Frequency",
+                  "code": "BAFR",
+                  "children": []
+                },
+                {
+                  "varName": "trebleFreqMenu",
+                  "token": "STRING_FOR_TREBLE_FREQUENCY",
+                  "oled": "Treble Frequency",
+                  "code": "TRFR",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalDelayMenu",
+              "token": "STRING_FOR_DELAY",
+              "oled": "DELAY",
+              "code": "DELAY",
+              "children": [
+                {
+                  "varName": "globalDelayFeedbackMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "delayPingPongMenu",
+                  "token": "STRING_FOR_PINGPONG",
+                  "oled": "Pingpong",
+                  "code": "Pingpong",
+                  "children": []
+                },
+                {
+                  "varName": "delaySyncMenu",
+                  "token": "STRING_FOR_SYNC",
+                  "oled": "Sync",
+                  "code": "Sync",
+                  "children": []
+                },
+                {
+                  "varName": "globalDelayRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "delayAnalogMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "globalReverbMenu",
+              "token": "STRING_FOR_REVERB",
+              "oled": "REVERB",
+              "code": "REVERB",
+              "children": [
+                {
+                  "varName": "globalReverbSendAmountMenu",
+                  "token": "STRING_FOR_AMOUNT",
+                  "oled": "AMOUNT",
+                  "code": "AMOUNT",
+                  "children": []
+                },
+                {
+                  "varName": "reverbRoomSizeMenu",
+                  "token": "STRING_FOR_ROOM_SIZE",
+                  "oled": "Room Size",
+                  "code": "SIZE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbDampingMenu",
+                  "token": "STRING_FOR_DAMPING",
+                  "oled": "DAMPING",
+                  "code": "DAMPING",
+                  "children": []
+                },
+                {
+                  "varName": "reverbWidthMenu",
+                  "token": "STRING_FOR_WIDTH",
+                  "oled": "WIDTH",
+                  "code": "WIDTH",
+                  "children": []
+                },
+                {
+                  "varName": "reverbModelMenu",
+                  "token": "STRING_FOR_MODEL",
+                  "oled": "Model",
+                  "code": "MODE",
+                  "children": []
+                },
+                {
+                  "varName": "reverbPanMenu",
+                  "token": "STRING_FOR_PAN",
+                  "oled": "Pan",
+                  "code": "Pan",
+                  "children": []
+                },
+                {
+                  "varName": "reverbHPFMenu",
+                  "token": "STRING_FOR_HPF",
+                  "oled": "HPF",
+                  "code": "HPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbLPFMenu",
+                  "token": "STRING_FOR_LPF",
+                  "oled": "LPF",
+                  "code": "LPF",
+                  "children": []
+                },
+                {
+                  "varName": "reverbSidechainMenu",
+                  "token": "STRING_FOR_REVERB_SIDECHAIN",
+                  "oled": "Sidechain",
+                  "code": "SIDE",
+                  "children": [
+                    {
+                      "varName": "reverbSidechainVolumeMenu",
+                      "token": "STRING_FOR_VOLUME_DUCKING",
+                      "oled": "Volume ducking",
+                      "code": "Volume ducking",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainShapeMenu",
+                      "token": "STRING_FOR_SHAPE",
+                      "oled": "Shape",
+                      "code": "TYPE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainAttackMenu",
+                      "token": "STRING_FOR_ATTACK",
+                      "oled": "ATTACK",
+                      "code": "ATTACK",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainReleaseMenu",
+                      "token": "STRING_FOR_RELEASE",
+                      "oled": "RELEASE",
+                      "code": "RELEASE",
+                      "children": []
+                    },
+                    {
+                      "varName": "reverbSidechainSyncMenu",
+                      "token": "STRING_FOR_SYNC",
+                      "oled": "Sync",
+                      "code": "Sync",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "varName": "globalModFXMenu",
+              "token": "STRING_FOR_MOD_FX",
+              "oled": "Mod-FX",
+              "code": "MODU",
+              "children": [
+                {
+                  "varName": "modFXTypeMenu",
+                  "token": "STRING_FOR_TYPE",
+                  "oled": "Type",
+                  "code": "Type",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXDepthMenu",
+                  "token": "STRING_FOR_DEPTH",
+                  "oled": "DEPTH",
+                  "code": "DEPTH",
+                  "children": []
+                },
+                {
+                  "varName": "globalModFXRateMenu",
+                  "token": "STRING_FOR_RATE",
+                  "oled": "Rate",
+                  "code": "Rate",
+                  "children": []
+                },
+                {
+                  "varName": "modFXFeedbackMenu",
+                  "token": "STRING_FOR_FEEDBACK",
+                  "oled": "FEEDBACK",
+                  "code": "FEEDBACK",
+                  "children": []
+                },
+                {
+                  "varName": "modFXOffsetMenu",
+                  "token": "STRING_FOR_OFFSET",
+                  "oled": "OFFSET",
+                  "code": "OFFSET",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "globalSidechainMenu",
+          "token": "STRING_FOR_SIDECHAIN",
+          "oled": "Sidechain",
+          "code": "Sidechain",
+          "children": [
+            {
+              "varName": "globalSidechainVolumeMenu",
+              "token": "STRING_FOR_VOLUME_DUCKING",
+              "oled": "Volume ducking",
+              "code": "Volume ducking",
+              "children": []
+            },
+            {
+              "varName": "sidechainSyncMenu",
+              "token": "STRING_FOR_SYNC",
+              "oled": "Sync",
+              "code": "Sync",
+              "children": []
+            },
+            {
+              "varName": "sidechainShapeMenu",
+              "token": "STRING_FOR_SHAPE",
+              "oled": "Shape",
+              "code": "TYPE",
+              "children": []
+            },
+            {
+              "varName": "sidechainAttackMenu",
+              "token": "STRING_FOR_ATTACK",
+              "oled": "ATTACK",
+              "code": "ATTACK",
+              "children": []
+            },
+            {
+              "varName": "sidechainReleaseMenu",
+              "token": "STRING_FOR_RELEASE",
+              "oled": "RELEASE",
+              "code": "RELEASE",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    "midiInstrumentMenu": {
+      "varName": "soundEditorRootMenuMIDIOrCV",
+      "token": "STRING_FOR_MIDI_INST_MENU_TITLE",
+      "oled": "MIDI instr",
+      "code": "MIDI instr",
+      "children": [
+        {
+          "varName": "soundEditorRootActionsMenuMIDIOrCV",
+          "token": "STRING_FOR_ACTIONS",
+          "oled": "Actions",
+          "code": "ACT",
+          "children": [
+            {
+              "varName": "editNameMenu",
+              "token": "STRING_FOR_EDIT_NAME",
+              "oled": "Edit Name",
+              "code": "NAME",
+              "children": [
+                {
+                  "varName": "audioOutputNameEditMenu",
+                  "token": "STRING_FOR_EDIT_TRACK_NAME",
+                  "oled": "Edit Track Name",
+                  "code": "TRAK",
+                  "children": []
+                },
+                {
+                  "varName": "audioClipNameEditMenu",
+                  "token": "STRING_FOR_EDIT_CLIP_NAME",
+                  "oled": "Edit Clip Name",
+                  "code": "CLIP",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "midiDeviceDefinitionMenu",
+          "token": "STRING_FOR_MIDI_DEVICE_DEFINITION",
+          "oled": "Device Definition",
+          "code": "DEVI",
+          "children": [
+            {
+              "varName": "midiDeviceLinkedMenu",
+              "token": "STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED",
+              "oled": "File Linked",
+              "code": "LINK",
+              "children": []
+            },
+            {
+              "varName": "hideUnlabeledCCMenu",
+              "token": "STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE",
+              "oled": "Hide Unlabeled CC",
+              "code": "HIDE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "midiProgramMenu",
+          "token": "STRING_FOR_MIDI_PROGRAM_MENU_TITLE",
+          "oled": "MIDI Program",
+          "code": "MIDI Program",
+          "children": [
+            {
+              "varName": "midiBankMenu",
+              "token": "STRING_FOR_BANK",
+              "oled": "Bank",
+              "code": "Bank",
+              "children": []
+            },
+            {
+              "varName": "midiSubMenu",
+              "token": "STRING_FOR_SUB_BANK_SHORT",
+              "oled": "Sub",
+              "code": "Sub",
+              "children": []
+            },
+            {
+              "varName": "midiPGMMenu",
+              "token": "STRING_FOR_PGM",
+              "oled": "PGM",
+              "code": "PGM",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "arpMenuMIDIOrCV",
+          "token": "STRING_FOR_ARPEGGIATOR",
+          "oled": "ARPEGGIATOR",
+          "code": "ARPEGGIATOR",
+          "children": [
+            {
+              "varName": "arpPatternMenu",
+              "token": "STRING_FOR_PATTERN",
+              "oled": "Pattern",
+              "code": "PATT",
+              "children": [
+                {
+                  "varName": "arpOctavesMenu",
+                  "token": "STRING_FOR_NUMBER_OF_OCTAVES",
+                  "oled": "Octaves",
+                  "code": "OCTA",
+                  "children": []
+                },
+                {
+                  "varName": "arpStepRepeatMenu",
+                  "token": "STRING_FOR_STEP_REPEAT",
+                  "oled": "Step Repeat",
+                  "code": "REPE",
+                  "children": []
+                },
+                {
+                  "varName": "arpOctaveModeMenu",
+                  "token": "STRING_FOR_OCTAVE_MODE",
+                  "oled": "Octave Mode",
+                  "code": "OMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenu",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenuForDrums",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpChordSimulatorMenuKit",
+                  "token": "STRING_FOR_CHORD_SIMULATOR",
+                  "oled": "Chord Simulator",
+                  "code": "CSIM",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenu",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenuMIDIOrCV",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenu",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenuMIDIOrCV",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "arpMpeMenu",
+              "token": "STRING_FOR_MPE",
+              "oled": "MPE",
+              "code": "MPE",
+              "children": [
+                {
+                  "varName": "arpMpeVelocityMenu",
+                  "token": "STRING_FOR_VELOCITY",
+                  "oled": "Velocity",
+                  "code": "Velocity",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "arpIncludeInKitArpMenu",
+              "token": "STRING_FOR_INCLUDE_IN_KIT_ARP",
+              "oled": "Include in Kit Arp",
+              "code": "KARP",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "randomizerMenu",
+          "token": "STRING_FOR_RANDOMIZER",
+          "oled": "RANDOMIZER",
+          "code": "RANDOMIZER",
+          "children": [
+            {
+              "varName": "randomizerLockMenu",
+              "token": "STRING_FOR_RANDOMIZER_LOCK",
+              "oled": "Lock Randomizer",
+              "code": "LOCK",
+              "children": []
+            },
+            {
+              "varName": "spreadGateMenu",
+              "token": "STRING_FOR_SPREAD_GATE",
+              "oled": "Gate Spread",
+              "code": "Gate Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadGateMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_GATE",
+              "oled": "Gate Spread",
+              "code": "Gate Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadOctaveMenu",
+              "token": "STRING_FOR_SPREAD_OCTAVE",
+              "oled": "Octave Spread",
+              "code": "Octave Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadOctaveMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_OCTAVE",
+              "oled": "Octave Spread",
+              "code": "Octave Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadVelocityMenu",
+              "token": "STRING_FOR_SPREAD_VELOCITY",
+              "oled": "Velocity Spread",
+              "code": "Velocity Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadVelocityMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_VELOCITY",
+              "oled": "Velocity Spread",
+              "code": "Velocity Spread",
+              "children": []
+            },
+            {
+              "varName": "ratchetAmountMenu",
+              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+              "oled": "Ratchet Amount",
+              "code": "RATC",
+              "children": []
+            },
+            {
+              "varName": "ratchetAmountMenuMIDIOrCV",
+              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+              "oled": "Ratchet Amount",
+              "code": "RATC",
+              "children": []
+            },
+            {
+              "varName": "ratchetProbabilityMenu",
+              "token": "STRING_FOR_RATCHET_PROBABILITY",
+              "oled": "Ratchet Probability",
+              "code": "RPRO",
+              "children": []
+            },
+            {
+              "varName": "ratchetProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_RATCHET_PROBABILITY",
+              "oled": "Ratchet Probability",
+              "code": "RPRO",
+              "children": []
+            },
+            {
+              "varName": "chordPolyphonyMenu",
+              "token": "STRING_FOR_CHORD_POLYPHONY",
+              "oled": "Chord Polyphony",
+              "code": "CHRD",
+              "children": []
+            },
+            {
+              "varName": "chordPolyphonyMenuMIDIOrCV",
+              "token": "STRING_FOR_CHORD_POLYPHONY",
+              "oled": "Chord Polyphony",
+              "code": "CHRD",
+              "children": []
+            },
+            {
+              "varName": "chordProbabilityMenu",
+              "token": "STRING_FOR_CHORD_PROBABILITY",
+              "oled": "Chord Probability",
+              "code": "CPRO",
+              "children": []
+            },
+            {
+              "varName": "chordProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_CHORD_PROBABILITY",
+              "oled": "Chord Probability",
+              "code": "CPRO",
+              "children": []
+            },
+            {
+              "varName": "randomizerNoteProbabilityMenu",
+              "token": "STRING_FOR_NOTE_PROBABILITY",
+              "oled": "Note Probability",
+              "code": "NOTE",
+              "children": []
+            },
+            {
+              "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_NOTE_PROBABILITY",
+              "oled": "Note Probability",
+              "code": "NOTE",
+              "children": []
+            },
+            {
+              "varName": "swapProbabilityMenu",
+              "token": "STRING_FOR_SWAP_PROBABILITY",
+              "oled": "Swap Probability",
+              "code": "SWAP",
+              "children": []
+            },
+            {
+              "varName": "swapProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_SWAP_PROBABILITY",
+              "oled": "Swap Probability",
+              "code": "SWAP",
+              "children": []
+            },
+            {
+              "varName": "bassProbabilityMenu",
+              "token": "STRING_FOR_BASS_PROBABILITY",
+              "oled": "Bass Probability",
+              "code": "BASS",
+              "children": []
+            },
+            {
+              "varName": "bassProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_BASS_PROBABILITY",
+              "oled": "Bass Probability",
+              "code": "BASS",
+              "children": []
+            },
+            {
+              "varName": "glideProbabilityMenu",
+              "token": "STRING_FOR_GLIDE_PROBABILITY",
+              "oled": "Glide Probability",
+              "code": "GLID",
+              "children": []
+            },
+            {
+              "varName": "glideProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_GLIDE_PROBABILITY",
+              "oled": "Glide Probability",
+              "code": "GLID",
+              "children": []
+            },
+            {
+              "varName": "reverseProbabilityMenu",
+              "token": "STRING_FOR_REVERSE_PROBABILITY",
+              "oled": "Reverse Probability",
+              "code": "RVRS",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "bendMenu",
+          "token": "STRING_FOR_BEND_RANGE",
+          "oled": "Bend range",
+          "code": "Bend range",
+          "children": [
+            {
+              "varName": "mainBendRangeMenu",
+              "token": "STRING_FOR_NORMAL",
+              "oled": "Normal",
+              "code": "Normal",
+              "children": []
+            },
+            {
+              "varName": "perFingerBendRangeMenu",
+              "token": "STRING_FOR_POLY_FINGER_MPE",
+              "oled": "Poly / Finger / MPE",
+              "code": "MPE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "cv2SourceMenu",
+          "token": "STRING_FOR_CV2_SOURCE",
+          "oled": "CV 2 Source",
+          "code": "CV2",
+          "children": []
+        },
+        {
+          "varName": "mpeyToModWheelMenu",
+          "token": "STRING_FOR_Y_AXIS_CONVERSION",
+          "oled": "Send Y as CC1",
+          "code": "Y->M",
+          "children": []
+        },
+        {
+          "varName": "midiMPEMenu",
+          "token": "STRING_FOR_MPE_MONO",
+          "oled": "Poly Expression to Mono",
+          "code": "POLY2MONO",
+          "children": [
+            {
+              "varName": "midiAftertouchCollapseMenu",
+              "token": "STRING_FOR_PATCH_SOURCE_AFTERTOUCH",
+              "oled": "Aftertouch",
+              "code": "AFTERTOUCH",
+              "children": []
+            },
+            {
+              "varName": "midiMPECollapseMenu",
+              "token": "STRING_FOR_MPE",
+              "oled": "MPE",
+              "code": "MPE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "sequenceDirectionMenu",
+          "token": "STRING_FOR_PLAY_DIRECTION",
+          "oled": "Play direction",
+          "code": "DIRECTION",
+          "children": []
+        }
+      ]
+    },
+    "cvInstrumentMenu": {
+      "varName": "soundEditorRootMenuMIDIOrCV",
+      "token": "STRING_FOR_MIDI_INST_MENU_TITLE",
+      "oled": "MIDI instr",
+      "code": "MIDI instr",
+      "children": [
+        {
+          "varName": "soundEditorRootActionsMenuMIDIOrCV",
+          "token": "STRING_FOR_ACTIONS",
+          "oled": "Actions",
+          "code": "ACT",
+          "children": [
+            {
+              "varName": "editNameMenu",
+              "token": "STRING_FOR_EDIT_NAME",
+              "oled": "Edit Name",
+              "code": "NAME",
+              "children": [
+                {
+                  "varName": "audioOutputNameEditMenu",
+                  "token": "STRING_FOR_EDIT_TRACK_NAME",
+                  "oled": "Edit Track Name",
+                  "code": "TRAK",
+                  "children": []
+                },
+                {
+                  "varName": "audioClipNameEditMenu",
+                  "token": "STRING_FOR_EDIT_CLIP_NAME",
+                  "oled": "Edit Clip Name",
+                  "code": "CLIP",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "varName": "midiDeviceDefinitionMenu",
+          "token": "STRING_FOR_MIDI_DEVICE_DEFINITION",
+          "oled": "Device Definition",
+          "code": "DEVI",
+          "children": [
+            {
+              "varName": "midiDeviceLinkedMenu",
+              "token": "STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED",
+              "oled": "File Linked",
+              "code": "LINK",
+              "children": []
+            },
+            {
+              "varName": "hideUnlabeledCCMenu",
+              "token": "STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE",
+              "oled": "Hide Unlabeled CC",
+              "code": "HIDE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "midiProgramMenu",
+          "token": "STRING_FOR_MIDI_PROGRAM_MENU_TITLE",
+          "oled": "MIDI Program",
+          "code": "MIDI Program",
+          "children": [
+            {
+              "varName": "midiBankMenu",
+              "token": "STRING_FOR_BANK",
+              "oled": "Bank",
+              "code": "Bank",
+              "children": []
+            },
+            {
+              "varName": "midiSubMenu",
+              "token": "STRING_FOR_SUB_BANK_SHORT",
+              "oled": "Sub",
+              "code": "Sub",
+              "children": []
+            },
+            {
+              "varName": "midiPGMMenu",
+              "token": "STRING_FOR_PGM",
+              "oled": "PGM",
+              "code": "PGM",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "arpMenuMIDIOrCV",
+          "token": "STRING_FOR_ARPEGGIATOR",
+          "oled": "ARPEGGIATOR",
+          "code": "ARPEGGIATOR",
+          "children": [
+            {
+              "varName": "arpPatternMenu",
+              "token": "STRING_FOR_PATTERN",
+              "oled": "Pattern",
+              "code": "PATT",
+              "children": [
+                {
+                  "varName": "arpOctavesMenu",
+                  "token": "STRING_FOR_NUMBER_OF_OCTAVES",
+                  "oled": "Octaves",
+                  "code": "OCTA",
+                  "children": []
+                },
+                {
+                  "varName": "arpStepRepeatMenu",
+                  "token": "STRING_FOR_STEP_REPEAT",
+                  "oled": "Step Repeat",
+                  "code": "REPE",
+                  "children": []
+                },
+                {
+                  "varName": "arpOctaveModeMenu",
+                  "token": "STRING_FOR_OCTAVE_MODE",
+                  "oled": "Octave Mode",
+                  "code": "OMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenu",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpNoteModeMenuForDrums",
+                  "token": "STRING_FOR_NOTE_MODE",
+                  "oled": "Note Mode",
+                  "code": "NMOD",
+                  "children": []
+                },
+                {
+                  "varName": "arpChordSimulatorMenuKit",
+                  "token": "STRING_FOR_CHORD_SIMULATOR",
+                  "oled": "Chord Simulator",
+                  "code": "CSIM",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenu",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpRhythmMenuMIDIOrCV",
+                  "token": "STRING_FOR_RHYTHM",
+                  "oled": "Rhythm",
+                  "code": "RHYT",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenu",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                },
+                {
+                  "varName": "arpSequenceLengthMenuMIDIOrCV",
+                  "token": "STRING_FOR_SEQUENCE_LENGTH",
+                  "oled": "Sequence Length",
+                  "code": "LENG",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "arpMpeMenu",
+              "token": "STRING_FOR_MPE",
+              "oled": "MPE",
+              "code": "MPE",
+              "children": [
+                {
+                  "varName": "arpMpeVelocityMenu",
+                  "token": "STRING_FOR_VELOCITY",
+                  "oled": "Velocity",
+                  "code": "Velocity",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "varName": "arpIncludeInKitArpMenu",
+              "token": "STRING_FOR_INCLUDE_IN_KIT_ARP",
+              "oled": "Include in Kit Arp",
+              "code": "KARP",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "randomizerMenu",
+          "token": "STRING_FOR_RANDOMIZER",
+          "oled": "RANDOMIZER",
+          "code": "RANDOMIZER",
+          "children": [
+            {
+              "varName": "randomizerLockMenu",
+              "token": "STRING_FOR_RANDOMIZER_LOCK",
+              "oled": "Lock Randomizer",
+              "code": "LOCK",
+              "children": []
+            },
+            {
+              "varName": "spreadGateMenu",
+              "token": "STRING_FOR_SPREAD_GATE",
+              "oled": "Gate Spread",
+              "code": "Gate Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadGateMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_GATE",
+              "oled": "Gate Spread",
+              "code": "Gate Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadOctaveMenu",
+              "token": "STRING_FOR_SPREAD_OCTAVE",
+              "oled": "Octave Spread",
+              "code": "Octave Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadOctaveMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_OCTAVE",
+              "oled": "Octave Spread",
+              "code": "Octave Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadVelocityMenu",
+              "token": "STRING_FOR_SPREAD_VELOCITY",
+              "oled": "Velocity Spread",
+              "code": "Velocity Spread",
+              "children": []
+            },
+            {
+              "varName": "spreadVelocityMenuMIDIOrCV",
+              "token": "STRING_FOR_SPREAD_VELOCITY",
+              "oled": "Velocity Spread",
+              "code": "Velocity Spread",
+              "children": []
+            },
+            {
+              "varName": "ratchetAmountMenu",
+              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+              "oled": "Ratchet Amount",
+              "code": "RATC",
+              "children": []
+            },
+            {
+              "varName": "ratchetAmountMenuMIDIOrCV",
+              "token": "STRING_FOR_NUMBER_OF_RATCHETS",
+              "oled": "Ratchet Amount",
+              "code": "RATC",
+              "children": []
+            },
+            {
+              "varName": "ratchetProbabilityMenu",
+              "token": "STRING_FOR_RATCHET_PROBABILITY",
+              "oled": "Ratchet Probability",
+              "code": "RPRO",
+              "children": []
+            },
+            {
+              "varName": "ratchetProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_RATCHET_PROBABILITY",
+              "oled": "Ratchet Probability",
+              "code": "RPRO",
+              "children": []
+            },
+            {
+              "varName": "chordPolyphonyMenu",
+              "token": "STRING_FOR_CHORD_POLYPHONY",
+              "oled": "Chord Polyphony",
+              "code": "CHRD",
+              "children": []
+            },
+            {
+              "varName": "chordPolyphonyMenuMIDIOrCV",
+              "token": "STRING_FOR_CHORD_POLYPHONY",
+              "oled": "Chord Polyphony",
+              "code": "CHRD",
+              "children": []
+            },
+            {
+              "varName": "chordProbabilityMenu",
+              "token": "STRING_FOR_CHORD_PROBABILITY",
+              "oled": "Chord Probability",
+              "code": "CPRO",
+              "children": []
+            },
+            {
+              "varName": "chordProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_CHORD_PROBABILITY",
+              "oled": "Chord Probability",
+              "code": "CPRO",
+              "children": []
+            },
+            {
+              "varName": "randomizerNoteProbabilityMenu",
+              "token": "STRING_FOR_NOTE_PROBABILITY",
+              "oled": "Note Probability",
+              "code": "NOTE",
+              "children": []
+            },
+            {
+              "varName": "randomizerNoteProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_NOTE_PROBABILITY",
+              "oled": "Note Probability",
+              "code": "NOTE",
+              "children": []
+            },
+            {
+              "varName": "swapProbabilityMenu",
+              "token": "STRING_FOR_SWAP_PROBABILITY",
+              "oled": "Swap Probability",
+              "code": "SWAP",
+              "children": []
+            },
+            {
+              "varName": "swapProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_SWAP_PROBABILITY",
+              "oled": "Swap Probability",
+              "code": "SWAP",
+              "children": []
+            },
+            {
+              "varName": "bassProbabilityMenu",
+              "token": "STRING_FOR_BASS_PROBABILITY",
+              "oled": "Bass Probability",
+              "code": "BASS",
+              "children": []
+            },
+            {
+              "varName": "bassProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_BASS_PROBABILITY",
+              "oled": "Bass Probability",
+              "code": "BASS",
+              "children": []
+            },
+            {
+              "varName": "glideProbabilityMenu",
+              "token": "STRING_FOR_GLIDE_PROBABILITY",
+              "oled": "Glide Probability",
+              "code": "GLID",
+              "children": []
+            },
+            {
+              "varName": "glideProbabilityMenuMIDIOrCV",
+              "token": "STRING_FOR_GLIDE_PROBABILITY",
+              "oled": "Glide Probability",
+              "code": "GLID",
+              "children": []
+            },
+            {
+              "varName": "reverseProbabilityMenu",
+              "token": "STRING_FOR_REVERSE_PROBABILITY",
+              "oled": "Reverse Probability",
+              "code": "RVRS",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "bendMenu",
+          "token": "STRING_FOR_BEND_RANGE",
+          "oled": "Bend range",
+          "code": "Bend range",
+          "children": [
+            {
+              "varName": "mainBendRangeMenu",
+              "token": "STRING_FOR_NORMAL",
+              "oled": "Normal",
+              "code": "Normal",
+              "children": []
+            },
+            {
+              "varName": "perFingerBendRangeMenu",
+              "token": "STRING_FOR_POLY_FINGER_MPE",
+              "oled": "Poly / Finger / MPE",
+              "code": "MPE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "cv2SourceMenu",
+          "token": "STRING_FOR_CV2_SOURCE",
+          "oled": "CV 2 Source",
+          "code": "CV2",
+          "children": []
+        },
+        {
+          "varName": "mpeyToModWheelMenu",
+          "token": "STRING_FOR_Y_AXIS_CONVERSION",
+          "oled": "Send Y as CC1",
+          "code": "Y->M",
+          "children": []
+        },
+        {
+          "varName": "midiMPEMenu",
+          "token": "STRING_FOR_MPE_MONO",
+          "oled": "Poly Expression to Mono",
+          "code": "POLY2MONO",
+          "children": [
+            {
+              "varName": "midiAftertouchCollapseMenu",
+              "token": "STRING_FOR_PATCH_SOURCE_AFTERTOUCH",
+              "oled": "Aftertouch",
+              "code": "AFTERTOUCH",
+              "children": []
+            },
+            {
+              "varName": "midiMPECollapseMenu",
+              "token": "STRING_FOR_MPE",
+              "oled": "MPE",
+              "code": "MPE",
+              "children": []
+            }
+          ]
+        },
+        {
+          "varName": "sequenceDirectionMenu",
+          "token": "STRING_FOR_PLAY_DIRECTION",
+          "oled": "Play direction",
+          "code": "DIRECTION",
+          "children": []
+        }
+      ]
+    },
+    "noteEditorMenu": {
+      "varName": "noteEditorRootMenu",
+      "token": "STRING_FOR_NOTE_EDITOR",
+      "oled": "Note Editor",
+      "code": "NOTE",
+      "children": [
+        {
+          "varName": "noteVelocityMenu",
+          "token": "STRING_FOR_NOTE_EDITOR_VELOCITY",
+          "oled": "Velocity",
+          "code": "VELO",
+          "children": []
+        },
+        {
+          "varName": "noteProbabilityMenu",
+          "token": "STRING_FOR_NOTE_EDITOR_PROBABILITY",
+          "oled": "Probability",
+          "code": "PROB",
+          "children": []
+        },
+        {
+          "varName": "noteIteranceMenu",
+          "token": "STRING_FOR_NOTE_EDITOR_ITERANCE",
+          "oled": "Iterance",
+          "code": "ITER",
+          "children": []
+        },
+        {
+          "varName": "noteFillMenu",
+          "token": "STRING_FOR_NOTE_EDITOR_FILL",
+          "oled": "Fill",
+          "code": "FILL",
+          "children": []
+        }
+      ]
+    },
+    "noteRowEditorMenu": {
+      "varName": "noteRowEditorRootMenu",
+      "token": "STRING_FOR_NOTE_ROW_EDITOR",
+      "oled": "Row Editor",
+      "code": "ROW",
+      "children": [
+        {
+          "varName": "sequenceDirectionMenu",
+          "token": "STRING_FOR_PLAY_DIRECTION",
+          "oled": "Play direction",
+          "code": "DIRECTION",
+          "children": []
+        },
+        {
+          "varName": "noteRowProbabilityMenu",
+          "token": "STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY",
+          "oled": "Probability",
+          "code": "PROB",
+          "children": []
+        },
+        {
+          "varName": "noteRowIteranceMenu",
+          "token": "STRING_FOR_NOTE_ROW_EDITOR_ITERANCE",
+          "oled": "Iterance",
+          "code": "ITER",
+          "children": []
+        },
+        {
+          "varName": "noteRowFillMenu",
+          "token": "STRING_FOR_NOTE_ROW_EDITOR_FILL",
+          "oled": "Fill",
+          "code": "FILL",
+          "children": []
+        }
+      ]
+    },
+    "songClipSettingsMenu": {
+      "varName": "songClipSettingsMenu",
+      "token": "VIRTUAL_SONG_CLIP_SETTINGS",
+      "oled": "Song Clip Settings",
+      "code": "CLIP",
+      "children": [
+        {
+          "varName": "virtualConvertToAudio",
+          "token": "STRING_FOR_CONVERT_TO_AUDIO",
+          "oled": "Convert to Audio",
+          "code": "CONV",
+          "children": []
+        },
+        {
+          "varName": "virtualClipMode",
+          "token": "STRING_FOR_CLIP_MODE",
+          "oled": "Clip Mode",
+          "code": "MODE",
+          "children": []
+        },
+        {
+          "varName": "virtualClipName",
+          "token": "STRING_FOR_CLIP_NAME",
+          "oled": "Clip Name",
+          "code": "NAME",
+          "children": []
+        }
+      ]
+    }
+  },
+  "mapping": {
+    "settingsMenu": "settingsRootMenu",
+    "songMenu": "soundEditorRootMenuSongView",
+    "performFxMenu": "soundEditorRootMenuPerformanceView",
+    "audioClipMenu": "soundEditorRootMenuAudioClip",
+    "soundMenu": "soundEditorRootMenu",
+    "kitFxMenu": "soundEditorRootMenuKitGlobalFX",
+    "midiInstrumentMenu": "soundEditorRootMenuMIDIOrCV",
+    "cvInstrumentMenu": "soundEditorRootMenuMIDIOrCV",
+    "noteEditorMenu": "noteEditorRootMenu",
+    "noteRowEditorMenu": "noteRowEditorRootMenu",
+    "songClipSettingsMenu": "songClipSettingsMenu"
+  }
+}

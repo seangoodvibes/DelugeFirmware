@@ -1,0 +1,74 @@
+---
+import data from "../data/generated/menu-hierarchies.json"
+
+type MenuNode = {
+  varName: string
+  token: string
+  oled: string
+  code: string
+  children: MenuNode[]
+}
+
+type Props = {
+  treeKey: string
+  showRoot?: boolean
+}
+
+const { treeKey, showRoot = false } = Astro.props
+const trees = (data.trees ?? {}) as Record<string, MenuNode>
+const root = trees[treeKey]
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+}
+
+function renderNestedList(node: MenuNode): string {
+  const label = `${node.oled} (${node.code})`
+
+  if (!node.children.length) {
+    return `<li>${escapeHtml(label)}</li>`
+  }
+
+  const children = node.children
+    .map((child) => renderNestedList(child))
+    .join("")
+  return `<li>${escapeHtml(label)}<ul>${children}</ul></li>`
+}
+
+function renderTopLevelSection(node: MenuNode): string {
+  const label = `${node.oled} (${node.code})`
+  const children = node.children
+    .map((child) => renderNestedList(child))
+    .join("")
+  return `<details class="menu-hierarchy-tree-item"><summary>${escapeHtml(label)}</summary><ul>${children}</ul></details>`
+}
+
+function renderTree(node: MenuNode | undefined, includeRoot: boolean): string {
+  if (!node) {
+    return "<p><em>Menu tree unavailable in generated data.</em></p>"
+  }
+
+  if (includeRoot) {
+    if (!node.children.length) {
+      return `<ul class="menu-hierarchy-tree"><li>${escapeHtml(`${node.oled} (${node.code})`)}</li></ul>`
+    }
+
+    const children = node.children
+      .map((child) => renderNestedList(child))
+      .join("")
+    return `<details class="menu-hierarchy-tree-item"><summary>${escapeHtml(`${node.oled} (${node.code})`)}</summary><ul class="menu-hierarchy-tree">${children}</ul></details>`
+  }
+
+  const children = node.children
+    .map((child) => renderTopLevelSection(child))
+    .join("")
+  return `<div class="menu-hierarchy-tree">${children}</div>`
+}
+---
+
+<div class="menu-hierarchy-tree-root" set:html={renderTree(root, showRoot)} />
