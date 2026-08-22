@@ -116,13 +116,30 @@
 }
 
 .menu-hierarchy-page .menu-hierarchy-display-label {
-  display: inline;
+  display: inline-grid;
+  grid-template-columns: var(--menu-hierarchy-7seg-col-width, 5.4ch) auto;
+  align-items: baseline;
   vertical-align: baseline;
+}
+
+.menu-hierarchy-page
+  .menu-hierarchy-display-label[data-seven-segment-expanded="true"] {
+  grid-template-columns: max-content auto;
 }
 
 .menu-hierarchy-page[data-hide-seven-segment="true"]
   .menu-hierarchy-7seg-value {
   display: none;
+}
+
+.menu-hierarchy-page[data-hide-seven-segment="true"]
+  .menu-hierarchy-display-label {
+  display: inline;
+}
+
+.menu-hierarchy-page .menu-hierarchy-7seg-value {
+  display: inline-flex;
+  justify-content: flex-start;
 }
 
 .menu-hierarchy-page .menu-hierarchy-7seg {
@@ -137,7 +154,84 @@
   white-space: nowrap;
 }
 
+.menu-hierarchy-page .menu-hierarchy-7seg-toggle {
+  cursor: pointer;
+}
+
+.menu-hierarchy-page .menu-hierarchy-7seg-toggle:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
 .menu-hierarchy-page .menu-hierarchy-display-label > .menu-hierarchy-oled {
   color: inherit;
   font-weight: inherit;
+}
+
+.menu-hierarchy-page .menu-hierarchy-7seg-value--single + .menu-hierarchy-oled {
+  display: none;
+}
+
+.menu-hierarchy-page .menu-hierarchy-node-tag {
+  --menu-badge-bg: #6d2dbf;
+  --menu-badge-border: #6d2dbf;
+  --menu-badge-fg: #fff;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  border: 1px solid var(--menu-badge-border);
+  border-radius: 0.45rem;
+  background: var(--menu-badge-bg);
+  color: var(--menu-badge-fg);
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  padding: 0.18rem 0.4rem;
+  text-transform: lowercase;
+}
+
+.menu-hierarchy-page .menu-hierarchy-node-tag--c1-0,
+.menu-hierarchy-page .menu-hierarchy-node-tag[data-tag="c1.0"] {
+  --menu-badge-bg: #0f766e;
+  --menu-badge-border: #0f766e;
+}
+
+.menu-hierarchy-page .menu-hierarchy-node-tag--c1-1,
+.menu-hierarchy-page .menu-hierarchy-node-tag[data-tag="c1.1"] {
+  --menu-badge-bg: #1d4ed8;
+  --menu-badge-border: #1d4ed8;
+}
+
+.menu-hierarchy-page .menu-hierarchy-node-tag--c1-2,
+.menu-hierarchy-page .menu-hierarchy-node-tag[data-tag="c1.2"] {
+  --menu-badge-bg: #b45309;
+  --menu-badge-border: #b45309;
+}
+
+.menu-hierarchy-page .menu-hierarchy-node-tag--c1-3,
+.menu-hierarchy-page .menu-hierarchy-node-tag[data-tag="c1.3"] {
+  --menu-badge-bg: #be123c;
+  --menu-badge-border: #be123c;
+}
+
+.menu-hierarchy-page .menu-hierarchy-tree {
+  margin: 0.6rem 0;
+}
+
+.menu-hierarchy-page .menu-hierarchy-tree-item {
+  margin: 0.5rem 0;
+}
+
+.menu-hierarchy-page .menu-hierarchy-tree-item > summary {
+  cursor: pointer;
+}
+
+.menu-hierarchy-page .menu-hierarchy-tree ul {
+  margin: 0.35rem 0 0.35rem 1.2rem;
+  padding-inline-start: 1rem;
+}
+
+.menu-hierarchy-page .menu-hierarchy-tree li {
+  margin: 0.2rem 0;
 }
