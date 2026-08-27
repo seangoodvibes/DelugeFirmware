@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_controls.h"
 #include "storage/multi_range/multi_range_array.h"
+#include "util/d_string.h"
 #include "util/phase_increment_fine_tuner.h"
 
 class Sound;
@@ -46,6 +47,9 @@ public:
 
 	DxPatch* dxPatch;
 	bool dxPatchChanged = false;
+	// Remembers which SYX preset produced this DX patch, so the browser can return there per source.
+	String dxSyxFilePath;
+	int32_t dxSyxPresetIndex = -1;
 	SampleRepeatMode repeatMode;
 
 	int8_t timeStretchAmount;
@@ -69,6 +73,7 @@ public:
 	void setOscType(OscType newType);
 
 	DxPatch* ensureDxPatch();
+	bool hasDxSyxSelection() const { return dxSyxPresetIndex >= 0 && dxSyxFilePath.get()[0] != 0; }
 
 private:
 	void destructAllMultiRanges();

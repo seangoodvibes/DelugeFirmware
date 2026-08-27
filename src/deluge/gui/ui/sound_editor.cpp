@@ -922,6 +922,7 @@ stopThat:
 bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 	MenuItem* currentItem = getCurrentMenuItem();
 	currentItem->beginSession(oldMenuItem);
+	currentItem = getCurrentMenuItem();
 
 	// If that didn't succeed (file browser)
 	// XXX: Why do we need to check for renameDrumUI, but not other rename UIs? either way, this should probably

@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/dx/menu.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
@@ -27,8 +28,6 @@
 #include "util/comparison.h"
 
 #include <hid/display/oled.h>
-
-extern gui::menu_item::Submenu dxMenu;
 
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection, public FormattedTitle {
@@ -121,6 +120,7 @@ public:
 		if (soundEditor.currentSound->sources[sourceId_].oscType != OscType::DX7) {
 			return nullptr;
 		}
+		dxMenu.openCartridgeOnNextBegin();
 		return &dxMenu;
 	}
 

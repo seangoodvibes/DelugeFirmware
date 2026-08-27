@@ -62,8 +62,10 @@
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
 #include "gui/menu_item/dx/browse.h"
+#include "gui/menu_item/dx/cartridge.h"
 #include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
+#include "gui/menu_item/dx/menu.h"
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
@@ -1461,12 +1463,13 @@ PLACE_SDRAM_BSS Submenu defaultsSubmenu{
 // Sound editor menu -----------------------------------------------------------------------------
 
 // FM only
-PLACE_SDRAM_DATA std::array<MenuItem*, 3> dxMenuItems = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 4> dxMenuItems = {
     &dxBrowseMenu,
+    &dxCartridge,
     &dxGlobalParams,
     &dxEngineSelect,
 };
-PLACE_SDRAM_BSS menu_item::Submenu dxMenu{STRING_FOR_DX_1, dxMenuItems};
+PLACE_SDRAM_BSS menu_item::DxMenu dxMenu{STRING_FOR_DX_1, dxMenuItems};
 
 // Not FM
 PLACE_SDRAM_BSS MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MASTER_TRAN_MENU_TITLE};

@@ -30,6 +30,7 @@
 #include "storage/DX7Cartridge.h"
 #include "util/functions.h"
 #include "util/try.h"
+#include <cstring>
 #include <etl/vector.h>
 #include <memory>
 
@@ -85,20 +86,42 @@ namespace deluge::gui::menu_item {
 DxCartridge dxCartridge{l10n::String::STRING_FOR_DX_CARTRIDGE};
 
 void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
+	if (!pendingBrowserSelection && soundEditor.currentSource != nullptr
+	    && soundEditor.currentSource->hasDxSyxSelection()) {
+		if (!tryLoadCurrentSourceSelection()) {
+			soundEditor.goUpOneLevel();
+			return;
+		}
+	}
+	else if (!hasLoadedCartridge()) {
+		soundEditor.goUpOneLevel();
+		return;
+	}
+
+	pendingBrowserSelection = false;
 	loadPatch();
 	readValueAgain();
+}
+
+bool DxCartridge::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	auto* sound = static_cast<Sound*>(modControllable);
+	return sound != nullptr && whichThing >= 0 && whichThing < kNumSources
+	       && sound->sources[whichThing].hasDxSyxSelection();
 }
 
 // Unpacks the currently-selected program into the live DX patch and hard-cuts any sounding voices.
 // Only call this when the selected patch actually changes - NOT from a plain redraw, otherwise an
 // audition note gets cut every time the menu refreshes (e.g. mod-encoder press, display change).
 void DxCartridge::loadPatch() {
-	if (pd == nullptr) {
+	// A failed parse can leave pd allocated; don't unpack stale data unless the load succeeded.
+	if (!hasLoadedCartridge() || pd == nullptr) {
 		return;
 	}
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
 	pd->unpackProgram(patch->params, currentValue);
+	soundEditor.currentSource->dxSyxFilePath.set(&loadedPath);
+	soundEditor.currentSource->dxSyxPresetIndex = currentValue;
 	soundEditor.currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
 	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
@@ -111,7 +134,7 @@ void DxCartridge::loadPatch() {
 }
 
 void DxCartridge::readValueAgain() {
-	if (pd == nullptr) {
+	if (!hasLoadedCartridge() || pd == nullptr) {
 		return;
 	}
 	if (display->haveOLED()) {
@@ -123,7 +146,7 @@ void DxCartridge::readValueAgain() {
 }
 
 void DxCartridge::drawPixelsForOled() {
-	if (pd == nullptr) {
+	if (!hasLoadedCartridge() || pd == nullptr) {
 		return;
 	}
 	char names[32][11];
@@ -143,14 +166,70 @@ void DxCartridge::drawValue() {
 	display->setScrollingText(names[currentValue]);
 }
 
-bool DxCartridge::tryLoad(std::string_view path) {
+bool DxCartridge::tryLoad(std::string_view path, int32_t selectedPreset) {
+	if (!loadFile(path, selectedPreset)) {
+		pendingBrowserSelection = false;
+		return false;
+	}
+
+	pendingBrowserSelection = true;
+	return true;
+}
+
+bool DxCartridge::loadFile(std::string_view path, int32_t selectedPreset) {
 	if (pd == nullptr) {
 		pd = new DX7Cartridge();
 	}
-	currentValue = 0;
-	scrollPos = 0;
 
-	return openFile(path, pd);
+	if (!openFile(path, pd)) {
+		loaded = false;
+		loadedPath.clear();
+		return false;
+	}
+
+	Error error = loadedPath.set(path);
+	if (error != Error::NONE) {
+		loaded = false;
+		loadedPath.clear();
+		display->displayError(error);
+		return false;
+	}
+
+	loaded = true;
+	const int32_t numValues = pd->numPatches();
+	currentValue = std::clamp<int32_t>(selectedPreset, 0, numValues - 1);
+	scrollPos = 0;
+	if (display->haveOLED()) {
+		const int32_t maxScroll = std::max<int32_t>(0, numValues - kOLEDMenuNumOptionsVisible);
+		scrollPos = std::clamp<int>(currentValue - 1, 0, maxScroll);
+	}
+
+	return true;
+}
+
+bool DxCartridge::tryLoadCurrentSourceSelection() {
+	if (soundEditor.currentSource == nullptr || !soundEditor.currentSource->hasDxSyxSelection()) {
+		return false;
+	}
+
+	const Source* source = soundEditor.currentSource;
+	if (!hasLoadedCartridge() || strcmp(loadedPath.get(), source->dxSyxFilePath.get()) != 0) {
+		if (!loadFile(source->dxSyxFilePath.get(), source->dxSyxPresetIndex)) {
+			return false;
+		}
+		pendingBrowserSelection = false;
+		return true;
+	}
+
+	const int32_t numValues = pd->numPatches();
+	currentValue = std::clamp<int32_t>(source->dxSyxPresetIndex, 0, numValues - 1);
+	scrollPos = 0;
+	if (display->haveOLED()) {
+		const int32_t maxScroll = std::max<int32_t>(0, numValues - kOLEDMenuNumOptionsVisible);
+		scrollPos = std::clamp<int>(currentValue - 1, 0, maxScroll);
+	}
+	pendingBrowserSelection = false;
+	return true;
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {

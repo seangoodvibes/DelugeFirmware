@@ -19,6 +19,7 @@
 #pragma once
 
 #include "gui/menu_item/menu_item.h"
+#include "util/d_string.h"
 #include <string_view>
 
 class DX7Cartridge;
@@ -30,7 +31,11 @@ public:
 	using MenuItem::MenuItem;
 	DxCartridge(l10n::String newName) : MenuItem(newName), pd(nullptr) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	bool tryLoad(std::string_view path);
+	bool tryLoad(std::string_view path, int32_t selectedPreset = 0);
+	bool tryLoadCurrentSourceSelection();
+	// The cartridge cache is global; Source::hasDxSyxSelection() is the per-patch origin.
+	bool hasLoadedCartridge() const { return loadedPath.get()[0] != 0; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
 	void drawPixelsForOled() override;
 	void readValueAgain() final;
 	void loadPatch();
@@ -43,6 +48,13 @@ public:
 
 	int32_t currentValue = 0;
 	int scrollPos = 0; // Each instance needs to store this separately
+
+private:
+	bool loadFile(std::string_view path, int32_t selectedPreset);
+
+	// Lets a newly browsed file win once before this menu restores per-source metadata.
+	bool pendingBrowserSelection = false;
+	String loadedPath;
 };
 
 extern DxCartridge dxCartridge;

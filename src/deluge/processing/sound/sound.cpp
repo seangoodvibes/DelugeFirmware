@@ -3376,6 +3376,14 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			int len = reader.readTagOrAttributeValueHexBytes(patch->params, 156);
 			reader.exitTag("dx7patch");
 		}
+		else if (!strcmp(tagName, "dx7syxpath")) {
+			reader.readTagOrAttributeValueString(&source->dxSyxFilePath);
+			reader.exitTag("dx7syxpath");
+		}
+		else if (!strcmp(tagName, "dx7syxpreset")) {
+			source->dxSyxPresetIndex = reader.readTagOrAttributeValueInt();
+			reader.exitTag("dx7syxpreset");
+		}
 		else if (!strcmp(tagName, "dx7randomdetune")) {
 			DxPatch* patch = source->ensureDxPatch();
 			patch->random_detune = reader.readTagOrAttributeValueInt();
@@ -3722,6 +3730,10 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			if (source->dxPatch) {
 				DxPatch* patch = source->dxPatch;
 				writer.writeAttributeHexBytes("dx7patch", patch->params, 156);
+				if (source->hasDxSyxSelection()) {
+					writer.writeAttribute("dx7syxpath", source->dxSyxFilePath.get());
+					writer.writeAttribute("dx7syxpreset", source->dxSyxPresetIndex);
+				}
 
 				if (patch->engineMode != 0) {
 					writer.writeAttribute("dx7enginemode", patch->engineMode);

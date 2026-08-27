@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
+#include "gui/menu_item/dx/menu.h"
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/filter/param.h"
 #include "gui/menu_item/firmware/version.h"
@@ -52,7 +53,7 @@ extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEdito
 extern gui::menu_item::EditName nameEditMenu;
 extern gui::menu_item::EditName drumNameEditMenu;
 extern gui::menu_item::Submenu editNameMenu;
-extern gui::menu_item::Submenu dxMenu;
+extern gui::menu_item::DxMenu dxMenu;
 extern gui::menu_item::Submenu stemExportMenu;
 extern gui::menu_item::stem_export::Start startStemExportMenu;
 

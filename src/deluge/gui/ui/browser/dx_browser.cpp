@@ -113,7 +113,7 @@ void DxSyxBrowser::enterKeyPress() {
 
 		if (!path.isEmpty()) {
 			if (menu_item::dxCartridge.tryLoad(path.get())) {
-				soundEditor.enterSubmenu(&menu_item::dxCartridge);
+				soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = &menu_item::dxCartridge;
 				soundEditor.shouldGoUpOneLevelOnBegin = false;
 				close();
 			}
