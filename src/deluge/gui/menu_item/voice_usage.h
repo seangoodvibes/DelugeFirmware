@@ -56,7 +56,6 @@ public:
 private:
 	struct Entry {
 		Clip* clip;
-		Output* output;
 		OutputType outputType;
 		int32_t voiceCount;
 		int32_t sortIndex;

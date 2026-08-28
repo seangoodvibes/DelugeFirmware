@@ -67,16 +67,26 @@ constexpr int32_t kOledDescriptionEndX = OLED_MAIN_WIDTH_PIXELS - kOledVoiceCoun
 }
 
 [[nodiscard]] int32_t countSynthClipVoices(Clip* clip) {
-	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
+	if (clip == nullptr || clip->type != ClipType::INSTRUMENT) {
 		return 0;
 	}
 
-	auto* soundInstrument = static_cast<const SoundInstrument*>(clip->output);
+	Output* output = clip->output;
+	if (output == nullptr || output->type != OutputType::SYNTH) {
+		return 0;
+	}
+
+	auto* soundInstrument = static_cast<const SoundInstrument*>(output);
 	return soundInstrument->voices().size();
 }
 
 [[nodiscard]] int32_t countKitClipVoices(Clip* clip) {
-	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::KIT) {
+	if (clip == nullptr || clip->type != ClipType::INSTRUMENT) {
+		return 0;
+	}
+
+	Output* output = clip->output;
+	if (output == nullptr || output->type != OutputType::KIT) {
 		return 0;
 	}
 
@@ -95,12 +105,8 @@ constexpr int32_t kOledDescriptionEndX = OLED_MAIN_WIDTH_PIXELS - kOledVoiceCoun
 	return count;
 }
 
-[[nodiscard]] int32_t countClipVoices(Clip* clip) {
-	if (clip == nullptr || clip->output == nullptr) {
-		return 0;
-	}
-
-	switch (clip->output->type) {
+[[nodiscard]] int32_t countClipVoicesForType(Clip* clip, OutputType outputType) {
+	switch (outputType) {
 	case OutputType::SYNTH:
 		return countSynthClipVoices(clip);
 	case OutputType::KIT:
@@ -110,6 +116,19 @@ constexpr int32_t kOledDescriptionEndX = OLED_MAIN_WIDTH_PIXELS - kOledVoiceCoun
 	default:
 		return 0;
 	}
+}
+
+[[nodiscard]] int32_t countClipVoices(Clip* clip) {
+	if (clip == nullptr) {
+		return 0;
+	}
+
+	Output* output = clip->output;
+	if (output == nullptr) {
+		return 0;
+	}
+
+	return countClipVoicesForType(clip, output->type);
 }
 
 [[nodiscard]] int32_t countClipsForMode(Mode mode) {
@@ -125,11 +144,16 @@ constexpr int32_t kOledDescriptionEndX = OLED_MAIN_WIDTH_PIXELS - kOledVoiceCoun
 
 	int32_t count = 0;
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
-		if (!isActiveClip(clip) || !includesOutputType(mode, clip->output->type)) {
+		if (!isActiveClip(clip)) {
 			continue;
 		}
 
-		count += countClipVoices(clip);
+		Output* output = clip->output;
+		if (output == nullptr || !includesOutputType(mode, output->type)) {
+			continue;
+		}
+
+		count += countClipVoicesForType(clip, output->type);
 	}
 
 	return count;
@@ -161,9 +185,8 @@ void appendClipDescription(const Clip* clip, const Output* output, bool includeP
 	}
 
 	description.append(output->name.get());
-	description.append(" - ");
+	description.append(" (");
 	if (clip->name.get()[0] == '\0') {
-		description.append("Section ");
 		description.appendInt(clip->section + 1);
 	}
 	else {
@@ -171,6 +194,7 @@ void appendClipDescription(const Clip* clip, const Output* output, bool includeP
 		description.append(": ");
 		description.append(clip->name.get());
 	}
+	description.append(")");
 }
 
 void drawCenteredValue(int32_t value, const SlotPosition& slot) {
@@ -232,7 +256,12 @@ void ClipList::selectEncoderAction(int32_t offset) {
 		return;
 	}
 
-	refreshEntries(entries_[selectedIndex_].clip);
+	Clip* selectedClip = nullptr;
+	if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int32_t>(entries_.size())) {
+		selectedClip = entries_[selectedIndex_].clip;
+	}
+
+	refreshEntries(selectedClip);
 	setSelectedIndex(selectedIndex_ + offset);
 	lastSelectionMoveTime_ = AudioEngine::audioSampleTimer;
 	showingDescriptionOn7Seg_ = true;
@@ -244,7 +273,11 @@ MenuItem* ClipList::selectButtonPress() {
 }
 
 ActionResult ClipList::timerCallback() {
-	Clip* selectedClip = entries_.empty() ? nullptr : entries_[selectedIndex_].clip;
+	Clip* selectedClip = nullptr;
+	if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int32_t>(entries_.size())) {
+		selectedClip = entries_[selectedIndex_].clip;
+	}
+
 	refreshEntries(selectedClip);
 
 	if (display->have7SEG() && showingDescriptionOn7Seg_) {
@@ -294,13 +327,19 @@ void ClipList::refreshEntries(Clip* clipToKeepSelected) {
 	if (currentSong != nullptr) {
 		int32_t sortIndex = 0;
 		for (Clip* clip : AllClips::everywhere(currentSong)) {
-			if (!isActiveClip(clip) || !includesOutputType(mode_, clip->output->type)) {
+			if (!isActiveClip(clip)) {
 				++sortIndex;
 				continue;
 			}
 
-			const int32_t voiceCount = countClipVoices(clip);
-			entries_.push_back({clip, clip->output, clip->output->type, voiceCount, sortIndex});
+			Output* output = clip->output;
+			if (output == nullptr || !includesOutputType(mode_, output->type)) {
+				++sortIndex;
+				continue;
+			}
+
+			const int32_t voiceCount = countClipVoicesForType(clip, output->type);
+			entries_.push_back({clip, output->type, voiceCount, sortIndex});
 			++sortIndex;
 		}
 	}
@@ -328,8 +367,10 @@ void ClipList::drawOledRows() {
 	constexpr int32_t maxVisible = OLED_HEIGHT_CHARS - 1;
 	const int32_t baseY = ((OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14) + OLED_MAIN_TOPMOST_PIXEL;
 	const int32_t numEntries = entries_.size();
+	setSelectedIndex(selectedIndex_);
+	const int32_t selectedIndex = selectedIndex_;
 	const int32_t numVisible = std::min(maxVisible, numEntries);
-	int32_t firstVisible = selectedIndex_ - (numVisible >> 1);
+	int32_t firstVisible = selectedIndex - (numVisible >> 1);
 	firstVisible = std::clamp<int32_t>(firstVisible, 0, std::max<int32_t>(0, numEntries - numVisible));
 
 	for (int32_t visibleIndex = 0; visibleIndex < numVisible; ++visibleIndex) {
@@ -347,7 +388,7 @@ void ClipList::drawOledRows() {
 		                      kOledDescriptionEndX);
 		OLED::main.drawStringAlignRight(countText.c_str(), y, kTextSpacingX, kTextSpacingY, kOledVoiceCountRight);
 
-		if (entryIndex == selectedIndex_) {
+		if (entryIndex == selectedIndex) {
 			OLED::main.invertArea(0, y, OLED_MAIN_WIDTH_PIXELS, kTextSpacingY);
 			OLED::setupSideScroller(0, description.c_str(), kTextSpacingX, kOledDescriptionEndX, y, y + kTextSpacingY,
 			                        kTextSpacingX, kTextSpacingY, true);
@@ -408,6 +449,9 @@ int32_t ClipList::getSelectedVoiceCount() const {
 	if (entries_.empty()) {
 		return 0;
 	}
+	if (selectedIndex_ < 0 || selectedIndex_ >= static_cast<int32_t>(entries_.size())) {
+		return 0;
+	}
 
 	return entries_[selectedIndex_].voiceCount;
 }
@@ -416,21 +460,19 @@ void ClipList::formatSelectedDescription(StringBuf& description) const {
 	if (entries_.empty()) {
 		return;
 	}
+	if (selectedIndex_ < 0 || selectedIndex_ >= static_cast<int32_t>(entries_.size())) {
+		return;
+	}
 
 	formatEntryDescription(entries_[selectedIndex_], description);
 }
 
 void ClipList::formatEntryDescription(const Entry& entry, StringBuf& description) const {
-	appendClipDescription(entry.clip, entry.output, mode_ == Mode::TOTAL, description);
+	appendClipDescription(entry.clip, entry.clip->output, mode_ == Mode::TOTAL, description);
 }
 
 void ClipList::scheduleTimer() {
-	if (uiTimerManager.isTimerSet(TimerName::GRAPHICS_ROUTINE)) {
-		uiTimerManager.setTimerByOtherTimer(TimerName::UI_SPECIFIC, TimerName::GRAPHICS_ROUTINE);
-	}
-	else {
-		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kGraphicsSyncFallbackMs);
-	}
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kGraphicsSyncFallbackMs);
 }
 
 VoiceUsageMenu::VoiceUsageMenu(l10n::String newName, l10n::String newTitle, std::span<MenuItem*> newItems,
@@ -486,12 +528,7 @@ void VoiceUsageMenu::refreshChildValues() {
 }
 
 void VoiceUsageMenu::scheduleTimer() {
-	if (uiTimerManager.isTimerSet(TimerName::GRAPHICS_ROUTINE)) {
-		uiTimerManager.setTimerByOtherTimer(TimerName::UI_SPECIFIC, TimerName::GRAPHICS_ROUTINE);
-	}
-	else {
-		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kGraphicsSyncFallbackMs);
-	}
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kGraphicsSyncFallbackMs);
 }
 
 } // namespace deluge::gui::menu_item::voice_usage
