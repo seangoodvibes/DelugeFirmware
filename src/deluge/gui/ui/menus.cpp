@@ -226,6 +226,7 @@
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/portamento.h"
 #include "gui/menu_item/voice/priority.h"
+#include "gui/menu_item/voice_usage.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "modulation/params/param.h"
@@ -1050,6 +1051,23 @@ PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 PLACE_SDRAM_BSS firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
 
 PLACE_SDRAM_BSS battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
+
+PLACE_SDRAM_BSS voice_usage::ClipList totalVoiceUsageMenu{STRING_FOR_TOTAL_VOICE_COUNT, STRING_FOR_TOTAL_VOICE_COUNT,
+                                                          voice_usage::Mode::TOTAL, "TOTL"};
+PLACE_SDRAM_BSS voice_usage::ClipList synthVoiceUsageMenu{
+    STRING_FOR_SYNTH_CLIP_VOICE_COUNT, STRING_FOR_SYNTH_CLIP_VOICE_COUNT, voice_usage::Mode::SYNTH, "SYNT"};
+PLACE_SDRAM_BSS voice_usage::ClipList kitVoiceUsageMenu{STRING_FOR_KIT_CLIP_VOICE_COUNT,
+                                                        STRING_FOR_KIT_CLIP_VOICE_COUNT, voice_usage::Mode::KIT, "KIT"};
+PLACE_SDRAM_BSS voice_usage::ClipList audioVoiceUsageMenu{
+    STRING_FOR_AUDIO_CLIP_VOICE_COUNT, STRING_FOR_AUDIO_CLIP_VOICE_COUNT, voice_usage::Mode::AUDIO, "AUD"};
+MenuItem* voiceUsageMenuItems[] = {
+    &totalVoiceUsageMenu,
+    &synthVoiceUsageMenu,
+    &kitVoiceUsageMenu,
+    &audioVoiceUsageMenu,
+};
+PLACE_SDRAM_BSS voice_usage::VoiceUsageMenu voiceUsageMenu{STRING_FOR_VOICE_USAGE, STRING_FOR_VOICE_USAGE,
+                                                           voiceUsageMenuItems, &totalVoiceUsageMenu};
 
 PLACE_SDRAM_BSS runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS,
                                                                      STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
@@ -1907,6 +1925,7 @@ PLACE_SDRAM_BSS Submenu settingsRootMenu{
         &recordSubmenu,
         &runtimeFeatureSettingsMenu,
         &batteryLevelMenu,
+        &voiceUsageMenu,
         &firmwareVersionMenu,
     },
 };
