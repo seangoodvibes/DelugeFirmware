@@ -37,6 +37,8 @@
 
 namespace Buttons {
 
+static constexpr bool kCrashTrace = true;
+
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool selectButtonPressUsedUp;
@@ -150,10 +152,19 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	// Play button
 	if (b == PLAY) {
 		if (on) {
+			if constexpr (kCrashTrace) {
+				D_PRINTLN("CT BTN PLAY on now %u recSrc %d recHeld %d playing %d", AudioEngine::audioSampleTimer,
+				          static_cast<int32_t>(audioRecorder.recordingSource),
+				          static_cast<int32_t>(isButtonPressed(RECORD)),
+				          static_cast<int32_t>(playbackHandler.playbackState));
+			}
 
 			if (audioRecorder.recordingSource > AudioInputChannel::NONE && isButtonPressed(RECORD)) {
 				// Stop output-recording at end of loop
 				if (!recordButtonPressUsedUp && playbackHandler.isEitherClockActive()) {
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT BTN PLAY stopOutputRecordingAtLoopEnd");
+					}
 					currentPlaybackMode->stopOutputRecordingAtLoopEnd();
 				}
 			}
@@ -161,7 +172,14 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			else {
 
 				// if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				if constexpr (kCrashTrace) {
+					D_PRINTLN("CT BTN PLAY -> playbackHandler.playButtonPressed enter");
+				}
 				playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+				if constexpr (kCrashTrace) {
+					D_PRINTLN("CT BTN PLAY <- playbackHandler.playButtonPressed exit state %d",
+					          static_cast<int32_t>(playbackHandler.playbackState));
+				}
 
 				// Begin output-recording simultaneously with playback
 				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {

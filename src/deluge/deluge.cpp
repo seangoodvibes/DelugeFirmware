@@ -109,6 +109,7 @@ int32_t voltageReadingLastTime = 65535 * 3300;
 uint8_t batteryCurrentRegion = 2;
 uint16_t batteryMV;
 bool batteryLEDState = false;
+static constexpr bool kCrashTrace = true;
 
 void batteryLEDBlink() {
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
@@ -120,6 +121,9 @@ void batteryLEDBlink() {
 }
 
 void inputRoutine() {
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT INPUT inputRoutine enter now %u", AudioEngine::audioSampleTimer);
+	}
 	disk_timerproc(UI_MS_PER_REFRESH);
 
 	// Check if mono output cable plugged in
@@ -203,6 +207,9 @@ makeBattLEDSolid:
 	MIDIDeviceManager::slowRoutine();
 
 	uiTimerManager.setTimer(TimerName::READ_INPUTS, 100);
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT INPUT inputRoutine exit");
+	}
 }
 
 int32_t nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
@@ -247,6 +254,9 @@ bool isShortPress(uint32_t pressTime) {
 }
 
 bool readButtonsAndPads() {
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT INPUT readButtons enter now %u", AudioEngine::audioSampleTimer);
+	}
 
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
 		usbInitializationPeriodComplete = 1;
@@ -271,6 +281,9 @@ bool readButtonsAndPads() {
 	PIC::Response value{0};
 	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 	if (anything) {
+		if constexpr (kCrashTrace) {
+			D_PRINTLN("CT INPUT got PIC value %d", static_cast<int32_t>(value));
+		}
 
 		if (value < PIC::kPadAndButtonMessagesEnd) {
 
@@ -283,6 +296,9 @@ bool readButtonsAndPads() {
 			ActionResult result;
 			if (Pad::isPad(util::to_underlying(value))) {
 				auto p = Pad(util::to_underlying(value));
+				if constexpr (kCrashTrace) {
+					D_PRINTLN("CT INPUT pad msg x %d y %d on %d", p.x, p.y, thisPadPressIsOn);
+				}
 				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
@@ -293,7 +309,13 @@ bool readButtonsAndPads() {
 			}
 			else {
 				auto b = deluge::hid::Button(value);
+				if constexpr (kCrashTrace) {
+					D_PRINTLN("CT INPUT button msg id %d on %d", static_cast<int32_t>(value), thisPadPressIsOn);
+				}
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
+				if constexpr (kCrashTrace) {
+					D_PRINTLN("CT INPUT button handled result %d", static_cast<int32_t>(result));
+				}
 			}
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -305,11 +327,17 @@ bool readButtonsAndPads() {
 			}
 		}
 		else if (value == PIC::Response::NEXT_PAD_OFF) {
+			if constexpr (kCrashTrace) {
+				D_PRINTLN("CT INPUT NEXT_PAD_OFF");
+			}
 			nextPadPressIsOn = false;
 		}
 
 		// "No presses happening" message
 		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
+			if constexpr (kCrashTrace) {
+				D_PRINTLN("CT INPUT NO_PRESSES_HAPPENING");
+			}
 			// This is the safety net that releases any pad the firmware still thinks is held (e.g. because a
 			// release event was lost under load). It must not be dropped while the SD routine holds the lock -
 			// otherwise stuck notes persist until the pad is pressed again (see issue #3168). Defer it, exactly
@@ -323,6 +351,9 @@ bool readButtonsAndPads() {
 			Buttons::noPressesHappening(sdRoutineLock);
 		}
 		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
+			if constexpr (kCrashTrace) {
+				D_PRINTLN("CT INPUT OLED waiting");
+			}
 			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -332,6 +363,9 @@ bool readButtonsAndPads() {
 		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 	}
 
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT INPUT readButtons exit any %d", static_cast<int32_t>(anything));
+	}
 	return anything;
 }
 void readButtonsAndPadsOnce() {

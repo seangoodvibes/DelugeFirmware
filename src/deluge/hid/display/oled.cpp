@@ -969,9 +969,14 @@ struct SideScroller {
 #define NUM_SIDE_SCROLLERS 2
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
+static constexpr bool kCrashTrace = true;
 // text will be copied into the scroller, caller does not need to keep it allocated
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT OLED setupSideScroller enter idx %d len %d x %d..%d y %d..%d", index,
+		          static_cast<int32_t>(text.size()), startX, endX, startY, endY);
+	}
 
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = text.size();
@@ -988,6 +993,10 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 
 	scroller->boxLengthPixels = endX - startX;
 	if (scroller->stringLengthPixels <= scroller->boxLengthPixels) {
+		if constexpr (kCrashTrace) {
+			D_PRINTLN("CT OLED setupSideScroller skip no-scroll strPx %d boxPx %d", scroller->stringLengthPixels,
+			          scroller->boxLengthPixels);
+		}
 		return;
 	}
 
@@ -1002,6 +1011,10 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->textSizeY = textSizeY;
 	scroller->finished = false;
 	scroller->doHighlight = doHighlight;
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT OLED setupSideScroller armed idx %d strPx %d boxPx %d", index, scroller->stringLengthPixels,
+		          scroller->boxLengthPixels);
+	}
 
 	sideScrollerDirection = 1;
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
@@ -1031,13 +1044,23 @@ void OLED::timerRoutine() {
 }
 
 void OLED::scrollingAndBlinkingTimerEvent() {
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT OLED scrollTimer enter now %u sideDir %d blink %d", AudioEngine::audioSampleTimer,
+		          sideScrollerDirection, static_cast<int32_t>(blinkArea.u32 != 0));
+	}
 
 	if (blinkArea.u32) {
+		if constexpr (kCrashTrace) {
+			D_PRINTLN("CT OLED scrollTimer blink");
+		}
 		performBlink();
 		return;
 	}
 
 	if (!sideScrollerDirection) {
+		if constexpr (kCrashTrace) {
+			D_PRINTLN("CT OLED scrollTimer no sideScrollerDirection");
+		}
 		return; // Probably isn't necessary...
 	}
 
@@ -1048,6 +1071,10 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		bool doRender = true;
 		SideScroller* scroller = &sideScrollers[s];
 		if (scroller->text) {
+			if constexpr (kCrashTrace) {
+				D_PRINTLN("CT OLED scrollTimer scroller %d pos %d lenPx %d boxPx %d y %d..%d", s, scroller->pos,
+				          scroller->stringLengthPixels, scroller->boxLengthPixels, scroller->startY, scroller->endY);
+			}
 			if (doScroll) {
 				if (scroller->finished) {
 					continue;
@@ -1082,10 +1109,17 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 					endX += 4;
 				}
 				// Ok, have to render.
+				if constexpr (kCrashTrace) {
+					D_PRINTLN("CT OLED scrollTimer render s %d x %d..%d y %d..%d inv %d", s, scroller->startX, endX,
+					          scroller->startY, scroller->endY, static_cast<int32_t>(doInversion));
+				}
 				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
 				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
 				                scroller->textSizeY, scroller->pos, scroller->endX);
 				if (scroller->doHighlight && doInversion) {
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT OLED scrollTimer invert s %d", s);
+					}
 					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
 					                scroller->endY);
 				}
@@ -1117,6 +1151,9 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		}
 	}
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, timeInterval);
+	if constexpr (kCrashTrace) {
+		D_PRINTLN("CT OLED scrollTimer exit interval %d sideDir %d", timeInterval, sideScrollerDirection);
+	}
 }
 
 void OLED::consoleTimerEvent() {

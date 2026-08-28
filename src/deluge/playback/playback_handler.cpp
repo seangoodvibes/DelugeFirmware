@@ -191,11 +191,15 @@ void PlaybackHandler::slowRoutine() {
 }
 
 void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
+	D_PRINTLN("CT PB playButtonPressed enter now %u state %d mode %p", AudioEngine::audioSampleTimer,
+	          static_cast<int32_t>(playbackState), currentPlaybackMode);
 
 	// If not currently playing
 	if (!playbackState) {
+		D_PRINTLN("CT PB playButtonPressed start-path");
 		setupPlaybackUsingInternalClock(buttonPressLatency);
 		D_PRINTLN("Play");
+		D_PRINTLN("CT PB playButtonPressed after start state %d", static_cast<int32_t>(playbackState));
 	}
 
 	// Or if currently playing...
@@ -255,6 +259,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 		// Or, normal
 		else {
+			D_PRINTLN("CT PB playButtonPressed stop-path");
 
 			// If playing synced to analog clock input and it's on auto-start mode, don't let them stop, because it'd
 			// just auto-start again
@@ -269,8 +274,10 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 			}
 
 			endPlayback();
+			D_PRINTLN("CT PB playButtonPressed after stop state %d", static_cast<int32_t>(playbackState));
 		}
 	}
+	D_PRINTLN("CT PB playButtonPressed exit state %d", static_cast<int32_t>(playbackState));
 }
 
 static const uint32_t recordButtonUIModes[] = {UI_MODE_HORIZONTAL_ZOOM, UI_MODE_HORIZONTAL_SCROLL,
@@ -325,7 +332,10 @@ void PlaybackHandler::recordButtonPressed() {
 
 void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency, bool allowCountIn,
                                                       bool restartingPlayback, bool restartingPlaybackAtBeginning) {
+	D_PRINTLN("CT PB setupInternal enter now %u state %d", AudioEngine::audioSampleTimer,
+	          static_cast<int32_t>(playbackState));
 	if (!currentSong) {
+		D_PRINTLN("CT PB setupInternal no song");
 		return;
 	}
 
@@ -453,12 +463,15 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	nextTimerTickScheduled = 0;
 
 	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
+	D_PRINTLN("CT PB setupInternal after setupPlayback state %d newPos %d", static_cast<int32_t>(playbackState),
+	          newPos);
 
 	// Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
 	timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
 
 	swungTicksTilNextEvent = 0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some
 	                            // recent call to expectEvent()
+	D_PRINTLN("CT PB setupInternal exit");
 }
 
 bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
@@ -509,6 +522,8 @@ useArranger:
 void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall,
                                     bool shouldShiftAccordingToClipInstance,
                                     int32_t buttonPressLatencyForTempolessRecord) {
+	D_PRINTLN("CT PB setupPlayback enter now %u newState %d from %d", AudioEngine::audioSampleTimer, newPlaybackState,
+	          playFromPos);
 
 	actionLogger.closeAction(ActionType::RECORD);
 
@@ -533,6 +548,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	                            // and insanely most stuff worked
 
 	playbackState = newPlaybackState;
+	D_PRINTLN("CT PB setupPlayback state set %d", static_cast<int32_t>(playbackState));
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
 	// make exception for note / note row editor because we want to be able to hear note changes
@@ -554,6 +570,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		// happening so it doesn't do the first tick yet
 		playbackState = 0;
 		AudioEngine::routineWithClusterLoading();
+		D_PRINTLN("CT PB setupPlayback after oneLastAudioRoutineCall now %u", AudioEngine::audioSampleTimer);
 		playbackState = newPlaybackState;
 	}
 
@@ -563,6 +580,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 	// Have to do this after calling AudioEngine::routine()
 	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
+	D_PRINTLN("CT PB setupPlayback after resetPlayPos");
 	currentlyActioningSwungTickOrResettingPlayPos = false;
 	AudioEngine::audioRoutineLocked = oldState;
 
@@ -576,9 +594,12 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	// when starting playback send updated feedback values for the current clip
 	// or active clip selected for midi follow control
 	view.sendMidiFollowFeedback();
+	D_PRINTLN("CT PB setupPlayback exit state %d", static_cast<int32_t>(playbackState));
 }
 
 void PlaybackHandler::endPlayback() {
+	D_PRINTLN("CT PB endPlayback enter now %u state %d", AudioEngine::audioSampleTimer,
+	          static_cast<int32_t>(playbackState));
 	if (isInternalClockActive() && currentlySendingMIDIOutputClocks()) {
 		midiEngine.sendStop(this);
 	}
@@ -598,6 +619,7 @@ void PlaybackHandler::endPlayback() {
 	// Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
 	playbackState = 0;
+	D_PRINTLN("CT PB endPlayback state cleared");
 
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	PadLEDs::clearTickSquares();
@@ -632,6 +654,7 @@ void PlaybackHandler::endPlayback() {
 	}
 
 	setLedStates();
+	D_PRINTLN("CT PB endPlayback exit");
 }
 
 void PlaybackHandler::getMIDIClockOutTicksToInternalTicksRatio(uint32_t* internalTicksPer,

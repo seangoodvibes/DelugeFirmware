@@ -45,6 +45,7 @@ extern "C" {
 UITimerManager uiTimerManager{};
 extern void inputRoutine();
 extern void batteryLEDBlink();
+static constexpr bool kCrashTrace = true;
 
 UITimerManager::UITimerManager() {
 	timeNextEvent = 2147483647;
@@ -149,8 +150,17 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::UI_SPECIFIC: {
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT UI_SPECIFIC enter now %u ui %p", AudioEngine::audioSampleTimer, getCurrentUI());
+					}
 					ActionResult result = getCurrentUI()->timerCallback();
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT UI_SPECIFIC exit result %d", static_cast<int32_t>(result));
+					}
 					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+						if constexpr (kCrashTrace) {
+							D_PRINTLN("CT UI_SPECIFIC rearm");
+						}
 						timer.active = true; // Come back soon and try again.
 					}
 					break;
@@ -212,7 +222,13 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::READ_INPUTS:
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT TIMER READ_INPUTS enter now %u", AudioEngine::audioSampleTimer);
+					}
 					inputRoutine();
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT TIMER READ_INPUTS exit");
+					}
 					break;
 
 				case TimerName::BATT_LED_BLINK:
@@ -220,10 +236,16 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::GRAPHICS_ROUTINE:
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT GRAPHICS enter now %u ui %p", AudioEngine::audioSampleTimer, getCurrentUI());
+					}
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage) {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
+					if constexpr (kCrashTrace) {
+						D_PRINTLN("CT GRAPHICS exit");
+					}
 					break;
 
 				case TimerName::OLED_LOW_LEVEL:
@@ -241,7 +263,13 @@ void UITimerManager::routine() {
 
 				case TimerName::OLED_SCROLLING_AND_BLINKING:
 					if (display->haveOLED()) {
+						if constexpr (kCrashTrace) {
+							D_PRINTLN("CT TIMER OLED_SCROLL enter now %u", AudioEngine::audioSampleTimer);
+						}
 						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
+						if constexpr (kCrashTrace) {
+							D_PRINTLN("CT TIMER OLED_SCROLL exit");
+						}
 					}
 					break;
 

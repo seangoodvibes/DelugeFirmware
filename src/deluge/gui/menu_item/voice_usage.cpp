@@ -16,6 +16,7 @@
  */
 
 #include "gui/menu_item/voice_usage.h"
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -29,6 +30,7 @@
 #include "model/output.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -42,9 +44,11 @@ using hid::display::OLED;
 
 constexpr int32_t kGraphicsSyncFallbackMs = 15;
 constexpr uint32_t kShowDescriptionDurationSamples = 44100;
+constexpr uint32_t kPlaybackTransitionGuardSamples = 30000;
 constexpr int32_t kOledVoiceCountAreaWidth = 21;
 constexpr int32_t kOledVoiceCountRight = OLED_MAIN_WIDTH_PIXELS - 1;
 constexpr int32_t kOledDescriptionEndX = OLED_MAIN_WIDTH_PIXELS - kOledVoiceCountAreaWidth;
+constexpr bool kVoiceUsageCrashTrace = true;
 
 void appendIntSafely(StringBuf& destination, int32_t value, int32_t minDigits = 1) {
 	char valueBuffer[16] = {0};
@@ -53,12 +57,11 @@ void appendIntSafely(StringBuf& destination, int32_t value, int32_t minDigits = 
 }
 
 [[nodiscard]] bool isRenderableClip(const Clip* clip) {
-	return clip != nullptr && clip->output != nullptr;
+	return clip != nullptr;
 }
 
 [[nodiscard]] bool isActiveClip(Clip* clip) {
-	return currentSong != nullptr && clip != nullptr && clip->output != nullptr && currentSong->isClipActive(clip)
-	       && clip->isActiveOnOutput();
+	return currentSong != nullptr && clip != nullptr && currentSong->isClipActive(clip);
 }
 
 [[nodiscard]] bool includesOutputType(Mode mode, OutputType outputType) {
@@ -77,39 +80,73 @@ void appendIntSafely(StringBuf& destination, int32_t value, int32_t minDigits = 
 }
 
 [[nodiscard]] int32_t countSynthClipVoices(Clip* clip) {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU countSynth enter");
+	}
 	if (clip == nullptr || clip->type != ClipType::INSTRUMENT) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countSynth skip clip");
+		}
 		return 0;
 	}
 
 	Output* output = clip->output;
 	if (output == nullptr || output->type != OutputType::SYNTH) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countSynth skip output");
+		}
 		return 0;
 	}
 
 	auto* soundInstrument = static_cast<const SoundInstrument*>(output);
-	return soundInstrument->voices().size();
+	CriticalSectionGuard guard;
+	int32_t voices = static_cast<int32_t>(soundInstrument->numActiveVoices());
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU countSynth voices %d", voices);
+	}
+	return voices;
 }
 
 [[nodiscard]] int32_t countKitClipVoices(Clip* clip) {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU countKit enter");
+	}
 	if (clip == nullptr || clip->type != ClipType::INSTRUMENT) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countKit skip clip");
+		}
 		return 0;
 	}
 
 	Output* output = clip->output;
 	if (output == nullptr || output->type != OutputType::KIT) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countKit skip output");
+		}
 		return 0;
 	}
 
 	auto* instrumentClip = static_cast<InstrumentClip*>(clip);
 	int32_t count = 0;
 	for (int32_t i = 0; i < instrumentClip->noteRows.getNumElements(); ++i) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countKit row %d", i);
+		}
 		NoteRow* noteRow = instrumentClip->noteRows.getElement(i);
 		if (noteRow == nullptr || noteRow->drum == nullptr || noteRow->drum->type != DrumType::SOUND) {
 			continue;
 		}
 
 		auto* soundDrum = static_cast<const SoundDrum*>(noteRow->drum);
-		count += soundDrum->voices().size();
+		CriticalSectionGuard guard;
+		int32_t drumVoices = static_cast<int32_t>(soundDrum->numActiveVoices());
+		count += drumVoices;
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countKit rowVoices %d total %d", drumVoices, count);
+		}
+	}
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU countKit done %d", count);
 	}
 
 	return count;
@@ -142,28 +179,53 @@ void appendIntSafely(StringBuf& destination, int32_t value, int32_t minDigits = 
 }
 
 [[nodiscard]] int32_t countClipsForMode(Mode mode) {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU countMode enter %d", static_cast<int32_t>(mode));
+	}
 	if (mode == Mode::TOTAL) {
-		return AudioEngine::getNumVoices() + AudioEngine::getNumAudio();
+		int32_t total = AudioEngine::getNumVoices() + AudioEngine::getNumAudio();
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countMode total %d", total);
+		}
+		return total;
 	}
 	if (mode == Mode::AUDIO) {
-		return AudioEngine::getNumAudio();
+		int32_t audio = AudioEngine::getNumAudio();
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countMode audio %d", audio);
+		}
+		return audio;
 	}
 	if (currentSong == nullptr) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countMode no song");
+		}
 		return 0;
 	}
 
 	int32_t count = 0;
-	for (Clip* clip : AllClips::everywhere(currentSong)) {
-		if (!isActiveClip(clip)) {
+	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countMode output type %d", static_cast<int32_t>(output->type));
+		}
+		if (!includesOutputType(mode, output->type)) {
 			continue;
 		}
-
-		Output* output = clip->output;
-		if (output == nullptr || !includesOutputType(mode, output->type)) {
+		Clip* clip = output->getActiveClip();
+		if (clip == nullptr || !currentSong->isClipActive(clip)) {
+			if constexpr (kVoiceUsageCrashTrace) {
+				D_PRINTLN("VU countMode inactive");
+			}
 			continue;
 		}
 
 		count += countClipVoicesForType(clip, output->type);
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU countMode running %d", count);
+		}
+	}
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU countMode done %d", count);
 	}
 
 	return count;
@@ -207,6 +269,16 @@ void appendClipDescription(const Clip* clip, const Output* output, bool includeP
 	description.append(")");
 }
 
+void copyEntryDescription(char* destination, size_t destinationSize, const Clip* clip, const Output* output,
+                          bool includePrefix) {
+	if (destination == nullptr || destinationSize == 0) {
+		return;
+	}
+
+	StringBuf description(destination, destinationSize);
+	appendClipDescription(clip, output, includePrefix, description);
+}
+
 void drawCenteredValue(int32_t value, const SlotPosition& slot) {
 	DEF_STACK_STRING_BUF(valueText, 8);
 	appendIntSafely(valueText, value);
@@ -223,18 +295,26 @@ ClipList::ClipList(l10n::String newName, l10n::String newTitle, Mode newMode, co
 }
 
 void ClipList::beginSession(MenuItem* navigatedBackwardFrom) {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU beginSession mode %d", static_cast<int32_t>(mode_));
+	}
 	MenuItem::beginSession(navigatedBackwardFrom);
 	showingDescriptionOn7Seg_ = false;
 	sevenSegDescriptionActive_ = false;
 	lastSevenSegDescriptionClip_ = nullptr;
 	oledScrollerActive_ = false;
 	lastOledScrollerClip_ = nullptr;
+	lastPlaybackState_ = playbackHandler.playbackState;
+	playbackTransitionGuardUntilSamples_ = 0;
 	refreshEntries();
 	drawValue();
 	scheduleTimer();
 }
 
 void ClipList::endSession() {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU endSession");
+	}
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	sevenSegDescriptionActive_ = false;
 	lastSevenSegDescriptionClip_ = nullptr;
@@ -244,7 +324,33 @@ void ClipList::endSession() {
 }
 
 void ClipList::readCurrentValue() {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU readCurrentValue enter now %u", AudioEngine::audioSampleTimer);
+	}
+	const bool playbackState = playbackHandler.playbackState;
+	if (playbackState != lastPlaybackState_) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU readCurrentValue playback transition %d->%d", static_cast<int32_t>(lastPlaybackState_),
+			          static_cast<int32_t>(playbackState));
+		}
+		lastPlaybackState_ = playbackState;
+		playbackTransitionGuardUntilSamples_ = AudioEngine::audioSampleTimer + kPlaybackTransitionGuardSamples;
+		return;
+	}
+
+	if (playbackTransitionGuardUntilSamples_ != 0
+	    && AudioEngine::audioSampleTimer < playbackTransitionGuardUntilSamples_) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU readCurrentValue in guard until %u", playbackTransitionGuardUntilSamples_);
+		}
+		return;
+	}
+
+	playbackTransitionGuardUntilSamples_ = 0;
 	currentValue_ = getSummaryCount();
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU readCurrentValue done value %d", currentValue_);
+	}
 }
 
 void ClipList::drawPixelsForOled() {
@@ -270,6 +376,9 @@ void ClipList::drawName() {
 }
 
 void ClipList::selectEncoderAction(int32_t offset) {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU selectEncoderAction offset %d entries %d", offset, static_cast<int32_t>(entries_.size()));
+	}
 	if (entries_.empty() || offset == 0) {
 		return;
 	}
@@ -295,6 +404,33 @@ MenuItem* ClipList::selectButtonPress() {
 }
 
 ActionResult ClipList::timerCallback() {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU timer enter now %u entries %d", AudioEngine::audioSampleTimer,
+		          static_cast<int32_t>(entries_.size()));
+	}
+	const bool playbackState = playbackHandler.playbackState;
+	if (playbackState != lastPlaybackState_) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU timer playback transition %d->%d", static_cast<int32_t>(lastPlaybackState_),
+			          static_cast<int32_t>(playbackState));
+		}
+		lastPlaybackState_ = playbackState;
+		playbackTransitionGuardUntilSamples_ = AudioEngine::audioSampleTimer + kPlaybackTransitionGuardSamples;
+		scheduleTimer();
+		return ActionResult::DEALT_WITH;
+	}
+
+	if (playbackTransitionGuardUntilSamples_ != 0
+	    && AudioEngine::audioSampleTimer < playbackTransitionGuardUntilSamples_) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU timer in guard until %u", playbackTransitionGuardUntilSamples_);
+		}
+		scheduleTimer();
+		return ActionResult::DEALT_WITH;
+	}
+
+	playbackTransitionGuardUntilSamples_ = 0;
+
 	const int32_t previousSummaryCount = currentValue_;
 	const int32_t previousSelectedVoiceCount = getSelectedVoiceCount();
 	const int32_t previousEntryCount = static_cast<int32_t>(entries_.size());
@@ -322,7 +458,14 @@ ActionResult ClipList::timerCallback() {
 	}
 
 	if (shouldRedraw) {
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU timer redraw listChanged %d valueChanged %d", static_cast<int32_t>(listChanged),
+			          static_cast<int32_t>(valueChanged));
+		}
 		drawValue();
+	}
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU timer exit");
 	}
 	scheduleTimer();
 	return ActionResult::DEALT_WITH;
@@ -354,12 +497,18 @@ void ClipList::renderInHorizontalMenu(const SlotPosition& slot) {
 }
 
 void ClipList::refreshEntries(Clip* clipToKeepSelected) {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU refresh enter keep %d", clipToKeepSelected != nullptr ? 1 : 0);
+	}
 	const int32_t previousIndex = selectedIndex_;
 	entries_.clear();
-	currentValue_ = getSummaryCount();
 	if (currentSong != nullptr) {
-		const int32_t reserveCount =
-		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+		int32_t reserveCount = 0;
+		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+			if (includesOutputType(mode_, output->type) && output->getActiveClip() != nullptr) {
+				++reserveCount;
+			}
+		}
 		if (reserveCount > static_cast<int32_t>(entries_.capacity())) {
 			entries_.reserve(reserveCount);
 		}
@@ -367,25 +516,31 @@ void ClipList::refreshEntries(Clip* clipToKeepSelected) {
 
 	if (currentSong != nullptr) {
 		int32_t sortIndex = 0;
-		for (Clip* clip : AllClips::everywhere(currentSong)) {
-			if (clip == nullptr) {
-				FREEZE_WITH_ERROR("VU01");
-				++sortIndex;
-				continue;
+		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+			if constexpr (kVoiceUsageCrashTrace) {
+				D_PRINTLN("VU refresh output sort %d type %d", sortIndex, static_cast<int32_t>(output->type));
 			}
-			if (!isActiveClip(clip)) {
-				++sortIndex;
-				continue;
-			}
-
-			Output* output = clip->output;
-			if (output == nullptr || !includesOutputType(mode_, output->type)) {
+			if (!includesOutputType(mode_, output->type)) {
 				++sortIndex;
 				continue;
 			}
 
-			const int32_t voiceCount = countClipVoicesForType(clip, output->type);
-			entries_.push_back({clip, output->type, voiceCount, sortIndex});
+			Clip* clip = output->getActiveClip();
+			if (clip == nullptr || !currentSong->isClipActive(clip)) {
+				if constexpr (kVoiceUsageCrashTrace) {
+					D_PRINTLN("VU refresh skip inactive sort %d", sortIndex);
+				}
+				++sortIndex;
+				continue;
+			}
+
+			int32_t voiceCount = countClipVoicesForType(clip, output->type);
+			if constexpr (kVoiceUsageCrashTrace) {
+				D_PRINTLN("VU refresh add sort %d voices %d", sortIndex, voiceCount);
+			}
+			Entry entry = {clip, output->type, voiceCount, sortIndex, {0}};
+			copyEntryDescription(entry.description, sizeof(entry.description), clip, output, mode_ == Mode::TOTAL);
+			entries_.push_back(entry);
 			++sortIndex;
 		}
 	}
@@ -399,11 +554,21 @@ void ClipList::refreshEntries(Clip* clipToKeepSelected) {
 		}
 		return lhs.sortIndex < rhs.sortIndex;
 	});
+	currentValue_ = getSummaryCount();
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU refresh summary %d entries %d", currentValue_, static_cast<int32_t>(entries_.size()));
+	}
 
 	preserveSelection(clipToKeepSelected, previousIndex);
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU refresh selected %d", selectedIndex_);
+	}
 }
 
 void ClipList::drawOledRows() {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU drawOledRows enter entries %d", static_cast<int32_t>(entries_.size()));
+	}
 	if (entries_.empty()) {
 		const char* message = l10n::get(l10n::String::STRING_FOR_NO_ACTIVE_CLIPS);
 		OLED::main.drawStringCentered(message, 0, 18, kTextSpacingX, kTextSpacingY, OLED_MAIN_WIDTH_PIXELS);
@@ -424,35 +589,45 @@ void ClipList::drawOledRows() {
 	for (int32_t visibleIndex = 0; visibleIndex < numVisible; ++visibleIndex) {
 		const int32_t entryIndex = firstVisible + visibleIndex;
 		const Entry& entry = entries_[entryIndex];
+		if constexpr (kVoiceUsageCrashTrace) {
+			D_PRINTLN("VU draw row vis %d entry %d voices %d", visibleIndex, entryIndex, entry.voiceCount);
+		}
 		if (!isRenderableClip(entry.clip)) {
 			FREEZE_WITH_ERROR("VU02");
 			continue;
 		}
 		const int32_t y = visibleIndex * kTextSpacingY + baseY;
 
-		DEF_STACK_STRING_BUF(description, 128);
-		formatEntryDescription(entry, description);
-
 		DEF_STACK_STRING_BUF(countText, 4);
 		appendIntSafely(countText, entry.voiceCount, 2);
 
-		OLED::main.drawString(description.c_str(), kTextSpacingX, y, kTextSpacingX, kTextSpacingY, 0,
+		OLED::main.drawString(entry.description, kTextSpacingX, y, kTextSpacingX, kTextSpacingY, 0,
 		                      kOledDescriptionEndX);
 		OLED::main.drawStringAlignRight(countText.c_str(), y, kTextSpacingX, kTextSpacingY, kOledVoiceCountRight);
 
 		if (entryIndex == selectedIndex) {
-			OLED::main.invertArea(0, y, OLED_MAIN_WIDTH_PIXELS, kTextSpacingY);
-			if (!oledScrollerActive_ || lastOledScrollerClip_ != entry.clip) {
-				OLED::setupSideScroller(0, description.c_str(), kTextSpacingX, kOledDescriptionEndX, y,
-				                        y + kTextSpacingY, kTextSpacingX, kTextSpacingY, true);
-				oledScrollerActive_ = true;
-				lastOledScrollerClip_ = entry.clip;
+			if constexpr (kVoiceUsageCrashTrace) {
+				D_PRINTLN("VU draw selected entry %d", entryIndex);
 			}
+			OLED::main.invertArea(0, y, OLED_MAIN_WIDTH_PIXELS, kTextSpacingY);
+			//	if (!oledScrollerActive_ || lastOledScrollerClip_ != entry.clip) {
+			//	OLED::setupSideScroller(0, entry.description, kTextSpacingX, kOledDescriptionEndX, y,
+			//	                        y + kTextSpacingY, kTextSpacingX, kTextSpacingY, true);
+			//	oledScrollerActive_ = true;
+			//	lastOledScrollerClip_ = entry.clip;
+			//	}
 		}
+	}
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU drawOledRows exit");
 	}
 }
 
 void ClipList::drawSevenSegmentValue() {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU draw7seg enter entries %d showDesc %d", static_cast<int32_t>(entries_.size()),
+		          static_cast<int32_t>(showingDescriptionOn7Seg_));
+	}
 	if (entries_.empty()) {
 		display->setText(l10n::get(l10n::String::STRING_FOR_NO_ACTIVE_CLIPS));
 		sevenSegDescriptionActive_ = false;
@@ -482,6 +657,9 @@ void ClipList::drawSevenSegmentValue() {
 		DEF_STACK_STRING_BUF(value, 4);
 		appendIntSafely(value, getSelectedVoiceCount(), 2);
 		display->setText(value.c_str(), true);
+	}
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU draw7seg exit");
 	}
 }
 
@@ -550,13 +728,7 @@ void ClipList::formatSelectedDescription(StringBuf& description) const {
 }
 
 void ClipList::formatEntryDescription(const Entry& entry, StringBuf& description) const {
-	if (!isRenderableClip(entry.clip)) {
-		FREEZE_WITH_ERROR("VU03");
-		description.append("-");
-		return;
-	}
-
-	appendClipDescription(entry.clip, entry.clip->output, mode_ == Mode::TOTAL, description);
+	description.append(entry.description);
 }
 
 void ClipList::scheduleTimer() {
@@ -573,6 +745,9 @@ VoiceUsageMenu::VoiceUsageMenu(l10n::String newName, l10n::String newTitle, std:
 }
 
 void VoiceUsageMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU menu begin");
+	}
 	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	refreshChildValues();
 	if (display->have7SEG()) {
@@ -585,6 +760,9 @@ void VoiceUsageMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void VoiceUsageMenu::endSession() {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU menu end");
+	}
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	HorizontalMenu::endSession();
 }
@@ -596,6 +774,9 @@ void VoiceUsageMenu::selectEncoderAction(int32_t offset) {
 }
 
 ActionResult VoiceUsageMenu::timerCallback() {
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU menu timer enter");
+	}
 	refreshChildValues();
 	if (display->have7SEG()) {
 		updateDisplay();
@@ -604,6 +785,9 @@ ActionResult VoiceUsageMenu::timerCallback() {
 		renderUIsForOled();
 	}
 	scheduleTimer();
+	if constexpr (kVoiceUsageCrashTrace) {
+		D_PRINTLN("VU menu timer exit");
+	}
 	return ActionResult::DEALT_WITH;
 }
 

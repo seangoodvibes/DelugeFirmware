@@ -59,6 +59,7 @@ private:
 		OutputType outputType;
 		int32_t voiceCount;
 		int32_t sortIndex;
+		char description[128];
 	};
 
 	void refreshEntries(Clip* clipToKeepSelected = nullptr);
@@ -84,6 +85,8 @@ private:
 	bool sevenSegDescriptionActive_{false};
 	Clip* lastOledScrollerClip_{nullptr};
 	bool oledScrollerActive_{false};
+	bool lastPlaybackState_{false};
+	uint32_t playbackTransitionGuardUntilSamples_{0};
 };
 
 class VoiceUsageMenu final : public HorizontalMenu {
