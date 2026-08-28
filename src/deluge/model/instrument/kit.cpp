@@ -777,6 +777,37 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 	}
 }
 
+size_t Kit::getCPUUsage(CPUUsageType type, Song* song) {
+	if (activeClip == nullptr) {
+		return 0;
+	}
+
+	if (!song->isClipActive(activeClip)) {
+		return 0;
+	}
+
+	size_t usage = 0;
+
+	// get kit affect entire fx usage
+	usage += GlobalEffectable::getCPUUsage(1, type);
+
+	// output is active and its a kit, so get the active kit clip so we can iterate through
+	// it's sound drums and count their cpu usage
+	auto* instrument_clip = static_cast<InstrumentClip*>(activeClip);
+	for (int32_t i = 0; i < instrument_clip->noteRows.getNumElements(); ++i) {
+		NoteRow* note_row = instrument_clip->noteRows.getElement(i);
+		if (note_row == nullptr || note_row->drum == nullptr || note_row->drum->type != DrumType::SOUND) {
+			continue;
+		}
+
+		auto* sound_drum = static_cast<SoundDrum*>(note_row->drum);
+
+		usage += sound_drum->getCPUUsage(type);
+	}
+
+	return usage;
+}
+
 ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
 	if (clip != nullptr) {
 		return &clip->arpSettings;

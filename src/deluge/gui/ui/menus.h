@@ -116,6 +116,7 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSettings;
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;

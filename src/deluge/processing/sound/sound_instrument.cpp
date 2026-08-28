@@ -199,6 +199,18 @@ yesTickParamManagerForClip:
 	}
 }
 
+size_t SoundInstrument::getCPUUsage(CPUUsageType type, Song* song) {
+	if (activeClip == nullptr) {
+		return 0;
+	}
+
+	if (!song->isClipActive(activeClip)) {
+		return 0;
+	}
+
+	return Sound::getCPUUsage(type);
+}
+
 Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	bool doingAlternatePath =

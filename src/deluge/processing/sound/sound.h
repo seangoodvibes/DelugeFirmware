@@ -300,6 +300,38 @@ public:
 	/// @brief Get the number of active voices
 	[[nodiscard]] size_t numActiveVoices() const { return voices_.size(); }
 
+	/// ******************************* Helpers for measuring CPU usage *******************************
+
+	size_t getCPUUsage(CPUUsageType type);
+	CPUUsageType getCPUUsageTypeForSource(OscType oscType);
+
+	[[nodiscard]] size_t get_unison_voice_weight() const {
+		return AudioEngine::renderInStereo && unisonStereoSpread && numUnison > 1 ? 3 : 1;
+	}
+
+	/// @brief Get the number of active unison voices. If stereo unison is active, multiply the number by 3.
+	/// @brief Stereo unison is more than twice as heavy since it has to double the filters and fx as well
+	[[nodiscard]] size_t num_active_unison_voices() const {
+		return numActiveVoices() * numUnison * get_unison_voice_weight();
+	}
+
+	/// @brief Get the number of samples loaded into each source.
+	/// @brief Stereo samples are weighed higher.
+	size_t num_active_sample_voices(CPUUsageType type);
+
+	size_t num_active_wavetable_voices(CPUUsageType type);
+
+	/// @brief Get the number of DX7 voices
+	size_t num_active_dx7_voices();
+
+	/// @brief Get the number of live pitch shifting voices
+	size_t num_active_live_pitchshifer_voices();
+
+	/// @brief Get the number of active filter voices.
+	size_t num_active_filter_voices();
+
+	/// ******************************* Helpers for measuring CPU usage *******************************
+
 	/// @brief Immediately ends all active voices
 	void killAllVoices() override;
 

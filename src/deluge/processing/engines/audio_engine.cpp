@@ -296,7 +296,7 @@ void killOneVoice(size_t num_samples) {
 	}
 
 	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
-	          getNumAudio());
+	          getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
@@ -332,7 +332,7 @@ void terminateOneVoice(size_t numSamples) {
 	}
 
 	D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples, getNumVoices(),
-	          getNumAudio());
+	          getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
@@ -365,11 +365,11 @@ void forceReleaseOneVoice(size_t num_samples) {
 	auto stage = voice->envelopes[0].state;
 	if (stage < EnvelopeStage::FAST_RELEASE) {
 		D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getNumAudio());
+		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
 	}
 	else {
 		D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getNumAudio());
+		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
 	}
 
 	bool still_rendering = voice->speedUpRelease();
@@ -378,11 +378,19 @@ void forceReleaseOneVoice(size_t num_samples) {
 	}
 }
 
-int32_t getNumAudio() {
-	return currentSong != nullptr ? currentSong->countAudioClips() : 0;
+size_t getCPUUsageForSong(CPUUsageType type) {
+	return currentSong != nullptr ? currentSong->getCPUUsageForSong(type) : 0;
 }
 
-int32_t getNumVoices() {
+size_t getCPUUsageForAllOutputs(CPUUsageType type) {
+	return currentSong != nullptr ? currentSong->getCPUUsageForAllOutputs(type) : 0;
+}
+
+size_t getCPUUsageForOutputType(CPUUsageType type, OutputType output_type) {
+	return currentSong != nullptr ? currentSong->getCPUUsageForOutputType(type, output_type) : 0;
+}
+
+size_t getNumVoices() {
 	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
 	                             [](auto sound) { return sound->voices().size(); });
 }
@@ -516,7 +524,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
 		}
-		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
+		auto numAudio = getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO);
 		auto numVoice = getNumVoices();
 		if (!bypassCulling) {
 			cullVoices(numSamples, numAudio, numVoice);

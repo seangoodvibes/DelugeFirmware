@@ -1486,7 +1486,9 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 			// Read active voices
 			else if (x == 14) {
-				intToString(AudioEngine::getNumVoices(), buffer);
+				intToString(AudioEngine::getNumVoices()
+				                + AudioEngine::getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO),
+				            buffer);
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
@@ -2066,12 +2068,15 @@ HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
 }
 
 std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizontalMenusChain(bool checkNavigationDepth) {
+	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
+		return std::nullopt;
+	}
+	if (inSettingsMenu()) {
+		return horizontalMenusChainForSettings;
+	}
 	if (checkNavigationDepth && navigationDepth > 0) {
 		// If a horizontal menu was accessed from the sound menu,
 		// we shouldn't allow switching between menus in the chain because the sound menu has different hierarchy
-		return std::nullopt;
-	}
-	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
 		return std::nullopt;
 	}
 	if (!rootUIIsClipMinderScreen()) {

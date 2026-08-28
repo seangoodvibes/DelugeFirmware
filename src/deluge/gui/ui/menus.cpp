@@ -33,6 +33,7 @@
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/cpu_usage/cpu_usage.h"
 #include "gui/menu_item/cv/cv2Mapping.h"
 #include "gui/menu_item/cv/selection.h"
 #include "gui/menu_item/cv/submenu.h"
@@ -1051,6 +1052,291 @@ PLACE_SDRAM_BSS firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSIO
 
 PLACE_SDRAM_BSS battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
 
+/// Voice Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                          CPUUsageType::VOICE, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context songRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_SONG, STRING_FOR_CPU_USAGE_SONG,
+                                                         CPUUsageType::VOICE, CPUUsageContext::SONG};
+PLACE_SDRAM_BSS cpu_usage::Context synthRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                          CPUUsageType::VOICE, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                        CPUUsageType::VOICE, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
+                                                          CPUUsageType::VOICE, CPUUsageContext::AUDIO};
+PLACE_SDRAM_DATA MenuItem* rawVoiceUsageMenuItems[] = {
+    &totalRawVoiceUsageMenu, &songRawVoiceUsageMenu,  &synthRawVoiceUsageMenu,
+    &kitRawVoiceUsageMenu,   &audioRawVoiceUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu rawVoiceUsageMenu{STRING_FOR_VOICE_RAW_USAGE, STRING_FOR_VOICE_RAW_USAGE,
+                                                  rawVoiceUsageMenuItems, &totalRawVoiceUsageMenu};
+
+/// Unison Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalUnisonUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                        CPUUsageType::VOICE_UNISON, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context synthUnisonUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                        CPUUsageType::VOICE_UNISON, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitUnisonUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                      CPUUsageType::VOICE_UNISON, CPUUsageContext::KIT};
+PLACE_SDRAM_DATA MenuItem* unisonUsageMenuItems[] = {
+    &totalUnisonUsageMenu,
+    &synthUnisonUsageMenu,
+    &kitUnisonUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu unisonUsageMenu{STRING_FOR_VOICE_UNISON_USAGE, STRING_FOR_VOICE_UNISON_USAGE,
+                                                unisonUsageMenuItems, &totalUnisonUsageMenu};
+
+PLACE_SDRAM_BSS Submenu voiceUsageSubmenu{
+    STRING_FOR_VOICE_USAGE,
+    STRING_FOR_VOICE_USAGE,
+    {
+        &rawVoiceUsageMenu,
+        &unisonUsageMenu,
+    },
+};
+
+PLACE_SDRAM_BSS HorizontalMenuGroup voiceUsageMenuGroup{{&rawVoiceUsageMenu, &unisonUsageMenu}};
+
+/// Sample Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalSampleUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                        CPUUsageType::OSC_SAMPLE, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context synthSampleUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                        CPUUsageType::OSC_SAMPLE, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitSampleUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                      CPUUsageType::OSC_SAMPLE, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioSampleUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
+                                                        CPUUsageType::OSC_SAMPLE, CPUUsageContext::AUDIO};
+PLACE_SDRAM_DATA MenuItem* sampleUsageMenuItems[] = {
+    &totalSampleUsageMenu,
+    &synthSampleUsageMenu,
+    &kitSampleUsageMenu,
+    &audioSampleUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu sampleUsageMenu{STRING_FOR_OSC_SAMPLE_USAGE, STRING_FOR_OSC_SAMPLE_USAGE,
+                                                sampleUsageMenuItems, &totalSampleUsageMenu};
+
+/// Sample Timestretch Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalSampleTimestretchUsageMenu{
+    STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL, CPUUsageType::OSC_SAMPLE_STRETCH, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context synthSampleTimestretchUsageMenu{
+    STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH, CPUUsageType::OSC_SAMPLE_STRETCH, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitSampleTimestretchUsageMenu{
+    STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT, CPUUsageType::OSC_SAMPLE_STRETCH, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioSampleTimestretchUsageMenu{
+    STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO, CPUUsageType::OSC_SAMPLE_STRETCH, CPUUsageContext::AUDIO};
+
+PLACE_SDRAM_DATA MenuItem* sampleTimestretchUsageMenuItems[] = {
+    &totalSampleTimestretchUsageMenu,
+    &synthSampleTimestretchUsageMenu,
+    &kitSampleTimestretchUsageMenu,
+    &audioSampleTimestretchUsageMenu,
+};
+
+PLACE_SDRAM_BSS cpu_usage::Menu sampleTimestretchUsageMenu{
+    STRING_FOR_OSC_SAMPLE_STRETCH_USAGE, STRING_FOR_OSC_SAMPLE_STRETCH_USAGE, sampleTimestretchUsageMenuItems,
+    &totalSampleTimestretchUsageMenu};
+
+/// Sample Cache Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalSampleCacheUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                             CPUUsageType::OSC_SAMPLE_CACHE, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context synthSampleCacheUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                             CPUUsageType::OSC_SAMPLE_CACHE, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitSampleCacheUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                           CPUUsageType::OSC_SAMPLE_CACHE, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioSampleCacheUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
+                                                             CPUUsageType::OSC_SAMPLE_CACHE, CPUUsageContext::AUDIO};
+PLACE_SDRAM_DATA MenuItem* sampleCacheUsageMenuItems[] = {
+    &totalSampleCacheUsageMenu,
+    &synthSampleCacheUsageMenu,
+    &kitSampleCacheUsageMenu,
+    &audioSampleCacheUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu sampleCacheUsageMenu{STRING_FOR_OSC_SAMPLE_CACHE_USAGE,
+                                                     STRING_FOR_OSC_SAMPLE_CACHE_USAGE, sampleCacheUsageMenuItems,
+                                                     &totalSampleCacheUsageMenu};
+
+PLACE_SDRAM_BSS Submenu sampleUsageSubmenu{
+    STRING_FOR_OSC_SAMPLE_USAGE,
+    STRING_FOR_OSC_SAMPLE_USAGE,
+    {
+        &sampleUsageMenu,
+        &sampleTimestretchUsageMenu,
+        &sampleCacheUsageMenu,
+    },
+};
+
+PLACE_SDRAM_BSS HorizontalMenuGroup sampleUsageMenuGroup{
+    {&sampleUsageMenu, &sampleTimestretchUsageMenu, &sampleCacheUsageMenu}};
+
+/// DX7 Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalDX7UsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                     CPUUsageType::OSC_DX7, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context synthDX7UsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                     CPUUsageType::OSC_DX7, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitDX7UsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                   CPUUsageType::OSC_DX7, CPUUsageContext::KIT};
+PLACE_SDRAM_DATA MenuItem* dx7UsageMenuItems[] = {
+    &totalDX7UsageMenu,
+    &synthDX7UsageMenu,
+    &kitDX7UsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu dx7UsageMenu{STRING_FOR_OSC_DX7_USAGE, STRING_FOR_OSC_DX7_USAGE, dx7UsageMenuItems,
+                                             &totalDX7UsageMenu};
+
+PLACE_SDRAM_BSS Submenu dx7UsageSubmenu{
+    STRING_FOR_OSC_DX7_USAGE,
+    STRING_FOR_OSC_DX7_USAGE,
+    {
+        &dx7UsageMenu,
+    },
+};
+
+/// Wavetable Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalWavetableUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                           CPUUsageType::OSC_WAVETABLE, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context synthWavetableUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                           CPUUsageType::OSC_WAVETABLE, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitWavetableUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                         CPUUsageType::OSC_WAVETABLE, CPUUsageContext::KIT};
+PLACE_SDRAM_DATA MenuItem* wavetableUsageMenuItems[] = {
+    &totalWavetableUsageMenu,
+    &synthWavetableUsageMenu,
+    &kitWavetableUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu wavetableUsageMenu{STRING_FOR_OSC_WAVETABLE_USAGE, STRING_FOR_OSC_WAVETABLE_USAGE,
+                                                   wavetableUsageMenuItems, &totalWavetableUsageMenu};
+
+PLACE_SDRAM_BSS Submenu wavetableUsageSubmenu{
+    STRING_FOR_OSC_WAVETABLE_USAGE,
+    STRING_FOR_OSC_WAVETABLE_USAGE,
+    {
+        &wavetableUsageMenu,
+    },
+};
+
+/// Live Pitch Shift Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalLivePitchShiftUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                                CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context synthLivePitchShiftUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                                CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitLivePitchShiftUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                              CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioLivePitchShiftUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
+                                                                CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::AUDIO};
+MenuItem* livePitchShiftUsageMenuItems[] = {
+    &totalLivePitchShiftUsageMenu,
+    &synthLivePitchShiftUsageMenu,
+    &kitLivePitchShiftUsageMenu,
+    &audioLivePitchShiftUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu livePitchShiftUsageMenu{STRING_FOR_OSC_LIVE_PITCH_USAGE,
+                                                        STRING_FOR_OSC_LIVE_PITCH_USAGE, livePitchShiftUsageMenuItems,
+                                                        &totalLivePitchShiftUsageMenu};
+
+PLACE_SDRAM_BSS Submenu livePitchShiftUsageSubmenu{
+    STRING_FOR_OSC_LIVE_PITCH_USAGE,
+    STRING_FOR_OSC_LIVE_PITCH_USAGE,
+    {
+        &livePitchShiftUsageMenu,
+    },
+};
+
+/// Filter Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalFilterUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                        CPUUsageType::FILTER, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context songFilterUsageMenu{STRING_FOR_CPU_USAGE_SONG, STRING_FOR_CPU_USAGE_SONG,
+                                                       CPUUsageType::FILTER, CPUUsageContext::SONG};
+PLACE_SDRAM_BSS cpu_usage::Context synthFilterUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                        CPUUsageType::FILTER, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitFilterUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                      CPUUsageType::FILTER, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioFilterUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
+                                                        CPUUsageType::FILTER, CPUUsageContext::AUDIO};
+PLACE_SDRAM_DATA MenuItem* filterUsageMenuItems[] = {
+    &totalFilterUsageMenu, &songFilterUsageMenu, &synthFilterUsageMenu, &kitFilterUsageMenu, &audioFilterUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu filterUsageMenu{STRING_FOR_FILTER_USAGE, STRING_FOR_FILTER_USAGE, filterUsageMenuItems,
+                                                &totalFilterUsageMenu};
+
+PLACE_SDRAM_BSS Submenu filterUsageSubmenu{
+    STRING_FOR_FILTER_USAGE,
+    STRING_FOR_FILTER_USAGE,
+    {
+        &filterUsageMenu,
+    },
+};
+
+PLACE_SDRAM_BSS HorizontalMenuGroup filterUsageMenuGroup{{&filterUsageMenu}};
+
+/// Delay Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalDelayUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                       CPUUsageType::FX_DELAY, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context songDelayUsageMenu{STRING_FOR_CPU_USAGE_SONG, STRING_FOR_CPU_USAGE_SONG,
+                                                      CPUUsageType::FX_DELAY, CPUUsageContext::SONG};
+PLACE_SDRAM_BSS cpu_usage::Context synthDelayUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                       CPUUsageType::FX_DELAY, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitDelayUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                     CPUUsageType::FX_DELAY, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioDelayUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
+                                                       CPUUsageType::FX_DELAY, CPUUsageContext::AUDIO};
+PLACE_SDRAM_DATA MenuItem* delayUsageMenuItems[] = {
+    &totalDelayUsageMenu, &songDelayUsageMenu, &synthDelayUsageMenu, &kitDelayUsageMenu, &audioDelayUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu delayUsageMenu{STRING_FOR_FX_DELAY_USAGE, STRING_FOR_FX_DELAY_USAGE,
+                                               delayUsageMenuItems, &totalDelayUsageMenu};
+
+/// Grain Usage Menu
+
+PLACE_SDRAM_BSS cpu_usage::Context totalGrainUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                       CPUUsageType::FX_GRAIN, CPUUsageContext::TOTAL};
+PLACE_SDRAM_BSS cpu_usage::Context songGrainUsageMenu{STRING_FOR_CPU_USAGE_SONG, STRING_FOR_CPU_USAGE_SONG,
+                                                      CPUUsageType::FX_GRAIN, CPUUsageContext::SONG};
+PLACE_SDRAM_BSS cpu_usage::Context synthGrainUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
+                                                       CPUUsageType::FX_GRAIN, CPUUsageContext::SYNTH};
+PLACE_SDRAM_BSS cpu_usage::Context kitGrainUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
+                                                     CPUUsageType::FX_GRAIN, CPUUsageContext::KIT};
+PLACE_SDRAM_BSS cpu_usage::Context audioGrainUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
+                                                       CPUUsageType::FX_GRAIN, CPUUsageContext::AUDIO};
+PLACE_SDRAM_DATA MenuItem* grainUsageMenuItems[] = {
+    &totalGrainUsageMenu, &songGrainUsageMenu, &synthGrainUsageMenu, &kitGrainUsageMenu, &audioGrainUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu grainUsageMenu{STRING_FOR_FX_GRAIN_USAGE, STRING_FOR_FX_GRAIN_USAGE,
+                                               grainUsageMenuItems, &totalGrainUsageMenu};
+
+PLACE_SDRAM_BSS Submenu fxUsageSubmenu{
+    STRING_FOR_FX_USAGE,
+    STRING_FOR_FX_USAGE,
+    {
+        &delayUsageMenu,
+        &grainUsageMenu,
+    },
+};
+
+PLACE_SDRAM_BSS HorizontalMenuGroup fxUsageMenuGroup{{&delayUsageMenu, &grainUsageMenu}};
+
+PLACE_SDRAM_BSS Submenu cpuUsageMenu{
+    STRING_FOR_CPU_USAGE,
+    STRING_FOR_CPU_USAGE,
+    {
+        &voiceUsageSubmenu,
+        &sampleUsageSubmenu,
+        &wavetableUsageSubmenu,
+        &livePitchShiftUsageSubmenu,
+        &dx7UsageSubmenu,
+        &filterUsageSubmenu,
+        &fxUsageSubmenu,
+    },
+};
+
 PLACE_SDRAM_BSS runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS,
                                                                      STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
 
@@ -1907,6 +2193,7 @@ PLACE_SDRAM_BSS Submenu settingsRootMenu{
         &recordSubmenu,
         &runtimeFeatureSettingsMenu,
         &batteryLevelMenu,
+        &cpuUsageMenu,
         &firmwareVersionMenu,
     },
 };
@@ -2008,6 +2295,10 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,              &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,          nullptr,                nullptr,                  nullptr                            },
     {nullptr,          	     &spreadVelocityMenu,	  &randomizerLockMenu,            &randomizerNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
+};
+
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSettings = {
+    &voiceUsageMenuGroup, &fxUsageMenuGroup
 };
 
 PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {

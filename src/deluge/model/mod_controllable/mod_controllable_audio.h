@@ -105,6 +105,8 @@ public:
 
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?
+
+	// Filters
 	FilterMode lpfMode;
 	FilterMode hpfMode;
 	FilterRoute filterRoute;
@@ -125,6 +127,22 @@ public:
 
 	deluge::fast_vector<MIDIKnob> midi_knobs;
 	int32_t postReverbVolumeLastTime{};
+
+	// CPU usage
+	size_t getCPUUsage(size_t active_voices, CPUUsageType type);
+
+	// delay fx
+	[[nodiscard]] size_t get_delay_voice_weight() const { return (delay.isActive()) ? (delay.analog ? 3 : 1) : 0; }
+	/// @brief Get the number of active delay voices.
+	[[nodiscard]] size_t num_active_delay_voices(size_t active_voices) const {
+		return (active_voices * get_delay_voice_weight());
+	}
+
+	// grain fx
+	[[nodiscard]] size_t get_grain_voice_weight() const { return grainFX != nullptr && grainFX->isActive() ? 1 : 0; }
+	[[nodiscard]] size_t num_active_grain_voices(size_t active_voices) const {
+		return (active_voices * get_grain_voice_weight());
+	}
 
 protected:
 	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,

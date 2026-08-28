@@ -252,6 +252,32 @@ enum class ThingType : uint8_t {
 	NONE,
 };
 
+enum class CPUUsageType : uint8_t {
+	VOICE,
+	VOICE_UNISON,
+	FILTER,
+	FILTER_LPF,
+	FILTER_HPF,
+	FX_DELAY,
+	FX_GRAIN,
+	OSC_DX7,
+	OSC_SAMPLE,
+	OSC_SAMPLE_STRETCH,
+	OSC_SAMPLE_CACHE,
+	OSC_WAVETABLE,
+	OSC_LIVE,
+	OSC_LIVE_PITCH,
+	NONE,
+};
+
+enum class CPUUsageContext : uint8_t {
+	TOTAL,
+	SONG,
+	SYNTH,
+	KIT,
+	AUDIO,
+};
+
 enum class MenuHighlighting : uint8_t { FULL_INVERSION, PARTIAL_INVERSION, NO_INVERSION };
 
 constexpr int32_t kModFXBufferSize = 512;

@@ -23,7 +23,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
+#include "model/voice/voice_sample.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
@@ -418,6 +420,69 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 
 bool AudioOutput::isSkippingRendering() {
 	return mode == AudioOutputMode::player && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
+}
+
+size_t AudioOutput::getCPUUsage(CPUUsageType type, Song* song) {
+	/// this checks whether the audio output is skipping rendering
+	/// to be rendering, the audio output must have:
+	/// a) an active clip; and
+	/// b) is monitoring and/or has a voice sample assigned
+	if (isSkippingRendering()) {
+		return 0;
+	}
+
+	if (!song->isClipActive(activeClip)) {
+		return 0;
+	}
+
+	switch (type) {
+	case CPUUsageType::OSC_SAMPLE:
+	case CPUUsageType::OSC_SAMPLE_STRETCH:
+	case CPUUsageType::OSC_SAMPLE_CACHE:
+		return num_active_sample_voices(1, type);
+	default:
+		break;
+	}
+
+	return GlobalEffectable::getCPUUsage(1, type);
+}
+
+size_t AudioOutput::num_active_sample_voices(size_t active_voices, CPUUsageType type) {
+	AudioClip* audio_clip = static_cast<AudioClip*>(activeClip);
+	VoiceSample* voice_sample = audio_clip->voiceSample;
+
+	if (voice_sample == nullptr) {
+		return 0;
+	}
+
+	if (type == CPUUsageType::OSC_SAMPLE_STRETCH && voice_sample->timeStretcher == nullptr) {
+		return 0;
+	}
+	else if (type == CPUUsageType::OSC_SAMPLE_CACHE && voice_sample->cache == nullptr
+	         && !voice_sample->writingToCache) {
+		return 0;
+	}
+
+	if (voice_sample->cache != nullptr) {
+		SampleCache* cache = voice_sample->cache;
+		D_PRINTLN("Audio clip sample cache end bytes: %d of %d", voice_sample->cacheBytePos, cache->writeBytePos);
+		D_PRINTLN("Audio clip sample cache end kilobytes: %d of %d", voice_sample->cacheBytePos / 1024,
+		          cache->writeBytePos / 1024);
+		D_PRINTLN("Audio clip sample cache end megabytes: %d of %d", voice_sample->cacheBytePos / (1024 * 1024),
+		          cache->writeBytePos / (1024 * 1024));
+	}
+
+	AudioFile* audio_file = audio_clip->sampleHolder.audioFile;
+	if (audio_file == nullptr) {
+		return 0;
+	}
+
+	Sample* sample = static_cast<Sample*>(audio_file);
+	if (sample->unplayable) {
+		return 0;
+	}
+
+	return active_voices;
 }
 
 void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,

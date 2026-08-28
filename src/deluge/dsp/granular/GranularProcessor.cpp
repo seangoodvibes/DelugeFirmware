@@ -345,3 +345,9 @@ void GranularProcessor::startSkippingRendering() {
 		grainBuffer->inUse = false;
 	}
 }
+bool GranularProcessor::isActive() {
+	if (grainBuffer != nullptr) {
+		return grainBuffer->inUse;
+	}
+	return false;
+}
