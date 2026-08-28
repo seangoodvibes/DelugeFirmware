@@ -40,7 +40,7 @@ namespace {
 
 using hid::display::OLED;
 
-constexpr int32_t kUpdateIntervalMs = 500;
+constexpr int32_t kGraphicsSyncFallbackMs = 15;
 constexpr uint32_t kShowDescriptionDurationSamples = 44100;
 constexpr int32_t kOledVoiceCountAreaWidth = 21;
 constexpr int32_t kOledVoiceCountRight = OLED_MAIN_WIDTH_PIXELS - 1;
@@ -292,9 +292,7 @@ void ClipList::refreshEntries(Clip* clipToKeepSelected) {
 			}
 
 			const int32_t voiceCount = countClipVoices(clip);
-			if (voiceCount > 0) {
-				entries_.push_back({clip, clip->output, clip->output->type, voiceCount, sortIndex});
-			}
+			entries_.push_back({clip, clip->output, clip->output->type, voiceCount, sortIndex});
 			++sortIndex;
 		}
 	}
@@ -320,6 +318,7 @@ void ClipList::drawOledRows() {
 	}
 
 	constexpr int32_t maxVisible = OLED_HEIGHT_CHARS - 1;
+	const int32_t baseY = ((OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14) + OLED_MAIN_TOPMOST_PIXEL;
 	const int32_t numEntries = entries_.size();
 	const int32_t numVisible = std::min(maxVisible, numEntries);
 	int32_t firstVisible = selectedIndex_ - (numVisible >> 1);
@@ -328,7 +327,7 @@ void ClipList::drawOledRows() {
 	for (int32_t visibleIndex = 0; visibleIndex < numVisible; ++visibleIndex) {
 		const int32_t entryIndex = firstVisible + visibleIndex;
 		const Entry& entry = entries_[entryIndex];
-		const int32_t y = visibleIndex * kTextSpacingY + OLED_MAIN_TOPMOST_PIXEL;
+		const int32_t y = visibleIndex * kTextSpacingY + baseY;
 
 		DEF_STACK_STRING_BUF(description, 128);
 		formatEntryDescription(entry, description);
@@ -418,7 +417,12 @@ void ClipList::formatEntryDescription(const Entry& entry, StringBuf& description
 }
 
 void ClipList::scheduleTimer() {
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kUpdateIntervalMs);
+	if (uiTimerManager.isTimerSet(TimerName::GRAPHICS_ROUTINE)) {
+		uiTimerManager.setTimerByOtherTimer(TimerName::UI_SPECIFIC, TimerName::GRAPHICS_ROUTINE);
+	}
+	else {
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kGraphicsSyncFallbackMs);
+	}
 }
 
 VoiceUsageMenu::VoiceUsageMenu(l10n::String newName, l10n::String newTitle, std::span<MenuItem*> newItems,
@@ -474,7 +478,12 @@ void VoiceUsageMenu::refreshChildValues() {
 }
 
 void VoiceUsageMenu::scheduleTimer() {
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kUpdateIntervalMs);
+	if (uiTimerManager.isTimerSet(TimerName::GRAPHICS_ROUTINE)) {
+		uiTimerManager.setTimerByOtherTimer(TimerName::UI_SPECIFIC, TimerName::GRAPHICS_ROUTINE);
+	}
+	else {
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kGraphicsSyncFallbackMs);
+	}
 }
 
 } // namespace deluge::gui::menu_item::voice_usage
