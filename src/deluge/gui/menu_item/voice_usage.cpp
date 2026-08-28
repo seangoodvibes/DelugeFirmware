@@ -162,7 +162,15 @@ void appendClipDescription(const Clip* clip, const Output* output, bool includeP
 
 	description.append(output->name.get());
 	description.append(" - ");
-	description.append(clip->name.get());
+	if (clip->name.get()[0] == '\0') {
+		description.append("Section ");
+		description.appendInt(clip->section + 1);
+	}
+	else {
+		description.appendInt(clip->section + 1);
+		description.append(": ");
+		description.append(clip->name.get());
+	}
 }
 
 void drawCenteredValue(int32_t value, const SlotPosition& slot) {
