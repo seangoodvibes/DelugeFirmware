@@ -68,6 +68,9 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid. In addition, notes which have had their probability, iterance or fill settings changed from default will be highlighted yellow to help quickly identify edited notes.
   - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the selected note row's audition pad will blink. You can select other note row's by pressing the note row audition pad or by scrolling with the vertical encoder.
   - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the :key[Select] encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
+- Added first and last iteration options. 
+  - Notes with first iteration are only active in the first loop when a clip is launched.
+  - Notes with last iteration are only active in the last loop when a clip is ending (e.g. due to a quantized mute / section change)
 
 ##### Layered Shortcuts
 
@@ -78,6 +81,27 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
   - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
   - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
+
+### Bug Fixes
+
+#### Unclassified Issues
+- Fixed something with CV (giving up both means 1 and 2 are each free (#4864)) - mark to elaborate
+- Numerous performance improvements relating to task management, voice management, and memory management.
+- Fix a number of MIDI issues dealing with device enumeration, sysex data transfer loss
+- Fix a number of file browser search issues
+- Fix audible click heard when launching section to switch between audio clips which are playing a seamless loop
+
+#### Official Firmware Issues
+- Folders in file browsers are now marked with a dot on 7SEG displays in the lower-right corner.
+- Fix memory corruption errors caused by viewing the Waveform Renderer
+
+#### 1.1 Firmware Issues
+- Arpeggiator octave mode setting is now loaded correctly from song file.
+
+#### 1.2 Firmware Issues
+
+- Pressing back in the DX7 preset browser now brings you back to the DX7 cartridge browser instead of the DX7 source menu.
+- Audio clip names are now saved and read from song file.
 
 ### Sound Engine
 
