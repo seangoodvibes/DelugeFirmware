@@ -84,44 +84,70 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 ### Bug Fixes
 
+Confidence key: High = strong evidence from issue/commit lineage and scope. Medium = likely correct, but scope/origin may overlap adjacent workflow changes.
+
 #### Unclassified Issues
 
-- Fixed CV/Gate channel assignment logic where releasing `BOTH` correctly frees channels `1` and `2` independently (`#4864`).
-- Fixed skipped encoder ticks and select-encoder handling issues (`#4842`, `#3963`, `#3964`, `#3936`, `#3938`).
-- Fixed nested once-task scheduling re-entry (`#4832`).
-- Fixed clip transpose edge cases where empty note rows could incorrectly veto transposition (`#4823`, `#4824`).
-- Fixed MIDI real-time playback noise and clock sync stability (`#4822`, `#4770`, `#4769`, `#4618`, `#4462`, `#4352`).
-- Fixed USB host / MIDI enumeration reliability issues, including descriptor-request hangs and disappearing devices (`#4836`, `#4610`, `#4535`, `#4759`).
-- Fixed browser/file-search behaviour including forward-only search and fast-scroll viewport clamp issues (`#4584`, `#4752`, `#4782`).
-- Fixed audible clicks around seamless audio loops, including section launch transitions and first-note playback after song load (`#4739`, `#4858`).
-- Fixed memory-safety and null-pointer crash classes across UI/audio paths (`#4805`, `#4638`, `#4598`, `#4596`, `#4476`, `#4475`).
+- Fixed CV/Gate channel assignment logic where releasing `BOTH` correctly frees channels `1` and `2` independently (`#4864`). Confidence: High.
+  - Symptom: after toggling `BOTH`, channel availability could be left in an incorrect state and block expected CV/Gate routing.
+- Fixed skipped encoder ticks and select-encoder handling issues (`#4842`, `#3963`, `#3964`, `#3936`, `#3938`). Confidence: Medium.
+  - Symptom: fast or fine knob turns could be missed, making value changes feel jumpy or inconsistent.
+- Fixed nested once-task scheduling re-entry (`#4832`). Confidence: High.
+  - Symptom: under specific task timing, one-shot work could run with stale task identity and cause unstable behavior.
+- Fixed clip transpose edge cases where empty note rows could incorrectly veto transposition (`#4823`, `#4824`). Confidence: High.
+  - Symptom: transpose commands could appear to fail when clips contained empty note rows.
+- Fixed MIDI real-time playback noise and clock sync stability (`#4822`, `#4770`, `#4769`, `#4618`, `#4462`, `#4352`). Confidence: Medium.
+  - Symptom: playback could emit unintended real-time MIDI messages, jitter, or clock-sync dropouts with external sync devices.
+- Fixed USB host / MIDI enumeration reliability issues, including descriptor-request hangs and disappearing devices (`#4836`, `#4610`, `#4535`, `#4759`). Confidence: High.
+  - Symptom: connected MIDI devices could fail to appear, disappear while browsing, or hang during USB descriptor reads.
+- Fixed browser/file-search behaviour including forward-only search and fast-scroll viewport clamp issues (`#4584`, `#4752`, `#4782`). Confidence: Medium.
+  - Symptom: searches could miss expected results when moving backward, and rapid browsing could misalign the visible file list window.
+- Fixed audible clicks around seamless audio loops, including section launch transitions and first-note playback after song load (`#4739`, `#4858`). Confidence: Medium.
+  - Symptom: users could hear clicks/pops when switching sections or when a loaded song played the first audio event.
+- Fixed memory-safety and null-pointer crash classes across UI/audio paths (`#4805`, `#4638`, `#4598`, `#4596`, `#4476`, `#4475`). Confidence: High.
+  - Symptom: certain edit/navigation paths could trigger freezes, hard faults, or sudden restarts.
 
 #### Official Firmware Issues
 
-- Folders in file browsers are now marked with a dot on 7SEG displays in the lower-right corner.
-- Fixed long-standing memory corruption triggered by waveform rendering / waveform viewing.
-- Fixed long-standing arranger playback and automation undo inconsistencies (`#4611`, `#4540`, `#4445`).
+- Folders in file browsers are now marked with a dot on 7SEG displays in the lower-right corner. Confidence: High.
+  - Symptom: on 7SEG units, folders could be hard to distinguish from files while navigating storage.
+- Fixed long-standing memory corruption triggered by waveform rendering / waveform viewing. Confidence: High.
+  - Symptom: repeatedly viewing/rendering waveforms could lead to corruption-like behavior and eventual instability.
+- Fixed long-standing arranger playback and automation undo inconsistencies (`#4611`, `#4540`, `#4445`). Confidence: Medium.
+  - Symptom: arranger start/transport or undo actions on automation edits could behave inconsistently in edge cases.
 
 #### 1.1 Firmware Issues
 
-- Arpeggiator octave mode (`UP_DOWN`) now loads correctly from song files.
+- Arpeggiator octave mode (`UP_DOWN`) now loads correctly from song files. Confidence: High.
+  - Symptom: songs saved with `UP_DOWN` could reload with an incorrect arp mode mapping.
 
 #### 1.2 Firmware Issues
 
-- Pressing back in the DX7 preset browser now brings you back to the DX7 cartridge browser instead of the DX7 source menu.
-- Fixed arranger automation view edge cases and related UI-state inconsistencies.
-- Fixed patch-cable menu consistency introduced during the 1.2+ UI workflow changes.
-- Fixed patch-cable regressions affecting selection, navigation, and automation state (`#4854`, `#4440`).
-- Fixed DX7 browser/menu regressions and operator toggle behaviour (`#4866`, `#4401`, `#4669`, `#4101`).
-- Fixed linear-recording note-array issues (ghost notes and note-length edge cases) (`#4564`, `#4225`, `#4477`).
+- Pressing back in the DX7 preset browser now brings you back to the DX7 cartridge browser instead of the DX7 source menu. Confidence: High.
+  - Symptom: exiting a DX7 preset list could jump to the wrong level, adding extra navigation steps.
+- Fixed arranger automation view edge cases and related UI-state inconsistencies. Confidence: Medium.
+  - Symptom: entering or leaving arranger automation could occasionally leave controls/pad states out of sync with the current context.
+- Fixed patch-cable menu consistency introduced during the 1.2+ UI workflow changes. Confidence: Medium.
+  - Symptom: patch-cable menu labels/options could present inconsistently across related entry paths.
+- Fixed patch-cable regressions affecting selection, navigation, and automation state (`#4854`, `#4440`). Confidence: Medium.
+  - Symptom: selecting or moving through patch-cable parameters could intermittently target the wrong item or state.
+- Fixed DX7 browser/menu regressions and operator toggle behaviour (`#4866`, `#4401`, `#4669`, `#4101`). Confidence: Medium.
+  - Symptom: DX7 browsing and operator switch interactions could return to unexpected menus or toggle unreliably.
+- Fixed linear-recording note-array issues (ghost notes and note-length edge cases) (`#4564`, `#4225`, `#4477`). Confidence: Medium.
+  - Symptom: linear recordings could contain extra ghost notes or incorrect note durations near recording boundaries.
 
 #### Pre-1.2 Long-standing Issues (Includes 1.0 / 1.1 Era and Earlier)
 
-- Fixed transpose bounds bugs that could push notes out of playable range (`#2320`, `#4661`, `#4794`).
-- Fixed long-standing stuck-note / note-lifecycle issues in keyboard and drone-related flows (`#3168`, `#4660`, `#4119`).
-- Fixed a long-standing SampleRecorder lifecycle crash in SD-card routines (`#3309`, `#4671`).
-- Fixed looping sample playback regressions and time-stretch crash cases (`#3768`, `#4109`, `#4110`, `#4515`, `#4623`).
-- Fixed long-standing patch-cable / randomizer crash paths in specific menu conditions (`#4014`, `#4476`, `#3905`).
+- Fixed transpose bounds bugs that could push notes out of playable range (`#2320`, `#4661`, `#4794`). Confidence: High.
+  - Symptom: large transpose actions could exceed safe note limits and produce invalid or unreachable pitches.
+- Fixed long-standing stuck-note / note-lifecycle issues in keyboard and drone-related flows (`#3168`, `#4660`, `#4119`). Confidence: Medium.
+  - Symptom: notes could remain latched/stuck after rapid play or specific keyboard/drone interaction sequences.
+- Fixed a long-standing crash that could occur while recording samples during SD-card operations (`#3309`, `#4671`). Confidence: High.
+  - Symptom: recording while storage work was active could occasionally crash the unit.
+- Fixed looping sample playback regressions and time-stretch crash cases (`#3768`, `#4109`, `#4110`, `#4515`, `#4623`). Confidence: High.
+  - Symptom: looping sample presets could glitch, play back incorrectly, or crash in time-stretched loop scenarios.
+- Fixed long-standing patch-cable crash paths in specific menu conditions (`#4014`, `#4476`). Confidence: Medium.
+  - Symptom: converting clips or learning/mod-routing in certain states could trigger a patch-cable-related crash.
 
 ### Sound Engine
 
