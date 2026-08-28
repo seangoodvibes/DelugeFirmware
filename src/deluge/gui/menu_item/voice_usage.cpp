@@ -46,6 +46,16 @@ constexpr int32_t kOledVoiceCountAreaWidth = 21;
 constexpr int32_t kOledVoiceCountRight = OLED_MAIN_WIDTH_PIXELS - 1;
 constexpr int32_t kOledDescriptionEndX = OLED_MAIN_WIDTH_PIXELS - kOledVoiceCountAreaWidth;
 
+void appendIntSafely(StringBuf& destination, int32_t value, int32_t minDigits = 1) {
+	char valueBuffer[16] = {0};
+	intToString(value, valueBuffer, minDigits);
+	destination.append(valueBuffer);
+}
+
+[[nodiscard]] bool isRenderableClip(const Clip* clip) {
+	return clip != nullptr && clip->output != nullptr;
+}
+
 [[nodiscard]] bool isActiveClip(Clip* clip) {
 	return currentSong != nullptr && clip != nullptr && clip->output != nullptr && currentSong->isClipActive(clip)
 	       && clip->isActiveOnOutput();
@@ -187,10 +197,10 @@ void appendClipDescription(const Clip* clip, const Output* output, bool includeP
 	description.append(output->name.get());
 	description.append(" (");
 	if (clip->name.get()[0] == '\0') {
-		description.appendInt(clip->section + 1);
+		appendIntSafely(description, clip->section + 1);
 	}
 	else {
-		description.appendInt(clip->section + 1);
+		appendIntSafely(description, clip->section + 1);
 		description.append(": ");
 		description.append(clip->name.get());
 	}
@@ -199,7 +209,7 @@ void appendClipDescription(const Clip* clip, const Output* output, bool includeP
 
 void drawCenteredValue(int32_t value, const SlotPosition& slot) {
 	DEF_STACK_STRING_BUF(valueText, 8);
-	valueText.appendInt(value);
+	appendIntSafely(valueText, value);
 	const int32_t textWidth = OLED::main.getStringWidthInPixels(valueText.c_str(), kTextTitleSizeY);
 	const int32_t x = slot.start_x + std::max<int32_t>(0, (slot.width - textWidth) >> 1);
 	const int32_t y = slot.start_y + std::max<int32_t>(0, (slot.height - kTextTitleSizeY) >> 1);
@@ -215,6 +225,10 @@ ClipList::ClipList(l10n::String newName, l10n::String newTitle, Mode newMode, co
 void ClipList::beginSession(MenuItem* navigatedBackwardFrom) {
 	MenuItem::beginSession(navigatedBackwardFrom);
 	showingDescriptionOn7Seg_ = false;
+	sevenSegDescriptionActive_ = false;
+	lastSevenSegDescriptionClip_ = nullptr;
+	oledScrollerActive_ = false;
+	lastOledScrollerClip_ = nullptr;
 	refreshEntries();
 	drawValue();
 	scheduleTimer();
@@ -222,6 +236,10 @@ void ClipList::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void ClipList::endSession() {
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+	sevenSegDescriptionActive_ = false;
+	lastSevenSegDescriptionClip_ = nullptr;
+	oledScrollerActive_ = false;
+	lastOledScrollerClip_ = nullptr;
 	MenuItem::endSession();
 }
 
@@ -247,7 +265,7 @@ void ClipList::drawName() {
 	DEF_STACK_STRING_BUF(text, 16);
 	text.append(columnLabel_);
 	text.append(" ");
-	text.appendInt(currentValue_);
+	appendIntSafely(text, currentValue_);
 	display->setScrollingText(text.c_str());
 }
 
@@ -265,6 +283,10 @@ void ClipList::selectEncoderAction(int32_t offset) {
 	setSelectedIndex(selectedIndex_ + offset);
 	lastSelectionMoveTime_ = AudioEngine::audioSampleTimer;
 	showingDescriptionOn7Seg_ = true;
+	sevenSegDescriptionActive_ = false;
+	lastSevenSegDescriptionClip_ = nullptr;
+	oledScrollerActive_ = false;
+	lastOledScrollerClip_ = nullptr;
 	drawValue();
 }
 
@@ -273,23 +295,35 @@ MenuItem* ClipList::selectButtonPress() {
 }
 
 ActionResult ClipList::timerCallback() {
-	Clip* selectedClip = nullptr;
-	if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int32_t>(entries_.size())) {
-		selectedClip = entries_[selectedIndex_].clip;
-	}
+	const int32_t previousSummaryCount = currentValue_;
+	const int32_t previousSelectedVoiceCount = getSelectedVoiceCount();
+	const int32_t previousEntryCount = static_cast<int32_t>(entries_.size());
+	Clip* previousSelectedClip = getSelectedClip();
 
-	refreshEntries(selectedClip);
+	refreshEntries(previousSelectedClip);
+
+	const bool listChanged =
+	    previousEntryCount != static_cast<int32_t>(entries_.size()) || previousSelectedClip != getSelectedClip();
+	const bool valueChanged =
+	    previousSummaryCount != currentValue_ || previousSelectedVoiceCount != getSelectedVoiceCount();
+	bool shouldRedraw = listChanged || valueChanged;
 
 	if (display->have7SEG() && showingDescriptionOn7Seg_) {
 		if (AudioEngine::audioSampleTimer - lastSelectionMoveTime_ < kShowDescriptionDurationSamples) {
+			if (shouldRedraw) {
+				drawValue();
+			}
 			scheduleTimer();
 			return ActionResult::DEALT_WITH;
 		}
 
 		showingDescriptionOn7Seg_ = false;
+		shouldRedraw = true;
 	}
 
-	drawValue();
+	if (shouldRedraw) {
+		drawValue();
+	}
 	scheduleTimer();
 	return ActionResult::DEALT_WITH;
 }
@@ -311,7 +345,7 @@ void ClipList::getColumnLabel(StringBuf& label) {
 }
 
 void ClipList::getNotificationValue(StringBuf& valueBuf) {
-	valueBuf.appendInt(currentValue_);
+	appendIntSafely(valueBuf, currentValue_);
 }
 
 void ClipList::renderInHorizontalMenu(const SlotPosition& slot) {
@@ -323,10 +357,22 @@ void ClipList::refreshEntries(Clip* clipToKeepSelected) {
 	const int32_t previousIndex = selectedIndex_;
 	entries_.clear();
 	currentValue_ = getSummaryCount();
+	if (currentSong != nullptr) {
+		const int32_t reserveCount =
+		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+		if (reserveCount > static_cast<int32_t>(entries_.capacity())) {
+			entries_.reserve(reserveCount);
+		}
+	}
 
 	if (currentSong != nullptr) {
 		int32_t sortIndex = 0;
 		for (Clip* clip : AllClips::everywhere(currentSong)) {
+			if (clip == nullptr) {
+				FREEZE_WITH_ERROR("VU01");
+				++sortIndex;
+				continue;
+			}
 			if (!isActiveClip(clip)) {
 				++sortIndex;
 				continue;
@@ -361,6 +407,8 @@ void ClipList::drawOledRows() {
 	if (entries_.empty()) {
 		const char* message = l10n::get(l10n::String::STRING_FOR_NO_ACTIVE_CLIPS);
 		OLED::main.drawStringCentered(message, 0, 18, kTextSpacingX, kTextSpacingY, OLED_MAIN_WIDTH_PIXELS);
+		oledScrollerActive_ = false;
+		lastOledScrollerClip_ = nullptr;
 		return;
 	}
 
@@ -376,13 +424,17 @@ void ClipList::drawOledRows() {
 	for (int32_t visibleIndex = 0; visibleIndex < numVisible; ++visibleIndex) {
 		const int32_t entryIndex = firstVisible + visibleIndex;
 		const Entry& entry = entries_[entryIndex];
+		if (!isRenderableClip(entry.clip)) {
+			FREEZE_WITH_ERROR("VU02");
+			continue;
+		}
 		const int32_t y = visibleIndex * kTextSpacingY + baseY;
 
 		DEF_STACK_STRING_BUF(description, 128);
 		formatEntryDescription(entry, description);
 
 		DEF_STACK_STRING_BUF(countText, 4);
-		countText.appendInt(entry.voiceCount, 2);
+		appendIntSafely(countText, entry.voiceCount, 2);
 
 		OLED::main.drawString(description.c_str(), kTextSpacingX, y, kTextSpacingX, kTextSpacingY, 0,
 		                      kOledDescriptionEndX);
@@ -390,8 +442,12 @@ void ClipList::drawOledRows() {
 
 		if (entryIndex == selectedIndex) {
 			OLED::main.invertArea(0, y, OLED_MAIN_WIDTH_PIXELS, kTextSpacingY);
-			OLED::setupSideScroller(0, description.c_str(), kTextSpacingX, kOledDescriptionEndX, y, y + kTextSpacingY,
-			                        kTextSpacingX, kTextSpacingY, true);
+			if (!oledScrollerActive_ || lastOledScrollerClip_ != entry.clip) {
+				OLED::setupSideScroller(0, description.c_str(), kTextSpacingX, kOledDescriptionEndX, y,
+				                        y + kTextSpacingY, kTextSpacingX, kTextSpacingY, true);
+				oledScrollerActive_ = true;
+				lastOledScrollerClip_ = entry.clip;
+			}
 		}
 	}
 }
@@ -399,17 +455,32 @@ void ClipList::drawOledRows() {
 void ClipList::drawSevenSegmentValue() {
 	if (entries_.empty()) {
 		display->setText(l10n::get(l10n::String::STRING_FOR_NO_ACTIVE_CLIPS));
+		sevenSegDescriptionActive_ = false;
+		lastSevenSegDescriptionClip_ = nullptr;
 		return;
 	}
 
 	if (showingDescriptionOn7Seg_) {
-		DEF_STACK_STRING_BUF(description, 128);
-		formatSelectedDescription(description);
-		display->setScrollingText(description.c_str(), 0, 300, 1);
+		Clip* selectedClip = getSelectedClip();
+		if (selectedClip == nullptr) {
+			sevenSegDescriptionActive_ = false;
+			lastSevenSegDescriptionClip_ = nullptr;
+			return;
+		}
+
+		if (!sevenSegDescriptionActive_ || lastSevenSegDescriptionClip_ != selectedClip) {
+			DEF_STACK_STRING_BUF(description, 128);
+			formatSelectedDescription(description);
+			display->setScrollingText(description.c_str(), 0, 300, 1);
+			sevenSegDescriptionActive_ = true;
+			lastSevenSegDescriptionClip_ = selectedClip;
+		}
 	}
 	else {
+		sevenSegDescriptionActive_ = false;
+		lastSevenSegDescriptionClip_ = nullptr;
 		DEF_STACK_STRING_BUF(value, 4);
-		value.appendInt(getSelectedVoiceCount(), 2);
+		appendIntSafely(value, getSelectedVoiceCount(), 2);
 		display->setText(value.c_str(), true);
 	}
 }
@@ -441,6 +512,17 @@ void ClipList::preserveSelection(Clip* clipToKeepSelected, int32_t previousIndex
 	selectedIndex_ = std::clamp<int32_t>(previousIndex, 0, static_cast<int32_t>(entries_.size()) - 1);
 }
 
+Clip* ClipList::getSelectedClip() const {
+	if (entries_.empty()) {
+		return nullptr;
+	}
+	if (selectedIndex_ < 0 || selectedIndex_ >= static_cast<int32_t>(entries_.size())) {
+		return nullptr;
+	}
+
+	return entries_[selectedIndex_].clip;
+}
+
 int32_t ClipList::getSummaryCount() const {
 	return countClipsForMode(mode_);
 }
@@ -468,6 +550,12 @@ void ClipList::formatSelectedDescription(StringBuf& description) const {
 }
 
 void ClipList::formatEntryDescription(const Entry& entry, StringBuf& description) const {
+	if (!isRenderableClip(entry.clip)) {
+		FREEZE_WITH_ERROR("VU03");
+		description.append("-");
+		return;
+	}
+
 	appendClipDescription(entry.clip, entry.clip->output, mode_ == Mode::TOTAL, description);
 }
 

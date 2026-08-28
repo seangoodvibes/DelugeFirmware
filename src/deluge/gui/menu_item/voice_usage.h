@@ -66,6 +66,7 @@ private:
 	void drawSevenSegmentValue();
 	void setSelectedIndex(int32_t newIndex);
 	void preserveSelection(Clip* clipToKeepSelected, int32_t previousIndex);
+	[[nodiscard]] Clip* getSelectedClip() const;
 	[[nodiscard]] int32_t getSummaryCount() const;
 	[[nodiscard]] int32_t getSelectedVoiceCount() const;
 	void formatSelectedDescription(StringBuf& description) const;
@@ -79,6 +80,10 @@ private:
 	int32_t currentValue_{0};
 	uint32_t lastSelectionMoveTime_{0};
 	bool showingDescriptionOn7Seg_{false};
+	Clip* lastSevenSegDescriptionClip_{nullptr};
+	bool sevenSegDescriptionActive_{false};
+	Clip* lastOledScrollerClip_{nullptr};
+	bool oledScrollerActive_{false};
 };
 
 class VoiceUsageMenu final : public HorizontalMenu {
