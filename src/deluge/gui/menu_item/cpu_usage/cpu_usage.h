@@ -68,4 +68,26 @@ private:
 	void schedule_timer();
 };
 
+class SummaryMenu final : public HorizontalMenu {
+public:
+	SummaryMenu(l10n::String new_name, l10n::String new_title, const char* new_column_label,
+	            std::span<const CPUUsageType> new_types, std::span<MenuItem*> new_items, MenuItem* default_item);
+
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	void endSession() override;
+	void readCurrentValue() override;
+	ActionResult timerCallback() override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
+	void getColumnLabel(StringBuf& label) override;
+	[[nodiscard]] bool showColumnLabel() const override { return true; }
+
+private:
+	void refresh_child_values();
+	void schedule_timer();
+
+	std::span<const CPUUsageType> types_;
+	const char* column_label_;
+	int32_t value_{0};
+};
+
 } // namespace deluge::gui::menu_item::cpu_usage

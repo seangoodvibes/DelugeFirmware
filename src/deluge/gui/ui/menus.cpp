@@ -1323,19 +1323,150 @@ PLACE_SDRAM_BSS Submenu fxUsageSubmenu{
 
 PLACE_SDRAM_BSS HorizontalMenuGroup fxUsageMenuGroup{{&delayUsageMenu, &grainUsageMenu}};
 
-PLACE_SDRAM_BSS Submenu cpuUsageMenu{
-    STRING_FOR_CPU_USAGE,
-    STRING_FOR_CPU_USAGE,
-    {
-        &voiceUsageSubmenu,
-        &sampleUsageSubmenu,
-        &wavetableUsageSubmenu,
-        &livePitchShiftUsageSubmenu,
-        &dx7UsageSubmenu,
-        &filterUsageSubmenu,
-        &fxUsageSubmenu,
-    },
+const CPUUsageType rawVoiceUsageTypes[] = {CPUUsageType::VOICE};
+const CPUUsageType unisonUsageTypes[] = {CPUUsageType::VOICE_UNISON};
+const CPUUsageType voiceUsageTypes[] = {CPUUsageType::VOICE, CPUUsageType::VOICE_UNISON};
+const CPUUsageType sampleUsageTypes[] = {CPUUsageType::OSC_SAMPLE};
+const CPUUsageType sampleTimestretchUsageTypes[] = {CPUUsageType::OSC_SAMPLE_STRETCH};
+const CPUUsageType sampleCacheUsageTypes[] = {CPUUsageType::OSC_SAMPLE_CACHE};
+const CPUUsageType sampleGroupUsageTypes[] = {
+    CPUUsageType::OSC_SAMPLE,
+    CPUUsageType::OSC_SAMPLE_STRETCH,
+    CPUUsageType::OSC_SAMPLE_CACHE,
 };
+const CPUUsageType wavetableUsageTypes[] = {CPUUsageType::OSC_WAVETABLE};
+const CPUUsageType livePitchShiftUsageTypes[] = {CPUUsageType::OSC_LIVE_PITCH};
+const CPUUsageType dx7UsageTypes[] = {CPUUsageType::OSC_DX7};
+const CPUUsageType filterUsageTypes[] = {CPUUsageType::FILTER};
+const CPUUsageType delayUsageTypes[] = {CPUUsageType::FX_DELAY};
+const CPUUsageType grainUsageTypes[] = {CPUUsageType::FX_GRAIN};
+const CPUUsageType fxUsageTypes[] = {CPUUsageType::FX_DELAY, CPUUsageType::FX_GRAIN};
+
+PLACE_SDRAM_DATA MenuItem* rawVoiceUsageSummaryItems[] = {
+    &totalRawVoiceUsageMenu, &songRawVoiceUsageMenu,  &synthRawVoiceUsageMenu,
+    &kitRawVoiceUsageMenu,   &audioRawVoiceUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu rawVoiceUsageSummaryMenu{
+    STRING_FOR_VOICE_RAW_USAGE, STRING_FOR_VOICE_RAW_USAGE, "RAW",
+    rawVoiceUsageTypes,         rawVoiceUsageSummaryItems,  &totalRawVoiceUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* unisonUsageSummaryItems[] = {
+    &totalUnisonUsageMenu,
+    &synthUnisonUsageMenu,
+    &kitUnisonUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu unisonUsageSummaryMenu{
+    STRING_FOR_VOICE_UNISON_USAGE, STRING_FOR_VOICE_UNISON_USAGE, "UNISON", unisonUsageTypes,
+    unisonUsageSummaryItems,       &totalUnisonUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* voiceUsageSummaryItems[] = {
+    &rawVoiceUsageSummaryMenu,
+    &unisonUsageSummaryMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu voiceUsageSummaryMenu{
+    STRING_FOR_VOICE_USAGE, STRING_FOR_VOICE_USAGE, "VOICE",
+    voiceUsageTypes,        voiceUsageSummaryItems, &rawVoiceUsageSummaryMenu};
+
+PLACE_SDRAM_DATA MenuItem* sampleRawUsageSummaryItems[] = {
+    &totalSampleUsageMenu,
+    &synthSampleUsageMenu,
+    &kitSampleUsageMenu,
+    &audioSampleUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu sampleRawUsageSummaryMenu{
+    STRING_FOR_OSC_SAMPLE_USAGE, STRING_FOR_OSC_SAMPLE_USAGE, "RAW", sampleUsageTypes,
+    sampleRawUsageSummaryItems,  &totalSampleUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* sampleTimestretchUsageSummaryItems[] = {
+    &totalSampleTimestretchUsageMenu,
+    &synthSampleTimestretchUsageMenu,
+    &kitSampleTimestretchUsageMenu,
+    &audioSampleTimestretchUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu sampleTimestretchUsageSummaryMenu{
+    STRING_FOR_OSC_SAMPLE_STRETCH_USAGE, STRING_FOR_OSC_SAMPLE_STRETCH_USAGE, "STRETCH",
+    sampleTimestretchUsageTypes,         sampleTimestretchUsageSummaryItems,  &totalSampleTimestretchUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* sampleCacheUsageSummaryItems[] = {
+    &totalSampleCacheUsageMenu,
+    &synthSampleCacheUsageMenu,
+    &kitSampleCacheUsageMenu,
+    &audioSampleCacheUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu sampleCacheUsageSummaryMenu{
+    STRING_FOR_OSC_SAMPLE_CACHE_USAGE, STRING_FOR_OSC_SAMPLE_CACHE_USAGE, "CACHE", sampleCacheUsageTypes,
+    sampleCacheUsageSummaryItems,      &totalSampleCacheUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* sampleUsageSummaryItems[] = {
+    &sampleRawUsageSummaryMenu,
+    &sampleTimestretchUsageSummaryMenu,
+    &sampleCacheUsageSummaryMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu sampleUsageSummaryMenu{
+    STRING_FOR_OSC_SAMPLE_USAGE, STRING_FOR_OSC_SAMPLE_USAGE, "SAMPLE",
+    sampleGroupUsageTypes,       sampleUsageSummaryItems,     &sampleRawUsageSummaryMenu};
+
+PLACE_SDRAM_DATA MenuItem* wavetableUsageSummaryItems[] = {
+    &totalWavetableUsageMenu,
+    &synthWavetableUsageMenu,
+    &kitWavetableUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu wavetableUsageSummaryMenu{
+    STRING_FOR_OSC_WAVETABLE_USAGE, STRING_FOR_OSC_WAVETABLE_USAGE, "WAVETABLE", wavetableUsageTypes,
+    wavetableUsageSummaryItems,     &totalWavetableUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* livePitchShiftUsageSummaryItems[] = {
+    &totalLivePitchShiftUsageMenu,
+    &synthLivePitchShiftUsageMenu,
+    &kitLivePitchShiftUsageMenu,
+    &audioLivePitchShiftUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu livePitchShiftUsageSummaryMenu{
+    STRING_FOR_OSC_LIVE_PITCH_USAGE, STRING_FOR_OSC_LIVE_PITCH_USAGE, "LIVE PITCH",
+    livePitchShiftUsageTypes,        livePitchShiftUsageSummaryItems, &totalLivePitchShiftUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* dx7UsageSummaryItems[] = {
+    &totalDX7UsageMenu,
+    &synthDX7UsageMenu,
+    &kitDX7UsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu dx7UsageSummaryMenu{
+    STRING_FOR_OSC_DX7_USAGE, STRING_FOR_OSC_DX7_USAGE, "DX7", dx7UsageTypes, dx7UsageSummaryItems, &totalDX7UsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* filterUsageSummaryItems[] = {
+    &totalFilterUsageMenu, &songFilterUsageMenu, &synthFilterUsageMenu, &kitFilterUsageMenu, &audioFilterUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu filterUsageSummaryMenu{
+    STRING_FOR_FILTER_USAGE, STRING_FOR_FILTER_USAGE, "FILTER",
+    filterUsageTypes,        filterUsageSummaryItems, &totalFilterUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* delayUsageSummaryItems[] = {
+    &totalDelayUsageMenu, &songDelayUsageMenu, &synthDelayUsageMenu, &kitDelayUsageMenu, &audioDelayUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu delayUsageSummaryMenu{
+    STRING_FOR_FX_DELAY_USAGE, STRING_FOR_FX_DELAY_USAGE, "DELAY",
+    delayUsageTypes,           delayUsageSummaryItems,    &totalDelayUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* grainUsageSummaryItems[] = {
+    &totalGrainUsageMenu, &songGrainUsageMenu, &synthGrainUsageMenu, &kitGrainUsageMenu, &audioGrainUsageMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu grainUsageSummaryMenu{
+    STRING_FOR_FX_GRAIN_USAGE, STRING_FOR_FX_GRAIN_USAGE, "GRAIN",
+    grainUsageTypes,           grainUsageSummaryItems,    &totalGrainUsageMenu};
+
+PLACE_SDRAM_DATA MenuItem* fxUsageSummaryItems[] = {
+    &delayUsageSummaryMenu,
+    &grainUsageSummaryMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu fxUsageSummaryMenu{
+    STRING_FOR_FX_USAGE, STRING_FOR_FX_USAGE, "FX", fxUsageTypes, fxUsageSummaryItems, &delayUsageSummaryMenu};
+
+PLACE_SDRAM_DATA MenuItem* cpuUsageSummaryItems[] = {
+    &voiceUsageSummaryMenu, &sampleUsageSummaryMenu, &wavetableUsageSummaryMenu, &livePitchShiftUsageSummaryMenu,
+    &dx7UsageSummaryMenu,   &filterUsageSummaryMenu, &fxUsageSummaryMenu,
+};
+PLACE_SDRAM_BSS cpu_usage::Menu cpuUsageMenu{STRING_FOR_CPU_USAGE, STRING_FOR_CPU_USAGE, cpuUsageSummaryItems,
+                                             &voiceUsageSummaryMenu};
 
 PLACE_SDRAM_BSS runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS,
                                                                      STRING_FOR_COMMUNITY_FTS_MENU_TITLE};

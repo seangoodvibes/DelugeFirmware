@@ -21,7 +21,9 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
+#include "util/cfunctions.h"
 #include <algorithm>
 
 namespace deluge::gui::menu_item::cpu_usage {
@@ -159,6 +161,80 @@ void Menu::refresh_child_values() {
 }
 
 void Menu::schedule_timer() {
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kUpdateIntervalMs);
+}
+
+SummaryMenu::SummaryMenu(l10n::String new_name, l10n::String new_title, const char* new_column_label,
+                         std::span<const CPUUsageType> new_types, std::span<MenuItem*> new_items,
+                         MenuItem* default_item)
+    : HorizontalMenu(new_name, new_title, new_items), types_(new_types), column_label_(new_column_label) {
+	auto candidate_item = std::find(items.begin(), items.end(), default_item);
+	if (candidate_item != items.end()) {
+		initial_index_ = candidate_item - items.begin();
+	}
+}
+
+void SummaryMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+	HorizontalMenu::beginSession(navigatedBackwardFrom);
+	refresh_child_values();
+
+	if (renderingStyle() == HORIZONTAL) {
+		schedule_timer();
+	}
+}
+
+void SummaryMenu::endSession() {
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+	HorizontalMenu::endSession();
+}
+
+void SummaryMenu::readCurrentValue() {
+	int32_t value = 0;
+	for (CPUUsageType type : types_) {
+		value += count_usage_for_type_and_context(type, CPUUsageContext::TOTAL);
+	}
+	value_ = std::min<int32_t>(value, 999);
+}
+
+ActionResult SummaryMenu::timerCallback() {
+	if (renderingStyle() != HORIZONTAL) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	refresh_child_values();
+
+	if (display->have7SEG()) {
+		updateDisplay();
+	}
+	else {
+		renderUIsForOled();
+	}
+
+	schedule_timer();
+
+	return ActionResult::DEALT_WITH;
+}
+
+void SummaryMenu::renderInHorizontalMenu(const SlotPosition& slot) {
+	DEF_STACK_STRING_BUF(value, 10);
+	value.appendInt(value_);
+	OLED::main.drawStringCentered(value.c_str(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+	                              kTextTitleSpacingX, kTextTitleSizeY, slot.width);
+}
+
+void SummaryMenu::getColumnLabel(StringBuf& label) {
+	label.append(column_label_);
+}
+
+void SummaryMenu::refresh_child_values() {
+	for (MenuItem* item : items) {
+		if (item != nullptr) {
+			item->readCurrentValue();
+		}
+	}
+}
+
+void SummaryMenu::schedule_timer() {
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kUpdateIntervalMs);
 }
 
