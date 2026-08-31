@@ -70,7 +70,7 @@ constexpr int32_t k_max_raw_unfiltered_dx7_voices = 50;
 constexpr int32_t k_max_raw_filtered_dx7_voices =
     k_max_raw_unfiltered_dx7_voices >> k_filter_impact; // filters cut voice performance in half
 /// Live Input Pitchshifter
-constexpr int32_t k_max_raw_unfiltered_live_input_pitchshifter_voices = 30;
+constexpr int32_t k_max_raw_unfiltered_live_input_pitchshifter_voices = 7;
 constexpr int32_t k_max_raw_filtered_live_input_pitchshifter_voices =
     k_max_raw_unfiltered_live_input_pitchshifter_voices >> k_filter_impact; // filters cut voice performance in half
 /// Short samples
