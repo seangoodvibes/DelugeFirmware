@@ -1373,9 +1373,12 @@ PLACE_SDRAM_DATA MenuItem* sampleRawUsageSummaryItems[] = {
     &kitSampleUsageMenu,
     &audioSampleUsageMenu,
 };
-PLACE_SDRAM_BSS cpu_usage::SummaryMenu sampleRawUsageSummaryMenu{
-    STRING_FOR_OSC_SAMPLE_USAGE, STRING_FOR_OSC_SAMPLE_USAGE, "RAW", sampleUsageTypes,
-    sampleRawUsageSummaryItems,  &totalSampleUsageMenu};
+PLACE_SDRAM_BSS cpu_usage::SummaryMenu sampleRawUsageSummaryMenu{STRING_FOR_OSC_SAMPLE_RAW_USAGE,
+                                                                 STRING_FOR_OSC_SAMPLE_RAW_USAGE,
+                                                                 "RAW",
+                                                                 sampleUsageTypes,
+                                                                 sampleRawUsageSummaryItems,
+                                                                 &totalSampleUsageMenu};
 
 PLACE_SDRAM_DATA MenuItem* sampleTimestretchUsageSummaryItems[] = {
     &totalSampleTimestretchUsageMenu,
