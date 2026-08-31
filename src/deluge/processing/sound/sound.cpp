@@ -5157,15 +5157,17 @@ size_t Sound::num_active_sample_voices(CPUUsageType type) {
 					continue;
 				}
 
+				/*
 				if (voice_sample->cache != nullptr) {
-					SampleCache* cache = voice_sample->cache;
-					D_PRINTLN("Audio clip sample cache end bytes: %d of %d", voice_sample->cacheBytePos,
-					          cache->writeBytePos);
-					D_PRINTLN("Audio clip sample cache end kilobytes: %d of %d", voice_sample->cacheBytePos / 1024,
-					          cache->writeBytePos / 1024);
-					D_PRINTLN("Audio clip sample cache end megabytes: %d of %d",
-					          voice_sample->cacheBytePos / (1024 * 1024), cache->writeBytePos / (1024 * 1024));
+				    SampleCache* cache = voice_sample->cache;
+				    D_PRINTLN("Audio clip sample cache end bytes: %d of %d", voice_sample->cacheBytePos,
+				              cache->writeBytePos);
+				    D_PRINTLN("Audio clip sample cache end kilobytes: %d of %d", voice_sample->cacheBytePos / 1024,
+				              cache->writeBytePos / 1024);
+				    D_PRINTLN("Audio clip sample cache end megabytes: %d of %d",
+				              voice_sample->cacheBytePos / (1024 * 1024), cache->writeBytePos / (1024 * 1024));
 				}
+				*/
 
 				// is there an audio file holder
 				AudioFileHolder* audio_file_holder = voice->guides[s].audioFileHolder;

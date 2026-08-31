@@ -43,6 +43,7 @@ public:
 	bool selectEncoderActionIsPermitted() override { return false; }
 	bool showNotification() const override { return false; }
 	void getColumnLabel(StringBuf& label) override;
+	[[nodiscard]] bool consumeValueChanged();
 
 private:
 	void scheduleTimer();
@@ -52,6 +53,8 @@ private:
 
 	CPUUsageType type_;
 	CPUUsageContext context_;
+	bool value_changed_{true};
+	uint32_t last_actual_display_time_{0};
 };
 
 class Menu final : public HorizontalMenu {
@@ -64,8 +67,9 @@ public:
 	ActionResult timerCallback() override;
 
 private:
-	void refresh_child_values();
+	[[nodiscard]] bool refresh_child_values();
 	void schedule_timer();
+	uint32_t last_actual_display_time_{0};
 };
 
 class SummaryMenu final : public HorizontalMenu {
@@ -80,14 +84,17 @@ public:
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getColumnLabel(StringBuf& label) override;
 	[[nodiscard]] bool showColumnLabel() const override { return true; }
+	[[nodiscard]] bool consumeValueChanged();
 
 private:
-	void refresh_child_values();
+	[[nodiscard]] bool refresh_child_values();
 	void schedule_timer();
 
 	std::span<const CPUUsageType> types_;
 	const char* column_label_;
 	int32_t value_{0};
+	bool value_changed_{true};
+	uint32_t last_actual_display_time_{0};
 };
 
 } // namespace deluge::gui::menu_item::cpu_usage
