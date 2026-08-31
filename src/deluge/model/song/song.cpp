@@ -5566,20 +5566,39 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
-int32_t Song::countAudioClips() const {
-	int32_t i = 0;
-	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == OutputType::AUDIO) {
-			if (output->getActiveClip()) {
-				AudioClip* clip = (AudioClip*)output->getActiveClip();
-				// this seems to be the only way to find whether the voice is sounding
-				if (isClipActive(clip)) {
-					i++;
-				}
-			}
+size_t Song::getCPUUsageForSong(CPUUsageType type) {
+	// is playback off?
+	if (!playbackHandler.isEitherClockActive()) {
+		// get current level to check for silence
+		float approxRMSLevel = std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r);
+		if (approxRMSLevel < 9) {
+			// playback is off and song is silent, show CPU usage as zero
+			return 0;
 		}
 	}
-	return i;
+
+	return globalEffectable.getCPUUsage(1, type);
+}
+
+size_t Song::getCPUUsageForAllOutputs(CPUUsageType type) {
+	size_t usage = 0;
+
+	usage += getCPUUsageForSong(type);
+
+	for (Output* output = firstOutput; output; output = output->next) {
+		usage += output->getCPUUsage(type, this);
+	}
+	return usage;
+}
+
+size_t Song::getCPUUsageForOutputType(CPUUsageType type, OutputType output_type) {
+	size_t usage = 0;
+	for (Output* output = firstOutput; output; output = output->next) {
+		if (output->type == output_type) {
+			usage += output->getCPUUsage(type, this);
+		}
+	}
+	return usage;
 }
 
 void Song::cullAudioClipVoice() {

@@ -56,6 +56,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "storage/wave_table/wave_table.h"
 #include "util/comparison.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
@@ -5009,6 +5010,324 @@ void Sound::checkVoiceExists(const ActiveVoice& voice, const char* error) const 
 	if (std::ranges::find(voices_, voice) == voices_.end()) {
 		FREEZE_WITH_ERROR(error);
 	}
+}
+
+size_t Sound::getCPUUsage(CPUUsageType type) {
+	if (skippingRendering) {
+		return 0;
+	}
+
+	bool check_for_oscillator_usage = false;
+	bool check_for_sample_usage = false;
+	bool check_for_dx7_usage = false;
+	bool check_for_live_pitchshifter_usage = false;
+	bool check_for_wavetable_usage = false;
+
+	switch (type) {
+	case CPUUsageType::VOICE:
+		return numActiveVoices();
+	case CPUUsageType::VOICE_UNISON:
+		return num_active_unison_voices();
+	case CPUUsageType::FILTER:
+		return num_active_filter_voices();
+	case CPUUsageType::OSC_SAMPLE:
+	case CPUUsageType::OSC_SAMPLE_STRETCH:
+	case CPUUsageType::OSC_SAMPLE_CACHE:
+		check_for_sample_usage = true;
+		check_for_oscillator_usage = true;
+		break;
+	case CPUUsageType::OSC_WAVETABLE:
+		check_for_wavetable_usage = true;
+		check_for_oscillator_usage = true;
+		break;
+	case CPUUsageType::OSC_DX7:
+		check_for_dx7_usage = true;
+		check_for_oscillator_usage = true;
+		break;
+	case CPUUsageType::OSC_LIVE_PITCH:
+		check_for_live_pitchshifter_usage = true;
+		check_for_oscillator_usage = true;
+		break;
+	default:
+		break;
+	}
+
+	if (check_for_oscillator_usage) {
+		// check if any sources match the requested CPU usage type
+		for (int32_t s = 0; s < kNumSources; s++) {
+			// if the osc type matches the requested CPU usage type
+			if (getCPUUsageTypeForSource(sources[s].oscType) == type) {
+				if (check_for_sample_usage) {
+					return num_active_sample_voices(type);
+				}
+				else if (check_for_wavetable_usage) {
+					return num_active_wavetable_voices(type);
+				}
+				else if (check_for_dx7_usage) {
+					return num_active_dx7_voices();
+				}
+				else if (check_for_live_pitchshifter_usage) {
+					return num_active_live_pitchshifer_voices();
+				}
+			}
+		}
+		// no oscillator source type voices found
+		return 0;
+	}
+
+	return ModControllableAudio::getCPUUsage(num_active_unison_voices(), type);
+}
+
+CPUUsageType Sound::getCPUUsageTypeForSource(OscType oscType) {
+	switch (oscType) {
+	case OscType::SAMPLE:
+		return CPUUsageType::OSC_SAMPLE;
+	case OscType::DX7:
+		return CPUUsageType::OSC_DX7;
+	case OscType::INPUT_L:
+	case OscType::INPUT_R:
+	case OscType::INPUT_STEREO:
+		return CPUUsageType::OSC_LIVE_PITCH;
+	case OscType::WAVETABLE:
+		return CPUUsageType::OSC_WAVETABLE;
+	default:
+		break;
+	}
+	return CPUUsageType::NONE;
+}
+
+size_t Sound::num_active_filter_voices() {
+	if (voices_.empty()) {
+		return 0;
+	}
+
+	size_t voice_weight =
+	    get_unison_voice_weight(); // potentially weight the voice count higher if stereo unison is enabled
+	size_t voice_count = 0;
+
+	// For each voice...
+	for (ActiveVoice& voice : voices_) {
+		// Check if LPF or HPF filters are on
+		voice_count += voice->filterSet.isLPFOn() ? voice_weight : 0;
+		voice_count += voice->filterSet.isHPFOn() ? voice_weight : 0;
+	}
+
+	return voice_count;
+}
+
+size_t Sound::num_active_sample_voices(CPUUsageType type) {
+	if (voices_.empty()) {
+		return 0;
+	}
+
+	size_t voice_weight_mono =
+	    get_unison_voice_weight(); // potentially weight the voice count higher if stereo unison is enabled
+	size_t voice_weight_stereo = 2 * voice_weight_mono;
+	size_t voice_count = 0;
+
+	// For each voice...
+	for (ActiveVoice& voice : voices_) {
+		// For each source...
+		for (int32_t s = 0; s < kNumSources; s++) {
+			// is this a sample based oscillator
+			if (sources[s].oscType != OscType::SAMPLE) {
+				continue;
+			}
+
+			// For each unison part
+			for (int32_t u = 0; u < numUnison; u++) {
+				VoiceUnisonPartSource* voice_unison_part_source = &voice->unisonParts[u].sources[s];
+
+				// is the source active
+				if (!voice_unison_part_source->active) {
+					continue;
+				}
+
+				// is there a voice sample
+				VoiceSample* voice_sample = voice_unison_part_source->voiceSample;
+				if (voice_sample == nullptr) {
+					continue;
+				}
+
+				if (type == CPUUsageType::OSC_SAMPLE_STRETCH && voice_sample->timeStretcher == nullptr) {
+					continue;
+				}
+				else if (type == CPUUsageType::OSC_SAMPLE_CACHE && voice_sample->cache == nullptr
+				         && !voice_sample->writingToCache) {
+					continue;
+				}
+
+				if (voice_sample->cache != nullptr) {
+					SampleCache* cache = voice_sample->cache;
+					D_PRINTLN("Audio clip sample cache end bytes: %d of %d", voice_sample->cacheBytePos,
+					          cache->writeBytePos);
+					D_PRINTLN("Audio clip sample cache end kilobytes: %d of %d", voice_sample->cacheBytePos / 1024,
+					          cache->writeBytePos / 1024);
+					D_PRINTLN("Audio clip sample cache end megabytes: %d of %d",
+					          voice_sample->cacheBytePos / (1024 * 1024), cache->writeBytePos / (1024 * 1024));
+				}
+
+				// is there an audio file holder
+				AudioFileHolder* audio_file_holder = voice->guides[s].audioFileHolder;
+				if (audio_file_holder == nullptr) {
+					continue;
+				}
+
+				// is there a sample
+				Sample* sample = static_cast<Sample*>(audio_file_holder->audioFile);
+				if (sample == nullptr) {
+					continue;
+				}
+
+				if (sample->unplayable) {
+					continue;
+				}
+
+				// Double the count if it's a stereo sample
+				voice_count += (sample->numChannels == 2) ? voice_weight_stereo : voice_weight_mono;
+			}
+		}
+	}
+
+	return voice_count;
+}
+
+size_t Sound::num_active_wavetable_voices(CPUUsageType type) {
+	if (voices_.empty()) {
+		return 0;
+	}
+
+	size_t voice_weight =
+	    get_unison_voice_weight(); // potentially weight the voice count higher if stereo unison is enabled
+	size_t voice_count = 0;
+
+	// For each voice...
+	for (ActiveVoice& voice : voices_) {
+		// For each source...
+		for (int32_t s = 0; s < kNumSources; s++) {
+			// is this a wavetable based oscillator
+			if (sources[s].oscType != OscType::WAVETABLE) {
+				continue;
+			}
+
+			// For each unison part
+			for (int32_t u = 0; u < numUnison; u++) {
+				VoiceUnisonPartSource* voice_unison_part_source = &voice->unisonParts[u].sources[s];
+
+				// is the source active
+				if (!voice_unison_part_source->active) {
+					continue;
+				}
+
+				// is there an audio file holder
+				AudioFileHolder* audio_file_holder = voice->guides[s].audioFileHolder;
+				if (audio_file_holder == nullptr) {
+					continue;
+				}
+
+				// is there a wavetable
+				WaveTable* wave_table = static_cast<WaveTable*>(audio_file_holder->audioFile);
+				if (wave_table == nullptr) {
+					continue;
+				}
+
+				// are there any wavetable bands
+				if (wave_table->bands.getNumElements() == 0) {
+					continue;
+				}
+
+				voice_count += voice_weight;
+			}
+		}
+	}
+
+	return voice_count;
+}
+
+size_t Sound::num_active_dx7_voices() {
+	if (voices_.empty()) {
+		return 0;
+	}
+
+	size_t voice_weight =
+	    get_unison_voice_weight(); // potentially weight the voice count higher if stereo unison is enabled
+	size_t voice_count = 0;
+
+	// For each voice...
+	for (ActiveVoice& voice : voices_) {
+		// For each source...
+		for (int32_t s = 0; s < kNumSources; s++) {
+			// is this a dx7 oscillator
+			if (sources[s].oscType != OscType::DX7) {
+				continue;
+			}
+
+			// For each unison part
+			for (int32_t u = 0; u < numUnison; u++) {
+				VoiceUnisonPartSource* voice_unison_part_source = &voice->unisonParts[u].sources[s];
+
+				// is the source active
+				if (!voice_unison_part_source->active) {
+					continue;
+				}
+
+				// is a dx voice assigned to this source
+				if (voice_unison_part_source->dxVoice == nullptr) {
+					continue;
+				}
+
+				// potentially weight the voice count higher if stereo unison is enabled
+				voice_count += voice_weight;
+			}
+
+			// you can only have one DX7 oscillator source
+			break;
+		}
+	}
+
+	return voice_count;
+}
+
+size_t Sound::num_active_live_pitchshifer_voices() {
+	if (voices_.empty()) {
+		return 0;
+	}
+
+	size_t voice_weight =
+	    get_unison_voice_weight(); // potentially weight the voice count higher if stereo unison is enabled
+	size_t voice_count = 0;
+
+	// For each voice...
+	for (ActiveVoice& voice : voices_) {
+		// For each source...
+		for (int32_t s = 0; s < kNumSources; s++) {
+			// is this a live input oscillator
+			if (sources[s].oscType != OscType::INPUT_L && sources[s].oscType != OscType::INPUT_R
+			    && sources[s].oscType != OscType::INPUT_STEREO) {
+				continue;
+			}
+
+			// For each unison part
+			for (int32_t u = 0; u < numUnison; u++) {
+				VoiceUnisonPartSource* voice_unison_part_source = &voice->unisonParts[u].sources[s];
+
+				// is the source active
+				if (!voice_unison_part_source->active) {
+					continue;
+				}
+
+				// is a live pitch shifter assigned to this source
+				if (voice_unison_part_source->livePitchShifter == nullptr) {
+					continue;
+				}
+
+				// potentially weight the voice count higher if stereo unison is enabled
+				voice_count += voice_weight;
+			}
+		}
+	}
+
+	return voice_count;
 }
 
 #pragma GCC diagnostic pop

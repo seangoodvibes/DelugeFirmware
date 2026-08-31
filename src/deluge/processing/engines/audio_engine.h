@@ -181,8 +181,10 @@ uint32_t logAbsoluteIndex = 0;
 char* getEmptyLogEntry();
 void printLog();
 #endif
-int32_t getNumAudio();
-int32_t getNumVoices();
+size_t getCPUUsageForSong(CPUUsageType type);
+size_t getCPUUsageForAllOutputs(CPUUsageType type);
+size_t getCPUUsageForOutputType(CPUUsageType type, OutputType output_type);
+size_t getNumVoices();
 bool doSomeOutputting();
 void updateReverbParams();
 

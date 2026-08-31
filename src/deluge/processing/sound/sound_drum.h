@@ -53,6 +53,8 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void choke(ModelStackWithSoundFlags* modelStack) override;
 	void setSkippingRendering(bool newSkipping) override;
+	bool isSkippingRendering() { return skippingRendering; }
+	size_t getCPUUsage(CPUUsageType type);
 	uint8_t* getModKnobMode() override;
 	void drumWontBeRenderedForAWhile() override;
 	ModControllable* toModControllable() override { return this; }

@@ -430,7 +430,10 @@ public:
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
 
-	int32_t countAudioClips() const;
+	// Voice counts
+	size_t getCPUUsageForSong(CPUUsageType type);
+	size_t getCPUUsageForAllOutputs(CPUUsageType type);
+	size_t getCPUUsageForOutputType(CPUUsageType type, OutputType output_type);
 
 	// Chord memory
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};

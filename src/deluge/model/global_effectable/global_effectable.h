@@ -67,6 +67,9 @@ public:
 
 	ModFXType getModFXType() override;
 
+	// CPU usage
+	size_t getCPUUsage(size_t active_voices, CPUUsageType type);
+
 protected:
 	int maxCompParam = 0;
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);

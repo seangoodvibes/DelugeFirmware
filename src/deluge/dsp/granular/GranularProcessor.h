@@ -60,6 +60,7 @@ public:
 
 	void clearGrainFXBuffer();
 	void grainBufferStolen() { grainBuffer = nullptr; }
+	bool isActive();
 
 private:
 	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,

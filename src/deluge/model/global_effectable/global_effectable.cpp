@@ -788,6 +788,23 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	filterSet.renderLongStereo(&buffer.data()->l, &(buffer.data() + buffer.size())->l);
 }
 
+size_t GlobalEffectable::getCPUUsage(size_t active_voices, CPUUsageType type) {
+	size_t usage = 0;
+
+	switch (type) {
+	case CPUUsageType::VOICE:
+		return active_voices;
+	case CPUUsageType::FILTER:
+		usage += filterSet.isLPFOn() ? active_voices : 0;
+		usage += filterSet.isHPFOn() ? active_voices : 0;
+		return usage;
+	default:
+		break;
+	}
+
+	return ModControllableAudio::getCPUUsage(active_voices, type);
+}
+
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));

@@ -129,6 +129,7 @@ public:
 
 	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
+	virtual size_t getCPUUsage(CPUUsageType type, Song* song) { return 0; }
 	bool clipHasInstance(Clip* clip);
 	bool isEmpty(bool displayPopup = true);
 	void clipLengthChanged(Clip* clip, int32_t oldLength);

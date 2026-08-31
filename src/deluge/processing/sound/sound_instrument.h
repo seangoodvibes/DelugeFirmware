@@ -72,6 +72,7 @@ public:
 	void prepareForHibernationOrDeletion() override;
 	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) override;
 	bool isSkippingRendering() override { return skippingRendering; }
+	size_t getCPUUsage(CPUUsageType type, Song* song) override;
 	void loadCrucialAudioFilesOnly() override;
 	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;

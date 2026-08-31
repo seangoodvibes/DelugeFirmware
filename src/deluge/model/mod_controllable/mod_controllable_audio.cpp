@@ -1761,3 +1761,15 @@ void ModControllableAudio::disableGrain() {
 		grainFX->startSkippingRendering();
 	}
 }
+
+size_t ModControllableAudio::getCPUUsage(size_t active_voices, CPUUsageType type) {
+	switch (type) {
+	case CPUUsageType::FX_DELAY:
+		return num_active_delay_voices(active_voices);
+	case CPUUsageType::FX_GRAIN:
+		return num_active_grain_voices(active_voices);
+	default:
+		break;
+	}
+	return 0;
+}
