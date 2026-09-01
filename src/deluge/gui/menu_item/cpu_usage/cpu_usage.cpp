@@ -113,7 +113,116 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 	return 0;
 }
 
+[[nodiscard]] float calculateCPUUsagePercentageForDisplay() {
+	(void)count_usage_for_type_and_context(CPUUsageType::VOICE, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::VOICE_UNISON, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE_STRETCH, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE_CACHE, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::OSC_WAVETABLE, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::OSC_DX7, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::FILTER, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::FX_DELAY, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::FX_GRAIN, CPUUsageContext::TOTAL);
+
+	float dx7_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_DX7, CPUUsageContext::TOTAL));
+	float wavetable_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_WAVETABLE, CPUUsageContext::TOTAL));
+	float sample_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE, CPUUsageContext::TOTAL));
+	float live_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::TOTAL));
+	float filter_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::FILTER, CPUUsageContext::TOTAL)) * 2;
+
+	float regular_synth_usage = filter_usage - dx7_usage - wavetable_usage - sample_usage - live_usage;
+
+	float regular_synth_usage_percentage = (regular_synth_usage / k_max_raw_unfiltered_fm_and_sub_voices) * 100.0f;
+	float dx7_usage_percentage = (dx7_usage / k_max_raw_unfiltered_dx7_voices) * 100.0f;
+	float wavetable_usage_percentage = (wavetable_usage / k_max_raw_unfiltered_wavetable_voices) * 100.0f;
+	float sample_usage_percentage = (sample_usage / k_max_raw_unfiltered_short_sample_mono_voices) * 100.0f;
+	float live_usage_percentage = (live_usage / k_max_raw_unfiltered_live_input_pitchshifter_voices) * 100.0f;
+
+	float total_usage_percentage = regular_synth_usage_percentage + dx7_usage_percentage + wavetable_usage_percentage
+	                               + sample_usage_percentage + live_usage_percentage;
+
+	return total_usage_percentage;
+}
+
 } // namespace
+
+Overall::Overall(l10n::String new_name, l10n::String new_title) : Integer(new_name, new_title) {
+}
+
+void Overall::beginSession(MenuItem* navigatedBackwardFrom) {
+	Integer::beginSession(navigatedBackwardFrom);
+	readCurrentValue();
+	last_actual_display_time_ = AudioEngine::audioSampleTimer;
+	scheduleTimer();
+}
+
+void Overall::endSession() {
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+	MenuItem::endSession();
+}
+
+void Overall::readCurrentValue() {
+	const int32_t previous_value = getValue();
+	const int32_t percentage = static_cast<int32_t>(calculateCPUUsagePercentageForDisplay());
+	setValue(std::clamp<int32_t>(percentage, getMinValue(), getMaxValue()));
+	value_changed_ = value_changed_ || getValue() != previous_value;
+}
+
+bool Overall::shouldEnterSubmenu() {
+	if (parent != nullptr) {
+		return parent->renderingStyle() != Submenu::RenderingStyle::HORIZONTAL;
+	}
+
+	return display->have7SEG();
+}
+
+ActionResult Overall::timerCallback() {
+	readCurrentValue();
+
+	const uint32_t current_time = AudioEngine::audioSampleTimer;
+	const bool has_min_time_elapsed = current_time - last_actual_display_time_ >= kMinDisplayUpdateInterval;
+	if (consumeValueChanged() && has_min_time_elapsed) {
+		if (display->have7SEG()) {
+			drawValue();
+		}
+		else {
+			renderUIsForOled();
+		}
+		last_actual_display_time_ = current_time;
+	}
+
+	scheduleTimer();
+	return ActionResult::DEALT_WITH;
+}
+
+void Overall::renderInHorizontalMenu(const SlotPosition& slot) {
+	DEF_STACK_STRING_BUF(value, 10);
+	value.appendInt(getValue());
+	value.append("%");
+	OLED::main.drawStringCentered(value.c_str(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+	                              kTextTitleSpacingX, kTextTitleSizeY, slot.width);
+}
+
+void Overall::getColumnLabel(StringBuf& label) {
+	label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
+}
+
+void Overall::scheduleTimer() {
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kUpdateIntervalMs);
+}
+
+bool Overall::consumeValueChanged() {
+	const bool changed = value_changed_;
+	value_changed_ = false;
+	return changed;
+}
 
 Context::Context(l10n::String new_name, l10n::String new_title, CPUUsageType new_type, CPUUsageContext new_context)
     : Integer(new_name, new_title), type_(new_type), context_(new_context) {
@@ -249,6 +358,9 @@ bool Menu::refresh_child_values() {
 			if (item->isSubmenu()) {
 				values_changed = static_cast<SummaryMenu*>(item)->consumeValueChanged() || values_changed;
 			}
+			else if (item->name == l10n::String::STRING_FOR_CPU_USAGE) {
+				values_changed = static_cast<Overall*>(item)->consumeValueChanged() || values_changed;
+			}
 			else {
 				values_changed = static_cast<Context*>(item)->consumeValueChanged() || values_changed;
 			}
@@ -344,6 +456,9 @@ bool SummaryMenu::refresh_child_values() {
 			item->readCurrentValue();
 			if (item->isSubmenu()) {
 				values_changed = static_cast<SummaryMenu*>(item)->consumeValueChanged() || values_changed;
+			}
+			else if (item->name == l10n::String::STRING_FOR_CPU_USAGE) {
+				values_changed = static_cast<Overall*>(item)->consumeValueChanged() || values_changed;
 			}
 			else {
 				values_changed = static_cast<Context*>(item)->consumeValueChanged() || values_changed;

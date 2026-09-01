@@ -1464,12 +1464,14 @@ PLACE_SDRAM_DATA MenuItem* fxUsageSummaryItems[] = {
 PLACE_SDRAM_BSS cpu_usage::SummaryMenu fxUsageSummaryMenu{
     STRING_FOR_FX_USAGE, STRING_FOR_FX_USAGE, "FX", fxUsageTypes, fxUsageSummaryItems, &delayUsageSummaryMenu};
 
+PLACE_SDRAM_BSS cpu_usage::Overall overallCpuUsageSummaryMenu{STRING_FOR_CPU_USAGE, STRING_FOR_CPU_USAGE};
+
 PLACE_SDRAM_DATA MenuItem* cpuUsageSummaryItems[] = {
-    &voiceUsageSummaryMenu, &sampleUsageSummaryMenu, &wavetableUsageSummaryMenu, &livePitchShiftUsageSummaryMenu,
-    &dx7UsageSummaryMenu,   &filterUsageSummaryMenu, &fxUsageSummaryMenu,
+    &overallCpuUsageSummaryMenu,     &voiceUsageSummaryMenu, &sampleUsageSummaryMenu, &wavetableUsageSummaryMenu,
+    &livePitchShiftUsageSummaryMenu, &dx7UsageSummaryMenu,   &filterUsageSummaryMenu, &fxUsageSummaryMenu,
 };
 PLACE_SDRAM_BSS cpu_usage::Menu cpuUsageMenu{STRING_FOR_CPU_USAGE, STRING_FOR_CPU_USAGE, cpuUsageSummaryItems,
-                                             &voiceUsageSummaryMenu};
+                                             &overallCpuUsageSummaryMenu};
 
 PLACE_SDRAM_BSS runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS,
                                                                      STRING_FOR_COMMUNITY_FTS_MENU_TITLE};

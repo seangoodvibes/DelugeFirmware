@@ -791,18 +791,21 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 size_t GlobalEffectable::getCPUUsage(size_t active_voices, CPUUsageType type) {
 	size_t usage = 0;
 
+	size_t voice_weight = filterSet.isOn() ? active_voices * 2 : active_voices;
+
 	switch (type) {
 	case CPUUsageType::VOICE:
-		return active_voices;
+		return voice_weight;
 	case CPUUsageType::FILTER:
-		usage += filterSet.isLPFOn() ? active_voices : 0;
-		usage += filterSet.isHPFOn() ? active_voices : 0;
+		usage = filterSet.isOn() ? voice_weight : 0;
+		// usage += filterSet.isLPFOn() ? active_voices : 0;
+		// usage += filterSet.isHPFOn() ? active_voices : 0;
 		return usage;
 	default:
 		break;
 	}
 
-	return ModControllableAudio::getCPUUsage(active_voices, type);
+	return ModControllableAudio::getCPUUsage(voice_weight, type);
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {

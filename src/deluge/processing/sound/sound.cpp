@@ -5075,7 +5075,7 @@ size_t Sound::getCPUUsage(CPUUsageType type) {
 		return 0;
 	}
 
-	return ModControllableAudio::getCPUUsage(num_active_unison_voices(), type);
+	return ModControllableAudio::getCPUUsage(num_active_filter_voices(), type);
 }
 
 CPUUsageType Sound::getCPUUsageTypeForSource(OscType oscType) {
@@ -5102,14 +5102,15 @@ size_t Sound::num_active_filter_voices() {
 	}
 
 	size_t voice_weight =
-	    get_unison_voice_weight(); // potentially weight the voice count higher if stereo unison is enabled
+	    get_unison_voice_weight() * 2; // potentially weight the voice count higher if stereo unison is enabled
 	size_t voice_count = 0;
 
 	// For each voice...
 	for (ActiveVoice& voice : voices_) {
 		// Check if LPF or HPF filters are on
-		voice_count += voice->filterSet.isLPFOn() ? voice_weight : 0;
-		voice_count += voice->filterSet.isHPFOn() ? voice_weight : 0;
+		voice_count += voice->filterSet.isOn() ? voice_weight : 0;
+		//	voice_count += voice->filterSet.isLPFOn() ? voice_weight : 0;
+		//	voice_count += voice->filterSet.isHPFOn() ? voice_weight : 0;
 	}
 
 	return voice_count;
@@ -5186,7 +5187,8 @@ size_t Sound::num_active_sample_voices(CPUUsageType type) {
 				}
 
 				// Double the count if it's a stereo sample
-				voice_count += (sample->numChannels == 2) ? voice_weight_stereo : voice_weight_mono;
+				size_t voice_weight = (sample->numChannels == 2) ? voice_weight_stereo : voice_weight_mono;
+				voice_count += voice->filterSet.isOn() ? voice_weight * 2 : voice_weight;
 			}
 		}
 	}
@@ -5238,7 +5240,7 @@ size_t Sound::num_active_wavetable_voices(CPUUsageType type) {
 					continue;
 				}
 
-				voice_count += voice_weight;
+				voice_count += voice->filterSet.isOn() ? voice_weight * 2 : voice_weight;
 			}
 		}
 	}
@@ -5278,8 +5280,7 @@ size_t Sound::num_active_dx7_voices() {
 					continue;
 				}
 
-				// potentially weight the voice count higher if stereo unison is enabled
-				voice_count += voice_weight;
+				voice_count += voice->filterSet.isOn() ? voice_weight * 2 : voice_weight;
 			}
 
 			// you can only have one DX7 oscillator source
@@ -5323,8 +5324,7 @@ size_t Sound::num_active_live_pitchshifer_voices() {
 					continue;
 				}
 
-				// potentially weight the voice count higher if stereo unison is enabled
-				voice_count += voice_weight;
+				voice_count += voice->filterSet.isOn() ? voice_weight * 2 : voice_weight;
 			}
 		}
 	}

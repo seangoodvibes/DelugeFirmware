@@ -28,6 +28,33 @@ class Output;
 
 namespace deluge::gui::menu_item::cpu_usage {
 
+class Overall final : public Integer {
+public:
+	Overall(l10n::String new_name, l10n::String new_title);
+
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	void endSession() override;
+	void readCurrentValue() override;
+	MenuItem* selectButtonPress() override { return NO_NAVIGATION; }
+	bool shouldEnterSubmenu() override;
+	bool isSubmenu() override { return false; }
+	ActionResult timerCallback() override;
+	bool selectEncoderActionIsPermitted() override { return false; }
+	bool showNotification() const override { return false; }
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
+	void getColumnLabel(StringBuf& label) override;
+	[[nodiscard]] bool consumeValueChanged();
+
+private:
+	void scheduleTimer();
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 999; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	bool value_changed_{true};
+	uint32_t last_actual_display_time_{0};
+};
+
 class Context final : public Integer {
 public:
 	Context(l10n::String new_name, l10n::String new_title, CPUUsageType new_type, CPUUsageContext new_context);
