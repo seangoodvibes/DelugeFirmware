@@ -947,7 +947,7 @@ PLACE_SDRAM_BSS HorizontalMenu audioClipSampleMenu{
 
 PLACE_SDRAM_BSS audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
-PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
+PLACE_SDRAM_DATA MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
@@ -958,7 +958,7 @@ PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     nullptr,
 };
 
-PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
+PLACE_SDRAM_DATA MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
@@ -1323,24 +1323,24 @@ PLACE_SDRAM_BSS Submenu fxUsageSubmenu{
 
 PLACE_SDRAM_BSS HorizontalMenuGroup fxUsageMenuGroup{{&delayUsageMenu, &grainUsageMenu}};
 
-const CPUUsageType rawVoiceUsageTypes[] = {CPUUsageType::VOICE_RAW};
-const CPUUsageType unisonUsageTypes[] = {CPUUsageType::VOICE_UNISON};
-const CPUUsageType voiceUsageTypes[] = {CPUUsageType::VOICE_RAW, CPUUsageType::VOICE_UNISON};
-const CPUUsageType sampleUsageTypes[] = {CPUUsageType::OSC_SAMPLE};
-const CPUUsageType sampleTimestretchUsageTypes[] = {CPUUsageType::OSC_SAMPLE_STRETCH};
-const CPUUsageType sampleCacheUsageTypes[] = {CPUUsageType::OSC_SAMPLE_CACHE};
-const CPUUsageType sampleGroupUsageTypes[] = {
+PLACE_SDRAM_DATA CPUUsageType rawVoiceUsageTypes[] = {CPUUsageType::VOICE_RAW};
+PLACE_SDRAM_DATA CPUUsageType unisonUsageTypes[] = {CPUUsageType::VOICE_UNISON};
+PLACE_SDRAM_DATA CPUUsageType voiceUsageTypes[] = {CPUUsageType::VOICE_RAW, CPUUsageType::VOICE_UNISON};
+PLACE_SDRAM_DATA CPUUsageType sampleUsageTypes[] = {CPUUsageType::OSC_SAMPLE};
+PLACE_SDRAM_DATA CPUUsageType sampleTimestretchUsageTypes[] = {CPUUsageType::OSC_SAMPLE_STRETCH};
+PLACE_SDRAM_DATA CPUUsageType sampleCacheUsageTypes[] = {CPUUsageType::OSC_SAMPLE_CACHE};
+PLACE_SDRAM_DATA CPUUsageType sampleGroupUsageTypes[] = {
     CPUUsageType::OSC_SAMPLE,
     CPUUsageType::OSC_SAMPLE_STRETCH,
     CPUUsageType::OSC_SAMPLE_CACHE,
 };
-const CPUUsageType wavetableUsageTypes[] = {CPUUsageType::OSC_WAVETABLE};
-const CPUUsageType livePitchShiftUsageTypes[] = {CPUUsageType::OSC_LIVE_PITCH};
-const CPUUsageType dx7UsageTypes[] = {CPUUsageType::OSC_DX7};
-const CPUUsageType filterUsageTypes[] = {CPUUsageType::FILTER};
-const CPUUsageType delayUsageTypes[] = {CPUUsageType::FX_DELAY};
-const CPUUsageType grainUsageTypes[] = {CPUUsageType::FX_GRAIN};
-const CPUUsageType fxUsageTypes[] = {CPUUsageType::FX_DELAY, CPUUsageType::FX_GRAIN};
+PLACE_SDRAM_DATA CPUUsageType wavetableUsageTypes[] = {CPUUsageType::OSC_WAVETABLE};
+PLACE_SDRAM_DATA CPUUsageType livePitchShiftUsageTypes[] = {CPUUsageType::OSC_LIVE_PITCH};
+PLACE_SDRAM_DATA CPUUsageType dx7UsageTypes[] = {CPUUsageType::OSC_DX7};
+PLACE_SDRAM_DATA CPUUsageType filterUsageTypes[] = {CPUUsageType::FILTER};
+PLACE_SDRAM_DATA CPUUsageType delayUsageTypes[] = {CPUUsageType::FX_DELAY};
+PLACE_SDRAM_DATA CPUUsageType grainUsageTypes[] = {CPUUsageType::FX_GRAIN};
+PLACE_SDRAM_DATA CPUUsageType fxUsageTypes[] = {CPUUsageType::FX_DELAY, CPUUsageType::FX_GRAIN};
 
 PLACE_SDRAM_DATA MenuItem* rawVoiceUsageSummaryItems[] = {
     &totalRawVoiceUsageMenu, &songRawVoiceUsageMenu,  &synthRawVoiceUsageMenu,
