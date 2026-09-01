@@ -254,6 +254,7 @@ enum class ThingType : uint8_t {
 
 enum class CPUUsageType : uint8_t {
 	VOICE,
+	VOICE_RAW,
 	VOICE_UNISON,
 	FILTER,
 	FILTER_LPF,

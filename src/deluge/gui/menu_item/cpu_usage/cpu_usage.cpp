@@ -114,7 +114,7 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 }
 
 [[nodiscard]] float calculateCPUUsagePercentageForDisplay() {
-	(void)count_usage_for_type_and_context(CPUUsageType::VOICE, CPUUsageContext::TOTAL);
+	(void)count_usage_for_type_and_context(CPUUsageType::VOICE_RAW, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::VOICE_UNISON, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE_STRETCH, CPUUsageContext::TOTAL);

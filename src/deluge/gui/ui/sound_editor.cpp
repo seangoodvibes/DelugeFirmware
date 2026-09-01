@@ -1487,7 +1487,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			// Read active voices
 			else if (x == 14) {
 				intToString(AudioEngine::getNumVoices()
-				                + AudioEngine::getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO),
+				                + AudioEngine::getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO),
 				            buffer);
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;

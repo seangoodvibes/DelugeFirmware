@@ -296,7 +296,7 @@ void killOneVoice(size_t num_samples) {
 	}
 
 	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
-	          getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
+	          getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
@@ -332,7 +332,7 @@ void terminateOneVoice(size_t numSamples) {
 	}
 
 	D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples, getNumVoices(),
-	          getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
+	          getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
@@ -365,11 +365,11 @@ void forceReleaseOneVoice(size_t num_samples) {
 	auto stage = voice->envelopes[0].state;
 	if (stage < EnvelopeStage::FAST_RELEASE) {
 		D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
+		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 	}
 	else {
 		D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO));
+		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 	}
 
 	bool still_rendering = voice->speedUpRelease();
@@ -524,7 +524,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
 		}
-		auto numAudio = getCPUUsageForOutputType(CPUUsageType::VOICE, OutputType::AUDIO);
+		auto numAudio = getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO);
 		auto numVoice = getNumVoices();
 		if (!bypassCulling) {
 			cullVoices(numSamples, numAudio, numVoice);

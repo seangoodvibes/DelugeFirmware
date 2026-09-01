@@ -5024,7 +5024,7 @@ size_t Sound::getCPUUsage(CPUUsageType type) {
 	bool check_for_wavetable_usage = false;
 
 	switch (type) {
-	case CPUUsageType::VOICE:
+	case CPUUsageType::VOICE_RAW:
 		return numActiveVoices();
 	case CPUUsageType::VOICE_UNISON:
 		return num_active_unison_voices();
@@ -5075,7 +5075,7 @@ size_t Sound::getCPUUsage(CPUUsageType type) {
 		return 0;
 	}
 
-	return ModControllableAudio::getCPUUsage(num_active_filter_voices(), type);
+	return ModControllableAudio::getCPUUsage(numActiveVoices(), type);
 }
 
 CPUUsageType Sound::getCPUUsageTypeForSource(OscType oscType) {

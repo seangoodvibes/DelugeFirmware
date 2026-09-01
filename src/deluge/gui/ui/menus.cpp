@@ -1055,15 +1055,15 @@ PLACE_SDRAM_BSS battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING
 /// Voice Usage Menu
 
 PLACE_SDRAM_BSS cpu_usage::Context totalRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
-                                                          CPUUsageType::VOICE, CPUUsageContext::TOTAL};
+                                                          CPUUsageType::VOICE_RAW, CPUUsageContext::TOTAL};
 PLACE_SDRAM_BSS cpu_usage::Context songRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_SONG, STRING_FOR_CPU_USAGE_SONG,
-                                                         CPUUsageType::VOICE, CPUUsageContext::SONG};
+                                                         CPUUsageType::VOICE_RAW, CPUUsageContext::SONG};
 PLACE_SDRAM_BSS cpu_usage::Context synthRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_SYNTH, STRING_FOR_CPU_USAGE_SYNTH,
-                                                          CPUUsageType::VOICE, CPUUsageContext::SYNTH};
+                                                          CPUUsageType::VOICE_RAW, CPUUsageContext::SYNTH};
 PLACE_SDRAM_BSS cpu_usage::Context kitRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_KIT, STRING_FOR_CPU_USAGE_KIT,
-                                                        CPUUsageType::VOICE, CPUUsageContext::KIT};
+                                                        CPUUsageType::VOICE_RAW, CPUUsageContext::KIT};
 PLACE_SDRAM_BSS cpu_usage::Context audioRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_AUDIO, STRING_FOR_CPU_USAGE_AUDIO,
-                                                          CPUUsageType::VOICE, CPUUsageContext::AUDIO};
+                                                          CPUUsageType::VOICE_RAW, CPUUsageContext::AUDIO};
 PLACE_SDRAM_DATA MenuItem* rawVoiceUsageMenuItems[] = {
     &totalRawVoiceUsageMenu, &songRawVoiceUsageMenu,  &synthRawVoiceUsageMenu,
     &kitRawVoiceUsageMenu,   &audioRawVoiceUsageMenu,
@@ -1323,9 +1323,9 @@ PLACE_SDRAM_BSS Submenu fxUsageSubmenu{
 
 PLACE_SDRAM_BSS HorizontalMenuGroup fxUsageMenuGroup{{&delayUsageMenu, &grainUsageMenu}};
 
-const CPUUsageType rawVoiceUsageTypes[] = {CPUUsageType::VOICE};
+const CPUUsageType rawVoiceUsageTypes[] = {CPUUsageType::VOICE_RAW};
 const CPUUsageType unisonUsageTypes[] = {CPUUsageType::VOICE_UNISON};
-const CPUUsageType voiceUsageTypes[] = {CPUUsageType::VOICE, CPUUsageType::VOICE_UNISON};
+const CPUUsageType voiceUsageTypes[] = {CPUUsageType::VOICE_RAW, CPUUsageType::VOICE_UNISON};
 const CPUUsageType sampleUsageTypes[] = {CPUUsageType::OSC_SAMPLE};
 const CPUUsageType sampleTimestretchUsageTypes[] = {CPUUsageType::OSC_SAMPLE_STRETCH};
 const CPUUsageType sampleCacheUsageTypes[] = {CPUUsageType::OSC_SAMPLE_CACHE};
