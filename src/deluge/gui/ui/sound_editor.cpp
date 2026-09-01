@@ -241,7 +241,7 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			doGreyout = false;
 		}
 		else {
-			*cols = 0xFFFFFFFE;
+			*cols = 0xFFFFFFFC; // don't greyout sidebar
 		}
 		break;
 	case UIType::PERFORMANCE:
@@ -1451,8 +1451,8 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 			return ActionResult::DEALT_WITH;
 		}
-		// allow user to interact with audition pads while in regular sound editor
-		else if (x == kDisplayWidth + 1) {
+		// allow user to interact with mute and audition pads while in settings / regular sound editor
+		else if (x >= kDisplayWidth) {
 			instrumentClipView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}

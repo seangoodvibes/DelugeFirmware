@@ -208,10 +208,23 @@ float Overall::normalize(int32_t value) {
 }
 
 void Overall::renderInHorizontalMenu(const SlotPosition& slot) {
-	drawBar(slot);
+	hid::display::oled_canvas::Canvas& image = OLED::main;
+
+	constexpr uint8_t bar_height = 5;
+	constexpr uint8_t outline_padding = 2;
+	const uint8_t bar_start_x = slot.start_x + 5;
+	const uint8_t bar_start_y = slot.start_y + kHorizontalMenuSlotYOffset + 2;
+	const uint8_t bar_width = slot.width - 10;
+	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
+	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
+
+	image.drawRectangle(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
+	                    bar_end_y + outline_padding);
+
+	const uint8_t fill_width = normalize(getValue()) * bar_width;
+	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 
 	if (getValue() > max_value_in_horizontal_menu) {
-		hid::display::oled_canvas::Canvas& image = OLED::main;
 		constexpr uint8_t excl_mark_width = 3;
 		constexpr uint8_t excl_mark_height = 11;
 		const uint8_t center_x = slot.start_x + slot.width / 2;

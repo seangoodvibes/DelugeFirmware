@@ -41,6 +41,7 @@ public:
 	ActionResult timerCallback() override;
 	bool selectEncoderActionIsPermitted() override { return false; }
 	bool showNotification() const override { return false; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; }
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getColumnLabel(StringBuf& label) override;
 	[[nodiscard]] bool consumeValueChanged();
