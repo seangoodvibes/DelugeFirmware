@@ -5101,8 +5101,8 @@ size_t Sound::num_active_filter_voices() {
 		return 0;
 	}
 
-	size_t voice_weight =
-	    get_unison_voice_weight() * 2; // potentially weight the voice count higher if stereo unison is enabled
+	// potentially weight the voice count higher if stereo unison is enabled
+	size_t voice_weight = get_unison_voice_weight() * 2; // filters double the weight of a voice
 	size_t voice_count = 0;
 
 	// For each voice...

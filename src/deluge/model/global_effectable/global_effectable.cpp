@@ -791,7 +791,7 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 size_t GlobalEffectable::getCPUUsage(size_t active_voices, CPUUsageType type) {
 	size_t usage = 0;
 
-	size_t voice_weight = filterSet.isOn() ? active_voices * 2 : active_voices;
+	size_t voice_weight = filterSet.isOn() ? active_voices * 2 : active_voices; // filters double the weight of a voice
 
 	switch (type) {
 	case CPUUsageType::VOICE:

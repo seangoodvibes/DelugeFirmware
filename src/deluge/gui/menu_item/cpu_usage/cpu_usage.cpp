@@ -39,7 +39,7 @@ constexpr uint8_t k_stereo_impact = 1;
 
 /// Mono unison impact
 // 1 unison = no impact
-// 2 unison = 95 voices = 100 - ((2 - 1) x 6.5% x 100) = 93.5
+// 2 unison = 95  voices = 100 - ((2 - 1) x 6.5% x 100) = 93.5
 // 3 unison = 90 voices = 100 - ((3 - 1) x 6.5% x 100) = 87
 // 4 unison = 85 voices = 100 - ((4 - 1) x 6.5% x 100) = 80.5
 // 5 unison = 75 voices = 100 - ((5 - 1) x 6.5% x 100) = 74
@@ -126,6 +126,10 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 	(void)count_usage_for_type_and_context(CPUUsageType::FX_DELAY, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::FX_GRAIN, CPUUsageContext::TOTAL);
 
+	float unison_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::VOICE_UNISON, CPUUsageContext::TOTAL));
+	float filter_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::FILTER, CPUUsageContext::TOTAL));
 	float dx7_usage =
 	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_DX7, CPUUsageContext::TOTAL));
 	float wavetable_usage =
@@ -134,11 +138,10 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE, CPUUsageContext::TOTAL));
 	float live_usage =
 	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::TOTAL));
-	float filter_usage =
-	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::FILTER, CPUUsageContext::TOTAL)) * 2;
+
+	float total_usage = filter_usage > 0 ? filter_usage : unison_usage;
 
 	float regular_synth_usage = filter_usage - dx7_usage - wavetable_usage - sample_usage - live_usage;
-
 	float regular_synth_usage_percentage = (regular_synth_usage / k_max_raw_unfiltered_fm_and_sub_voices) * 100.0f;
 	float dx7_usage_percentage = (dx7_usage / k_max_raw_unfiltered_dx7_voices) * 100.0f;
 	float wavetable_usage_percentage = (wavetable_usage / k_max_raw_unfiltered_wavetable_voices) * 100.0f;
