@@ -47,12 +47,14 @@ public:
 
 private:
 	void scheduleTimer();
+	float normalize(int32_t value) override;
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 999; }
-	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
 	bool value_changed_{true};
 	uint32_t last_actual_display_time_{0};
+	constexpr static int32_t max_value_in_horizontal_menu = 100;
 };
 
 class Context final : public Integer {

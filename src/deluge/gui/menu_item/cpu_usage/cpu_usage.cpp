@@ -202,12 +202,32 @@ ActionResult Overall::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
+float Overall::normalize(int32_t value) {
+	const int32_t clamped = std::clamp<int32_t>(value, 0, max_value_in_horizontal_menu);
+	return clamped / static_cast<float>(max_value_in_horizontal_menu);
+}
+
 void Overall::renderInHorizontalMenu(const SlotPosition& slot) {
-	DEF_STACK_STRING_BUF(value, 10);
-	value.appendInt(getValue());
-	value.append("%");
-	OLED::main.drawStringCentered(value.c_str(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
-	                              kTextTitleSpacingX, kTextTitleSizeY, slot.width);
+	drawBar(slot);
+
+	if (getValue() > max_value_in_horizontal_menu) {
+		hid::display::oled_canvas::Canvas& image = OLED::main;
+		constexpr uint8_t excl_mark_width = 3;
+		constexpr uint8_t excl_mark_height = 11;
+		const uint8_t center_x = slot.start_x + slot.width / 2;
+		const uint8_t excl_mark_start_y = slot.start_y + kHorizontalMenuSlotYOffset - 1;
+		const uint8_t excl_mark_end_y = excl_mark_start_y + excl_mark_height - 1;
+		const uint8_t excl_mark_start_x = center_x - 1;
+
+		for (uint8_t x = center_x - 2; x <= center_x + 2; x++) {
+			for (uint8_t y = excl_mark_start_y - 1; y <= excl_mark_end_y + 1; y++) {
+				image.drawPixel(x, y);
+			}
+		}
+
+		image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y, excl_mark_start_y + 6);
+		image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y + 8, excl_mark_start_y + 10);
+	}
 }
 
 void Overall::getColumnLabel(StringBuf& label) {
