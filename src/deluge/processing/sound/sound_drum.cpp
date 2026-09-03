@@ -178,7 +178,7 @@ void SoundDrum::setSkippingRendering(bool newSkipping) {
 }
 
 size_t SoundDrum::getCPUUsage(CPUUsageType type) {
-	return Sound::getCPUUsage(type);
+	return Sound::getCPUUsage(type) * 3;
 }
 
 uint8_t* SoundDrum::getModKnobMode() {

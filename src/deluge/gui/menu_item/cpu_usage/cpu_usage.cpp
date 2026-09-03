@@ -126,6 +126,8 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 	(void)count_usage_for_type_and_context(CPUUsageType::FX_DELAY, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::FX_GRAIN, CPUUsageContext::TOTAL);
 
+	float raw_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::VOICE_RAW, CPUUsageContext::TOTAL));
 	float unison_usage =
 	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::VOICE_UNISON, CPUUsageContext::TOTAL));
 	float filter_usage =
@@ -139,9 +141,7 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 	float live_usage =
 	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::TOTAL));
 
-	float total_usage = filter_usage > 0 ? filter_usage : unison_usage;
-
-	float regular_synth_usage = filter_usage - dx7_usage - wavetable_usage - sample_usage - live_usage;
+	float regular_synth_usage = raw_usage - wavetable_usage - sample_usage - live_usage;
 	float regular_synth_usage_percentage = (regular_synth_usage / k_max_raw_unfiltered_fm_and_sub_voices) * 100.0f;
 	float dx7_usage_percentage = (dx7_usage / k_max_raw_unfiltered_dx7_voices) * 100.0f;
 	float wavetable_usage_percentage = (wavetable_usage / k_max_raw_unfiltered_wavetable_voices) * 100.0f;
