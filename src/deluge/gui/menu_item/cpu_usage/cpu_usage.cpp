@@ -74,7 +74,7 @@ constexpr int32_t k_max_raw_unfiltered_live_input_pitchshifter_voices = 7;
 constexpr int32_t k_max_raw_filtered_live_input_pitchshifter_voices =
     k_max_raw_unfiltered_live_input_pitchshifter_voices >> k_filter_impact; // filters cut voice performance in half
 /// Short samples
-constexpr int32_t k_max_raw_unfiltered_short_sample_mono_voices = 24;
+constexpr int32_t k_max_raw_unfiltered_short_sample_mono_voices = 90;
 constexpr int32_t k_max_raw_filtered_short_sample_mono_voices =
     k_max_raw_unfiltered_short_sample_mono_voices >> k_filter_impact; // filters cut voice performance in half
 constexpr int32_t k_max_raw_unfiltered_short_sample_stereo_voices =
@@ -114,6 +114,7 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 }
 
 [[nodiscard]] float calculateCPUUsagePercentageForDisplay() {
+	(void)count_usage_for_type_and_context(CPUUsageType::VOICE, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::VOICE_RAW, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::VOICE_UNISON, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::OSC_SAMPLE, CPUUsageContext::TOTAL);
@@ -126,8 +127,8 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 	(void)count_usage_for_type_and_context(CPUUsageType::FX_DELAY, CPUUsageContext::TOTAL);
 	(void)count_usage_for_type_and_context(CPUUsageType::FX_GRAIN, CPUUsageContext::TOTAL);
 
-	float raw_usage =
-	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::VOICE_RAW, CPUUsageContext::TOTAL));
+	float weighted_usage =
+	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::VOICE, CPUUsageContext::TOTAL));
 	float unison_usage =
 	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::VOICE_UNISON, CPUUsageContext::TOTAL));
 	float filter_usage =
@@ -141,7 +142,7 @@ constexpr uint32_t kMinDisplayUpdateInterval = kSampleRate / 22;
 	float live_usage =
 	    static_cast<float>(count_usage_for_type_and_context(CPUUsageType::OSC_LIVE_PITCH, CPUUsageContext::TOTAL));
 
-	float regular_synth_usage = raw_usage - wavetable_usage - sample_usage - live_usage;
+	float regular_synth_usage = weighted_usage - wavetable_usage - sample_usage - live_usage;
 	float regular_synth_usage_percentage = (regular_synth_usage / k_max_raw_unfiltered_fm_and_sub_voices) * 100.0f;
 	float dx7_usage_percentage = (dx7_usage / k_max_raw_unfiltered_dx7_voices) * 100.0f;
 	float wavetable_usage_percentage = (wavetable_usage / k_max_raw_unfiltered_wavetable_voices) * 100.0f;

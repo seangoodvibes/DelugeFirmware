@@ -315,6 +315,8 @@ public:
 		return numActiveVoices() * numUnison * get_unison_voice_weight();
 	}
 
+	size_t num_active_weighted_voices();
+
 	/// @brief Get the number of samples loaded into each source.
 	/// @brief Stereo samples are weighed higher.
 	size_t num_active_sample_voices(CPUUsageType type);

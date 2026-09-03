@@ -5024,6 +5024,8 @@ size_t Sound::getCPUUsage(CPUUsageType type) {
 	bool check_for_wavetable_usage = false;
 
 	switch (type) {
+	case CPUUsageType::VOICE:
+		return num_active_weighted_voices();
 	case CPUUsageType::VOICE_RAW:
 		return numActiveVoices();
 	case CPUUsageType::VOICE_UNISON:
@@ -5094,6 +5096,35 @@ CPUUsageType Sound::getCPUUsageTypeForSource(OscType oscType) {
 		break;
 	}
 	return CPUUsageType::NONE;
+}
+
+size_t Sound::num_active_weighted_voices() {
+	if (voices_.empty()) {
+		return 0;
+	}
+
+	size_t voice_weight =
+	    get_unison_voice_weight(); // potentially weight the voice count higher if stereo unison is enabled
+	size_t voice_count = 0;
+
+	// For each voice...
+	for (ActiveVoice& voice : voices_) {
+		// For each source...
+		for (int32_t s = 0; s < kNumSources; s++) {
+			// For each unison part
+			for (int32_t u = 0; u < numUnison; u++) {
+				VoiceUnisonPartSource* voice_unison_part_source = &voice->unisonParts[u].sources[s];
+
+				// is the source active
+				if (!voice_unison_part_source->active) {
+					continue;
+				}
+				voice_count += voice->filterSet.isOn() ? voice_weight * 2 : voice_weight;
+			}
+		}
+	}
+
+	return voice_count;
 }
 
 size_t Sound::num_active_filter_voices() {

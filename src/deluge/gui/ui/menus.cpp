@@ -1054,6 +1054,8 @@ PLACE_SDRAM_BSS battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING
 
 /// Voice Usage Menu
 
+PLACE_SDRAM_BSS cpu_usage::Context totalVoiceUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
+                                                       CPUUsageType::VOICE, CPUUsageContext::TOTAL};
 PLACE_SDRAM_BSS cpu_usage::Context totalRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_TOTAL, STRING_FOR_CPU_USAGE_TOTAL,
                                                           CPUUsageType::VOICE_RAW, CPUUsageContext::TOTAL};
 PLACE_SDRAM_BSS cpu_usage::Context songRawVoiceUsageMenu{STRING_FOR_CPU_USAGE_SONG, STRING_FOR_CPU_USAGE_SONG,
@@ -1348,7 +1350,7 @@ PLACE_SDRAM_DATA MenuItem* rawVoiceUsageSummaryItems[] = {
 };
 PLACE_SDRAM_BSS cpu_usage::SummaryMenu rawVoiceUsageSummaryMenu{
     STRING_FOR_VOICE_RAW_USAGE, STRING_FOR_VOICE_RAW_USAGE, "RAW",
-    rawVoiceUsageTypes,         rawVoiceUsageSummaryItems,  &totalRawVoiceUsageMenu};
+    rawVoiceUsageTypes,         rawVoiceUsageSummaryItems,  &totalVoiceUsageMenu};
 
 PLACE_SDRAM_DATA MenuItem* unisonUsageSummaryItems[] = {
     &totalUnisonUsageMenu,

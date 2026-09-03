@@ -792,6 +792,8 @@ size_t GlobalEffectable::getCPUUsage(size_t active_voices, CPUUsageType type) {
 	size_t usage = 0;
 
 	switch (type) {
+	case CPUUsageType::VOICE:
+		return filterSet.isOn() ? active_voices * 2 : active_voices; // filters double the weight of a voice
 	case CPUUsageType::VOICE_RAW:
 		return active_voices;
 	case CPUUsageType::FILTER:
