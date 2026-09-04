@@ -17,6 +17,7 @@
 
 #include "storage/multi_range/multi_range_array.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include <new>
@@ -26,7 +27,9 @@
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 MultiRangeArray::MultiRangeArray()
-    : OrderedResizeableArray(sizeof(MultisampleRange), 16, __builtin_offsetof(MultiRange, topNote), 0, 0) {
+    : OrderedResizeableArray(sizeof(MultisampleRange), kMultiRangeKeyNumBits, __builtin_offsetof(MultiRange, topNote),
+                             kNoAdditionalEmptySpace, kNoAdditionalEmptySpace,
+                             static_cast<int32_t>(AllocationTag::MULTI_RANGE)) {
 }
 #pragma GCC diagnostic pop
 

@@ -115,7 +115,7 @@ public:
 	void setCardRead() { cardReadOnce = true; }
 	void setCardEjected() { cardEjected = true; }
 
-	ClusterPriorityQueue loadingQueue;
+	ClusterPriorityQueue<AllocationTag::AUDIO_FILE> loadingQueue;
 
 	Cluster* clusterBeingLoaded;
 	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug

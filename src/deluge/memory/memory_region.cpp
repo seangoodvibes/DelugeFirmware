@@ -27,7 +27,12 @@
 #include "processing/engines/audio_engine.h"
 #endif
 
-MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
+namespace {
+constexpr int32_t kRegionMaxNumEmptySpacesToKeep = 2;
+}
+
+MemoryRegion::MemoryRegion(int32_t newAllocationTag)
+    : emptySpaces(sizeof(EmptySpaceRecord), kRegionMaxNumEmptySpacesToKeep, newAllocationTag) {
 }
 
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,

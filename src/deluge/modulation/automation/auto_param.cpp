@@ -2354,8 +2354,8 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 			GeneralMemoryAllocator::get().dealloc(copiedParamAutomation->nodes);
 		}
 
-		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().allocLowSpeed(
-		    sizeof(ParamNode) * copiedParamAutomation->numNodes);
+		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().allocLowSpeedTagged(
+		    sizeof(ParamNode) * copiedParamAutomation->numNodes, AllocationTag::PARAM_NODE);
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
@@ -2925,7 +2925,8 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 			}
 
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(numNodesToStealTotal * sizeof(ParamNode));
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(numNodesToStealTotal * sizeof(ParamNode),
+			                                                                 AllocationTag::PARAM_NODE);
 			if (memory) {
 				ParamNode* stolenNodes = (ParamNode*)memory;
 				stolenNodeRecord->nodes = stolenNodes;

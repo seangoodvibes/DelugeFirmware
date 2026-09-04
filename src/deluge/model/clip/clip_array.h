@@ -18,13 +18,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "util/container/array/resizeable_pointer_array.h"
 
 class Clip;
 
 class ClipArray final : public ResizeablePointerArray {
 public:
-	ClipArray() = default;
+	ClipArray() : ResizeablePointerArray(static_cast<int32_t>(AllocationTag::CLIP_ARRAY)) {}
 	Error insertClipAtIndex(Clip* clip, int32_t index);
 	Clip* getClipAtIndex(int32_t index);
 	int32_t getIndexForClip(Clip* clip);

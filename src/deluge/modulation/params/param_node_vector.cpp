@@ -17,11 +17,14 @@
 
 #include "modulation/params/param_node_vector.h"
 
+#include "memory/general_memory_allocator.h"
 #include "modulation/params/param_node.h"
 #include <cstdint>
 #include <string.h>
 
-ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode)) {
+ParamNodeVector::ParamNodeVector()
+    : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                                         static_cast<int32_t>(AllocationTag::PARAM_NODE)) {
 }
 
 ParamNode* ParamNodeVector::getElement(int32_t index) {

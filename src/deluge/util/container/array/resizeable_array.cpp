@@ -50,9 +50,9 @@ void ResizeableArray::exitLock() {
 #endif
 
 ResizeableArray::ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep,
-                                 int32_t newNumExtrarSpacesToAllocate)
+                                 int32_t newNumExtrarSpacesToAllocate, int32_t newAllocationTag)
     : elementSize(newElementSize), maxNumEmptySpacesToKeep(newMaxNumEmptySpacesToKeep),
-      numExtraSpacesToAllocate(newNumExtrarSpacesToAllocate) {
+      numExtraSpacesToAllocate(newNumExtrarSpacesToAllocate), allocationTag(static_cast<uint8_t>(newAllocationTag)) {
 	emptyingShouldFreeMemory = true;
 	staticMemoryAllocationSize = 0;
 
@@ -150,7 +150,8 @@ Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory,
 	else {
 		int32_t newSize = numElements + 1;
 		uint32_t allocatedSize = newSize * elementSize;
-		memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize);
+		memory =
+		    GeneralMemoryAllocator::get().allocMaxSpeedTagged(allocatedSize, static_cast<AllocationTag>(allocationTag));
 
 		if (!memory) {
 			numElements = 0;

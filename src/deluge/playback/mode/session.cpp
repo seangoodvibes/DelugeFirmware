@@ -297,7 +297,7 @@ void Session::doLaunch(bool isFillLaunch) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	OpenAddressingHashTableWith32bitKey outputsLaunchedFor;
+	OpenAddressingHashTableWith32bitKey outputsLaunchedFor(static_cast<int32_t>(AllocationTag::OUTPUT_HASH_TABLE));
 
 	// First do a loop through all Clips seeing which ones are going to launch, so we can then go through again and
 	// deactivate those Outputs' other Clips
@@ -1650,8 +1650,10 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 	// Or, if we were doing it for a whole section - which means that we know armState == ArmState::ON_NORMAL, and no
 	// late-start
 	else {
-		OpenAddressingHashTableWith32bitKey outputsWeHavePickedAClipFor;
-		OpenAddressingHashTableWith32bitKey outputsTakenBySectionLaunch;
+		OpenAddressingHashTableWith32bitKey outputsWeHavePickedAClipFor(
+		    static_cast<int32_t>(AllocationTag::OUTPUT_HASH_TABLE));
+		OpenAddressingHashTableWith32bitKey outputsTakenBySectionLaunch(
+		    static_cast<int32_t>(AllocationTag::OUTPUT_HASH_TABLE));
 
 		// Look ahead before the main arming pass so active audio clips can stay unarmed if this section launch will
 		// replace them on the same output. That matches manual clip launch, where doLaunch() stops the old clip when

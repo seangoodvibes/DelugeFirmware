@@ -21,8 +21,9 @@
 
 class OrderedResizeableArray : public ResizeableArray {
 public:
-	OrderedResizeableArray(int32_t newElementSize, int32_t keyNumBits, int32_t newKeyOffset = 0,
-	                       int32_t newMaxNumEmptySpacesToKeep = 16, int32_t newNumExtraSpacesToAllocate = 15);
+	OrderedResizeableArray(int32_t newElementSize, int32_t keyNumBits, int32_t newKeyOffset,
+	                       int32_t newMaxNumEmptySpacesToKeep, int32_t newNumExtraSpacesToAllocate,
+	                       int32_t newAllocationTag);
 	int32_t search(int32_t key, int32_t comparison, int32_t rangeBegin, int32_t rangeEnd);
 	inline int32_t search(int32_t key, int32_t comparison, int32_t rangeBegin = 0) {
 		return search(key, comparison, rangeBegin, numElements);
@@ -71,8 +72,8 @@ private:
 // child classes inherit from this, which require that the key be 32-bit.
 class OrderedResizeableArrayWith32bitKey : public OrderedResizeableArray {
 public:
-	explicit OrderedResizeableArrayWith32bitKey(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,
-	                                            int32_t newNumExtraSpacesToAllocate = 15);
+	explicit OrderedResizeableArrayWith32bitKey(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep,
+	                                            int32_t newNumExtraSpacesToAllocate, int32_t newAllocationTag);
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength);
 	void searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes);
 	void searchMultiple(int32_t* __restrict__ searchTerms, int32_t numSearchTerms, int32_t rangeEnd = -1);

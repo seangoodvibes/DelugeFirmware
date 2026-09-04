@@ -16,9 +16,12 @@
  */
 
 #include "model/clip/clip_instance_vector.h"
+#include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
 
-ClipInstanceVector::ClipInstanceVector() : OrderedResizeableArrayWith32bitKey(sizeof(ClipInstance)) {
+ClipInstanceVector::ClipInstanceVector()
+    : OrderedResizeableArrayWith32bitKey(sizeof(ClipInstance), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                                         static_cast<int32_t>(AllocationTag::CLIP_INSTANCE)) {
 }
 
 ClipInstance* ClipInstanceVector::getElement(int32_t index) {

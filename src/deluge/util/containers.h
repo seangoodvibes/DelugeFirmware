@@ -53,26 +53,26 @@ using stack = std::stack<T, deque<T, Alloc>>;
 template <typename T, typename Alloc = memory::external_allocator<T>>
 using queue = std::queue<T, deque<T, Alloc>>;
 
-template <class T>
-using fast_list = std::list<T, memory::fast_allocator<T>>;
+template <class T, AllocationTag Tag>
+using fast_list = std::list<T, memory::fast_allocator<T, Tag>>;
 
 // Vector (resizeable variable-length array, unknown size)
-template <typename T>
-using fast_vector = std::vector<T, memory::fast_allocator<T>>;
+template <typename T, AllocationTag Tag>
+using fast_vector = std::vector<T, memory::fast_allocator<T, Tag>>;
 
-template <typename T>
-using fast_priority_queue = std::priority_queue<T, fast_vector<T>>;
+template <typename T, AllocationTag Tag>
+using fast_priority_queue = std::priority_queue<T, fast_vector<T, Tag>>;
 
-template <class T, class Compare = std::less<T>>
-using fast_set = std::set<T, Compare, memory::fast_allocator<T>>;
+template <class T, AllocationTag Tag, class Compare = std::less<T>>
+using fast_set = std::set<T, Compare, memory::fast_allocator<T, Tag>>;
 
-template <typename Key, typename T, class Compare = std::less<Key>>
-using fast_multimap = std::multimap<Key, T, Compare, memory::fast_allocator<std::pair<const Key, T>>>;
+template <typename Key, typename T, AllocationTag Tag, class Compare = std::less<Key>>
+using fast_multimap = std::multimap<Key, T, Compare, memory::fast_allocator<std::pair<const Key, T>, Tag>>;
 
-template <typename Key, typename T, class Compare = std::equal_to<Key>>
+template <typename Key, typename T, AllocationTag Tag, class Compare = std::equal_to<Key>>
 using fast_unordered_map =
-    std::unordered_map<Key, T, std::hash<Key>, Compare, memory::fast_allocator<std::pair<const Key, T>>>;
+    std::unordered_map<Key, T, std::hash<Key>, Compare, memory::fast_allocator<std::pair<const Key, T>, Tag>>;
 
-template <typename Key, typename T, class Compare = std::less<Key>>
-using fast_map = std::map<Key, T, Compare, memory::fast_allocator<std::pair<const Key, T>>>;
+template <typename Key, typename T, AllocationTag Tag, class Compare = std::less<Key>>
+using fast_map = std::map<Key, T, Compare, memory::fast_allocator<std::pair<const Key, T>, Tag>>;
 } // namespace deluge

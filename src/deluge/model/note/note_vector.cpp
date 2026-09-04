@@ -16,10 +16,13 @@
  */
 
 #include "model/note/note_vector.h"
+#include "memory/general_memory_allocator.h"
 #include "model/note/note.h"
 #include <cstring>
 
-NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note)) {
+NoteVector::NoteVector()
+    : OrderedResizeableArrayWith32bitKey(sizeof(Note), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                                         static_cast<int32_t>(AllocationTag::NOTE)) {
 }
 
 Note* NoteVector::getElement(int32_t index) {

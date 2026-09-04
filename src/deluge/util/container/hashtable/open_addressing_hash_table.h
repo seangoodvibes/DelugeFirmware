@@ -20,7 +20,7 @@
 
 class OpenAddressingHashTable {
 public:
-	OpenAddressingHashTable();
+	OpenAddressingHashTable(int32_t newAllocationTag);
 	virtual ~OpenAddressingHashTable();
 	virtual uint32_t getKeyFromAddress(void* address) = 0;
 	virtual void setKeyAtAddress(uint32_t key, void* address) = 0;
@@ -45,11 +45,12 @@ public:
 
 	int8_t elementSize;
 	int8_t initialNumBuckets;
+	uint8_t allocationTag;
 };
 
 class OpenAddressingHashTableWith32bitKey final : public OpenAddressingHashTable {
 public:
-	OpenAddressingHashTableWith32bitKey();
+	OpenAddressingHashTableWith32bitKey(int32_t newAllocationTag);
 	uint32_t getKeyFromAddress(void* address) override;
 	void setKeyAtAddress(uint32_t key, void* address) override;
 	bool doesKeyIndicateEmptyBucket(uint32_t key) override;
@@ -57,7 +58,7 @@ public:
 
 class OpenAddressingHashTableWith16bitKey final : public OpenAddressingHashTable {
 public:
-	OpenAddressingHashTableWith16bitKey();
+	OpenAddressingHashTableWith16bitKey(int32_t newAllocationTag);
 	uint32_t getKeyFromAddress(void* address) override;
 	void setKeyAtAddress(uint32_t key, void* address) override;
 	bool doesKeyIndicateEmptyBucket(uint32_t key) override;
@@ -65,7 +66,7 @@ public:
 
 class OpenAddressingHashTableWith8bitKey final : public OpenAddressingHashTable {
 public:
-	OpenAddressingHashTableWith8bitKey();
+	OpenAddressingHashTableWith8bitKey(int32_t newAllocationTag);
 	uint32_t getKeyFromAddress(void* address) override;
 	void setKeyAtAddress(uint32_t key, void* address) override;
 	bool doesKeyIndicateEmptyBucket(uint32_t key) override;

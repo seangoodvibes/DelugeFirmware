@@ -58,7 +58,8 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 #endif
 
 Error ParamManager::setupMIDI() {
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(MIDIParamCollection),
+	                                                                 AllocationTag::MIDI_PARAM_COLLECTION);
 	if (!memory) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -71,7 +72,8 @@ Error ParamManager::setupMIDI() {
 }
 
 Error ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(UnpatchedParamSet),
+	                                                                          AllocationTag::UNPATCHED_PARAM_SET);
 	if (!memoryUnpatched) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -83,19 +85,22 @@ Error ParamManager::setupUnpatched() {
 }
 
 Error ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(UnpatchedParamSet),
+	                                                                          AllocationTag::UNPATCHED_PARAM_SET);
 	if (!memoryUnpatched) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
+	void* memoryPatched =
+	    GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(PatchedParamSet), AllocationTag::PATCHED_PARAM_SET);
 	if (!memoryPatched) {
 ramError2:
 		delugeDealloc(memoryUnpatched);
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
+	void* memoryPatchCables =
+	    GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(PatchCableSet), AllocationTag::PATCH_CABLE_SET);
 	if (!memoryPatchCables) {
 		delugeDealloc(memoryPatched);
 		goto ramError2;

@@ -17,8 +17,10 @@
 
 #include "util/container/array/resizeable_pointer_array.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 
-ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*)) {
+ResizeablePointerArray::ResizeablePointerArray(int32_t newAllocationTag)
+    : ResizeableArray(sizeof(void*), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate, newAllocationTag) {
 }
 
 Error ResizeablePointerArray::insertPointerAtIndex(void* pointer, int32_t index) {

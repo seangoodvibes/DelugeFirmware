@@ -380,7 +380,7 @@ void setUIForLoadedSong(Song* song) {
 }
 
 void setupBlankSong() {
-	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(Song), AllocationTag::SONG);
 	if (songMemory == nullptr) {
 		// No RAM for even a blank Song. This is the last-resort fallback (we get here when we have no song at all), so
 		// there's nothing left to do but fail loudly with a code rather than placement-new a Song into a null pointer.

@@ -136,9 +136,11 @@ class Reverb;
 namespace AudioEngine {
 #define logAction(string) logAudioAction(string, __FILE__, __LINE__)
 
-using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
-using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
-using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
+using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator, AllocationTag::VOICE_POOL>;
+using VoiceSamplePool =
+    deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator, AllocationTag::VOICE_SAMPLE_POOL>;
+using TimeStretcherPool =
+    deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator, AllocationTag::TIME_STRETCHER_POOL>;
 void routine();
 void routine_task();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
@@ -204,7 +206,7 @@ extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;
-extern deluge::fast_vector<Sound*> sounds;
+extern deluge::fast_vector<Sound*, AllocationTag::SOUND_ARRAY> sounds;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;

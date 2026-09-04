@@ -80,9 +80,15 @@ struct SampleCacheElement {
 };
 
 Sample::Sample()
-    : percCacheZones{OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone)),
-                     OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone))},
-      caches(sizeof(SampleCacheElement), 4), AudioFile(AudioFileType::SAMPLE) {
+    : percCacheZones{OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone), kMaxNumEmptySpacesToKeep,
+                                                        kNumExtraSpacesToAllocate,
+                                                        static_cast<int32_t>(AllocationTag::SAMPLE_PERC_CACHE)),
+                     OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone), kMaxNumEmptySpacesToKeep,
+                                                        kNumExtraSpacesToAllocate,
+                                                        static_cast<int32_t>(AllocationTag::SAMPLE_PERC_CACHE))},
+      caches(sizeof(SampleCacheElement), 4, kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+             static_cast<int32_t>(AllocationTag::SAMPLE_PERC_CACHE)),
+      AudioFile(AudioFileType::SAMPLE) {
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;
@@ -240,8 +246,8 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	int32_t numClusters = ((lengthInBytesCached - 1) >> Cluster::size_magnitude) + 1;
 
-	void* memory =
-	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
+	void* memory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+	    sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*), AllocationTag::SAMPLE_PERC_CACHE);
 	if (memory == nullptr) {
 		return nullptr;
 	}
@@ -323,7 +329,8 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> Cluster::size_magnitude)
 			                       + 1; // Stores this number for the future too
 			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
-			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
+			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+			    memorySize, AllocationTag::SAMPLE_PERC_CACHE);
 			if (!percCacheClusters[reversed]) {
 				logSampleLoadPressure("perc cluster cache", memorySize);
 				LOCK_EXIT
@@ -339,7 +346,8 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 		if (!percCacheMemory[reversed]) {
 			int32_t percCacheSize = lengthInSamplesAfterReduction;
 
-			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize);
+			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeedTagged(
+			    percCacheSize, AllocationTag::SAMPLE_PERC_CACHE);
 			if (!percCacheMemory[reversed]) {
 				logSampleLoadPressure("perc byte cache", percCacheSize);
 				LOCK_EXIT
@@ -1305,8 +1313,8 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 	int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
 	int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
 	int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
-	int32_t* fftInput =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(fftInputSize + fftOutputSize + floatIndexTableSize);
+	int32_t* fftInput = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	    fftInputSize + fftOutputSize + floatIndexTableSize, AllocationTag::WAVETABLE_TEMP);
 	if (!fftInput) {
 		return 0;
 	}

@@ -137,8 +137,8 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 
 	// Allocate new memory - max size we might need
 	for (int32_t g = 0; g < 2; g++) {
-		destinations[g] =
-		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
+		destinations[g] = (Destination*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+		    sizeof(Destination) * (kMaxNumPatchCables + 1), AllocationTag::PATCH_CABLE_DESTINATION);
 
 		// If couldn't...
 		if (!destinations[g]) {

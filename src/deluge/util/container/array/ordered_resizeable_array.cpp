@@ -24,10 +24,17 @@
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 
+namespace {
+constexpr int32_t k32BitKeyNumBits = 32;
+constexpr int32_t kNoKeyOffset = 0;
+} // namespace
+
 OrderedResizeableArray::OrderedResizeableArray(int32_t newElementSize, int32_t keyNumBits, int32_t newKeyOffset,
-                                               int32_t newMaxNumEmptySpacesToKeep, int32_t newNumExtraSpacesToAllocate)
-    : ResizeableArray(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate),
-      keyMask(0xFFFFFFFF >> (32 - keyNumBits)), keyOffset(newKeyOffset), keyShiftAmount(32 - keyNumBits) {
+                                               int32_t newMaxNumEmptySpacesToKeep, int32_t newNumExtraSpacesToAllocate,
+                                               int32_t newAllocationTag)
+    : ResizeableArray(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate, newAllocationTag),
+      keyMask(0xFFFFFFFF >> (k32BitKeyNumBits - keyNumBits)), keyOffset(newKeyOffset),
+      keyShiftAmount(k32BitKeyNumBits - keyNumBits) {
 }
 
 // With duplicate keys, this will work correctly, returning the leftmost matching (or greater) one if doing
@@ -528,8 +535,10 @@ void OrderedResizeableArray::testDuplicates() {
 // 32-bit key
 OrderedResizeableArrayWith32bitKey::OrderedResizeableArrayWith32bitKey(int32_t newElementSize,
                                                                        int32_t newMaxNumEmptySpacesToKeep,
-                                                                       int32_t newNumExtraSpacesToAllocate)
-    : OrderedResizeableArray(newElementSize, 32, 0, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate) {
+                                                                       int32_t newNumExtraSpacesToAllocate,
+                                                                       int32_t newAllocationTag)
+    : OrderedResizeableArray(newElementSize, k32BitKeyNumBits, kNoKeyOffset, newMaxNumEmptySpacesToKeep,
+                             newNumExtraSpacesToAllocate, newAllocationTag) {
 }
 
 void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, int32_t effectiveLength) {

@@ -21,7 +21,7 @@
 
 class ResizeablePointerArray : public ResizeableArray {
 public:
-	ResizeablePointerArray();
+	explicit ResizeablePointerArray(int32_t newAllocationTag);
 	Error insertPointerAtIndex(void* pointer, int32_t index);
 	void* getPointerAtIndex(int32_t index);
 	void setPointerAtIndex(void* pointer, int32_t index);

@@ -74,8 +74,12 @@ ArpeggiatorForDrum::ArpeggiatorForDrum() {
 }
 
 Arpeggiator::Arpeggiator()
-    : notes(sizeof(ArpNote), 16, 0, 8, 8), notesAsPlayed(sizeof(ArpJustNoteCode), 8, 8),
-      notesByPattern(sizeof(ArpJustNoteCode), 8, 8) {
+    : notes(sizeof(ArpNote), kDefaultOrderedArrayKeyNumBits, kDefaultOrderedArrayKeyOffset, kMaxNumEmptySpacesToKeep,
+            kNumExtraSpacesToAllocate, static_cast<int32_t>(AllocationTag::ARPEGGIATOR_NOTE)),
+      notesAsPlayed(sizeof(ArpJustNoteCode), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                    static_cast<int32_t>(AllocationTag::ARPEGGIATOR_NOTE_AS_PLAYED)),
+      notesByPattern(sizeof(ArpJustNoteCode), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                     static_cast<int32_t>(AllocationTag::ARPEGGIATOR_NOTE_BY_PATTERN)) {
 	notes.emptyingShouldFreeMemory = false;
 	notesAsPlayed.emptyingShouldFreeMemory = false;
 	notesByPattern.emptyingShouldFreeMemory = false;

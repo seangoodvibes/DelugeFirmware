@@ -16,6 +16,7 @@
  */
 
 #include "util/container/vector/named_thing_vector.h"
+#include "memory/general_memory_allocator.h"
 #include <new>
 #include <string.h>
 
@@ -24,8 +25,10 @@ NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, String* ne
 	name.set(newName);
 }
 
-NamedThingVector::NamedThingVector(int32_t newStringOffset)
-    : ResizeableArray(sizeof(NamedThingVectorElement)), stringOffset(newStringOffset) {
+NamedThingVector::NamedThingVector(int32_t newStringOffset, int32_t newAllocationTag)
+    : ResizeableArray(sizeof(NamedThingVectorElement), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                      newAllocationTag),
+      stringOffset(newStringOffset) {
 }
 
 int32_t NamedThingVector::search(char const* searchString, int32_t comparison, bool* foundExact) {

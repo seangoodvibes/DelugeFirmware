@@ -16,10 +16,13 @@
  */
 
 #include "modulation/midi/midi_knob_array.h"
+#include "memory/general_memory_allocator.h"
 #include "modulation/knob.h"
 #include <new>
 
-MidiKnobArray::MidiKnobArray() : ResizeableArray(sizeof(MIDIKnob)) {
+MidiKnobArray::MidiKnobArray()
+    : ResizeableArray(sizeof(MIDIKnob), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                      static_cast<int32_t>(AllocationTag::MIDI_PARAM_COLLECTION)) {
 }
 
 MIDIKnob* MidiKnobArray::insertKnob(int32_t i) {

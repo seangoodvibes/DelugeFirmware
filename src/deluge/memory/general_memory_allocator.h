@@ -20,6 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "memory/memory_region.h"
 
+#include <array>
+
 #define MEMORY_REGION_STEALABLE 0
 #define MEMORY_REGION_INTERNAL 1
 #define MEMORY_REGION_EXTERNAL 2
@@ -61,22 +63,271 @@ class Stealable;
  * up a large enough allocation.
  */
 
+enum class AllocationTag : uint8_t {
+	GENERIC = 0,
+	WAVETABLE_TEMP,
+	SAMPLE_PERC_CACHE,
+	VOICE,
+	VOICE_POOL,
+	VOICE_SAMPLE_POOL,
+	TIME_STRETCHER_POOL,
+	DX7_VOICE_POOL,
+	SONG_LOAD_TEMP,
+	DX7,
+	DX7_ENGINE,
+	DX7_PATCH,
+	AUDIO_CLIP,
+	CLIP_ARRAY,
+	CLIP_INSTANCE,
+	SAMPLE_BROWSER_SAMPLE,
+	SAMPLE_BROWSER_SOUND_DRUM,
+	INSTRUMENT_CLIP,
+	SOUND_DRUM,
+	SLICER_SOUND_DRUM,
+	DRUM_CREATOR_SOUND_DRUM,
+	MIDI_DRUM,
+	GATE_DRUM,
+	SONG,
+	LOAD_SONG,
+	CLEAR_SONG,
+	AUDIO_FILE,
+	SAMPLE,
+	SAMPLE_CLUSTER_ARRAY,
+	SOUND_ARRAY,
+	SOUND_INSTRUMENT,
+	MIDI_INSTRUMENT,
+	CV_INSTRUMENT,
+	KIT,
+	AUDIO_OUTPUT,
+	NOTE,
+	NOTE_ROW,
+	ARPEGGIATOR_NOTE,
+	ARPEGGIATOR_NOTE_AS_PLAYED,
+	ARPEGGIATOR_NOTE_BY_PATTERN,
+	RUNTIME_FEATURE_SETTING,
+	MULTI_RANGE,
+	POINTER_ARRAY,
+	SAMPLE_RECORDER,
+	LIVE_INPUT_BUFFER,
+	BROWSER_FILE_ITEMS,
+	RESIZEABLE_ARRAY,
+	OUTPUT_HASH_TABLE,
+	MIDI_PARAM_COLLECTION,
+	UNPATCHED_PARAM_SET,
+	PATCHED_PARAM_SET,
+	PATCH_CABLE_SET,
+	PARAM_NODE,
+	PATCH_CABLE_DESTINATION,
+	LIVE_PITCH_SHIFTER,
+	MIDI_DEVICE_LUMI_KEYS,
+	MIDI_CABLE_USB_HOSTED,
+	CONSEQUENCE_PARAM_CHANGE,
+	CONSEQUENCE_NOTE_ARRAY_CHANGE,
+	CONSEQUENCE_NOTE_EXISTENCE,
+	CONSEQUENCE_CLIP_INSTANCE_EXISTENCE,
+	CONSEQUENCE_CLIP_LENGTH,
+	CONSEQUENCE_CLIP_EXISTENCE,
+	CONSEQUENCE_AUDIO_CLIP_SET_SAMPLE,
+	CONSEQUENCE,
+	REGION_STEALABLE,
+	REGION_INTERNAL,
+	REGION_EXTERNAL,
+	REGION_EXTERNAL_SMALL,
+	REGION_INTERNAL_SMALL,
+	OTHER,
+	NUM_TAGS,
+};
+
+static constexpr const char* allocationTagName(AllocationTag tag) {
+	switch (tag) {
+	case AllocationTag::GENERIC:
+		return "generic";
+	case AllocationTag::WAVETABLE_TEMP:
+		return "wavetable_temp";
+	case AllocationTag::SAMPLE_PERC_CACHE:
+		return "sample_perc_cache";
+	case AllocationTag::VOICE:
+		return "voice";
+	case AllocationTag::VOICE_POOL:
+		return "voice_pool";
+	case AllocationTag::VOICE_SAMPLE_POOL:
+		return "voice_sample_pool";
+	case AllocationTag::TIME_STRETCHER_POOL:
+		return "time_stretcher_pool";
+	case AllocationTag::DX7_VOICE_POOL:
+		return "dx7_voice_pool";
+	case AllocationTag::SONG_LOAD_TEMP:
+		return "song_load_temp";
+	case AllocationTag::DX7:
+		return "dx7";
+	case AllocationTag::DX7_ENGINE:
+		return "dx7_engine";
+	case AllocationTag::DX7_PATCH:
+		return "dx7_patch";
+	case AllocationTag::AUDIO_CLIP:
+		return "audio_clip";
+	case AllocationTag::CLIP_ARRAY:
+		return "clip_array";
+	case AllocationTag::CLIP_INSTANCE:
+		return "clip_instance";
+	case AllocationTag::INSTRUMENT_CLIP:
+		return "instrument_clip";
+	case AllocationTag::SOUND_DRUM:
+		return "sound_drum";
+	case AllocationTag::SLICER_SOUND_DRUM:
+		return "slicer_sound_drum";
+	case AllocationTag::DRUM_CREATOR_SOUND_DRUM:
+		return "drum_creator_sound_drum";
+	case AllocationTag::MIDI_DRUM:
+		return "midi_drum";
+	case AllocationTag::GATE_DRUM:
+		return "gate_drum";
+	case AllocationTag::SONG:
+		return "song";
+	case AllocationTag::LOAD_SONG:
+		return "load_song";
+	case AllocationTag::CLEAR_SONG:
+		return "clear_song";
+	case AllocationTag::AUDIO_FILE:
+		return "audio_file";
+	case AllocationTag::SAMPLE:
+		return "sample";
+	case AllocationTag::SAMPLE_CLUSTER_ARRAY:
+		return "sample_cluster_array";
+	case AllocationTag::SAMPLE_BROWSER_SAMPLE:
+		return "sample_browser_sample";
+	case AllocationTag::SAMPLE_BROWSER_SOUND_DRUM:
+		return "sample_browser_sound_drum";
+	case AllocationTag::SOUND_ARRAY:
+		return "sound_array";
+	case AllocationTag::SOUND_INSTRUMENT:
+		return "sound_instrument";
+	case AllocationTag::MIDI_INSTRUMENT:
+		return "midi_instrument";
+	case AllocationTag::CV_INSTRUMENT:
+		return "cv_instrument";
+	case AllocationTag::KIT:
+		return "kit";
+	case AllocationTag::AUDIO_OUTPUT:
+		return "audio_output";
+	case AllocationTag::NOTE:
+		return "note";
+	case AllocationTag::NOTE_ROW:
+		return "note_row";
+	case AllocationTag::ARPEGGIATOR_NOTE:
+		return "arpeggiator_note";
+	case AllocationTag::ARPEGGIATOR_NOTE_AS_PLAYED:
+		return "arpeggiator_note_as_played";
+	case AllocationTag::ARPEGGIATOR_NOTE_BY_PATTERN:
+		return "arpeggiator_note_by_pattern";
+	case AllocationTag::RUNTIME_FEATURE_SETTING:
+		return "runtime_feature_setting";
+	case AllocationTag::MULTI_RANGE:
+		return "multi_range";
+	case AllocationTag::POINTER_ARRAY:
+		return "pointer_array";
+	case AllocationTag::SAMPLE_RECORDER:
+		return "sample_recorder";
+	case AllocationTag::LIVE_INPUT_BUFFER:
+		return "live_input_buffer";
+	case AllocationTag::BROWSER_FILE_ITEMS:
+		return "browser_file_items";
+	case AllocationTag::RESIZEABLE_ARRAY:
+		return "resizeable_array";
+	case AllocationTag::OUTPUT_HASH_TABLE:
+		return "output_hash_table";
+	case AllocationTag::MIDI_PARAM_COLLECTION:
+		return "midi_param_collection";
+	case AllocationTag::UNPATCHED_PARAM_SET:
+		return "unpatched_param_set";
+	case AllocationTag::PATCHED_PARAM_SET:
+		return "patched_param_set";
+	case AllocationTag::PATCH_CABLE_SET:
+		return "patch_cable_set";
+	case AllocationTag::PARAM_NODE:
+		return "param_node";
+	case AllocationTag::PATCH_CABLE_DESTINATION:
+		return "patch_cable_destination";
+	case AllocationTag::LIVE_PITCH_SHIFTER:
+		return "live_pitch_shifter";
+	case AllocationTag::MIDI_DEVICE_LUMI_KEYS:
+		return "midi_device_lumi_keys";
+	case AllocationTag::MIDI_CABLE_USB_HOSTED:
+		return "midi_cable_usb_hosted";
+	case AllocationTag::CONSEQUENCE_PARAM_CHANGE:
+		return "consequence_param_change";
+	case AllocationTag::CONSEQUENCE_NOTE_ARRAY_CHANGE:
+		return "consequence_note_array_change";
+	case AllocationTag::CONSEQUENCE_NOTE_EXISTENCE:
+		return "consequence_note_existence";
+	case AllocationTag::CONSEQUENCE_CLIP_INSTANCE_EXISTENCE:
+		return "consequence_clip_instance_existence";
+	case AllocationTag::CONSEQUENCE_CLIP_LENGTH:
+		return "consequence_clip_length";
+	case AllocationTag::CONSEQUENCE_CLIP_EXISTENCE:
+		return "consequence_clip_existence";
+	case AllocationTag::CONSEQUENCE_AUDIO_CLIP_SET_SAMPLE:
+		return "consequence_audio_clip_set_sample";
+	case AllocationTag::CONSEQUENCE:
+		return "consequence";
+	case AllocationTag::REGION_STEALABLE:
+		return "region_stealable";
+	case AllocationTag::REGION_INTERNAL:
+		return "region_internal";
+	case AllocationTag::REGION_EXTERNAL:
+		return "region_external";
+	case AllocationTag::REGION_EXTERNAL_SMALL:
+		return "region_external_small";
+	case AllocationTag::REGION_INTERNAL_SMALL:
+		return "region_internal_small";
+	case AllocationTag::OTHER:
+		return "other";
+	case AllocationTag::NUM_TAGS:
+		return "invalid";
+	default:
+		return "unknown";
+	}
+}
+
+struct AllocationRecord {
+	void* address = nullptr;
+	uint32_t size = 0;
+	uint8_t region = 0;
+	uint8_t tag = 0;
+};
+
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
 	[[gnu::always_inline]] void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, true, false, thingNotToStealFrom);
+		return alloc(requiredSize, true, false, thingNotToStealFrom, AllocationTag::GENERIC);
+	}
+
+	[[gnu::always_inline]] void* allocMaxSpeedTagged(uint32_t requiredSize, AllocationTag tag,
+	                                                 void* thingNotToStealFrom = nullptr) {
+		return alloc(requiredSize, true, false, thingNotToStealFrom, tag);
 	}
 
 	[[gnu::always_inline]] void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, false, false, thingNotToStealFrom);
+		return alloc(requiredSize, false, false, thingNotToStealFrom, AllocationTag::GENERIC);
+	}
+
+	[[gnu::always_inline]] void* allocLowSpeedTagged(uint32_t requiredSize, AllocationTag tag,
+	                                                 void* thingNotToStealFrom = nullptr) {
+		return alloc(requiredSize, false, false, thingNotToStealFrom, tag);
 	}
 
 	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
-		return alloc(requiredSize, false, true, thingNotToStealFrom);
+		return alloc(requiredSize, false, true, thingNotToStealFrom, AllocationTag::GENERIC);
 	}
 
-	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
+	[[gnu::always_inline]] void* allocStealableTagged(uint32_t requiredSize, AllocationTag tag,
+	                                                  void* thingNotToStealFrom = nullptr) {
+		return alloc(requiredSize, false, true, thingNotToStealFrom, tag);
+	}
+
+	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom,
+	            AllocationTag tag);
 	void dealloc(void* address);
 	void* allocExternal(uint32_t requiredSize);
 	void* allocInternal(uint32_t requiredSize);
@@ -90,6 +341,7 @@ public:
 	uint32_t getAllocatedSize(void* address);
 #if ALPHA_OR_BETA_VERSION
 	void debugPrintMemoryUsage(char const* label);
+	void debugPrintTagUsage(char const* label);
 #endif
 	void checkStack(char const* caller);
 	void testShorten(int32_t i);
@@ -103,6 +355,13 @@ public:
 	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
 	CacheManager cacheManager;
 	bool lock;
+
+#if ALPHA_OR_BETA_VERSION
+	std::array<AllocationRecord, 1024> trackedAllocations{};
+	uint32_t trackedAllocationCount = 0;
+	void trackAllocation(void* address, uint32_t size, int32_t region, AllocationTag tag);
+	void untrackAllocation(void* address);
+#endif
 
 	static GeneralMemoryAllocator& get() {
 		static GeneralMemoryAllocator generalMemoryAllocator;

@@ -25,10 +25,20 @@
 
 #define RESIZEABLE_ARRAY_DO_LOCKS (ALPHA_OR_BETA_VERSION)
 
+constexpr int32_t kMaxNumEmptySpacesToKeep = 16;
+constexpr int32_t kNumExtraSpacesToAllocate = 15;
+constexpr int32_t kDefaultOrderedArrayKeyNumBits = 16;
+constexpr int32_t kDefaultOrderedArrayKeyOffset = 0;
+constexpr int32_t kMultiRangeKeyNumBits = 16;
+constexpr int32_t kMultiRangeKeyOffset = 0;
+constexpr int32_t kNoAdditionalEmptySpace = 0;
+constexpr int32_t kMIDIParamKeyNumBits = 8;
+constexpr int32_t kMIDIParamKeyOffset = 0;
+
 class ResizeableArray {
 public:
-	ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,
-	                int32_t newNumExtrarSpacesToAllocate = 15);
+	ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep, int32_t newNumExtraSpacesToAllocate,
+	                int32_t newAllocationTag);
 	~ResizeableArray();
 	void init();
 	bool cloneFrom(ResizeableArray const* other);
@@ -89,4 +99,5 @@ private:
 
 	const int32_t maxNumEmptySpacesToKeep;  // Can go down to 0
 	const int32_t numExtraSpacesToAllocate; // Can go down to 0
+	uint8_t allocationTag;
 };

@@ -16,10 +16,13 @@
  */
 
 #include "modulation/midi/midi_param_vector.h"
+#include "memory/general_memory_allocator.h"
 #include "modulation/midi/midi_param.h"
 #include <new>
 
-MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8) {
+MIDIParamVector::MIDIParamVector()
+    : OrderedResizeableArray(sizeof(MIDIParam), kMIDIParamKeyNumBits, kMIDIParamKeyOffset, kMaxNumEmptySpacesToKeep,
+                             kNumExtraSpacesToAllocate, static_cast<int32_t>(AllocationTag::MIDI_PARAM_COLLECTION)) {
 }
 
 MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) {

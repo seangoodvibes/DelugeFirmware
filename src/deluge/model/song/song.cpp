@@ -130,7 +130,7 @@ OutputType getCurrentOutputType() {
 
 using namespace deluge;
 
-Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
+Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager), 2, static_cast<int32_t>(AllocationTag::SONG)) {
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
@@ -379,7 +379,8 @@ bool Song::ensureAtLeastOneSessionClip() {
 		return false;
 	}
 
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	void* memory =
+	    GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(InstrumentClip), AllocationTag::INSTRUMENT_CLIP);
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
 	sessionClips.insertClipAtIndex(firstClip, 0);
@@ -1983,7 +1984,8 @@ unknownTag:
 					Error error;
 
 					if (!strcmp(tagName, "audioTrack")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
+						memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(AudioOutput),
+						                                                           AllocationTag::AUDIO_OUTPUT);
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -1993,7 +1995,8 @@ unknownTag:
 					}
 
 					else if (!strcmp(tagName, "sound")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
+						memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(SoundInstrument),
+						                                                           AllocationTag::SOUND_INSTRUMENT);
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -2025,7 +2028,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "kit")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
+						memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(Kit), AllocationTag::KIT);
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -2038,7 +2041,8 @@ loadOutput:
 					// used. The distinction is later in a different tag which can be "midiChannel" or "zone"
 					else if (!strcmp(tagName, "midi") || !strcmp(tagName, "midiChannel")
 					         || !strcmp(tagName, "mpeZone")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
+						memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(MIDIInstrument),
+						                                                           AllocationTag::MIDI_INSTRUMENT);
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -2047,7 +2051,8 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "cvChannel")) {
-						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(CVInstrument));
+						memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(CVInstrument),
+						                                                           AllocationTag::CV_INSTRUMENT);
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
@@ -2348,7 +2353,9 @@ readClip:
 				return Error::INSUFFICIENT_RAM;
 			}
 
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocationSize);
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+			    allocationSize,
+			    (clipType == ClipType::INSTRUMENT) ? AllocationTag::INSTRUMENT_CLIP : AllocationTag::AUDIO_CLIP);
 			if (!memory) {
 				return Error::INSUFFICIENT_RAM;
 			}
@@ -5151,7 +5158,8 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return nullptr;
 	}
 
-	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
+	void* outputMemory =
+	    GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(AudioOutput), AllocationTag::AUDIO_OUTPUT);
 	if (!outputMemory) {
 		return nullptr;
 	}
@@ -5652,7 +5660,7 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(AudioClip), AllocationTag::AUDIO_CLIP);
 	if (!clipMemory) {
 		return nullptr;
 	}

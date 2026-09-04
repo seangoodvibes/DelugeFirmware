@@ -125,7 +125,7 @@ public:
 
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
-	deluge::fast_vector<MIDIKnob> midi_knobs;
+	deluge::fast_vector<MIDIKnob, AllocationTag::MIDI_PARAM_COLLECTION> midi_knobs;
 	int32_t postReverbVolumeLastTime{};
 
 	// CPU usage

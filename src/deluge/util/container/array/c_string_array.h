@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include "memory/general_memory_allocator.h"
 #include "util/container/array/resizeable_array.h"
 #include <cstdint>
 
 class CStringArray : public ResizeableArray {
 public:
-	CStringArray(int32_t newElementSize) : ResizeableArray(newElementSize) {}
+	CStringArray(int32_t newElementSize, int32_t newAllocationTag)
+	    : ResizeableArray(newElementSize, kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate, newAllocationTag) {}
 	void sortForStrings();
 	int32_t search(char const* searchString, bool* foundExact = nullptr);
 

@@ -29,12 +29,13 @@
 
 DxEngine* dxEngine = nullptr;
 
-using DxVoicePool = deluge::memory::ObjectPool<DxVoice, deluge::memory::fast_allocator>;
+using DxVoicePool = deluge::memory::ObjectPool<DxVoice, deluge::memory::fast_allocator, AllocationTag::DX7_VOICE_POOL>;
 
 static void init_engine(void) {
 	// get ourselves an aligned pointer to use placement new with
 	// todo: this should be a part of the allocator but not sure what the api should look like, easy bugfix for now
-	void* engineMem = allocMaxSpeed(sizeof(DxEngine) + alignof(DxEngine) - 1);
+	void* engineMem = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(DxEngine) + alignof(DxEngine) - 1,
+	                                                                    AllocationTag::DX7_ENGINE);
 	engineMem = (void*)((((intptr_t)engineMem) + alignof(DxEngine) - 1) & -alignof(DxEngine));
 	dxEngine = new (engineMem) DxEngine();
 
@@ -82,7 +83,7 @@ void DxEngine::dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice) {
 }
 
 DxPatch* DxEngine::newPatch(void) {
-	void* memory = allocLowSpeed(sizeof(DxPatch));
+	void* memory = GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(DxPatch), AllocationTag::DX7_PATCH);
 	return new (memory) DxPatch;
 }
 

@@ -49,7 +49,11 @@
 
 namespace params = deluge::modulation::params;
 
-Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)), arpeggiator(), defaultArpSettings() {
+Kit::Kit()
+    : Instrument(OutputType::KIT),
+      drumsWithRenderingActive(sizeof(Drum*), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                               static_cast<int32_t>(AllocationTag::KIT)),
+      arpeggiator(), defaultArpSettings() {
 	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
 	selectedDrum = nullptr;

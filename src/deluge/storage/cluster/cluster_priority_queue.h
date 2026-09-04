@@ -31,7 +31,8 @@ class Compare {
 public:
 	bool operator()(const qcluster& first, const qcluster& second) const { return first.first > second.first; }
 };
-class ClusterPriorityQueue : public std::priority_queue<qcluster, deluge::fast_vector<qcluster>, Compare> {
+template <AllocationTag Tag>
+class ClusterPriorityQueue : public std::priority_queue<qcluster, deluge::fast_vector<qcluster, Tag>, Compare> {
 
 public:
 	Error enqueueCluster(Cluster& cluster, uint32_t priorityRating) {
@@ -59,7 +60,7 @@ public:
 	/* This is currently a consequence of how priorities are calculated (using full 32bits) next-gen getPriorityRating
 	 * should return an int32_t */
 	[[nodiscard]] constexpr bool hasAnyLowestPriority() const {
-		return !c.empty() && c.rbegin()->first == std::numeric_limits<uint32_t>::max();
+		return !this->c.empty() && this->c.rbegin()->first == std::numeric_limits<uint32_t>::max();
 	}
 
 	bool erase(const Cluster* cluster) {

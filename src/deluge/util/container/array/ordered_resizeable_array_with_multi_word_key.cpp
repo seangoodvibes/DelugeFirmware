@@ -18,16 +18,22 @@
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize,
-                                                                               int32_t newNumWordsInKey)
-    : OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15), numWordsInKey(newNumWordsInKey) {
+                                                                               int32_t newNumWordsInKey,
+                                                                               int32_t newMaxNumEmptySpacesToKeep,
+                                                                               int32_t newNumExtraSpacesToAllocate,
+                                                                               int32_t newAllocationTag)
+    : OrderedResizeableArrayWith32bitKey(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate,
+                                         newAllocationTag),
+      numWordsInKey(newNumWordsInKey) {
 }
 
 OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize,
                                                                                int32_t newNumWordsInKey,
-                                                                               int32_t newMaxNumEmptySpacesToKeep,
-                                                                               int32_t newNumExtraSpacesToAllocate)
-    : OrderedResizeableArrayWith32bitKey(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate),
+                                                                               int32_t newAllocationTag)
+    : OrderedResizeableArrayWith32bitKey(newElementSize, kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                                         newAllocationTag),
       numWordsInKey(newNumWordsInKey) {
 }
 

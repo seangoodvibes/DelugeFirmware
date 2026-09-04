@@ -208,7 +208,8 @@ void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam co
 
 void Action::recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData) {
 
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceParamChange));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(ConsequenceParamChange),
+	                                                                     AllocationTag::CONSEQUENCE_PARAM_CHANGE);
 
 	if (consMemory) {
 		ConsequenceParamChange* newCons = new (consMemory) ConsequenceParamChange(modelStack, stealData);
@@ -249,7 +250,8 @@ Error Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip,
 
 Error Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
                                               bool stealData) {
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteArrayChange));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(ConsequenceNoteArrayChange),
+	                                                                     AllocationTag::CONSEQUENCE_NOTE_ARRAY_CHANGE);
 
 	if (!consMemory) {
 		return Error::INSUFFICIENT_RAM;
@@ -269,7 +271,8 @@ void Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, 
 		return;
 	}
 
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteExistence));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(ConsequenceNoteExistence),
+	                                                                     AllocationTag::CONSEQUENCE_NOTE_EXISTENCE);
 
 	if (consMemory) {
 		ConsequenceNoteExistence* newConsequence =
@@ -280,7 +283,8 @@ void Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, 
 
 void Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type) {
 
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipInstanceExistence));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+	    sizeof(ConsequenceClipInstanceExistence), AllocationTag::CONSEQUENCE_CLIP_INSTANCE_EXISTENCE);
 
 	if (consMemory) {
 		ConsequenceClipInstanceExistence* newConsequence =
@@ -301,7 +305,8 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 		}
 	}
 
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipLength));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(ConsequenceClipLength),
+	                                                                     AllocationTag::CONSEQUENCE_CLIP_LENGTH);
 
 	if (consMemory) {
 		ConsequenceClipLength* consequenceClipLength = new (consMemory) ConsequenceClipLength(clip, oldLength);
@@ -310,7 +315,8 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 }
 
 bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type) {
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipExistence));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(ConsequenceClipExistence),
+	                                                                     AllocationTag::CONSEQUENCE_CLIP_EXISTENCE);
 	if (!consMemory) {
 		return false;
 	}
@@ -334,7 +340,8 @@ bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* c
 // Call this *before* you change the Sample or its filePath
 void Action::recordAudioClipSampleChange(AudioClip* clip) {
 	// for some unknown reason this doesn't work on live looping?
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceAudioClipSetSample));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+	    sizeof(ConsequenceAudioClipSetSample), AllocationTag::CONSEQUENCE_AUDIO_CLIP_SET_SAMPLE);
 	if (consMemory) {
 		ConsequenceAudioClipSetSample* cons = new (consMemory) ConsequenceAudioClipSetSample(clip);
 		addConsequence(cons);

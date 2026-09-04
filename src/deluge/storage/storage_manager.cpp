@@ -622,7 +622,11 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 		instrumentSize = sizeof(Kit);
 	}
 
-	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(instrumentSize);
+	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	    instrumentSize,
+	    (newOutputType == OutputType::SYNTH)
+	        ? AllocationTag::SOUND_INSTRUMENT
+	        : ((newOutputType == OutputType::MIDI_OUT) ? AllocationTag::MIDI_INSTRUMENT : AllocationTag::KIT));
 	if (!instrumentMemory) {
 		return nullptr;
 	}
@@ -668,7 +672,8 @@ paramManagerSetupError:
 Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot) {
 	int32_t size = (outputType == OutputType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
 	// Paul: Might make sense to put these into Internal?
-	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
+	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+	    size, (outputType == OutputType::MIDI_OUT) ? AllocationTag::MIDI_INSTRUMENT : AllocationTag::CV_INSTRUMENT);
 	if (!instrumentMemory) { // RAM fail
 		return nullptr;
 	}
@@ -699,7 +704,10 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		memorySize = sizeof(GateDrum);
 	}
 
-	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
+	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	    memorySize, (drumType == DrumType::SOUND)
+	                    ? AllocationTag::SOUND_DRUM
+	                    : ((drumType == DrumType::MIDI) ? AllocationTag::MIDI_DRUM : AllocationTag::GATE_DRUM));
 	if (!drumMemory) {
 		return nullptr;
 	}
@@ -795,7 +803,8 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 }
 
 FileReader::FileReader() {
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
+	void* temp =
+	    GeneralMemoryAllocator::get().allocLowSpeedTagged(32768 + CACHE_LINE_SIZE * 2, AllocationTag::SONG_LOAD_TEMP);
 	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
 
@@ -932,7 +941,8 @@ FRESULT FileReader::closeWriter() {
 
 FileWriter::FileWriter() {
 	bufferSize = 32768;
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
+	void* temp = GeneralMemoryAllocator::get().allocLowSpeedTagged(bufferSize + CACHE_LINE_SIZE * 2,
+	                                                               AllocationTag::SONG_LOAD_TEMP);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
 

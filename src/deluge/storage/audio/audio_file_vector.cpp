@@ -16,13 +16,15 @@
  */
 
 #include "storage/audio/audio_file_vector.h"
+#include "memory/general_memory_allocator.h"
 #include "storage/audio/audio_file.h"
 
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
-AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFile, filePath)) {
+AudioFileVector::AudioFileVector()
+    : NamedThingVector(__builtin_offsetof(AudioFile, filePath), static_cast<int32_t>(AllocationTag::AUDIO_FILE)) {
 }
 
 // Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and the

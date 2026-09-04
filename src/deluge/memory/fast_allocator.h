@@ -13,21 +13,41 @@ namespace deluge::memory {
  *
  * @tparam T The type to allocate for
  */
-template <typename T>
+template <typename T, AllocationTag Tag>
 class fast_allocator {
 public:
 	using value_type = T;
 
+	template <typename U>
+	struct rebind {
+		using other = fast_allocator<U, Tag>;
+	};
+
 	constexpr fast_allocator() noexcept = default;
 
-	template <typename U>
-	constexpr fast_allocator(const fast_allocator<U>&) noexcept {};
+	template <typename U, AllocationTag OtherTag>
+	constexpr fast_allocator(const fast_allocator<U, OtherTag>&) noexcept {};
 
 	[[nodiscard]] T* allocate(std::size_t n) noexcept(false) {
 		if (n == 0) {
 			return nullptr;
 		}
-		void* addr = GeneralMemoryAllocator::get().allocMaxSpeed(n * sizeof(T));
+		void* addr = GeneralMemoryAllocator::get().allocMaxSpeedTagged(n * sizeof(T), Tag);
+		if (addr == nullptr) [[unlikely]] {
+			throw deluge::exception::BAD_ALLOC;
+		}
+		return static_cast<T*>(addr);
+	}
+
+	[[nodiscard]] T* allocate(std::size_t n, AllocationTag allocationTag) noexcept(false) {
+		return allocateTagged(n, allocationTag);
+	}
+
+	[[nodiscard]] T* allocateTagged(std::size_t n, AllocationTag allocationTag) noexcept(false) {
+		if (n == 0) {
+			return nullptr;
+		}
+		void* addr = GeneralMemoryAllocator::get().allocMaxSpeedTagged(n * sizeof(T), allocationTag);
 		if (addr == nullptr) [[unlikely]] {
 			throw deluge::exception::BAD_ALLOC;
 		}
@@ -36,13 +56,13 @@ public:
 
 	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().dealloc(p); }
 
-	template <typename U>
-	bool operator==(const fast_allocator<U>& o) {
+	template <typename U, AllocationTag OtherTag>
+	bool operator==(const fast_allocator<U, OtherTag>& o) {
 		return true;
 	}
 
-	template <typename U>
-	bool operator!=(const fast_allocator<U>& o) {
+	template <typename U, AllocationTag OtherTag>
+	bool operator!=(const fast_allocator<U, OtherTag>& o) {
 		return false;
 	}
 };

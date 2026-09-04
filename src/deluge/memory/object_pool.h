@@ -25,7 +25,7 @@ namespace deluge::memory {
 /// @tparam T The type of object to pool
 /// @tparam Alloc The allocator to use for the pool
 /// @note ObjectPool instances are thread-local singletons
-template <typename T, template <typename> typename Alloc = std::allocator>
+template <typename T, template <typename, AllocationTag> typename Alloc, AllocationTag PoolTag>
 class ObjectPool {
 	static constexpr size_t kDefaultSize = 48;
 	ObjectPool() { repopulate(); };
@@ -74,7 +74,19 @@ public:
 			op.objects_.push(obj);
 		}
 		else {
-			Alloc<T>().deallocate(obj, 1);
+			Alloc<T, PoolTag>().deallocate(obj, 1);
+		}
+	}
+
+	static T* allocateOneObject(Alloc<T, PoolTag>& allocator) {
+		if constexpr (requires { allocator.allocateTagged(1, PoolTag); }) {
+			return allocator.allocateTagged(1, PoolTag);
+		}
+		else {
+			static_assert(
+			    requires { allocator.allocate(1, PoolTag); },
+			    "ObjectPool requires an allocator that accepts an explicit AllocationTag from the originator.");
+			return allocator.allocate(1, PoolTag);
 		}
 	}
 
@@ -82,7 +94,7 @@ public:
 	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
 	void repopulate() noexcept(false) {
 		for (size_t i = objects_.size(); i < capacity_; ++i) {
-			objects_.push(alloc_.allocate(1));
+			objects_.push(allocateOneObject(alloc_));
 		}
 	}
 
@@ -98,7 +110,7 @@ public:
 	[[nodiscard]] pointer_type acquire(Args&&... args) noexcept(false) {
 		T* obj = nullptr;
 		if (objects_.empty()) {
-			obj = alloc_.allocate(1);
+			obj = allocateOneObject(alloc_);
 		}
 		else {
 			obj = objects_.top();
@@ -121,7 +133,7 @@ public:
 
 private:
 	size_t capacity_ = kDefaultSize;
-	std::stack<T*, std::vector<T*, Alloc<T*>>> objects_;
-	Alloc<T> alloc_;
+	std::stack<T*, std::vector<T*, Alloc<T*, PoolTag>>> objects_;
+	Alloc<T, PoolTag> alloc_;
 };
 } // namespace deluge::memory

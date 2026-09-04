@@ -17,10 +17,13 @@
 
 #include "model/sample/sample_cluster_array.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "model/sample/sample_cluster.h"
 #include <new>
 
-SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)) {
+SampleClusterArray::SampleClusterArray()
+    : ResizeableArray(sizeof(SampleCluster), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                      static_cast<int32_t>(AllocationTag::SAMPLE_CLUSTER_ARRAY)) {
 }
 
 Error SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {

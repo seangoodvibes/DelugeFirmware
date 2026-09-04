@@ -39,7 +39,9 @@ struct UnknownSetting {
 
 RuntimeFeatureSettings runtimeFeatureSettings{};
 
-RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
+RuntimeFeatureSettings::RuntimeFeatureSettings()
+    : unknownSettings(sizeof(UnknownSetting), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+                      static_cast<int32_t>(AllocationTag::RUNTIME_FEATURE_SETTING)) {
 }
 
 static void SetupOnOffSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,

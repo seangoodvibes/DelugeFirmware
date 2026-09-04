@@ -63,7 +63,10 @@ WaveTableBand::~WaveTableBand() {
 	}
 }
 
-WaveTable::WaveTable() : bands(sizeof(WaveTableBand)), AudioFile(AudioFileType::WAVETABLE) {
+WaveTable::WaveTable()
+    : bands(sizeof(WaveTableBand), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
+            static_cast<int32_t>(AllocationTag::WAVETABLE_TEMP)),
+      AudioFile(AudioFileType::WAVETABLE) {
 }
 
 WaveTable::~WaveTable() {
@@ -287,8 +290,8 @@ gotError2:
 		    numCycles * (cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE);
 		int32_t bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
 		// Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
-		void* bandDataMemory =
-		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
+		void* bandDataMemory = GeneralMemoryAllocator::get().allocStealableTagged(
+		    bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), AllocationTag::WAVETABLE_TEMP);
 		if (!bandDataMemory) {
 			logWaveTableLoadPressure("band data", bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 			error = Error::INSUFFICIENT_RAM;
@@ -325,8 +328,8 @@ gotError2:
 	// not a power-of-two).
 	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
 	// Internal RAM is good, and it's only temporary
-	int32_t* __restrict__ currentCycleInt32 =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(currentCycleMemorySize * sizeof(int32_t));
+	int32_t* __restrict__ currentCycleInt32 = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	    currentCycleMemorySize * sizeof(int32_t), AllocationTag::WAVETABLE_TEMP);
 	if (!currentCycleInt32) {
 		logWaveTableLoadPressure("fft input", currentCycleMemorySize * sizeof(int32_t));
 		error = Error::INSUFFICIENT_RAM;
@@ -337,8 +340,8 @@ gotError2:
 	// use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
 	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData =
-	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(((currentCycleMemorySize >> 1) + 1)
-	                                                                       * sizeof(ne10_fft_cpx_int32_t));
+	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	        ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t), AllocationTag::WAVETABLE_TEMP);
 	if (!frequencyDomainData) {
 		logWaveTableLoadPressure("fft output", ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t));
 		error = Error::INSUFFICIENT_RAM;

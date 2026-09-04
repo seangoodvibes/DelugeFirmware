@@ -197,7 +197,7 @@ MonitoringAction monitoringAction;
 
 uint32_t saddr;
 
-deluge::fast_vector<Sound*> sounds;
+deluge::fast_vector<Sound*, AllocationTag::SOUND_ARRAY> sounds;
 TaskID routine_task_id = -1;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -1473,7 +1473,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(size, AllocationTag::LIVE_INPUT_BUFFER);
 		if (!memory) {
 			return nullptr;
 		}
@@ -1579,7 +1579,8 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
                                bool shouldNormalize, Output* outputRecordingFrom, RecorderConfig config) {
 	Error error;
 
-	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
+	void* recorderMemory =
+	    GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(SampleRecorder), AllocationTag::SAMPLE_RECORDER);
 	if (!recorderMemory) {
 		return nullptr;
 	}

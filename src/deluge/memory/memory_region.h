@@ -43,7 +43,7 @@ constexpr size_t min_align_big = 64;
 constexpr size_t pivot_big = 512;
 class MemoryRegion {
 public:
-	MemoryRegion();
+	explicit MemoryRegion(int32_t newAllocationTag);
 	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd,
 	           CacheManager* cacheManager);
 	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);

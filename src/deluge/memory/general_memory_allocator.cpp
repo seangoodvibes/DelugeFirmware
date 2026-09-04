@@ -40,6 +40,11 @@ extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 // NOLINTEND
 namespace {
+constexpr int32_t kStealableRegionEmptySpaceTag = static_cast<int32_t>(AllocationTag::REGION_STEALABLE);
+constexpr int32_t kInternalRegionEmptySpaceTag = static_cast<int32_t>(AllocationTag::REGION_INTERNAL);
+constexpr int32_t kExternalRegionEmptySpaceTag = static_cast<int32_t>(AllocationTag::REGION_EXTERNAL);
+constexpr int32_t kExternalSmallRegionEmptySpaceTag = static_cast<int32_t>(AllocationTag::REGION_EXTERNAL_SMALL);
+constexpr int32_t kInternalSmallRegionEmptySpaceTag = static_cast<int32_t>(AllocationTag::REGION_INTERNAL_SMALL);
 
 [[nodiscard]] bool shouldLogMemoryPressureEvent() {
 	static uint32_t lastLogTime = 0;
@@ -61,22 +66,24 @@ namespace {
 	return true;
 }
 
-void logMemoryPressureEvent(const char* stage, uint32_t requiredSize, bool mayUseOnChipRam) {
+void logMemoryPressureEvent(const char* stage, uint32_t requiredSize, bool mayUseOnChipRam, AllocationTag tag) {
 	if (!shouldLogMemoryPressureEvent()) {
 		return;
 	}
 
 #if ALPHA_OR_BETA_VERSION
 	GeneralMemoryAllocator& allocator = GeneralMemoryAllocator::get();
-	D_PRINTLN("memory pressure: %s required=%u mayUseOnChipRam=%d internal free=%u alloc=%u count=%u external free=%u "
-	          "alloc=%u count=%u",
-	          stage, requiredSize, mayUseOnChipRam ? 1 : 0, allocator.regions[MEMORY_REGION_INTERNAL].getFreeBytes(),
+	D_PRINTLN("memory pressure: %s required=%u tag=%s mayUseOnChipRam=%d internal free=%u alloc=%u count=%u external "
+	          "free=%u alloc=%u count=%u",
+	          stage, requiredSize, allocationTagName(tag), mayUseOnChipRam ? 1 : 0,
+	          allocator.regions[MEMORY_REGION_INTERNAL].getFreeBytes(),
 	          allocator.regions[MEMORY_REGION_INTERNAL].getAllocatedBytes(),
 	          allocator.regions[MEMORY_REGION_INTERNAL].getAllocationCount(),
 	          allocator.regions[MEMORY_REGION_EXTERNAL].getFreeBytes(),
 	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocatedBytes(),
 	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocationCount());
 	allocator.debugPrintMemoryUsage("memory pressure snapshot");
+	allocator.debugPrintTagUsage("memory pressure tag snapshot");
 #else
 	D_PRINTLN("memory pressure: %s required=%u mayUseOnChipRam=%d", stage, requiredSize, mayUseOnChipRam ? 1 : 0);
 #endif
@@ -97,12 +104,16 @@ void logPeriodicMemorySnapshot() {
 	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocatedBytes(),
 	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocationCount());
 	allocator.debugPrintMemoryUsage("periodic snapshot");
+	allocator.debugPrintTagUsage("periodic tag snapshot");
 #endif
 }
 
 } // namespace
 
-GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
+GeneralMemoryAllocator::GeneralMemoryAllocator()
+    : lock(false), regions{MemoryRegion(kStealableRegionEmptySpaceTag), MemoryRegion(kInternalRegionEmptySpaceTag),
+                           MemoryRegion(kExternalRegionEmptySpaceTag), MemoryRegion(kExternalSmallRegionEmptySpaceTag),
+                           MemoryRegion(kInternalSmallRegionEmptySpaceTag)} {
 	uint32_t external_small_end = EXTERNAL_MEMORY_END;
 	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
 	uint32_t external_end = external_small_start;
@@ -167,7 +178,7 @@ uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
+	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr, AllocationTag::GENERIC);
 }
 extern "C" void delugeDealloc(void* address) {
 #ifdef IN_UNIT_TESTS
@@ -230,7 +241,7 @@ void GeneralMemoryAllocator::deallocExternal(void* address) {
 // from there, thingNotToStealFrom could be interpreted as makeStealable! requiredSize 0 means get biggest allocation
 // available.
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
-                                    void* thingNotToStealFrom) {
+                                    void* thingNotToStealFrom, AllocationTag tag) {
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -248,25 +259,28 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 			address = allocInternal(requiredSize);
 
 			if (address != nullptr) {
+				trackAllocation(address, requiredSize, getRegion(address), tag);
 				return address;
 			}
 
 			AudioEngine::logAction("internal allocation failed");
-			logMemoryPressureEvent("internal alloc failed", requiredSize, mayUseOnChipRam);
-			D_PRINTLN("memory pressure: internal alloc failed required=%u mayUseOnChipRam=%d", requiredSize,
-			          mayUseOnChipRam ? 1 : 0);
+			logMemoryPressureEvent("internal alloc failed", requiredSize, mayUseOnChipRam, tag);
+			D_PRINTLN("memory pressure: internal alloc failed required=%u tag=%s mayUseOnChipRam=%d", requiredSize,
+			          allocationTagName(tag), mayUseOnChipRam ? 1 : 0);
 		}
 
 		// Second try external region
 		address = allocExternal(requiredSize);
 
 		if (address) {
+			trackAllocation(address, requiredSize, getRegion(address), tag);
 			return address;
 		}
 
 		AudioEngine::logAction("external allocation failed");
-		logMemoryPressureEvent("external alloc failed", requiredSize, mayUseOnChipRam);
-		D_PRINTLN("Dire memory, resorting to stealable area");
+		logMemoryPressureEvent("external alloc failed", requiredSize, mayUseOnChipRam, tag);
+		D_PRINTLN("Dire memory, resorting to stealable area for tag=%s required=%u", allocationTagName(tag),
+		          requiredSize);
 	}
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
@@ -279,6 +293,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	lock = true;
 	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
+	if (address != nullptr) {
+		trackAllocation(address, requiredSize, getRegion(address), tag);
+	}
 	return address;
 }
 
@@ -288,6 +305,33 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 }
 
 #if ALPHA_OR_BETA_VERSION
+void GeneralMemoryAllocator::trackAllocation(void* address, uint32_t size, int32_t region, AllocationTag tag) {
+	if (address == nullptr || size == 0 || trackedAllocationCount >= trackedAllocations.size()) {
+		return;
+	}
+	for (uint32_t i = 0; i < trackedAllocationCount; i++) {
+		if (trackedAllocations[i].address == address) {
+			return;
+		}
+	}
+	trackedAllocations[trackedAllocationCount] = {address, size, static_cast<uint8_t>(region),
+	                                              static_cast<uint8_t>(tag)};
+	trackedAllocationCount++;
+}
+
+void GeneralMemoryAllocator::untrackAllocation(void* address) {
+	if (address == nullptr) {
+		return;
+	}
+	for (uint32_t i = 0; i < trackedAllocationCount; i++) {
+		if (trackedAllocations[i].address == address) {
+			trackedAllocations[i] = trackedAllocations[trackedAllocationCount - 1];
+			trackedAllocationCount--;
+			return;
+		}
+	}
+}
+
 void GeneralMemoryAllocator::debugPrintMemoryUsage(char const* label) {
 	MemoryRegion& internal = regions[MEMORY_REGION_INTERNAL];
 	MemoryRegion& internal_small = regions[MEMORY_REGION_INTERNAL_SMALL];
@@ -299,6 +343,67 @@ void GeneralMemoryAllocator::debugPrintMemoryUsage(char const* label) {
 	D_PRINTLN("%s: external alloc=%u free=%u count=%u | small external alloc=%u free=%u count=%u", label,
 	          external.getAllocatedBytes(), external.getFreeBytes(), external.getAllocationCount(),
 	          external_small.getAllocatedBytes(), external_small.getFreeBytes(), external_small.getAllocationCount());
+}
+
+void GeneralMemoryAllocator::debugPrintTagUsage(char const* label) {
+	struct RegionSummary {
+		uint32_t bytes[(size_t)AllocationTag::NUM_TAGS] = {0};
+		uint32_t counts[(size_t)AllocationTag::NUM_TAGS] = {0};
+	};
+	struct TaggedUsage {
+		uint32_t tagIndex;
+		uint32_t bytes;
+		uint32_t count;
+	};
+	RegionSummary summaries[NUM_MEMORY_REGIONS] = {};
+	for (uint32_t i = 0; i < trackedAllocationCount; i++) {
+		const AllocationRecord& record = trackedAllocations[i];
+		const uint32_t regionIndex = record.region;
+		if (regionIndex >= NUM_MEMORY_REGIONS) {
+			continue;
+		}
+		const uint32_t tagIndex = static_cast<uint32_t>(record.tag);
+		if (tagIndex >= static_cast<uint32_t>(AllocationTag::NUM_TAGS)) {
+			continue;
+		}
+		summaries[regionIndex].bytes[tagIndex] += record.size;
+		summaries[regionIndex].counts[tagIndex]++;
+	}
+
+	auto printSortedTagUsage = [&](const char* regionLabel, uint32_t regionIndex) {
+		TaggedUsage usages[(size_t)AllocationTag::NUM_TAGS] = {};
+		uint32_t numUsages = 0;
+		for (uint32_t tagIndex = 0; tagIndex < static_cast<uint32_t>(AllocationTag::NUM_TAGS); tagIndex++) {
+			const uint32_t bytes = summaries[regionIndex].bytes[tagIndex];
+			if (bytes == 0) {
+				continue;
+			}
+			usages[numUsages].tagIndex = tagIndex;
+			usages[numUsages].bytes = bytes;
+			usages[numUsages].count = summaries[regionIndex].counts[tagIndex];
+			numUsages++;
+		}
+
+		for (uint32_t i = 1; i < numUsages; i++) {
+			TaggedUsage current = usages[i];
+			uint32_t j = i;
+			while (j > 0 && usages[j - 1].bytes < current.bytes) {
+				usages[j] = usages[j - 1];
+				j--;
+			}
+			usages[j] = current;
+		}
+
+		D_PRINTLN("%s: %s tag usage", label, regionLabel);
+		for (uint32_t i = 0; i < numUsages; i++) {
+			const TaggedUsage& usage = usages[i];
+			const char* tagName = allocationTagName(static_cast<AllocationTag>(usage.tagIndex));
+			D_PRINTLN("  %s: bytes=%u count=%u", tagName, usage.bytes, usage.count);
+		}
+	};
+
+	printSortedTagUsage("internal", MEMORY_REGION_INTERNAL);
+	printSortedTagUsage("external", MEMORY_REGION_EXTERNAL);
 }
 #endif
 
@@ -362,6 +467,9 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	if (address == nullptr) [[unlikely]] {
 		return;
 	}
+#if ALPHA_OR_BETA_VERSION
+	untrackAllocation(address);
+#endif
 	regions[getRegion(address)].dealloc(address);
 }
 

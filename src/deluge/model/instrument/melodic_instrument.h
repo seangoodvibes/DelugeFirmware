@@ -92,8 +92,8 @@ public:
 		bool still_active = false;
 	};
 
-	deluge::fast_map<int16_t, EarlyNoteInfo> earlyNotes; // note value, velocity, still_active
-	deluge::fast_map<int16_t, EarlyNoteInfo> notesAuditioned;
+	deluge::fast_map<int16_t, EarlyNoteInfo, AllocationTag::NOTE> earlyNotes; // note value, velocity, still_active
+	deluge::fast_map<int16_t, EarlyNoteInfo, AllocationTag::NOTE> notesAuditioned;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

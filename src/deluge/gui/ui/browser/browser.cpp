@@ -46,7 +46,7 @@ using namespace deluge;
 String Browser::currentDir{};
 bool Browser::qwertyVisible;
 
-CStringArray Browser::fileItems{sizeof(FileItem)};
+CStringArray Browser::fileItems{sizeof(FileItem), static_cast<int32_t>(AllocationTag::BROWSER_FILE_ITEMS)};
 int32_t Browser::scrollPosVertical;
 int32_t Browser::fileIndexSelected;
 int32_t Browser::numCharsInPrefix;

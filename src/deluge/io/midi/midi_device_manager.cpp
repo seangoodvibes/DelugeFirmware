@@ -50,7 +50,8 @@ PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MA
 
 namespace MIDIDeviceManager {
 
-NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDICableUSBHosted, name)};
+NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDICableUSBHosted, name),
+                                   static_cast<int32_t>(AllocationTag::MIDI_CABLE_USB_HOSTED)};
 
 bool differentiatingInputsByDevice = true;
 
@@ -154,7 +155,8 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 
 	SpecificMidiDeviceType devType = getSpecificMidiDeviceType(vendorId, productId);
 	if (devType == SpecificMidiDeviceType::LUMI_KEYS) {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLumiKeys));
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(MIDIDeviceLumiKeys),
+		                                                                 AllocationTag::MIDI_DEVICE_LUMI_KEYS);
 		if (!memory) {
 			return nullptr;
 		}
@@ -163,7 +165,8 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 		device = instDevice;
 	}
 	else {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDICableUSBHosted));
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(sizeof(MIDICableUSBHosted),
+		                                                                 AllocationTag::MIDI_CABLE_USB_HOSTED);
 		if (!memory) {
 			return nullptr;
 		}

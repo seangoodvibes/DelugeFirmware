@@ -27,7 +27,7 @@
 #define SECONDARY_MEMORY_FUNCTION_BEING_INITIALIZED 1
 #define SECONDARY_MEMORY_FUNCTION_BEING_REHASHED_FROM 2
 
-OpenAddressingHashTable::OpenAddressingHashTable() {
+OpenAddressingHashTable::OpenAddressingHashTable(int32_t newAllocationTag) {
 	memory = nullptr;
 	numBuckets = 0;
 	numElements = 0;
@@ -37,6 +37,7 @@ OpenAddressingHashTable::OpenAddressingHashTable() {
 	secondaryMemoryCurrentFunction = SECONDARY_MEMORY_FUNCTION_NONE;
 
 	initialNumBuckets = 16;
+	allocationTag = static_cast<uint8_t>(newAllocationTag);
 }
 
 OpenAddressingHashTable::~OpenAddressingHashTable() {
@@ -95,7 +96,8 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	// If no memory, get some
 	if (!memory) {
 		int32_t newNumBuckets = initialNumBuckets;
-		memory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
+		memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(newNumBuckets * elementSize,
+		                                                           static_cast<AllocationTag>(allocationTag));
 		if (!memory) {
 			return nullptr;
 		}
@@ -110,7 +112,8 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	else if (numElements >= numBuckets - (numBuckets >> 2)) {
 		int32_t newNumBuckets = numBuckets << 1;
 
-		secondaryMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
+		secondaryMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(newNumBuckets * elementSize,
+		                                                                    static_cast<AllocationTag>(allocationTag));
 		if (secondaryMemory) {
 
 			// Initialize
@@ -329,7 +332,8 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 }
 
 // 32-bit key
-OpenAddressingHashTableWith32bitKey::OpenAddressingHashTableWith32bitKey() {
+OpenAddressingHashTableWith32bitKey::OpenAddressingHashTableWith32bitKey(int32_t newAllocationTag)
+    : OpenAddressingHashTable(newAllocationTag) {
 	elementSize = sizeof(uint32_t);
 }
 
@@ -346,7 +350,8 @@ bool OpenAddressingHashTableWith32bitKey::doesKeyIndicateEmptyBucket(uint32_t ke
 }
 
 // 16-bit key
-OpenAddressingHashTableWith16bitKey::OpenAddressingHashTableWith16bitKey() {
+OpenAddressingHashTableWith16bitKey::OpenAddressingHashTableWith16bitKey(int32_t newAllocationTag)
+    : OpenAddressingHashTable(newAllocationTag) {
 	elementSize = sizeof(uint16_t);
 }
 
@@ -363,7 +368,8 @@ bool OpenAddressingHashTableWith16bitKey::doesKeyIndicateEmptyBucket(uint32_t ke
 }
 
 // 8-bit key
-OpenAddressingHashTableWith8bitKey::OpenAddressingHashTableWith8bitKey() {
+OpenAddressingHashTableWith8bitKey::OpenAddressingHashTableWith8bitKey(int32_t newAllocationTag)
+    : OpenAddressingHashTable(newAllocationTag) {
 	elementSize = sizeof(uint8_t);
 }
 
