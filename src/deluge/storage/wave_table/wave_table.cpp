@@ -35,6 +35,27 @@
 
 extern int32_t oscSyncRenderingBuffer[];
 
+namespace {
+
+[[nodiscard]] bool shouldLogWaveTableLoadPressure() {
+	static uint32_t lastLogTime = 0;
+	const uint32_t now = AudioEngine::audioSampleTimer;
+	if (now - lastLogTime < 1000) {
+		return false;
+	}
+	lastLogTime = now;
+	return true;
+}
+
+void logWaveTableLoadPressure(const char* stage, uint32_t requiredSize) {
+	if (!shouldLogWaveTableLoadPressure()) {
+		return;
+	}
+	D_PRINTLN("wave table load pressure: stage=%s required=%u", stage, requiredSize);
+}
+
+} // namespace
+
 WaveTableBand::~WaveTableBand() {
 	if (data) { // It might be NULL if that BandData was just "stolen".
 		data->~WaveTableBandData();
@@ -269,6 +290,7 @@ gotError2:
 		void* bandDataMemory =
 		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 		if (!bandDataMemory) {
+			logWaveTableLoadPressure("band data", bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 			error = Error::INSUFFICIENT_RAM;
 			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else
 			// tries to do anything with them.
@@ -306,6 +328,7 @@ gotError2:
 	int32_t* __restrict__ currentCycleInt32 =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(currentCycleMemorySize * sizeof(int32_t));
 	if (!currentCycleInt32) {
+		logWaveTableLoadPressure("fft input", currentCycleMemorySize * sizeof(int32_t));
 		error = Error::INSUFFICIENT_RAM;
 		goto gotError2;
 	}
@@ -317,6 +340,7 @@ gotError2:
 	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(((currentCycleMemorySize >> 1) + 1)
 	                                                                       * sizeof(ne10_fft_cpx_int32_t));
 	if (!frequencyDomainData) {
+		logWaveTableLoadPressure("fft output", ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t));
 		error = Error::INSUFFICIENT_RAM;
 gotError4:
 		delugeDealloc(currentCycleInt32);

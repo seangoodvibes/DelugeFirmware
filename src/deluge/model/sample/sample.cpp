@@ -36,6 +36,27 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+namespace {
+
+[[nodiscard]] bool shouldLogSampleLoadPressure() {
+	static uint32_t lastLogTime = 0;
+	const uint32_t now = AudioEngine::audioSampleTimer;
+	if (now - lastLogTime < 1000) {
+		return false;
+	}
+	lastLogTime = now;
+	return true;
+}
+
+void logSampleLoadPressure(const char* stage, uint32_t requiredSize) {
+	if (!shouldLogSampleLoadPressure()) {
+		return;
+	}
+	D_PRINTLN("sample load pressure: stage=%s required=%u", stage, requiredSize);
+}
+
+} // namespace
+
 #if SAMPLE_DO_LOCKS
 #define LOCK_ENTRY                                                                                                     \
 	if (lock) {                                                                                                        \
@@ -304,6 +325,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
 			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
 			if (!percCacheClusters[reversed]) {
+				logSampleLoadPressure("perc cluster cache", memorySize);
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
 			}
@@ -319,6 +341,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 
 			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize);
 			if (!percCacheMemory[reversed]) {
+				logSampleLoadPressure("perc byte cache", percCacheSize);
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
 			}

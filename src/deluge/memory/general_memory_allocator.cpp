@@ -39,6 +39,69 @@ extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 // NOLINTEND
+namespace {
+
+[[nodiscard]] bool shouldLogMemoryPressureEvent() {
+	static uint32_t lastLogTime = 0;
+	const uint32_t now = AudioEngine::audioSampleTimer;
+	if (now - lastLogTime < 2000) {
+		return false;
+	}
+	lastLogTime = now;
+	return true;
+}
+
+[[nodiscard]] bool shouldLogPeriodicMemorySnapshot() {
+	static uint32_t lastLogTime = 0;
+	const uint32_t now = AudioEngine::audioSampleTimer;
+	if (now - lastLogTime < 44100) {
+		return false;
+	}
+	lastLogTime = now;
+	return true;
+}
+
+void logMemoryPressureEvent(const char* stage, uint32_t requiredSize, bool mayUseOnChipRam) {
+	if (!shouldLogMemoryPressureEvent()) {
+		return;
+	}
+
+#if ALPHA_OR_BETA_VERSION
+	GeneralMemoryAllocator& allocator = GeneralMemoryAllocator::get();
+	D_PRINTLN("memory pressure: %s required=%u mayUseOnChipRam=%d internal free=%u alloc=%u count=%u external free=%u "
+	          "alloc=%u count=%u",
+	          stage, requiredSize, mayUseOnChipRam ? 1 : 0, allocator.regions[MEMORY_REGION_INTERNAL].getFreeBytes(),
+	          allocator.regions[MEMORY_REGION_INTERNAL].getAllocatedBytes(),
+	          allocator.regions[MEMORY_REGION_INTERNAL].getAllocationCount(),
+	          allocator.regions[MEMORY_REGION_EXTERNAL].getFreeBytes(),
+	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocatedBytes(),
+	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocationCount());
+	allocator.debugPrintMemoryUsage("memory pressure snapshot");
+#else
+	D_PRINTLN("memory pressure: %s required=%u mayUseOnChipRam=%d", stage, requiredSize, mayUseOnChipRam ? 1 : 0);
+#endif
+}
+
+void logPeriodicMemorySnapshot() {
+	if (!shouldLogPeriodicMemorySnapshot()) {
+		return;
+	}
+
+#if ALPHA_OR_BETA_VERSION
+	GeneralMemoryAllocator& allocator = GeneralMemoryAllocator::get();
+	D_PRINTLN("periodic allocator snapshot: internal free=%u alloc=%u count=%u external free=%u alloc=%u count=%u",
+	          allocator.regions[MEMORY_REGION_INTERNAL].getFreeBytes(),
+	          allocator.regions[MEMORY_REGION_INTERNAL].getAllocatedBytes(),
+	          allocator.regions[MEMORY_REGION_INTERNAL].getAllocationCount(),
+	          allocator.regions[MEMORY_REGION_EXTERNAL].getFreeBytes(),
+	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocatedBytes(),
+	          allocator.regions[MEMORY_REGION_EXTERNAL].getAllocationCount());
+	allocator.debugPrintMemoryUsage("periodic snapshot");
+#endif
+}
+
+} // namespace
+
 GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	uint32_t external_small_end = EXTERNAL_MEMORY_END;
 	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
@@ -174,6 +237,8 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		                // could extend the stack an unspecified amount
 	}
 
+	logPeriodicMemorySnapshot();
+
 	void* address = nullptr;
 
 	// Only allow allocating stealables in stelable region
@@ -187,6 +252,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 			}
 
 			AudioEngine::logAction("internal allocation failed");
+			logMemoryPressureEvent("internal alloc failed", requiredSize, mayUseOnChipRam);
+			D_PRINTLN("memory pressure: internal alloc failed required=%u mayUseOnChipRam=%d", requiredSize,
+			          mayUseOnChipRam ? 1 : 0);
 		}
 
 		// Second try external region
@@ -197,7 +265,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		}
 
 		AudioEngine::logAction("external allocation failed");
-
+		logMemoryPressureEvent("external alloc failed", requiredSize, mayUseOnChipRam);
 		D_PRINTLN("Dire memory, resorting to stealable area");
 	}
 
