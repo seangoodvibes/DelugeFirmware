@@ -22,10 +22,14 @@
 #include "dx7note.h"
 #include "engine.h"
 #include "math_lut.h"
+#include "memory/fast_allocator.h"
 #include "memory/memory_allocator_interface.h"
+#include "memory/object_pool.h"
 #include <new>
 
 DxEngine* dxEngine = nullptr;
+
+using DxVoicePool = deluge::memory::ObjectPool<DxVoice, deluge::memory::fast_allocator>;
 
 static void init_engine(void) {
 	// get ourselves an aligned pointer to use placement new with
@@ -50,35 +54,35 @@ DxEngine::DxEngine() {
 #endif
 }
 
-DxVoice* DxEngine::solicitDxVoice() {
+gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {
 #ifdef DX_PREALLOC
-	if (firstUnassignedDxVoice) {
-		DxVoice* toReturn = firstUnassignedDxVoice;
-		firstUnassignedDxVoice = firstUnassignedDxVoice->nextUnassigned;
+	if (dxEngine && dxEngine->firstUnassignedDxVoice) {
+		DxVoice* toReturn = dxEngine->firstUnassignedDxVoice;
+		dxEngine->firstUnassignedDxVoice = dxEngine->firstUnassignedDxVoice->nextUnassigned;
 		toReturn->preallocated = true;
 		return toReturn;
 	}
 #endif
-	void* memory = allocMaxSpeed(sizeof(DxVoice));
-	if (!memory)
+	try {
+		return DxVoicePool::get().acquire().release();
+	} catch (deluge::exception e) {
 		return nullptr;
-
-	return new (memory) DxVoice();
+	}
 }
 
-void DxEngine::dxVoiceUnassigned(DxVoice* dxVoice) {
+void DxEngine::dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice) {
 #ifdef DX_PREALLOC
 	if (dxVoice->preallocated) {
-		dxVoice->nextUnassigned = firstUnassignedDxVoice;
-		firstUnassignedDxVoice = dxVoice;
+		dxVoice->nextUnassigned = dxEngine->firstUnassignedDxVoice;
+		dxEngine->firstUnassignedDxVoice = dxVoice;
 		return;
 	}
 #endif
-	delugeDealloc(dxVoice);
+	DxVoicePool::recycle(dxVoice);
 }
 
 DxPatch* DxEngine::newPatch(void) {
-	void* memory = allocMaxSpeed(sizeof(DxPatch));
+	void* memory = allocLowSpeed(sizeof(DxPatch));
 	return new (memory) DxPatch;
 }
 
