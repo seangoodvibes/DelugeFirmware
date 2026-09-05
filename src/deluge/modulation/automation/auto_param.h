@@ -69,6 +69,8 @@ public:
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
 	void deleteAutomationBasicForSetup();
+	Error read_from_serialized_value(char const* serialized_value, int32_t readAutomationUpToPos,
+	                                 bool read_current_value = true);
 	void writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride = nullptr);
 	Error readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	bool containsSomething(uint32_t neutralValue = 0);
@@ -127,9 +129,6 @@ public:
 	/// The nodes that make up this parameter. If empty, \ref currentValue should be used.
 	ParamNodeVector nodes;
 
-	/// Current value of the AutoParam. Updated by several functions.
-	int32_t currentValue;
-
 	// interpolation to calculate current value
 	bool hasInterpolationIncrement();
 	void resetInterpolationIncrement();
@@ -143,6 +142,9 @@ public:
 	// it only works in empty stretches of time.
 
 private:
+	/// Current value of the AutoParam. Read and write via getCurrentValue / setCurrentValue.
+	int32_t currentValue;
+
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,

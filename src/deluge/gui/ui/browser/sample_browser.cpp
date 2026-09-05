@@ -1119,7 +1119,7 @@ void SampleBrowser::audioFileIsNowSet() {
 	PatchedParamSet* paramSet = (PatchedParamSet*)summary->paramCollection;
 	int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
 	ModelStackWithAutoParam* modelStackWithParam =
-	    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
+	    modelStack->addParam(paramSet, summary, paramId, paramSet->getParam(paramId));
 
 	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
 	// ParamManager... there could be other ones...
@@ -1938,7 +1938,7 @@ getOut:
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 				int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
 				ModelStackWithAutoParam* modelStackWithParam =
-				    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
+				    modelStack->addParam(paramSet, summary, paramId, paramSet->getParam(paramId));
 
 				// Reset osc volume, if it's not automated
 				if (!modelStackWithParam->autoParam->isAutomated()) {

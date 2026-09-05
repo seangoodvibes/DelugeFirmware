@@ -644,7 +644,7 @@ void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, i
 				if (noteRow) {
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet(true);
 					if (expressionParams) {
-						if (!expressionParams->params[0].isAutomated()) {
+						if (!expressionParams->isAutomated(0)) {
 							expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 						}
 					}
@@ -714,7 +714,7 @@ isMPEZone:
 			if (newBendRanges[BEND_RANGE_MAIN]) {
 				if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
 					ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
-					if (expressionParams && !expressionParams->params[0].isAutomated()) {
+					if (expressionParams && !expressionParams->isAutomated(0)) {
 						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
 					}
 				}

@@ -41,6 +41,7 @@
 #include "util/functions.h"
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <math.h>
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
@@ -70,7 +71,7 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 	else {
 		nodes.init();
 	}
-	currentValue = otherParam->currentValue;
+	setCurrentValueBasicForSetup(otherParam->getCurrentValue());
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -80,7 +81,7 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 		renewedOverridingAtTime = otherParam->renewedOverridingAtTime;
 		resetInterpolationIncrement();
 	}
-	currentValue = otherParam->currentValue;
+	setCurrentValueBasicForSetup(otherParam->getCurrentValue());
 }
 
 // This is mostly for "expression" params, which we frequently want to bump back to 0 - often when there is no
@@ -2019,117 +2020,105 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* v
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
 Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+	char const* serialized_value = reader.readTagOrAttributeValue();
+	return read_from_serialized_value(serialized_value, readAutomationUpToPos, true);
+}
 
+Error AutoParam::read_from_serialized_value(char const* serialized_value, int32_t readAutomationUpToPos,
+                                            bool read_current_value) {
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
 	deleteAutomationBasicForSetup();
 
-	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+	if (!serialized_value || !serialized_value[0]) {
 		return Error::NONE;
 	}
 
-	// char buffer[12];
-	char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-	if (!firstChars) {
-		return Error::NONE;
-	}
-
-	// If a decimal, then read the rest of the digits
-	if (*(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
-		char buffer[12];
-		buffer[0] = firstChars[0];
-		buffer[1] = firstChars[1];
-
-		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
-		buffer[11] = 0;
-		currentValue = stringToInt(buffer);
-		return Error::NONE;
-	}
-
-	// Or, normal case - hex and automation...
-
-	// First, read currentValue
-	char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8);
-	if (!hexChars) {
-		return Error::NONE;
-	}
-	currentValue = hexToIntFixedLength(hexChars, 8);
-
-	// And now read in the automation
-	int32_t numElementsToAllocateFor = 0;
-
-	if (readAutomationUpToPos) {
-
-		int32_t prevPos = -1;
-
-		while (true) {
-
-			// Every time we've reached the end of a cluster...
-			if (numElementsToAllocateFor <= 0) {
-
-				// See how many more chars before the end of the cluster. If there are any...
-				uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
-				if (charsRemaining) {
-
-					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
-					// this check again
-					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					nodes.ensureEnoughSpaceAllocated(
-					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
-				}
-			}
-
-			hexChars = reader.readNextCharsOfTagOrAttributeValue(16);
-			if (!hexChars) {
-				return Error::NONE;
-			}
-			int32_t value = hexToIntFixedLength(hexChars, 8);
-			int32_t pos = hexToIntFixedLength(&hexChars[8], 8);
-
-			bool interpolated = (pos & ((uint32_t)1 << 31));
-			if (interpolated) {
-				pos &= ~((uint32_t)1 << 31);
-			}
-
-			// Ensure there isn't some problem where nodes are out of order...
-			if (pos <= prevPos) {
-				D_PRINTLN("Automation nodes out of order");
-				continue;
-			}
-
-			// If we've reached the end of our allowed timeline length for automation...
-			if (pos >= readAutomationUpToPos) {
-
-				// If there's a node actually right on the end-point - well, firmware <= 3.1.5 sometimes put one there
-				// when it should have been at pos 0. So, reinterpret that data to make it right.
-				if (pos == readAutomationUpToPos) {
-					ParamNode* firstNode = nodes.getElement(0);
-					if (!firstNode || firstNode->pos) {
-						Error error = nodes.insertAtIndex(0);
-						if (error != Error::NONE) {
-							return error;
-						}
-						firstNode = nodes.getElement(0);
-						firstNode->pos = 0;
-						firstNode->value = value;
-						firstNode->interpolated = interpolated;
-					}
-				}
-				break;
-			}
-
-			prevPos = pos;
-
-			int32_t nodeI = nodes.insertAtKey(pos, true);
-			if (nodeI == -1) {
-				return Error::INSUFFICIENT_RAM;
-			}
-			ParamNode* node = nodes.getElement(nodeI);
-			node->value = value;
-			node->interpolated = interpolated;
-
-			numElementsToAllocateFor--;
+	// If decimal, this format has no automation payload.
+	if (!(serialized_value[0] == '0' && serialized_value[1] == 'x')) {
+		if (read_current_value) {
+			currentValue = stringToInt(serialized_value);
 		}
+		return Error::NONE;
+	}
+
+	char const* hexChars = &serialized_value[2];
+	if (!hexChars[0] || !hexChars[1] || !hexChars[2] || !hexChars[3] || !hexChars[4] || !hexChars[5] || !hexChars[6]
+	    || !hexChars[7]) {
+		return Error::NONE;
+	}
+
+	if (read_current_value) {
+		currentValue = hexToIntFixedLength(hexChars, 8);
+	}
+
+	if (!readAutomationUpToPos) {
+		return Error::NONE;
+	}
+
+	hexChars += 8;
+	int32_t remainingChars = strlen(hexChars);
+	if (remainingChars <= 0) {
+		return Error::NONE;
+	}
+
+	int32_t numElementsToAllocateFor = remainingChars / 16;
+	if (numElementsToAllocateFor > 0) {
+		nodes.ensureEnoughSpaceAllocated(
+		    numElementsToAllocateFor); // If this fails, insertAtKey below will return INSUFFICIENT_RAM.
+	}
+
+	int32_t prevPos = -1;
+	while (remainingChars >= 16) {
+		int32_t value = hexToIntFixedLength(hexChars, 8);
+		int32_t pos = hexToIntFixedLength(&hexChars[8], 8);
+
+		bool interpolated = (pos & ((uint32_t)1 << 31));
+		if (interpolated) {
+			pos &= ~((uint32_t)1 << 31);
+		}
+
+		// Ensure there isn't some problem where nodes are out of order...
+		if (pos <= prevPos) {
+			D_PRINTLN("Automation nodes out of order");
+			hexChars += 16;
+			remainingChars -= 16;
+			continue;
+		}
+
+		// If we've reached the end of our allowed timeline length for automation...
+		if (pos >= readAutomationUpToPos) {
+
+			// If there's a node actually right on the end-point - well, firmware <= 3.1.5 sometimes put one there
+			// when it should have been at pos 0. So, reinterpret that data to make it right.
+			if (pos == readAutomationUpToPos) {
+				ParamNode* firstNode = nodes.getElement(0);
+				if (!firstNode || firstNode->pos) {
+					Error error = nodes.insertAtIndex(0);
+					if (error != Error::NONE) {
+						return error;
+					}
+					firstNode = nodes.getElement(0);
+					firstNode->pos = 0;
+					firstNode->value = value;
+					firstNode->interpolated = interpolated;
+				}
+			}
+			break;
+		}
+
+		prevPos = pos;
+
+		int32_t nodeI = nodes.insertAtKey(pos, true);
+		if (nodeI == -1) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		ParamNode* node = nodes.getElement(nodeI);
+		node->value = value;
+		node->interpolated = interpolated;
+
+		hexChars += 16;
+		remainingChars -= 16;
 	}
 
 	return Error::NONE;
@@ -2148,29 +2137,11 @@ bool AutoParam::containedSomethingBefore(bool wasAutomatedBefore, uint32_t value
 }
 
 void AutoParam::shiftValues(int32_t offset) {
-	int64_t newValue = (int64_t)currentValue + offset;
-	if (newValue >= (int64_t)2147483648u) {
-		currentValue = 2147483647;
-	}
-	else if (newValue < (int64_t)2147483648u * -1) {
-		currentValue = -2147483648;
-	}
-	else {
-		currentValue = newValue;
-	}
+	currentValue = shift_value(currentValue, offset);
 
 	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 		ParamNode* thisNode = nodes.getElement(i);
-		int64_t newValue = (int64_t)thisNode->value + offset;
-		if (newValue >= (int64_t)2147483648u) {
-			thisNode->value = 2147483647;
-		}
-		else if (newValue < (int64_t)2147483648u * -1) {
-			thisNode->value = -2147483648;
-		}
-		else {
-			thisNode->value = newValue;
-		}
+		thisNode->value = shift_value(thisNode->value, offset);
 	}
 }
 

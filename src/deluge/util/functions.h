@@ -233,6 +233,7 @@ char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
+int32_t shift_value(int32_t value, int32_t offset);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 

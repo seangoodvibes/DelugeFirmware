@@ -4460,7 +4460,7 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 							if (!editPadPresses[i].mpeCachedYet) {
 								stolenNodeRecord = &editPadPresses[i].stolenMPE[m];
 							}
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m);
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -4640,7 +4640,7 @@ cancelPress:
 						int32_t loopLength = modelStackWithNoteRow->getLoopLength();
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m);
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -6324,7 +6324,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 						        mpeParams, mpeParamsSummary);
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m);
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -6383,7 +6383,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 						int32_t loopLength = destModelStack->getLoopLength();
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m);
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -7966,7 +7966,7 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
 		for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions; expressionDimension++) {
-			AutoParam* param = &mpeParams->params[expressionDimension];
+			AutoParam* param = mpeParams->getParam(expressionDimension);
 
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamCollection->addAutoParam(expressionDimension, param);
