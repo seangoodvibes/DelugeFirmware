@@ -161,5 +161,5 @@ private:
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = nullptr);
 
-	deluge::fast_map<uint8_t, std::string, AllocationTag::MIDI_PARAM_COLLECTION> labels;
+	deluge::fast_map<uint8_t, std::string, AllocationTag::MIDI_CC_LABELS> labels;
 };

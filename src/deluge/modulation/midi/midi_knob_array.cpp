@@ -22,7 +22,7 @@
 
 MidiKnobArray::MidiKnobArray()
     : ResizeableArray(sizeof(MIDIKnob), kMaxNumEmptySpacesToKeep, kNumExtraSpacesToAllocate,
-                      static_cast<int32_t>(AllocationTag::MIDI_PARAM_COLLECTION)) {
+                      static_cast<int32_t>(AllocationTag::MIDI_KNOB_ARRAY)) {
 }
 
 MIDIKnob* MidiKnobArray::insertKnob(int32_t i) {

@@ -118,7 +118,9 @@ enum class AllocationTag : uint8_t {
 	GRANULAR_PROCESSOR,
 	RESIZEABLE_ARRAY,
 	OUTPUT_HASH_TABLE,
+	MIDI_KNOB_ARRAY,
 	MIDI_PARAM_COLLECTION,
+	MIDI_CC_LABELS,
 	UNPATCHED_PARAM_SET,
 	PATCHED_PARAM_SET,
 	PATCH_CABLE_SET,
@@ -266,8 +268,12 @@ static constexpr const char* allocationTagName(AllocationTag tag) {
 		return "resizeable_array";
 	case AllocationTag::OUTPUT_HASH_TABLE:
 		return "output_hash_table";
+	case AllocationTag::MIDI_KNOB_ARRAY:
+		return "midi_knob_array";
 	case AllocationTag::MIDI_PARAM_COLLECTION:
 		return "midi_param_collection";
+	case AllocationTag::MIDI_CC_LABELS:
+		return "midi_cc_labels";
 	case AllocationTag::UNPATCHED_PARAM_SET:
 		return "unpatched_param_set";
 	case AllocationTag::PATCHED_PARAM_SET:
