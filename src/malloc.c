@@ -1,11 +1,11 @@
 
 #include <stddef.h>
 
-extern void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
+extern void* delugeAllocFatFs(unsigned int requiredSize, bool mayUseOnChipRam);
 extern void delugeDealloc(void* address);
 
 void* malloc(size_t size) {
-	return delugeAlloc(size, true);
+	return delugeAllocFatFs(size, true);
 }
 
 void free(void* addr) {

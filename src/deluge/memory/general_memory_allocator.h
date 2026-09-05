@@ -92,6 +92,7 @@ enum class AllocationTag : uint8_t {
 	LOAD_SONG,
 	CLEAR_SONG,
 	AUDIO_FILE,
+	FATFS,
 	SAMPLE,
 	SAMPLE_CLUSTER_ARRAY,
 	SOUND_ARRAY,
@@ -111,6 +112,7 @@ enum class AllocationTag : uint8_t {
 	SAMPLE_RECORDER,
 	LIVE_INPUT_BUFFER,
 	INPUT_REPITCHED_BUFFER,
+	MOD_FX_BUFFER,
 	BROWSER_FILE_ITEMS,
 	GRAIN_BUFFER,
 	GRANULAR_PROCESSOR,
@@ -208,6 +210,8 @@ static constexpr const char* allocationTagName(AllocationTag tag) {
 		return "clear_song";
 	case AllocationTag::AUDIO_FILE:
 		return "audio_file";
+	case AllocationTag::FATFS:
+		return "fatfs";
 	case AllocationTag::SAMPLE:
 		return "sample";
 	case AllocationTag::SAMPLE_CLUSTER_ARRAY:
@@ -250,6 +254,8 @@ static constexpr const char* allocationTagName(AllocationTag tag) {
 		return "live_input_buffer";
 	case AllocationTag::INPUT_REPITCHED_BUFFER:
 		return "input_repitched_buffer";
+	case AllocationTag::MOD_FX_BUFFER:
+		return "mod_fx_buffer";
 	case AllocationTag::BROWSER_FILE_ITEMS:
 		return "browser_file_items";
 	case AllocationTag::GRAIN_BUFFER:
@@ -422,5 +428,7 @@ private:
 
 extern "C" {
 void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam = true);
+void* delugeAllocTagged(unsigned int requiredSize, bool mayUseOnChipRam, AllocationTag tag);
+void* delugeAllocFatFs(unsigned int requiredSize, bool mayUseOnChipRam = true);
 void delugeDealloc(void* address);
 }

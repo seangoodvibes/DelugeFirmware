@@ -280,7 +280,8 @@ void ModFXProcessor::resetMemory() {
 
 void ModFXProcessor::setupBuffer() {
 	if (!modFXBuffer) {
-		modFXBuffer = (StereoSample*)delugeAlloc(kModFXBufferSize * sizeof(StereoSample));
+		modFXBuffer = (StereoSample*)delugeAllocTagged(kModFXBufferSize * sizeof(StereoSample), true,
+		                                               AllocationTag::MOD_FX_BUFFER);
 		if (modFXBuffer) {
 			memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 		}

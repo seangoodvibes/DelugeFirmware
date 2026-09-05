@@ -177,8 +177,16 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
+extern "C" void* delugeAllocTagged(unsigned int requiredSize, bool mayUseOnChipRam, AllocationTag tag) {
+	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr, tag);
+}
+
+extern "C" void* delugeAllocFatFs(unsigned int requiredSize, bool mayUseOnChipRam) {
+	return delugeAllocTagged(requiredSize, mayUseOnChipRam, AllocationTag::FATFS);
+}
+
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr, AllocationTag::GENERIC);
+	return delugeAllocTagged(requiredSize, mayUseOnChipRam, AllocationTag::GENERIC);
 }
 extern "C" void delugeDealloc(void* address) {
 #ifdef IN_UNIT_TESTS
