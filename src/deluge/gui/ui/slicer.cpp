@@ -595,7 +595,7 @@ getOut:
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 		int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
 		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
+		    modelStack->addParam(paramSet, summary, paramId, paramSet->getParam(paramId));
 
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
@@ -697,11 +697,11 @@ ramError2:
 			range->sampleHolder.loadFile(false, false, true);
 
 			if (doEnvelopes) {
-				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+				paramManager.getPatchedParamSet()->setCurrentValueBasicForSetup(
+				    params::LOCAL_ENV_0_ATTACK, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 				if (i != numClips - 1) {
-					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+					paramManager.getPatchedParamSet()->setCurrentValueBasicForSetup(
+					    params::LOCAL_ENV_0_RELEASE, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 				}
 			}
 

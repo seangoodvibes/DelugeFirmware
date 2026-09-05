@@ -66,35 +66,35 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 
 	// Overwrite default arp Gate to 50 for Kit affect-entire arp
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_ARP_GATE, 2147483647);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_ARP_RATE, 0);
 
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(-536870912);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_PAN].setCurrentValueBasicForSetup(0);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_MOD_FX_RATE, -536870912);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_MOD_FX_FEEDBACK, NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_MOD_FX_DEPTH, 0);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_DELAY_RATE, 0);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_PAN, 0);
 
-	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_DELAY_AMOUNT, NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_REVERB_SEND_AMOUNT, NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_VOLUME, 0); // half of the way up
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_SIDECHAIN_VOLUME, NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_PITCH_ADJUST, 0);
 
-	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_LPF_RES, NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_LPF_FREQ, ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_HPF_RES, NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_HPF_FREQ, NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_LPF_MORPH, NEGATIVE_ONE_Q31);
+	unpatchedParams->setCurrentValueBasicForSetup(params::UNPATCHED_HPF_MORPH, NEGATIVE_ONE_Q31);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
 	initParams(paramManager);
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(-536870912);
+	paramManager->getUnpatchedParamSet()->setCurrentValueBasicForSetup(params::UNPATCHED_VOLUME, -536870912);
 }
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
@@ -840,12 +840,12 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	unpatchedParams->writeParamAsAttribute(writer, "pan", params::UNPATCHED_PAN, writeAutomation, false,
 	                                       valuesForOverride);
 
-	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
+	if (unpatchedParams->containsSomething(params::UNPATCHED_PITCH_ADJUST, 0)) {
 		unpatchedParams->writeParamAsAttribute(writer, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
 		                                       false, valuesForOverride);
 	}
 
-	if (unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].containsSomething(-2147483648)) {
+	if (unpatchedParams->containsSomething(params::UNPATCHED_SIDECHAIN_VOLUME, -2147483648)) {
 		unpatchedParams->writeParamAsAttribute(writer, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME,
 		                                       writeAutomation, false, valuesForOverride);
 	}
@@ -1111,16 +1111,16 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	// If no LPF on, and resonance is at 50%, set it to 0%
-	if (!unpatchedParams->params[params::UNPATCHED_LPF_FREQ].isAutomated()
-	    && unpatchedParams->params[params::UNPATCHED_LPF_FREQ].getCurrentValue() >= 2147483602
-	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(0)) {
-		unpatchedParams->params[params::UNPATCHED_LPF_RES].currentValue = -2147483648;
+	if (!unpatchedParams->isAutomated(params::UNPATCHED_LPF_FREQ)
+	    && unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) >= 2147483602
+	    && !unpatchedParams->containsSomething(params::UNPATCHED_LPF_RES, 0)) {
+		unpatchedParams->setCurrentValueBasic(params::UNPATCHED_LPF_RES, -2147483648);
 	}
 
 	// If no HPF on, and resonance is at 25%, set it to 0%
-	if (!unpatchedParams->params[params::UNPATCHED_HPF_FREQ].containsSomething(-2147483648)
-	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(-1073741824)) {
-		unpatchedParams->params[params::UNPATCHED_HPF_RES].currentValue = -2147483648;
+	if (!unpatchedParams->containsSomething(params::UNPATCHED_HPF_FREQ, -2147483648)
+	    && !unpatchedParams->containsSomething(params::UNPATCHED_LPF_RES, -1073741824)) {
+		unpatchedParams->setCurrentValueBasic(params::UNPATCHED_HPF_RES, -2147483648);
 	}
 }
 

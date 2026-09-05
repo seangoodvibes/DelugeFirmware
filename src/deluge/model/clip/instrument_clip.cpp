@@ -1875,7 +1875,7 @@ probablyApplyBendRangeMain:
 					ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 
 					// And only if mono pitch doesn't already contain data/automation...
-					if (expressionParams && !expressionParams->params[0].isAutomated()) {
+					if (expressionParams && !expressionParams->isAutomated(0)) {
 						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
 					}
 				}
@@ -3066,7 +3066,7 @@ expressionParam:
 						}
 						summary = paramManager.getExpressionParamSetSummary();
 						expressionParams = (ExpressionParamSet*)summary->paramCollection;
-						param = &expressionParams->params[paramId];
+						param = expressionParams->getParam(paramId);
 					}
 					else if (!strcasecmp(contents, "aftertouch")) {
 						paramId = Z_PRESSURE;
@@ -4048,15 +4048,14 @@ haveNoDrum:
 								Source* source = &sound->sources[s];
 								if (source->oscType == OscType::SAMPLE) {
 									if (sound->transpose || source->transpose || source->cents
-									    || patchedParams->params[params::LOCAL_PITCH_ADJUST].containsSomething(0)
+									    || patchedParams->containsSomething(params::LOCAL_PITCH_ADJUST, 0)
 									    //||
 									    // thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_PITCH_ADJUST)
 									    //// No, can't call these cos patching isn't set up yet. Oh well
 									    //||
 									    // thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_OSC_A_PITCH_ADJUST
 									    //+ s)
-									    || patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST + s]
-									           .containsSomething(0)) {
+									    || patchedParams->containsSomething(params::LOCAL_OSC_A_PITCH_ADJUST + s, 0)) {
 
 										source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 									}
@@ -4151,7 +4150,7 @@ haveNoDrum:
 
 						patchedParams->deleteAutomationForParamBasicForSetup(modelStackWithParamCollection,
 						                                                     params::LOCAL_OSC_A_PHASE_WIDTH + s);
-						patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
+						patchedParams->setCurrentValueBasicForSetup(params::LOCAL_OSC_A_PHASE_WIDTH + s, 0);
 						patchedCables->removeAllPatchingToParam(modelStackWithParamCollection,
 						                                        params::LOCAL_OSC_A_PHASE_WIDTH + s);
 					}
@@ -4616,7 +4615,7 @@ doNormal: // Wrap it back to the start.
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-		AutoParam* param = &mpeParams->params[m];
+		AutoParam* param = mpeParams->getParam(m);
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(m, param);
 
 		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
@@ -4725,7 +4724,7 @@ bool InstrumentClip::hasAnyPitchExpressionAutomationOnNoteRows() {
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		ExpressionParamSet* expressionParams = thisNoteRow->paramManager.getExpressionParamSet();
-		if (expressionParams && expressionParams->params[0].isAutomated()) {
+		if (expressionParams && expressionParams->isAutomated(0)) {
 			return true;
 		}
 	}

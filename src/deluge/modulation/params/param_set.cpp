@@ -53,7 +53,7 @@ void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
 
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].copyOverridingFrom(&otherParamSet->params[p]);
+		params[p].copyOverridingFrom(otherParamSet->getParam(p));
 	}
 }
 
@@ -244,7 +244,7 @@ void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
 
 	FOR_EACH_FLAGGED_PARAM(
 	    otherModelStack->summary->whichParamsAreAutomated); // Iterate through the *other* ParamManager's stuff
-	params[p].appendParam(&otherParamSet->params[p], oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	params[p].appendParam(otherParamSet->getParam(p), oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 	FOR_EACH_PARAM_END
 
 	ticksTilNextEvent = 0;

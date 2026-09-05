@@ -37,12 +37,22 @@ class ParamSet : public ParamCollection {
 protected:
 	/// Number of parameters in the params array
 	int32_t numParams_;
+	AutoParam* params;
 
 public:
-	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
 
+	inline AutoParam* getParam(int32_t p) { return &params[p]; }
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
+	inline bool isAutomated(int32_t p) { return params[p].isAutomated(); }
+	inline bool containsSomething(int32_t p, uint32_t neutralValue = 0) {
+		return params[p].containsSomething(neutralValue);
+	}
+	inline void setCurrentValueBasicForSetup(int32_t p, int32_t value) {
+		params[p].setCurrentValueBasicForSetup(value);
+	}
+	inline void setCurrentValueBasic(int32_t p, int32_t value) { params[p].currentValue = value; }
+	inline void shiftValues(int32_t p, int32_t offset) { params[p].shiftValues(offset); }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
