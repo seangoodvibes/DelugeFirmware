@@ -2161,8 +2161,7 @@ loadOutput:
 				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
-					                                                                                    + (1 << 28));
+					thisParamManager->getPatchedParamSet()->shiftValues(params::GLOBAL_ARP_RATE, (1 << 30) + (1 << 28));
 				}
 			}
 		}
@@ -4721,7 +4720,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 		// Back up the unautomated values
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
-			unautomatedParamValues[p] = unpatchedParams->params[p].getCurrentValue();
+			unautomatedParamValues[p] = unpatchedParams->getValue(p);
 		}
 	}
 
@@ -4730,8 +4729,8 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
-			if (unpatchedParams->params[p].isAutomated()) {
-				unpatchedParams->params[p].currentValue = unautomatedParamValues[p];
+			if (unpatchedParams->isAutomated(p)) {
+				unpatchedParams->setCurrentValueBasic(p, unautomatedParamValues[p]);
 			}
 		}
 	}

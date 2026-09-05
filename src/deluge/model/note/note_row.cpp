@@ -3854,7 +3854,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			if (newBendRange) {
 				ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet(true);
 				if (expressionParams) {
-					if (!expressionParams->params[0].isAutomated()) {
+					if (!expressionParams->isAutomated(0)) {
 						expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 					}
 				}
@@ -4386,7 +4386,7 @@ void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues
 	}
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-		mpeValues[m] = mpeParams->params[m].getCurrentValue() >> 16;
+		mpeValues[m] = mpeParams->getValue(m) >> 16;
 	}
 }
 
@@ -4404,7 +4404,7 @@ void NoteRow::clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t
 
 	/*
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-	    if (mpeParams->params[i].isAutomated()) goto needToDoIt;
+	    if (mpeParams->isAutomated(i)) goto needToDoIt;
 	}
 	return;
 	*/
@@ -4422,7 +4422,7 @@ needToDoIt:
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
 		for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-			AutoParam* param = &mpeParams->params[i];
+			AutoParam* param = mpeParams->getParam(i);
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(i, param);
 
 			if (shouldJustDeleteNodes) {
@@ -4453,7 +4453,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		return false;
 	}
 
-	AutoParam* param = &mpeParams->params[expressionDimension];
+	AutoParam* param = mpeParams->getParam(expressionDimension);
 
 	ModelStackWithAutoParam* modelStackWithAutoParam =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParam(mpeParams, mpeParamsSummary,
