@@ -37,22 +37,20 @@ class ParamSet : public ParamCollection {
 protected:
 	/// Number of parameters in the params array
 	int32_t numParams_;
-	AutoParam* params;
+	AutoParam** params;
+	int32_t* currentValues;
 
 public:
+	~ParamSet() override;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
 
-	inline AutoParam* getParam(int32_t p) { return &params[p]; }
-	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
-	inline bool isAutomated(int32_t p) { return params[p].isAutomated(); }
-	inline bool containsSomething(int32_t p, uint32_t neutralValue = 0) {
-		return params[p].containsSomething(neutralValue);
-	}
-	inline void setCurrentValueBasicForSetup(int32_t p, int32_t value) {
-		params[p].setCurrentValueBasicForSetup(value);
-	}
-	inline void setCurrentValueBasic(int32_t p, int32_t value) { params[p].currentValue = value; }
-	inline void shiftValues(int32_t p, int32_t offset) { params[p].shiftValues(offset); }
+	AutoParam* getParam(int32_t p);
+	int32_t getValue(int32_t p) { return currentValues[p]; }
+	bool isAutomated(int32_t p) { return params[p] && params[p]->isAutomated(); }
+	bool containsSomething(int32_t p, uint32_t neutralValue = 0);
+	void setCurrentValueBasicForSetup(int32_t p, int32_t value);
+	void setCurrentValueBasic(int32_t p, int32_t value);
+	void shiftValues(int32_t p, int32_t offset);
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
@@ -100,6 +98,12 @@ public:
 
 	uint8_t topUintToRepParams;
 
+protected:
+	AutoParam* createParam(int32_t p);
+	void deleteParam(int32_t p);
+	void cloneSparseParams(bool copyAutomation, int32_t reverseDirectionWithLength);
+	void deleteSparseParams();
+
 private:
 	void backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack);
 	void checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
@@ -108,6 +112,7 @@ private:
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
+	~UnpatchedParamSet() override;
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
@@ -120,12 +125,14 @@ public:
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
 private:
-	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
+	std::array<AutoParam*, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
+	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> currentValues_;
 };
 
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
+	~PatchedParamSet() override;
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -135,12 +142,14 @@ public:
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCHED; }
 
 private:
-	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
+	std::array<AutoParam*, deluge::modulation::params::kNumParams> params_;
+	std::array<int32_t, deluge::modulation::params::kNumParams> currentValues_;
 };
 
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
+	~ExpressionParamSet() override;
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -164,5 +173,6 @@ public:
 	uint8_t bendRanges[2];
 
 private:
-	std::array<AutoParam, kNumExpressionDimensions> params_;
+	std::array<AutoParam*, kNumExpressionDimensions> params_;
+	std::array<int32_t, kNumExpressionDimensions> currentValues_;
 };
