@@ -17,8 +17,11 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "memory/fast_allocator.h"
+#include "memory/object_pool.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include <vector>
 
 class Song;
 class ModelStackWithParamCollection;
@@ -36,6 +39,54 @@ struct Destination {
 	uint32_t sources;
 	uint8_t firstCable;
 	uint8_t endCable;
+};
+
+class PatchCableArray {
+public:
+	using Pool = deluge::memory::ObjectPool<PatchCable, deluge::memory::fast_allocator>;
+
+	PatchCableArray() = default;
+	~PatchCableArray() { clear(); }
+
+	PatchCable& operator[](size_t index) {
+		ensureSlot(index);
+		return *slots_[index];
+	}
+
+	PatchCable const& operator[](size_t index) const { return *slots_[index]; }
+
+	bool hasSlot(size_t index) const { return index < slots_.size() && slots_[index] != nullptr; }
+
+	void ensureSlot(size_t index) {
+		if (index >= slots_.size()) {
+			slots_.resize(index + 1, nullptr);
+		}
+		if (!slots_[index]) {
+			auto acquired = Pool::get().acquire();
+			slots_[index] = acquired.release();
+		}
+	}
+
+	void recycleSlot(size_t index) {
+		if (!hasSlot(index)) {
+			return;
+		}
+		Pool::recycle(slots_[index]);
+		slots_[index] = nullptr;
+	}
+
+	void clear() {
+		for (auto& slot : slots_) {
+			if (slot) {
+				Pool::recycle(slot);
+				slot = nullptr;
+			}
+		}
+		slots_.clear();
+	}
+
+private:
+	std::vector<PatchCable*> slots_;
 };
 
 class PatchCableSet final : public ParamCollection {
@@ -107,7 +158,7 @@ public:
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
-	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
+	PatchCableArray patchCables;
 	uint8_t numUsablePatchCables;
 	uint8_t numPatchCables;
 
