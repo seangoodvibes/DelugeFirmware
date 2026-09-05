@@ -1,6 +1,7 @@
 #pragma once
 #include "modulation/params/param.h"
 class ModelStackWithParamCollection;
+class ParamCollectionSummary;
 
 // Host tests exercise ParamManager without the DSP/automation engine.
 // Keep the virtual dtor and virtual getParamKind() so this matches the real class's shape.
@@ -13,7 +14,7 @@ public:
 	virtual void processCurrentPos(ModelStackWithParamCollection* stack, int32_t ticks, bool reversed, bool pingpong,
 	                               bool interpolate) {}
 	int32_t ticksTilNextEvent = 0;
-	void beenCloned(bool copyAutomation, int32_t reverseLength) {
+	void beenCloned(bool copyAutomation, int32_t reverseLength, ParamCollectionSummary* = nullptr) {
 		clonedAutomation = copyAutomation;
 		clonedReverseLength = reverseLength;
 	}

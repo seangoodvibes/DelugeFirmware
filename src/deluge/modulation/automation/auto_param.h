@@ -70,6 +70,8 @@ public:
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
 	void deleteAutomationBasicForSetup();
+	Error read_automation(Deserializer& reader, int32_t read_automation_up_to_pos);
+	void write_automation(Serializer& writer);
 	void writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride = nullptr);
 	Error readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	bool containsSomething(uint32_t neutralValue = 0);
@@ -142,6 +144,8 @@ public:
 	// it only works in empty stretches of time.
 
 private:
+	void stealNodesWithoutNotification(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+	                                   int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
 	deluge::modulation::params::param_value_binding current_value_binding;
 	int32_t& current_value_ref() { return current_value_binding.value(); }
 

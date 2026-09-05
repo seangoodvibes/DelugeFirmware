@@ -34,6 +34,9 @@
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
+#include "modulation/params/param_node_deserializer.h"
+#include "modulation/params/param_value_deserializer.h"
+#include "modulation/params/param_value_serializer.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -1013,6 +1016,8 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 
 	if (length >= effectiveLength) {
 		deleteAutomation(action, modelStack);
+		// deleteAutomation already notified the owner, which may release this object.
+		return;
 	}
 	else {
 
@@ -1037,12 +1042,13 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		}
 
 		if (wrapping) {
-			if (resultingIndexes[0]) {
-				nodes.deleteAtIndex(0, resultingIndexes[0]);
-			}
+			// Remove the tail first: deleting the beginning shifts the tail's index.
 			int32_t numAtEnd = nodes.getNumElements() - resultingIndexes[1];
 			if (numAtEnd) {
 				nodes.deleteAtIndex(resultingIndexes[1], numAtEnd);
+			}
+			if (resultingIndexes[0]) {
+				nodes.deleteAtIndex(0, resultingIndexes[0]);
 			}
 		}
 
@@ -1785,7 +1791,10 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	// When recording session to arranger, you may occasionally end up with nodes beyond the Clip's length. These need
 	// to be removed now
 	ParamNode* firstNode = otherParam->nodes.getFirst();
-	deleteNodesBeyondPos(oldLength + firstNode->pos);
+	// A previous partial append may already have inserted the ping-pong boundary.
+	// Replace it along with the repeat so retrying cannot create duplicate nodes.
+	deleteNodesBeyondPos(
+	    pingpongingGenerally && firstNode->pos && firstNode->interpolated ? oldLength : oldLength + firstNode->pos);
 
 	ParamNode* nodeAfterWrap = (ParamNode*)otherParam->nodes.getElementAddress(0);
 	bool nothingAtZero = nodeAfterWrap->pos;
@@ -1989,29 +1998,26 @@ addNewNodeAt0IfNecessary:
 }
 
 void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride) {
-	char buffer[9];
-
-	writer.write("0x");
-
 	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : current_value_ref();
-
-	intToHex(valueNow, buffer);
-	writer.write(buffer);
-
+	deluge::modulation::params::write_current_value(writer, valueNow);
 	if (writeAutomation) {
+		this->write_automation(writer);
+	}
+}
 
-		for (int32_t i = 0; i < nodes.getNumElements(); i++) {
-			ParamNode* thisNode = nodes.getElement(i);
-			intToHex(thisNode->value, buffer);
-			writer.write(buffer);
+void AutoParam::write_automation(Serializer& writer) {
+	char buffer[9];
+	for (int32_t index = 0; index < nodes.getNumElements(); ++index) {
+		ParamNode* node = nodes.getElement(index);
+		intToHex(node->value, buffer);
+		writer.write(buffer);
 
-			uint32_t pos = thisNode->pos;
-			if (thisNode->interpolated) {
-				pos |= ((uint32_t)1 << 31);
-			}
-			intToHex(pos, buffer);
-			writer.write(buffer);
+		uint32_t pos = node->pos;
+		if (node->interpolated) {
+			pos |= uint32_t{1} << 31;
 		}
+		intToHex(pos, buffer);
+		writer.write(buffer);
 	}
 }
 
@@ -2019,120 +2025,18 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* v
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
 Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+	deleteAutomationBasicForSetup();
+	if (deluge::modulation::params::read_current_value(reader, current_value_ref()) && readAutomationUpToPos) {
+		return read_automation(reader, readAutomationUpToPos);
+	}
+	return Error::NONE;
+}
 
+Error AutoParam::read_automation(Deserializer& reader, int32_t read_automation_up_to_pos) {
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
 	deleteAutomationBasicForSetup();
-
-	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-		return Error::NONE;
-	}
-
-	// char buffer[12];
-	char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-	if (!firstChars) {
-		return Error::NONE;
-	}
-
-	// If a decimal, then read the rest of the digits
-	if (*(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
-		char buffer[12];
-		buffer[0] = firstChars[0];
-		buffer[1] = firstChars[1];
-
-		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
-		buffer[11] = 0;
-		current_value_ref() = stringToInt(buffer);
-		return Error::NONE;
-	}
-
-	// Or, normal case - hex and automation...
-
-	// First, read currentValue
-	char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8);
-	if (!hexChars) {
-		return Error::NONE;
-	}
-	current_value_ref() = hexToIntFixedLength(hexChars, 8);
-
-	// And now read in the automation
-	int32_t numElementsToAllocateFor = 0;
-
-	if (readAutomationUpToPos) {
-
-		int32_t prevPos = -1;
-
-		while (true) {
-
-			// Every time we've reached the end of a cluster...
-			if (numElementsToAllocateFor <= 0) {
-
-				// See how many more chars before the end of the cluster. If there are any...
-				uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
-				if (charsRemaining) {
-
-					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
-					// this check again
-					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					nodes.ensureEnoughSpaceAllocated(
-					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
-				}
-			}
-
-			hexChars = reader.readNextCharsOfTagOrAttributeValue(16);
-			if (!hexChars) {
-				return Error::NONE;
-			}
-			int32_t value = hexToIntFixedLength(hexChars, 8);
-			int32_t pos = hexToIntFixedLength(&hexChars[8], 8);
-
-			bool interpolated = (pos & ((uint32_t)1 << 31));
-			if (interpolated) {
-				pos &= ~((uint32_t)1 << 31);
-			}
-
-			// Ensure there isn't some problem where nodes are out of order...
-			if (pos <= prevPos) {
-				D_PRINTLN("Automation nodes out of order");
-				continue;
-			}
-
-			// If we've reached the end of our allowed timeline length for automation...
-			if (pos >= readAutomationUpToPos) {
-
-				// If there's a node actually right on the end-point - well, firmware <= 3.1.5 sometimes put one there
-				// when it should have been at pos 0. So, reinterpret that data to make it right.
-				if (pos == readAutomationUpToPos) {
-					ParamNode* firstNode = nodes.getElement(0);
-					if (!firstNode || firstNode->pos) {
-						Error error = nodes.insertAtIndex(0);
-						if (error != Error::NONE) {
-							return error;
-						}
-						firstNode = nodes.getElement(0);
-						firstNode->pos = 0;
-						firstNode->value = value;
-						firstNode->interpolated = interpolated;
-					}
-				}
-				break;
-			}
-
-			prevPos = pos;
-
-			int32_t nodeI = nodes.insertAtKey(pos, true);
-			if (nodeI == -1) {
-				return Error::INSUFFICIENT_RAM;
-			}
-			ParamNode* node = nodes.getElement(nodeI);
-			node->value = value;
-			node->interpolated = interpolated;
-
-			numElementsToAllocateFor--;
-		}
-	}
-
-	return Error::NONE;
+	return deluge::modulation::automation::read_nodes(reader, nodes, read_automation_up_to_pos);
 }
 
 bool AutoParam::containsSomething(uint32_t neutralValue) {
@@ -2187,6 +2091,10 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
                       CopiedParamAutomation* copiedParamAutomation, bool isPatchCable) {
 
 	bool automatedBefore = isAutomated();
+	auto notifyChange = [&] {
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true,
+		                                                          automatedBefore, isAutomated());
+	};
 	int32_t effectiveLength = modelStack->getLoopLength();
 	int32_t wrappedEndPos = endPos % effectiveLength;
 	bool overwrittingEntireRegion = startPos == 0 && endPos >= effectiveLength;
@@ -2225,6 +2133,9 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
 				auto error = nodes.insertAtIndex(resetI);
 				if (error != Error::NONE) {
+					// Paste may already have removed nodes. Keep summary flags consistent
+					// even when only part (or none) of the replacement could be allocated.
+					notifyChange();
 					return;
 				}
 
@@ -2256,6 +2167,9 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			if (!resetNode || resetNode->pos != resetPos) {
 				auto error = nodes.insertAtIndex(resetI);
 				if (error != Error::NONE) {
+					// Paste may already have removed nodes. Keep summary flags consistent
+					// even when only part (or none) of the replacement could be allocated.
+					notifyChange();
 					return;
 				}
 
@@ -2288,6 +2202,9 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 		int32_t nodeDestI = nodes.insertAtKey(newPos);
 		ParamNode* nodeDest = nodes.getElement(nodeDestI);
 		if (!nodeDest) {
+			// Paste may already have removed nodes. Keep summary flags consistent
+			// even when only part (or none) of the replacement could be allocated.
+			notifyChange();
 			return;
 		}
 
@@ -2305,8 +2222,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 
 	nodes.testSequentiality("E440");
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true, automatedBefore,
-	                                                          isAutomated());
+	notifyChange();
 }
 
 void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
@@ -2674,13 +2590,13 @@ justShiftEverything:
 					resultingIndexes[1]--;
 				}
 			}
-		}
 
-		for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-			nodes.getElement(i)->pos--;
-		}
-		for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
-			nodes.getElement(i)->pos--;
+			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
+				nodes.getElement(i)->pos--;
+			}
+			for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
+				nodes.getElement(i)->pos--;
+			}
 		}
 	}
 
@@ -2879,6 +2795,17 @@ void AutoParam::notifyPingpongOccurred() {
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                            int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+	int32_t nodesBefore = nodes.getNumElements();
+	stealNodesWithoutNotification(modelStack, pos, regionLength, loopLength, action, stolenNodeRecord);
+	if (nodes.getNumElements() != nodesBefore) {
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true,
+		                                                          nodesBefore != 0, isAutomated());
+	}
+}
+
+void AutoParam::stealNodesWithoutNotification(ModelStackWithAutoParam const* modelStack, int32_t pos,
+                                              int32_t regionLength, int32_t loopLength, Action* action,
+                                              StolenParamNodes* stolenNodeRecord) {
 
 	int32_t stopAt = pos + regionLength;
 	int32_t durationAfterWrap = (stopAt - loopLength);
@@ -2962,7 +2889,8 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	}
 
 	// First, clear the area
-	stealNodes(modelStack, pos, regionLength, loopLength, action);
+	// Notify only after replacement is complete; the owner may release an empty parameter.
+	stealNodesWithoutNotification(modelStack, pos, regionLength, loopLength, action, nullptr);
 
 	// This is really inefficient.
 	for (int32_t sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
@@ -2986,10 +2914,9 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		destNode->pos = destPos;
 	}
 
+	nodes.testSequentiality("E423");
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true, wasAutomatedBefore,
 	                                                          isAutomated());
-
-	nodes.testSequentiality("E423");
 }
 
 // Disregards a node that's right at pos.

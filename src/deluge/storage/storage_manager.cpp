@@ -814,95 +814,6 @@ FileReader::~FileReader() {
 		GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
 }
 
-void FileReader::resetReader() {
-	if (!memoryBased) {
-		fileReadBufferCurrentPos = Cluster::size;
-		currentReadBufferEndPos = Cluster::size;
-	}
-	else {
-		fileReadBufferCurrentPos = 0;
-	}
-	readCount = 0;
-	reachedBufferEnd = false;
-}
-
-// Returns whether successful loading took place
-// return true "if still going".
-bool FileReader::readFileClusterIfNecessary() {
-	if (memoryBased) {
-		if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
-			reachedBufferEnd = true;
-		}
-		return !reachedBufferEnd;
-	}
-	// Load next Cluster if necessary
-	if (fileReadBufferCurrentPos >= Cluster::size) {
-		readCount = 0;
-		bool result = readFileCluster();
-		if (!result) {
-			reachedBufferEnd = true;
-		}
-		return result;
-	}
-
-	// Watch out for end of file
-	if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
-		reachedBufferEnd = true;
-	}
-
-	return false;
-}
-
-bool FileReader::readFileCluster() {
-
-	AudioEngine::logAction("readFileCluster");
-	if (memoryBased) {
-		return true;
-	}
-
-	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, Cluster::size, &currentReadBufferEndPos);
-	if (result) {
-		return false;
-	}
-
-	// If error or we reached end of file
-	if (!currentReadBufferEndPos) {
-		return false;
-	}
-
-	fileReadBufferCurrentPos = 0;
-
-	return true;
-}
-
-// Similar to readChar, but it does not advance the fileReadBufferCurrentPos.
-// If you later want that to happen, you can call readChar then.
-bool FileReader::peekChar(char* thisChar) {
-
-	bool stillGoing = readFileClusterIfNecessary();
-	if (reachedBufferEnd) {
-		return false;
-	}
-
-	*thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
-
-	return true;
-}
-
-bool FileReader::readChar(char* thisChar) {
-
-	bool stillGoing = readFileClusterIfNecessary();
-	if (reachedBufferEnd) {
-		return false;
-	}
-
-	*thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
-
-	fileReadBufferCurrentPos++;
-
-	return true;
-}
-
 // Call various routines 1 out of N times, where N = 64 at present.
 void FileReader::readDone() {
 	readCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
@@ -934,6 +845,14 @@ FileWriter::FileWriter() {
 	bufferSize = 32768;
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+}
+
+void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine) {
+	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(internalValue), onNewLine);
+}
+
+void Serializer::writeFirmwareVersion() {
+	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {

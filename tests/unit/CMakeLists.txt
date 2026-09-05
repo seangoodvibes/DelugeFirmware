@@ -74,6 +74,8 @@ add_executable(UnitTests
         value_scaling_tests.cpp
         clip_iterator_tests.cpp
         function_tests.cpp
+        param_value_binding_tests.cpp
+        param_value_serializer_tests.cpp
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
