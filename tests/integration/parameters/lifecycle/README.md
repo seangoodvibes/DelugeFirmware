@@ -1,0 +1,153 @@
+# Native parameter lifecycle tests
+
+`NativeParameterLifecycleTests` runs on the host through CTest. It leaves the
+firmware's preallocated `AutoParam` arrays unchanged.
+
+From the repository root:
+
+```sh
+cmake -S tests -B build/tests
+cmake --build build/tests --config Debug --target NativeParameterLifecycleTests
+ctest --test-dir build/tests -C Debug -R '^NativeParameterLifecycleTests$' --output-on-failure
+```
+
+To check object lifetimes with AddressSanitizer on a supported Clang/GCC host:
+
+```sh
+cmake -S tests -B build/tests -DPARAMETER_LIFECYCLE_ASAN=ON
+cmake --build build/tests --config Debug --target NativeParameterLifecycleTests
+ctest --test-dir build/tests -C Debug -R '^NativeParameterLifecycleTests$' --output-on-failure
+```
+
+Set `PARAMETER_LIFECYCLE_ASAN=OFF` to return to a normal build.
+
+## Production code covered
+
+The target compiles the real `ParamSet`, `AutoParam`, `ParamNodeVector`, resizable
+node containers, manager setup/transfer/cleanup, collection notifications, lookup,
+and `ConsequenceParamChange`. These classes are not replaced with test adapters.
+The merged `tests/param_manager` targets remain useful for manager layout, lookup,
+and routing contracts; their parameter/automation doubles do not exercise the
+ownership covered here.
+
+The 44 cases cover:
+
+- Initial scalar values, neutral-value queries, and neighboring parameter isolation
+  for patched, unpatched, and expression sets.
+- Scalar edits through the production setter and user-input path, including
+  change notifications and capturing the pre-edit value for undo.
+- Repeated scalar, first-node creation, and last-node deletion undo/redo through
+  production consequences; scalar preservation and automation/interpolation flags.
+- Ownership transfer into a steal-data undo snapshot and back to the parameter,
+  including destruction of the consequence after restoring the nodes.
+- Discarding a steal-data undo snapshot without restoring it, releasing its nodes
+  while preserving neighboring automation and allowing new automation on the owner.
+- Append through both collection and manager APIs for every scalar-only/automated
+  source and destination combination, forward and reversed, with source destruction
+  and mutation proving independent node ownership; reversed step segments.
+- Forward and ping-pong repeats, partial final repeats, and interpolation across
+  a newly inserted loop-boundary node.
+- Sparse collection traversal through seeking, ticking, stopping, time insertion,
+  cloning, and clearing, preserving every unautomated scalar and the clone's nodes.
+- Stealing and reinserting wrapped node regions, including the last nodes,
+  destination replacement, truncation, disposal of temporary storage, and undo/redo.
+- Expression region moves across the loop boundary in both directions, with
+  untouched dimensions and undo/redo preserving values and nodes.
+- Multiple outstanding undo snapshots for the same parameter, repeated undo/redo,
+  and discarding older snapshots while another snapshot or the parameter owns nodes.
+- Allocation-failure sweeps for forward and ping-pong append/repeat: every allocation
+  position reached by these fixtures is failed before retrying without the fault.
+  Surviving nodes remain ordered, flags match automation, and retry matches the
+  successful operation's output.
+- Actual manager cloning of unpatched and expression sets, with and without
+  automation, editing and destroying the source before inspecting the clone.
+- Reversed manager cloning with independent node storage.
+- Cloning over a populated manager, releasing its old nodes while retaining its
+  own expression collection.
+- The patched collection's actual `beenCloned()` hook rebinding its scalar storage
+  and cloning its nodes, after a raw copy matching the manager's cloning contract.
+- `AutoParam::cloneFrom()` preserving the destination patched set's scalar binding.
+- Forward and reverse seeking, tick interpolation, and stopping playback, with
+  values observed through `ParamSet::getValue()`.
+- Clearing all automation and creating it again; deleting time that removes the
+  last nodes while another parameter retains automation.
+- Summary-bit boundaries at parameter IDs 31/32 and the final valid parameter.
+- Real XML/JSON `ParamSet` save/reload through production serializers and readers,
+  at every simulated cluster alignment, with scalar or automated destinations,
+  scalar-only saving, disabled automation loading, replacement nodes, a following
+  sentinel attribute, and preservation of the source and neighboring parameter.
+- Failed first-node allocation followed by retry; failed collection allocation
+  during cloning; failed/partially successful node cloning; failed node allocation
+  during reload; and failed undo snapshot allocation without corrupting the source.
+- Trimming away automation, deleting a region's last nodes, wrapping region
+  deletion, full replacement paste, and undo/redo of those changes where applicable.
+- Failed replacement paste clearing stale automation/interpolation flags.
+- Patched consumer-threshold callbacks observing the final scalar and automation
+  state, and expression edits reaching the monophonic notification callback.
+  Full-region deletion must notify each consumer only once.
+
+Every case checks that all host-tracked firmware allocations are released. Invalid
+or duplicate frees abort the test. The tests caught stale clone flags both when
+automation copying was disabled and when individual node allocations failed. The manager initializes destination
+flags before cloning; `ParamSet::beenCloned()` clears flags for missing automation.
+They also caught a wrapping-region deletion index error, stale flags after a failed
+paste, and duplicate full-region deletion notifications. Append coverage caught
+missing destination automation flags and manager traversal skipping previously
+empty destination collections. Transfer and failure-path coverage also caught
+stale flags after stealing the last nodes, wrapped rightward moves applying the
+leftward adjustment too, and duplicate ping-pong boundaries on append retry.
+Those paths are corrected.
+
+## Platform boundary and limits
+
+The platform fixture replaces allocation with tracked host allocations and an
+explicit failure budget returning `nullptr`, as the firmware allocator does.
+In-place extension/shortening is declined, allowing the production containers to use their
+normal allocation/copy paths. This does not test the firmware allocator or its
+physical memory regions.
+
+The timeline is deterministic, with a configurable loop length, position, and
+direction. UI notifications are counted. The action-logger hook creates a real
+`ConsequenceParamChange` for a scalar edit; tests replay consequences directly.
+This does not exercise the UI action queues, action grouping, live recording,
+actual Clip/NoteRow scheduling, or audio rendering. Unsupported action, patching,
+and sound callbacks throw rather than silently succeeding. Region-deletion tests
+explicitly allow the action logger to decline a new action and use independently
+captured production consequences. File services reuse the native persistence
+fixture: buffered reads are production code; file bytes and writer output are in
+host memory, without SD access. A type-only reverb header avoids an unrelated SIMD
+dependency from `Song`'s headers; no Song or Reverb instance is created.
+
+Patched/expression construction, scalar storage, and notification dispatch are
+real. The patched observer deliberately rejects the value-change threshold, so
+sound LPF/rendering and patch-cable setup remain outside coverage. Expression
+coverage exercises monophonic dispatch, not actual MIDI output or polyphonic
+NoteRow dispatch. The full patched manager/patch-cable layout is not exercised.
+The separate native persistence target retains its broader parser fault matrix.
+
+### Existing failure semantics
+
+These tests do not promise transactional rollback. If node cloning fails after
+collection allocation succeeds, the manager currently reports success and keeps
+the scalar with any nodes it could clone. Its summary flags must match those nodes.
+If reload or replacement paste runs out of memory, old automation may already have
+been removed; a loaded scalar and completed replacement nodes may remain. Parser
+recovery after a failed insertion is not guaranteed by the lifecycle suite.
+
+`ConsequenceParamChange` currently cannot report failed snapshot-node allocation:
+it retains a scalar-only snapshot. The failure test verifies source ownership and
+cleanup, **not** that such an incomplete snapshot can safely restore automation.
+Error reporting and complete undo preservation under allocation failure remain
+separate work, especially when introducing a fallible automation pool.
+
+## Preparing for pooled automation
+
+Keep these behavioral expectations when replacing the arrays. Acquire automation
+through the production lookup API in fixtures that edit it, and continue checking
+values, nodes, flags, notifications, undo, and clone independence after storage
+changes. Do not require an automation object for read-only scalar operations.
+
+Add pool-specific assertions when that implementation exists: zero acquisitions
+for scalar-only operations, first-node acquisition, last-node release, reuse by a
+different owner without stale state, exhaustion/failure behavior, and balanced
+releases on set destruction. These tests do not yet assert pool behavior.

@@ -28,4 +28,5 @@ struct AutoParamState {
 struct AutoParam {
 	ParamNodeVector nodes;
 	int currentValue = 0;
+	int getCurrentValue() { return currentValue; }
 };

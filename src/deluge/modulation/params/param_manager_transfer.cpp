@@ -129,10 +129,19 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 
 		memcpy(newSummary->paramCollection, otherSummary->paramCollection, otherSummary->paramCollection->objectSize);
 
-		newSummary->paramCollection->beenCloned(
-		    copyAutomation, reverseDirectionWithLength); // Ignore error - just means automation doesn't get cloned.
+		if (copyAutomation) {
+			newSummary->cloneFlagsFrom(otherSummary);
+		}
+		else {
+			// The cloned collections contain scalars only. Flags copied from the source
+			// would schedule automation/interpolation for parameters with no nodes.
+			newSummary->resetAutomationRecord(kMaxNumUnsignedIntegerstoRepAllParams - 1);
+			newSummary->resetInterpolationRecord(kMaxNumUnsignedIntegerstoRepAllParams - 1);
+		}
 
-		newSummary->cloneFlagsFrom(otherSummary);
+		// Initialize flags first so collection-specific cloning can clear entries
+		// whose automation could not be copied (e.g. a node allocation failure).
+		newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength, newSummary);
 
 		newSummary++;
 		otherSummary++;
