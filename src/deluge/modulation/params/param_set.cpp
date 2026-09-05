@@ -28,7 +28,9 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_deserializer.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_serializer.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -39,12 +41,17 @@
 namespace params = deluge::modulation::params;
 
 ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
-    : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
+    : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), current_values(nullptr),
+      topUintToRepParams(1) {
 }
 
 void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	int32_t numParams = getNumParams();
+	// ParamManager clones collections with memcpy, which also copies bindings to
+	// the source's scalars. Rebind before cloning nodes or editing the clone would
+	// modify the source (and could access freed memory after source destruction).
 	for (int32_t p = 0; p < numParams; p++) {
+		params[p].bind_current_value(current_values[p]);
 		params[p].beenCloned(copyAutomation, reverseDirectionWithLength);
 	}
 }
@@ -53,7 +60,7 @@ void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
 
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].copyOverridingFrom(&otherParamSet->params[p]);
+		params[p].copyOverridingFrom(otherParamSet->getParam(p));
 	}
 }
 
@@ -71,8 +78,12 @@ void ParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* model
 	                                              automatedNow);
 }
 
-void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
+void ParamSet::shiftValues(int32_t p, int32_t offset) {
 	params[p].shiftValues(offset);
+}
+
+void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
+	shiftValues(p, offset);
 }
 
 void ParamSet::shiftParamVolumeByDB(int32_t p, float offset) {
@@ -183,26 +194,14 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 
 void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
                                      bool onlyIfContainsSomething, int32_t* valuesForOverride) {
-	if (onlyIfContainsSomething && !params[p].containsSomething()) {
-		return;
-	}
-
-	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : nullptr;
-	writer.insertCommaIfNeeded();
-	writer.write("\n");
-	writer.printIndents();
-	writer.writeTagNameAndSeperator(name);
-	writer.write("\"");
-	params[p].writeToFile(writer, writeAutomation, valueForOverride);
-	writer.write("\"");
+	params::write_param_as_attribute(writer, name, current_values[p], params[p], writeAutomation,
+	                                 onlyIfContainsSomething, valuesForOverride ? &valuesForOverride[p] : nullptr);
 }
 
 void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p,
                          int32_t readAutomationUpToPos) {
-	params[p].readFromFile(reader, readAutomationUpToPos);
-	if (params[p].isAutomated()) {
-		paramHasAutomationNow(summary, p);
-	}
+	params::read_param(reader, current_values[p], params[p], readAutomationUpToPos, uint32_t{1} << (p & 31),
+	                   summary->whichParamsAreAutomated[p >> 5], summary->whichParamsAreInterpolating[p >> 5]);
 }
 
 void ParamSet::playbackHasEnded(ModelStackWithParamCollection* modelStack) {
@@ -242,9 +241,9 @@ void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
                                      int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 	ParamSet* otherParamSet = (ParamSet*)otherModelStack->paramCollection;
 
-	FOR_EACH_FLAGGED_PARAM(
-	    otherModelStack->summary->whichParamsAreAutomated); // Iterate through the *other* ParamManager's stuff
-	params[p].appendParam(&otherParamSet->params[p], oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	// Iterate through the *other* ParamManager's stuff
+	FOR_EACH_FLAGGED_PARAM(otherModelStack->summary->whichParamsAreAutomated);
+	params[p].appendParam(otherParamSet->getParam(p), oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 	FOR_EACH_PARAM_END
 
 	ticksTilNextEvent = 0;
@@ -289,7 +288,6 @@ void ParamSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParam
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
 
 	param->swapState(state, modelStackWithParam);
-	int32_t oldValue = params[modelStack->paramId].getCurrentValue();
 }
 
 void ParamSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
@@ -383,12 +381,18 @@ void ParamSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack)
 
 UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(UnpatchedParamSet), summary) {
 	params = params_.data();
+	current_values = current_values_.data();
+	current_values_.fill(0);
 	numParams_ = static_cast<int32_t>(params_.size());
+	for (int32_t index = 0; index < numParams_; ++index) {
+		params[index].bind_current_value(current_values[index]);
+	}
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
 void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
+	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
@@ -464,12 +468,18 @@ bool UnpatchedParamSet::shouldRecordUnautomatedParamChange(ModelStackWithParamId
 
 PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(PatchedParamSet), summary) {
 	params = params_.data();
+	current_values = current_values_.data();
+	current_values_.fill(0);
 	numParams_ = static_cast<int32_t>(params_.size());
+	for (int32_t index = 0; index < numParams_; ++index) {
+		params[index].bind_current_value(current_values[index]);
+	}
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
 void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
+	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
@@ -575,7 +585,12 @@ bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const
 ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum)
     : ParamSet(sizeof(ExpressionParamSet), summary) {
 	params = params_.data();
+	current_values = current_values_.data();
+	current_values_.fill(0);
 	numParams_ = static_cast<int32_t>(params_.size());
+	for (int32_t index = 0; index < numParams_; ++index) {
+		params[index].bind_current_value(current_values[index]);
+	}
 	topUintToRepParams = (numParams_ - 1) >> 5;
 	bendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
 
@@ -585,6 +600,7 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 
 void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
+	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 

@@ -441,6 +441,20 @@ const float dbIntervals[] = {
     12.1, 7, 5, 3.9, 3.2, 2.6, 2.4, 2, 1.8, 1.7, 1.5, 1.4, 1.3, 1.2, 1.1,
 };
 
+int32_t shift_value(int32_t value, int32_t offset) {
+	int64_t new_value = (int64_t)value + offset;
+	if (new_value >= (int64_t)2147483648u) {
+		value = 2147483647;
+	}
+	else if (new_value < (int64_t)2147483648u * -1) {
+		value = -2147483648;
+	}
+	else {
+		value = new_value;
+	}
+	return value;
+}
+
 int32_t shiftVolumeByDB(int32_t oldValue, float offset) {
 	uint32_t oldValuePositive = (uint32_t)oldValue + 2147483648;
 
