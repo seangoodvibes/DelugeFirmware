@@ -772,8 +772,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		}
 #endif
 		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)
-		    ->params[modelStackWithAutoParam->paramId]
-		    .setCurrentValueBasicForSetup(0);
+		    ->setCurrentValueBasicForSetup(modelStackWithAutoParam->paramId, 0);
 	}
 
 	modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(newCC, modelStack);

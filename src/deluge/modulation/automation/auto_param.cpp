@@ -54,7 +54,7 @@
 
 AutoParam::AutoParam() {
 	init();
-	currentValue = 0;
+	current_value_ref() = 0;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -70,7 +70,7 @@ void AutoParam::cloneFrom(AutoParam* otherParam, bool copyAutomation) {
 	else {
 		nodes.init();
 	}
-	currentValue = otherParam->currentValue;
+	setCurrentValueBasicForSetup(otherParam->getCurrentValue());
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -80,14 +80,14 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 		renewedOverridingAtTime = otherParam->renewedOverridingAtTime;
 		resetInterpolationIncrement();
 	}
-	currentValue = otherParam->currentValue;
+	setCurrentValueBasicForSetup(otherParam->getCurrentValue());
 }
 
 // This is mostly for "expression" params, which we frequently want to bump back to 0 - often when there is no
 // automation, or when playback is stopped.
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
-	int32_t oldValue = currentValue;
-	currentValue = value;
+	int32_t oldValue = current_value_ref();
+	current_value_ref() = value;
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
@@ -101,7 +101,7 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
                                                      bool shouldLogAction, int32_t livePos,
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
-	int32_t oldValue = currentValue;
+	int32_t oldValue = current_value_ref();
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
 	resetInterpolationIncrement();
@@ -291,13 +291,13 @@ skipThat: {}
 
 	// If still unautomated (or not currently playing), record value change
 	if (!nodes.getNumElements() || !isPlaying) {
-		if (value != currentValue) {
+		if (value != current_value_ref()) {
 			actionLogger.recordUnautomatedParamChange(modelStack);
 		}
 	}
 
 getOut:
-	currentValue = value;
+	current_value_ref() = value;
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
@@ -673,7 +673,7 @@ recordOverNodeJustReached:
 adjustNodeJustReached:
 				// D_PRINTLN("adjusting node value");
 				if (!didPinpong) {
-					nodeJustReached->value = currentValue;
+					nodeJustReached->value = current_value_ref();
 				}
 				nodeJustReached->interpolated = true;
 				// TODO: if reversing, should we set the one to the right to interpolating too?
@@ -730,8 +730,8 @@ adjustNodeJustReached:
 	// become the case), we need to jump to the node's value. (Or, it'll be the value of the node to the left if the
 	// node here isn't interpolated.)
 	if ((!noNeedToJumpToValue || mustUpdateValueAtEveryNode) && !renewedOverridingAtTime) {
-		int32_t oldValue = currentValue;
-		currentValue = valueJustReached;
+		int32_t oldValue = current_value_ref();
+		current_value_ref() = valueJustReached;
 
 		// The call to notifyParamModifiedInSomeWay() below normally has the ability to delete this AutoParam, which we
 		// want it not to. It won't if we still contain automation, which I think we have to... Let's just verify that.
@@ -808,7 +808,7 @@ void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, Pa
 		return; // If it's latched-until-next-node-hit, we're not allowed to interpolate.
 	}
 
-	int32_t halfDistance = (nextNodeInOurDirection->value >> 1) - (currentValue >> 1);
+	int32_t halfDistance = (nextNodeInOurDirection->value >> 1) - (current_value_ref() >> 1);
 
 	if (!halfDistance) {
 		return;
@@ -913,10 +913,10 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	}
 
 	// store current value (so we can check if it changed below)
-	int32_t oldValue = currentValue;
+	int32_t oldValue = current_value_ref();
 
 	// add value increment, clamp within the int32 limits (-2147483648, 2147483647)
-	currentValue = add_saturate(currentValue, value_increment);
+	current_value_ref() = add_saturate(current_value_ref(), value_increment);
 
 	// check if overflow occurred (e.g. increment would push current value over limit)
 	bool overflow_occurred = (value_increment > 0 && oldValue > INT32_MAX - value_increment)
@@ -928,7 +928,7 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	}
 
 	// return if we changed the current value
-	return (currentValue != oldValue);
+	return (current_value_ref() != oldValue);
 }
 
 /// multiplies a per-half-tick increment by a number of half ticks, clamping to the int32 range rather than wrapping.
@@ -1005,7 +1005,7 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		return;
 	}
 
-	int32_t oldValue = currentValue;
+	int32_t oldValue = current_value_ref();
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
@@ -1054,7 +1054,7 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		}
 
 		if (!isAutomated()) {
-			currentValue = 0; // For safety, with MPE. Actually very necessary.
+			current_value_ref() = 0; // For safety, with MPE. Actually very necessary.
 		}
 	}
 
@@ -1091,7 +1091,7 @@ setupNode:
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
                                   ModelStackWithAutoParam const* modelStack, ActionType actionType) {
 
-	int32_t oldValue = currentValue;
+	int32_t oldValue = current_value_ref();
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
 
@@ -1122,7 +1122,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 			}
 		}
-		currentValue = value;
+		current_value_ref() = value;
 	}
 
 	// Or, normal case
@@ -1164,7 +1164,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		if (mostRecentI == firstI) {
 			resetInterpolationIncrement();
 yesChangeCurrentValue:
-			currentValue = value;
+			current_value_ref() = value;
 		}
 		else {
 			view.notifyParamAutomationOccurred(modelStack->paramManager);
@@ -1467,7 +1467,7 @@ int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* m
 int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
 
 	if (!nodes.getNumElements()) {
-		return currentValue;
+		return current_value_ref();
 	}
 
 	int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
@@ -1520,9 +1520,9 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 		return false;
 	}
 
-	int32_t oldValue = currentValue;
-	currentValue = getValueAtPos(pos, modelStack);
-	return (currentValue != oldValue);
+	int32_t oldValue = current_value_ref();
+	current_value_ref() = getValueAtPos(pos, modelStack);
+	return (current_value_ref() != oldValue);
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
@@ -1530,8 +1530,8 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	resetInterpolationIncrement(); // We may calculate this, below
 	renewedOverridingAtTime = 0;
 	if (nodes.getNumElements()) {
-		int32_t oldValue = currentValue;
-		currentValue = getValueAtPos(pos, modelStack, reversed);
+		int32_t oldValue = current_value_ref();
+		current_value_ref() = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
 		int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
@@ -1993,7 +1993,7 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* v
 
 	writer.write("0x");
 
-	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : currentValue;
+	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : current_value_ref();
 
 	intToHex(valueNow, buffer);
 	writer.write(buffer);
@@ -2042,7 +2042,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 
 		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
-		currentValue = stringToInt(buffer);
+		current_value_ref() = stringToInt(buffer);
 		return Error::NONE;
 	}
 
@@ -2053,7 +2053,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 	if (!hexChars) {
 		return Error::NONE;
 	}
-	currentValue = hexToIntFixedLength(hexChars, 8);
+	current_value_ref() = hexToIntFixedLength(hexChars, 8);
 
 	// And now read in the automation
 	int32_t numElementsToAllocateFor = 0;
@@ -2139,7 +2139,7 @@ bool AutoParam::containsSomething(uint32_t neutralValue) {
 	if (isAutomated()) {
 		return true;
 	}
-	uint32_t* a = (uint32_t*)&currentValue;
+	uint32_t* a = (uint32_t*)&current_value_ref();
 	return (*a != (uint32_t)neutralValue);
 }
 
@@ -2148,34 +2148,16 @@ bool AutoParam::containedSomethingBefore(bool wasAutomatedBefore, uint32_t value
 }
 
 void AutoParam::shiftValues(int32_t offset) {
-	int64_t newValue = (int64_t)currentValue + offset;
-	if (newValue >= (int64_t)2147483648u) {
-		currentValue = 2147483647;
-	}
-	else if (newValue < (int64_t)2147483648u * -1) {
-		currentValue = -2147483648;
-	}
-	else {
-		currentValue = newValue;
-	}
+	current_value_ref() = shift_value(current_value_ref(), offset);
 
 	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 		ParamNode* thisNode = nodes.getElement(i);
-		int64_t newValue = (int64_t)thisNode->value + offset;
-		if (newValue >= (int64_t)2147483648u) {
-			thisNode->value = 2147483647;
-		}
-		else if (newValue < (int64_t)2147483648u * -1) {
-			thisNode->value = -2147483648;
-		}
-		else {
-			thisNode->value = newValue;
-		}
+		thisNode->value = shift_value(thisNode->value, offset);
 	}
 }
 
 void AutoParam::shiftParamVolumeByDB(float offset) {
-	currentValue = shiftVolumeByDB(currentValue, offset);
+	current_value_ref() = shiftVolumeByDB(current_value_ref(), offset);
 
 	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 		ParamNode* thisNode = nodes.getElement(i);
@@ -2190,8 +2172,8 @@ void AutoParam::shiftHorizontally(int32_t amount, int32_t effectiveLength) {
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
 	bool automatedBefore = isAutomated();
 
-	int32_t oldValueHere = currentValue;
-	currentValue = state->value;
+	int32_t oldValueHere = current_value_ref();
+	current_value_ref() = state->value;
 	state->value = oldValueHere;
 	nodes.swapStateWith(&state->nodes);
 
@@ -2323,7 +2305,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 
 	nodes.testSequentiality("E440");
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, automatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true, automatedBefore,
 	                                                          isAutomated());
 }
 
@@ -2503,7 +2485,7 @@ void AutoParam::transposeCCValuesToChannelPressureValues() {
 		thisNode->value = (thisNode->value >> 1) + (1 << 30);
 	}
 
-	currentValue = (currentValue >> 1) + (1 << 30);
+	current_value_ref() = (current_value_ref() >> 1) + (1 << 30);
 }
 
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
@@ -3004,7 +2986,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		destNode->pos = destPos;
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true, wasAutomatedBefore,
 	                                                          isAutomated());
 
 	nodes.testSequentiality("E423");
