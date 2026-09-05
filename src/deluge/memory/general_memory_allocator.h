@@ -71,6 +71,7 @@ enum class AllocationTag : uint8_t {
 	VOICE_POOL,
 	VOICE_SAMPLE_POOL,
 	TIME_STRETCHER_POOL,
+	TIME_STRETCHER_BUFFER,
 	DX7_VOICE_POOL,
 	SONG_LOAD_TEMP,
 	DX7,
@@ -109,7 +110,10 @@ enum class AllocationTag : uint8_t {
 	POINTER_ARRAY,
 	SAMPLE_RECORDER,
 	LIVE_INPUT_BUFFER,
+	INPUT_REPITCHED_BUFFER,
 	BROWSER_FILE_ITEMS,
+	GRAIN_BUFFER,
+	GRANULAR_PROCESSOR,
 	RESIZEABLE_ARRAY,
 	OUTPUT_HASH_TABLE,
 	MIDI_PARAM_COLLECTION,
@@ -121,6 +125,17 @@ enum class AllocationTag : uint8_t {
 	LIVE_PITCH_SHIFTER,
 	MIDI_DEVICE_LUMI_KEYS,
 	MIDI_CABLE_USB_HOSTED,
+	ACTION_NEW,
+	ACTION_CLIP_STATE,
+	CONSEQUENCE_RECORD_SWING_CHANGE,
+	CONSEQUENCE_RECORD_TEMPO_CHANGE,
+	CONSEQUENCE_RECORD_PERFORMANCE_VIEW_PRESS,
+	CONSEQUENCE_CLIP_HORIZONTAL_SHIFT,
+	CONSEQUENCE_CLIP_INSTANCE_CHANGE,
+	CONSEQUENCE_CREATE_OUTPUT_LINEAR_RECORD,
+	CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD,
+	CONSEQUENCE_NOTE_ROW_MUTE,
+	CONSEQUENCE_SCALE_ADD_NOTE,
 	CONSEQUENCE_PARAM_CHANGE,
 	CONSEQUENCE_NOTE_ARRAY_CHANGE,
 	CONSEQUENCE_NOTE_EXISTENCE,
@@ -134,6 +149,7 @@ enum class AllocationTag : uint8_t {
 	REGION_EXTERNAL,
 	REGION_EXTERNAL_SMALL,
 	REGION_INTERNAL_SMALL,
+	DELAY_BUFFER,
 	OTHER,
 	NUM_TAGS,
 };
@@ -154,6 +170,8 @@ static constexpr const char* allocationTagName(AllocationTag tag) {
 		return "voice_sample_pool";
 	case AllocationTag::TIME_STRETCHER_POOL:
 		return "time_stretcher_pool";
+	case AllocationTag::TIME_STRETCHER_BUFFER:
+		return "time_stretcher_buffer";
 	case AllocationTag::DX7_VOICE_POOL:
 		return "dx7_voice_pool";
 	case AllocationTag::SONG_LOAD_TEMP:
@@ -230,8 +248,14 @@ static constexpr const char* allocationTagName(AllocationTag tag) {
 		return "sample_recorder";
 	case AllocationTag::LIVE_INPUT_BUFFER:
 		return "live_input_buffer";
+	case AllocationTag::INPUT_REPITCHED_BUFFER:
+		return "input_repitched_buffer";
 	case AllocationTag::BROWSER_FILE_ITEMS:
 		return "browser_file_items";
+	case AllocationTag::GRAIN_BUFFER:
+		return "grain_buffer";
+	case AllocationTag::GRANULAR_PROCESSOR:
+		return "granular_processor";
 	case AllocationTag::RESIZEABLE_ARRAY:
 		return "resizeable_array";
 	case AllocationTag::OUTPUT_HASH_TABLE:
@@ -254,6 +278,28 @@ static constexpr const char* allocationTagName(AllocationTag tag) {
 		return "midi_device_lumi_keys";
 	case AllocationTag::MIDI_CABLE_USB_HOSTED:
 		return "midi_cable_usb_hosted";
+	case AllocationTag::ACTION_NEW:
+		return "action_new";
+	case AllocationTag::ACTION_CLIP_STATE:
+		return "action_clip_state";
+	case AllocationTag::CONSEQUENCE_RECORD_SWING_CHANGE:
+		return "consequence_record_swing_change";
+	case AllocationTag::CONSEQUENCE_RECORD_TEMPO_CHANGE:
+		return "consequence_record_tempo_change";
+	case AllocationTag::CONSEQUENCE_RECORD_PERFORMANCE_VIEW_PRESS:
+		return "consequence_record_performance_view_press";
+	case AllocationTag::CONSEQUENCE_CLIP_HORIZONTAL_SHIFT:
+		return "consequence_clip_horizontal_shift";
+	case AllocationTag::CONSEQUENCE_CLIP_INSTANCE_CHANGE:
+		return "consequence_clip_instance_change";
+	case AllocationTag::CONSEQUENCE_CREATE_OUTPUT_LINEAR_RECORD:
+		return "consequence_create_output_linear_record";
+	case AllocationTag::CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD:
+		return "consequence_clip_begin_linear_record";
+	case AllocationTag::CONSEQUENCE_NOTE_ROW_MUTE:
+		return "consequence_note_row_mute";
+	case AllocationTag::CONSEQUENCE_SCALE_ADD_NOTE:
+		return "consequence_scale_add_note";
 	case AllocationTag::CONSEQUENCE_PARAM_CHANGE:
 		return "consequence_param_change";
 	case AllocationTag::CONSEQUENCE_NOTE_ARRAY_CHANGE:
@@ -280,6 +326,8 @@ static constexpr const char* allocationTagName(AllocationTag tag) {
 		return "region_external_small";
 	case AllocationTag::REGION_INTERNAL_SMALL:
 		return "region_internal_small";
+	case AllocationTag::DELAY_BUFFER:
+		return "delay_buffer";
 	case AllocationTag::OTHER:
 		return "other";
 	case AllocationTag::NUM_TAGS:

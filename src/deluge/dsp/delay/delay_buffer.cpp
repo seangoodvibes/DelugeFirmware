@@ -44,7 +44,8 @@ Error DelayBuffer::init(uint32_t rate, uint32_t failIfThisSize, bool includeExtr
 
 	sizeIncludingExtra = size_ + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 
-	start_ = (StereoSample*)allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample));
+	start_ = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeIncludingExtra * sizeof(StereoSample),
+	                                                                          AllocationTag::DELAY_BUFFER);
 
 	if (start_ == nullptr) {
 		return Error::INSUFFICIENT_RAM;

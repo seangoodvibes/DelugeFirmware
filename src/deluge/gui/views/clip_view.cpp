@@ -237,7 +237,8 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 			action = actionLogger.getNewAction(ActionType::CLIP_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
 			if (action) {
 addConsequenceToAction:
-				void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipHorizontalShift));
+				void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+				    sizeof(ConsequenceClipHorizontalShift), AllocationTag::CONSEQUENCE_CLIP_HORIZONTAL_SHIFT);
 
 				if (consMemory) {
 					ConsequenceClipHorizontalShift* newConsequence = new (consMemory)

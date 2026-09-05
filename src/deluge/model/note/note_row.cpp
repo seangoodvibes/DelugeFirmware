@@ -546,8 +546,8 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and
 	// resultingIndexes
-	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreensToAddNoteOn * sizeof(int32_t));
+	int32_t* __restrict__ searchTerms = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	    numScreensToAddNoteOn * sizeof(int32_t), AllocationTag::NOTE_ROW);
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
 	}

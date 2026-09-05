@@ -475,7 +475,8 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNe
 
 		uint32_t allocatedMemorySize = numAdditionalElementsNeeded * elementSize;
 
-		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize);
+		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(allocatedMemorySize,
+		                                                                    static_cast<AllocationTag>(allocationTag));
 		if (!newMemory) {
 			LOCK_EXIT
 			return false;
@@ -551,10 +552,12 @@ getBrandNewMemory:
 #endif
 
 		uint32_t newMemoryAllocationSize = (newNum + numExtraSpacesToAllocate) * elementSize;
-		newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
+		newMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(newMemoryAllocationSize,
+		                                                              static_cast<AllocationTag>(allocationTag));
 		if (!newMemory) {
 			newMemoryAllocationSize = newNum * elementSize;
-			newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
+			newMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(newMemoryAllocationSize,
+			                                                              static_cast<AllocationTag>(allocationTag));
 		}
 
 		// If that didn't work...
@@ -917,7 +920,8 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 
 		uint32_t allocatedMemorySize = newMemorySize * elementSize;
 
-		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize, thingNotToStealFrom);
+		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+		    allocatedMemorySize, static_cast<AllocationTag>(allocationTag), thingNotToStealFrom);
 		if (!newMemory) {
 			LOCK_EXIT
 			return Error::INSUFFICIENT_RAM;
@@ -1094,8 +1098,8 @@ getBrandNewMemory:
 
 getBrandNewMemoryAgain:
 			uint32_t allocatedSize = desiredSize;
-			void* __restrict__ newMemory =
-			    GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize, thingNotToStealFrom);
+			void* __restrict__ newMemory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+			    allocatedSize, static_cast<AllocationTag>(allocationTag), thingNotToStealFrom);
 
 			// If that didn't work...
 			if (!newMemory) {

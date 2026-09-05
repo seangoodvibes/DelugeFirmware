@@ -142,7 +142,8 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		}
 
 		// And make a new one
-		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
+		void* actionMemory =
+		    GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(Action), AllocationTag::ACTION_NEW);
 
 		if (!actionMemory) {
 			D_PRINTLN("no ram to create new Action");
@@ -153,8 +154,8 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		int32_t numClips =
 		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
-		ActionClipState* clipStates =
-		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState));
+		ActionClipState* clipStates = (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeedTagged(
+		    numClips * sizeof(ActionClipState), AllocationTag::ACTION_CLIP_STATE);
 
 		if (!clipStates) {
 			delugeDealloc(actionMemory);
@@ -265,7 +266,8 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceSwingChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+		    sizeof(ConsequenceSwingChange), AllocationTag::CONSEQUENCE_RECORD_SWING_CHANGE);
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -288,7 +290,8 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+		    sizeof(ConsequenceTempoChange), AllocationTag::CONSEQUENCE_RECORD_TEMPO_CHANGE);
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -308,7 +311,8 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 		return;
 	}
 
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceViewPress));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+	    sizeof(ConsequencePerformanceViewPress), AllocationTag::CONSEQUENCE_RECORD_PERFORMANCE_VIEW_PRESS);
 
 	if (consMemory) {
 		ConsequencePerformanceViewPress* newConsequence =

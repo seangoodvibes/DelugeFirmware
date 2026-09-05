@@ -543,7 +543,8 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
+			void* waveTableMemory =
+			    GeneralMemoryAllocator::get().allocStealableTagged(sizeof(WaveTable), AllocationTag::AUDIO_FILE);
 			if (!waveTableMemory) {
 				*error = Error::INSUFFICIENT_RAM;
 				return NULL;
@@ -779,7 +780,8 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable(memorySizeNeeded);
+	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealableTagged(
+	    memorySizeNeeded, type == AudioFileType::SAMPLE ? AllocationTag::SAMPLE : AllocationTag::AUDIO_FILE);
 	if (!audioFileMemory) {
 ramError:
 		*error = Error::INSUFFICIENT_RAM;

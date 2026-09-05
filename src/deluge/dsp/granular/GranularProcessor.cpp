@@ -304,7 +304,8 @@ GranularProcessor::GranularProcessor() {
 }
 void GranularProcessor::getBuffer() {
 	if (grainBuffer == nullptr) {
-		void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
+		void* grainBufferMemory =
+		    GeneralMemoryAllocator::get().allocStealableTagged(sizeof(GrainBuffer), AllocationTag::GRAIN_BUFFER);
 		if (grainBufferMemory) {
 			grainBuffer = new (grainBufferMemory) GrainBuffer(this);
 		}

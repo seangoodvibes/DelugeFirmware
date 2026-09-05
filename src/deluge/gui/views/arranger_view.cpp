@@ -1657,7 +1657,8 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 
 	int32_t size = (output->type == OutputType::AUDIO) ? sizeof(AudioClip) : sizeof(InstrumentClip);
 
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	    size, output->type == OutputType::AUDIO ? AllocationTag::AUDIO_CLIP : AllocationTag::INSTRUMENT_CLIP);
 	if (!memory) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return exitSubModeWithoutAction();

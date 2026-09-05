@@ -39,7 +39,8 @@ void Cluster::setSize(size_t size) {
 
 Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
 	audioFileManager.setCardRead(); // even if it hasn't been we're now commited to the cluster size
-	void* memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Cluster) + Cluster::size, dontStealFromThing);
+	void* memory = GeneralMemoryAllocator::get().allocStealableTagged(
+	    sizeof(Cluster) + Cluster::size, AllocationTag::SAMPLE_CLUSTER_ARRAY, dontStealFromThing);
 	if (memory == nullptr) {
 		return nullptr;
 	}

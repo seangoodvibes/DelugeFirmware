@@ -1060,7 +1060,8 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 #endif
 
 bool TimeStretcher::allocateBuffer(int32_t numChannels) {
-	buffer = (int32_t*)allocMaxSpeed(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels);
+	buffer = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+	    TimeStretch::kBufferSize * sizeof(int32_t) * numChannels, AllocationTag::TIME_STRETCHER_BUFFER);
 	return (buffer != nullptr);
 }
 

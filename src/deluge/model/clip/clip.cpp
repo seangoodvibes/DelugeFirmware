@@ -407,7 +407,8 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 				                                  ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
-					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceOutputExistence));
+					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+					    sizeof(ConsequenceOutputExistence), AllocationTag::CONSEQUENCE_CREATE_OUTPUT_LINEAR_RECORD);
 					if (consMemory != nullptr) {
 						auto* cons = new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
 						action->addConsequence(cons);
@@ -417,8 +418,8 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		}
 		else {
 			if (action != nullptr) {
-				void* consMemory =
-				    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipBeginLinearRecord));
+				void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+				    sizeof(ConsequenceClipBeginLinearRecord), AllocationTag::CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD);
 				if (consMemory != nullptr) {
 					auto* cons = new (consMemory) ConsequenceClipBeginLinearRecord(this);
 					action->addConsequence(cons);

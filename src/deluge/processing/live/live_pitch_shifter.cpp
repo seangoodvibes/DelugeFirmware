@@ -851,8 +851,8 @@ void LivePitchShifter::considerRepitchedBuffer(int32_t phaseIncrement) {
 	if (phaseIncrement > kMaxSampleValue) {
 		if (!repitchedBuffer) {
 
-			repitchedBuffer = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(INPUT_REPITCHED_BUFFER_SIZE
-			                                                                        * sizeof(int32_t) * numChannels);
+			repitchedBuffer = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+			    INPUT_REPITCHED_BUFFER_SIZE * sizeof(int32_t) * numChannels, AllocationTag::INPUT_REPITCHED_BUFFER);
 			if (repitchedBuffer) {
 				repitchedBufferWritePos = 0;
 				oscPos = 0;

@@ -769,8 +769,8 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 		}
 
 		// TODO: this is more than we'll soon realise we need - we should really shorten it again afterwards.
-		newDestinations[g] =
-		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
+		newDestinations[g] = (Destination*)GeneralMemoryAllocator::get().allocMaxSpeedTagged(
+		    sizeof(Destination) * (kMaxNumPatchCables + 1), AllocationTag::PATCH_CABLE_DESTINATION);
 
 		// If couldn't...
 		if (!newDestinations[g]) {

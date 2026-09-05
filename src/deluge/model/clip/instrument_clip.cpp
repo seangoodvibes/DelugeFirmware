@@ -944,8 +944,8 @@ void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 	// Record action
 	Action* action = actionLogger.getNewAction(ActionType::MISC);
 	if (action) {
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowMute));
-
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(sizeof(ConsequenceNoteRowMute),
+		                                                                     AllocationTag::CONSEQUENCE_NOTE_ROW_MUTE);
 		if (consMemory) {
 			ConsequenceNoteRowMute* newConsequence =
 			    new (consMemory) ConsequenceNoteRowMute(this, modelStack->noteRowId);
@@ -1112,8 +1112,8 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 				thisNoteRow->notes.empty(); // Undo our "total hack", above
 
 				if (action) {
-					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceScaleAddNote));
-
+					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeedTagged(
+					    sizeof(ConsequenceScaleAddNote), AllocationTag::CONSEQUENCE_SCALE_ADD_NOTE);
 					if (consMemory) {
 						ConsequenceScaleAddNote* newConsequence =
 						    new (consMemory) ConsequenceScaleAddNote((yNote + 120) % 12);
