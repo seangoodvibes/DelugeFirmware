@@ -30,7 +30,7 @@ The merged `tests/param_manager` targets remain useful for manager layout, looku
 and routing contracts; their parameter/automation doubles do not exercise the
 ownership covered here.
 
-The 48 cases cover:
+The 49 cases cover:
 
 - Initial scalar values, neutral-value queries, and neighboring parameter isolation
   for patched, unpatched, and expression sets.
@@ -55,6 +55,11 @@ The 48 cases cover:
   untouched dimensions and undo/redo preserving values and nodes.
 - Multiple outstanding undo snapshots for the same parameter, repeated undo/redo,
   and discarding older snapshots while another snapshot or the parameter owns nodes.
+- A fixed 36-step sequence interleaving scalar/node edits, deletion, cloning,
+  undo/redo, snapshot disposal, and owner destruction/recreation. An independent
+  expected-state model checks every parameter and live snapshot after each step,
+  including flags and unique ownership of node addresses. Failures identify the
+  sequence step; final cleanup must release every tracked firmware allocation.
 - Allocation-failure sweeps for forward and ping-pong append/repeat: every allocation
   position reached by these fixtures is failed before retrying without the fault.
   Surviving nodes remain ordered, flags match automation, and retry matches the

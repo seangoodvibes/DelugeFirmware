@@ -9,12 +9,15 @@
 #include "platform.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 struct fixture {
@@ -1346,4 +1349,217 @@ TEST(parameter_lifecycle, failed_first_replacement_node_clears_flags_and_keeps_r
 	CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
 	check_node(*f.param(32)->autoParam, 0, 8, 800, false);
 	check_flag(f.summary(), 32, true);
+}
+
+TEST(parameter_lifecycle, deterministic_edit_delete_clone_and_undo_sequence_preserves_ownership) {
+	struct expected_node {
+		int32_t position;
+		int32_t value;
+		bool interpolated;
+	};
+	struct expected_param {
+		int32_t value = 0;
+		std::vector<expected_node> nodes;
+	};
+	struct snapshot {
+		std::unique_ptr<ConsequenceParamChange> actual;
+		int owner = 0;
+		int param = 0;
+		expected_param expected;
+	};
+	enum class operation {
+		scalar,
+		node,
+		capture,
+		capture_stolen,
+		erase,
+		undo,
+		redo,
+		clone,
+		discard,
+		destroy,
+		create,
+		clear
+	};
+	struct sequence_step {
+		char const* label;
+		operation action;
+		int owner;
+		int param = 31;
+		int value = 0;
+		int position = 0;
+		int slot = 0;
+		bool interpolated = false;
+	};
+	// Clone's owner is its source; the other manager is its destination.
+	// Expected state is maintained independently of production values and node storage.
+	const sequence_step steps[] = {
+	    {"set original scalar", operation::scalar, 0, 31, 17},
+	    {"create first node", operation::node, 0, 31, 400, 4, 0, true},
+	    {"capture first edit", operation::capture, 0},
+	    {"extend envelope", operation::node, 0, 31, 1200, 12, 0, true},
+	    {"change original scalar", operation::scalar, 0, 31, -42},
+	    {"set neighboring scalar", operation::scalar, 0, 32, 99},
+	    {"automate neighboring parameter", operation::node, 0, 32, 800, 8},
+	    {"clone both automated parameters", operation::clone, 0},
+	    {"capture neighbor", operation::capture, 0, 32, 0, 0, 1},
+	    {"delete original envelope", operation::erase, 0},
+	    {"undo original edit", operation::undo, 0},
+	    {"redo original deletion", operation::redo, 0},
+	    {"restore original again", operation::undo, 0},
+	    {"delete neighboring envelope", operation::erase, 0, 32},
+	    {"undo neighbor deletion", operation::undo, 0, 32, 0, 0, 1},
+	    {"redo neighbor deletion", operation::redo, 0, 32, 0, 0, 1},
+	    {"capture clone independently", operation::capture, 1, 31, 0, 0, 2},
+	    {"edit clone scalar", operation::scalar, 1, 31, 123},
+	    {"replace clone node", operation::node, 1, 31, -400, 4},
+	    {"delete clone neighbor", operation::erase, 1, 32},
+	    {"discard neighbor undo owning nodes", operation::discard, 0, 32, 0, 0, 1},
+	    {"discard original undo", operation::discard, 0},
+	    {"destroy source while clone and its snapshot survive", operation::destroy, 0},
+	    {"undo clone after source destruction", operation::undo, 1, 31, 0, 0, 2},
+	    {"redo clone after source destruction", operation::redo, 1, 31, 0, 0, 2},
+	    {"discard clone snapshot owning historical nodes", operation::discard, 1, 31, 0, 0, 2},
+	    {"create replacement source", operation::create, 0},
+	    {"clone back into replacement source", operation::clone, 1},
+	    {"steal replacement envelope into snapshot", operation::capture_stolen, 0},
+	    {"create envelope while snapshot owns previous nodes", operation::node, 0, 31, 2000, 20},
+	    {"swap stolen envelope back", operation::undo, 0},
+	    {"discard snapshot owning replaced envelope", operation::discard, 0},
+	    {"clear surviving clone automation", operation::clear, 1},
+	    {"recreate clone automation", operation::node, 1, 31, 2400, 24},
+	    {"destroy replacement source", operation::destroy, 0},
+	    {"destroy final owner", operation::destroy, 1},
+	};
+	std::array<std::unique_ptr<fixture>, 2> owners{std::make_unique<fixture>(), std::make_unique<fixture>()};
+	const int num_params = owners[0]->set().getNumParams();
+	std::array<std::vector<expected_param>, 2> expected{std::vector<expected_param>(num_params),
+	                                                    std::vector<expected_param>(num_params)};
+	std::array<snapshot, 3> snapshots;
+
+	auto check_all = [&](char const* label) {
+		std::set<ParamNode*> owned_nodes;
+		auto check_nodes = [&](ParamNodeVector& actual, std::vector<expected_node> const& model) {
+			CHECK_TEXT(actual.getNumElements() == static_cast<int>(model.size()), label);
+			for (size_t index = 0; index < model.size(); ++index) {
+				auto* node = actual.getElement(index);
+				CHECK_TEXT(node != nullptr, label);
+				CHECK_TEXT(node->pos == model[index].position, label);
+				CHECK_TEXT(node->value == model[index].value, label);
+				CHECK_TEXT(node->interpolated == model[index].interpolated, label);
+				// Every node belongs to exactly one live parameter or undo snapshot.
+				CHECK_TEXT(owned_nodes.insert(node).second, label);
+			}
+		};
+		for (int owner = 0; owner < 2; ++owner) {
+			if (!owners[owner])
+				continue;
+			auto& f = *owners[owner];
+			for (int id = 0; id < num_params; ++id) {
+				auto const& model = expected[owner][id];
+				const bool automated = !model.nodes.empty();
+				CHECK_TEXT(f.set().getValue(id) == model.value, label);
+				CHECK_TEXT(f.set().isAutomated(id) == automated, label);
+				const uint32_t mask = uint32_t{1} << (id & 31);
+				CHECK_TEXT(bool(f.summary().whichParamsAreAutomated[id >> 5] & mask) == automated, label);
+				CHECK_TEXT(!(f.summary().whichParamsAreInterpolating[id >> 5] & mask), label);
+				if (automated)
+					check_nodes(f.param(id)->autoParam->nodes, model.nodes);
+			}
+		}
+		for (auto& saved : snapshots) {
+			if (!saved.actual)
+				continue;
+			CHECK_TEXT(owners[saved.owner] != nullptr, label);
+			CHECK_TEXT(saved.actual->state.value == saved.expected.value, label);
+			check_nodes(saved.actual->state.nodes, saved.expected.nodes);
+		}
+	};
+
+	check_all("initial state");
+	for (auto const& step : steps) {
+		auto& owner = owners[step.owner];
+		auto& model = expected[step.owner][step.param];
+		auto& saved = snapshots[step.slot];
+		switch (step.action) {
+		case operation::scalar: {
+			auto* context = owner->param(step.param);
+			context->autoParam->setCurrentValueWithNoReversionOrRecording(context, step.value);
+			model.value = step.value;
+			break;
+		}
+		case operation::node: {
+			owner->add_node(step.param, step.position, step.value, step.interpolated);
+			auto it = std::lower_bound(model.nodes.begin(), model.nodes.end(), step.position,
+			                           [](expected_node const& node, int pos) { return node.position < pos; });
+			expected_node node{step.position, step.value, step.interpolated};
+			if (it != model.nodes.end() && it->position == step.position)
+				*it = node;
+			else
+				model.nodes.insert(it, node);
+			break;
+		}
+		case operation::capture:
+		case operation::capture_stolen: {
+			CHECK_TEXT(!saved.actual, step.label);
+			const bool steal = step.action == operation::capture_stolen;
+			saved.owner = step.owner;
+			saved.param = step.param;
+			saved.expected = model;
+			saved.actual = std::make_unique<ConsequenceParamChange>(owner->param(step.param), steal);
+			if (steal) {
+				owner->set().paramHasNoAutomationNow(owner->stack(), step.param);
+				model.nodes.clear();
+			}
+			break;
+		}
+		case operation::erase: {
+			auto* context = owner->param(step.param);
+			context->autoParam->deleteAutomation(nullptr, context);
+			model.nodes.clear();
+			break;
+		}
+		case operation::undo:
+		case operation::redo:
+			CHECK_TEXT(saved.actual && saved.owner == step.owner && saved.param == step.param, step.label);
+			CHECK_TEXT(
+			    saved.actual->revert(step.action == operation::undo ? TimeType::BEFORE : TimeType::AFTER, nullptr)
+			        == Error::NONE,
+			    step.label);
+			std::swap(model, saved.expected);
+			break;
+		case operation::clone: {
+			const int destination = 1 - step.owner;
+			// Replacing a collection invalidates saved contexts; never clone over live history.
+			for (auto const& snapshot : snapshots)
+				CHECK_TEXT(!snapshot.actual || snapshot.owner != destination, step.label);
+			CHECK_TEXT(owners[destination]->manager.cloneParamCollectionsFrom(&owner->manager, true, false)
+			               == Error::NONE,
+			           step.label);
+			expected[destination] = expected[step.owner];
+			break;
+		}
+		case operation::discard:
+			CHECK_TEXT(saved.actual != nullptr, step.label);
+			saved.actual.reset();
+			break;
+		case operation::destroy:
+			for (auto const& snapshot : snapshots)
+				CHECK_TEXT(!snapshot.actual || snapshot.owner != step.owner, step.label);
+			owner.reset();
+			break;
+		case operation::create:
+			CHECK_TEXT(!owner, step.label);
+			owner = std::make_unique<fixture>();
+			expected[step.owner].assign(num_params, expected_param{});
+			break;
+		case operation::clear:
+			owner->set().deleteAllAutomation(nullptr, owner->stack());
+			for (auto& param : expected[step.owner])
+				param.nodes.clear();
+			break;
+		}
+		check_all(step.label);
+	}
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
 }
