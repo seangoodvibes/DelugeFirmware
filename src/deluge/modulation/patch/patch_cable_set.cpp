@@ -105,6 +105,8 @@ void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
 	memcpy(&temp, &patchCables[c1], sizeof(PatchCable));
 	memcpy(&patchCables[c1], &patchCables[c2], sizeof(PatchCable));
 	memcpy(&patchCables[c2], &temp, sizeof(PatchCable));
+	patchCables[c1].rebind_automation();
+	patchCables[c2].rebind_automation();
 }
 
 Destination* PatchCableSet::getDestinationForParam(int32_t p) {
@@ -460,19 +462,14 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	if (c >= numPatchCables) {
 		return; // Could probably happen. (Still?)
 	}
-	patchCables[c].param.deleteAutomationBasicForSetup(); // No need to record what's happening - we kind of know that
-	                                                      // there's no automation left anyway...
-	patchCables[c].makeUnusable();
-	setupPatching(modelStack);
-
-	// The to-be-deleted cable now exists in the "unusable" section of the list of cables. Find it
-	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
-		if (patchCables[c].destinationParamDescriptor.isNull()) {
-			memcpy(&patchCables[c], &patchCables[numPatchCables - 1], sizeof(PatchCable));
-			break;
-		}
+	patchCables[c].param.deleteAutomationBasicForSetup();
+	// Compact before rebuilding destinations, and rebind scalars in the moved slots.
+	if (c != numPatchCables - 1) {
+		swapCables(c, numPatchCables - 1);
 	}
-	numPatchCables--;
+	patchCables[numPatchCables - 1].makeUnusable();
+	--numPatchCables;
+	setupPatching(modelStack);
 }
 
 bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack) {
@@ -511,7 +508,7 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
 	// For some params, we square the cable strength, to make it slope up more slowly at first, so we have access
 	// to small effects as well as big
 	int32_t output;
-	int32_t amount = patchCables[c].param.getCurrentValue();
+	int32_t amount = patchCables[c].get_current_value();
 	switch (p) {
 	case params::LOCAL_PITCH_ADJUST:
 	case params::LOCAL_OSC_A_PITCH_ADJUST:
@@ -747,12 +744,14 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
                                ParamCollectionSummary* summary) {
 	int32_t c;
 	for (c = 0; c < numUsablePatchCables; c++) {
+		patchCables[c].rebind_automation();
 		patchCables[c].param.beenCloned(copyAutomation, reverseDirectionWithLength);
 	}
 
 	// This initialization avoids a rare crash! (Ok that comment was from ages ago; not sure about now.)
 	for (; c < kMaxNumPatchCables; c++) {
 		patchCables[c].param.init();
+		patchCables[c].rebind_automation();
 	}
 
 	// These pointers to allocated memory need that memory cloned.
@@ -1198,7 +1197,7 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 		return;
 	}
 
-	patchCable->param.setCurrentValueBasicForSetup(cable.defaultVelocityToLevel);
+	patchCable->set_current_value(cable.defaultVelocityToLevel);
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {

@@ -83,12 +83,12 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 }
 
 bool PatchCable::isActive() {
-	return param.containsSomething(0);
+	return current_value_ != 0 || param.isAutomated();
 }
 
 void PatchCable::initAmount(int32_t value) {
 	param.nodes.empty();
-	param.setCurrentValueBasicForSetup(value);
+	set_current_value(value);
 }
 
 void PatchCable::makeUnusable() {

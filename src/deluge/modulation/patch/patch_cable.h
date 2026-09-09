@@ -37,7 +37,10 @@ std::string_view polarityToStringShort(const Polarity polarity);
 
 class PatchCable {
 public:
-	PatchCable() = default;
+	PatchCable() { rebind_automation(); }
+	int32_t get_current_value() const { return current_value_; }
+	void set_current_value(int32_t value) { current_value_ = value; }
+	void rebind_automation() { param.bind_current_value(current_value_); }
 	void setDefaultPolarity();
 	static bool hasPolarity(PatchSource source);
 	static Polarity getDefaultPolarity(PatchSource source);
@@ -69,6 +72,9 @@ public:
 	PatchSource from{PatchSource::NONE};
 	Polarity polarity{Polarity::BIPOLAR};
 	ParamDescriptor destinationParamDescriptor;
-	AutoParam param; // Amounts have to be within +1073741824 and -1073741824
+	AutoParam param;
 	int32_t const* rangeAdjustmentPointer = nullptr;
+
+private:
+	int32_t current_value_ = 0; // Amounts are within +1073741824 and -1073741824.
 };

@@ -78,7 +78,7 @@ void PatchCables::renderOptions() {
 			off = 5;
 		}
 
-		int32_t param_value = cable->param.getCurrentValue();
+		int32_t param_value = cable->get_current_value();
 		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
 
 		float floatLevel = (float)level / 100;

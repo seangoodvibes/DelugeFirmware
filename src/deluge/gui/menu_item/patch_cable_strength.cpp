@@ -200,7 +200,7 @@ void PatchCableStrength::readCurrentValue() {
 	}
 	else {
 		PatchCable& patchCable = patchCableSet->patchCables[c];
-		const int32_t paramValue = patchCable.param.getCurrentValue();
+		const int32_t paramValue = patchCable.get_current_value();
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
 		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
