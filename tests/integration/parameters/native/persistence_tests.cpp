@@ -116,6 +116,13 @@ TEST(native_parameter_persistence, legacy_decimal_values_leave_next_attribute_re
 	}
 }
 
+TEST(native_parameter_persistence, invalid_decimals_preserve_scalar_and_next_attribute_at_every_alignment) {
+	for (std::string const value : {"12junk", "1.5", "2147483648", "-2147483649", "000000000001", "00000000000junk",
+	                                "999999999999999999999999"}) {
+		check_both(value, 999, 0);
+	}
+}
+
 TEST(native_parameter_persistence, long_automation_preserves_scalar_nodes_and_parser_position) {
 	value_writer writer;
 	deluge::modulation::params::write_current_value(writer, 37);

@@ -29,18 +29,27 @@ bool read_current_value(reader_type& reader, int32_t& value) {
 		// not that automation is necessarily present.
 		return true;
 	}
-	// INT32_MIN needs all 11 numeric characters. Allow one more read to consume
-	// the closing quote; otherwise JSON traversal loses the following attribute.
-	// Only the first 11 characters participate in the numeric conversion below.
-	char digits[12] = {first, second};
-	for (int32_t index = 2; second && index < 12; ++index) {
-		next = reader.readNextCharsOfTagOrAttributeValue(1);
-		if (!next) {
-			break;
+	// A signed 32-bit decimal needs at most 11 characters. Consume the entire
+	// attribute even if it is invalid, so the next XML/JSON attribute stays readable.
+	char digits[11] = {first};
+	size_t length = 1;
+	bool too_long = false;
+	if (next) {
+		digits[length++] = second;
+		while ((next = reader.readNextCharsOfTagOrAttributeValue(1))) {
+			if (length < sizeof(digits)) {
+				digits[length++] = *next;
+			}
+			else {
+				too_long = true;
+			}
 		}
-		digits[index] = *next;
 	}
-	std::from_chars(digits, digits + 11, value);
+	int32_t parsed_value;
+	auto result = std::from_chars(digits, digits + length, parsed_value);
+	if (!too_long && result.ec == std::errc{} && result.ptr == digits + length) {
+		value = parsed_value;
+	}
 	return false;
 }
 

@@ -26,6 +26,7 @@
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
+#include "util/shift_value.h"
 #include "util/waves.h"
 #include <bit>
 #include <cstdint>
@@ -233,7 +234,6 @@ char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
-int32_t shift_value(int32_t value, int32_t offset);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 

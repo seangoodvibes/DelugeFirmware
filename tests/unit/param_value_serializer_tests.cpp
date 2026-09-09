@@ -193,3 +193,49 @@ TEST(param_value_serializer_tests, disabled_automation_does_not_consume_nodes) {
 	CHECK(reader.remaining == serialized);
 	CHECK(nodes.values.empty());
 }
+TEST(param_value_serializer_tests, malformed_decimal_values_preserve_owner_and_consume_attribute) {
+	for (std::string_view text : {"-", "+1", "abc", "12junk", "1.5", " 7", "7 ", "--1", "1-2"}) {
+		value_reader reader{text};
+		int32_t value = 37;
+		CHECK_FALSE(deluge::modulation::params::read_current_value(reader, value));
+		LONGS_EQUAL(37, value);
+		CHECK(reader.remaining.empty());
+	}
+}
+
+TEST(param_value_serializer_tests, overflowing_and_overlength_decimals_preserve_owner_and_consume_attribute) {
+	for (std::string_view text : {"2147483648", "-2147483649", "999999999999999999999999", "-999999999999999999999999",
+	                              "000000000001", "00000000000junk"}) {
+		value_reader reader{text};
+		int32_t value = -42;
+		CHECK_FALSE(deluge::modulation::params::read_current_value(reader, value));
+		LONGS_EQUAL(-42, value);
+		CHECK(reader.remaining.empty());
+	}
+}
+
+TEST(param_value_serializer_tests, failed_legacy_endpoint_insertion_preserves_existing_nodes) {
+	std::string serialized = record(37, (uint32_t{1} << 31) | 8);
+	value_reader reader{serialized};
+	test_nodes nodes;
+	CHECK(nodes.insertAtIndex(0) == Error::NONE);
+	nodes.values[0].pos = 4;
+	nodes.values[0].value = 12;
+	nodes.values[0].interpolated = false;
+	nodes.fail_allocation = true;
+	CHECK(deluge::modulation::automation::read_nodes(reader, nodes, 8) == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(1, nodes.values.size());
+	LONGS_EQUAL(4, nodes.values[0].pos);
+	LONGS_EQUAL(12, nodes.values[0].value);
+	CHECK_FALSE(nodes.values[0].interpolated);
+	// Retry from the saved input: a failed reader has already consumed the record.
+	nodes.fail_allocation = false;
+	value_reader retry{serialized};
+	CHECK(deluge::modulation::automation::read_nodes(retry, nodes, 8) == Error::NONE);
+	LONGS_EQUAL(2, nodes.values.size());
+	LONGS_EQUAL(0, nodes.values[0].pos);
+	LONGS_EQUAL(37, nodes.values[0].value);
+	CHECK(nodes.values[0].interpolated);
+	LONGS_EQUAL(4, nodes.values[1].pos);
+	LONGS_EQUAL(12, nodes.values[1].value);
+}

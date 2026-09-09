@@ -11,6 +11,28 @@ cmake --build build/tests --config Debug
 ctest --test-dir build/tests -C Debug --output-on-failure
 ```
 
+## Focused unit tests
+
+`UnitTests` includes six value-binding cases, three saturating `shift_value` cases,
+and thirteen scalar/node serialization cases. They exercise the production binding,
+arithmetic, and decoding helpers with small fixtures. Binding tests cover default
+values, standalone copies, and switching owners. Arithmetic tests cover exact sums,
+zero offsets, and clamping at both signed 32-bit limits. Parser tests cover invalid
+and overflowing decimals and allocation failure when wrapping a legacy endpoint
+node to zero while preserving existing nodes.
+
+Decimal values must be complete base-10 integers with an optional leading minus,
+at most 11 characters, and a value that fits in `int32_t`. Malformed, overflowing, or overlength decimals leave the
+existing scalar unchanged. The reader consumes their remaining attribute text so
+XML/JSON traversal can continue. Native parser tests check that behavior at every
+cluster alignment; this does not change the hexadecimal automation format.
+
+`object_pool_lifetime_spec` adds six host-only cases using a nontrivial object with
+owned memory and constructor/destructor counters. They cover raw storage, resource
+cleanup, reconstruction on reuse, moving managed pointers, and releasing acquired
+objects after clearing, shrinking, or filling the pool. These test the existing
+generic pool, not a future `AutoParamPool` or its exhaustion policy.
+
 ## Native Persistence Tests
 
 `NativeParameterPersistenceTests` is a separate executable and registered CTest
