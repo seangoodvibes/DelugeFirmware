@@ -87,7 +87,8 @@ public:
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;
 	static int32_t getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 
-	AutoParam* getParam(int32_t paramId);
+	bool has_current_value(int32_t param_id) const override;
+	int32_t get_current_value(int32_t param_id) const override;
 
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -119,6 +120,8 @@ public:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 
 private:
+	int32_t find_cable(int32_t param_id) const;
+	void refresh_automation_flags(ParamCollectionSummary* summary);
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 };

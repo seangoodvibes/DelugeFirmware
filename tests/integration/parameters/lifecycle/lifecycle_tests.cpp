@@ -10,6 +10,7 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "platform.h"
 #include "playback/playback_handler.h"
 #include "storage/cluster/cluster.h"
@@ -1970,4 +1971,432 @@ TEST(parameter_lifecycle, clearing_full_idle_cache_preserves_active_automation_a
 	check_node(*active, 0, 4, 400, true);
 	pool.release(active);
 	LONGS_EQUAL(0, pool.active_count());
+}
+
+namespace {
+struct patch_fixture {
+	ParamManagerForTimeline manager;
+	alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE]{};
+	patch_fixture() {
+		parameter_test::allow_patch_cables = true;
+		CHECK(manager.setupWithPatching() == Error::NONE);
+	}
+	PatchCableSet& set() { return *manager.getPatchCableSet(); }
+	ParamCollectionSummary& summary() { return *manager.getPatchCableSetSummary(); }
+	ModelStackWithParamCollection* stack() {
+		return setupModelStackWithSong(stack_memory, nullptr)
+		    ->addTimelineCounter(nullptr)
+		    ->addOtherTwoThingsButNoNoteRow(nullptr, &manager)
+		    ->addParamCollection(&set(), &summary());
+	}
+	int32_t add_cable(PatchSource source, int32_t destination, int32_t value) {
+		ParamDescriptor descriptor;
+		descriptor.setToHaveParamOnly(destination);
+		auto index = set().getPatchCableIndex(source, descriptor, nullptr, true);
+		CHECK(index != 255);
+		set().patchCables[index].set_current_value(value);
+		set().setupPatching(stack());
+		return PatchCableSet::getParamId(descriptor, source);
+	}
+	PatchCable& cable(int32_t id) {
+		ParamDescriptor descriptor;
+		PatchSource source;
+		PatchCableSet::dissectParamId(id, &descriptor, &source);
+		auto index = set().getPatchCableIndex(source, descriptor);
+		CHECK(index != 255);
+		return set().patchCables[index];
+	}
+	ModelStackWithAutoParam* param(int32_t id, bool create = true) {
+		return set().getAutoParamFromId(stack()->addParamId(id), create);
+	}
+	void add_node(int32_t id, int32_t pos, int32_t value) {
+		auto* context = param(id);
+		CHECK(context->autoParam);
+		bool was_automated = context->autoParam->isAutomated();
+		CHECK(context->autoParam->setNodeAtPos(pos, value, false) >= 0);
+		set().notifyParamModifiedInSomeWay(context, set().get_current_value(id), true, was_automated, true);
+	}
+	void check_ownership() {
+		size_t automated = 0;
+		std::set<AutoParam*> pointers;
+		for (int32_t index = 0; index < set().numPatchCables; ++index) {
+			auto& cable = set().patchCables[index];
+			auto* param = cable.get_auto_param();
+			check_flag(summary(), index, index < set().numUsablePatchCables && cable.is_automated());
+			if (param) {
+				CHECK(pointers.insert(param).second);
+				LONGS_EQUAL(cable.get_current_value(), param->getCurrentValue());
+				++automated;
+			}
+		}
+		for (int32_t index = set().numPatchCables; index < kMaxNumPatchCables; ++index) {
+			POINTERS_EQUAL(nullptr, set().patchCables[index].get_auto_param());
+			check_flag(summary(), index, false);
+		}
+		CHECK(automated <= auto_param_pool::get().active_count());
+	}
+};
+} // namespace
+
+TEST(parameter_lifecycle, patch_cable_scalars_do_not_allocate_automation) {
+	patch_fixture f;
+	for (int32_t index = 0; index < kMaxNumPatchCables; ++index) {
+		auto id = f.add_cable(PatchSource::VELOCITY, index, index + 1);
+		LONGS_EQUAL(index + 1, f.set().get_current_value(id));
+		CHECK(f.set().has_current_value(id));
+		POINTERS_EQUAL(nullptr, f.param(id, false)->autoParam);
+	}
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_reordering_and_compaction_rebind_scalar_owners) {
+	patch_fixture f;
+	auto first = f.add_cable(PatchSource::VELOCITY, 0, 11);
+	auto middle = f.add_cable(PatchSource::NOTE, 1, 22);
+	auto last = f.add_cable(PatchSource::AFTERTOUCH, 0, 33);
+	f.add_node(first, 0, 101);
+	f.add_node(middle, 4, 202);
+	f.add_node(last, 8, 303);
+	auto* first_param = f.param(first)->autoParam;
+	auto* last_param = f.param(last)->autoParam;
+	f.set().setupPatching(f.stack());
+	f.check_ownership();
+	POINTERS_EQUAL(first_param, f.param(first)->autoParam);
+	POINTERS_EQUAL(last_param, f.param(last)->autoParam);
+	auto middle_index = &f.cable(middle) - f.set().patchCables;
+	f.set().deletePatchCable(f.stack(), middle_index);
+	f.check_ownership();
+	LONGS_EQUAL(2, auto_param_pool::get().active_count());
+	first_param->setCurrentValueBasicForSetup(111);
+	last_param->setCurrentValueBasicForSetup(333);
+	LONGS_EQUAL(111, f.set().get_current_value(first));
+	LONGS_EQUAL(333, f.set().get_current_value(last));
+	auto replacement = f.add_cable(PatchSource::RANDOM, 2, 44);
+	f.add_node(replacement, 12, 404);
+	f.check_ownership();
+	check_node(*first_param, 0, 0, 101, false);
+	check_node(*last_param, 0, 8, 303, false);
+}
+
+TEST(parameter_lifecycle, patch_cable_final_automation_removal_keeps_nonzero_scalar) {
+	patch_fixture f;
+	auto id = f.add_cable(PatchSource::VELOCITY, 0, 42);
+	f.add_node(id, 0, 99);
+	auto* context = f.param(id);
+	context->autoParam->deleteAutomation(nullptr, context);
+	LONGS_EQUAL(42, f.set().get_current_value(id));
+	LONGS_EQUAL(1, f.set().numPatchCables);
+	POINTERS_EQUAL(nullptr, f.param(id, false)->autoParam);
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_zero_value_deletion_releases_and_compacts) {
+	patch_fixture f;
+	auto id = f.add_cable(PatchSource::VELOCITY, 0, 0);
+	auto survivor = f.add_cable(PatchSource::NOTE, 1, 42);
+	f.add_node(id, 0, 99);
+	f.add_node(survivor, 4, 123);
+	auto* survivor_param = f.param(survivor)->autoParam;
+	auto* context = f.param(id);
+	context->autoParam->deleteAutomation(nullptr, context);
+	CHECK_FALSE(f.set().has_current_value(id));
+	POINTERS_EQUAL(survivor_param, f.param(survivor)->autoParam);
+	survivor_param->setCurrentValueBasicForSetup(100);
+	LONGS_EQUAL(100, f.set().get_current_value(survivor));
+	LONGS_EQUAL(1, auto_param_pool::get().active_count());
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_undo_reacquires_automation_and_preserves_polarity) {
+	patch_fixture f;
+	auto id = f.add_cable(PatchSource::VELOCITY, 0, 42);
+	f.cable(id).polarity = Polarity::UNIPOLAR;
+	f.add_node(id, 4, 99);
+	ConsequenceParamChange undo(f.param(id), false);
+	auto* context = f.param(id);
+	context->autoParam->deleteAutomation(nullptr, context);
+	POINTERS_EQUAL(nullptr, f.param(id, false)->autoParam);
+	auto_param_pool::get().clear_unused();
+	parameter_test::allocations_before_failure = 0;
+	CHECK(undo.revert(BEFORE, nullptr) == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(42, f.set().get_current_value(id));
+	parameter_test::allocations_before_failure = -1;
+	CHECK(undo.revert(BEFORE, nullptr) == Error::NONE);
+	check_node(*f.param(id)->autoParam, 0, 4, 99, false);
+	CHECK(f.cable(id).polarity == Polarity::UNIPOLAR);
+	f.check_ownership();
+	CHECK(undo.revert(AFTER, nullptr) == Error::NONE);
+	POINTERS_EQUAL(nullptr, f.param(id, false)->autoParam);
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_pool_failure_does_not_create_a_route) {
+	patch_fixture f;
+	ParamDescriptor descriptor;
+	descriptor.setToHaveParamOnly(0);
+	auto id = PatchCableSet::getParamId(descriptor, PatchSource::VELOCITY);
+	parameter_test::allocations_before_failure = 0;
+	POINTERS_EQUAL(nullptr, f.param(id)->autoParam);
+	CHECK_FALSE(f.set().has_current_value(id));
+	LONGS_EQUAL(0, f.set().numPatchCables);
+	parameter_test::allocations_before_failure = -1;
+	CHECK(f.param(id)->autoParam);
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_clones_own_distinct_automation_and_scalars) {
+	patch_fixture source;
+	auto id = source.add_cable(PatchSource::VELOCITY, 0, 42);
+	source.cable(id).polarity = Polarity::UNIPOLAR;
+	source.add_node(id, 4, 99);
+	for (bool copy_automation : {false, true}) {
+		ParamManagerForTimeline clone;
+		CHECK(clone.cloneParamCollectionsFrom(&source.manager, copy_automation, false) == Error::NONE);
+		auto* set = clone.getPatchCableSet();
+		LONGS_EQUAL(42, set->get_current_value(id));
+		CHECK(set->patchCables[0].polarity == Polarity::UNIPOLAR);
+		auto* cloned_param = set->patchCables[0].get_auto_param();
+		CHECK_EQUAL(copy_automation, cloned_param != nullptr);
+		if (cloned_param) {
+			CHECK(cloned_param != source.param(id)->autoParam);
+			check_node(*cloned_param, 0, 4, 99, false);
+			cloned_param->setCurrentValueBasicForSetup(77);
+			LONGS_EQUAL(77, set->get_current_value(id));
+		}
+		LONGS_EQUAL(42, source.set().get_current_value(id));
+	}
+	source.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_delete_all_releases_each_automated_owner) {
+	patch_fixture f;
+	for (int32_t index = 0; index < 6; ++index) {
+		auto id = f.add_cable(PatchSource::VELOCITY, index, 10 + index);
+		f.add_node(id, index, index * 10);
+	}
+	f.set().deleteAllAutomation(nullptr, f.stack());
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	LONGS_EQUAL(6, f.set().numPatchCables);
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_append_allocates_first_automation_and_updates_flags) {
+	patch_fixture source, destination;
+	auto id = source.add_cable(PatchSource::VELOCITY, 0, 42);
+	destination.add_cable(PatchSource::VELOCITY, 0, 17);
+	source.add_node(id, 4, 99);
+	destination.set().appendParamCollection(destination.stack(), source.stack(), 32, 0, false);
+	CHECK(destination.cable(id).is_automated());
+	check_node(*destination.param(id)->autoParam, 0, 36, 99, false);
+	LONGS_EQUAL(17, destination.set().get_current_value(id));
+	destination.check_ownership();
+	source.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_clone_allocation_failures_do_not_alias_source) {
+	patch_fixture source;
+	auto id = source.add_cable(PatchSource::VELOCITY, 0, 42);
+	source.add_node(id, 4, 99);
+	auto* source_param = source.param(id)->autoParam;
+	for (int budget = 0; budget < 12; ++budget) {
+		auto_param_pool::get().clear_unused();
+		size_t baseline = parameter_test::outstanding_allocations();
+		{
+			ParamManagerForTimeline clone;
+			fail_allocations failure(budget, false);
+			auto result = clone.cloneParamCollectionsFrom(&source.manager, true, false);
+			if (result == Error::NONE) {
+				auto* set = clone.getPatchCableSet();
+				LONGS_EQUAL(42, set->get_current_value(id));
+				auto* param = set->patchCables[0].get_auto_param();
+				if (param) {
+					CHECK(param != source_param);
+					check_node(*param, 0, 4, 99, false);
+					param->setCurrentValueBasicForSetup(88);
+				}
+				check_flag(*clone.getPatchCableSetSummary(), 0, param != nullptr);
+			}
+		}
+		auto_param_pool::get().clear_unused();
+		LONGS_EQUAL(baseline, parameter_test::outstanding_allocations());
+		LONGS_EQUAL(42, source.set().get_current_value(id));
+		check_node(*source_param, 0, 4, 99, false);
+		source.check_ownership();
+	}
+}
+
+TEST(parameter_lifecycle, patch_cable_setup_allocation_failure_is_safe_and_retryable) {
+	patch_fixture f;
+	auto id = f.add_cable(PatchSource::VELOCITY, 0, 42);
+	f.add_node(id, 4, 99);
+	auto* param = f.param(id)->autoParam;
+	for (int budget : {0, 1}) {
+		{
+			fail_allocations failure(budget);
+			f.set().setupPatching(f.stack());
+		}
+		LONGS_EQUAL(0, f.set().numUsablePatchCables);
+		CHECK_FALSE(f.summary().containsAutomation());
+		CHECK_FALSE(f.set().isSourcePatchedToSomething(PatchSource::VELOCITY));
+		POINTERS_EQUAL(param, f.param(id)->autoParam);
+		f.set().setupPatching(f.stack());
+		LONGS_EQUAL(1, f.set().numUsablePatchCables);
+		f.check_ownership();
+	}
+}
+
+TEST(parameter_lifecycle, patch_cable_inactive_range_automation_clones_without_sharing) {
+	patch_fixture source;
+	ParamDescriptor descriptor;
+	descriptor.setToHaveParamAndSource(0, PatchSource::VELOCITY);
+	auto id = PatchCableSet::getParamId(descriptor, PatchSource::NOTE);
+	source.add_node(id, 4, 99);
+	LONGS_EQUAL(0, source.set().numUsablePatchCables);
+	CHECK_FALSE(source.summary().containsAutomation());
+	ParamManagerForTimeline clone;
+	CHECK(clone.cloneParamCollectionsFrom(&source.manager, true, false) == Error::NONE);
+	auto* cloned_param = clone.getPatchCableSet()->patchCables[0].get_auto_param();
+	CHECK(cloned_param);
+	CHECK(cloned_param != source.param(id)->autoParam);
+	check_node(*cloned_param, 0, 4, 99, false);
+	source.add_cable(PatchSource::VELOCITY, 0, 42);
+	LONGS_EQUAL(2, source.set().numUsablePatchCables);
+	source.check_ownership();
+}
+
+namespace {
+template <class Writer, class Reader>
+void check_patch_persistence(bool json) {
+	patch_fixture source, destination;
+	auto id = source.add_cable(PatchSource::VELOCITY, 0, 42);
+	source.cable(id).polarity = Polarity::UNIPOLAR;
+	source.add_node(id, 4, 99);
+	auto scalar_id = source.add_cable(PatchSource::NOTE, 1, 123);
+	ParamDescriptor descriptor;
+	descriptor.setToHaveParamAndSource(0, PatchSource::VELOCITY);
+	auto range_id = PatchCableSet::getParamId(descriptor, PatchSource::RANDOM);
+	source.add_node(range_id, 8, 77);
+	source.cable(range_id).set_current_value(55);
+	for (bool save_nodes : {true, false}) {
+		Writer writer;
+		writer.writeOpeningTagBeginning(json ? nullptr : "params");
+		writer.writeOpeningTagEnd();
+		source.set().writePatchCablesToFile(writer, save_nodes);
+		writer.writeTag("sentinel", 73);
+		writer.writeClosingTag(json ? nullptr : "params");
+		std::string document(writer.getBufferPtr(), writer.bytesWritten());
+		for (bool load_nodes : {true, false}) {
+			auto replaced = destination.add_cable(PatchSource::AFTERTOUCH, 2, 200);
+			destination.add_node(replaced, 0, 444);
+			native_parameter_tests::file_contents = document;
+			Reader reader;
+			if (json)
+				CHECK(reader.match('{'));
+			else
+				STRCMP_EQUAL("params", reader.readNextTagOrAttributeName());
+			STRCMP_EQUAL("patchCables", reader.readNextTagOrAttributeName());
+			destination.set().readPatchCablesFromFile(reader, load_nodes ? 32 : 0);
+			reader.exitTag("patchCables");
+			STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
+			LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
+			destination.set().setupPatching(destination.stack());
+			LONGS_EQUAL(3, destination.set().numPatchCables);
+			LONGS_EQUAL(42, destination.set().get_current_value(id));
+			LONGS_EQUAL(123, destination.set().get_current_value(scalar_id));
+			LONGS_EQUAL(55, destination.set().get_current_value(range_id));
+			CHECK(destination.cable(id).polarity == Polarity::UNIPOLAR);
+			CHECK(destination.cable(range_id).polarity == source.cable(range_id).polarity);
+			CHECK_EQUAL(save_nodes && load_nodes, destination.cable(id).is_automated());
+			CHECK_EQUAL(save_nodes && load_nodes, destination.cable(range_id).is_automated());
+			POINTERS_EQUAL(nullptr, destination.param(scalar_id, false)->autoParam);
+			if (save_nodes && load_nodes) {
+				check_node(*destination.param(id)->autoParam, 0, 4, 99, false);
+				check_node(*destination.param(range_id)->autoParam, 0, 8, 77, false);
+			}
+			destination.check_ownership();
+			source.check_ownership();
+		}
+	}
+	native_parameter_tests::file_contents = {};
+}
+} // namespace
+
+TEST(parameter_lifecycle, patch_cable_xml_round_trip_preserves_scalars_ranges_and_automation) {
+	check_patch_persistence<XMLSerializer, XMLDeserializer>(false);
+}
+TEST(parameter_lifecycle, patch_cable_json_round_trip_preserves_scalars_ranges_and_automation) {
+	check_patch_persistence<JsonSerializer, JsonDeserializer>(true);
+}
+
+TEST(parameter_lifecycle, patch_cable_trim_and_nudge_release_all_empty_owners) {
+	for (bool trim : {true, false}) {
+		patch_fixture f;
+		std::array<int32_t, 3> ids;
+		for (int32_t index = 0; index < 3; ++index) {
+			ids[index] = f.add_cable(PatchSource::VELOCITY, index, 10 + index);
+			f.add_node(ids[index], 0, 100 + index);
+			f.add_node(ids[index], 31, 200 + index);
+		}
+		if (trim)
+			f.set().trimToLength(8, f.stack(), nullptr, true);
+		else
+			f.set().nudgeNonInterpolatingNodesAtPos(31, 1, 32, nullptr, f.stack());
+		LONGS_EQUAL(0, auto_param_pool::get().active_count());
+		for (auto id : ids)
+			POINTERS_EQUAL(nullptr, f.param(id, false)->autoParam);
+		f.check_ownership();
+	}
+}
+
+TEST(parameter_lifecycle, patch_cable_removing_destination_does_not_skip_reordered_cables) {
+	patch_fixture f;
+	auto first = f.add_cable(PatchSource::VELOCITY, 0, 10);
+	auto survivor = f.add_cable(PatchSource::NOTE, 1, 20);
+	auto last = f.add_cable(PatchSource::RANDOM, 0, 30);
+	for (auto id : {first, survivor, last})
+		f.add_node(id, 4, 100);
+	auto* survivor_param = f.param(survivor)->autoParam;
+	f.set().removeAllPatchingToParam(f.stack(), 0);
+	LONGS_EQUAL(1, f.set().numPatchCables);
+	POINTERS_EQUAL(survivor_param, f.param(survivor)->autoParam);
+	LONGS_EQUAL(1, auto_param_pool::get().active_count());
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_scalar_undo_uses_no_pool_object) {
+	patch_fixture f;
+	auto id = f.add_cable(PatchSource::VELOCITY, 0, 42);
+	ConsequenceParamChange undo(f.param(id, false), false);
+	f.cable(id).set_current_value(99);
+	{
+		fail_allocations failure;
+		CHECK(undo.revert(BEFORE, nullptr) == Error::NONE);
+		LONGS_EQUAL(42, f.set().get_current_value(id));
+		CHECK(undo.revert(AFTER, nullptr) == Error::NONE);
+		LONGS_EQUAL(99, f.set().get_current_value(id));
+		LONGS_EQUAL(0, parameter_test::allocation_failures);
+	}
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, patch_cable_pool_storage_can_be_reused_by_parameter_sets) {
+	patch_fixture f;
+	fixture other;
+	auto id = f.add_cable(PatchSource::VELOCITY, 0, 42);
+	f.add_node(id, 4, 99);
+	auto* context = f.param(id);
+	auto* recycled = context->autoParam;
+	context->autoParam->deleteAutomation(nullptr, context);
+	other.add_node(32, 8, 123);
+	POINTERS_EQUAL(recycled, other.param(32)->autoParam);
+	other.param(32)->autoParam->setCurrentValueBasicForSetup(17);
+	LONGS_EQUAL(42, f.set().get_current_value(id));
+	LONGS_EQUAL(17, other.set().getValue(32));
+	f.add_node(id, 12, 444);
+	CHECK(recycled != f.param(id)->autoParam);
+	check_node(*recycled, 0, 8, 123, false);
+	f.check_ownership();
 }

@@ -6,6 +6,7 @@
 class ConsequenceParamChange;
 
 namespace parameter_test {
+extern bool allow_patch_cables;
 extern size_t notifications;
 extern int allocations_before_failure;
 extern size_t allocation_failures;

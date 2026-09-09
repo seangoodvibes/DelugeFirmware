@@ -23,6 +23,7 @@ std::unordered_map<void*, uint32_t> allocations;
 }
 } // namespace
 namespace parameter_test {
+bool allow_patch_cables = false;
 size_t notifications = 0;
 int allocations_before_failure = -1;
 size_t allocation_failures = 0;
@@ -40,6 +41,7 @@ size_t outstanding_allocations() {
 	return allocations.size();
 }
 void reset() {
+	allow_patch_cables = false;
 	notifications = 0;
 	allow_recording_controls = false;
 	indicator_calls = 0;
@@ -159,8 +161,9 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 }
 
 namespace FlashStorage {
+Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 uint8_t defaultBendRange[2] = {2, 48};
-}
+} // namespace FlashStorage
 namespace AudioEngine {
 bool mustUpdateReverbParamsBeforeNextRender = false;
 }
@@ -170,8 +173,15 @@ void copyModelStack(void* destination, void const* source, int32_t size) {
 bool Clip::isActiveOnOutput() {
 	unsupported();
 }
-void PatchCableSet::setupPatching(ModelStackWithParamCollection const*) {
-	unsupported();
+int32_t rangeFinalValues[kMaxNumPatchCables];
+PatchCableAcceptance patch_cable_acceptance(ModelStackWithThreeMainThings const*, PatchSource, int32_t) {
+	if (!parameter_test::allow_patch_cables)
+		unsupported();
+	return PatchCableAcceptance::ALLOWED;
+}
+void notify_patch_cable_value_change(ModelStackWithAutoParam const*, int32_t) {
+	if (!parameter_test::allow_patch_cables)
+		unsupported();
 }
 void Sound::notifyValueChangeViaLPF(int32_t, bool, ModelStackWithThreeMainThings const*, int32_t, int32_t, bool) {
 	unsupported();

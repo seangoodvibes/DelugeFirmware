@@ -23,7 +23,9 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "modulation/automation/auto_param_pool.h"
 #include "modulation/patch/patch_cable.h"
+#include "modulation/patch/patch_cable_sound.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -31,6 +33,7 @@
 #include "util/algorithm/quick_sorter.h"
 #include "util/misc.h"
 #include <string.h>
+#include <utility>
 
 namespace params = deluge::modulation::params;
 
@@ -69,6 +72,7 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
 	numUsablePatchCables = 0;
+	sourcesPatchedToAnything[0] = sourcesPatchedToAnything[1] = 0;
 	numPatchCables = 0;
 	destinations[GLOBALITY_LOCAL] = nullptr;
 	destinations[GLOBALITY_GLOBAL] = nullptr;
@@ -100,13 +104,7 @@ bool PatchCableSet::doesParamHaveSomethingPatchedToIt(int32_t p) {
 }
 
 void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
-	char temp[sizeof(PatchCable)];
-
-	memcpy(&temp, &patchCables[c1], sizeof(PatchCable));
-	memcpy(&patchCables[c1], &patchCables[c2], sizeof(PatchCable));
-	memcpy(&patchCables[c2], &temp, sizeof(PatchCable));
-	patchCables[c1].rebind_automation();
-	patchCables[c2].rebind_automation();
+	std::swap(patchCables[c1], patchCables[c2]);
 }
 
 Destination* PatchCableSet::getDestinationForParam(int32_t p) {
@@ -136,6 +134,9 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 
 	// Deallocate any old memory
 	freeDestinationMemory(false);
+	numUsablePatchCables = 0;
+	sourcesPatchedToAnything[0] = sourcesPatchedToAnything[1] = 0;
+	refresh_automation_flags(modelStack->summary);
 
 	// Allocate new memory - max size we might need
 	for (int32_t g = 0; g < 2; g++) {
@@ -329,17 +330,17 @@ goAgainWithoutIncrement:
 
 	// Also, as we've just re-arranged patched cables, we need to check again whether any have interpolation active, or
 	// are even automated.
-	modelStack->summary->resetAutomationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
-	modelStack->summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
+	refresh_automation_flags(modelStack->summary);
+}
 
-	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-
-		if (patchCables[c].param.isAutomated()) {
-			flagCable(modelStack->summary->whichParamsAreAutomated, c);
-
-			if (patchCables[c].param.hasInterpolationIncrement()) {
-				flagCable(modelStack->summary->whichParamsAreInterpolating, c);
-			}
+void PatchCableSet::refresh_automation_flags(ParamCollectionSummary* summary) {
+	summary->resetAutomationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
+	summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
+	for (int32_t c = 0; c < numUsablePatchCables; ++c) {
+		if (patchCables[c].is_automated()) {
+			flagCable(summary->whichParamsAreAutomated, c);
+			if (patchCables[c].get_auto_param()->hasInterpolationIncrement())
+				flagCable(summary->whichParamsAreInterpolating, c);
 		}
 	}
 }
@@ -462,12 +463,11 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	if (c >= numPatchCables) {
 		return; // Could probably happen. (Still?)
 	}
-	patchCables[c].param.deleteAutomationBasicForSetup();
-	// Compact before rebuilding destinations, and rebind scalars in the moved slots.
-	if (c != numPatchCables - 1) {
-		swapCables(c, numPatchCables - 1);
-	}
-	patchCables[numPatchCables - 1].makeUnusable();
+	patchCables[c].release_automation();
+	if (c != numPatchCables - 1)
+		patchCables[c] = std::move(patchCables[numPatchCables - 1]);
+	else
+		patchCables[c].makeUnusable();
 	--numPatchCables;
 	setupPatching(modelStack);
 }
@@ -500,8 +500,7 @@ bool PatchCableSet::patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings 
 	if (s == PatchSource::NOT_AVAILABLE) {
 		s = patchCables[c].from;
 	}
-	return (((Sound*)modelStack->modControllable)->maySourcePatchToParam(s, p, modelStack->paramManager)
-	        == PatchCableAcceptance::ALLOWED);
+	return (patch_cable_acceptance(modelStack, s, p) == PatchCableAcceptance::ALLOWED);
 }
 
 int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
@@ -542,11 +541,13 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
 
 // No need to supply Sound if you don't need setupPatching() to be called now (cos you're gonna call it later)
 void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p) {
-	for (int32_t c = 0; c < numPatchCables; c++) {
-		if (patchCables[c].destinationParamDescriptor.getJustTheParam()
-		    == p) { // May as well remove any range-adjusting cables too
+	for (int32_t c = 0; c < numPatchCables;) {
+		if (patchCables[c].destinationParamDescriptor.getJustTheParam() == p) {
 			deletePatchCable(modelStack, c);
+			c = 0; // Compaction and setup may move another matching cable before this index.
 		}
+		else
+			++c;
 	}
 }
 
@@ -566,7 +567,7 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
 
-	AutoParam* param = &patchCables[c].param;
+	AutoParam* param = patchCables[c].get_auto_param();
 	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
@@ -584,7 +585,7 @@ void PatchCableSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* mode
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	AutoParam* param = &patchCables[c].param;
+	AutoParam* param = patchCables[c].get_auto_param();
 	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
@@ -600,7 +601,7 @@ void PatchCableSet::playbackHasEnded(ModelStackWithParamCollection* modelStack) 
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
 
-	patchCables[c].param.resetInterpolationIncrement();
+	patchCables[c].get_auto_param()->resetInterpolationIncrement();
 
 	FOR_EACH_PARAM_END
 
@@ -611,7 +612,7 @@ void PatchCableSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollectio
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	AutoParam* param = &patchCables[c].param;
+	AutoParam* param = patchCables[c].get_auto_param();
 	int32_t oldValue = param->getCurrentValue();
 	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
@@ -628,7 +629,7 @@ void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, u
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	patchCables[c].param.generateRepeats(oldLength, newLength, shouldPingpong);
+	patchCables[c].get_auto_param()->generateRepeats(oldLength, newLength, shouldPingpong);
 
 	FOR_EACH_PARAM_END
 }
@@ -645,12 +646,16 @@ void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelSt
 	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destinationParamDescriptor);
 
 	if (i != 255) {
-		patchCables[i].param.appendParam(&otherPatchCableSet->patchCables[c].param, oldLength,
-		                                 reverseThisRepeatWithLength, pingpongingGenerally);
+		if (auto* destination = patchCables[i].get_auto_param(true)) {
+			destination->appendParam(otherPatchCableSet->patchCables[c].get_auto_param(), oldLength,
+			                         reverseThisRepeatWithLength, pingpongingGenerally);
+			patchCables[i].release_unautomated();
+		}
 	}
 
 	FOR_EACH_PARAM_END
 
+	refresh_automation_flags(modelStack->summary);
 	ticksTilNextEvent = 0;
 }
 
@@ -662,7 +667,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
 	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
-	AutoParam* param = &patchCables[c].param;
+	AutoParam* param = patchCables[c].get_auto_param();
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 	param->trimToLength(newLength, action, modelStackWithAutoParam);
@@ -673,6 +678,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 		bool stillAutomated = param->isAutomated();
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
+			patchCables[c].release_unautomated();
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);
 		}
 	}
@@ -691,17 +697,48 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                       int32_t effectiveLength) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
-	patchCables[c].param.shiftHorizontally(amount, effectiveLength);
+	patchCables[c].get_auto_param()->shiftHorizontally(amount, effectiveLength);
 	FOR_EACH_PARAM_END
 }
 
-AutoParam* PatchCableSet::getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
-                                   ParamDescriptor destinationParamDescriptor, bool allowCreation) {
-	int32_t index = getPatchCableIndex(s, destinationParamDescriptor, modelStack, allowCreation);
+AutoParam* PatchCableSet::getParam(ModelStackWithParamCollection const* modelStack, PatchSource source,
+                                   ParamDescriptor descriptor, bool allow_creation) {
+	int32_t index = getPatchCableIndex(source, descriptor);
+	if (index != 255)
+		return patchCables[index].get_auto_param(allow_creation);
+	if (!allow_creation)
+		return nullptr;
+	// Reserve automation before adding a cable, so pool failure leaves the set unchanged.
+	auto* automation = auto_param_pool::get().acquire();
+	if (!automation)
+		return nullptr;
+	index = getPatchCableIndex(source, descriptor, modelStack, true);
 	if (index == 255) {
+		auto_param_pool::get().release(automation);
 		return nullptr;
 	}
-	return &patchCables[index].param;
+	patchCables[index].automation_ = automation;
+	patchCables[index].rebind_automation();
+	return automation;
+}
+
+int32_t PatchCableSet::find_cable(int32_t param_id) const {
+	PatchSource source;
+	ParamDescriptor descriptor;
+	dissectParamId(param_id, &descriptor, &source);
+	for (int32_t index = 0; index < numPatchCables; ++index) {
+		if (patchCables[index].from == source && patchCables[index].destinationParamDescriptor == descriptor)
+			return index;
+	}
+	return -1;
+}
+
+bool PatchCableSet::has_current_value(int32_t param_id) const {
+	return find_cable(param_id) >= 0;
+}
+int32_t PatchCableSet::get_current_value(int32_t param_id) const {
+	const int32_t index = find_cable(param_id);
+	return index >= 0 ? patchCables[index].get_current_value() : 0;
 }
 
 // Might return a ModelStack with NULL autoParam - check for that!
@@ -727,7 +764,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 
 		FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 		int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
-		AutoParam* param = &patchCables[c].param;
+		AutoParam* param = patchCables[c].get_auto_param();
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
 		int32_t ticksTilNextEventThisCable = param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong);
@@ -742,17 +779,11 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 
 void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
                                ParamCollectionSummary* summary) {
-	int32_t c;
-	for (c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].rebind_automation();
-		patchCables[c].param.beenCloned(copyAutomation, reverseDirectionWithLength);
+	for (int32_t c = 0; c < kMaxNumPatchCables; ++c) {
+		patchCables[c].clone_automation(copyAutomation && c < numPatchCables, reverseDirectionWithLength);
 	}
-
-	// This initialization avoids a rare crash! (Ok that comment was from ages ago; not sure about now.)
-	for (; c < kMaxNumPatchCables; c++) {
-		patchCables[c].param.init();
-		patchCables[c].rebind_automation();
-	}
+	if (summary)
+		refresh_automation_flags(summary);
 
 	// These pointers to allocated memory need that memory cloned.
 	// If we knew we'd be calling setupPatching() again for this new clone, we wouldn't need to do this - we could just
@@ -805,6 +836,11 @@ done:
 }
 
 void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+	for (auto& cable : patchCables)
+		cable.release_automation();
+	freeDestinationMemory(false);
+	numUsablePatchCables = 0;
+	sourcesPatchedToAnything[0] = sourcesPatchedToAnything[1] = 0;
 	numPatchCables = 0;
 
 	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
@@ -878,7 +914,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 
 								// And write this range-adjusting cable's details
 								patchCables[numPatchCables].from = rangeSource;
-								patchCables[numPatchCables].param.cloneFrom(&tempRangeParam, true);
+								patchCables[numPatchCables].take_automation_from(tempRangeParam);
 								patchCables[numPatchCables].polarity = rangePolarity;
 								numPatchCables++;
 							}
@@ -927,7 +963,7 @@ doneWithThisRangeCable:
 				// And write this cable's details
 				patchCables[numPatchCables].from = source;
 				patchCables[numPatchCables].destinationParamDescriptor = destinationParamDescriptor;
-				patchCables[numPatchCables].param.cloneFrom(&tempParam, true);
+				patchCables[numPatchCables].take_automation_from(tempParam);
 				patchCables[numPatchCables].polarity = polarity;
 				numPatchCables++;
 			}
@@ -935,7 +971,7 @@ doneWithThisRangeCable:
 abandonThisCable:
 				// Discard any range-adjusting ones we'd just done above
 				for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
-					patchCables[c].param.deleteAutomationBasicForSetup();
+					patchCables[c].release_automation();
 				}
 				numPatchCables = numCablesAtStartOfThing;
 			}
@@ -981,7 +1017,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("amount");
 		writer.write("\"");
-		patchCables[c].param.writeToFile(writer, writeAutomation);
+		patchCables[c].write_amount(writer, writeAutomation);
 		writer.write("\"");
 
 		// See if another cable(s) controls the range/depth of this cable
@@ -998,13 +1034,13 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 
 				writer.writeOpeningTagBeginning("patchCable", true);
 				writer.writeAttribute("source", sourceToString(patchCables[d].from));
-				writer.writeAttribute("polarity", polarityToString(patchCables[c].polarity).data());
+				writer.writeAttribute("polarity", polarityToString(patchCables[d].polarity).data());
 				writer.insertCommaIfNeeded();
 				writer.write("\n");
 				writer.printIndents();
 				writer.writeTagNameAndSeperator("amount");
 				writer.write("\"");
-				patchCables[d].param.writeToFile(writer, writeAutomation);
+				patchCables[d].write_amount(writer, writeAutomation);
 				writer.write("\"");
 				writer.closeTag(true);
 			}
@@ -1073,8 +1109,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 			    destinationParamDescriptor
 			        .getJustTheParam(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
 			                            // would the call below actually cause all of that to get recalculated?
-			((Sound*)modelStack->modControllable)
-			    ->recalculatePatchingToParam(p, (ParamManagerForTimeline*)modelStack->paramManager);
+			notify_patch_cable_value_change(modelStack, p);
 		}
 	}
 
@@ -1084,7 +1119,9 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
 		int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
 
-		if (automatedNow) {
+		if (c == 255)
+			return;
+		if (automatedNow && c < numUsablePatchCables) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
 		}
 		else {
@@ -1093,23 +1130,38 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		}
 	}
 
+	if (!automatedNow) {
+		const int32_t index = find_cable(modelStack->paramId);
+		if (index >= 0)
+			patchCables[index].release_unautomated();
+	}
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // Surely this could be more targeted?
 }
 
 Error PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
-	PatchSource s;
-	ParamDescriptor destinationParamDescriptor;
-	dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
-
-	int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
-	if (c == 255) {
+	PatchSource source;
+	ParamDescriptor descriptor;
+	dissectParamId(modelStack->paramId, &descriptor, &source);
+	const int32_t index = getPatchCableIndex(source, descriptor);
+	// A deleted route has additional state (such as polarity) that an automation
+	// snapshot cannot restore. Preserve the existing missing-route error.
+	if (index == 255)
 		return Error::INSUFFICIENT_RAM;
+	if (state->nodes.getNumElements()) {
+		auto* param = patchCables[index].get_auto_param(true);
+		if (!param)
+			return Error::INSUFFICIENT_RAM;
+		param->swapState(state, modelStack->addAutoParam(param));
+		return Error::NONE;
 	}
-	AutoParam* param = &patchCables[c].param;
-
-	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
-
-	param->swapState(state, modelStackWithParam);
+	auto* param = patchCables[index].get_auto_param();
+	if (param)
+		param->swapState(state, modelStack->addAutoParam(param));
+	else {
+		AutoParam scalar;
+		scalar.bind_current_value(patchCables[index].current_value_);
+		scalar.swapState(state, modelStack->addAutoParam(&scalar));
+	}
 	return Error::NONE;
 }
 
@@ -1117,9 +1169,10 @@ void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamColle
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
 	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
-	AutoParam* autoParam = &patchCables[c].param;
+	AutoParam* autoParam = patchCables[c].get_auto_param();
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(paramId, autoParam);
 	autoParam->deleteAutomation(action, modelStackWithParam, false);
+	patchCables[c].release_unautomated();
 
 	FOR_EACH_PARAM_END
 
@@ -1135,7 +1188,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
 	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
-	AutoParam* param = &patchCables[c].param;
+	AutoParam* param = patchCables[c].get_auto_param();
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(paramId, param);
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithParam);
@@ -1146,6 +1199,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 		bool stillAutomated = param->isAutomated();
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
+			patchCables[c].release_unautomated();
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);
 		}
 	}
@@ -1176,7 +1230,7 @@ void PatchCableSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelS
 	ParamCollection::notifyPingpongOccurred(modelStack);
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
-	patchCables[c].param.notifyPingpongOccurred();
+	patchCables[c].get_auto_param()->notifyPingpongOccurred();
 	FOR_EACH_PARAM_END
 }
 

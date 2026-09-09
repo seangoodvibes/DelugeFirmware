@@ -3,6 +3,10 @@
 add_executable(NativeParameterLifecycleTests
     ../../../unit/RunAllTests.cpp lifecycle_tests.cpp platform.cpp
     ../native/platform.cpp
+    ../../../../src/deluge/modulation/patch/patch_cable.cpp
+    ../../../../src/deluge/modulation/patch/patch_cable_set.cpp
+    ../../../../src/deluge/util/algorithm/quick_sorter.cpp
+    ../../../../src/deluge/util/patch_source.cpp
     ../../../../src/deluge/gui/views/automation/editor_layout/mod_controllable/parameter_edit.cpp
     ../../../../src/deluge/gui/views/view_knob_indicator.cpp
     ../../../../src/deluge/modulation/params/param.cpp

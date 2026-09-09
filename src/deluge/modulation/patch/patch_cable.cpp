@@ -17,7 +17,10 @@
 
 #include "modulation/patch/patch_cable.h"
 #include "definitions_cxx.hpp"
+#include "modulation/automation/auto_param_pool.h"
 #include "util/fixedpoint.h"
+#include <cstring>
+#include <utility>
 
 #include <storage/flash_storage.h>
 
@@ -83,14 +86,96 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 }
 
 bool PatchCable::isActive() {
-	return current_value_ != 0 || param.isAutomated();
+	return current_value_ != 0 || is_automated();
 }
 
 void PatchCable::initAmount(int32_t value) {
-	param.nodes.empty();
-	set_current_value(value);
+	release_automation();
+	current_value_ = value;
 }
 
 void PatchCable::makeUnusable() {
 	destinationParamDescriptor.setToNull();
+}
+
+PatchCable::~PatchCable() {
+	release_automation();
+}
+
+PatchCable::PatchCable(PatchCable&& other) noexcept {
+	*this = std::move(other);
+}
+
+PatchCable& PatchCable::operator=(PatchCable&& other) noexcept {
+	if (this == &other)
+		return *this;
+	release_automation();
+	from = other.from;
+	polarity = other.polarity;
+	destinationParamDescriptor = other.destinationParamDescriptor;
+	rangeAdjustmentPointer = other.rangeAdjustmentPointer;
+	current_value_ = other.current_value_;
+	automation_ = std::exchange(other.automation_, nullptr);
+	rebind_automation();
+	other.current_value_ = 0;
+	other.from = PatchSource::NONE;
+	other.makeUnusable();
+	other.rangeAdjustmentPointer = nullptr;
+	return *this;
+}
+
+AutoParam* PatchCable::get_auto_param(bool allow_creation) {
+	if (!automation_ && allow_creation) {
+		automation_ = auto_param_pool::get().acquire();
+		rebind_automation();
+	}
+	return automation_;
+}
+
+void PatchCable::release_automation() {
+	auto_param_pool::get().release(std::exchange(automation_, nullptr));
+}
+
+void PatchCable::release_unautomated() {
+	if (!is_automated())
+		release_automation();
+}
+
+void PatchCable::rebind_automation() {
+	if (automation_)
+		automation_->bind_current_value(current_value_);
+}
+
+void PatchCable::clone_automation(bool copy_automation, int32_t reverse_length) {
+	// ParamManager makes a raw collection copy. Its pointers still belong to the source.
+	auto* source = std::exchange(automation_, nullptr);
+	if (copy_automation && source && source->isAutomated()) {
+		if (auto* destination = get_auto_param(true)) {
+			memcpy(destination, source, sizeof(AutoParam));
+			rebind_automation();
+			destination->beenCloned(true, reverse_length);
+			release_unautomated();
+		}
+	}
+}
+
+Error PatchCable::take_automation_from(AutoParam& source) {
+	initAmount(source.getCurrentValue());
+	if (!source.isAutomated())
+		return Error::NONE;
+	auto* destination = get_auto_param(true);
+	if (!destination)
+		return Error::INSUFFICIENT_RAM;
+	destination->nodes.swapStateWith(&source.nodes);
+	return Error::NONE;
+}
+
+void PatchCable::write_amount(Serializer& writer, bool write_automation) {
+	if (automation_)
+		automation_->writeToFile(writer, write_automation);
+	else {
+		AutoParam scalar;
+		scalar.setCurrentValueBasicForSetup(current_value_);
+		scalar.writeToFile(writer, false);
+	}
 }

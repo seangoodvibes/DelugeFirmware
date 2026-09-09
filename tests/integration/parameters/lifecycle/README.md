@@ -24,7 +24,7 @@ Set `PARAMETER_LIFECYCLE_ASAN=OFF` to return to a normal build.
 ## Production code covered
 
 The target compiles the real `ParamSet`, `AutoParam`, `auto_param_pool`, `ParamNodeVector`, resizable
-node containers, manager setup/transfer/cleanup, collection notifications, lookup,
+node containers, patch cables and destination sorting, manager setup/transfer/cleanup, collection notifications, lookup,
 and `ConsequenceParamChange`. It also compiles the production editor region-edit
 helper, knob-indicator method, and parameter classification functions. These
 implementations are not replaced with test adapters.
@@ -32,7 +32,7 @@ The merged `tests/param_manager` targets remain useful for manager layout, looku
 and routing contracts; their parameter/automation doubles do not exercise the
 ownership covered here.
 
-The 64 cases cover:
+The cases cover:
 
 - Initial scalar values, neutral-value queries, and neighboring parameter isolation
   for patched, unpatched, and expression sets.
@@ -126,8 +126,9 @@ flags, and release without heap allocation. UI notifications are counted. The
 action-logger hook creates a real `ConsequenceParamChange` for a scalar edit;
 tests replay consequences directly.
 This does not exercise the UI action queues, action grouping, live recording,
-actual Clip/NoteRow scheduling, or audio rendering. Unsupported action, patching,
-and sound callbacks throw rather than silently succeeding. Region-deletion tests
+actual Clip/NoteRow scheduling, or audio rendering. Unsupported action and sound callbacks throw rather than silently succeeding.
+Patch-cable fixtures explicitly enable a sound boundary that accepts destinations
+and permits value-change notifications; destination setup and sorting remain real. Region-deletion tests
 explicitly allow the action logger to decline a new action and use independently
 captured production consequences. File services reuse the native persistence
 fixture: buffered reads are production code; file bytes and writer output are in
@@ -136,9 +137,9 @@ dependency from `Song`'s headers; no Song or Reverb instance is created.
 
 Patched/expression construction, scalar storage, and notification dispatch are
 real. The patched observer deliberately rejects the value-change threshold, so
-sound LPF/rendering and patch-cable setup remain outside coverage. Expression
+sound LPF/rendering remain outside coverage. Expression
 coverage exercises monophonic dispatch, not actual MIDI output or polyphonic
-NoteRow dispatch. The full patched manager/patch-cable layout is not exercised.
+NoteRow dispatch. Patch-cable cases exercise the full patched manager layout and its cloning path.
 The separate native persistence target retains its broader parser fault matrix.
 
 ### Existing failure semantics
@@ -208,3 +209,27 @@ flags, cleanup of temporary nodes, the following sentinel attribute, and a
 successful reload after memory recovers. A pool unit case fills the idle cache to
 exactly 32 entries, drains it twice while another object owns automation, and
 verifies that the active object's value/nodes survive further acquisitions.
+
+
+## Patch-cable pooling
+
+Each cable keeps its scalar strength and polarity independently of its nullable
+pooled AutoParam. Audio patching and cable-list displays read the scalar directly.
+Creating lookups can fail; non-creating lookups return null for scalar-only cables.
+Moves transfer automation ownership and rebind its scalar to the new cable slot.
+
+Host cases cover all 32 scalar-only slots, grouping/reordering and compaction,
+slot reuse, final-node deletion, scalar and automation undo, pool exhaustion and
+retry, cloning with and without nodes, allocation-failure sweeps, inactive
+range-adjusting cables, first-automation append, trim/nudge cleanup, removal of
+all cables to a destination, and shared pool reuse with ordinary parameter sets.
+XML/JSON round trips cover scalar strengths, separate parent/range polarity,
+node inclusion/exclusion, replacement cleanup, and the following sentinel field.
+The real sound acceptance policy, audio rendering, and hardware timing are outside
+these host tests.
+
+Undo reacquires a pooled object for an existing cable whose automation was
+removed. As before, an automation consequence cannot recreate an entirely deleted
+route: it has no snapshot of route metadata such as polarity, and returns an
+error for a missing cable. Clone/load failures retain existing nontransactional
+semantics; tests verify independent ownership and consistent automation flags.
