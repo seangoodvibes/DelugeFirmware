@@ -25,12 +25,14 @@ Set `PARAMETER_LIFECYCLE_ASAN=OFF` to return to a normal build.
 
 The target compiles the real `ParamSet`, `AutoParam`, `auto_param_pool`, `ParamNodeVector`, resizable
 node containers, manager setup/transfer/cleanup, collection notifications, lookup,
-and `ConsequenceParamChange`. These classes are not replaced with test adapters.
+and `ConsequenceParamChange`. It also compiles the production editor region-edit
+helper, knob-indicator method, and parameter classification functions. These
+implementations are not replaced with test adapters.
 The merged `tests/param_manager` targets remain useful for manager layout, lookup,
 and routing contracts; their parameter/automation doubles do not exercise the
 ownership covered here.
 
-The 58 cases cover:
+The 64 cases cover:
 
 - Initial scalar values, neutral-value queries, and neighboring parameter isolation
   for patched, unpatched, and expression sets.
@@ -117,8 +119,12 @@ normal allocation/copy paths. This does not test the firmware allocator or its
 physical memory regions.
 
 The timeline is deterministic, with a configurable loop length, position, and
-direction. UI notifications are counted. The action-logger hook creates a real
-`ConsequenceParamChange` for a scalar edit; tests replay consequences directly.
+direction. A concrete test timeline exercises short-loop recording at a length
+below and equal to the recording clear-ahead window, with an unpressed shift
+button and no new action. It verifies scalar update, one notification, cleared
+flags, and release without heap allocation. UI notifications are counted. The
+action-logger hook creates a real `ConsequenceParamChange` for a scalar edit;
+tests replay consequences directly.
 This does not exercise the UI action queues, action grouping, live recording,
 actual Clip/NoteRow scheduling, or audio rendering. Unsupported action, patching,
 and sound callbacks throw rather than silently succeeding. Region-deletion tests
@@ -186,4 +192,19 @@ new object without releasing the source. Whole-loop scalar replacement and faile
 first-region edits exercise release after notification, with undo or retry.
 
 The editor interpolation preference is a small platform hook. Native region-edit
-tests supply the non-editor preference; they do not instantiate the firmware UI.
+tests supply the non-editor preference; they do not instantiate the full firmware UI.
+
+The actual editor region helper is tested through whole-loop deletion, reuse of
+the returned block by a neighboring parameter, and repeated edits using the same
+model stack. The actual `View::setKnobIndicatorLevel` method is tested with a
+non-creating lookup and captured LED output for pan and volume at minimum, zero,
+and maximum values. Parameter classification and value conversion remain real;
+no LED hardware is accessed. Quantized stutter and missing patch-cable display
+branches are outside these cases.
+
+Separate XML and JSON cases allow temporary node parsing to succeed, then fail
+the AutoParam allocation. They check the failed allocation size, scalar value,
+flags, cleanup of temporary nodes, the following sentinel attribute, and a
+successful reload after memory recovers. A pool unit case fills the idle cache to
+exactly 32 entries, drains it twice while another object owns automation, and
+verifies that the active object's value/nodes survive further acquisitions.

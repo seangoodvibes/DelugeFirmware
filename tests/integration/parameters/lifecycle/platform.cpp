@@ -2,6 +2,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -25,17 +26,26 @@ namespace parameter_test {
 size_t notifications = 0;
 int allocations_before_failure = -1;
 size_t allocation_failures = 0;
+uint32_t last_failed_allocation_size = 0;
 bool allow_no_action = false;
 int32_t loop_length = 32;
 int32_t play_pos = 0;
 bool reversed = false;
+bool allow_recording_controls = false;
+int indicator_calls = 0;
+uint8_t indicator_knob = 0;
+uint8_t indicator_level = 0;
+bool indicator_bipolar = false;
 size_t outstanding_allocations() {
 	return allocations.size();
 }
 void reset() {
 	notifications = 0;
+	allow_recording_controls = false;
+	indicator_calls = 0;
 	allocations_before_failure = -1;
 	allocation_failures = 0;
+	last_failed_allocation_size = 0;
 	allow_no_action = false;
 	loop_length = 32;
 	play_pos = 0;
@@ -50,6 +60,7 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() = default;
 void* GeneralMemoryAllocator::alloc(uint32_t size, bool, bool, void*) {
 	if (parameter_test::allocations_before_failure == 0) {
 		++parameter_test::allocation_failures;
+		parameter_test::last_failed_allocation_size = size;
 		return nullptr;
 	}
 	if (parameter_test::allocations_before_failure > 0) {
@@ -180,6 +191,8 @@ void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* c
 }
 namespace Buttons {
 bool isShiftButtonPressed() {
+	if (parameter_test::allow_recording_controls)
+		return false;
 	unsupported();
 }
 } // namespace Buttons
@@ -208,3 +221,12 @@ void get_automation_interpolation(bool& before, bool& after) {
 	before = false;
 	after = false;
 }
+
+namespace indicator_leds {
+void setKnobIndicatorLevel(uint8_t knob, uint8_t level, bool bipolar) {
+	++parameter_test::indicator_calls;
+	parameter_test::indicator_knob = knob;
+	parameter_test::indicator_level = level;
+	parameter_test::indicator_bipolar = bipolar;
+}
+} // namespace indicator_leds

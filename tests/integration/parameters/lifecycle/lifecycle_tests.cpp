@@ -1,13 +1,17 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/views/automation/editor_layout/mod_controllable/parameter_edit.h"
+#include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/consequence/consequence_param_change.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "model/timeline_counter.h"
 #include "modulation/automation/auto_param_pool.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include "platform.h"
+#include "playback/playback_handler.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include <algorithm>
@@ -1759,4 +1763,211 @@ TEST(parameter_lifecycle, failed_first_region_edit_returns_empty_object_and_retr
 	context->autoParam->setValueForRegion(4, 4, 99, context);
 	CHECK(f.set().isAutomated(32));
 	check_flag(f.summary(), 32, true);
+}
+
+namespace {
+class test_timeline final : public TimelineCounter {
+public:
+	int32_t getLastProcessedPos() const override { return 0; }
+	uint32_t getLivePos() const override { return 0; }
+	int32_t getLoopLength() const override { return parameter_test::loop_length; }
+	bool isPlayingAutomationNow() const override { return true; }
+	bool backtrackingCouldLoopBackToEnd() const override { return true; }
+	int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const*) const override { return INT32_MAX; }
+	void getActiveModControllable(ModelStackWithTimelineCounter*) override { FAIL("Unexpected timeline lookup"); }
+	void expectEvent() override {}
+	TimelineCounter* getTimelineCounterToRecordTo() override { return this; }
+};
+
+class knob_lookup final : public ModControllable {
+public:
+	fixture& owner;
+	int32_t param_id = 0;
+	int lookups = 0;
+	explicit knob_lookup(fixture& owner) : owner(owner) {}
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::GLOBAL; }
+	ModelStackWithAutoParam* getParamFromModEncoder(int32_t knob, ModelStackWithThreeMainThings*,
+	                                                bool allow_creation) override {
+		LONGS_EQUAL(1, knob);
+		CHECK_FALSE(allow_creation);
+		++lookups;
+		return owner.set().getAutoParamFromId(owner.stack()->addParamId(param_id), allow_creation);
+	}
+};
+
+template <class Reader>
+void check_loading_pool_failure(bool json) {
+	fixture f;
+	f.set().setCurrentValueBasicForSetup(32, -99);
+	f.summary().whichParamsAreInterpolating[1] = 1;
+	f.add_node(31, 0, 1234);
+	const auto baseline = parameter_test::outstanding_allocations();
+	const std::string document = json ? "{\"value\":\"0x000000110000019080000004\",\"sentinel\":73}"
+	                                  : "<params value=\"0x000000110000019080000004\" sentinel=\"73\" />";
+	for (bool fail : {true, false}) {
+		native_parameter_tests::file_contents = document;
+		Reader reader;
+		if (json)
+			CHECK(reader.match('{'));
+		else
+			STRCMP_EQUAL("params", reader.readNextTagOrAttributeName());
+		STRCMP_EQUAL("value", reader.readNextTagOrAttributeName());
+		if (fail) {
+			// The temporary node vector succeeds; acquiring its persistent owner fails.
+			fail_allocations failure(1);
+			f.set().readParam(reader, &f.summary(), 32, 32);
+			LONGS_EQUAL(1, parameter_test::allocation_failures);
+			LONGS_EQUAL(sizeof(AutoParam), parameter_test::last_failed_allocation_size);
+			POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+			LONGS_EQUAL(baseline, parameter_test::outstanding_allocations());
+		}
+		else {
+			f.set().readParam(reader, &f.summary(), 32, 32);
+			check_node(*f.set().getParam(32, false), 0, 4, 400, true);
+		}
+		LONGS_EQUAL(17, f.set().getValue(32));
+		check_flag(f.summary(), 32, !fail);
+		check_flag(f.summary(), 31, true);
+		check_node(*f.set().getParam(31, false), 0, 0, 1234, false);
+		reader.exitTag("value");
+		STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
+		LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
+	}
+	native_parameter_tests::file_contents = {};
+}
+} // namespace
+
+TEST(parameter_lifecycle, editor_reacquires_after_whole_loop_deletion_and_cross_parameter_reuse) {
+	fixture f;
+	test_timeline timeline;
+	f.add_node(32, 4, 400, true);
+	auto* previous = f.set().getParam(32, false);
+	auto* context = f.param(32);
+	context->setTimelineCounter(&timeline);
+	parameter_test::allow_no_action = true;
+	set_parameter_region(context, 17, 0, 32);
+	POINTERS_EQUAL(nullptr, context->autoParam);
+	POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+	LONGS_EQUAL(17, f.set().getValue(32));
+	check_flag(f.summary(), 32, false);
+
+	// Deliberately use a separate stack so the editor retains its original context.
+	auto* neighbor = f.set().getParam(31);
+	POINTERS_EQUAL(previous, neighbor);
+	neighbor->setCurrentValueBasicForSetup(91);
+	CHECK(neighbor->setNodeAtPos(8, 900, false) >= 0);
+	f.set().paramHasAutomationNow(&f.summary(), 31);
+	set_parameter_region(context, 99, 4, 4);
+	CHECK(context->autoParam);
+	CHECK(context->autoParam != neighbor);
+	LONGS_EQUAL(99, f.set().getValue(32));
+	check_flag(f.summary(), 32, true);
+	set_parameter_region(context, 27, 0, 32);
+	POINTERS_EQUAL(nullptr, context->autoParam);
+	set_parameter_region(context, 37, 0, 32); // Same sequence as the editor's repeated writes.
+	POINTERS_EQUAL(nullptr, context->autoParam);
+	LONGS_EQUAL(37, f.set().getValue(32));
+	check_flag(f.summary(), 32, false);
+	LONGS_EQUAL(91, f.set().getValue(31));
+	check_node(*neighbor, 0, 8, 900, false);
+	check_flag(f.summary(), 31, true);
+}
+
+TEST(parameter_lifecycle, short_loop_recording_releases_after_scalar_update_and_notifies_once) {
+	for (int32_t loop_length : {32, 88}) {
+		fixture f;
+		test_timeline timeline;
+		parameter_test::loop_length = loop_length;
+		f.set().setCurrentValueBasicForSetup(32, 17);
+		f.add_node(32, 4, 400, true);
+		f.add_node(31, 8, 900);
+		auto* context = f.param(32);
+		context->setTimelineCounter(&timeline);
+		context->autoParam->valueIncrementPerHalfTick = 16;
+		context->autoParam->renewedOverridingAtTime = 123;
+		f.summary().whichParamsAreInterpolating[1] = 1;
+		parameter_test::allow_no_action = true;
+		parameter_test::allow_recording_controls = true;
+		playbackHandler.playbackState = PLAYBACK_CLOCK_EITHER_ACTIVE;
+		playbackHandler.recording = RecordingMode::NORMAL;
+		const auto notifications = parameter_test::notifications;
+		{
+			fail_allocations failure;
+			context->autoParam->setCurrentValueInResponseToUserInput(99, context);
+		}
+		LONGS_EQUAL(notifications + 1, parameter_test::notifications);
+		LONGS_EQUAL(0, parameter_test::allocation_failures);
+		LONGS_EQUAL(99, f.set().getValue(32));
+		POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+		check_flag(f.summary(), 32, false);
+		check_node(*f.set().getParam(31, false), 0, 8, 900, false);
+		check_flag(f.summary(), 31, true);
+		playbackHandler.playbackState = 0;
+		playbackHandler.recording = RecordingMode::OFF;
+	}
+}
+
+TEST(parameter_lifecycle, xml_pool_failure_after_parsing_frees_nodes_and_preserves_reader_position) {
+	check_loading_pool_failure<XMLDeserializer>(false);
+}
+TEST(parameter_lifecycle, json_pool_failure_after_parsing_frees_nodes_and_preserves_reader_position) {
+	check_loading_pool_failure<JsonDeserializer>(true);
+}
+
+TEST(parameter_lifecycle, scalar_knob_indicator_uses_noncreating_lookup_and_correct_bipolar_display) {
+	fixture f;
+	knob_lookup controls(f);
+	view.activeModControllableModelStack.modControllable = &controls;
+	view.modPos = 0;
+	for (int32_t id :
+	     {int32_t(deluge::modulation::params::UNPATCHED_PAN), int32_t(deluge::modulation::params::UNPATCHED_VOLUME)}) {
+		controls.param_id = id;
+		for (int32_t value : {INT32_MIN, 0, INT32_MAX}) {
+			f.set().setCurrentValueBasicForSetup(id, value);
+			fail_allocations failure;
+			const auto calls = parameter_test::indicator_calls;
+			view.setKnobIndicatorLevel(1);
+			LONGS_EQUAL(calls + 1, parameter_test::indicator_calls);
+			LONGS_EQUAL(1, parameter_test::indicator_knob);
+			LONGS_EQUAL(value == INT32_MIN ? 0 : value == 0 ? 64 : 128, parameter_test::indicator_level);
+			CHECK_EQUAL(id == deluge::modulation::params::UNPATCHED_PAN, parameter_test::indicator_bipolar);
+			POINTERS_EQUAL(nullptr, f.set().getParam(id, false));
+			LONGS_EQUAL(value, f.set().getValue(id));
+			LONGS_EQUAL(0, auto_param_pool::get().active_count());
+			LONGS_EQUAL(0, parameter_test::allocation_failures);
+		}
+	}
+	LONGS_EQUAL(6, controls.lookups);
+	view.activeModControllableModelStack.modControllable = nullptr;
+}
+
+TEST(parameter_lifecycle, clearing_full_idle_cache_preserves_active_automation_and_allows_more_acquisitions) {
+	auto& pool = auto_param_pool::get();
+	std::array<AutoParam*, 80> objects{};
+	for (auto& object : objects) {
+		object = pool.acquire();
+		CHECK(object);
+	}
+	auto* active = objects[0];
+	active->setCurrentValueBasicForSetup(17);
+	CHECK(active->setNodeAtPos(4, 400, true) >= 0);
+	for (size_t index = 1; index < objects.size(); ++index)
+		pool.release(objects[index]);
+	LONGS_EQUAL(32, pool.cached_count());
+	LONGS_EQUAL(1, pool.active_count());
+	pool.clear_unused();
+	pool.clear_unused(); // Draining an empty cache is harmless.
+	LONGS_EQUAL(0, pool.cached_count());
+	LONGS_EQUAL(1, pool.active_count());
+	LONGS_EQUAL(2, parameter_test::outstanding_allocations()); // Active object and its nodes.
+	LONGS_EQUAL(17, active->getCurrentValue());
+	check_node(*active, 0, 4, 400, true);
+	auto* another = pool.acquire();
+	CHECK(another);
+	CHECK(another != active);
+	CHECK_FALSE(another->isAutomated());
+	pool.release(another);
+	check_node(*active, 0, 4, 400, true);
+	pool.release(active);
+	LONGS_EQUAL(0, pool.active_count());
 }

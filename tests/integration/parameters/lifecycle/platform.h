@@ -9,10 +9,16 @@ namespace parameter_test {
 extern size_t notifications;
 extern int allocations_before_failure;
 extern size_t allocation_failures;
+extern uint32_t last_failed_allocation_size;
 extern bool allow_no_action;
 extern int32_t loop_length;
 extern int32_t play_pos;
 extern bool reversed;
+extern bool allow_recording_controls;
+extern int indicator_calls;
+extern uint8_t indicator_knob;
+extern uint8_t indicator_level;
+extern bool indicator_bipolar;
 size_t outstanding_allocations();
 void reset();
 std::unique_ptr<ConsequenceParamChange> take_snapshot();

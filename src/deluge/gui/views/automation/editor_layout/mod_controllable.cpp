@@ -16,6 +16,7 @@
  */
 
 #include "gui/views/automation/editor_layout/mod_controllable.h"
+#include "gui/views/automation/editor_layout/mod_controllable/parameter_edit.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -35,16 +36,6 @@ namespace params = deluge::modulation::params;
 using namespace deluge::gui;
 
 namespace {
-// Each edit may remove the last node and return its AutoParam to the pool.
-void set_parameter_region(ModelStackWithAutoParam* stack, int32_t value, int32_t pos, int32_t length) {
-	auto* current = stack->paramCollection->getAutoParamFromId(stack, true);
-	if (!current->autoParam) {
-		display->displayError(Error::INSUFFICIENT_RAM);
-		return;
-	}
-	current->autoParam->setValuePossiblyForRegion(value, current, pos, length);
-	stack->paramCollection->getAutoParamFromId(stack, false);
-}
 int32_t parameter_value_at(ModelStackWithAutoParam* stack, uint32_t pos) {
 	return stack->autoParam ? stack->autoParam->getValuePossiblyAtPos(pos, stack)
 	                        : stack->paramCollection->get_current_value(stack->paramId);
