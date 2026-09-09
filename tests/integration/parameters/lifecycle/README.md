@@ -235,7 +235,7 @@ route: it has no snapshot of route metadata such as polarity, and returns an
 error for a missing cable. Cable, cable-automation, and destination-map cloning
 failures now propagate through the manager: a distinct destination is retained,
 and a failed shallow manager clone is detached from the source. Existing
-ParamSet/MIDI clone fallback behavior is unchanged. Loading remains
+ParamSet clone fallback behavior is unchanged. Loading remains
 nontransactional: an unallocatable route is skipped, and any pending range cables
 are released if their parent cannot be allocated.
 
@@ -253,3 +253,36 @@ full-set rejection, releasing an AutoParam reservation when cable allocation fai
 clone-failure rollback with a populated destination, shallow-manager clone failures,
 and XML/JSON parent-allocation failure after a range cable was allocated.
 AddressSanitizer poisons unused cached cable storage except its free-list link.
+
+## MIDI AutoParam pooling
+
+MIDI CC entries remain in their existing sorted, resizable vector. Each entry now
+owns a scalar value and a nullable pointer into the shared AutoParam pool.
+Insertion, deletion, and vector growth rebind all surviving automation objects to
+their relocated scalar owners. The vector owns destruction and exposes only
+mutation operations that preserve these bindings.
+
+Creating lookups reserve an AutoParam and can fail; scalar access and non-creating
+lookup do not. Final automation removal releases the object without deleting the
+CC or losing its current value. Scalar-only file loading consumes skipped node
+payloads without allocating an AutoParam. The legacy MIDI automation-summary
+sentinel remains in use, while traversal skips null objects.
+
+MIDI vector, AutoParam, and node clone failures propagate through the manager's
+rollback path. Every raw-copied source pointer is detached before a failed clone
+can be destroyed. CC reassignment reserves the destination before removing the
+source state, so failed destination allocation preserves source automation.
+
+Native cases exercise sorted insertion and growth, failed growth, deletion and
+scalar rebinding, scalar edits, final-node release, scalar/automation undo after
+relocation, deep and reversed cloning, clone-failure sweeps, CC reassignment,
+append/trim/nudge/clear, playback traversal, and CC rounding boundaries.
+Persistence cases cover the production collection's XML output, XML/JSON value
+round trips, skipped automation under allocation failure, and pool failure after
+node parsing with reader-position checks.
+
+The production MIDI output boundary retains arrangement activity checks,
+value-change filtering, channel selection, and MIDI transmission. Host tests
+replace that boundary with captured notifications; they do not instantiate a
+Song/MIDIInstrument or exercise MIDI hardware. CC-to-expression mapping and full
+legacy instrument/clip parser dispatch are outside these cases.

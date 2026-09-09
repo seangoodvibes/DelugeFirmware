@@ -74,6 +74,16 @@ MIDIParam* MIDIParamVector::getElement(int32_t i) {
 	return (MIDIParam*)getElementAddress(i);
 }
 
+MIDIParamVector::~MIDIParamVector() {
+	clear();
+}
+
+void MIDIParamVector::clear() {
+	for (int32_t index = 0; index < getNumElements(); ++index)
+		getElement(index)->~MIDIParam();
+	empty();
+}
+
 const MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) const {
 	return const_cast<MIDIParamVector*>(this)->getParamFromCC(cc);
 }
@@ -90,4 +100,17 @@ void MIDIParamVector::deleteAtKey(int32_t cc) {
 	getElement(index)->~MIDIParam();
 	deleteAtIndex(index);
 	rebind_automation();
+}
+
+Error MIDIParamVector::clone_automation(bool copy_automation, int32_t reverse_length) {
+	auto error = ResizeableArray::beenCloned();
+	if (error != Error::NONE)
+		return error;
+	// Detach all source AutoParam pointers even if an earlier allocation failed.
+	for (int32_t index = 0; index < getNumElements(); ++index) {
+		auto result = getElement(index)->clone_automation(copy_automation && error == Error::NONE, reverse_length);
+		if (result != Error::NONE)
+			error = result;
+	}
+	return error;
 }

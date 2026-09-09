@@ -23,6 +23,8 @@ std::unordered_map<void*, uint32_t> allocations;
 }
 } // namespace
 namespace parameter_test {
+bool allow_midi_params = false;
+std::vector<midi_notification> midi_notifications;
 bool allow_patch_cables = false;
 size_t notifications = 0;
 int allocations_before_failure = -1;
@@ -41,6 +43,8 @@ size_t outstanding_allocations() {
 	return allocations.size();
 }
 void reset() {
+	allow_midi_params = false;
+	midi_notifications.clear();
 	allow_patch_cables = false;
 	notifications = 0;
 	allow_recording_controls = false;
@@ -240,3 +244,9 @@ void setKnobIndicatorLevel(uint8_t knob, uint8_t level, bool bipolar) {
 	parameter_test::indicator_bipolar = bipolar;
 }
 } // namespace indicator_leds
+
+void notify_midi_param_value_change(ModelStackWithAutoParam const* stack, int32_t old_value, int32_t new_value) {
+	if (!parameter_test::allow_midi_params)
+		unsupported();
+	parameter_test::midi_notifications.push_back({stack->paramId, old_value, new_value});
+}

@@ -32,6 +32,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/midi/midi_param_move.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
@@ -635,7 +636,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				Error error = midiParam->read_from_file(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -742,48 +743,17 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 
 Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
                                                   ModelStackWithThreeMainThings* modelStack) {
-
-	ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(oldCC, modelStack);
-
-	AutoParam* oldParam = modelStackWithAutoParam->autoParam;
-	if (!oldParam) {
+	if (oldCC == newCC)
 		return Error::NONE;
-	}
-
-	AutoParamState state;
-	oldParam->swapState(&state, modelStackWithAutoParam);
-
-	// Delete or clear old parameter
-	MIDIParamCollection* midiParamCollection = modelStackWithAutoParam->paramManager->getMIDIParamCollection();
-
-	// CC (besides 74)
-	if (modelStackWithAutoParam->paramCollection == midiParamCollection) {
-		midiParamCollection->params.deleteAtKey(oldCC);
-	}
-
-	// Expression param
-	else {
-#if ALPHA_OR_BETA_VERSION
-		if (modelStackWithAutoParam->paramCollection != modelStack->paramManager->getExpressionParamSet()) {
-			FREEZE_WITH_ERROR("E415");
-		}
-		if (modelStackWithAutoParam->paramId >= kNumExpressionDimensions) {
-			FREEZE_WITH_ERROR("E416");
-		}
-#endif
-		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)
-		    ->setCurrentValueBasicForSetup(modelStackWithAutoParam->paramId, 0);
-	}
-
-	modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(newCC, modelStack);
-	AutoParam* newParam = modelStackWithAutoParam->autoParam;
-	if (!newParam) {
-		return Error::INSUFFICIENT_RAM;
-	}
-
-	newParam->swapState(&state, modelStackWithAutoParam);
-
-	return Error::NONE;
+	auto* source = getParamToControlFromInputMIDIChannel(oldCC, modelStack);
+	if (!source->autoParam)
+		return Error::NONE;
+	alignas(ModelStackWithAutoParam) char source_memory[MODEL_STACK_MAX_SIZE];
+	copyModelStack(source_memory, source, sizeof(ModelStackWithAutoParam));
+	// Reserving the destination may relocate MIDI entries. The vector rebinds
+	// existing AutoParams, and no source state is removed until this succeeds.
+	auto* destination = getParamToControlFromInputMIDIChannel(newCC, modelStack);
+	return move_midi_parameter_state(reinterpret_cast<ModelStackWithAutoParam*>(source_memory), destination);
 }
 
 int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,

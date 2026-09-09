@@ -3,6 +3,10 @@
 add_executable(NativeParameterLifecycleTests
     ../../../unit/RunAllTests.cpp lifecycle_tests.cpp platform.cpp
     ../native/platform.cpp
+    ../../../../src/deluge/modulation/midi/midi_param_move.cpp
+    ../../../../src/deluge/modulation/midi/midi_param.cpp
+    ../../../../src/deluge/modulation/midi/midi_param_vector.cpp
+    ../../../../src/deluge/modulation/midi/midi_param_collection.cpp
     ../../../../src/deluge/modulation/patch/patch_cable_pool.cpp
     ../../../../src/deluge/modulation/patch/patch_cable.cpp
     ../../../../src/deluge/modulation/patch/patch_cable_set.cpp

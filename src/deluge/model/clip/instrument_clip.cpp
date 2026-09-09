@@ -3085,6 +3085,7 @@ Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readA
 			char const* tagName;
 			int32_t paramId = CC_NUMBER_NONE;
 			AutoParam* param = nullptr;
+			MIDIParam* midi_param = nullptr;
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = nullptr;
 
@@ -3129,13 +3130,18 @@ expressionParam:
 							if (!midiParam) {
 								return Error::INSUFFICIENT_RAM;
 							}
-							param = &midiParam->param;
+							midi_param = midiParam;
 						}
 					}
 					reader.exitTag("cc");
 				}
 				else if (!strcmp(tagName, "value")) {
-					if (param) {
+					if (midi_param) {
+						auto error = midi_param->read_from_file(reader, readAutomationUpToPos);
+						if (error != Error::NONE)
+							return error;
+					}
+					else if (param) {
 
 						Error error = param->readFromFile(reader, readAutomationUpToPos);
 						if (error != Error::NONE) {

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2017-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -16,26 +16,6 @@
  */
 
 #pragma once
-
-#include "util/container/array/ordered_resizeable_array.h"
-
-class MIDIParam;
-
-class MIDIParamVector : private OrderedResizeableArray {
-public:
-	MIDIParamVector();
-	~MIDIParamVector();
-	using OrderedResizeableArray::getNumElements;
-	using OrderedResizeableArray::searchExact;
-	const MIDIParam* getParamFromCC(int32_t cc) const;
-	void deleteAtKey(int32_t cc);
-	void clear();
-	Error clone_automation(bool copy_automation, int32_t reverse_length);
-	MIDIParam* getElement(int32_t i);
-	MIDIParam* getParamFromCC(int32_t cc);
-	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);
-
-private:
-	void rebind_automation();
-	MIDIParam* insertParam(int32_t i);
-};
+#include <cstdint>
+class ModelStackWithAutoParam;
+void notify_midi_param_value_change(ModelStackWithAutoParam const* model_stack, int32_t old_value, int32_t new_value);

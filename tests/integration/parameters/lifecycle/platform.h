@@ -2,10 +2,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 class ConsequenceParamChange;
 
 namespace parameter_test {
+extern bool allow_midi_params;
+struct midi_notification {
+	int32_t cc;
+	int32_t old_value;
+	int32_t new_value;
+};
+extern std::vector<midi_notification> midi_notifications;
 extern bool allow_patch_cables;
 extern size_t notifications;
 extern int allocations_before_failure;

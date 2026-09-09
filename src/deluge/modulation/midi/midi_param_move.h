@@ -16,26 +16,7 @@
  */
 
 #pragma once
-
-#include "util/container/array/ordered_resizeable_array.h"
-
-class MIDIParam;
-
-class MIDIParamVector : private OrderedResizeableArray {
-public:
-	MIDIParamVector();
-	~MIDIParamVector();
-	using OrderedResizeableArray::getNumElements;
-	using OrderedResizeableArray::searchExact;
-	const MIDIParam* getParamFromCC(int32_t cc) const;
-	void deleteAtKey(int32_t cc);
-	void clear();
-	Error clone_automation(bool copy_automation, int32_t reverse_length);
-	MIDIParam* getElement(int32_t i);
-	MIDIParam* getParamFromCC(int32_t cc);
-	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);
-
-private:
-	void rebind_automation();
-	MIDIParam* insertParam(int32_t i);
-};
+#include "definitions_cxx.hpp"
+class ModelStackWithAutoParam;
+// Both contexts have stable storage; creating lookup reserves the destination first.
+Error move_midi_parameter_state(ModelStackWithAutoParam const* source, ModelStackWithAutoParam* destination);

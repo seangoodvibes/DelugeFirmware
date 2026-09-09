@@ -7,6 +7,9 @@
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param_pool.h"
 #include "modulation/automation/copied_param_automation.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
+#include "modulation/midi/midi_param_move.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -2719,4 +2722,505 @@ TEST(parameter_lifecycle, collection_clone_hook_failure_keeps_existing_destinati
 	check_node(*source.param(source_id)->autoParam, 0, 4, 99, false);
 	source.check_ownership();
 	destination.check_ownership();
+}
+
+namespace {
+struct midi_fixture {
+	ParamManagerForTimeline manager;
+	alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE]{};
+	midi_fixture() {
+		parameter_test::allow_midi_params = true;
+		CHECK(manager.setupMIDI() == Error::NONE);
+	}
+	MIDIParamCollection& set() { return *manager.getMIDIParamCollection(); }
+	ParamCollectionSummary& summary() { return *manager.getMIDIParamCollectionSummary(); }
+	ModelStackWithParamCollection* stack() {
+		return setupModelStackWithSong(stack_memory, nullptr)
+		    ->addTimelineCounter(nullptr)
+		    ->addOtherTwoThingsButNoNoteRow(nullptr, &manager)
+		    ->addParamCollection(&set(), &summary());
+	}
+	MIDIParam& scalar(int32_t cc, int32_t value) {
+		auto* owner = set().params.getOrCreateParamFromCC(cc);
+		CHECK(owner);
+		owner->set_current_value(value);
+		return *owner;
+	}
+	ModelStackWithAutoParam* param(int32_t cc, bool create = true) {
+		return set().getAutoParamFromId(stack()->addParamId(cc), create);
+	}
+	void add_node(int32_t cc, int32_t pos, int32_t value) {
+		auto* context = param(cc);
+		CHECK(context->autoParam);
+		bool was_automated = context->autoParam->isAutomated();
+		CHECK(context->autoParam->setNodeAtPos(pos, value, false) >= 0);
+		set().notifyParamModifiedInSomeWay(context, set().get_current_value(cc), true, was_automated, true);
+	}
+	void check_ownership() {
+		std::set<AutoParam*> pointers;
+		int last_cc = -1;
+		for (int32_t index = 0; index < set().params.getNumElements(); ++index) {
+			auto* owner = set().params.getElement(index);
+			CHECK(owner->cc > last_cc);
+			last_cc = owner->cc;
+			if (auto* param = owner->get_auto_param()) {
+				CHECK(pointers.insert(param).second);
+				LONGS_EQUAL(owner->get_current_value(), param->getCurrentValue());
+			}
+		}
+	}
+};
+} // namespace
+
+TEST(parameter_lifecycle, midi_scalars_do_not_reserve_auto_params) {
+	midi_fixture f;
+	for (int cc : {119, 0, 64, 1, 74}) {
+		f.scalar(cc, cc * 100);
+		CHECK(f.set().has_current_value(cc));
+		LONGS_EQUAL(cc * 100, f.set().get_current_value(cc));
+		POINTERS_EQUAL(nullptr, f.param(cc, false)->autoParam);
+	}
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	auto count = f.set().params.getNumElements();
+	POINTERS_EQUAL(nullptr, f.param(42, false)->autoParam);
+	LONGS_EQUAL(count, f.set().params.getNumElements());
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, midi_vector_insertion_growth_and_deletion_rebind_scalar_owners) {
+	midi_fixture f;
+	f.scalar(119, 1190);
+	f.add_node(119, 4, 11900);
+	auto* retained = f.param(119)->autoParam;
+	for (int cc = 118; cc >= 0; --cc) {
+		f.scalar(cc, cc * 10);
+		if (cc % 20 == 0)
+			f.add_node(cc, 8, cc * 100);
+		retained->setCurrentValueBasicForSetup(10000 + cc);
+		LONGS_EQUAL(10000 + cc, f.set().get_current_value(119));
+		f.check_ownership();
+	}
+	for (int cc = 0; cc < 119; cc += 2) {
+		f.set().params.deleteAtKey(cc);
+		CHECK_FALSE(f.set().has_current_value(cc));
+		retained->setCurrentValueBasicForSetup(20000 + cc);
+		LONGS_EQUAL(20000 + cc, f.set().get_current_value(119));
+		f.check_ownership();
+	}
+	POINTERS_EQUAL(retained, f.param(119, false)->autoParam);
+	check_node(*retained, 0, 4, 11900, false);
+	LONGS_EQUAL(1, auto_param_pool::get().active_count());
+}
+
+TEST(parameter_lifecycle, midi_scalar_edit_and_final_node_deletion_release_automation) {
+	midi_fixture f;
+	f.scalar(7, 42);
+	auto* context = f.param(7);
+	context->autoParam->setCurrentValueWithNoReversionOrRecording(context, 99);
+	LONGS_EQUAL(99, f.set().get_current_value(7));
+	POINTERS_EQUAL(nullptr, f.param(7, false)->autoParam);
+	CHECK_FALSE(parameter_test::midi_notifications.empty());
+	LONGS_EQUAL(7, parameter_test::midi_notifications.back().cc);
+	LONGS_EQUAL(99, parameter_test::midi_notifications.back().new_value);
+	f.add_node(7, 4, 123);
+	context = f.param(7);
+	context->autoParam->valueIncrementPerHalfTick = 10;
+	f.summary().whichParamsAreInterpolating[0] = 1;
+	context->autoParam->deleteAutomation(nullptr, context);
+	POINTERS_EQUAL(nullptr, f.param(7, false)->autoParam);
+	LONGS_EQUAL(99, f.set().get_current_value(7));
+	LONGS_EQUAL(0, f.summary().whichParamsAreInterpolating[0]);
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	LONGS_EQUAL(1, f.set().params.getNumElements());
+}
+
+TEST(parameter_lifecycle, midi_creation_failures_leave_no_partial_cc_entry) {
+	midi_fixture f;
+	for (int budget : {0, 1}) {
+		{
+			fail_allocations failure(budget);
+			POINTERS_EQUAL(nullptr, f.param(7)->autoParam);
+		}
+		LONGS_EQUAL(0, f.set().params.getNumElements());
+		LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	}
+	f.scalar(7, 42);
+	{
+		fail_allocations failure;
+		POINTERS_EQUAL(nullptr, f.param(7)->autoParam);
+	}
+	LONGS_EQUAL(42, f.set().get_current_value(7));
+	f.add_node(7, 4, 123);
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, midi_scalar_and_automation_undo_preserve_owners_after_relocation) {
+	midi_fixture f;
+	f.scalar(100, 42);
+	ConsequenceParamChange scalar_undo(f.param(100, false), false);
+	f.scalar(100, 99);
+	{
+		fail_allocations failure;
+		CHECK(scalar_undo.revert(BEFORE, nullptr) == Error::NONE);
+		LONGS_EQUAL(42, f.set().get_current_value(100));
+		CHECK(scalar_undo.revert(AFTER, nullptr) == Error::NONE);
+		LONGS_EQUAL(99, f.set().get_current_value(100));
+		LONGS_EQUAL(0, parameter_test::allocation_failures);
+	}
+	f.add_node(100, 4, 123);
+	ConsequenceParamChange automation_undo(f.param(100), false);
+	auto* context = f.param(100);
+	context->autoParam->deleteAutomation(nullptr, context);
+	for (int cc = 0; cc < 80; ++cc)
+		f.scalar(cc, cc);
+	{
+		fail_allocations failure;
+		CHECK(automation_undo.revert(BEFORE, nullptr) == Error::INSUFFICIENT_RAM);
+	}
+	CHECK(automation_undo.revert(BEFORE, nullptr) == Error::NONE);
+	check_node(*f.param(100)->autoParam, 0, 4, 123, false);
+	CHECK(automation_undo.revert(AFTER, nullptr) == Error::NONE);
+	POINTERS_EQUAL(nullptr, f.param(100, false)->autoParam);
+	LONGS_EQUAL(99, f.set().get_current_value(100));
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, midi_clones_own_nodes_and_scalars_after_source_destruction) {
+	for (bool copy_automation : {false, true}) {
+		ParamManagerForTimeline clone;
+		{
+			midi_fixture source;
+			source.scalar(7, 42);
+			source.scalar(10, 99);
+			source.add_node(7, 4, 123);
+			CHECK(clone.cloneParamCollectionsFrom(&source.manager, copy_automation, false, 32) == Error::NONE);
+			if (copy_automation)
+				CHECK(clone.getMIDIParamCollection()->params.getParamFromCC(7)->get_auto_param()
+				      != source.param(7)->autoParam);
+		}
+		auto* owner = clone.getMIDIParamCollection()->params.getParamFromCC(7);
+		LONGS_EQUAL(42, owner->get_current_value());
+		CHECK_EQUAL(copy_automation, owner->is_automated());
+		if (copy_automation) {
+			check_node(*owner->get_auto_param(), 0, 28, 123, false);
+			owner->get_auto_param()->setCurrentValueBasicForSetup(77);
+			LONGS_EQUAL(77, owner->get_current_value());
+		}
+		LONGS_EQUAL(99, clone.getMIDIParamCollection()->get_current_value(10));
+	}
+}
+
+TEST(parameter_lifecycle, midi_clone_allocation_failures_preserve_source_and_destination) {
+	for (bool shallow : {false, true}) {
+		midi_fixture source;
+		source.scalar(7, 42);
+		source.add_node(7, 4, 123);
+		source.scalar(10, 99);
+		source.add_node(10, 8, 456);
+		CHECK(source.manager.getOrCreateExpressionParamSet());
+		bool succeeded = false;
+		for (int budget = 0; budget < 20 && !succeeded; ++budget) {
+			ParamManagerForTimeline clone;
+			if (shallow)
+				memcpy(&clone, &source.manager, sizeof(clone));
+			else
+				CHECK(clone.setupUnpatched() == Error::NONE);
+			auto* original_collection = clone.summaries[0].paramCollection;
+			Error error;
+			{
+				fail_allocations failure(budget);
+				error = shallow ? clone.beenCloned() : clone.cloneParamCollectionsFrom(&source.manager, true, true);
+			}
+			if (error == Error::NONE) {
+				succeeded = true;
+				check_node(*clone.getMIDIParamCollection()->params.getParamFromCC(10)->get_auto_param(), 0, 8, 456,
+				           false);
+			}
+			else {
+				CHECK(error == Error::INSUFFICIENT_RAM);
+				if (shallow)
+					POINTERS_EQUAL(nullptr, clone.summaries[0].paramCollection);
+				else
+					POINTERS_EQUAL(original_collection, clone.summaries[0].paramCollection);
+			}
+			source.check_ownership();
+			check_node(*source.param(7)->autoParam, 0, 4, 123, false);
+			check_node(*source.param(10)->autoParam, 0, 8, 456, false);
+		}
+		CHECK(succeeded);
+	}
+}
+
+TEST(parameter_lifecycle, midi_append_trim_nudge_and_delete_all_release_empty_objects) {
+	midi_fixture source, destination;
+	source.scalar(7, 42);
+	source.add_node(7, 0, 100);
+	source.add_node(7, 31, 200);
+	destination.scalar(7, 99);
+	destination.set().appendParamCollection(destination.stack(), source.stack(), 32, 0, false);
+	check_node(*destination.param(7)->autoParam, 0, 32, 100, false);
+	check_node(*destination.param(7)->autoParam, 1, 63, 200, false);
+	destination.set().trimToLength(8, destination.stack(), nullptr, false);
+	POINTERS_EQUAL(nullptr, destination.param(7, false)->autoParam);
+	LONGS_EQUAL(99, destination.set().get_current_value(7));
+	source.set().nudgeNonInterpolatingNodesAtPos(31, 1, 32, nullptr, source.stack());
+	POINTERS_EQUAL(nullptr, source.param(7, false)->autoParam);
+	source.add_node(7, 0, 123);
+	source.set().deleteAllAutomation(nullptr, source.stack());
+	POINTERS_EQUAL(nullptr, source.param(7, false)->autoParam);
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+}
+
+TEST(parameter_lifecycle, midi_playback_skips_scalars_and_updates_the_automated_cc) {
+	midi_fixture f;
+	f.scalar(7, 42);
+	f.scalar(10, 99);
+	f.add_node(7, 0, 100);
+	f.add_node(7, 8, 200);
+	parameter_test::midi_notifications.clear();
+	f.set().setPlayPos(8, f.stack(), false);
+	LONGS_EQUAL(200, f.set().get_current_value(7));
+	LONGS_EQUAL(99, f.set().get_current_value(10));
+	CHECK_FALSE(parameter_test::midi_notifications.empty());
+	LONGS_EQUAL(7, parameter_test::midi_notifications.back().cc);
+	f.set().processCurrentPos(f.stack(), 0, false, false, false);
+	f.set().tickTicks(1, f.stack());
+	f.set().notifyPingpongOccurred(f.stack());
+	POINTERS_EQUAL(nullptr, f.param(10, false)->autoParam);
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, midi_cc_value_conversion_preserves_boundary_rounding) {
+	LONGS_EQUAL(-64, MIDIParamCollection::autoparamValueToCC(INT32_MIN));
+	LONGS_EQUAL(0, MIDIParamCollection::autoparamValueToCC(0));
+	LONGS_EQUAL(63, MIDIParamCollection::autoparamValueToCC(INT32_MAX));
+	LONGS_EQUAL(0, MIDIParamCollection::autoparamValueToCC((1 << 24) - 1));
+	LONGS_EQUAL(1, MIDIParamCollection::autoparamValueToCC(1 << 24));
+}
+
+namespace {
+template <class Writer, class Reader>
+void check_midi_value_persistence(bool json) {
+	midi_fixture source, destination;
+	source.scalar(7, 42);
+	source.add_node(7, 4, 123);
+	for (bool automated : {false, true}) {
+		if (!automated)
+			source.set().deleteAllAutomation(nullptr, source.stack());
+		else
+			source.add_node(7, 4, 123);
+		Writer writer;
+		writer.writeOpeningTagBeginning(json ? nullptr : "params");
+		writer.write(" ");
+		writer.writeTagNameAndSeperator("value");
+		writer.write("\"");
+		source.set().params.getParamFromCC(7)->write_to_file(writer);
+		writer.write("\"");
+		writer.writeAttribute("sentinel", 73);
+		writer.closeTag();
+		std::string document(writer.getBufferPtr(), writer.bytesWritten());
+		for (bool load_nodes : {false, true}) {
+			destination.scalar(7, 99);
+			destination.add_node(7, 0, 777);
+			native_parameter_tests::file_contents = document;
+			Reader reader;
+			if (json)
+				CHECK(reader.match('{'));
+			else
+				STRCMP_EQUAL("params", reader.readNextTagOrAttributeName());
+			STRCMP_EQUAL("value", reader.readNextTagOrAttributeName());
+			auto* owner = destination.set().params.getParamFromCC(7);
+			CHECK(owner->read_from_file(reader, load_nodes ? 32 : 0) == Error::NONE);
+			LONGS_EQUAL(42, owner->get_current_value());
+			CHECK_EQUAL(automated && load_nodes, owner->is_automated());
+			if (owner->is_automated())
+				check_node(*owner->get_auto_param(), 0, 4, 123, false);
+			else
+				POINTERS_EQUAL(nullptr, owner->get_auto_param());
+			reader.exitTag("value");
+			STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
+			LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
+			destination.check_ownership();
+		}
+	}
+	native_parameter_tests::file_contents = {};
+}
+} // namespace
+
+TEST(parameter_lifecycle, midi_xml_value_round_trip_preserves_scalar_and_optional_nodes) {
+	check_midi_value_persistence<XMLSerializer, XMLDeserializer>(false);
+}
+TEST(parameter_lifecycle, midi_json_value_round_trip_preserves_scalar_and_optional_nodes) {
+	check_midi_value_persistence<JsonSerializer, JsonDeserializer>(true);
+}
+
+TEST(parameter_lifecycle, midi_cc_reassignment_reserves_destination_before_removing_source) {
+	midi_fixture f;
+	f.scalar(100, 42);
+	f.add_node(100, 4, 123);
+	alignas(ModelStackWithAutoParam) char source_memory[MODEL_STACK_MAX_SIZE];
+	copyModelStack(source_memory, f.param(100), sizeof(ModelStackWithAutoParam));
+	auto* source = reinterpret_cast<ModelStackWithAutoParam*>(source_memory);
+	{
+		fail_allocations failure;
+		auto* destination = f.param(7);
+		CHECK(move_midi_parameter_state(source, destination) == Error::INSUFFICIENT_RAM);
+	}
+	LONGS_EQUAL(42, f.set().get_current_value(100));
+	check_node(*f.param(100)->autoParam, 0, 4, 123, false);
+	CHECK_FALSE(f.set().has_current_value(7));
+	auto* destination = f.param(7); // Insert before source; may relocate it.
+	CHECK(move_midi_parameter_state(source, destination) == Error::NONE);
+	CHECK_FALSE(f.set().has_current_value(100));
+	LONGS_EQUAL(42, f.set().get_current_value(7));
+	check_node(*f.param(7)->autoParam, 0, 4, 123, false);
+	LONGS_EQUAL(1, auto_param_pool::get().active_count());
+	f.check_ownership();
+}
+
+TEST(parameter_lifecycle, midi_cc_reassignment_replaces_destination_without_sharing_nodes) {
+	midi_fixture f;
+	f.scalar(7, 42);
+	f.add_node(7, 4, 123);
+	f.scalar(100, 99);
+	f.add_node(100, 8, 777);
+	alignas(ModelStackWithAutoParam) char source_memory[MODEL_STACK_MAX_SIZE];
+	copyModelStack(source_memory, f.param(7), sizeof(ModelStackWithAutoParam));
+	auto* source = reinterpret_cast<ModelStackWithAutoParam*>(source_memory);
+	CHECK(move_midi_parameter_state(source, f.param(7)) == Error::NONE);
+	CHECK(move_midi_parameter_state(source, f.param(100)) == Error::NONE);
+	CHECK_FALSE(f.set().has_current_value(7));
+	LONGS_EQUAL(42, f.set().get_current_value(100));
+	auto* param = f.param(100)->autoParam;
+	LONGS_EQUAL(1, param->nodes.getNumElements());
+	check_node(*param, 0, 4, 123, false);
+	f.check_ownership();
+}
+
+namespace {
+template <class Reader>
+void check_midi_load_pool_failure(bool json) {
+	midi_fixture f;
+	f.scalar(7, 99);
+	const std::string document = json ? R"({"value":"0x0000002A0000007B00000004","sentinel":73})"
+	                                  : R"(<params value="0x0000002A0000007B00000004" sentinel="73"/>)";
+	for (bool fail : {true, false}) {
+		native_parameter_tests::file_contents = document;
+		Reader reader;
+		if (json)
+			CHECK(reader.match('{'));
+		else
+			STRCMP_EQUAL("params", reader.readNextTagOrAttributeName());
+		STRCMP_EQUAL("value", reader.readNextTagOrAttributeName());
+		auto* owner = f.set().params.getParamFromCC(7);
+		if (fail) {
+			fail_allocations failure(1);
+			CHECK(owner->read_from_file(reader, 32) == Error::INSUFFICIENT_RAM);
+			LONGS_EQUAL(sizeof(AutoParam), parameter_test::last_failed_allocation_size);
+			POINTERS_EQUAL(nullptr, owner->get_auto_param());
+			LONGS_EQUAL(0, auto_param_pool::get().active_count());
+		}
+		else {
+			CHECK(owner->read_from_file(reader, 32) == Error::NONE);
+			check_node(*owner->get_auto_param(), 0, 4, 123, false);
+		}
+		LONGS_EQUAL(42, owner->get_current_value());
+		reader.exitTag("value");
+		STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
+		LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
+	}
+	native_parameter_tests::file_contents = {};
+}
+} // namespace
+TEST(parameter_lifecycle, midi_xml_pool_failure_retains_scalar_and_reader_position) {
+	check_midi_load_pool_failure<XMLDeserializer>(false);
+}
+TEST(parameter_lifecycle, midi_json_pool_failure_retains_scalar_and_reader_position) {
+	check_midi_load_pool_failure<JsonDeserializer>(true);
+}
+
+TEST(parameter_lifecycle, midi_failed_vector_growth_preserves_existing_scalar_bindings) {
+	midi_fixture f;
+	f.scalar(119, 42);
+	f.add_node(119, 4, 123);
+	auto* retained = f.param(119)->autoParam;
+	bool failed = false;
+	for (int cc = 118; cc >= 0 && !failed; --cc) {
+		auto previous_count = f.set().params.getNumElements();
+		MIDIParam* inserted;
+		{
+			fail_allocations failure;
+			inserted = f.set().params.getOrCreateParamFromCC(cc);
+		}
+		retained->setCurrentValueBasicForSetup(1000 + cc);
+		LONGS_EQUAL(1000 + cc, f.set().get_current_value(119));
+		if (!inserted) {
+			failed = true;
+			LONGS_EQUAL(previous_count, f.set().params.getNumElements());
+			CHECK_FALSE(f.set().has_current_value(cc));
+			f.scalar(cc, 99);
+		}
+		f.check_ownership();
+		check_node(*retained, 0, 4, 123, false);
+	}
+	CHECK(failed);
+}
+
+TEST(parameter_lifecycle, midi_loading_scalar_while_skipping_nodes_does_not_allocate) {
+	midi_fixture f;
+	auto* owner = &f.scalar(7, 99);
+	const std::string document = R"({"value":"0x0000002A0000007B00000004","sentinel":73})";
+	native_parameter_tests::file_contents = document;
+	JsonDeserializer reader;
+	CHECK(reader.match('{'));
+	STRCMP_EQUAL("value", reader.readNextTagOrAttributeName());
+	{
+		fail_allocations failure;
+		CHECK(owner->read_from_file(reader, 0) == Error::NONE);
+		LONGS_EQUAL(0, parameter_test::allocation_failures);
+	}
+	LONGS_EQUAL(42, owner->get_current_value());
+	POINTERS_EQUAL(nullptr, owner->get_auto_param());
+	reader.exitTag("value");
+	STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
+	LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
+	native_parameter_tests::file_contents = {};
+}
+
+TEST(parameter_lifecycle, midi_collection_xml_save_preserves_cc_order_and_scalar_only_entries) {
+	midi_fixture source, destination;
+	source.scalar(100, 99);
+	source.scalar(7, 42);
+	source.add_node(7, 4, 123);
+	XMLSerializer writer;
+	writer.writeOpeningTag("clip");
+	source.set().writeToFile(writer);
+	writer.writeTag("sentinel", 73);
+	writer.writeClosingTag("clip");
+	const std::string document(writer.getBufferPtr(), writer.bytesWritten());
+	native_parameter_tests::file_contents = document;
+	XMLDeserializer reader;
+	STRCMP_EQUAL("clip", reader.readNextTagOrAttributeName());
+	STRCMP_EQUAL("midiParams", reader.readNextTagOrAttributeName());
+	for (int cc : {7, 100}) {
+		STRCMP_EQUAL("param", reader.readNextTagOrAttributeName());
+		STRCMP_EQUAL("cc", reader.readNextTagOrAttributeName());
+		LONGS_EQUAL(cc, reader.readTagOrAttributeValueInt());
+		reader.exitTag("cc");
+		STRCMP_EQUAL("value", reader.readNextTagOrAttributeName());
+		auto* owner = &destination.scalar(cc, 0);
+		CHECK(owner->read_from_file(reader, 32) == Error::NONE);
+		reader.exitTag("value");
+		reader.exitTag("param");
+	}
+	reader.exitTag("midiParams");
+	STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
+	LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
+	LONGS_EQUAL(42, destination.set().get_current_value(7));
+	LONGS_EQUAL(99, destination.set().get_current_value(100));
+	check_node(*destination.param(7)->autoParam, 0, 4, 123, false);
+	POINTERS_EQUAL(nullptr, destination.param(100, false)->autoParam);
+	source.check_ownership();
+	destination.check_ownership();
+	native_parameter_tests::file_contents = {};
 }
