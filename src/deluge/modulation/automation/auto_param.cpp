@@ -2797,19 +2797,23 @@ void AutoParam::notifyPingpongOccurred() {
 	reverseInterpolationIncrement();
 }
 
-void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
-                           int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+Error AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+                            int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
 	int32_t nodesBefore = nodes.getNumElements();
-	stealNodesWithoutNotification(modelStack, pos, regionLength, loopLength, action, stolenNodeRecord);
+	Error error = stealNodesWithoutNotification(modelStack, pos, regionLength, loopLength, action, stolenNodeRecord);
+	if (error != Error::NONE) {
+		return error;
+	}
 	if (nodes.getNumElements() != nodesBefore) {
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true,
 		                                                          nodesBefore != 0, isAutomated());
 	}
+	return Error::NONE;
 }
 
-void AutoParam::stealNodesWithoutNotification(ModelStackWithAutoParam const* modelStack, int32_t pos,
-                                              int32_t regionLength, int32_t loopLength, Action* action,
-                                              StolenParamNodes* stolenNodeRecord) {
+Error AutoParam::stealNodesWithoutNotification(ModelStackWithAutoParam const* modelStack, int32_t pos,
+                                               int32_t regionLength, int32_t loopLength, Action* action,
+                                               StolenParamNodes* stolenNodeRecord) {
 
 	int32_t stopAt = pos + regionLength;
 	int32_t durationAfterWrap = (stopAt - loopLength);
@@ -2839,7 +2843,11 @@ void AutoParam::stealNodesWithoutNotification(ModelStackWithAutoParam const* mod
 			}
 
 			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(numNodesToStealTotal * sizeof(ParamNode));
-			if (memory) {
+			if (!memory) {
+				// Do not remove source nodes unless their temporary copy exists.
+				return Error::INSUFFICIENT_RAM;
+			}
+			{
 				ParamNode* stolenNodes = (ParamNode*)memory;
 				stolenNodeRecord->nodes = stolenNodes;
 				stolenNodeRecord->num = numNodesToStealTotal;
@@ -2881,10 +2889,11 @@ goAgain:
 	}
 
 	nodes.testSequentiality("E424");
+	return Error::NONE;
 }
 
-void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
-                                  int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+Error AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+                                   int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
 
 	bool wasAutomatedBefore = isAutomated();
 
@@ -2896,6 +2905,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	// Notify only after replacement is complete; the owner may release an empty parameter.
 	stealNodesWithoutNotification(modelStack, pos, regionLength, loopLength, action, nullptr);
 
+	Error error = Error::NONE;
 	// This is really inefficient.
 	for (int32_t sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
 		ParamNode* stolenNode = &stolenNodeRecord->nodes[sourceI];
@@ -2909,6 +2919,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 
 		int32_t destI = nodes.insertAtKey(destPos);
 		if (destI == -1) {
+			error = Error::INSUFFICIENT_RAM;
 			break;
 		}
 		ParamNode* destNode = (ParamNode*)nodes.getElementAddress(destI);
@@ -2921,6 +2932,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	nodes.testSequentiality("E423");
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, current_value_ref(), true, wasAutomatedBefore,
 	                                                          isAutomated());
+	return error;
 }
 
 // Disregards a node that's right at pos.

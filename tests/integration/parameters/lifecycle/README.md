@@ -30,7 +30,7 @@ The merged `tests/param_manager` targets remain useful for manager layout, looku
 and routing contracts; their parameter/automation doubles do not exercise the
 ownership covered here.
 
-The 44 cases cover:
+The 48 cases cover:
 
 - Initial scalar values, neutral-value queries, and neighboring parameter isolation
   for patched, unpatched, and expression sets.
@@ -78,7 +78,11 @@ The 44 cases cover:
   sentinel attribute, and preservation of the source and neighboring parameter.
 - Failed first-node allocation followed by retry; failed collection allocation
   during cloning; failed/partially successful node cloning; failed node allocation
-  during reload; and failed undo snapshot allocation without corrupting the source.
+  during reload; failed node capture without modifying the source; and partial
+  insertion failures retaining their temporary records for retry.
+- Failed undo snapshot allocation refusing both undo and redo without changing the
+  edited owner, neighbors, flags, or notifications, even after memory recovers.
+  Scalar-only and steal-data snapshots still work when allocations are disabled.
 - Trimming away automation, deleting a region's last nodes, wrapping region
   deletion, full replacement paste, and undo/redo of those changes where applicable.
 - Failed replacement paste clearing stale automation/interpolation flags.
@@ -134,11 +138,20 @@ If reload or replacement paste runs out of memory, old automation may already ha
 been removed; a loaded scalar and completed replacement nodes may remain. Parser
 recovery after a failed insertion is not guaranteed by the lifecycle suite.
 
-`ConsequenceParamChange` currently cannot report failed snapshot-node allocation:
-it retains a scalar-only snapshot. The failure test verifies source ownership and
-cleanup, **not** that such an incomplete snapshot can safely restore automation.
-Error reporting and complete undo preservation under allocation failure remain
-separate work, especially when introducing a fallible automation pool.
+`ConsequenceParamChange` remembers whether its snapshot-node clone succeeded.
+An incomplete snapshot returns `Error::INSUFFICIENT_RAM` on undo or redo without
+swapping values or nodes. A later return of available memory cannot repair that
+missing history; a fresh snapshot is needed. The existing action logger displays
+reversion errors and clears the logs. Edits are not rejected at snapshot creation,
+and a grouped action may have reverted earlier consequences before encountering
+an error; this suite does not promise transactional undo for an entire action.
+
+Node capture returns an error and retains all source nodes if its temporary
+allocation fails. Reinsertion remains nontransactional: it can remove old nodes
+and insert only part of the replacement, but reports the failure, updates flags,
+and leaves the caller-owned temporary record intact for retry. The note-editing
+callers display transfer errors. Entire note moves across multiple expression
+dimensions or rows are not rolled back as a transaction.
 
 ## Preparing for pooled automation
 

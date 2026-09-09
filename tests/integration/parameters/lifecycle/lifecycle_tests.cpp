@@ -522,22 +522,43 @@ TEST(parameter_lifecycle, failed_node_clone_preserves_source_and_clone_scalar_wi
 	check_node(*source.param(32)->autoParam, 0, 4, 400, true);
 }
 
-TEST(parameter_lifecycle, failed_undo_snapshot_keeps_source_nodes_and_scalar_owned_by_source) {
+TEST(parameter_lifecycle, failed_undo_snapshot_refuses_undo_and_redo_without_changing_owner) {
 	fixture f;
 	f.set().setCurrentValueBasicForSetup(32, 17);
 	f.add_node(32, 4, 400, true);
-	size_t before = parameter_test::outstanding_allocations();
+	f.add_node(31, 8, 900);
+	std::unique_ptr<ConsequenceParamChange> undo;
 	{
 		fail_allocations failure;
-		ConsequenceParamChange undo(f.param(32), false);
-		LONGS_EQUAL(17, undo.state.value);
-		// Existing snapshot API does not report failure: it retains the scalar only.
-		LONGS_EQUAL(0, undo.state.nodes.getNumElements());
+		undo = std::make_unique<ConsequenceParamChange>(f.param(32), false);
 		check_node(*f.param(32)->autoParam, 0, 4, 400, true);
 	}
-	LONGS_EQUAL(before, parameter_test::outstanding_allocations());
-	check_node(*f.param(32)->autoParam, 0, 4, 400, true);
-	check_flag(f.summary(), 32, true);
+	// The edit proceeds, but its incomplete snapshot must never replace this state.
+	f.set().setCurrentValueBasicForSetup(32, 27);
+	f.param(32)->autoParam->setNodeAtPos(4, 500, false);
+	f.add_node(32, 12, 1200, true);
+	f.summary().whichParamsAreInterpolating[1] = 1;
+	f.param(32)->autoParam->valueIncrementPerHalfTick = 16;
+	const auto allocations = parameter_test::outstanding_allocations();
+	const auto notifications = parameter_test::notifications;
+	for (TimeType time : {TimeType::BEFORE, TimeType::AFTER, TimeType::BEFORE}) {
+		CHECK(undo->revert(time, nullptr) == Error::INSUFFICIENT_RAM);
+		LONGS_EQUAL(27, f.set().getValue(32));
+		LONGS_EQUAL(2, f.param(32)->autoParam->nodes.getNumElements());
+		check_node(*f.param(32)->autoParam, 0, 4, 500, false);
+		check_node(*f.param(32)->autoParam, 1, 12, 1200, true);
+		check_flag(f.summary(), 32, true, true);
+		check_node(*f.param(31)->autoParam, 0, 8, 900, false);
+		LONGS_EQUAL(notifications, parameter_test::notifications);
+		LONGS_EQUAL(allocations, parameter_test::outstanding_allocations());
+	}
+	undo.reset();
+	check_node(*f.param(32)->autoParam, 1, 12, 1200, true);
+	// A fresh, complete snapshot works once memory is available.
+	ConsequenceParamChange retry(f.param(32), false);
+	f.set().setCurrentValueBasicForSetup(32, 37);
+	CHECK(retry.revert(TimeType::BEFORE, nullptr) == Error::NONE);
+	LONGS_EQUAL(27, f.set().getValue(32));
 }
 
 TEST(parameter_lifecycle, trimming_away_automation_round_trips_through_undo) {
@@ -1183,4 +1204,146 @@ TEST(parameter_lifecycle, inserting_empty_record_removes_last_nodes_and_undo_res
 	check_flag(f.summary(), 32, false);
 	check_node(*f.param(31)->autoParam, 0, 8, 900, false);
 	check_flag(f.summary(), 31, true);
+}
+
+TEST(parameter_lifecycle, scalar_and_stolen_undo_snapshots_work_without_node_allocations) {
+	fixture f;
+	f.set().setCurrentValueBasicForSetup(32, 17);
+	{
+		fail_allocations failure;
+		ConsequenceParamChange scalar(f.param(32), false);
+		f.set().setCurrentValueBasicForSetup(32, 27);
+		CHECK(scalar.revert(TimeType::BEFORE, nullptr) == Error::NONE);
+		LONGS_EQUAL(17, f.set().getValue(32));
+	}
+	f.add_node(32, 4, 400, true);
+	{
+		fail_allocations failure;
+		ConsequenceParamChange stolen(f.param(32), true);
+		f.set().paramHasNoAutomationNow(f.stack(), 32);
+		CHECK_FALSE(f.set().isAutomated(32));
+		CHECK(stolen.revert(TimeType::BEFORE, nullptr) == Error::NONE);
+		check_node(*f.param(32)->autoParam, 0, 4, 400, true);
+		check_flag(f.summary(), 32, true);
+	}
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}
+
+TEST(parameter_lifecycle, failed_node_capture_preserves_source_and_allows_retry) {
+	for (bool wrapping : {false, true}) {
+		fixture f;
+		f.set().setCurrentValueBasicForSetup(32, 17);
+		f.add_node(31, 8, 900);
+		f.add_node(32, 2, 200, true);
+		f.add_node(32, 28, 2800, true);
+		stolen_nodes stolen;
+		const auto allocations = parameter_test::outstanding_allocations();
+		{
+			fail_allocations failure;
+			auto* context = f.param(32);
+			CHECK(context->autoParam->stealNodes(context, wrapping ? 24 : 0, wrapping ? 12 : 32, 32, nullptr,
+			                                     &stolen.record)
+			      == Error::INSUFFICIENT_RAM);
+		}
+		POINTERS_EQUAL(nullptr, stolen.record.nodes);
+		LONGS_EQUAL(0, stolen.record.num);
+		LONGS_EQUAL(allocations, parameter_test::outstanding_allocations());
+		LONGS_EQUAL(17, f.set().getValue(32));
+		check_node(*f.param(32)->autoParam, 0, 2, 200, true);
+		check_node(*f.param(32)->autoParam, 1, 28, 2800, true);
+		check_flag(f.summary(), 32, true);
+		auto* context = f.param(32);
+		CHECK(
+		    context->autoParam->stealNodes(context, wrapping ? 24 : 0, wrapping ? 12 : 32, 32, nullptr, &stolen.record)
+		    == Error::NONE);
+		LONGS_EQUAL(2, stolen.record.num);
+		check_flag(f.summary(), 32, false);
+		context = f.param(32);
+		CHECK(context->autoParam->insertStolenNodes(context, wrapping ? 24 : 0, wrapping ? 12 : 32, 32, nullptr,
+		                                            &stolen.record)
+		      == Error::NONE);
+		check_node(*f.param(32)->autoParam, 0, 2, 200, true);
+		check_node(*f.param(32)->autoParam, 1, 28, 2800, true);
+		check_node(*f.param(31)->autoParam, 0, 8, 900, false);
+	}
+}
+
+TEST(parameter_lifecycle, partial_node_insertion_reports_failure_and_retries_without_consuming_record) {
+	bool reached_success = false, saw_partial = false, saw_failure = false;
+	for (int budget = 0; budget < 16 && !reached_success; ++budget) {
+		fixture f;
+		f.set().setCurrentValueBasicForSetup(32, 17);
+		f.add_node(32, 8, -800);
+		f.add_node(32, 96, 9600);
+		f.add_node(32, 116, -11600);
+		f.add_node(31, 8, 900);
+		std::array<ParamNode, 32> nodes;
+		for (int i = 0; i < 32; ++i) {
+			nodes[i].pos = i * 3;
+			nodes[i].value = i * 100;
+			nodes[i].interpolated = i % 2;
+		}
+		StolenParamNodes record{32, nodes.data()};
+		Error result;
+		{
+			fail_allocations failure(budget);
+			auto* context = f.param(32);
+			result = context->autoParam->insertStolenNodes(context, 112, 96, 128, nullptr, &record);
+		}
+		reached_success = result == Error::NONE;
+		CHECK(reached_success || result == Error::INSUFFICIENT_RAM);
+		saw_failure |= !reached_success;
+		const int count = f.param(32)->autoParam->nodes.getNumElements();
+		saw_partial |= !reached_success && count > 1 && count < 33;
+		check_ordered_nodes(*f.param(32)->autoParam, 128);
+		check_flag(f.summary(), 32, f.set().isAutomated(32));
+		LONGS_EQUAL(17, f.set().getValue(32));
+		check_node(*f.param(31)->autoParam, 0, 8, 900, false);
+		LONGS_EQUAL(32, record.num);
+		for (int i = 0; i < 32; ++i) {
+			LONGS_EQUAL(i * 3, nodes[i].pos);
+			LONGS_EQUAL(i * 100, nodes[i].value);
+		}
+		if (!reached_success) {
+			auto* context = f.param(32);
+			CHECK(context->autoParam->insertStolenNodes(context, 112, 96, 128, nullptr, &record) == Error::NONE);
+		}
+		LONGS_EQUAL(33, f.param(32)->autoParam->nodes.getNumElements());
+		for (int i = 0; i < 32; ++i) {
+			const int pos = (112 + i * 3) % 128;
+			const int index = f.param(32)->autoParam->nodes.searchExact(pos);
+			CHECK(index >= 0);
+			check_node(*f.param(32)->autoParam, index, pos, i * 100, i % 2);
+		}
+		const int index = f.param(32)->autoParam->nodes.searchExact(96);
+		check_node(*f.param(32)->autoParam, index, 96, 9600, false);
+	}
+	CHECK(reached_success);
+	CHECK(saw_failure);
+	CHECK(saw_partial);
+}
+
+TEST(parameter_lifecycle, failed_first_replacement_node_clears_flags_and_keeps_record_for_retry) {
+	fixture f;
+	f.set().setCurrentValueBasicForSetup(32, 17);
+	f.add_node(32, 4, 400, true);
+	f.summary().whichParamsAreInterpolating[1] = 1;
+	f.param(32)->autoParam->valueIncrementPerHalfTick = 16;
+	ParamNode node;
+	node.pos = 8;
+	node.value = 800;
+	StolenParamNodes record{1, &node};
+	{
+		fail_allocations failure;
+		auto* context = f.param(32);
+		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::INSUFFICIENT_RAM);
+	}
+	LONGS_EQUAL(17, f.set().getValue(32));
+	check_flag(f.summary(), 32, false);
+	CHECK_FALSE(f.set().isAutomated(32));
+	LONGS_EQUAL(1, record.num);
+	auto* context = f.param(32);
+	CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
+	check_node(*f.param(32)->autoParam, 0, 8, 800, false);
+	check_flag(f.summary(), 32, true);
 }

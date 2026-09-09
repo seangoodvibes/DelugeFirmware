@@ -11,12 +11,13 @@ public:
 		buffer.swap(other->buffer);
 		std::swap(size, other->size);
 	}
-	void cloneFrom(ParamNodeVector* other) {
+	bool cloneFrom(ParamNodeVector* other) {
 		size = other->size;
 		if (size) {
 			buffer = std::make_unique<int[]>(size);
 			std::copy_n(other->buffer.get(), size, buffer.get());
 		}
+		return true;
 	}
 };
 

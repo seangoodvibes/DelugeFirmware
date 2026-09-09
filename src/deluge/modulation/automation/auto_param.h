@@ -92,10 +92,12 @@ public:
 	                 bool pingpongingGenerally);
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithAutoParam const* modelStack);
-	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
-	                Action* action, StolenParamNodes* stolenNodeRecord = nullptr);
-	void insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
-	                       int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
+	// On capture allocation failure, leave the source and caller-owned record unchanged.
+	Error stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
+	                 Action* action, StolenParamNodes* stolenNodeRecord = nullptr);
+	// May leave a partial replacement on allocation failure; the record remains intact for retry.
+	Error insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+	                        int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
 	void moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, int32_t offset,
 	                            int32_t lengthBeforeLoop, Action* action);
 	void deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length);
@@ -144,8 +146,8 @@ public:
 	// it only works in empty stretches of time.
 
 private:
-	void stealNodesWithoutNotification(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
-	                                   int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
+	Error stealNodesWithoutNotification(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
+	                                    int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
 	deluge::modulation::params::param_value_binding current_value_binding;
 	int32_t& current_value_ref() { return current_value_binding.value(); }
 

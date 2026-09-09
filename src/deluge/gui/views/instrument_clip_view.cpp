@@ -4464,8 +4464,11 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->stealNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength, action,
-							                  stolenNodeRecord);
+							Error transfer_error = param->stealNodes(modelStackWithAutoParam, pos, distanceToNextNote,
+							                                         loopLength, action, stolenNodeRecord);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 
@@ -4644,8 +4647,12 @@ cancelPress:
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
-							                         action, &editPadPresses[i].stolenMPE[m]);
+							Error transfer_error =
+							    param->insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
+							                             action, &editPadPresses[i].stolenMPE[m]);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 				}
@@ -6329,8 +6336,12 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->stealNodes(modelStackWithAutoParam, note->pos, distanceToNextNote, loopLength,
-							                  action, &ntm.stolenMPE[m]);
+							Error transfer_error =
+							    param->stealNodes(modelStackWithAutoParam, note->pos, distanceToNextNote, loopLength,
+							                      action, &ntm.stolenMPE[m]);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 
@@ -6388,8 +6399,12 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->insertStolenNodes(modelStackWithAutoParam, ntm.pos, distanceToNextNote, loopLength,
-							                         action, &ntm.stolenMPE[m]);
+							Error transfer_error =
+							    param->insertStolenNodes(modelStackWithAutoParam, ntm.pos, distanceToNextNote,
+							                             loopLength, action, &ntm.stolenMPE[m]);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 				}
