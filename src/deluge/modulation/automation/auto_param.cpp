@@ -2026,8 +2026,12 @@ void AutoParam::write_automation(Serializer& writer) {
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
 Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
 	deleteAutomationBasicForSetup();
-	if (deluge::modulation::params::read_current_value(reader, current_value_ref()) && readAutomationUpToPos) {
-		return read_automation(reader, readAutomationUpToPos);
+	if (deluge::modulation::params::read_current_value(reader, current_value_ref())) {
+		if (readAutomationUpToPos) {
+			return read_automation(reader, readAutomationUpToPos);
+		}
+		// Consume skipped nodes, including the closing quote, before the next JSON key.
+		while (reader.readNextCharsOfTagOrAttributeValue(16)) {}
 	}
 	return Error::NONE;
 }
