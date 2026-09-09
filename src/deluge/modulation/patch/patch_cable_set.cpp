@@ -1097,20 +1097,21 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // Surely this could be more targeted?
 }
 
-void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
+Error PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
 	PatchSource s;
 	ParamDescriptor destinationParamDescriptor;
 	dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
 
 	int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
 	if (c == 255) {
-		return;
+		return Error::INSUFFICIENT_RAM;
 	}
 	AutoParam* param = &patchCables[c].param;
 
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
 
 	param->swapState(state, modelStackWithParam);
+	return Error::NONE;
 }
 
 void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {

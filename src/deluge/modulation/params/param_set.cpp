@@ -27,6 +27,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_pool.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_deserializer.h"
 #include "modulation/params/param_manager.h"
@@ -45,18 +46,65 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
       topUintToRepParams(1) {
 }
 
+AutoParam* ParamSet::getParam(int32_t p, bool allow_creation) {
+	if (p < 0 || p >= numParams_)
+		return nullptr;
+	if (!params[p] && allow_creation) {
+		params[p] = auto_param_pool::get().acquire();
+		if (params[p])
+			params[p]->bind_current_value(current_values[p]);
+	}
+	return params[p];
+}
+
+void ParamSet::release_unautomated(int32_t p) {
+	if (!has_current_value(p))
+		return;
+	if (params[p] && !params[p]->isAutomated()) {
+		auto* param = params[p];
+		params[p] = nullptr;
+		auto_param_pool::get().release(param);
+	}
+}
+
+void ParamSet::release_all() {
+	for (int32_t p = 0; p < numParams_; ++p) {
+		auto_param_pool::get().release(params[p]);
+		params[p] = nullptr;
+	}
+}
+
+void ParamSet::set_current_value(ModelStackWithParamCollection const* model_stack, int32_t p, int32_t value) {
+	if (params[p]) {
+		auto* context = model_stack->addAutoParam(p, params[p]);
+		params[p]->setCurrentValueWithNoReversionOrRecording(context, value);
+	}
+	else {
+		const int32_t old_value = current_values[p];
+		current_values[p] = value;
+		// Scalar-only edits do not need an automation object.
+		AutoParam scalar;
+		scalar.bind_current_value(current_values[p]);
+		auto* context = model_stack->addAutoParam(p, &scalar);
+		notifyParamModifiedInSomeWay(context, old_value, false, false, false);
+	}
+}
+
 void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary) {
-	int32_t numParams = getNumParams();
-	// ParamManager clones collections with memcpy, which also copies bindings to
-	// the source's scalars. Rebind before cloning nodes or editing the clone would
-	// modify the source (and could access freed memory after source destruction).
-	for (int32_t p = 0; p < numParams; p++) {
-		params[p].bind_current_value(current_values[p]);
-		params[p].beenCloned(copyAutomation, reverseDirectionWithLength);
-		// A failed node allocation leaves this clone's scalar intact but no automation.
-		// Never schedule it using the flags copied from the source collection.
-		if (summary && !params[p].isAutomated()) {
-			uint32_t mask = ~(uint32_t{1} << (p & 31));
+	for (int32_t p = 0; p < numParams_; ++p) {
+		auto* source = params[p];
+		params[p] = nullptr; // The raw collection copy still points into the source.
+		if (copyAutomation && source && source->isAutomated()) {
+			auto* destination = getParam(p);
+			if (destination) {
+				memcpy(destination, source, sizeof(AutoParam));
+				destination->bind_current_value(current_values[p]);
+				destination->beenCloned(true, reverseDirectionWithLength);
+				release_unautomated(p);
+			}
+		}
+		if (summary && !isAutomated(p)) {
+			const uint32_t mask = ~(uint32_t{1} << (p & 31));
 			summary->whichParamsAreAutomated[p >> 5] &= mask;
 			summary->whichParamsAreInterpolating[p >> 5] &= mask;
 		}
@@ -67,26 +115,36 @@ void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
 
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].copyOverridingFrom(otherParamSet->getParam(p));
+		auto* source = otherParamSet->getParam(p, false);
+		if (params[p] && source)
+			params[p]->copyOverridingFrom(source);
+		current_values[p] = otherParamSet->getValue(p);
 	}
 }
 
 void ParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                             bool automationChanged, bool automatedBefore, bool automatedNow) {
-	if (automatedBefore != automatedNow) {
-		if (automatedNow) {
-			paramHasAutomationNow(modelStack->summary, modelStack->paramId);
-		}
-		else {
-			paramHasNoAutomationNow(modelStack, modelStack->paramId);
-		}
+	if (automatedNow) {
+		paramHasAutomationNow(modelStack->summary, modelStack->paramId);
+	}
+	else {
+		paramHasNoAutomationNow(modelStack, modelStack->paramId);
 	}
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
+	notify_value_change(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
+	if (!automatedNow)
+		release_unautomated(modelStack->paramId);
 }
 
 void ParamSet::shiftValues(int32_t p, int32_t offset) {
-	params[p].shiftValues(offset);
+	if (params[p])
+		params[p]->shiftValues(offset);
+	else {
+		AutoParam scalar;
+		scalar.bind_current_value(current_values[p]);
+		scalar.shiftValues(offset);
+	}
 }
 
 void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
@@ -94,11 +152,22 @@ void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
 }
 
 void ParamSet::shiftParamVolumeByDB(int32_t p, float offset) {
-	params[p].shiftParamVolumeByDB(offset);
+	if (params[p])
+		params[p]->shiftParamVolumeByDB(offset);
+	else {
+		AutoParam scalar;
+		scalar.bind_current_value(current_values[p]);
+		scalar.shiftParamVolumeByDB(offset);
+	}
 }
 
 void ParamSet::paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p) {
-	summary->whichParamsAreAutomated[p >> 5] |= ((uint32_t)1 << (p & 31));
+	if (isAutomated(p))
+		summary->whichParamsAreAutomated[p >> 5] |= (uint32_t{1} << (p & 31));
+	else {
+		summary->whichParamsAreAutomated[p >> 5] &= ~(uint32_t{1} << (p & 31));
+		summary->whichParamsAreInterpolating[p >> 5] &= ~(uint32_t{1} << (p & 31));
+	}
 }
 
 void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
@@ -121,7 +190,7 @@ void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* mode
 	}
 
 inline void ParamSet::checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
-	if (params[p].hasInterpolationIncrement()) {
+	if (params[p] && params[p]->hasInterpolationIncrement()) {
 		modelStack->summary->whichParamsAreInterpolating[p >> 5] |= ((uint32_t)1 << (p & 31));
 	}
 }
@@ -138,7 +207,9 @@ void ParamSet::processCurrentPos(ModelStackWithParamCollection* modelStack, int3
 
 		FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-		AutoParam* param = &params[p];
+		AutoParam* param = params[p];
+		if (!param)
+			continue;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		int32_t ticksTilNextEventThisParam =
 		    param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, mayInterpolate);
@@ -154,7 +225,7 @@ void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* mo
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
 
-	AutoParam* param = &params[p];
+	AutoParam* param = params[p];
 
 	int32_t oldValue = param->getCurrentValue();
 	bool shouldNotify = param->tickSamples(numSamples);
@@ -169,7 +240,7 @@ void ParamSet::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelS
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
 
-	AutoParam* param = &params[p];
+	AutoParam* param = params[p];
 
 	int32_t oldValue = param->getCurrentValue();
 	bool shouldNotify = param->tickTicks(numTicks);
@@ -186,7 +257,7 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	AutoParam* param = &params[p];
+	AutoParam* param = params[p];
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
 	int32_t oldValue = param->getCurrentValue();
@@ -201,20 +272,31 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 
 void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
                                      bool onlyIfContainsSomething, int32_t* valuesForOverride) {
-	params::write_param_as_attribute(writer, name, current_values[p], params[p], writeAutomation,
+	AutoParam empty;
+	params::write_param_as_attribute(writer, name, current_values[p], params[p] ? *params[p] : empty, writeAutomation,
 	                                 onlyIfContainsSomething, valuesForOverride ? &valuesForOverride[p] : nullptr);
 }
 
 void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p,
                          int32_t readAutomationUpToPos) {
-	params::read_param(reader, current_values[p], params[p], readAutomationUpToPos, uint32_t{1} << (p & 31),
+	AutoParam loaded;
+	params::read_param(reader, current_values[p], loaded, readAutomationUpToPos, uint32_t{1} << (p & 31),
 	                   summary->whichParamsAreAutomated[p >> 5], summary->whichParamsAreInterpolating[p >> 5]);
+	if (params[p])
+		params[p]->deleteAutomationBasicForSetup();
+	if (loaded.isAutomated()) {
+		if (auto* destination = getParam(p))
+			destination->nodes.swapStateWith(&loaded.nodes);
+		else
+			summary->whichParamsAreAutomated[p >> 5] &= ~(uint32_t{1} << (p & 31));
+	}
+	release_unautomated(p);
 }
 
 void ParamSet::playbackHasEnded(ModelStackWithParamCollection* modelStack) {
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
-	params[p].resetInterpolationIncrement();
+	params[p]->resetInterpolationIncrement();
 	FOR_EACH_PARAM_END
 
 	modelStack->summary->resetInterpolationRecord(topUintToRepParams);
@@ -224,7 +306,7 @@ void ParamSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* mo
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	AutoParam* param = &params[p];
+	AutoParam* param = params[p];
 
 	int32_t oldValue = param->getCurrentValue();
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
@@ -239,7 +321,7 @@ void ParamSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* mo
 void ParamSet::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
                                bool shouldPingpong) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
-	params[p].generateRepeats(oldLength, newLength, shouldPingpong);
+	params[p]->generateRepeats(oldLength, newLength, shouldPingpong);
 	FOR_EACH_PARAM_END
 }
 
@@ -250,14 +332,19 @@ void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
 
 	// Iterate through the *other* ParamManager's stuff
 	FOR_EACH_FLAGGED_PARAM(otherModelStack->summary->whichParamsAreAutomated);
-	params[p].appendParam(otherParamSet->getParam(p), oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	auto* destination = getParam(p);
+	if (!destination)
+		continue;
+	destination->appendParam(otherParamSet->getParam(p, false), oldLength, reverseThisRepeatWithLength,
+	                         pingpongingGenerally);
 	// Appending may create this parameter's first automation, or remove nodes
 	// before a failed allocation. Record the resulting state in either case.
-	if (params[p].isAutomated()) {
+	if (isAutomated(p)) {
 		paramHasAutomationNow(modelStack->summary, p);
 	}
 	else {
 		paramHasNoAutomationNow(modelStack, p);
+		release_unautomated(p);
 	}
 	FOR_EACH_PARAM_END
 
@@ -269,12 +356,13 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	AutoParam* param = &params[p];
+	AutoParam* param = params[p];
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
-	params[p].trimToLength(newLength, action, modelStackWithAutoParam);
-	if (!params[p].isAutomated()) {
+	params[p]->trimToLength(newLength, action, modelStackWithAutoParam);
+	if (!isAutomated(p)) {
 		paramHasNoAutomationNow(modelStack, p);
+		release_unautomated(p);
 	}
 
 	FOR_EACH_PARAM_END
@@ -283,34 +371,47 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 }
 
 void ParamSet::deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p) {
-	params[p].deleteAutomationBasicForSetup();
+	if (params[p])
+		params[p]->deleteAutomationBasicForSetup();
 	paramHasNoAutomationNow(modelStack, p);
+	release_unautomated(p);
 }
 
 void ParamSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) {
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	params[p].shiftHorizontally(amount, effectiveLength);
+	params[p]->shiftHorizontally(amount, effectiveLength);
 
 	FOR_EACH_PARAM_END
 }
 
-void ParamSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
+Error ParamSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
 
-	AutoParam* param = &params[modelStack->paramId];
+	const int32_t p = modelStack->paramId;
+	AutoParam* param = getParam(p, state->nodes.getNumElements() != 0);
+	if (!param) {
+		if (state->nodes.getNumElements())
+			return Error::INSUFFICIENT_RAM;
+		const int32_t previous = getValue(p);
+		set_current_value(modelStack, p, state->value);
+		state->value = previous;
+		return Error::NONE;
+	}
 
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
 
 	param->swapState(state, modelStackWithParam);
+	return Error::NONE;
 }
 
 void ParamSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(p, &params[p]);
-	params[p].deleteAutomation(action, modelStackWithParam, false);
+	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(p, params[p]);
+	params[p]->deleteAutomation(action, modelStackWithParam, false);
+	release_unautomated(p);
 
 	FOR_EACH_PARAM_END
 
@@ -326,7 +427,7 @@ void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	params[p].insertTime(pos, lengthToInsert);
+	params[p]->insertTime(pos, lengthToInsert);
 
 	FOR_EACH_PARAM_END
 }
@@ -336,10 +437,11 @@ void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t sta
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, &params[p]);
-	params[p].deleteTime(startPos, lengthToDelete, modelStackWithAutoParam);
-	if (!params[p].isAutomated()) {
+	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, params[p]);
+	params[p]->deleteTime(startPos, lengthToDelete, modelStackWithAutoParam);
+	if (!isAutomated(p)) {
 		paramHasNoAutomationNow(modelStack, p);
+		release_unautomated(p);
 	}
 
 	FOR_EACH_PARAM_END
@@ -350,13 +452,14 @@ void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int3
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	AutoParam* param = &params[p];
+	AutoParam* param = params[p];
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithAutoParam);
 
-	if (!params[p].isAutomated()) {
+	if (!isAutomated(p)) {
 		paramHasNoAutomationNow(modelStack, p);
+		release_unautomated(p);
 	}
 
 	FOR_EACH_PARAM_END
@@ -372,7 +475,7 @@ void ParamSet::backUpAllAutomatedParamsToAction(Action* action, ModelStackWithPa
 }
 
 void ParamSet::backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack) {
-	AutoParam* param = &params[p];
+	AutoParam* param = params[p];
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 	action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithAutoParam, false);
 }
@@ -383,7 +486,7 @@ void ParamSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack)
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
 
-	params[p].notifyPingpongOccurred();
+	params[p]->notifyPingpongOccurred();
 
 	FOR_EACH_PARAM_END
 }
@@ -395,9 +498,6 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 	current_values = current_values_.data();
 	current_values_.fill(0);
 	numParams_ = static_cast<int32_t>(params_.size());
-	for (int32_t index = 0; index < numParams_; ++index) {
-		params[index].bind_current_value(current_values[index]);
-	}
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
@@ -483,9 +583,6 @@ PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(siz
 	current_values = current_values_.data();
 	current_values_.fill(0);
 	numParams_ = static_cast<int32_t>(params_.size());
-	for (int32_t index = 0; index < numParams_; ++index) {
-		params[index].bind_current_value(current_values[index]);
-	}
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
@@ -499,13 +596,12 @@ void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWi
 	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
 }
 
-void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-                                                   bool automationChanged, bool automatedBefore, bool automatedNow) {
-	ParamSet::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
+void PatchedParamSet::notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+                                          bool automationChanged, bool automatedBefore, bool automatedNow) {
 
 	// If the Clip is active (or there isn't one)...
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t current_value = modelStack->autoParam->getCurrentValue();
+		int32_t current_value = getValue(modelStack->paramId);
 		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
 		    oldValue, current_value, getParamKind(), modelStack->paramId);
 		if (current_value_changed) {
@@ -532,7 +628,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	case params::LOCAL_CARRIER_1_FEEDBACK:
 	case params::LOCAL_MODULATOR_0_FEEDBACK:
 	case params::LOCAL_MODULATOR_1_FEEDBACK:
-		bool containsSomethingNow = modelStack->autoParam->containsSomething(-2147483648);
+		bool containsSomethingNow = containsSomething(modelStack->paramId, -2147483648);
 		bool containedSomethingBefore = AutoParam::containedSomethingBefore(automatedBefore, oldValue, -2147483648);
 		if (containedSomethingBefore != containsSomethingNow) {
 
@@ -601,9 +697,6 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 	current_values = current_values_.data();
 	current_values_.fill(0);
 	numParams_ = static_cast<int32_t>(params_.size());
-	for (int32_t index = 0; index < numParams_; ++index) {
-		params[index].bind_current_value(current_values[index]);
-	}
 	topUintToRepParams = (numParams_ - 1) >> 5;
 	bendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
 
@@ -621,13 +714,12 @@ void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectio
 	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
 }
 
-void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-                                                      bool automationChanged, bool automatedBefore, bool automatedNow) {
-	ParamSet::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
+void ExpressionParamSet::notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+                                             bool automationChanged, bool automatedBefore, bool automatedNow) {
 
 	// If the Clip is active (or there isn't one)...
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t current_value = modelStack->autoParam->getCurrentValue();
+		int32_t current_value = getValue(modelStack->paramId);
 		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
 		    oldValue, current_value, getParamKind(), modelStack->paramId);
 		if (current_value_changed) {
@@ -679,7 +771,7 @@ bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTa
 	bool writtenAnyYet = false;
 
 	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
-		if (params[p].containsSomething()) {
+		if (containsSomething(p)) {
 			if (!writtenAnyYet) {
 				writtenAnyYet = true;
 				if (mustWriteOpeningTagEndFirst) {
@@ -733,7 +825,9 @@ void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* m
 	// Because this is just for ExpressionParamSet, which only has 3 params, let's just do it for all of them rather
 	// than our other optimization.
 	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
-		AutoParam* param = &params[p];
+		AutoParam* param = params[p];
+		if (!param)
+			continue;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		param->moveRegionHorizontally(modelStackWithAutoParam, pos, length, offset, lengthBeforeLoop, action);
 	}
@@ -741,16 +835,15 @@ void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* m
 
 void ExpressionParamSet::clearValues(ModelStackWithParamCollection const* modelStack) {
 	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
-		AutoParam* param = &params[p];
-		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
-		param->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam, 0);
+		set_current_value(modelStack, p, 0);
 	}
 }
 
 void ExpressionParamSet::cancelAllOverriding() {
 	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
-		AutoParam* param = &params[p];
-		param->cancelOverriding();
+		AutoParam* param = params[p];
+		if (param)
+			param->cancelOverriding();
 	}
 }
 
@@ -787,9 +880,9 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
             if (whichParamHasAutomation >= 128) {
                 int32_t endAutomatedParams = (whichParamHasAutomation & 127);
                 for (int32_t p = 0; p <= endAutomatedParams; p++) {
-                    if (params[p].isAutomated()) {
+                    if (isAutomated(p)) {
 
-                        params[p].
+                        params[p]->
 
                     }
                 }
@@ -797,7 +890,7 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
 
             // One param automated
             else {
-                params[whichParamHasAutomation].
+                params[whichParamHasAutomation]->
             }
         }
 

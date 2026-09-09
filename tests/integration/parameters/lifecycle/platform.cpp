@@ -202,3 +202,9 @@ uint8_t* ModControllable::getModKnobMode() {
 int32_t ModControllable::getKnobPosForNonExistentParam(int32_t, ModelStackWithAutoParam*) {
 	unsupported();
 }
+
+// Native lifecycle tests run outside the automation editor.
+void get_automation_interpolation(bool& before, bool& after) {
+	before = false;
+	after = false;
+}

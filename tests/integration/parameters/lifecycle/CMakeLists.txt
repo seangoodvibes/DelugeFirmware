@@ -12,6 +12,7 @@ add_executable(NativeParameterLifecycleTests
     ../../../../src/deluge/util/cfunctions.c
     ../../../../src/deluge/util/semver.cpp
     ../../../../src/deluge/modulation/automation/auto_param.cpp
+    ../../../../src/deluge/modulation/automation/auto_param_pool.cpp
     ../../../../src/deluge/modulation/params/param_set.cpp
     ../../../../src/deluge/modulation/params/param_set_param_lookup.cpp
     ../../../../src/deluge/modulation/params/param_collection.cpp

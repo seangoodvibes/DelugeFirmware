@@ -4460,7 +4460,9 @@ needToDoIt:
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
 		for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-			AutoParam* param = mpeParams->getParam(i);
+			AutoParam* param = mpeParams->getParam(i, !shouldJustDeleteNodes);
+			if (!param)
+				continue;
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(i, param);
 
 			if (shouldJustDeleteNodes) {
@@ -4492,6 +4494,9 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 	}
 
 	AutoParam* param = mpeParams->getParam(expressionDimension);
+
+	if (!param)
+		return false;
 
 	ModelStackWithAutoParam* modelStackWithAutoParam =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParam(mpeParams, mpeParamsSummary,

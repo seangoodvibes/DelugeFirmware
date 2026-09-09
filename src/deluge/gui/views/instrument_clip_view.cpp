@@ -4460,7 +4460,9 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 							if (!editPadPresses[i].mpeCachedYet) {
 								stolenNodeRecord = &editPadPresses[i].stolenMPE[m];
 							}
-							AutoParam* param = mpeParams->getParam(m);
+							AutoParam* param = mpeParams->getParam(m, false);
+							if (!param)
+								continue;
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -4643,7 +4645,12 @@ cancelPress:
 						int32_t loopLength = modelStackWithNoteRow->getLoopLength();
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = mpeParams->getParam(m);
+							AutoParam* param = mpeParams->getParam(m, editPadPresses[i].stolenMPE[m].num != 0);
+							if (!param) {
+								if (editPadPresses[i].stolenMPE[m].num)
+									display->displayError(Error::INSUFFICIENT_RAM);
+								continue;
+							}
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -6332,7 +6339,9 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 						        mpeParams, mpeParamsSummary);
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = mpeParams->getParam(m);
+							AutoParam* param = mpeParams->getParam(m, false);
+							if (!param)
+								continue;
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -6395,7 +6404,12 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 						int32_t loopLength = destModelStack->getLoopLength();
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = mpeParams->getParam(m);
+							AutoParam* param = mpeParams->getParam(m, ntm.stolenMPE[m].num != 0);
+							if (!param) {
+								if (ntm.stolenMPE[m].num)
+									display->displayError(Error::INSUFFICIENT_RAM);
+								continue;
+							}
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
@@ -7983,6 +7997,8 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 
 		for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions; expressionDimension++) {
 			AutoParam* param = mpeParams->getParam(expressionDimension);
+			if (!param)
+				continue;
 
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamCollection->addAutoParam(expressionDimension, param);

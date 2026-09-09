@@ -18,7 +18,7 @@
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/views/automation_view.h"
+#include "gui/views/automation/automation_interpolation.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -147,7 +147,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// If the Clip is too short to meaningfully record anything / not cause an error
 			int32_t effectiveLength = modelStack->getLoopLength();
 			if (ticksToClear >= effectiveLength) {
-				deleteAutomation(nullptr, modelStack);
+				deleteAutomation(nullptr, modelStack, false);
+				automationChanged = automatedBefore;
 				goto getOut;
 			}
 
@@ -387,8 +388,9 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 
-	if (shouldNotify && wasAutomated) {
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, getCurrentValue(), true, true, false);
+	if (shouldNotify) {
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, getCurrentValue(), wasAutomated,
+		                                                          wasAutomated, false);
 	}
 }
 
@@ -1121,7 +1123,8 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 	// First, special case if our region covers the whole NoteRow / Clip / TimelineCounter
 	if (length == effectiveLength) {
 		if (isAutomated()) {
-			deleteAutomation(action, modelStack);
+			deleteAutomation(action, modelStack, false);
+			automationChanged = true;
 		}
 		else {
 			if (action) {
@@ -1144,15 +1147,14 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		// when this feature is enabled, interpolation is enforced on manual automation editing in the automation
 		// instrument clip view
 
-		if (getRootUI() == &automationView) {
-			firstI = homogenizeRegion(modelStack, pos, length, value, automationView.interpolationBefore,
-			                          automationView.interpolationAfter, effectiveLength, false);
-		}
-		else {
-			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
-		}
+		bool interpolate_before, interpolate_after;
+		get_automation_interpolation(interpolate_before, interpolate_after);
+		firstI = homogenizeRegion(modelStack, pos, length, value, interpolate_before, interpolate_after,
+		                          effectiveLength, false);
 
 		if (firstI == -1) {
+			modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, automatedBefore,
+			                                                          isAutomated());
 			return;
 		}
 

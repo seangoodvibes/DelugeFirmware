@@ -1,7 +1,7 @@
 # Native parameter lifecycle tests
 
-`NativeParameterLifecycleTests` runs on the host through CTest. It leaves the
-firmware's preallocated `AutoParam` arrays unchanged.
+`NativeParameterLifecycleTests` runs on the host through CTest and exercises the
+firmware's nullable parameter arrays and shared `auto_param_pool`.
 
 From the repository root:
 
@@ -23,14 +23,14 @@ Set `PARAMETER_LIFECYCLE_ASAN=OFF` to return to a normal build.
 
 ## Production code covered
 
-The target compiles the real `ParamSet`, `AutoParam`, `ParamNodeVector`, resizable
+The target compiles the real `ParamSet`, `AutoParam`, `auto_param_pool`, `ParamNodeVector`, resizable
 node containers, manager setup/transfer/cleanup, collection notifications, lookup,
 and `ConsequenceParamChange`. These classes are not replaced with test adapters.
 The merged `tests/param_manager` targets remain useful for manager layout, lookup,
 and routing contracts; their parameter/automation doubles do not exercise the
 ownership covered here.
 
-The 49 cases cover:
+The 58 cases cover:
 
 - Initial scalar values, neutral-value queries, and neighboring parameter isolation
   for patched, unpatched, and expression sets.
@@ -95,7 +95,8 @@ The 49 cases cover:
   state, and expression edits reaching the monophonic notification callback.
   Full-region deletion must notify each consumer only once.
 
-Every case checks that all host-tracked firmware allocations are released. Invalid
+Every case checks that no active pooled objects remain, drains the idle cache,
+and verifies that all host-tracked firmware allocations are released. Invalid
 or duplicate frees abort the test. The tests caught stale clone flags both when
 automation copying was disabled and when individual node allocations failed. The manager initializes destination
 flags before cloning; `ParamSet::beenCloned()` clears flags for missing automation.
@@ -158,14 +159,31 @@ and leaves the caller-owned temporary record intact for retry. The note-editing
 callers display transfer errors. Entire note moves across multiple expression
 dimensions or rows are not rolled back as a transaction.
 
-## Preparing for pooled automation
+## Pooled automation contract
 
-Keep these behavioral expectations when replacing the arrays. Acquire automation
-through the production lookup API in fixtures that edit it, and continue checking
-values, nodes, flags, notifications, undo, and clone independence after storage
-changes. Do not require an automation object for read-only scalar operations.
+Patched, unpatched, and expression sets start with null automation slots and keep
+scalar values separately. Non-creating lookup and scalar access do not acquire an
+object. `getParam(id, true)` and creating model-stack lookups reserve an object and
+can return a null `autoParam` on allocation failure. Legacy editing callers can
+reserve an object before adding nodes; scalar notifications release that reservation.
+Use `getValue`, `setCurrentValueBasicForSetup`, or `set_current_value` for scalar-only
+operations that must not allocate. An explicit reservation without a notification
+remains owned by the set until released or the set is destroyed.
 
-Add pool-specific assertions when that implementation exists: zero acquisitions
-for scalar-only operations, first-node acquisition, last-node release, reuse by a
-different owner without stale state, exhaustion/failure behavior, and balanced
-releases on set destruction. These tests do not yet assert pool behavior.
+One firmware-wide pool grows on demand and caches at most 32 released objects.
+Release destroys the object and its nodes; reuse constructs fresh state and binds
+to the new owner's scalar. The pool is not a fixed limit on automated parameters.
+AddressSanitizer builds poison cached object storage (apart from the free-list
+link), so stale accesses can fail even before the allocator frees a cached block.
+
+Pool-specific cases check allocation-free scalar notifications, reuse across all
+three set types, scalar binding isolation, reset playback/override state, heap
+exhaustion and retry, use of cached storage while heap allocation fails, cache
+bounds, and destruction. Deleting the last node must clear the slot. Undo may need
+to acquire a new object; failure leaves the owner and snapshot untouched so a
+retry remains possible. Both forward and reversed node-clone failures return the
+new object without releasing the source. Whole-loop scalar replacement and failed
+first-region edits exercise release after notification, with undo or retry.
+
+The editor interpolation preference is a small platform hook. Native region-edit
+tests supply the non-editor preference; they do not instantiate the firmware UI.

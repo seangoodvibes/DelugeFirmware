@@ -3126,7 +3126,11 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
 	int32_t pos = -1; // means use the live position
-	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	if (tempoParam && tempoParam->autoParam)
+		tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	else
+		paramManager.getUnpatchedParamSet()->setCurrentValueBasicForSetup(params::UnpatchedGlobal::UNPATCHED_TEMPO,
+		                                                                  intTempo);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3138,7 +3142,8 @@ void Song::clearTempoAutomation() {
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	int32_t pos = -1; // means use the live position
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
-	tempoParam->autoParam->deleteAutomation(action, tempoParam);
+	if (tempoParam && tempoParam->autoParam)
+		tempoParam->autoParam->deleteAutomation(action, tempoParam);
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 }
 

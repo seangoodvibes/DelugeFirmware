@@ -173,11 +173,11 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 	}
 }
 
-void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
+Error MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
 
 	MIDIParam* midiParam = params.getOrCreateParamFromCC(modelStack->paramId);
 	if (!midiParam) {
-		return;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	AutoParam* param = &midiParam->param;
@@ -185,6 +185,7 @@ void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelSta
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
 
 	param->swapState(state, modelStackWithParam);
+	return Error::NONE;
 }
 
 void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {

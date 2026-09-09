@@ -463,15 +463,14 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ModelStackWithParamId* modelStackWithParamId =
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
-		ModelStackWithAutoParam* modelStackWithAutoParam =
-		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+		static_cast<ParamSet*>(summary->paramCollection)
+		    ->set_current_value(modelStackWithParamId, modelStackWithParamId->paramId,
+		                        getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		modelStackWithParamId =
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_ATTACK);
-		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+		static_cast<ParamSet*>(summary->paramCollection)
+		    ->set_current_value(modelStackWithParamId, modelStackWithParamId->paramId,
+		                        getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
 	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
 }
@@ -594,12 +593,11 @@ getOut:
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 		int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
-		ModelStackWithAutoParam* modelStackWithParam =
-		    modelStack->addParam(paramSet, summary, paramId, paramSet->getParam(paramId));
+		auto* collection_stack = modelStack->addParamCollection(paramSet, summary);
 
 		// Reset osc volume, if it's not automated
-		if (!modelStackWithParam->autoParam->isAutomated()) {
-			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
+		if (!paramSet->isAutomated(paramId)) {
+			paramSet->set_current_value(collection_stack, paramId, 2147483647);
 			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
 			// soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong,
 			// getCurrentClip(), false);
@@ -645,10 +643,9 @@ getOut:
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId =
 			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
-			ModelStackWithAutoParam* modelStackWithAutoParam =
-			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+			static_cast<ParamSet*>(summary->paramCollection)
+			    ->set_current_value(modelStackWithParamId, modelStackWithParamId->paramId,
+			                        getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		}
 
 		// Do the rest of the Drums

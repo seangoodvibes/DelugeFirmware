@@ -2931,10 +2931,10 @@ void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* mod
 
 void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p) {
 
-	AutoParam* param = paramManager->getPatchedParamSet()->getParam(p);
+	auto* param_set = paramManager->getPatchedParamSet();
 
 	// If the param is automated, we'd better not try setting it to 0 - the user probably wants the automation
-	if (param->isAutomated()) {
+	if (param_set->isAutomated(p)) {
 		return;
 	}
 
@@ -2952,7 +2952,7 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 	// No knobs were assigned to this param, so make it 0
 	if (!any_assigned) {
-		param->setCurrentValueBasicForSetup(0);
+		param_set->setCurrentValueBasicForSetup(p, 0);
 	}
 }
 

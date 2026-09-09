@@ -81,7 +81,7 @@ public:
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) override;
 
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
+	Error remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
 	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
 	                    ParamDescriptor destinationParamDescriptor, bool allowCreation = false);
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;

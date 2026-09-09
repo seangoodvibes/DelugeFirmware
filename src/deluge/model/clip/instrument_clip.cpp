@@ -3102,6 +3102,8 @@ expressionParam:
 						summary = paramManager.getExpressionParamSetSummary();
 						expressionParams = (ExpressionParamSet*)summary->paramCollection;
 						param = expressionParams->getParam(paramId);
+						if (!param)
+							return Error::INSUFFICIENT_RAM;
 					}
 					else if (!strcasecmp(contents, "aftertouch")) {
 						paramId = Z_PRESSURE;
@@ -3170,6 +3172,8 @@ expressionParam:
 				}
 			}
 
+			if (expressionParams)
+				expressionParams->release_unautomated(paramId);
 			reader.exitTag("param");
 		}
 		else {
@@ -4653,6 +4657,8 @@ doNormal: // Wrap it back to the start.
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		AutoParam* param = mpeParams->getParam(m);
+		if (!param)
+			continue;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(m, param);
 
 		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
@@ -4706,6 +4712,7 @@ doHomogenize:
 		// "now"-time.
 		param->setCurrentValueBasicForSetup(value);
 		param->resetInterpolationIncrement();
+		mpeParams->release_unautomated(m);
 		// TODO: and to make it perfect, we'd also want to ignore any further nodes between now and the start of the
 		// region. Or, could probably get away with just deleting them.
 	}

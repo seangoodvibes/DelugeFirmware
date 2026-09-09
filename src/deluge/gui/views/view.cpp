@@ -1432,8 +1432,12 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	int32_t knobPos;
 	bool isBipolar = false;
 
-	if (modelStackWithParam->autoParam) {
-		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+	if (modelStackWithParam->autoParam
+	    || (modelStackWithParam->paramCollection
+	        && modelStackWithParam->paramCollection->has_current_value(modelStackWithParam->paramId))) {
+		int32_t value = modelStackWithParam->autoParam
+		                    ? modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam)
+		                    : modelStackWithParam->paramCollection->get_current_value(modelStackWithParam->paramId);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);

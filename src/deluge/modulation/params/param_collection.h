@@ -65,7 +65,7 @@ public:
 	                               int32_t effectiveLength) = 0;
 	virtual void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSinceLast, bool reversed,
 	                               bool didPingpong, bool mayInterpolate) = 0;
-	virtual void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) = 0;
+	virtual Error remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) = 0;
 	virtual void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) = 0;
 	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                             ModelStackWithParamCollection* modelStack) = 0;
@@ -77,6 +77,10 @@ public:
 	    ModelStackWithParamId* modelStack,
 	    bool allowCreation = false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings
 	                                     // (wait why again?). May return NULL
+
+	// Scalar fallback for an absent automation object (MIDI/patch parameters default to zero).
+	virtual bool has_current_value(int32_t id) const { return false; }
+	virtual int32_t get_current_value(int32_t id) const { return 0; }
 
 	virtual bool mayParamInterpolate(int32_t paramId);
 	virtual bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) { return false; }

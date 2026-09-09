@@ -2,6 +2,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/consequence/consequence_param_change.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "modulation/automation/auto_param_pool.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -80,10 +81,13 @@ void check_initial_values() {
 // clang-format off
 TEST_GROUP(parameter_lifecycle) {
     void setup() override {
+        auto_param_pool::get().clear_unused();
         parameter_test::reset();
         LONGS_EQUAL(0, parameter_test::outstanding_allocations());
     }
     void teardown() override {
+        LONGS_EQUAL(0, auto_param_pool::get().active_count());
+        auto_param_pool::get().clear_unused();
         LONGS_EQUAL(0, parameter_test::outstanding_allocations());
     }
 };
@@ -403,7 +407,11 @@ extern std::string_view file_contents;
 }
 namespace {
 struct fail_allocations {
-	explicit fail_allocations(int after = 0) { parameter_test::allocations_before_failure = after; }
+	explicit fail_allocations(int after = 0, bool clear_cache = true) {
+		if (clear_cache)
+			auto_param_pool::get().clear_unused();
+		parameter_test::allocations_before_failure = after;
+	}
 	~fail_allocations() { parameter_test::allocations_before_failure = -1; }
 };
 
@@ -452,7 +460,10 @@ void check_real_persistence(bool json) {
 					reader.exitTag("value");
 					STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
 					LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
-					CHECK_FALSE(destination.param(32)->autoParam->hasInterpolationIncrement());
+					auto* loaded = destination.set().getParam(32, false);
+					CHECK_FALSE(loaded && loaded->hasInterpolationIncrement());
+					if (!save_nodes || !load_nodes)
+						POINTERS_EQUAL(nullptr, loaded);
 					LONGS_EQUAL(17, source.set().getValue(32));
 					check_node(*source.param(32)->autoParam, 1, 16, 500, true);
 				}
@@ -472,6 +483,7 @@ TEST(parameter_lifecycle, real_json_save_reload_replaces_automation_and_preserve
 TEST(parameter_lifecycle, failed_first_node_allocation_preserves_scalar_and_flags_then_retries) {
 	fixture f;
 	f.set().setCurrentValueBasicForSetup(32, 17);
+	f.param(32); // Acquire the object before testing node allocation failure.
 	size_t before = parameter_test::outstanding_allocations();
 	{
 		fail_allocations failure;
@@ -721,6 +733,7 @@ void check_notification_lifetime(bool expression) {
 	LONGS_EQUAL(123, observer.last_value);
 	LONGS_EQUAL(expression ? 1 : 0, observer.mono_events);
 	LONGS_EQUAL(1, parameter_test::notifications);
+	context = lookup();
 	CHECK(context->autoParam->setNodeAtPos(4, 400, true) >= 0);
 	set.paramHasAutomationNow(&summary, id);
 	observer.comparisons = 0;
@@ -751,7 +764,7 @@ TEST(parameter_lifecycle, partial_node_clone_preserves_successful_parameter_and_
 	source.param(31)->autoParam->valueIncrementPerHalfTick = 10;
 	ParamManagerForTimeline clone;
 	{
-		fail_allocations failure(2); // Collection + parameter 31 succeed; parameter 32 fails.
+		fail_allocations failure(3); // Collection + parameter 31 succeed; parameter 32 fails.
 		CHECK(clone.cloneParamCollectionsFrom(&source.manager, true) == Error::NONE);
 	}
 	check_node(*clone.getUnpatchedParamSet()->getParam(31), 0, 4, 400, true);
@@ -864,6 +877,8 @@ TEST(parameter_lifecycle, discarding_stolen_snapshot_releases_only_snapshot_node
 		LONGS_EQUAL(2, undo.state.nodes.getNumElements());
 		CHECK_FALSE(f.set().isAutomated(32));
 	}
+	f.set().release_unautomated(32);
+	auto_param_pool::get().clear_unused();
 	LONGS_EQUAL(baseline, parameter_test::outstanding_allocations());
 	LONGS_EQUAL(17, f.set().getValue(32));
 	check_flag(f.summary(), 32, false);
@@ -1214,7 +1229,7 @@ TEST(parameter_lifecycle, scalar_and_stolen_undo_snapshots_work_without_node_all
 	f.set().setCurrentValueBasicForSetup(32, 17);
 	{
 		fail_allocations failure;
-		ConsequenceParamChange scalar(f.param(32), false);
+		ConsequenceParamChange scalar(f.stack()->addAutoParam(32, nullptr), false);
 		f.set().setCurrentValueBasicForSetup(32, 27);
 		CHECK(scalar.revert(TimeType::BEFORE, nullptr) == Error::NONE);
 		LONGS_EQUAL(17, f.set().getValue(32));
@@ -1561,5 +1576,187 @@ TEST(parameter_lifecycle, deterministic_edit_delete_clone_and_undo_sequence_pres
 		}
 		check_all(step.label);
 	}
+	auto_param_pool::get().clear_unused();
 	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+
+TEST(parameter_lifecycle, sparse_scalar_access_and_notifications_do_not_acquire_objects) {
+	fixture f;
+	fail_allocations failure;
+	for (int32_t id = 0; id < f.set().getNumParams(); ++id) {
+		POINTERS_EQUAL(nullptr, f.set().getParam(id, false));
+		CHECK(f.set().has_current_value(id));
+		f.set().set_current_value(f.stack(), id, id + 1);
+		LONGS_EQUAL(id + 1, f.set().getValue(id));
+		LONGS_EQUAL(id + 1, f.set().get_current_value(id));
+		POINTERS_EQUAL(nullptr, f.set().getParam(id, false));
+	}
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}
+
+TEST(parameter_lifecycle, shared_pool_reuses_storage_across_all_three_parameter_sets) {
+	ParamCollectionSummary unpatched_summary{}, patched_summary{}, expression_summary{};
+	UnpatchedParamSet unpatched(&unpatched_summary);
+	PatchedParamSet patched(&patched_summary);
+	ExpressionParamSet expression(&expression_summary);
+	auto& pool = auto_param_pool::get();
+	AutoParam* previous = nullptr;
+	for (ParamSet* set :
+	     {static_cast<ParamSet*>(&unpatched), static_cast<ParamSet*>(&patched), static_cast<ParamSet*>(&expression)}) {
+		set->setCurrentValueBasicForSetup(0, 17);
+		auto* param = set->getParam(0);
+		CHECK(param);
+		if (previous)
+			POINTERS_EQUAL(previous, param);
+		LONGS_EQUAL(17, param->getCurrentValue());
+		CHECK_FALSE(param->isAutomated());
+		CHECK_FALSE(param->hasInterpolationIncrement());
+		LONGS_EQUAL(0, param->renewedOverridingAtTime);
+		CHECK(param->setNodeAtPos(4, 400, true) >= 0);
+		param->valueIncrementPerHalfTick = 123;
+		param->renewedOverridingAtTime = 456;
+		LONGS_EQUAL(1, pool.active_count());
+		param->deleteAutomationBasicForSetup();
+		set->release_unautomated(0);
+		POINTERS_EQUAL(nullptr, set->getParam(0, false));
+		LONGS_EQUAL(17, set->getValue(0));
+		LONGS_EQUAL(0, pool.active_count());
+		LONGS_EQUAL(1, pool.cached_count());
+		previous = param;
+	}
+}
+
+TEST(parameter_lifecycle, pool_acquisition_failure_preserves_scalar_flags_and_allows_retry) {
+	fixture f;
+	f.set().setCurrentValueBasicForSetup(32, 17);
+	{
+		fail_allocations failure;
+		POINTERS_EQUAL(nullptr, f.param(32)->autoParam);
+		LONGS_EQUAL(17, f.set().getValue(32));
+		check_flag(f.summary(), 32, false);
+		LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	}
+	f.add_node(32, 4, 400, true);
+	LONGS_EQUAL(1, auto_param_pool::get().active_count());
+	check_node(*f.param(32)->autoParam, 0, 4, 400, true);
+}
+
+TEST(parameter_lifecycle, deleting_last_node_returns_object_and_undo_reacquires_without_aliasing) {
+	fixture f;
+	f.set().setCurrentValueBasicForSetup(32, 17);
+	f.add_node(32, 4, 400, true);
+	ConsequenceParamChange undo(f.param(32), false);
+	auto* context = f.param(32);
+	context->autoParam->deleteAutomation(nullptr, context);
+	POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	// Occupy the returned block with another parameter before restoring the snapshot.
+	f.add_node(31, 8, 900);
+	{
+		fail_allocations failure;
+		CHECK(undo.revert(TimeType::BEFORE, nullptr) == Error::INSUFFICIENT_RAM);
+		LONGS_EQUAL(17, f.set().getValue(32));
+		POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+		check_node(*f.param(31)->autoParam, 0, 8, 900, false);
+		LONGS_EQUAL(1, undo.state.nodes.getNumElements());
+		LONGS_EQUAL(400, undo.state.nodes.getElement(0)->value);
+	}
+	CHECK(undo.revert(TimeType::BEFORE, nullptr) == Error::NONE);
+	check_node(*f.param(32)->autoParam, 0, 4, 400, true);
+	CHECK(f.param(31)->autoParam != f.set().getParam(32, false));
+	CHECK(undo.revert(TimeType::AFTER, nullptr) == Error::NONE);
+	POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+	check_node(*f.param(31)->autoParam, 0, 8, 900, false);
+}
+
+TEST(parameter_lifecycle, whole_loop_edit_releases_automation_after_updating_scalar_and_can_undo) {
+	fixture f;
+	f.set().setCurrentValueBasicForSetup(32, 17);
+	f.add_node(32, 4, 400, true);
+	ConsequenceParamChange undo(f.param(32), false);
+	parameter_test::allow_no_action = true;
+	auto* context = f.param(32);
+	const auto notifications = parameter_test::notifications;
+	context->autoParam->setValueForRegion(0, parameter_test::loop_length, 99, context);
+	LONGS_EQUAL(99, f.set().getValue(32));
+	POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+	check_flag(f.summary(), 32, false);
+	LONGS_EQUAL(notifications + 1, parameter_test::notifications);
+	CHECK(undo.revert(TimeType::BEFORE, nullptr) == Error::NONE);
+	LONGS_EQUAL(17, f.set().getValue(32));
+	check_node(*f.param(32)->autoParam, 0, 4, 400, true);
+}
+
+TEST(parameter_lifecycle, pool_grows_beyond_idle_cache_limit_and_releases_excess_storage) {
+	auto& pool = auto_param_pool::get();
+	std::array<AutoParam*, 80> objects{};
+	for (auto& object : objects) {
+		object = pool.acquire();
+		CHECK(object);
+	}
+	LONGS_EQUAL(objects.size(), pool.active_count());
+	std::set<AutoParam*> unique(objects.begin(), objects.end());
+	LONGS_EQUAL(objects.size(), unique.size());
+	for (auto* object : objects)
+		pool.release(object);
+	LONGS_EQUAL(0, pool.active_count());
+	CHECK(pool.cached_count() < objects.size());
+	LONGS_EQUAL(pool.cached_count(), parameter_test::outstanding_allocations());
+	pool.clear_unused();
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+
+TEST(parameter_lifecycle, cached_object_is_available_when_heap_allocation_fails) {
+	fixture f;
+	auto* previous = f.set().getParam(31);
+	CHECK(previous);
+	f.set().setCurrentValueBasicForSetup(31, 31);
+	f.set().release_unautomated(31);
+	f.set().setCurrentValueBasicForSetup(32, 32);
+	fail_allocations failure(0, false);
+	auto* reused = f.set().getParam(32);
+	POINTERS_EQUAL(previous, reused);
+	LONGS_EQUAL(32, reused->getCurrentValue());
+	reused->setCurrentValueBasicForSetup(99);
+	LONGS_EQUAL(31, f.set().getValue(31));
+	LONGS_EQUAL(99, f.set().getValue(32));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}
+
+TEST(parameter_lifecycle, failed_node_clone_returns_new_object_without_releasing_source) {
+	for (int32_t reverse_length : {0, 32}) {
+		fixture source;
+		source.set().setCurrentValueBasicForSetup(32, 17);
+		source.add_node(32, 4, 400, true);
+		ParamManagerForTimeline clone;
+		{
+			// Collection and AutoParam succeed; node allocation fails.
+			fail_allocations failure(2);
+			CHECK(clone.cloneParamCollectionsFrom(&source.manager, true, false, reverse_length) == Error::NONE);
+		}
+		LONGS_EQUAL(17, clone.getUnpatchedParamSet()->getValue(32));
+		POINTERS_EQUAL(nullptr, clone.getUnpatchedParamSet()->getParam(32, false));
+		check_flag(*clone.getUnpatchedParamSetSummary(), 32, false);
+		LONGS_EQUAL(1, auto_param_pool::get().active_count());
+		check_node(*source.param(32)->autoParam, 0, 4, 400, true);
+	}
+}
+
+TEST(parameter_lifecycle, failed_first_region_edit_returns_empty_object_and_retries) {
+	fixture f;
+	f.set().setCurrentValueBasicForSetup(32, 17);
+	auto* context = f.param(32);
+	parameter_test::allow_no_action = true;
+	{
+		fail_allocations failure;
+		context->autoParam->setValueForRegion(4, 4, 99, context);
+	}
+	LONGS_EQUAL(17, f.set().getValue(32));
+	POINTERS_EQUAL(nullptr, f.set().getParam(32, false));
+	check_flag(f.summary(), 32, false);
+	context = f.param(32);
+	context->autoParam->setValueForRegion(4, 4, 99, context);
+	CHECK(f.set().isAutomated(32));
+	check_flag(f.summary(), 32, true);
 }

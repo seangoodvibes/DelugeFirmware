@@ -27,7 +27,10 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	type = Consequence::PARAM_CHANGE;
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
-	state.value = modelStack->autoParam->getCurrentValue();
+	state.value = modelStack->autoParam ? modelStack->autoParam->getCurrentValue()
+	                                    : modelStack->paramCollection->get_current_value(modelStack->paramId);
+	if (!modelStack->autoParam)
+		return;
 
 	// Either steal the data...
 	if (stealData) {
@@ -51,7 +54,5 @@ Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSo
 	// we swap our stored state with that of the param in question - like, actually swap the pointer to the
 	// ParamNodeVector, so it's real efficient!
 
-	modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
-
-	return Error::NONE;
+	return modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
 }
