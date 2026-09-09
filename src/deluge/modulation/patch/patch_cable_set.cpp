@@ -777,8 +777,8 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 	}
 }
 
-void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                               ParamCollectionSummary* summary) {
+Error PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+                                ParamCollectionSummary* summary) {
 	for (int32_t c = 0; c < kMaxNumPatchCables; ++c) {
 		patchCables[c].clone_automation(copyAutomation && c < numPatchCables, reverseDirectionWithLength);
 	}
@@ -789,6 +789,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 	// If we knew we'd be calling setupPatching() again for this new clone, we wouldn't need to do this - we could just
 	// set these pointers to NULL. But this doesn't always happen.
 
+	Error clone_error = Error::NONE;
 	Destination* newDestinations[2];
 	newDestinations[GLOBALITY_LOCAL] = nullptr;
 	newDestinations[GLOBALITY_GLOBAL] = nullptr;
@@ -813,6 +814,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 			}
 
 			// And get out
+			clone_error = Error::INSUFFICIENT_RAM;
 			goto done;
 		}
 
@@ -833,6 +835,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 done:
 	destinations[GLOBALITY_LOCAL] = newDestinations[GLOBALITY_LOCAL];
 	destinations[GLOBALITY_GLOBAL] = newDestinations[GLOBALITY_GLOBAL];
+	return clone_error;
 }
 
 void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {

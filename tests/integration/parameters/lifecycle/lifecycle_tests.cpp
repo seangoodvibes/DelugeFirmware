@@ -2400,3 +2400,28 @@ TEST(parameter_lifecycle, patch_cable_pool_storage_can_be_reused_by_parameter_se
 	check_node(*recycled, 0, 8, 123, false);
 	f.check_ownership();
 }
+
+TEST(parameter_lifecycle, collection_clone_hook_failure_keeps_existing_destination) {
+	patch_fixture source, destination;
+	auto source_id = source.add_cable(PatchSource::VELOCITY, 0, 42);
+	auto destination_id = destination.add_cable(PatchSource::NOTE, 1, 17);
+	source.add_node(source_id, 4, 99);
+	destination.add_node(destination_id, 8, 88);
+	auto* original_set = &destination.set();
+	auto* original_expression = destination.manager.getOrCreateExpressionParamSet();
+	CHECK(original_expression);
+	{
+		// All three collection allocations succeed. A later allocation inside
+		// the patch-cable clone hook fails, before the manager commits the clone.
+		fail_allocations failure(5);
+		CHECK(destination.manager.cloneParamCollectionsFrom(&source.manager, true, true) == Error::INSUFFICIENT_RAM);
+	}
+	POINTERS_EQUAL(original_set, &destination.set());
+	POINTERS_EQUAL(original_expression, destination.manager.getExpressionParamSet());
+	LONGS_EQUAL(17, destination.set().get_current_value(destination_id));
+	check_node(*destination.param(destination_id)->autoParam, 0, 8, 88, false);
+	LONGS_EQUAL(42, source.set().get_current_value(source_id));
+	check_node(*source.param(source_id)->autoParam, 0, 4, 99, false);
+	source.check_ownership();
+	destination.check_ownership();
+}

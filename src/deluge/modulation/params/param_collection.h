@@ -43,8 +43,9 @@ public:
 
 	// summary, when supplied, contains the destination flags copied by ParamManager.
 	// Implementations may clear flags for automation that could not be cloned.
-	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0,
-	                        ParamCollectionSummary* summary = nullptr) = 0;
+	// On error the clone must be safe to destroy without releasing source-owned storage.
+	virtual Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0,
+	                         ParamCollectionSummary* summary = nullptr) = 0;
 
 	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;

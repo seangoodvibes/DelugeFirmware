@@ -73,14 +73,15 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 	}
 }
 
-void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                     ParamCollectionSummary* summary) {
+Error MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+                                      ParamCollectionSummary* summary) {
 	params.beenCloned(); // Copies memory for all of params
 
 	// And now, copy the memory for the automation data that each member of params references
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		params.getElement(i)->param.beenCloned(copyAutomation, reverseDirectionWithLength);
 	}
+	return Error::NONE;
 }
 
 void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {

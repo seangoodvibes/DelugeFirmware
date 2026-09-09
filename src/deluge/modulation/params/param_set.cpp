@@ -90,7 +90,7 @@ void ParamSet::set_current_value(ModelStackWithParamCollection const* model_stac
 	}
 }
 
-void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary) {
+Error ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary) {
 	for (int32_t p = 0; p < numParams_; ++p) {
 		auto* source = params[p];
 		params[p] = nullptr; // The raw collection copy still points into the source.
@@ -109,6 +109,7 @@ void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 			summary->whichParamsAreInterpolating[p >> 5] &= mask;
 		}
 	}
+	return Error::NONE;
 }
 
 void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
@@ -501,14 +502,14 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                   ParamCollectionSummary* summary) {
+Error UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+                                    ParamCollectionSummary* summary) {
 	params = params_.data();
 	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
@@ -586,14 +587,14 @@ PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(siz
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                 ParamCollectionSummary* summary) {
+Error PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+                                  ParamCollectionSummary* summary) {
 	params = params_.data();
 	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
 }
 
 void PatchedParamSet::notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -704,14 +705,14 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 	    forDrum ? bendRanges[BEND_RANGE_MAIN] : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
 
-void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                    ParamCollectionSummary* summary) {
+Error ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+                                     ParamCollectionSummary* summary) {
 	params = params_.data();
 	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
 }
 
 void ExpressionParamSet::notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
