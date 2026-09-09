@@ -2853,7 +2853,7 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 // if it's adjacent to the previous one selected, we'll select this one
 bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
                                              bool& foundCurrentPatchCable) {
-	PatchCable* cable = &set->patchCables[patchCableIndex];
+	PatchCable* cable = set->patch_cables_[patchCableIndex];
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	// need to add patch cable source to the descriptor so that we can get the paramId from it
 	desc.addSource(cable->from);

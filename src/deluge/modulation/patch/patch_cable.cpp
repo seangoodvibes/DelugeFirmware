@@ -102,28 +102,6 @@ PatchCable::~PatchCable() {
 	release_automation();
 }
 
-PatchCable::PatchCable(PatchCable&& other) noexcept {
-	*this = std::move(other);
-}
-
-PatchCable& PatchCable::operator=(PatchCable&& other) noexcept {
-	if (this == &other)
-		return *this;
-	release_automation();
-	from = other.from;
-	polarity = other.polarity;
-	destinationParamDescriptor = other.destinationParamDescriptor;
-	rangeAdjustmentPointer = other.rangeAdjustmentPointer;
-	current_value_ = other.current_value_;
-	automation_ = std::exchange(other.automation_, nullptr);
-	rebind_automation();
-	other.current_value_ = 0;
-	other.from = PatchSource::NONE;
-	other.makeUnusable();
-	other.rangeAdjustmentPointer = nullptr;
-	return *this;
-}
-
 AutoParam* PatchCable::get_auto_param(bool allow_creation) {
 	if (!automation_ && allow_creation) {
 		automation_ = auto_param_pool::get().acquire();
@@ -146,17 +124,23 @@ void PatchCable::rebind_automation() {
 		automation_->bind_current_value(current_value_);
 }
 
-void PatchCable::clone_automation(bool copy_automation, int32_t reverse_length) {
-	// ParamManager makes a raw collection copy. Its pointers still belong to the source.
-	auto* source = std::exchange(automation_, nullptr);
-	if (copy_automation && source && source->isAutomated()) {
-		if (auto* destination = get_auto_param(true)) {
-			memcpy(destination, source, sizeof(AutoParam));
-			rebind_automation();
-			destination->beenCloned(true, reverse_length);
-			release_unautomated();
-		}
+Error PatchCable::clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length) {
+	initAmount(source.current_value_);
+	from = source.from;
+	polarity = source.polarity;
+	destinationParamDescriptor = source.destinationParamDescriptor;
+	rangeAdjustmentPointer = source.rangeAdjustmentPointer;
+	if (copy_automation && source.is_automated()) {
+		auto* destination = get_auto_param(true);
+		if (!destination)
+			return Error::INSUFFICIENT_RAM;
+		memcpy(destination, source.automation_, sizeof(AutoParam));
+		rebind_automation();
+		auto error = destination->beenCloned(true, reverse_length);
+		release_unautomated();
+		return error;
 	}
+	return Error::NONE;
 }
 
 Error PatchCable::take_automation_from(AutoParam& source) {

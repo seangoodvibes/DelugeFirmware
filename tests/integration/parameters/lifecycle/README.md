@@ -216,7 +216,8 @@ verifies that the active object's value/nodes survive further acquisitions.
 Each cable keeps its scalar strength and polarity independently of its nullable
 pooled AutoParam. Audio patching and cable-list displays read the scalar directly.
 Creating lookups can fail; non-creating lookups return null for scalar-only cables.
-Moves transfer automation ownership and rebind its scalar to the new cable slot.
+Each set stores a packed array of nullable cable pointers. Reordering swaps
+pointers, so cable addresses and their scalar bindings remain stable until deletion.
 
 Host cases cover all 32 scalar-only slots, grouping/reordering and compaction,
 slot reuse, final-node deletion, scalar and automation undo, pool exhaustion and
@@ -231,5 +232,24 @@ these host tests.
 Undo reacquires a pooled object for an existing cable whose automation was
 removed. As before, an automation consequence cannot recreate an entirely deleted
 route: it has no snapshot of route metadata such as polarity, and returns an
-error for a missing cable. Clone/load failures retain existing nontransactional
-semantics; tests verify independent ownership and consistent automation flags.
+error for a missing cable. Cable, cable-automation, and destination-map cloning
+failures now propagate through the manager: a distinct destination is retained,
+and a failed shallow manager clone is detached from the source. Existing
+ParamSet/MIDI clone fallback behavior is unchanged. Loading remains
+nontransactional: an unallocatable route is skipped, and any pending range cables
+are released if their parent cannot be allocated.
+
+
+The shared `patch_cable_pool` grows on demand and retains at most 32 unused cable
+blocks. Releasing a cable destroys its AutoParam ownership before caching the raw
+storage. A fresh set allocates no cables, and the per-set limit remains 32 routes.
+Preset defaults use `setup_cable`, which reports allocation failure without
+incrementing the count or leaving a hole; default construction can retain the
+routes that fit. Audio traversal only dereferences already allocated cables.
+
+Additional pool cases check stable addresses through grouping and compaction,
+reuse by another route, inactive-route cleanup, bounded caching and cache draining,
+full-set rejection, releasing an AutoParam reservation when cable allocation fails,
+clone-failure rollback with a populated destination, shallow-manager clone failures,
+and XML/JSON parent-allocation failure after a range cable was allocated.
+AddressSanitizer poisons unused cached cable storage except its free-list link.

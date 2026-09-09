@@ -2150,7 +2150,7 @@ pitchTooHigh:
 
 					// If no changeable sources patched to pitch...
 					for (int32_t c = 0; c < paramManager->getPatchCableSet()->numUsablePatchCables; c++) {
-						PatchCable* cable = &paramManager->getPatchCableSet()->patchCables[c];
+						PatchCable* cable = paramManager->getPatchCableSet()->patch_cables_[c];
 
 						// If it's going to pitch...
 						if (cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_PITCH_ADJUST)

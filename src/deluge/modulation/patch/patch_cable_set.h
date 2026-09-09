@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include <array>
 
 class Song;
 class ModelStackWithParamCollection;
@@ -43,6 +44,8 @@ public:
 	PatchCableSet(ParamCollectionSummary* summary);
 	~PatchCableSet() override;
 
+	void clear_cables(ParamCollectionSummary* summary = nullptr);
+	Error setup_cable(PatchSource source, uint8_t destination, int32_t value);
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
 	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
@@ -109,7 +112,7 @@ public:
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
-	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
+	std::array<PatchCable*, kMaxNumPatchCables> patch_cables_{};
 	uint8_t numUsablePatchCables;
 	uint8_t numPatchCables;
 
@@ -120,6 +123,7 @@ public:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 
 private:
+	PatchCable* append_cable();
 	int32_t find_cable(int32_t param_id) const;
 	void refresh_automation_flags(ParamCollectionSummary* summary);
 	void swapCables(int32_t c1, int32_t c2);

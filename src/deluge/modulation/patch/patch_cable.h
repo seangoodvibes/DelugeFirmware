@@ -41,8 +41,8 @@ public:
 	~PatchCable();
 	PatchCable(const PatchCable&) = delete;
 	PatchCable& operator=(const PatchCable&) = delete;
-	PatchCable(PatchCable&& other) noexcept;
-	PatchCable& operator=(PatchCable&& other) noexcept;
+	PatchCable(PatchCable&&) = delete;
+	PatchCable& operator=(PatchCable&&) = delete;
 	int32_t get_current_value() const { return current_value_; }
 	void set_current_value(int32_t value) { current_value_ = value; }
 	bool is_automated() const { return automation_ && automation_->isAutomated(); }
@@ -50,7 +50,7 @@ public:
 	void release_automation();
 	void release_unautomated();
 	void rebind_automation();
-	void clone_automation(bool copy_automation, int32_t reverse_length);
+	Error clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length);
 	Error take_automation_from(AutoParam& source);
 	void write_amount(Serializer& writer, bool write_automation);
 	void setDefaultPolarity();
