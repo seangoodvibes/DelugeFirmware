@@ -23,6 +23,12 @@ class MIDIParam {
 public:
 	MIDIParam();
 
-	uint8_t cc;
+	uint8_t cc = 0; // Must remain the first member: the vector sorts on this byte.
 	AutoParam param;
+	int32_t get_current_value() const { return current_value_; }
+	void set_current_value(int32_t value) { current_value_ = value; }
+	void rebind_automation();
+
+private:
+	int32_t current_value_ = 0;
 };

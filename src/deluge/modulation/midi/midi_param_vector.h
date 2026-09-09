@@ -24,8 +24,13 @@ class MIDIParam;
 class MIDIParamVector : public OrderedResizeableArray {
 public:
 	MIDIParamVector();
+	const MIDIParam* getParamFromCC(int32_t cc) const;
+	void deleteAtKey(int32_t cc);
 	MIDIParam* getElement(int32_t i);
 	MIDIParam* getParamFromCC(int32_t cc);
 	MIDIParam* insertParam(int32_t i);
 	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);
+
+private:
+	void rebind_automation();
 };

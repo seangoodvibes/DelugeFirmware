@@ -79,6 +79,7 @@ Error MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirect
 
 	// And now, copy the memory for the automation data that each member of params references
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
+		params.getElement(i)->rebind_automation();
 		params.getElement(i)->param.beenCloned(copyAutomation, reverseDirectionWithLength);
 	}
 	return Error::NONE;
@@ -354,3 +355,12 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 
     }
 */
+
+bool MIDIParamCollection::has_current_value(int32_t param_id) const {
+	return params.getParamFromCC(param_id) != nullptr;
+}
+
+int32_t MIDIParamCollection::get_current_value(int32_t param_id) const {
+	auto* owner = params.getParamFromCC(param_id);
+	return owner ? owner->get_current_value() : 0;
+}

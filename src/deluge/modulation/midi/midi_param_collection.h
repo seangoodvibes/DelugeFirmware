@@ -57,7 +57,8 @@ public:
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) override;
 	static int32_t autoparamValueToCC(int32_t newValue);
 
-	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
+	bool has_current_value(int32_t param_id) const override;
+	int32_t get_current_value(int32_t param_id) const override;
 	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
 	                 ParamCollectionSummary* summary = nullptr) override;
 	void sendMIDI(MIDISource source, int32_t channel, int32_t cc, int32_t newValue, int32_t midiOutputFilter);

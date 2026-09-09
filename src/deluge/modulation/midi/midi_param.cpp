@@ -18,5 +18,9 @@
 #include "modulation/midi/midi_param.h"
 
 MIDIParam::MIDIParam() {
-	// TODO Auto-generated constructor stub
+	rebind_automation();
+}
+
+void MIDIParam::rebind_automation() {
+	param.bind_current_value(current_value_);
 }
