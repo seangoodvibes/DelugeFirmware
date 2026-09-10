@@ -48,7 +48,7 @@ public:
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) override;
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override;
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
+	Error remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	Error makeInterpolatedCCsGoodAgain(int32_t clipLength);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) override;
@@ -57,9 +57,10 @@ public:
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) override;
 	static int32_t autoparamValueToCC(int32_t newValue);
 
-	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                ParamCollectionSummary* summary = nullptr) override;
+	bool has_current_value(int32_t param_id) const override;
+	int32_t get_current_value(int32_t param_id) const override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                 ParamCollectionSummary* summary = nullptr) override;
 	void sendMIDI(MIDISource source, int32_t channel, int32_t cc, int32_t newValue, int32_t midiOutputFilter);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -75,5 +76,5 @@ public:
 	MIDIParamVector params;
 
 private:
-	void deleteAllParams(Action* action = NULL, bool deleteStorageToo = true);
+	void refresh_interpolation(ParamCollectionSummary* summary);
 };

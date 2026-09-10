@@ -219,7 +219,7 @@ justAuditionNote:
 				    MPEParamSet* expressionParams = paramManager->getMPEParamSet();
 				    if (expressionParams) {
 				        for (int32_t m = 0; m < NUM_MPE_SOURCES; m++) {
-				            tempExpressionParams[m] = expressionParams->params[m].getCurrentValue() >> 16;
+				            tempExpressionParams[m] = expressionParams->getValue(m) >> 16;
 				        }
 				        mpeValues = tempExpressionParams;
 				    }
@@ -476,7 +476,7 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& 
 				// If existing automation, don't do it.
 				if (activeClip) {
 					if (whichBendRange == BEND_RANGE_MAIN) {
-						if (expressionParams->params[0].isAutomated()) {
+						if (expressionParams->isAutomated(0)) {
 							return;
 						}
 					}
@@ -627,7 +627,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackW
 		__builtin_unreachable();
 	}
 
-	return modelStack->addParam(mpeParams, summary, paramId, &mpeParams->params[paramId]);
+	return modelStack->addParam(mpeParams, summary, paramId, mpeParams->getParam(paramId));
 }
 
 // Big part of this function is that it can decide to call possiblyCloneForArrangementRecording().

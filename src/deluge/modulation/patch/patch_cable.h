@@ -38,6 +38,21 @@ std::string_view polarityToStringShort(const Polarity polarity);
 class PatchCable {
 public:
 	PatchCable() = default;
+	~PatchCable();
+	PatchCable(const PatchCable&) = delete;
+	PatchCable& operator=(const PatchCable&) = delete;
+	PatchCable(PatchCable&&) = delete;
+	PatchCable& operator=(PatchCable&&) = delete;
+	int32_t get_current_value() const { return current_value_; }
+	void set_current_value(int32_t value) { current_value_ = value; }
+	bool is_automated() const { return automation_ && automation_->isAutomated(); }
+	AutoParam* get_auto_param(bool allow_creation = false);
+	void release_automation();
+	void release_unautomated();
+	void rebind_automation();
+	Error clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length);
+	Error take_automation_from(AutoParam& source);
+	void write_amount(Serializer& writer, bool write_automation);
 	void setDefaultPolarity();
 	static bool hasPolarity(PatchSource source);
 	static Polarity getDefaultPolarity(PatchSource source);
@@ -69,6 +84,12 @@ public:
 	PatchSource from{PatchSource::NONE};
 	Polarity polarity{Polarity::BIPOLAR};
 	ParamDescriptor destinationParamDescriptor;
-	AutoParam param; // Amounts have to be within +1073741824 and -1073741824
+
+private:
+	friend class PatchCableSet;
+	int32_t current_value_ = 0; // Amounts are within +1073741824 and -1073741824.
+	AutoParam* automation_ = nullptr;
+
+public:
 	int32_t const* rangeAdjustmentPointer = nullptr;
 };

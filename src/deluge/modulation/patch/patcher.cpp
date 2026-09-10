@@ -181,7 +181,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 	// For each patch cable affecting the range of this cable (got that?)
 	for (int32_t cable = destination->firstCable; cable < destination->endCable; cable++) {
-		PatchCable& patch_cable = patch_cable_set.patchCables[cable];
+		PatchCable& patch_cable = *patch_cable_set.patch_cables_[cable];
 		PatchSource source = patch_cable.from;
 		int32_t source_value = source_values_[std::to_underlying(source)];
 
@@ -195,7 +195,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 			source_value = patch_cable.toPolarity(source_value);
 		}
 
-		int32_t cable_strength = patch_cable.param.getCurrentValue();
+		int32_t cable_strength = patch_cable.get_current_value();
 		running_total = cableToLinearParamWithoutRangeAdjustment(running_total, source_value, cable_strength);
 	}
 
@@ -221,11 +221,11 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
 		for (int32_t cable = destination->firstCable; cable < destination->endCable; cable++) {
-			PatchCable& patch_cable = patch_cable_set.patchCables[cable];
+			PatchCable& patch_cable = *patch_cable_set.patch_cables_[cable];
 			PatchSource source = patch_cable.from;
 			int32_t source_value = source_values_[std::to_underlying(source)];
 			source_value = patch_cable.toPolarity(source_value);
-			int32_t cable_strength = patch_cable.param.getCurrentValue();
+			int32_t cable_strength = patch_cable.get_current_value();
 			running_total = cableToLinearParam(running_total, patch_cable, source_value, cable_strength);
 		}
 	}
@@ -247,7 +247,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
 		for (int32_t c = destination->firstCable; c < destination->endCable; c++) {
-			PatchCable& patch_cable = patch_cable_set.patchCables[c];
+			PatchCable& patch_cable = *patch_cable_set.patch_cables_[c];
 			int32_t source_value = source_values_[std::to_underlying(patch_cable.from)];
 			source_value = patch_cable.toPolarity(source_value);
 			int32_t cable_strength = patch_cable_set.getModifiedPatchCableAmount(c, param);

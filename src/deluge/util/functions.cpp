@@ -266,58 +266,6 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }
 
-char const* sourceToString(PatchSource source) {
-	switch (source) {
-	case PatchSource::LFO_GLOBAL_1:
-		return "lfo1";
-
-	case PatchSource::LFO_GLOBAL_2:
-		return "lfo3";
-
-	case PatchSource::LFO_LOCAL_1:
-		return "lfo2";
-
-	case PatchSource::LFO_LOCAL_2:
-		return "lfo4";
-
-	case PatchSource::ENVELOPE_0:
-		return "envelope1";
-
-	case PatchSource::ENVELOPE_1:
-		return "envelope2";
-
-	case PatchSource::ENVELOPE_2:
-		return "envelope3";
-
-	case PatchSource::ENVELOPE_3:
-		return "envelope4";
-
-	case PatchSource::VELOCITY:
-		return "velocity";
-
-	case PatchSource::NOTE:
-		return "note";
-
-	case PatchSource::SIDECHAIN:
-		return "compressor";
-
-	case PatchSource::RANDOM:
-		return "random";
-
-	case PatchSource::AFTERTOUCH:
-		return "aftertouch";
-
-	case PatchSource::X:
-		return "x";
-
-	case PatchSource::Y:
-		return "y";
-
-	default:
-		return "none";
-	}
-}
-
 char const* getSourceDisplayNameForOLED(PatchSource s) {
 	using enum l10n::String;
 	auto lang = l10n::chosenLanguage;
@@ -371,16 +319,6 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	default:
 		return "none";
 	}
-}
-
-PatchSource stringToSource(char const* string) {
-	for (int32_t s = 0; s < kNumPatchSources; s++) {
-		auto patchSource = static_cast<PatchSource>(s);
-		if (!strcmp(string, sourceToString(patchSource))) {
-			return patchSource;
-		}
-	}
-	return PatchSource::NONE;
 }
 
 // all should be four chars, to fit a fixed column layout

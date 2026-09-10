@@ -435,5 +435,44 @@ int main() {
 		check(shallow.has_valid_layout(), "Successful shallow clone must retain a valid layout");
 	}
 	check(allocations.empty(), "Successful shallow clone must release its independent allocations");
+
+	for (bool shallow : {false, true}) {
+		// A populated distinct destination retains its expression, so only three
+		// source collections are copied. Shallow cloning copies all four.
+		const int collection_count = shallow ? 4 : 3;
+		for (int failure = 0; failure < collection_count; ++failure) {
+			{
+				ParamManager source, destination;
+				populate(source, Kind::UNPATCHED_SOUND, true);
+				if (shallow)
+					destination = source;
+				else
+					populate(destination, Kind::MIDI, true);
+				ParamManager snapshot = destination;
+				const auto allocation_count = allocations.size();
+				const int destructors_before = ParamCollection::clone_destructor_count;
+				ParamCollection::clone_calls_before_failure = failure;
+				auto error =
+				    shallow ? destination.beenCloned() : destination.cloneParamCollectionsFrom(&source, true, true);
+				ParamCollection::clone_calls_before_failure = -1;
+				check(error == Error::INSUFFICIENT_RAM, "Collection hook failure must propagate");
+				check(allocations.size() == allocation_count,
+				      "Hook failure must release all temporary collection allocations");
+				check(ParamCollection::clone_destructor_count - destructors_before == failure + 1,
+				      "Destroy only initialized clones, including the failed collection");
+				if (shallow) {
+					check(destination.has_valid_layout() && !destination.matches_type(ParamManagerType::ANY),
+					      "Hook failure must detach the shallow manager from its source");
+					check_unchanged(source, snapshot);
+				}
+				else
+					check_unchanged(destination, snapshot);
+				for (auto& summary : snapshot.summaries)
+					summary = {};
+				snapshot.expressionParamSetOffset = 0;
+			}
+			check(allocations.empty(), "Hook failure must not leak or double-free source collections");
+		}
+	}
 	std::puts("Param manager transfer regressions passed");
 }

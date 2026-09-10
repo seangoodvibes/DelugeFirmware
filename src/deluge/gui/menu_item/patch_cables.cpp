@@ -51,7 +51,7 @@ void PatchCables::renderOptions() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
 	for (int i = 0; i < set->numPatchCables; i++) {
-		PatchCable* cable = &set->patchCables[i];
+		PatchCable* cable = set->patch_cables_[i];
 		PatchSource src = cable->from;
 		PatchSource src2 = PatchSource::NOT_AVAILABLE;
 		ParamDescriptor desc = cable->destinationParamDescriptor;
@@ -78,7 +78,7 @@ void PatchCables::renderOptions() {
 			off = 5;
 		}
 
-		int32_t param_value = cable->param.getCurrentValue();
+		int32_t param_value = cable->get_current_value();
 		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
 
 		float floatLevel = (float)level / 100;
@@ -142,7 +142,7 @@ ActionResult PatchCables::timerCallback() {
 
 void PatchCables::blinkShortcuts() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
-	PatchCable* cable = &set->patchCables[currentValue];
+	PatchCable* cable = set->patch_cables_[currentValue];
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	int dest = desc.getJustTheParam();
 
@@ -189,7 +189,7 @@ MenuItem* PatchCables::selectButtonPress() {
 		// to select a source anyway, so take them back there.
 		return MenuItem::selectButtonPress();
 	}
-	PatchCable* cable = &set->patchCables[val];
+	PatchCable* cable = set->patch_cables_[val];
 	savedVal = val;
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	int dest = desc.getJustTheParam();

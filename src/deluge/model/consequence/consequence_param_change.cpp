@@ -27,7 +27,10 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	type = Consequence::PARAM_CHANGE;
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
-	state.value = modelStack->autoParam->currentValue;
+	state.value = modelStack->autoParam ? modelStack->autoParam->getCurrentValue()
+	                                    : modelStack->paramCollection->get_current_value(modelStack->paramId);
+	if (!modelStack->autoParam)
+		return;
 
 	// Either steal the data...
 	if (stealData) {
@@ -36,17 +39,20 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 
 	// Or clone it...
 	else {
-		state.nodes.cloneFrom(&modelStack->autoParam->nodes);
+		snapshot_complete = state.nodes.cloneFrom(&modelStack->autoParam->nodes);
 	}
 }
 
 Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
+	// An allocation failure is not an empty automation snapshot. Never swap an
+	// incomplete snapshot into the owner, even if memory is available again.
+	if (!snapshot_complete) {
+		return Error::INSUFFICIENT_RAM;
+	}
 
 	// We only actually store one state at a time - either the before, or the after. As we revert in either direction,
 	// we swap our stored state with that of the param in question - like, actually swap the pointer to the
 	// ParamNodeVector, so it's real efficient!
 
-	modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
-
-	return Error::NONE;
+	return modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
 }

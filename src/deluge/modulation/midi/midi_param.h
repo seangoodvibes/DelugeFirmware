@@ -21,8 +21,25 @@
 
 class MIDIParam {
 public:
-	MIDIParam();
+	MIDIParam() = default;
+	~MIDIParam();
+	MIDIParam(const MIDIParam&) = delete;
+	MIDIParam& operator=(const MIDIParam&) = delete;
+	int32_t get_current_value() const { return current_value_; }
+	void set_current_value(int32_t value) { current_value_ = value; }
+	AutoParam* get_auto_param(bool allow_creation = false);
+	bool is_automated() const { return automation_ && automation_->isAutomated(); }
+	void rebind_automation();
+	void release_automation();
+	void release_unautomated();
+	Error clone_automation(bool copy_automation, int32_t reverse_length);
+	Error read_from_file(Deserializer& reader, int32_t automation_limit);
+	void write_to_file(Serializer& writer);
 
-	uint8_t cc;
-	AutoParam param;
+	uint8_t cc = 0; // Must remain the first member: the vector sorts on this byte.
+
+private:
+	friend class MIDIParamCollection;
+	int32_t current_value_ = 0;
+	AutoParam* automation_ = nullptr;
 };
