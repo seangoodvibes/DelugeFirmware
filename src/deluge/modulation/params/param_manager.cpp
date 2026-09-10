@@ -154,7 +154,7 @@ void ParamManager::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* m
 	}
 
 	if (currentValueChanged) {
-		view.notifyParamAutomationOccurred(this);
+		view_for_session().notifyParamAutomationOccurred(this);
 	}
 }
 

@@ -67,4 +67,4 @@ private:
 	void doSlice();
 };
 
-extern Slicer slicer;
+Slicer& slicer_for_session();

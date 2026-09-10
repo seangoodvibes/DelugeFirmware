@@ -73,7 +73,8 @@ public:
 			int32_t mask = (1 << val) - 1; // Creates a mask where the first 'divisor' bits are 1
 			// Wipe the bits whose index is greater than the current divisor value
 			int32_t newIteranceSteps = ((iterance.toInt() & 0xFF) & mask);
-			instrumentClipView.setNoteRowIteranceWithFinalValue(Iterance{(uint8_t)val, newIteranceSteps});
+			instrument_clip_view_for_session().setNoteRowIteranceWithFinalValue(
+			    Iterance{(uint8_t)val, newIteranceSteps});
 		}
 	}
 };

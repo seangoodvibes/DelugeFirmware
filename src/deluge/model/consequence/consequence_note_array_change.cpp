@@ -18,13 +18,19 @@
 #include "model/consequence/consequence_note_array_change.h"
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/song/song.h"
 
 ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId,
                                                        NoteVector* newNoteVector, bool stealData) {
 	type = Consequence::NOTE_ARRAY_CHANGE;
 	clip = newClip;
 	noteRowId = newNoteRowId;
+	if (clip && clip->type == ClipType::INSTRUMENT) {
+		if (auto* row = clip->getNoteRowFromId(noteRowId))
+			note_row_identity = row->undo_identity;
+	}
 
 	// Either steal the data...
 	if (stealData) {
@@ -33,14 +39,19 @@ ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, 
 
 	// Or clone it...
 	else {
-		backedUpNoteVector.cloneFrom(newNoteVector);
+		snapshot_valid_ = backedUpNoteVector.cloneFrom(newNoteVector);
 	}
 }
 
 Error ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) {
+	if (!snapshot_valid_)
+		return Error::BUG;
+	if (!modelStack || !modelStack->song || !modelStack->song->contains_clip_for_undo(clip)
+	    || clip->type != ClipType::INSTRUMENT)
+		return Error::BUG;
 
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
-	if (!noteRow) {
+	if (!noteRow || !note_row_identity || noteRow->undo_identity != note_row_identity) {
 		return Error::BUG;
 	}
 

@@ -24,7 +24,7 @@ public:
 	using MenuItem::MenuItem;
 
 	MenuItem* selectButtonPress() override {
-		audioClipView.setClipLengthEqualToSampleLength();
+		audio_clip_view_for_session().setClipLengthEqualToSampleLength();
 		return NO_NAVIGATION;
 	}
 

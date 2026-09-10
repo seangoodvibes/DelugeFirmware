@@ -20,6 +20,7 @@
 #include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -52,11 +53,19 @@ namespace params = deluge::modulation::params;
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)), arpeggiator(), defaultArpSettings() {
 	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
-	selectedDrum = nullptr;
+	selected_drum_for_session() = nullptr;
 	drumsWithRenderingActive.emptyingShouldFreeMemory = false;
 }
 
 Kit::~Kit() {
+	// Audio servicing below can yield before each drum is destroyed.
+	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+		auto& selected = selected_drums.for_owner(owner);
+		if (selected) {
+			selected = nullptr;
+			deluge::gui::ui_session::navigation.for_owner(owner).structural_refresh.request();
+		}
+	}
 	// Reset arpeggiator
 	arpeggiator.reset();
 
@@ -252,7 +261,7 @@ moveOn:
 
 void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
                           int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song) {
-	if (thisDrum == selectedDrum) {
+	if (thisDrum == selected_drum_for_session()) {
 		*selectedDrumIndex = *drumIndex;
 	}
 
@@ -329,7 +338,7 @@ doReadDrum:
 	}
 
 	if (selectedDrumIndex != -1) {
-		selectedDrum = getDrumFromIndex(selectedDrumIndex);
+		selected_drum_for_session() = getDrumFromIndex(selectedDrumIndex);
 	}
 
 	if (paramManager.matches_type(required_param_manager_type())) {
@@ -428,6 +437,7 @@ void Kit::addDrum(Drum* newDrum) {
 	*prevPointer = newDrum;
 
 	newDrum->kit = this;
+	deluge::gui::ui_session::request_peer_structural_refresh();
 }
 
 void Kit::removeDrumFromKitArpeggiator(int32_t drumIndex) {
@@ -451,8 +461,19 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 }
 
 void Kit::drumRemoved(Drum* drum) {
-	if (selectedDrum == drum) {
-		selectedDrum = nullptr;
+	if (!drum) {
+		return;
+	}
+	// Peer operations may retain this drum even when it isn't their selected row.
+	deluge::gui::ui_session::request_peer_structural_refresh();
+	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+		auto& selected = selected_drums.for_owner(owner);
+		if (selected == drum) {
+			selected = nullptr;
+			if (owner == deluge::gui::ui_session::current()) {
+				deluge::gui::ui_session::navigation.for_owner(owner).structural_refresh.request();
+			}
+		}
 	}
 
 #if ALPHA_OR_BETA_VERSION
@@ -1414,7 +1435,7 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
                               Drum* thisDrum) {
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
-	// do we need to update the selectedDrum?
+	// do we need to update the selected_drum_for_session()?
 	possiblySetSelectedDrumAndRefreshUI(thisDrum);
 
 	bool recordingNoteOnEarly = false;
@@ -1514,7 +1535,7 @@ goingToRecordNoteOnEarly:
 
 		// MPE stuff - if editing note, we need to take note of the initial values which might have been sent before
 		// this note-on.
-		instrumentClipView.reportMPEInitialValuesForNoteEditing(modelStackWithNoteRow, mpeValues);
+		instrument_clip_view_for_session().reportMPEInitialValuesForNoteEditing(modelStackWithNoteRow, mpeValues);
 
 		if (!thisNoteRow || !thisNoteRow->sequenced) {
 
@@ -1560,7 +1581,7 @@ goingToRecordNoteOnEarly:
 					}
 				}
 			}
-			instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
+			instrument_clip_view_for_session().reportNoteOffForMPEEditing(modelStackWithNoteRow);
 
 			// MPE-controlled params are a bit special in that we can see (via this note-off) when the user has removed
 			// their finger and won't be sending more values. So, let's unlatch those params now.
@@ -1577,7 +1598,7 @@ goingToRecordNoteOnEarly:
 
 void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 	if (midiEngine.midiSelectKitRow) {
-		instrumentClipView.setSelectedDrum(thisDrum, true, this);
+		instrument_clip_view_for_session().setSelectedDrum(thisDrum, true, this);
 	}
 }
 

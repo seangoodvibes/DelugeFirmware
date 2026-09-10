@@ -32,7 +32,8 @@ public:
 		ModelStackWithParamId modelStack; // TODO: yikes, is this safe? What about NoteRow pointers etc?
 	};
 	AutoParamState state;
+	bool snapshot_valid() const { return snapshot_valid_; }
 
 private:
-	bool snapshot_complete = true;
+	bool snapshot_valid_ = true;
 };

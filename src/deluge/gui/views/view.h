@@ -52,6 +52,8 @@ class View {
 public:
 	View();
 	void focusRegained();
+	void reset_midi_learn_for_session_startup();
+	void reset_modulation_for_session_startup();
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void setTimeBaseScaleLedState();
 	void setLedStates();
@@ -189,4 +191,5 @@ private:
 	PatchSource pendingPopupSource2 = PatchSource::NONE;
 };
 
-extern View view;
+View& view_for_session();
+const View* view_for_session_if_initialized();

@@ -55,4 +55,4 @@ private:
 	Error currentLabelLoadError = Error::NONE;
 };
 
-extern LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI;
+LoadMidiDeviceDefinitionUI& load_midi_device_definition_ui_for_session();

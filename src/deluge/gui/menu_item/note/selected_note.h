@@ -27,10 +27,10 @@ public:
 	using Integer::Integer;
 
 	bool shouldEnterSubmenu() override {
-		int32_t x_display = instrumentClipView.lastSelectedNoteXDisplay;
-		int32_t y_display = instrumentClipView.lastSelectedNoteYDisplay;
+		int32_t x_display = instrument_clip_view_for_session().lastSelectedNoteXDisplay;
+		int32_t y_display = instrument_clip_view_for_session().lastSelectedNoteYDisplay;
 		if (x_display != kNoSelection && y_display != kNoSelection) {
-			if (instrumentClipView.gridSquareInfo[y_display][x_display].isValid) {
+			if (instrument_clip_view_for_session().gridSquareInfo[y_display][x_display].isValid) {
 				return true;
 			}
 		}

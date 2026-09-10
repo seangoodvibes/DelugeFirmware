@@ -18,6 +18,7 @@
 #ifndef DELUGE_TASK_H
 #define DELUGE_TASK_H
 #include "OSLikeStuff/scheduler_api.h"
+#include "gui/ui/ui_session.h"
 #include "resource_checker.h"
 
 #include <io/debug/log.h>
@@ -107,6 +108,7 @@ struct Task {
 	}
 	// returns true if the task becomes runnable
 	bool checkCondition() {
+		deluge::gui::ui_session::Scope owner_scope(ui_owner);
 		if (condition != nullptr && state == State::BLOCKED) {
 			if (condition()) {
 				state = State::READY;
@@ -123,6 +125,7 @@ struct Task {
 	[[nodiscard]] bool isReleased(Time currentTime) const { return currentTime > earliestCallTime; }
 	[[nodiscard]] bool resourcesAvailable() const { return _checker.checkResources(); }
 	TaskHandle handle{nullptr};
+	deluge::gui::ui_session::Id ui_owner{deluge::gui::ui_session::current()};
 	TaskSchedule schedule{0, 0, 0, 0};
 	Time earliestCallTime;
 	Time idealCallTime{0};

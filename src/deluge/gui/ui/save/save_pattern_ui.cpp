@@ -41,7 +41,13 @@ static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHY
 static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
-SavePatternUI savePatternUI{};
+namespace {
+SavePatternUI local_save_pattern_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SavePatternUI> remote_save_pattern_ui;
+} // namespace
+SavePatternUI& save_pattern_ui_for_session() {
+	return remote_save_pattern_ui.get(local_save_pattern_ui);
+}
 
 SavePatternUI::SavePatternUI() {
 	filePrefix = "PATTERN";
@@ -71,7 +77,7 @@ bool SavePatternUI::opened() {
 
 	Instrument* currentInstrument = getCurrentInstrument();
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
-	outputTypeToLoad = currentInstrument->type;
+	output_type_to_load_for_session() = currentInstrument->type;
 
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
@@ -81,7 +87,7 @@ doReturnFalse:
 		return false;
 	}
 
-	currentFolderIsEmpty = false;
+	current_folder_is_empty_for_session() = false;
 
 	std::string patternFolder = "";
 	if (getCurrentOutputType() == OutputType::KIT) {
@@ -103,13 +109,13 @@ doReturnFalse:
 	}
 
 tryDefaultDir:
-	currentDir.set(defaultDir.c_str());
+	current_dir_for_session().set(defaultDir.c_str());
 
 	fileIcon = deluge::hid::display::OLED::midiIcon;
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 0;
 
-	error = arrivedInNewFolder(0, enteredText.get(), defaultDir.c_str());
+	error = arrivedInNewFolder(0, entered_text_for_session().get(), defaultDir.c_str());
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -130,7 +136,7 @@ ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
+			if (!strcmp(current_dir_for_session().get(), defaultDir.c_str())) {
 				close();
 				return ActionResult::DEALT_WITH;
 			}
@@ -159,13 +165,13 @@ fail:
 	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
+		gui::context_menu::overwrite_file_for_session().currentSaveUI = this;
 
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
+		bool available = gui::context_menu::overwrite_file_for_session().setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
 			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::overwriteFile);
+			openUI(&gui::context_menu::overwrite_file_for_session());
 			return true;
 		}
 		else {
@@ -184,7 +190,7 @@ fail:
 
 	Serializer& writer = GetSerializer();
 
-	instrumentClipView.copyNotesToFile(writer, selectedDrumOnly);
+	instrument_clip_view_for_session().copyNotesToFile(writer, selectedDrumOnly);
 
 	writer.closeFileAfterWriting();
 

@@ -29,7 +29,13 @@ namespace deluge::gui::context_menu::clip_settings {
 
 constexpr size_t kNumValues = 5;
 
-NewClipType newClipType{};
+namespace {
+NewClipType local_new_clip_type{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<NewClipType> remote_new_clip_type;
+} // namespace
+NewClipType& new_clip_type_for_session() {
+	return remote_new_clip_type.get(local_new_clip_type);
+}
 
 bool NewClipType::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return false; // don't greyout
@@ -55,8 +61,8 @@ std::span<char const*> NewClipType::getOptions() {
 bool NewClipType::setupAndCheckAvailability() {
 	currentUIMode = UI_MODE_CREATING_CLIP;
 
-	if (FlashStorage::defaultUseLastClipType && sessionView.lastTypeCreated != OutputType::NONE) {
-		toCreate = sessionView.lastTypeCreated;
+	if (FlashStorage::defaultUseLastClipType && session_view_for_session().lastTypeCreated != OutputType::NONE) {
+		toCreate = session_view_for_session().lastTypeCreated;
 	}
 	else {
 		toCreate = FlashStorage::defaultNewClipType;
@@ -144,12 +150,12 @@ bool NewClipType::acceptCurrentOption() {
 		b = CV;
 	}
 
-	sessionView.clipCreationButtonPressed(b, 1, sdRoutineLock); // let the grid handle this
+	session_view_for_session().clipCreationButtonPressed(b, 1, sdRoutineLock); // let the grid handle this
 
 	return true;
 }
 ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
-	ActionResult result = sessionView.padAction(x, y, on); // let the grid handle this
+	ActionResult result = session_view_for_session().padAction(x, y, on); // let the grid handle this
 
 	display->setNextTransitionDirection(-1);
 	close();
@@ -164,7 +170,7 @@ ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		acceptCurrentOption();
 	}
 	else {
-		sessionView.clipCreationButtonPressed(b, on, inCardRoutine); // let the grid handle this
+		session_view_for_session().clipCreationButtonPressed(b, on, inCardRoutine); // let the grid handle this
 	}
 
 	display->setNextTransitionDirection(-1);

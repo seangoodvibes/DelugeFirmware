@@ -97,4 +97,4 @@ private:
 	[[nodiscard]] MarkerType reverseRemap(MarkerType type) const;
 };
 
-extern SampleMarkerEditor sampleMarkerEditor;
+SampleMarkerEditor& sample_marker_editor_for_session();

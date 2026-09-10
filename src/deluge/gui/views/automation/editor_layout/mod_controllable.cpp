@@ -108,7 +108,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
-		                    getAutomationView()->toTimelineView(), currentSong->tripletsOn, xDisplay);
+		                    getAutomationView()->toTimelineView(), currentSong->triplets_on_for_session(), xDisplay);
 	}
 }
 
@@ -280,8 +280,8 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+		                                                          currentSong->last_selected_param_id_for_session());
 	}
 	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -336,8 +336,8 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+		                                                          currentSong->last_selected_param_id_for_session());
 	}
 	else {
 		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
@@ -358,15 +358,15 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 			params::Kind lastSelectedParamKind = params::Kind::NONE;
 			int32_t lastSelectedParamID = params::kNoParamID;
 			if (getOnArrangerView()) {
-				lastSelectedParamKind = currentSong->lastSelectedParamKind;
-				lastSelectedParamID = currentSong->lastSelectedParamID;
+				lastSelectedParamKind = currentSong->last_selected_param_kind_for_session();
+				lastSelectedParamID = currentSong->last_selected_param_id_for_session();
 			}
 			else {
-				lastSelectedParamKind = clip->lastSelectedParamKind;
-				lastSelectedParamID = clip->lastSelectedParamID;
+				lastSelectedParamKind = clip->last_selected_param_kind_for_session();
+				lastSelectedParamID = clip->last_selected_param_id_for_session();
 			}
-			knobPosLeft = view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID,
-			                                              getLastPadSelectedKnobPos());
+			knobPosLeft = view_for_session().calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID,
+			                                                            getLastPadSelectedKnobPos());
 		}
 	}
 
@@ -411,13 +411,13 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		int32_t lastSelectedParamID = params::kNoParamID;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
 		if (getOnArrangerView()) {
-			lastSelectedParamKind = currentSong->lastSelectedParamKind;
-			lastSelectedParamID = currentSong->lastSelectedParamID;
+			lastSelectedParamKind = currentSong->last_selected_param_kind_for_session();
+			lastSelectedParamID = currentSong->last_selected_param_id_for_session();
 		}
 		else {
-			lastSelectedParamKind = clip->lastSelectedParamKind;
-			lastSelectedParamID = clip->lastSelectedParamID;
-			lastSelectedPatchSource = clip->lastSelectedPatchSource;
+			lastSelectedParamKind = clip->last_selected_param_kind_for_session();
+			lastSelectedParamID = clip->last_selected_param_id_for_session();
+			lastSelectedPatchSource = clip->last_selected_patch_source_for_session();
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
 			PatchSource source2 = PatchSource::NONE;
@@ -442,16 +442,17 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			}
 
 			parameterName.append(params::getPatchedParamShortName(
-			    lastSelectedParamID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
+			    lastSelectedParamID,
+			    (ModControllableAudio*)view_for_session().activeModControllableModelStack.modControllable));
 		}
 		else {
-			parameterName.append(
-			    getParamDisplayName(lastSelectedParamKind, lastSelectedParamID,
-			                        (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
+			parameterName.append(getParamDisplayName(
+			    lastSelectedParamKind, lastSelectedParamID,
+			    (ModControllableAudio*)view_for_session().activeModControllableModelStack.modControllable));
 		}
 	}
 	else {
-		((MIDIInstrument*)clip->output)->appendCCName(parameterName, clip->lastSelectedParamID);
+		((MIDIInstrument*)clip->output)->appendCCName(parameterName, clip->last_selected_param_id_for_session());
 	}
 }
 
@@ -515,7 +516,7 @@ void AutomationEditorLayoutModControllable::automationEditPadAction(ModelStackWi
 	if (velocity) {
 		// If this is a automation-length-edit press...
 		// needed for Automation
-		if (instrumentClipView.numEditPadPresses == 1) {
+		if (instrument_clip_view_for_session().numEditPadPresses == 1) {
 
 			int32_t firstPadX = 255;
 			int32_t firstPadY = 255;
@@ -523,10 +524,10 @@ void AutomationEditorLayoutModControllable::automationEditPadAction(ModelStackWi
 			// Find that original press
 			int32_t i;
 			for (i = 0; i < kEditPadPressBufferSize; i++) {
-				if (instrumentClipView.editPadPresses[i].isActive) {
+				if (instrument_clip_view_for_session().editPadPresses[i].isActive) {
 
-					firstPadX = instrumentClipView.editPadPresses[i].xDisplay;
-					firstPadY = instrumentClipView.editPadPresses[i].yDisplay;
+					firstPadX = instrument_clip_view_for_session().editPadPresses[i].xDisplay;
+					firstPadY = instrument_clip_view_for_session().editPadPresses[i].yDisplay;
 
 					break;
 				}
@@ -587,18 +588,18 @@ singlePadPressAction:
 		// Find the corresponding press, if there is one
 		int32_t i;
 		for (i = 0; i < kEditPadPressBufferSize; i++) {
-			if (instrumentClipView.editPadPresses[i].isActive
-			    && instrumentClipView.editPadPresses[i].yDisplay == yDisplay
-			    && instrumentClipView.editPadPresses[i].xDisplay == xDisplay) {
+			if (instrument_clip_view_for_session().editPadPresses[i].isActive
+			    && instrument_clip_view_for_session().editPadPresses[i].yDisplay == yDisplay
+			    && instrument_clip_view_for_session().editPadPresses[i].xDisplay == xDisplay) {
 				break;
 			}
 		}
 
 		// If we found it...
 		if (i < kEditPadPressBufferSize) {
-			instrumentClipView.endEditPadPress(i);
+			instrument_clip_view_for_session().endEditPadPress(i);
 
-			instrumentClipView.checkIfAllEditPadPressesEnded();
+			instrument_clip_view_for_session().checkIfAllEditPadPressesEnded();
 		}
 
 		// outside pad selection mode, exit multi pad press once you've let go of the first pad in the
@@ -609,7 +610,8 @@ singlePadPressAction:
 		// switch from long press selection to short press selection in pad selection mode
 		else if (getPadSelectionOn() && getMultiPadPressSelected() && !getMultiPadPressActive()
 		         && (currentUIMode != UI_MODE_NOTES_PRESSED)
-		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
+		         && ((AudioEngine::audioSampleTimer - instrument_clip_view_for_session().timeLastEditPadPress)
+		             < kShortPressTime)) {
 
 			getMultiPadPressSelected() = false;
 
@@ -635,28 +637,29 @@ singlePadPressAction:
 }
 
 bool AutomationEditorLayoutModControllable::recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
-	instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
+	instrument_clip_view_for_session().timeLastEditPadPress = AudioEngine::audioSampleTimer;
 	// Find an empty space in the press buffer, if there is one
 	int32_t i;
 	for (i = 0; i < kEditPadPressBufferSize; i++) {
-		if (!instrumentClipView.editPadPresses[i].isActive) {
+		if (!instrument_clip_view_for_session().editPadPresses[i].isActive) {
 			break;
 		}
 	}
 	if (i < kEditPadPressBufferSize) {
-		instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		instrument_clip_view_for_session().shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 
 		// If this is the first press, record the time
-		if (instrumentClipView.numEditPadPresses == 0) {
-			instrumentClipView.timeFirstEditPadPress = AudioEngine::audioSampleTimer;
-			instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		if (instrument_clip_view_for_session().numEditPadPresses == 0) {
+			instrument_clip_view_for_session().timeFirstEditPadPress = AudioEngine::audioSampleTimer;
+			instrument_clip_view_for_session().shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress =
+			    false;
 		}
 
-		instrumentClipView.editPadPresses[i].isActive = true;
-		instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
-		instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
-		instrumentClipView.numEditPadPresses++;
-		instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
+		instrument_clip_view_for_session().editPadPresses[i].isActive = true;
+		instrument_clip_view_for_session().editPadPresses[i].yDisplay = yDisplay;
+		instrument_clip_view_for_session().editPadPresses[i].xDisplay = xDisplay;
+		instrument_clip_view_for_session().numEditPadPresses++;
+		instrument_clip_view_for_session().numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
 		enterUIMode(UI_MODE_NOTES_PRESSED);
 
 		return true;
@@ -692,16 +695,16 @@ bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelecte
 			// find pads that are currently pressed
 			int32_t i;
 			for (i = 0; i < kEditPadPressBufferSize; i++) {
-				if (instrumentClipView.editPadPresses[i].isActive) {
-					xDisplay = instrumentClipView.editPadPresses[i].xDisplay;
+				if (instrument_clip_view_for_session().editPadPresses[i].isActive) {
+					xDisplay = instrument_clip_view_for_session().editPadPresses[i].xDisplay;
 				}
 			}
 		}
 
 		uint32_t squareStart = 0;
 
-		int32_t xScroll = currentSong->xScroll[getNavSysId()];
-		int32_t xZoom = currentSong->xZoom[getNavSysId()];
+		int32_t xScroll = currentSong->x_scroll_for_session()[getNavSysId()];
+		int32_t xZoom = currentSong->x_zoom_for_session()[getNavSysId()];
 
 		// for the second pad pressed in a long press, the square start position is set to the very last
 		// nodes position
@@ -725,7 +728,7 @@ bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelecte
 			setAutomationParameterValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
 			                            xScroll, xZoom, true);
 
-			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
+			view_for_session().potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
 			// once first or last pad in a multi pad press is adjusted, re-render calculate multi pad
 			// press based on revised start/ending values
@@ -752,9 +755,9 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		    == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
+			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view_for_session().modPos);
 
 			int32_t newKnobPos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
 
@@ -764,7 +767,8 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 			// use default interpolation settings
 			initInterpolation();
 
-			set_parameter_region(modelStackWithParam, newValue, view.modPos, view.modLength);
+			set_parameter_region(modelStackWithParam, newValue, view_for_session().modPos,
+			                     view_for_session().modLength);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
@@ -777,11 +781,11 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 
-			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
+			view_for_session().potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
 			// midi follow and midi feedback enabled
 			// re-send midi cc because learned parameter value has changed
-			view.sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
+			view_for_session().sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 		}
 	}
 }
@@ -1011,7 +1015,7 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 
 	// midi follow and midi feedback enabled
 	// re-send midi cc because learned parameter value has changed
-	view.sendMidiFollowFeedback(modelStack, knobPos);
+	view_for_session().sendMidiFollowFeedback(modelStack, knobPos);
 }
 
 // sets both knob indicators to the same value when pressing single pad,
@@ -1026,8 +1030,8 @@ void AutomationEditorLayoutModControllable::setAutomationKnobIndicatorLevels(Mod
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 	if (kind == params::Kind::PATCH_CABLE) {
-		knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
-		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
+		knobPosLeft = view_for_session().convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
+		knobPosRight = view_for_session().convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
 	}
 
 	bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
@@ -1047,10 +1051,10 @@ void AutomationEditorLayoutModControllable::updateAutomationModPosition(ModelSta
 	if (!playbackHandler.isEitherClockActive() || getPadSelectionOn()) {
 		if (modelStack && modelStack->autoParam) {
 			if (modelStack->getTimelineCounter()
-			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			    == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-				view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-				    squareStart, &view.activeModControllableModelStack);
+				view_for_session().activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+				    squareStart, &view_for_session().activeModControllableModelStack);
 
 				int32_t knobPos = getAutomationParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
 
@@ -1378,7 +1382,7 @@ int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForModE
 
 	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	int32_t newKnobPos = view.calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
+	int32_t newKnobPos = view_for_session().calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
 
 	return newKnobPos;
 }

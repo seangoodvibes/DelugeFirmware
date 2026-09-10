@@ -32,7 +32,8 @@ public:
 	using Selection::Selection;
 
 	bool shouldEnterSubmenu() {
-		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor() && !isUIModeActive(UI_MODE_AUDITIONING)) {
+		if (getCurrentUI() == &sound_editor_for_session() && sound_editor_for_session().inNoteRowEditor()
+		    && !isUIModeActive(UI_MODE_AUDITIONING)) {
 			display->displayPopup("Select Row");
 			return false;
 		}
@@ -41,20 +42,20 @@ public:
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
-		if (!clip->affectEntire && clip->output->type == OutputType::KIT) {
+		if (!clip->affect_entire_for_session() && clip->output->type == OutputType::KIT) {
 			Kit* kit = getCurrentKit();
-			if (kit->selectedDrum != nullptr) {
-				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
+			if (kit->selected_drum_for_session() != nullptr) {
+				return clip->getNoteRowForDrum(modelStack, kit->selected_drum_for_session()); // Still might be NULL;
 			}
 		}
 		else if (clip->output->type != OutputType::KIT) {
-			if (soundEditor.selectedNoteRow) {
+			if (sound_editor_for_session().selectedNoteRow) {
 				// get model stack with note row but don't create note row if it doesn't exist
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
+				    clip->getNoteRowOnScreen(instrument_clip_view_for_session().lastAuditionedYDisplay, modelStack);
 				if (!modelStackWithNoteRow->getNoteRowAllowNull()) { // if note row doesn't exist yet, create it
-					modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
-					    modelStack, instrumentClipView.lastAuditionedYDisplay);
+					modelStackWithNoteRow = instrument_clip_view_for_session().createNoteRowForYDisplay(
+					    modelStack, instrument_clip_view_for_session().lastAuditionedYDisplay);
 				}
 				return modelStackWithNoteRow;
 			}
@@ -110,19 +111,19 @@ public:
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
 		OutputType outputType = getCurrentOutputType();
-		if (!getCurrentInstrumentClip()->affectEntire && outputType == OutputType::KIT
-		    && (getCurrentKit()->selectedDrum == nullptr)) {
+		if (!getCurrentInstrumentClip()->affect_entire_for_session() && outputType == OutputType::KIT
+		    && (getCurrentKit()->selected_drum_for_session() == nullptr)) {
 			return MenuPermission::NO;
 		}
 		else if (outputType != OutputType::KIT) {
-			soundEditor.selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);
+			sound_editor_for_session().selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);
 		}
 		return MenuPermission::YES;
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const auto current_value = this->getValue<SequenceDirection>();
 		if (current_value == SequenceDirection::OBEY_PARENT) {

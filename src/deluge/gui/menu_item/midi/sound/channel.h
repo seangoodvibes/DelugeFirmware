@@ -33,7 +33,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
 	void readCurrentValue() override {
-		int32_t value = soundEditor.currentSound->outputMidiChannel;
+		int32_t value = sound_editor_for_session().currentSound->outputMidiChannel;
 		if (value == MIDI_CHANNEL_NONE) {
 			value = 0;
 		}
@@ -52,7 +52,8 @@ public:
 			value = value - 1;
 		}
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -65,7 +66,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->outputMidiChannel = value;
+			sound_editor_for_session().currentSound->outputMidiChannel = value;
 		}
 	}
 
@@ -82,7 +83,7 @@ public:
 	}
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 		int32_t value = this->getValue();
 		if (value == 0) {
 			canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_OFF), yPixel + OLED_MAIN_TOPMOST_PIXEL,

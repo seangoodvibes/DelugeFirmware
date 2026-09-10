@@ -31,7 +31,7 @@ float Number::normalize(int32_t value) {
 }
 
 void Number::drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r, int32_t height) {
-	oled_canvas::Canvas& canvas = OLED::main;
+	oled_canvas::Canvas& canvas = OLED::main_for_session();
 	if (margin_r == -1) {
 		margin_r = margin_l;
 	}
@@ -99,13 +99,14 @@ void Number::renderInHorizontalMenu(const SlotPosition& slot) {
 	default:
 		DEF_STACK_STRING_BUF(paramValue, 10);
 		paramValue.appendInt(getValue());
-		return OLED::main.drawStringCentered(paramValue, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
-		                                     kTextTitleSpacingX, kTextTitleSizeY, slot.width);
+		return OLED::main_for_session().drawStringCentered(paramValue, slot.start_x,
+		                                                   slot.start_y + kHorizontalMenuSlotYOffset,
+		                                                   kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 	}
 }
 
 void Number::drawPercent(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	DEF_STACK_STRING_BUF(valueString, 12);
 	valueString.appendInt(getValue() * 2);
@@ -125,7 +126,7 @@ void Number::drawPercent(const SlotPosition& slot) {
 }
 
 void Number::drawKnob(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	// Draw the background arc
 	// Easier to adjust pixel-perfect, so we use a bitmap
@@ -154,7 +155,7 @@ void Number::drawKnob(const SlotPosition& slot) {
 }
 
 void Number::drawBar(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr uint8_t bar_width = 21;
 	constexpr uint8_t bar_height = 5;
@@ -173,7 +174,7 @@ void Number::drawBar(const SlotPosition& slot) {
 }
 
 void Number::drawSlider(const SlotPosition& slot, std::optional<int32_t> value) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr int32_t slider_width = 23;
 	constexpr int32_t slider_height = 11;
@@ -200,7 +201,7 @@ void Number::drawSlider(const SlotPosition& slot, std::optional<int32_t> value) 
 }
 
 void Number::drawLengthSlider(const SlotPosition& slot, bool min_slider_pos) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr int32_t slider_width = 23;
 	constexpr int32_t slider_height = 11;
@@ -227,7 +228,7 @@ void Number::drawLengthSlider(const SlotPosition& slot, bool min_slider_pos) {
 }
 
 void Number::drawPan(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr uint8_t bar_width = 21;
 	constexpr uint8_t bar_height = 5;
@@ -269,7 +270,7 @@ void Number::drawPan(const SlotPosition& slot) {
 }
 
 void Number::drawHpf(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr uint8_t slope_width = 5;
 	constexpr uint8_t width = 21;
@@ -299,7 +300,7 @@ void Number::drawHpf(const SlotPosition& slot) {
 }
 
 void Number::drawLpf(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr uint8_t slope_width = 5;
 	constexpr uint8_t width = 21;
@@ -329,7 +330,7 @@ void Number::drawLpf(const SlotPosition& slot) {
 }
 
 void Number::drawRelease(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr uint8_t width = 19;
 	constexpr uint8_t height = 11;
@@ -359,7 +360,7 @@ void Number::drawRelease(const SlotPosition& slot) {
 }
 
 void Number::drawAttack(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr uint8_t width = 19;
 	constexpr uint8_t height = 11;
@@ -387,7 +388,7 @@ void Number::drawAttack(const SlotPosition& slot) {
 }
 
 void Number::drawSidechainDucking(const SlotPosition& slot) {
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr int32_t width = 23;
 	constexpr int32_t height = 11;

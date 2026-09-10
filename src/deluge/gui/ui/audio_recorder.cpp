@@ -20,13 +20,16 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/recording_session.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "hid/mirror.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -44,7 +47,16 @@
 #include "util/d_string.h"
 #include <string.h>
 
-AudioRecorder audioRecorder{};
+namespace {
+AudioRecorder local_audio_recorder{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<AudioRecorder> remote_audio_recorder;
+deluge::gui::ui_session::RecordingSession recording_session;
+} // namespace
+AudioRecorder& audio_recorder_for_session() {
+	return remote_audio_recorder.get(local_audio_recorder);
+}
+AudioInputChannel AudioRecorder::recordingSource = AudioInputChannel::NONE;
+SampleRecorder* AudioRecorder::recorder = nullptr;
 
 extern "C" void routineForSD(void);
 
@@ -55,18 +67,20 @@ extern "C" {
 void oledRoutine();
 }
 
-AudioRecorder::AudioRecorder() {
-	recordingSource = AudioInputChannel::NONE;
-	recorder = nullptr;
-}
-
 bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;
 }
 
 bool AudioRecorder::opened() {
+	// Reject competing UI entry even while recorder allocation is yielding.
+	if (recording_session.active()) {
+		return false;
+	}
 	updatedRecordingStatus = false;
+	target = {currentSong, sound_editor_for_session().currentSound, sound_editor_for_session().currentSource,
+	          sound_editor_for_session().currentMultiRange,
+	          deluge::gui::ui_session::navigation.active().structural_refresh.revision()};
 
 	actionLogger.deleteAllLogs();
 
@@ -78,7 +92,7 @@ bool AudioRecorder::opened() {
 	// If recording for a Drum, set the name of the Drum
 	if (getCurrentOutputType() == OutputType::KIT) {
 		Kit* kit = getCurrentKit();
-		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
+		SoundDrum* drum = (SoundDrum*)sound_editor_for_session().currentSound;
 		String newName;
 
 		Error error = newName.set("REC");
@@ -103,11 +117,11 @@ gotError:
 	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
 	                                    AudioRecordingFolder::RECORD);
 	if (success) {
-		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
-		soundEditor.blinkShortcut();
+		sound_editor_for_session().setupShortcutBlink(sound_editor_for_session().currentSourceIndex, 4, 0);
+		sound_editor_for_session().blinkShortcut();
 
-		indicator_leds::setLedState(IndicatorLED::SYNTH, !soundEditor.editingKit());
-		indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
+		indicator_leds::setLedState(IndicatorLED::SYNTH, !sound_editor_for_session().editingKit());
+		indicator_leds::setLedState(IndicatorLED::KIT, sound_editor_for_session().editingKit());
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 		indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
 		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
@@ -120,7 +134,7 @@ gotError:
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		instrumentClipView.cancelAllAuditioning();
+		instrument_clip_view_for_session().cancelAllAuditioning();
 	}
 
 	return success;
@@ -134,13 +148,14 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
                                          AudioRecordingFolder folderID, bool writeLoopPoints, bool shouldNormalize) {
 
-	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
-		FREEZE_WITH_ERROR("E242");
+	if (!recording_session.acquire()) {
+		return false;
 	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
 	                                       kInternalButtonPressLatency, false, nullptr, {false});
 	if (!recorder) {
+		recording_session.release();
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
 	}
@@ -170,6 +185,7 @@ bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInput
 }
 
 void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
+	deluge::gui::ui_session::Scope owner(recording_session.owner());
 
 	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
 	if (recorder && recorder->status == RecorderStatus::CAPTURING_DATA) {
@@ -179,6 +195,9 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
+	deluge::gui::ui_session::Scope owner(recording_session.owner());
+	if (deluge::hid::mirror::is_client())
+		return;
 	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids doing from inside the SD card
 	// routine - the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves
 	// that cardRoutine() running on freed memory (then freeing it a second time). As a scheduler task we're already
@@ -204,32 +223,55 @@ void AudioRecorder::slowRoutine() {
 }
 
 void AudioRecorder::process() {
+	using namespace deluge::gui::ui_session;
+	Scope owner(recording_session.owner());
+	if (!recording_session.active() || recorder == nullptr) {
+		return;
+	}
+	// Completion and UI state always belong to the panel that started recording.
+	if (&audio_recorder_for_session() != this) {
+		audio_recorder_for_session().process();
+		return;
+	}
 	while (true) {
-		AudioEngine::routineWithClusterLoading();
+		{
+			Scope hardware(Id::Local);
+			AudioEngine::routineWithClusterLoading();
 
-		uiTimerManager.routine();
+			uiTimerManager.routine();
 
-		if (display->haveOLED()) {
-			oledRoutine();
+			if (display->haveOLED()) {
+				oledRoutine();
+			}
+			PIC::flush();
+
+			readButtonsAndPads();
+
+			AudioEngine::slowRoutine();
+			deluge::hid::mirror::transport_routine();
 		}
-		PIC::flush();
-
-		readButtonsAndPads();
-
-		AudioEngine::slowRoutine();
+		if (recording_session.owner() == Id::Remote) {
+			uiTimerManager.routine();
+		}
 
 		// If recording has finished...
 		if (recorder->status >= RecorderStatus::COMPLETE || recorder->hadCardError) {
 
 			if (recorder->status == RecorderStatus::ABORTED || recorder->hadCardError) {}
 
-			else {
-				// We want to attach that Sample to a Source right away...
-				soundEditor.currentSound->killAllVoices();
-				soundEditor.currentSource->setOscType(OscType::SAMPLE);
-				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
-				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
-				    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
+			else if (target
+			         == RecordingTarget{currentSong, sound_editor_for_session().currentSound,
+			                            sound_editor_for_session().currentSource,
+			                            sound_editor_for_session().currentMultiRange,
+			                            navigation.active().structural_refresh.revision()}) {
+				// Attach only if the original destination is still selected and uninvalidated.
+				sound_editor_for_session().currentSound->killAllVoices();
+				sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
+				sound_editor_for_session().currentMultiRange->getAudioFileHolder()->filePath.set(
+				    &recorder->sample->filePath);
+				sound_editor_for_session().currentMultiRange->getAudioFileHolder()->setAudioFile(
+				    recorder->sample, sound_editor_for_session().currentSource->sampleControls.isCurrentlyReversed(),
+				    true);
 			}
 			finishRecording();
 
@@ -252,8 +294,8 @@ void AudioRecorder::process() {
 				}
 				else {
 					deluge::hid::display::OLED::clearMainImage();
-					deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX,
-					                                                   kTextBigSizeY);
+					deluge::hid::display::OLED::main_for_session().drawStringCentred("Recording", 19, kTextBigSpacingX,
+					                                                                 kTextBigSizeY);
 					deluge::hid::display::OLED::sendMainImage();
 				}
 				updatedRecordingStatus = true;
@@ -264,6 +306,7 @@ void AudioRecorder::process() {
 
 // Returns error code
 void AudioRecorder::finishRecording() {
+	deluge::gui::ui_session::Scope owner(recording_session.owner());
 	recorder->pointerHeldElsewhere = false;
 
 	AudioEngine::discardRecorder(recorder);
@@ -271,6 +314,7 @@ void AudioRecorder::finishRecording() {
 	recorder = nullptr;
 	recordingSource = AudioInputChannel::NONE;
 	display->removeLoadingAnimation();
+	recording_session.release();
 }
 
 ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {

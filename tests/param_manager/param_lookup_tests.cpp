@@ -60,9 +60,13 @@ public:
 	int calls = 0;
 	bool creation = false;
 	bool exists = true;
+	bool return_null = false;
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* stack, bool allowCreation) override {
 		++calls;
 		creation = allowCreation;
+		if (return_null) {
+			return nullptr;
+		}
 		return stack->addAutoParam(stack->paramId == expectedId && (exists || allowCreation) ? &parameter : nullptr);
 	}
 };
@@ -78,7 +82,97 @@ void expectNull(ModelStackWithAutoParam* result) {
 	check(!result || !result->autoParam, "Invalid lookup must not expose an AutoParam");
 }
 
+// Exercise production lookup after its move into separate compilation units.
+// Remote menu context and fallback selection must not read the host panel.
+void check_remote_lookup_isolation() {
+	using namespace deluge::gui::ui_session;
+	InstrumentClip clip;
+	MelodicInstrument synth;
+	synth.type = OutputType::SYNTH;
+	clip.output = &synth;
+	Collections local_collections, remote_collections, clipCollections;
+	ParamManagerForTimeline local_manager, remote_manager;
+	local_collections.install(local_manager);
+	remote_collections.install(remote_manager);
+	clipCollections.install(clip.paramManager);
+	soundEditor.currentModControllable = &synth;
+	soundEditor.currentParamManager = &local_manager;
+	remote_sound_editor.currentModControllable = &synth;
+	remote_sound_editor.currentParamManager = &remote_manager;
+	clip.lastSelectedParamID = 2;
+	clip.lastSelectedParamKind = params::Kind::PATCHED;
+	clip.remote_param_id = 3;
+	clip.remote_param_kind = params::Kind::UNPATCHED_SOUND;
+	ModelStackWithAutoParam storage{};
+	auto* timeline = setupModelStackWithTimelineCounter(&storage, nullptr, &clip);
+	AutomationView editor;
+	{
+		Scope remote(Id::Remote);
+		currentUI = &remote_sound_editor;
+		expect(editor.getModelStackWithParamForClip(timeline, &clip, params::kNoParamID, params::Kind::NONE),
+		       clip.paramManager, 0, 3);
+		deluge::gui::menu_item::PatchedParam menu;
+		menu.id = 2;
+		expect(menu.getModelStack(&storage), remote_manager, 1, 2);
+		check(current() == Id::Remote, "Lookup must preserve Remote ownership");
+	}
+	currentUI = &soundEditor;
+	expect(editor.getModelStackWithParamForClip(timeline, &clip, params::kNoParamID, params::Kind::NONE),
+	       clip.paramManager, 1, 2);
+	deluge::gui::menu_item::PatchedParam local_menu;
+	local_menu.id = 2;
+	expect(local_menu.getModelStack(&storage), local_manager, 1, 2);
+	check(clip.lastSelectedParamID == 2, "Remote lookup must preserve host selection");
+	currentUI = nullptr;
+	soundEditor.currentParamManager = nullptr;
+	soundEditor.currentModControllable = nullptr;
+	remote_sound_editor.currentParamManager = nullptr;
+	remote_sound_editor.currentModControllable = nullptr;
+}
+
+void check_menu_kind_context_failures() {
+	using namespace deluge::gui::ui_session;
+	Collections local_collections, remote_collections;
+	ParamManagerForTimeline local_manager, remote_manager;
+	local_collections.install(local_manager);
+	remote_collections.install(remote_manager, true);
+	soundEditor.currentParamManager = &local_manager;
+	remote_sound_editor.currentParamManager = &remote_manager;
+	deluge::gui::menu_item::UnpatchedParam menu;
+	deluge::gui::menu_item::PatchedParam patched_menu;
+	ModelStackWithAutoParam storage{};
+	{
+		Scope local(Id::Local);
+		check(menu.getParamKind() == params::Kind::UNPATCHED_SOUND, "Local must retain sound parameter kind");
+	}
+	{
+		Scope remote(Id::Remote);
+		check(menu.getParamKind() == params::Kind::UNPATCHED_GLOBAL, "Remote must resolve global parameter kind");
+		for (int invalid_id : {-1, 255, INT_MAX}) {
+			menu.id = invalid_id;
+			check(menu.getParamKind() == params::Kind::NONE, "Invalid parameter must have no kind");
+		}
+		menu.id = 0;
+		remote_sound_editor.currentParamManager = nullptr;
+		check(menu.getParamKind() == params::Kind::NONE, "Missing manager must have no kind");
+		remote_sound_editor.currentParamManager = &remote_manager;
+		remote_sound_editor.model_stack_available = false;
+		expectNull(menu.getModelStack(&storage));
+		expectNull(patched_menu.getModelStack(&storage));
+		check(menu.getParamKind() == params::Kind::NONE, "Missing model stack must have no kind");
+		remote_sound_editor.model_stack_available = true;
+	}
+	{
+		Scope local(Id::Local);
+		check(menu.getParamKind() == params::Kind::UNPATCHED_SOUND, "Rejected Remote lookup must preserve Local");
+	}
+	soundEditor.currentParamManager = nullptr;
+	remote_sound_editor.currentParamManager = nullptr;
+}
+
 int main() {
+	check_menu_kind_context_failures();
+	check_remote_lookup_isolation();
 	ModelStackWithAutoParam storage{};
 	ParamManagerForTimeline manager;
 	Collections collections;
@@ -275,11 +369,24 @@ int main() {
 	check(cable.creation && cableMenu.polarityChanges == 1, "New cable must receive menu polarity once");
 	cableMenu.getModelStack(&storage, true);
 	check(cableMenu.polarityChanges == 1, "Repeated lookup must not reset polarity");
+	cable.return_null = true;
+	expectNull(cableMenu.getModelStack(&storage, true));
+	check(cableMenu.polarityChanges == 1, "Failed lookup must not apply polarity");
+	cable.return_null = false;
 	soundEditor.currentParamManager = nullptr;
 	expectNull(cableMenu.getModelStackWithParam(&storage));
 	soundEditor.currentParamManager = &menuManager;
 	menuCollections.install(menuManager, true);
 	expectNull(cableMenu.getModelStackWithParam(&storage));
+	// A matching GLOBAL owner/manager is still not a patch-cable context.
+	AudioOutput global_owner;
+	auto* previous_owner = soundEditor.currentModControllable;
+	soundEditor.currentModControllable = &global_owner;
+	expectNull(cableMenu.getModelStack(&storage, true));
+	menuCollections.install(menuManager);
+	soundEditor.currentModControllable = nullptr;
+	expectNull(cableMenu.getModelStack(&storage, true));
+	soundEditor.currentModControllable = previous_owner;
 	clipCollections.install(clip.paramManager, true);
 	expectNull(synth.getModelStackWithParam(timeline, &clip, 0, params::Kind::UNPATCHED_SOUND, true, false));
 	rowCollections.install(row.paramManager, true);

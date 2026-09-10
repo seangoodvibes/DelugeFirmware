@@ -42,7 +42,7 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override {
-		const auto& source = soundEditor.currentSound->sources[source_id_];
+		const auto& source = sound_editor_for_session().currentSound->sources[source_id_];
 		setValue(source.repeatMode);
 	}
 	void writeCurrentValue() override {
@@ -79,15 +79,15 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			Source& source = soundEditor.currentSound->sources[source_id_];
+			Source& source = sound_editor_for_session().currentSound->sources[source_id_];
 
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
 			if (current_value == SampleRepeatMode::STRETCH) {
-				soundEditor.currentSound->killAllVoices();
+				sound_editor_for_session().currentSound->killAllVoices();
 				source.sampleControls.pitchAndSpeedAreIndependent = true;
 			}
 			else if (source.repeatMode == SampleRepeatMode::STRETCH) {
-				soundEditor.currentSound->killAllVoices();
+				sound_editor_for_session().currentSound->killAllVoices();
 				source.sampleControls.pitchAndSpeedAreIndependent = false;
 			}
 
@@ -101,7 +101,7 @@ public:
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just
 		// one row, but we don't know which
-		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		uiNeedsRendering(&instrument_clip_view_for_session(), 0xFFFFFFFF, 0);
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
@@ -114,7 +114,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		const auto& source = soundEditor.currentSound->sources[source_id_];
+		const auto& source = sound_editor_for_session().currentSound->sources[source_id_];
 		const Icon& icon = [&] {
 			switch (source.repeatMode) {
 			case SampleRepeatMode::CUT:
@@ -128,7 +128,7 @@ public:
 			}
 			return OLED::sampleModeCutIcon;
 		}();
-		OLED::main.drawIcon(icon, slot.start_x + 4, slot.start_y + kHorizontalMenuSlotYOffset - 4);
+		OLED::main_for_session().drawIcon(icon, slot.start_x + 4, slot.start_y + kHorizontalMenuSlotYOffset - 4);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(getOptions(OptType::SHORT)[getValue()]); }
@@ -138,14 +138,16 @@ private:
 
 	static void sendNoteOffForKitArpeggiator(Kit* kit) {
 		int32_t noteRowIndex;
-		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(kit->selectedDrum, &noteRowIndex);
+		NoteRow* noteRow =
+		    getCurrentInstrumentClip()->getNoteRowForDrum(kit->selected_drum_for_session(), &noteRowIndex);
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = (ModelStack*)modelStackMemory;
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addTimelineCounter(getCurrentClip())
 		        ->addNoteRow(noteRowIndex, noteRow)
-		        ->addOtherTwoThings(soundEditor.currentModControllable, soundEditor.currentParamManager);
-		kit->noteOffPreKitArp(modelStackWithThreeMainThings, kit->selectedDrum);
+		        ->addOtherTwoThings(sound_editor_for_session().currentModControllable,
+		                            sound_editor_for_session().currentParamManager);
+		kit->noteOffPreKitArp(modelStackWithThreeMainThings, kit->selected_drum_for_session());
 	}
 };
 

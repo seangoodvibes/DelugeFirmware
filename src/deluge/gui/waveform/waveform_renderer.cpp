@@ -18,6 +18,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
+#include "gui/ui/ui_session.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
@@ -35,7 +36,13 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
-WaveformRenderer waveformRenderer{};
+namespace {
+WaveformRenderer local_waveform_renderer{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<WaveformRenderer> remote_waveform_renderer;
+} // namespace
+WaveformRenderer& waveform_renderer_for_session() {
+	return remote_waveform_renderer.get(local_waveform_renderer);
+}
 
 WaveformRenderer::WaveformRenderer() {
 }

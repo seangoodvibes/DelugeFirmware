@@ -53,7 +53,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		int32_t newValue = instrumentClipView.setNoteRowProbabilityWithOffset(offset);
+		int32_t newValue = instrument_clip_view_for_session().setNoteRowProbabilityWithOffset(offset);
 		if (newValue != -1) {
 			this->setValue(newValue);
 			updateDisplay();
@@ -70,7 +70,8 @@ public:
 			strcat(buffer, " (L)");
 		}
 
-		OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
+		OLED::main_for_session().drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+		                                           kTextHugeSizeY);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
@@ -80,8 +81,8 @@ public:
 		intToString(getProbabilityValue(latching), buffer);
 		strcat(buffer, latching ? "L" : "%");
 
-		OLED::main.drawStringCentered(buffer, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
-		                              kTextSpacingY, slot.width);
+		OLED::main_for_session().drawStringCentered(buffer, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+		                                            kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
 	void drawValue() override {

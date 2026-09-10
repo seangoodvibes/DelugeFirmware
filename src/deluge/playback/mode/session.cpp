@@ -153,7 +153,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	if (numRepetitions <= -1) {
 		numRepetitions = currentSong->sections[oldSection].numRepetitions;
 	}
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+	if (currentSong->session_layout_for_session() == SessionLayoutType::SessionLayoutTypeRows) {
 		if (currentSong->sessionClips.getClipAtIndex(0)->section != oldSection) {
 
 			int32_t newSection = SECTION_OUT_OF_RANGE;
@@ -172,7 +172,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 		}
 	}
 	// grid mode - just go to the next section, no need to worry about what order they're in
-	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	else if (currentSong->session_layout_for_session() == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (oldSection < kMaxNumSections) {
 			int32_t newSection = SECTION_OUT_OF_RANGE;
 			for (int32_t c = oldSection + 1; c <= kMaxNumSections; ++c) {
@@ -213,8 +213,8 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 
 	if (begun) {
 
-		if (getRootUI() == &sessionView) {
-			sessionView.clipNeedsReRendering(clip); // Necessary for InstrumentClips
+		if (getRootUI() == &session_view_for_session()) {
+			session_view_for_session().clipNeedsReRendering(clip); // Necessary for InstrumentClips
 		}
 
 		// if we're creating a new recording based on a previous clip on the same
@@ -240,13 +240,13 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 
 	if (newOutputCreated) {
 
-		if (getRootUI() == &arrangerView) {
+		if (getRootUI() == &arranger_view_for_session()) {
 
-			if (getCurrentUI() == &arrangerView) {
-				arrangerView.exitSubModeWithoutAction();
+			if (getCurrentUI() == &arranger_view_for_session()) {
+				arranger_view_for_session().exitSubModeWithoutAction();
 			}
 
-			arrangerView.repopulateOutputsOnScreen(true);
+			arranger_view_for_session().repopulateOutputsOnScreen(true);
 		}
 	}
 
@@ -286,7 +286,7 @@ void Session::doLaunch(bool isFillLaunch) {
 		// For a normal launch, all armed clips either stop or start, and nothing is armed afterwards.
 		// For a fill launch this is not true, fills can come in and then immediately arm to stop later,
 		// Plus non fills should be unaffected and must remain armed (and visibly so).
-		view.flashPlayDisable();
+		view_for_session().flashPlayDisable();
 	}
 	currentSong->deactivateAnyArrangementOnlyClips(); // In case any still playing after switch from arrangement
 
@@ -542,7 +542,7 @@ stopOnlyIfOutputTaken:
 
 	// Now's the point where old linear recording has ended, and new is yet to begin. So separate any Actions, for
 	// separate undoability
-	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.close_recording_action();
 
 	bool sectionWasJustLaunched = (lastSectionArmed < SECTION_OUT_OF_RANGE);
 	bool anyLinearRecordingAfter = false;
@@ -633,7 +633,7 @@ doNormalLaunch:
 						// that new clip is now the active clip for that output
 						// send updated feedback so that midi controller has the latest values for
 						// the current clip selected for midi follow control
-						view.sendMidiFollowFeedback();
+						view_for_session().sendMidiFollowFeedback();
 					}
 
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
@@ -804,16 +804,16 @@ void Session::launchSchedulingMightNeedCancelling() {
 		cancelAllLaunchScheduling();
 		if (display->haveOLED()) {
 			RootUI* rootUI = getRootUI();
-			if (loadSongUI.isLoadingSong()) {
-				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
+			if (load_song_ui_for_session().isLoadingSong()) {
+				load_song_ui_for_session().displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
-			else if ((rootUI == &sessionView || rootUI == &performanceView)
+			else if ((rootUI == &session_view_for_session() || rootUI == &performance_view_for_session())
 			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 				renderUIsForOled();
 			}
 		}
 		else {
-			sessionView.redrawNumericDisplay();
+			session_view_for_session().redrawNumericDisplay();
 		}
 	}
 }
@@ -985,7 +985,7 @@ void Session::cancelArmingForClip(Clip* clip, int32_t* clipIndex) {
 		bool anyDeleted = currentSong->deletePendingOverdubs(clip->output, clipIndex);
 		if (anyDeleted) {
 			// use root UI in case this is called from performance view
-			sessionView.requestRendering(getRootUI());
+			session_view_for_session().requestRendering(getRootUI());
 		}
 	}
 
@@ -1059,7 +1059,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 				if (playbackHandler.playbackState) {
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
-					if (rootUI == &sessionView || rootUI == &performanceView) {
+					if (rootUI == &session_view_for_session() || rootUI == &performance_view_for_session()) {
 						uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 					}
 					return;
@@ -1104,17 +1104,18 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							cancelAllArming();
 							cancelAllLaunchScheduling();
 							Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-							currentSong->setClipLength(clip, clip->getLivePos() + 1, action,
-							                           false); // Tell it not to resync
+							if (!currentSong->setClipLength(clip, clip->getLivePos() + 1, action,
+							                                false)) // Tell it not to resync
+								return;
 							armClipToStopAction(clip);
 
-							sessionView.clipNeedsReRendering(clip);
+							session_view_for_session().clipNeedsReRendering(clip);
 							if (getCurrentClip()) {
-								if (getCurrentClip()->onAutomationClipView) {
-									uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
+								if (getCurrentClip()->on_automation_clip_view_for_session()) {
+									uiNeedsRendering(&automation_view_for_session(), 0xFFFFFFFF, 0);
 								}
 								else {
-									uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+									uiNeedsRendering(&instrument_clip_view_for_session(), 0xFFFFFFFF, 0);
 								}
 							}
 						}
@@ -1193,7 +1194,7 @@ void Session::soloClipAction(Clip* clip, bool doInstant, int32_t buttonPressLate
 			if (playbackHandler.playbackState) {
 				playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 				// use root UI in case this is called from performance view
-				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+				session_view_for_session().requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 				goto renderAndGetOut;
 			}
 		}
@@ -1208,7 +1209,7 @@ void Session::soloClipAction(Clip* clip, bool doInstant, int32_t buttonPressLate
 
 renderAndGetOut:
 	if (anyClipsDeleted) {
-		sessionView.requestRendering(getRootUI());
+		session_view_for_session().requestRendering(getRootUI());
 	}
 }
 
@@ -1296,8 +1297,8 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	RootUI* rootUI = getRootUI();
-	if (rootUI == &sessionView || rootUI == &performanceView) {
-		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
+	if (rootUI == &session_view_for_session() || rootUI == &performance_view_for_session()) {
+		session_view_for_session().requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (display->haveOLED()) {
@@ -1307,11 +1308,11 @@ void Session::armingChanged() {
 				}
 			}
 			else {
-				sessionView.redrawNumericDisplay();
+				session_view_for_session().redrawNumericDisplay();
 			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
-				view.flashPlayEnable();
+				view_for_session().flashPlayEnable();
 			}
 		}
 	}
@@ -2149,7 +2150,7 @@ bool Session::endPlayback() {
 
 		// Re-render
 		// use root UI in case this is called from performance view
-		sessionView.requestRendering(getRootUI());
+		session_view_for_session().requestRendering(getRootUI());
 
 		// And exit RECORD mode, as indicated on LED
 		if (playbackHandler.recording == RecordingMode::NORMAL) {
@@ -2333,8 +2334,8 @@ traverseClips:
 		// If no more repeats remain, do the actual launch event now!
 		if (numRepeatsTilLaunch <= 0) {
 
-			if (playbackHandler.stopOutputRecordingAtLoopEnd && audioRecorder.isCurrentlyResampling()) {
-				audioRecorder.endRecordingSoon();
+			if (playbackHandler.stopOutputRecordingAtLoopEnd && audio_recorder_for_session().isCurrentlyResampling()) {
+				audio_recorder_for_session().endRecordingSoon();
 			}
 
 			// If we're doing a song swap...
@@ -2385,16 +2386,16 @@ traverseClips:
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
 			if (display->haveOLED()) {
 				RootUI* rootUI = getRootUI();
-				if (loadSongUI.isLoadingSong()) {
-					loadSongUI.displayLoopsRemainingPopup();
+				if (load_song_ui_for_session().isLoadingSong()) {
+					load_song_ui_for_session().displayLoopsRemainingPopup();
 				}
-				else if ((rootUI == &sessionView || rootUI == &performanceView)
+				else if ((rootUI == &session_view_for_session() || rootUI == &performance_view_for_session())
 				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 					renderUIsForOled();
 				}
 			}
 			else {
-				sessionView.redrawNumericDisplay();
+				session_view_for_session().redrawNumericDisplay();
 			}
 		}
 	}
@@ -2500,9 +2501,9 @@ void Session::doTickForward(int32_t posIncrement) {
 				Clip* newClip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
 				newClip->processCurrentPos(modelStackWithTimelineCounter, 0);
 
-				if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-					view.activeModControllableModelStack.setTimelineCounter(newClip);
-					view.activeModControllableModelStack.paramManager = &newClip->paramManager;
+				if (view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
+					view_for_session().activeModControllableModelStack.setTimelineCounter(newClip);
+					view_for_session().activeModControllableModelStack.paramManager = &newClip->paramManager;
 				}
 			}
 		}

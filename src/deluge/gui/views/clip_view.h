@@ -39,8 +39,8 @@ protected:
 	int32_t getTickSquare();
 	virtual ModControllableAudio* getModControllableAudioOrNone() { return nullptr; }
 
-	Action* lengthenClip(int32_t newLength);
-	Action* shortenClip(int32_t newLength);
+	bool lengthenClip(int32_t newLength, Action*& action);
+	bool shortenClip(int32_t newLength, Action*& action);
 	uint32_t changeClipLength(int32_t offset, uint32_t oldLength, Action*& action);
 
 	void maybeStartShortcutOverview(deluge::hid::Button b, bool on);

@@ -33,14 +33,16 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoId_].syncType,
-		                                            soundEditor.currentSound->lfoConfig[lfoId_].syncLevel));
+		this->setValue(
+		    syncTypeAndLevelToMenuOption(sound_editor_for_session().currentSound->lfoConfig[lfoId_].syncType,
+		                                 sound_editor_for_session().currentSound->lfoConfig[lfoId_].syncLevel));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -59,13 +61,13 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->lfoConfig[lfoId_].syncType = syncValueToSyncType(current_value);
-			soundEditor.currentSound->lfoConfig[lfoId_].syncLevel = syncValueToSyncLevel(current_value);
+			sound_editor_for_session().currentSound->lfoConfig[lfoId_].syncType = syncValueToSyncType(current_value);
+			sound_editor_for_session().currentSound->lfoConfig[lfoId_].syncLevel = syncValueToSyncLevel(current_value);
 			// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 			// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 			// would be enough?
-			soundEditor.currentSound->resyncGlobalLFOs();
-			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
+			sound_editor_for_session().currentSound->resyncGlobalLFOs();
+			sound_editor_for_session().currentSound->setupPatchingForAllParamManagers(currentSong);
 		}
 	}
 

@@ -40,4 +40,4 @@ public:
 	UIType getUIType() override { return UIType::SAVE_MIDI_DEVICE_DEFINITION; }
 };
 
-extern SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI;
+SaveMidiDeviceDefinitionUI& save_midi_device_definition_ui_for_session();

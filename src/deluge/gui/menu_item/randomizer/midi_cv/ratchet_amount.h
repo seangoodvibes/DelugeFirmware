@@ -25,11 +25,12 @@ class RatchetAmount final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->ratchetAmount));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->ratchetAmount));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->ratchetAmount = value;
+		sound_editor_for_session().currentArpSettings->ratchetAmount = value;
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };

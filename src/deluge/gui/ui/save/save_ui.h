@@ -40,5 +40,5 @@ public:
 protected:
 	// void displayText(bool blinkImmediately) final;
 	void enterKeyPress() final;
-	static bool currentFolderIsEmpty;
+	static bool& current_folder_is_empty_for_session();
 };

@@ -272,7 +272,7 @@ doChangeType:
 			if (error != Error::NONE) {
 				destructAllMultiRanges();
 				ranges.empty();
-				soundEditor.currentMultiRangeIndex = 0;
+				sound_editor_for_session().currentMultiRangeIndex = 0;
 				goto doChangeType; // Can't fail now it's empty.
 			}
 
@@ -281,10 +281,10 @@ doChangeType:
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
 
-			if (soundEditor.currentMultiRangeIndex >= 0
-			    && soundEditor.currentMultiRangeIndex < ranges.getNumElements()) {
-				soundEditor.currentMultiRange =
-				    (MultiRange*)ranges.getElementAddress(soundEditor.currentMultiRangeIndex);
+			if (sound_editor_for_session().currentMultiRangeIndex >= 0
+			    && sound_editor_for_session().currentMultiRangeIndex < ranges.getNumElements()) {
+				sound_editor_for_session().currentMultiRange =
+				    (MultiRange*)ranges.getElementAddress(sound_editor_for_session().currentMultiRangeIndex);
 			}
 		}
 	}

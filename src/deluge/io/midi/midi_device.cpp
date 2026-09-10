@@ -117,7 +117,7 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 
 				// TODO: we're supposed to also ensure no notes left on by channels no longer in use...
 
-				soundEditor.mpeZonesPotentiallyUpdated();
+				sound_editor_for_session().mpeZonesPotentiallyUpdated();
 			}
 
 			// Master Channel of Upper zone

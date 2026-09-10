@@ -32,10 +32,10 @@ public:
 	PerformanceEditingMode currentMode;
 
 	void readCurrentValue() override {
-		if (!performanceView.defaultEditingMode) {
+		if (!performance_view_for_session().defaultEditingMode) {
 			currentMode = PerformanceEditingMode::DISABLED;
 		}
-		else if (!performanceView.editingParam) {
+		else if (!performance_view_for_session().editingParam) {
 			currentMode = PerformanceEditingMode::VALUE;
 		}
 		else {
@@ -52,25 +52,25 @@ public:
 		}
 		// here we're going to want to step into the value editing or param editing UI
 		else if (currentMode == PerformanceEditingMode::VALUE) {
-			performanceView.defaultEditingMode = true;
-			performanceView.editingParam = false;
+			performance_view_for_session().defaultEditingMode = true;
+			performance_view_for_session().editingParam = false;
 		}
 		else { // PerformanceEditingMode::PARAM
-			performanceView.defaultEditingMode = true;
-			performanceView.editingParam = true;
+			performance_view_for_session().defaultEditingMode = true;
+			performance_view_for_session().editingParam = true;
 		}
 
-		if (!performanceView.editingParam) {
+		if (!performance_view_for_session().editingParam) {
 			// reset performance view when you switch modes
 			// but not when in param editing mode cause that would reset param assignments to FX columns
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			performanceView.resetPerformanceView(modelStack);
+			performance_view_for_session().resetPerformanceView(modelStack);
 		}
 
 		display->setNextTransitionDirection(1);
-		openUI(&performanceView);
+		openUI(&performance_view_for_session());
 		return NO_NAVIGATION;
 	}
 

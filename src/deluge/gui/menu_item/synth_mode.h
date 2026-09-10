@@ -28,13 +28,14 @@ namespace deluge::gui::menu_item {
 class SynthModeSelection final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->synthMode); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentSound->synthMode); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<::SynthMode>();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -52,9 +53,9 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->setSynthMode(current_value, currentSong);
+			sound_editor_for_session().currentSound->setSynthMode(current_value, currentSong);
 		}
-		view.setKnobIndicatorLevels();
+		view_for_session().setKnobIndicatorLevels();
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

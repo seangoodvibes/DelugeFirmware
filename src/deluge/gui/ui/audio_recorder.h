@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/recording_session.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 
@@ -29,7 +30,7 @@ class SampleRecorder;
 
 class AudioRecorder final : public UI {
 public:
-	AudioRecorder();
+	AudioRecorder() = default;
 	bool opened() override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
@@ -41,9 +42,9 @@ public:
 	void slowRoutine();
 	bool isCurrentlyResampling();
 
-	AudioInputChannel recordingSource;
+	static AudioInputChannel recordingSource;
 
-	SampleRecorder* recorder;
+	static SampleRecorder* recorder;
 
 	void endRecordingSoon(int32_t buttonLatency = 0);
 
@@ -55,9 +56,10 @@ public:
 	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
 
 private:
+	deluge::gui::ui_session::RecordingTarget target;
 	void finishRecording();
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
 	                          bool writeLoopPoints = false, bool shouldNormalize = true);
 };
 
-extern AudioRecorder audioRecorder;
+AudioRecorder& audio_recorder_for_session();

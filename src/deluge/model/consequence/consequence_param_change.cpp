@@ -39,14 +39,14 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 
 	// Or clone it...
 	else {
-		snapshot_complete = state.nodes.cloneFrom(&modelStack->autoParam->nodes);
+		snapshot_valid_ = state.nodes.cloneFrom(&modelStack->autoParam->nodes);
 	}
 }
 
 Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
 	// An allocation failure is not an empty automation snapshot. Never swap an
 	// incomplete snapshot into the owner, even if memory is available again.
-	if (!snapshot_complete) {
+	if (!snapshot_valid_) {
 		return Error::INSUFFICIENT_RAM;
 	}
 

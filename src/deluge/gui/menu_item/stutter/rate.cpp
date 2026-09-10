@@ -37,6 +37,7 @@ void Rate::selectEncoderAction(int32_t offset) {
 
 	setValue(optionValues[idx]);
 	writeCurrentValue();
+	value_committed();
 	drawValue();
 }
 
@@ -56,8 +57,8 @@ void Rate::drawPixelsForOled() {
 	}
 
 	const char* label = getQuantizedOptionLabel();
-	deluge::hid::display::OLED::main.drawStringCentred(label, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-	                                                   kTextHugeSizeY);
+	deluge::hid::display::OLED::main_for_session().drawStringCentred(label, 18 + OLED_MAIN_TOPMOST_PIXEL,
+	                                                                 kTextHugeSpacingX, kTextHugeSizeY);
 }
 
 void Rate::renderInHorizontalMenu(const SlotPosition& slot) {
@@ -66,8 +67,8 @@ void Rate::renderInHorizontalMenu(const SlotPosition& slot) {
 	}
 
 	const char* label = getQuantizedOptionLabel();
-	hid::display::OLED::main.drawStringCentered(label, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
-	                                            kTextSpacingX, kTextSpacingY, slot.width);
+	hid::display::OLED::main_for_session().drawStringCentered(
+	    label, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX, kTextSpacingY, slot.width);
 }
 
 void Rate::getNotificationValue(StringBuf& valueBuf) {
@@ -78,11 +79,11 @@ void Rate::getNotificationValue(StringBuf& valueBuf) {
 }
 
 bool Rate::isStutterQuantized() {
-	if (soundEditor.currentModControllable->stutterConfig.useSongStutter) {
+	if (sound_editor_for_session().currentModControllable->stutterConfig.useSongStutter) {
 		return currentSong->globalEffectable.stutterConfig.quantized;
 	}
 
-	return soundEditor.currentModControllable->stutterConfig.quantized;
+	return sound_editor_for_session().currentModControllable->stutterConfig.quantized;
 }
 
 const char* Rate::getQuantizedOptionLabel() {

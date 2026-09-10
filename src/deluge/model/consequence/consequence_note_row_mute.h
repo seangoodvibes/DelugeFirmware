@@ -25,5 +25,6 @@ public:
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t noteRowId;
+	uint64_t note_row_identity = 0;
 	InstrumentClip* clip;
 };

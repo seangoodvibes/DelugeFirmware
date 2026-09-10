@@ -124,7 +124,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 
 			// MPE stuff - if editing note, we need to record the initial values which might have been sent before this
 			// note-on.
-			instrumentClipView.reportMPEInitialValuesForNoteEditing(
+			instrument_clip_view_for_session().reportMPEInitialValuesForNoteEditing(
 			    modelStackWithNoteRow,
 			    mpeValues); // Hmm, should we really be going in here even when it's not MPE input?
 
@@ -256,7 +256,7 @@ justAuditionNote:
 						}
 					}
 
-					instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
+					instrument_clip_view_for_session().reportNoteOffForMPEEditing(modelStackWithNoteRow);
 				}
 			}
 
@@ -278,8 +278,8 @@ justAuditionNote:
 	} // end match switch
 
 	if (highlightNoteValue != -1) {
-		keyboardScreen.highlightedNotes[note] = highlightNoteValue;
-		keyboardScreen.requestRendering();
+		keyboard_screen_for_session().highlightedNotes[note] = highlightNoteValue;
+		keyboard_screen_for_session().requestRendering();
 	}
 }
 
@@ -296,12 +296,12 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	// this ignores input differentiation, but since midi learn doesn't work for norns grid
 	// you can't set a device
 	// norns midigrid mod sends deluge midi note_on messages on channel 16 to update pad brightness
-	else if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
-	         && instrumentClip->onKeyboardScreen && instrumentClip->output
+	else if (instrumentClip->keyboard_state_for_session().currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
+	         && instrumentClip->on_keyboard_screen_for_session() && instrumentClip->output
 	         && instrumentClip->output->type == OutputType::MIDI_OUT
 	         && ((MIDIInstrument*)instrumentClip->output)->getChannel() == midiChannel) {
-		keyboardScreen.nornsNotes[note] = on ? velocity : 0;
-		keyboardScreen.requestRendering();
+		keyboard_screen_for_session().nornsNotes[note] = on ? velocity : 0;
+		keyboard_screen_for_session().requestRendering();
 	}
 }
 
@@ -406,9 +406,9 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	// if you're in automation midi clip view and editing the same CC that was just updated
 	// by a learned midi knob, then re-render the pads on the automation editor grid
 	if (type == OutputType::MIDI_OUT) {
-		if (getRootUI() == &automationView) {
-			if (activeClip->lastSelectedParamID == ccNumber) {
-				uiNeedsRendering(&automationView);
+		if (getRootUI() == &automation_view_for_session()) {
+			if (activeClip->last_selected_param_id_for_session() == ccNumber) {
+				uiNeedsRendering(&automation_view_for_session());
 			}
 		}
 	}
@@ -642,10 +642,11 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength
-		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			modPos = view.modPos;
-			modLength = view.modLength;
+		if (view_for_session().modLength
+		    && modelStack->getTimelineCounter()
+		           == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			modPos = view_for_session().modPos;
+			modLength = view_for_session().modLength;
 		}
 	}
 

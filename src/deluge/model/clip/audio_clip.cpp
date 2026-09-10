@@ -25,6 +25,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/sample_shift.h"
 #include "model/consequence/consequence_output_existence.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -1029,9 +1030,9 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 		RGB rgb = getColour();
 
-		bool success =
-		    waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData, recorder, rgb,
-		                                       sampleControls.isCurrentlyReversed(), xStart, xEnd);
+		bool success = waveform_renderer_for_session().renderAsSingleRow(
+		    sample, xScrollSamples, xZoomSamples, image, &renderData, recorder, rgb,
+		    sampleControls.isCurrentlyReversed(), xStart, xEnd);
 
 		if (!success) {
 			// If card being accessed and waveform would have to be re-examined, come back later
@@ -1079,15 +1080,15 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
-	if (onAutomationClipView) {
+	if (on_automation_clip_view_for_session()) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
-	if (lastSelectedParamID != params::kNoParamID) {
-		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
-		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+	if (last_selected_param_id_for_session() != params::kNoParamID) {
+		writer.writeAttribute("lastSelectedParamID", last_selected_param_id_for_session());
+		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(last_selected_param_kind_for_session()));
+		writer.writeAttribute("lastSelectedParamShortcutX", last_selected_param_shortcut_x_for_session());
+		writer.writeAttribute("lastSelectedParamShortcutY", last_selected_param_shortcut_y_for_session());
+		writer.writeAttribute("lastSelectedParamArrayPosition", last_selected_param_array_position_for_session());
 	}
 
 	Clip::writeDataToFile(writer, song);
@@ -1184,27 +1185,27 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = reader.readTagOrAttributeValueInt();
+			on_automation_clip_view_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = reader.readTagOrAttributeValueInt();
+			last_selected_param_id_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
+			last_selected_param_kind_for_session() = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = reader.readTagOrAttributeValueInt();
+			last_selected_param_shortcut_x_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = reader.readTagOrAttributeValueInt();
+			last_selected_param_shortcut_y_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
+			last_selected_param_array_position_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else {
@@ -1336,11 +1337,35 @@ void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos
 	setPosForParamManagers(modelStack, useActualPosForParamManagers);
 }
 
+bool AudioClip::can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) {
+	if (!Clip::can_shift_horizontally(amount, shiftSequenceAndMPE))
+		return false;
+	if (!shiftSequenceAndMPE)
+		return true;
+	if (recorder || !sampleHolder.audioFile)
+		return false;
+	return deluge::model::shifted_sample_start(sampleHolder.startPos, sampleHolder.endPos,
+	                                           static_cast<Sample*>(sampleHolder.audioFile)->lengthInSamples, amount,
+	                                           getCurrentlyRecordingLinearly() ? originalLength : loopLength)
+	    .has_value();
+}
+
 bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
                                   bool shiftSequenceAndMPE) {
-	// the following code iterates through all param collections and shifts automation, if shiftAutomation is true.
-	// Unlike InstrumentClip, an AudioClip's ParamManager never has an expression/MPE collection - nothing ever calls
-	// getOrCreateExpressionParamSet() on it - so there's no MPE special-case to handle here.
+	// Reject an impossible sample shift before changing automation or expression.
+	// Callers, including undo, rely on false leaving the clip unchanged.
+	if (!can_shift_horizontally(amount, shiftSequenceAndMPE))
+		return false;
+	const uint64_t newStartPos = shiftSequenceAndMPE
+	                                 ? *deluge::model::shifted_sample_start(
+	                                       sampleHolder.startPos, sampleHolder.endPos,
+	                                       static_cast<Sample*>(sampleHolder.audioFile)->lengthInSamples, amount,
+	                                       getCurrentlyRecordingLinearly() ? originalLength : loopLength)
+	                                 : 0;
+
+	// the following code iterates through all param collections and shifts automation and MPE separately
+	// automation only gets shifted if shiftAutomation is true
+	// MPE only gets shifted if shiftSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
@@ -1359,23 +1384,6 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 
 	// if shiftSequenceAndMPE is true, shift sample
 	if (shiftSequenceAndMPE) {
-		// No horizontal shift when recording
-		if (recorder) {
-			return false;
-		}
-
-		// No horizontal shift when no sample is loaded
-		if (!sampleHolder.audioFile) {
-			return false;
-		}
-
-		int64_t newStartPos = int64_t(sampleHolder.startPos) - getSamplesFromTicks(amount);
-		uint64_t sampleLength = ((Sample*)sampleHolder.audioFile)->lengthInSamples;
-
-		if (newStartPos < 0 || newStartPos > sampleLength) {
-			return false;
-		}
-
 		uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
 
 		// Stop the clip if it is playing
@@ -1392,11 +1400,11 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 			reGetParameterAutomation(modelStack);
 
 			// Resume the clip if it was playing before
-			getCurrentClip()->resumePlayback(modelStack, true);
+			resumePlayback(modelStack, true);
 		}
-		return true;
 	}
-	return false;
+	// Automation-only shifts are successful too, even without moving a sample.
+	return true;
 }
 
 uint64_t AudioClip::getCullImmunity() {

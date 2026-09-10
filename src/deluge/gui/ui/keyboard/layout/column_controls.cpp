@@ -87,7 +87,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 					    == RuntimeFeatureStateToggle::On) {
 						// minimize happy path time since most of the time this will be a normal press
 						if (getCurrentUI()->exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE) [[unlikely]] {
-							keyboardScreen.killColumnSwitchKey(LEFT_COL);
+							keyboard_screen_for_session().killColumnSwitchKey(LEFT_COL);
 							continue;
 						}
 					}
@@ -325,7 +325,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		                                 : prevControlFunction(state.leftColFunc, state.rightColFunc);
 		display->displayPopup(l10n::get(functionNames[state.leftColFunc]));
 		state.leftCol = state.getColumnForFunc(state.leftColFunc);
-		keyboardScreen.killColumnSwitchKey(LEFT_COL);
+		keyboard_screen_for_session().killColumnSwitchKey(LEFT_COL);
 		return true;
 	}
 	else if (rightColHeld == 7 && offset) {
@@ -335,7 +335,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		display->displayPopup(l10n::get(functionNames[state.rightColFunc]));
 		state.rightCol = state.getColumnForFunc(state.rightColFunc);
 		state.rightColSetAtRuntime = true;
-		keyboardScreen.killColumnSwitchKey(RIGHT_COL);
+		keyboard_screen_for_session().killColumnSwitchKey(RIGHT_COL);
 		return true;
 	}
 	return false;

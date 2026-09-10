@@ -23,8 +23,8 @@ namespace deluge::gui::menu_item::shortcuts {
 class Version final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
-	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().shortcutsVersion); }
+	void writeCurrentValue() override { sound_editor_for_session().setShortcutsVersion(this->getValue()); }
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;

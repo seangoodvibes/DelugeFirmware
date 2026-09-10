@@ -232,7 +232,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				return true;
 			}
 			else if (whichModEncoder == 0) { // reverb
-				view.cycleThroughReverbPresets();
+				view_for_session().cycleThroughReverbPresets();
 
 				// if mod button is pressed, update mod button pop up
 				if (Buttons::isButtonPressed(
@@ -240,7 +240,8 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 					displaySidechainAndReverbSettings(on);
 				}
 				else {
-					display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+					display->displayPopup(
+					    view_for_session().getReverbPresetDisplayName(view_for_session().getCurrentReverbPreset()));
 				}
 				return true;
 			}

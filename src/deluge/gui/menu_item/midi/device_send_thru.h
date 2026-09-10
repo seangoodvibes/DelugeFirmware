@@ -24,9 +24,9 @@ namespace deluge::gui::menu_item::midi {
 class DeviceSendThru final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->midi_thru); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentMIDICable->midi_thru); }
 	void writeCurrentValue() override {
-		soundEditor.currentMIDICable->midi_thru = this->getValue();
+		sound_editor_for_session().currentMIDICable->midi_thru = this->getValue();
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };

@@ -31,7 +31,7 @@ public:
 	void noteOnToChangeRange(int32_t noteCode);
 	bool isRangeDependent() override { return true; }
 	void deletePress();
-	MenuItem* menuItemHeadingTo;
+	MenuItem*& destination_for_session();
 
 protected:
 	void getText(char* buffer, int32_t* getLeftLength = nullptr, int32_t* getRightLength = nullptr,
@@ -47,7 +47,11 @@ protected:
 	// NOTE: this isn't strictly speaking needed, but refactoring the selectEncoderAction() and
 	// displayPixelsForOled() to not use additional storage for scroll position was more work
 	// than Nikodemus wanted to do. See Selection, Enumeration, and Submenu for examples how it's done.
-	int32_t currentScroll = 0;
+	int32_t& scroll_for_session();
+
+private:
+	ui_session::State<MenuItem*> destinations;
+	ui_session::State<int32_t> scroll_positions;
 };
 
 extern MultiRange multiRangeMenu;

@@ -23,6 +23,7 @@
 
 class Clip;
 class ClipArray;
+class ModelStackWithTimelineCounter;
 
 class ConsequenceClipExistence final : public Consequence {
 public:
@@ -35,4 +36,12 @@ public:
 	int32_t clipIndex;
 	ExistenceChangeType type;
 	bool shouldBeActiveWhileExistent;
+
+private:
+	bool can_recreate(Song* song);
+	Error reserve_for_recreation(Song* song);
+	Error reattach_for_recreation(ModelStackWithTimelineCounter* modelStack);
+	Error commit_recreation(Song* song);
+	// Ownership follows actual array membership, not the action history queue.
+	bool owns_detached_clip = false;
 };

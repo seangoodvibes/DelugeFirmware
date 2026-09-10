@@ -28,5 +28,5 @@ public:
 	char const* getTitle() override;
 };
 
-extern LoadInstrumentPreset loadInstrumentPreset;
+LoadInstrumentPreset& load_instrument_preset_for_session();
 } // namespace deluge::gui::context_menu

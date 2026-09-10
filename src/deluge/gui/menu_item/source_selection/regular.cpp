@@ -25,7 +25,7 @@ Regular regularMenu{};
 
 ParamDescriptor Regular::getDestinationDescriptor() {
 	ParamDescriptor descriptor{};
-	descriptor.setToHaveParamOnly(soundEditor.patchingParamSelected);
+	descriptor.setToHaveParamOnly(sound_editor_for_session().patchingParamSelected);
 	return descriptor;
 }
 
@@ -36,9 +36,10 @@ MenuItem* Regular::selectButtonPress() {
 void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	if (navigatedBackwardFrom != nullptr) {
-		if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
-		    || soundEditor.patchingParamSelected == deluge::modulation::params::LOCAL_VOLUME) {
-			soundEditor.patchingParamSelected = deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
+		if (sound_editor_for_session().patchingParamSelected
+		        == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
+		    || sound_editor_for_session().patchingParamSelected == deluge::modulation::params::LOCAL_VOLUME) {
+			sound_editor_for_session().patchingParamSelected = deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
 		}
 	}
 
@@ -46,7 +47,7 @@ void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 MenuItem* Regular::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
-	s = newS;
+	source_for_session() = newS;
 	return &regularMenu;
 }
 

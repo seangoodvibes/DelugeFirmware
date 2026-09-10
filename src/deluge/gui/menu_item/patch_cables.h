@@ -15,21 +15,25 @@ public:
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
 
 	void drawPixelsForOled() final;
-	int scrollPos = 0; // Each instance needs to store this separately
 	void drawValue();
 
 	void renderOptions();
+	void clear_options() { panel_state().options.clear(); }
 	void blinkShortcuts();
 	void blinkShortcutsSoon();
 	ActionResult timerCallback() override;
 
-	int32_t savedVal = 0;
-	int32_t currentValue = 0;
-
-	deluge::vector<std::string_view> options;
-
-	PatchSource blinkSrc = PatchSource::NOT_AVAILABLE;
-	PatchSource blinkSrc2 = PatchSource::NOT_AVAILABLE;
+private:
+	struct PanelState {
+		int scrollPos = 0;
+		int32_t savedVal = 0;
+		int32_t currentValue = 0;
+		deluge::vector<std::string_view> options;
+		PatchSource blinkSrc = PatchSource::NOT_AVAILABLE;
+		PatchSource blinkSrc2 = PatchSource::NOT_AVAILABLE;
+	};
+	ui_session::State<PanelState> states_;
+	PanelState& panel_state() { return states_.active(); }
 };
 
 } // namespace deluge::gui::menu_item

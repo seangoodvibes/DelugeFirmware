@@ -29,18 +29,19 @@ Regular regularMenu{};
 
 ParamDescriptor Regular::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, source_selection::regularMenu.s);
+	paramDescriptor.setToHaveParamAndSource(sound_editor_for_session().patchingParamSelected,
+	                                        source_selection::regularMenu.source_for_session());
 	return paramDescriptor;
 }
 
 ParamDescriptor Regular::getDestinationDescriptor() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(soundEditor.patchingParamSelected);
+	paramDescriptor.setToHaveParamOnly(sound_editor_for_session().patchingParamSelected);
 	return paramDescriptor;
 }
 
 PatchSource Regular::getS() {
-	return source_selection::regularMenu.s;
+	return source_selection::regularMenu.source_for_session();
 }
 
 MenuPermission Regular::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
@@ -48,15 +49,16 @@ MenuPermission Regular::checkPermissionToBeginSession(ModControllableAudio* modC
 
 	Sound* sound = static_cast<Sound*>(modControllable);
 
-	if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
-		if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
-		                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+	if (sound_editor_for_session().patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
+		if (sound->maySourcePatchToParam(getS(), sound_editor_for_session().patchingParamSelected,
+		                                 ((ParamManagerForTimeline*)sound_editor_for_session().currentParamManager))
 		    == PatchCableAcceptance::DISALLOWED) {
-			soundEditor.patchingParamSelected = deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND;
-			if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
-			                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+			sound_editor_for_session().patchingParamSelected =
+			    deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND;
+			if (sound->maySourcePatchToParam(getS(), sound_editor_for_session().patchingParamSelected,
+			                                 ((ParamManagerForTimeline*)sound_editor_for_session().currentParamManager))
 			    == PatchCableAcceptance::DISALLOWED) {
-				soundEditor.patchingParamSelected = deluge::modulation::params::LOCAL_VOLUME;
+				sound_editor_for_session().patchingParamSelected = deluge::modulation::params::LOCAL_VOLUME;
 			}
 		}
 	}
@@ -71,7 +73,7 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colou
 		return 0;
 	}
 
-	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+	PatchCableSet* patchCableSet = sound_editor_for_session().currentParamManager->getPatchCableSet();
 
 	// Or, if it's the source controlling the range of the source we're editing for...
 	if (patchCableSet->getPatchCableIndex(s, getLearningThing()) != 255) {
@@ -84,7 +86,7 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colou
 
 MenuItem* Regular::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	if (previousPressStillActive) {
-		source_selection::rangeMenu.s = s;
+		source_selection::rangeMenu.source_for_session() = s;
 		return &patch_cable_strength::rangeMenu;
 	}
 	return NO_NAVIGATION;

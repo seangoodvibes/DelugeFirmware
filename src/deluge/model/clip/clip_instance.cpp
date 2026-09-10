@@ -45,6 +45,10 @@ void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_
 			    new (consMemory) ConsequenceClipInstanceChange(output, this, newPos, newLength, newClip);
 			action->addConsequence(newConsequence);
 		}
+		else if (action->require_complete_snapshots) {
+			action->snapshot_failed();
+			return;
+		}
 	}
 
 	pos = newPos;

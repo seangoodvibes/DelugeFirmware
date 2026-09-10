@@ -35,7 +35,10 @@ public:
 
 	// 7seg only
 	void drawValue() override;
-	PatchSource s;
+	PatchSource& source_for_session() { return sources_.active(); }
+
+private:
+	ui_session::State<PatchSource> sources_;
 
 protected:
 	bool sourceIsAllowed(PatchSource source);

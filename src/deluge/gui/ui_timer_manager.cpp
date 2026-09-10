@@ -17,6 +17,7 @@
 
 #include "gui/ui_timer_manager.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/graphics_routing.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
@@ -30,6 +31,7 @@
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "hid/mirror.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "playback/playback_handler.h"
@@ -46,20 +48,39 @@ UITimerManager uiTimerManager{};
 extern void inputRoutine();
 extern void batteryLEDBlink();
 
-UITimerManager::UITimerManager() {
-	timeNextEvent = 2147483647;
+UITimerManager::UITimerManager() = default;
+
+void UITimerManager::pause_for_mirror() {
+	state_.pause_local(AudioEngine::audioSampleTimer);
+}
+
+void UITimerManager::resume_from_mirror() {
+	state_.resume_local(AudioEngine::audioSampleTimer);
 }
 
 void UITimerManager::routine() {
+	const auto owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope scope(owner);
+	auto& bank = state_.bank(owner);
+	if (deluge::hid::mirror::is_client()) {
+		// The OLED select/deselect handshake still needs its hardware timeout.
+		// Every musical/UI timer remains suspended while the host owns the UI.
+		auto& timer = getTimer(TimerName::OLED_LOW_LEVEL);
+		if (timer.active && static_cast<int32_t>(timer.triggerTime - AudioEngine::audioSampleTimer) < 0) {
+			timer.active = false;
+			oledLowLevelTimerCallback();
+		}
+		return;
+	}
 
-	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
+	int32_t timeTilNextEvent = (uint32_t)(bank.next_event - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) {
 		return;
 	}
 
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
 		auto name = static_cast<TimerName>(i);
-		auto& timer = timers_[i];
+		auto& timer = bank.timers[i];
 		if (timer.active) {
 
 			int32_t timeTil = (uint32_t)(timer.triggerTime - AudioEngine::audioSampleTimer);
@@ -73,20 +94,20 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::MIDI_LEARN_FLASH:
-					view.midiLearnFlash();
+					view_for_session().midiLearnFlash();
 					break;
 
 				case TimerName::DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &keyboardScreen) {
-						keyboardScreen.flashDefaultRootNote();
+					if (getCurrentUI() == &keyboard_screen_for_session()) {
+						keyboard_screen_for_session().flashDefaultRootNote();
 					}
 					else if (getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
-						instrumentClipView.flashDefaultRootNote();
+						instrument_clip_view_for_session().flashDefaultRootNote();
 					}
 					break;
 
 				case TimerName::PLAY_ENABLE_FLASH: {
-					view.flashPlayRoutine();
+					view_for_session().flashPlayRoutine();
 					break;
 				}
 				case TimerName::DISPLAY:
@@ -112,7 +133,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::MOD_ENCODER_POPUP_FLUSH:
-					view.flushPendingModEncoderValuePopup();
+					view_for_session().flushPendingModEncoderValuePopup();
 					break;
 
 				case TimerName::LED_BLINK:
@@ -125,23 +146,23 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::SHORTCUT_BLINK:
-					soundEditor.blinkShortcut();
+					sound_editor_for_session().blinkShortcut();
 					break;
 
 				case TimerName::INTERPOLATION_SHORTCUT_BLINK:
-					automationView.blinkInterpolationShortcut();
+					automation_view_for_session().blinkInterpolationShortcut();
 					break;
 
 				case TimerName::PAD_SELECTION_SHORTCUT_BLINK:
-					automationView.blinkPadSelectionShortcut();
+					automation_view_for_session().blinkPadSelectionShortcut();
 					break;
 
 				case TimerName::NOTE_ROW_BLINK:
-					instrumentClipView.blinkSelectedNoteRow();
+					instrument_clip_view_for_session().blinkSelectedNoteRow();
 					break;
 
 				case TimerName::SELECTED_CLIP_PULSE:
-					sessionView.gridPulseSelectedClip();
+					session_view_for_session().gridPulseSelectedClip();
 					break;
 
 				case TimerName::MATRIX_DRIVER:
@@ -164,18 +185,19 @@ void UITimerManager::routine() {
 				}
 
 				case TimerName::DISPLAY_AUTOMATION:
-					if (((getCurrentUI() == &automationView) || (getRootUI() == &automationView))
-					    && automationView.inAutomationEditor()) {
+					if (((getCurrentUI() == &automation_view_for_session())
+					     || (getRootUI() == &automation_view_for_session()))
+					    && automation_view_for_session().inAutomationEditor()) {
 
-						automationView.displayAutomation();
+						automation_view_for_session().displayAutomation();
 
-						if (getCurrentUI() == &soundEditor) {
-							soundEditor.getCurrentMenuItem()->readValueAgain();
+						if (getCurrentUI() == &sound_editor_for_session()) {
+							sound_editor_for_session().getCurrentMenuItem()->readValueAgain();
 						}
 					}
 
 					else {
-						view.displayAutomation();
+						view_for_session().displayAutomation();
 					}
 					break;
 
@@ -198,7 +220,7 @@ void UITimerManager::routine() {
 						// check time elapsed since previous automation update is greater than or equal to send rate
 						// if so, send another automation feedback message
 						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent) >= sendRate) {
-							view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+							view_for_session().sendMidiFollowFeedback(nullptr, kNoSelection, true);
 							midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
 						}
 					}
@@ -206,7 +228,7 @@ void UITimerManager::routine() {
 					// send one more update to sync controller with deluge's current values
 					// for automated params only
 					else if (midiFollow.timeAutomationFeedbackLastSent != 0) {
-						view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+						view_for_session().sendMidiFollowFeedback(nullptr, kNoSelection, true);
 						midiFollow.timeAutomationFeedbackLastSent = 0;
 					}
 					break;
@@ -220,7 +242,8 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::GRAPHICS_ROUTINE:
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage) {
+					if (deluge::gui::ui_session::graphics_output_ready(
+					        [] { return uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage; })) {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
@@ -271,26 +294,15 @@ void UITimerManager::setTimer(TimerName which, int32_t ms) {
 }
 
 void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
-	auto& timer = getTimer(which);
-	timer.triggerTime = AudioEngine::audioSampleTimer + samples;
-	timer.active = true;
-
-	int32_t oldTimeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
-	if (samples < oldTimeTilNextEvent) {
-		timeNextEvent = timer.triggerTime;
-	}
+	state_.set(which, AudioEngine::audioSampleTimer, samples);
 }
 
 void UITimerManager::setTimerByOtherTimer(TimerName which, TimerName fromTimer) {
-	auto& timer = getTimer(which);
-	auto& srcTimer = getTimer(fromTimer);
-	timer.triggerTime = srcTimer.triggerTime;
-	timer.active = true;
+	state_.follow(which, fromTimer, AudioEngine::audioSampleTimer);
 }
 
 void UITimerManager::unsetTimer(TimerName which) {
-	getTimer(which).active = false;
-	workOutNextEventTime();
+	state_.unset(which, AudioEngine::audioSampleTimer);
 }
 
 bool UITimerManager::isTimerSet(TimerName which) {
@@ -298,16 +310,5 @@ bool UITimerManager::isTimerSet(TimerName which) {
 }
 
 void UITimerManager::workOutNextEventTime() {
-
-	int32_t timeTilNextEvent = 2147483647;
-
-	for (auto& timer : timers_) {
-		if (timer.active) {
-			timeTilNextEvent =
-			    std::min(static_cast<int32_t>(timer.triggerTime) - static_cast<int32_t>(AudioEngine::audioSampleTimer),
-			             timeTilNextEvent);
-		}
-	}
-
-	timeNextEvent = AudioEngine::audioSampleTimer + (uint32_t)timeTilNextEvent;
+	state_.recompute(deluge::gui::ui_session::current(), AudioEngine::audioSampleTimer);
 }

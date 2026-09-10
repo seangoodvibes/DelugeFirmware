@@ -34,7 +34,7 @@ public:
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
 	}
 	void drawPixelsForOled() override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 		char buffer[50];
 		getBatteryString(buffer);
 		canvas.drawStringCentredShrinkIfNecessary(buffer, 22, 18, 20);

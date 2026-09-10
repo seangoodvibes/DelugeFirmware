@@ -77,7 +77,13 @@ namespace params = deluge::modulation::params;
 using namespace deluge;
 using namespace gui;
 
-SampleBrowser sampleBrowser{};
+namespace {
+SampleBrowser local_sample_browser{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SampleBrowser> remote_sample_browser;
+} // namespace
+SampleBrowser& sample_browser_for_session() {
+	return remote_sample_browser.get(local_sample_browser);
+}
 
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 
@@ -103,10 +109,10 @@ bool SampleBrowser::opened() {
 	favouritesChanged();
 	actionLogger.deleteAllLogs();
 
-	allowedFileExtensions = allowedFileExtensionsAudio;
-	allowFoldersSharingNameWithFile = true;
-	outputTypeToLoad = OutputType::NONE;
-	qwertyVisible = false;
+	allowed_file_extensions_for_session() = allowedFileExtensionsAudio;
+	allow_folders_sharing_name_with_file_for_session() = true;
+	output_type_to_load_for_session() = OutputType::NONE;
+	qwerty_visible_for_session() = false;
 	qwertyCurrentlyDrawnOnscreen = false;
 
 	currentlyShowingSamplePreview = false;
@@ -114,11 +120,11 @@ bool SampleBrowser::opened() {
 	autoLoadEnabled = false;
 
 	if (display->haveOLED()) {
-		fileIndexSelected = 0;
+		file_index_selected_for_session() = 0;
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		instrumentClipView.cancelAllAuditioning();
+		instrument_clip_view_for_session().cancelAllAuditioning();
 	}
 
 	Error error = StorageManager::initSD();
@@ -130,7 +136,7 @@ sdError:
 	}
 
 	String currentPath;
-	currentPath.set(&soundEditor.getCurrentAudioFileHolder()->filePath);
+	currentPath.set(&sound_editor_for_session().getCurrentAudioFileHolder()->filePath);
 
 	char const* searchFilename;
 
@@ -141,7 +147,7 @@ sdError:
 
 		// If that's blank too, then default to SAMPLES folder.
 		if (currentPath.isEmpty()) {
-			currentDir.set("SAMPLES");
+			current_dir_for_session().set("SAMPLES");
 			searchFilename = NULL;
 			goto dissectionDone;
 		}
@@ -153,14 +159,14 @@ sdError:
 		char const* slashAddress = strrchr(currentPathChars, '/');
 		if (!slashAddress) {
 			searchFilename = currentPathChars;
-			currentDir.clear();
+			current_dir_for_session().clear();
 		}
 		else {
 			int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentPathChars;
 			searchFilename = &currentPathChars[slashPos + 1];
 
-			currentDir.set(currentPathChars);
-			currentDir.shorten(slashPos);
+			current_dir_for_session().set(currentPathChars);
+			current_dir_for_session().shorten(slashPos);
 		}
 	}
 
@@ -172,7 +178,7 @@ dissectionDone:
 	}
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentOutputType() == OutputType::SYNTH);
-	indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
+	indicator_leds::setLedState(IndicatorLED::KIT, sound_editor_for_session().editingKit());
 
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
@@ -181,7 +187,7 @@ dissectionDone:
 	// soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		instrumentClipView.cancelAllAuditioning();
+		instrument_clip_view_for_session().cancelAllAuditioning();
 	}
 
 	possiblySetUpBlinking();
@@ -191,12 +197,12 @@ dissectionDone:
 
 void SampleBrowser::possiblySetUpBlinking() {
 
-	if (!qwertyVisible && !currentlyShowingSamplePreview) {
+	if (!qwerty_visible_for_session() && !currentlyShowingSamplePreview) {
 		int32_t x = 0;
 		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-			x = soundEditor.currentSourceIndex;
+			x = sound_editor_for_session().currentSourceIndex;
 		}
-		soundEditor.setupExclusiveShortcutBlink(x, 5);
+		sound_editor_for_session().setupExclusiveShortcutBlink(x, 5);
 	}
 }
 
@@ -211,23 +217,23 @@ void SampleBrowser::focusRegained() {
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 	// If just one file, there's no prefix.
-	if (fileItems.getNumElements() <= 1) {
-		numCharsInPrefix = 0;
+	if (file_items_for_session().getNumElements() <= 1) {
+		num_chars_in_prefix_for_session() = 0;
 	}
 
 	else {
-		numCharsInPrefix = 65535;
+		num_chars_in_prefix_for_session() = 65535;
 		FileItem* currentFileItem = getCurrentFileItem();
 
 		char const* currentFilenameChars = currentFileItem->filename.get();
 
-		for (int32_t f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
+		for (int32_t f = 0; num_chars_in_prefix_for_session() && f < file_items_for_session().getNumElements(); f++) {
+			FileItem* fileItem = (FileItem*)file_items_for_session().getElementAddress(f);
 
-			for (int32_t i = 0; i < numCharsInPrefix; i++) {
+			for (int32_t i = 0; i < num_chars_in_prefix_for_session(); i++) {
 				char const* thisFileName = fileItem->filename.get();
 				if (!thisFileName[i] || thisFileName[i] != currentFilenameChars[i]) {
-					numCharsInPrefix = i;
+					num_chars_in_prefix_for_session() = i;
 					break;
 				}
 			}
@@ -240,12 +246,13 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 
 	// Can start scrolling right now, while next preview loads
-	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
-		qwertyVisible = false;
+	if (movementDirection && (currentlyShowingSamplePreview || qwerty_visible_for_session()) && !qwertyAlwaysVisible) {
+		qwerty_visible_for_session() = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-		memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
+		memset(PadLEDs::transition_taking_place_on_row_for_session(), 1,
+		       sizeof(PadLEDs::transition_taking_place_on_row_for_session()));
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth, true);
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 	}
@@ -265,13 +272,14 @@ void SampleBrowser::exitAction() {
 	UI* redrawUI = nullptr;
 
 	display->setNextTransitionDirection(-1);
-	if (!isUIOpen(&soundEditor)) {
+	if (!isUIOpen(&sound_editor_for_session())) {
 		// If no file was selected, the user wanted to get out of creating this Drum.
 		// Only if some unassigned Drums
-		if (soundEditor.editingKit() && getCurrentKit()->getFirstUnassignedDrum(getCurrentInstrumentClip())
-		    && soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()) {
-			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
-			redrawUI = &instrumentClipView;
+		if (sound_editor_for_session().editingKit()
+		    && getCurrentKit()->getFirstUnassignedDrum(getCurrentInstrumentClip())
+		    && sound_editor_for_session().getCurrentAudioFileHolder()->filePath.isEmpty()) {
+			instrument_clip_view_for_session().deleteDrum((SoundDrum*)sound_editor_for_session().currentSound);
+			redrawUI = &instrument_clip_view_for_session();
 		}
 	}
 
@@ -286,7 +294,7 @@ ActionResult SampleBrowser::timerCallback() {
 
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		currentUIMode = UI_MODE_NONE;
-		if (fileIndexSelected >= 0) {
+		if (file_index_selected_for_session() >= 0) {
 
 			char const* errorMessage;
 			gui::ContextMenu* contextMenu;
@@ -298,10 +306,10 @@ ActionResult SampleBrowser::timerCallback() {
 			}
 
 			// Kit
-			else if (soundEditor.editingKit()) {
+			else if (sound_editor_for_session().editingKit()) {
 
 				if (canImportWholeKit()) {
-					contextMenu = &gui::context_menu::sample_browser::kit;
+					contextMenu = &gui::context_menu::sample_browser::kit_for_session();
 					goto considerContextMenu;
 				}
 				else {
@@ -312,7 +320,7 @@ ActionResult SampleBrowser::timerCallback() {
 
 			// Synth
 			else {
-				contextMenu = &context_menu::sample_browser::synth;
+				contextMenu = &context_menu::sample_browser::synth_for_session();
 
 considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();
@@ -355,7 +363,7 @@ void SampleBrowser::enterKeyPress() {
 
 		// Don't allow user to go into TEMP clips folder
 		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
-		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
+		    && current_dir_for_session().equalsCaseIrrespective("SAMPLES/CLIPS")) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
 			return;
 		}
@@ -378,13 +386,13 @@ void SampleBrowser::enterKeyPress() {
 		// If we're here, we know that the file has fully loaded
 
 		// If user wants to slice...
-		if (soundEditor.editingKit() && Buttons::isShiftButtonPressed()) {
+		if (sound_editor_for_session().editingKit() && Buttons::isShiftButtonPressed()) {
 
 			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which
 			// is assigned to the first NoteRow
 			if (canImportWholeKit()) {
 				display->displayPopup("SLICER");
-				openUI(&slicer);
+				openUI(&slicer_for_session());
 			}
 			else {
 				display->displayPopup(
@@ -459,7 +467,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 	}
 
 	// Record button
-	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE
+	else if (b == RECORD && audio_recorder_for_session().recordingSource == AudioInputChannel::NONE
 	         && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ActionResult::DEALT_WITH;
@@ -470,10 +478,11 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		bool success = changeUISideways(&audioRecorder); // If this fails, we will become the current UI again
+		bool success =
+		    changeUISideways(&audio_recorder_for_session()); // If this fails, we will become the current UI again
 		if (success) {
 			renderingNeededRegardlessOfUI();
-			audioRecorder.process();
+			audio_recorder_for_session().process();
 		}
 	}
 
@@ -487,8 +496,8 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 	else if (b == KEYBOARD && on) {
 		qwertyAlwaysVisible = !qwertyAlwaysVisible;
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
-		qwertyVisible = qwertyAlwaysVisible;
-		if (qwertyVisible) {
+		qwerty_visible_for_session() = qwertyAlwaysVisible;
+		if (qwerty_visible_for_session()) {
 			qwertyCurrentlyDrawnOnscreen = true;
 			drawKeys();
 		}
@@ -501,15 +510,16 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 }
 
 bool SampleBrowser::canImportWholeKit() {
-	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
-	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
+	return (sound_editor_for_session().editingKit() && sound_editor_for_session().currentSourceIndex == 0
+	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum
+	               == sound_editor_for_session().currentSound
 	        && (!getCurrentKit()->firstDrum->next));
 }
 
 Error SampleBrowser::getCurrentFilePath(String* path) {
 	Error error;
 
-	path->set(&currentDir);
+	path->set(&current_dir_for_session());
 	int32_t oldLength = path->getLength();
 	if (oldLength) {
 		error = path->concatenateAtPos("/", oldLength);
@@ -532,7 +542,8 @@ gotError:
 
 bool SampleBrowser::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
-	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) {
+	if (currentlyShowingSamplePreview || qwerty_visible_for_session()
+	    || getRootUI() == &keyboard_screen_for_session()) {
 		*cols = 0b10;
 	}
 	else {
@@ -571,7 +582,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		bool shouldActuallySound = false;
 
 		// Decide if we're actually going to sound it.
-		if (!instrumentClipView.fileBrowserShouldNotPreview) {
+		if (!instrument_clip_view_for_session().fileBrowserShouldNotPreview) {
 			switch (FlashStorage::sampleBrowserPreviewMode) {
 			case PREVIEW_ONLY_WHILE_NOT_PLAYING:
 				if (playbackHandler.playbackState) {
@@ -610,15 +621,17 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				currentlyShowingSamplePreview = true;
 				PadLEDs::reassessGreyout(true);
 
-				waveformBasicNavigator.sample = (Sample*)sample;
-				waveformBasicNavigator.opened();
+				waveform_basic_navigator_for_session().sample = (Sample*)sample;
+				waveform_basic_navigator_for_session().opened();
 
 				// If want scrolling animation
 				if (movementDirection && !qwertyAlwaysVisible) {
-					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
-					                                  &waveformBasicNavigator.renderData);
-					memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
+					waveform_renderer_for_session().renderFullScreen(
+					    waveform_basic_navigator_for_session().sample, waveform_basic_navigator_for_session().xScroll,
+					    waveform_basic_navigator_for_session().xZoom, PadLEDs::image_store_for_session(),
+					    &waveform_basic_navigator_for_session().renderData);
+					memset(PadLEDs::transition_taking_place_on_row_for_session(), 1,
+					       sizeof(PadLEDs::transition_taking_place_on_row_for_session()));
 					PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 
 					currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
@@ -626,16 +639,18 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 				// Or if want instant snap render
 				else {
-					if ((qwertyVisible && !qwertyCurrentlyDrawnOnscreen) || qwertyAlwaysVisible) {
+					if ((qwerty_visible_for_session() && !qwertyCurrentlyDrawnOnscreen) || qwertyAlwaysVisible) {
 						drawKeys();
 					}
-					else if (!qwertyVisible) {
-						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-						                                  waveformBasicNavigator.xZoom, PadLEDs::image,
-						                                  &waveformBasicNavigator.renderData);
+					else if (!qwerty_visible_for_session()) {
+						waveform_renderer_for_session().renderFullScreen(
+						    waveform_basic_navigator_for_session().sample,
+						    waveform_basic_navigator_for_session().xScroll,
+						    waveform_basic_navigator_for_session().xZoom, PadLEDs::image_for_session(),
+						    &waveform_basic_navigator_for_session().renderData);
 						PadLEDs::sendOutMainPadColours();
 					}
-					qwertyCurrentlyDrawnOnscreen = qwertyVisible;
+					qwertyCurrentlyDrawnOnscreen = qwerty_visible_for_session();
 				}
 				PadLEDs::sendOutSidebarColours(); // For greyout (wait what?)
 
@@ -648,19 +663,21 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (!didDraw) {
 
 		// But if we need to get rid of whatever was onscreen...
-		if ((currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible))
+		if ((currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwerty_visible_for_session()))
 		    && !qwertyAlwaysVisible) {
 
 			currentlyShowingSamplePreview = false;
-			qwertyCurrentlyDrawnOnscreen = qwertyVisible;
+			qwertyCurrentlyDrawnOnscreen = qwerty_visible_for_session();
 
 			if (movementDirection) {
-				getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+				getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::image_store_for_session(),
+				                            PadLEDs::occupancy_mask_store_for_session());
 				//((ViewScreen*)getRootUI())->renderToStore(0, true, false);
-				if (getRootUI() != &keyboardScreen) {
+				if (getRootUI() != &keyboard_screen_for_session()) {
 					PadLEDs::reassessGreyout(true);
 				}
-				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
+				memset(PadLEDs::transition_taking_place_on_row_for_session(), 1,
+				       sizeof(PadLEDs::transition_taking_place_on_row_for_session()));
 				PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 			}
@@ -675,7 +692,7 @@ void SampleBrowser::scrollFinished() {
 }
 
 void SampleBrowser::displayCurrentFilename() {
-	if (fileIndexSelected == -1) {
+	if (file_index_selected_for_session() == -1) {
 		display->setText("----");
 	}
 
@@ -686,8 +703,8 @@ ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Allow auditioning
 	if (x == kDisplayWidth + 1) {
-		if (getRootUI() == &instrumentClipView) {
-			return instrumentClipView.padAction(x, y, on);
+		if (getRootUI() == &instrument_clip_view_for_session()) {
+			return instrument_clip_view_for_session().padAction(x, y, on);
 		}
 	}
 
@@ -705,13 +722,13 @@ possiblyExit:
 
 	else {
 		// If qwerty not visible yet, make it visible
-		if (!qwertyVisible) {
+		if (!qwerty_visible_for_session()) {
 			if (on && !currentUIMode) {
 				if (sdRoutineLock) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
-				qwertyVisible = true;
+				qwerty_visible_for_session() = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
@@ -720,17 +737,17 @@ possiblyExit:
 
 				qwertyCurrentlyDrawnOnscreen = true;
 
-				enteredTextEditPos = 0;
+				entered_text_edit_pos_for_session() = 0;
 				displayText(false);
 
 				// Process first press only if its not a favourite row press to prevent blind keypresses
-				if (y < favouriteRow) {
+				if (y < favourite_row_for_session()) {
 					return Browser::padAction(x, y, on);
 				}
 			}
 		}
 		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
-		else if (qwertyVisible) {
+		else if (qwerty_visible_for_session()) {
 			return Browser::padAction(x, y, on);
 		}
 		else {
@@ -742,23 +759,23 @@ possiblyExit:
 }
 
 Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
-	soundEditor.cutSound();
+	sound_editor_for_session().cutSound();
 
-	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
+	AudioFileHolder* holder = sound_editor_for_session().getCurrentAudioFileHolder();
 	holder->setAudioFile(nullptr);
 	Error error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+	return holder->loadFile(sound_editor_for_session().currentSource->sampleControls.isCurrentlyReversed(), true, true,
 	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
-	soundEditor.cutSound();
+	sound_editor_for_session().cutSound();
 
-	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
+	AudioFileHolder* holder = sound_editor_for_session().getCurrentAudioFileHolder();
 	holder->setAudioFile(nullptr);
 	Error error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
@@ -835,16 +852,18 @@ removeLoadingAnimationAndGetOut:
 	// Otherwise, we're something to do with an Instrument...
 	else {
 
-		soundEditor.currentSound->killAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
+		sound_editor_for_session()
+		    .currentSound->killAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
-		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
-		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
+		bool makeWaveTableWorkAtAllCosts =
+		    (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
+		    || (sound_editor_for_session().currentSound->getSynthMode() == SynthMode::RINGMOD);
 
 		int32_t numTypesTried = 0;
 
 		// If we already know we want to try doing WaveTable...
 		if (makeWaveTableWorkAtAllCosts
-		    || (mayDoWaveTable == 1 && soundEditor.currentSource->oscType == OscType::WAVETABLE)) {
+		    || (mayDoWaveTable == 1 && sound_editor_for_session().currentSource->oscType == OscType::WAVETABLE)) {
 doLoadAsWaveTable:
 			numTypesTried++;
 
@@ -858,9 +877,9 @@ doLoadAsWaveTable:
 			    goto doLoadAsSample;
 			}
 			*/
-			OscType current_osc_type = soundEditor.currentSource->getOscType();
+			OscType current_osc_type = sound_editor_for_session().currentSource->getOscType();
 
-			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
+			sound_editor_for_session().currentSource->setOscType(OscType::WAVETABLE);
 
 			error = claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts);
 			if (error != Error::NONE) {
@@ -871,7 +890,7 @@ doLoadAsWaveTable:
 					// If that was what the user really specified they wanted, and we couldn't do it, then we have to
 					// tell them no.
 					if (mayDoWaveTable == 2 || numTypesTried > 1
-					    || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD)) {
+					    || (sound_editor_for_session().currentSound->getSynthMode() == SynthMode::RINGMOD)) {
 						goto removeLoadingAnimationAndGetOut;
 					}
 
@@ -891,24 +910,25 @@ doLoadAsWaveTable:
 
 			// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
 			if (current_osc_type != OscType::WAVETABLE) {
-				if (soundEditor.currentSourceIndex == 0) { // Osc 1
-					soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
+				if (sound_editor_for_session().currentSourceIndex == 0) { // Osc 1
+					sound_editor_for_session().currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
 					    params::LOCAL_OSC_A_WAVE_INDEX);
 
-					if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
-					        params::LOCAL_OSC_B_WAVE_INDEX)) {
-						soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
+					if (!sound_editor_for_session()
+					         .currentSound->modKnobs[7][0]
+					         .paramDescriptor.isSetToParamWithNoSource(params::LOCAL_OSC_B_WAVE_INDEX)) {
+						sound_editor_for_session().currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
 						    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1);
 					}
 				}
 				else { // Osc 2
-					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
+					sound_editor_for_session().currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
 					    params::LOCAL_OSC_B_WAVE_INDEX);
 				}
 				getCurrentOutput()->modKnobMode = 7;
 			}
-			view.setKnobIndicatorLevels(); // Visually update.
-			view.setModLedStates();
+			view_for_session().setKnobIndicatorLevels(); // Visually update.
+			view_for_session().setModLedStates();
 		}
 
 		// Or if we want to first try doing it as a Sample (not a WaveTable)...
@@ -927,14 +947,14 @@ doLoadAsSample:
 			}
 			*/
 
-			soundEditor.currentSource->setOscType(OscType::SAMPLE);
+			sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
 
 			error = claimAudioFileForInstrument();
 			if (error != Error::NONE) {
 				goto removeLoadingAnimationAndGetOut;
 			}
 
-			Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
+			Sample* sample = (Sample*)sound_editor_for_session().getCurrentAudioFileHolder()->audioFile;
 
 			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
 			// instead.
@@ -947,7 +967,8 @@ doLoadAsSample:
 			int32_t mSec = sample->getLengthInMSec();
 
 			// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
-			if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
+			if (!sound_editor_for_session().editingKit()
+			    && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
 
 				// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
 				if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
@@ -961,13 +982,13 @@ doLoadAsSample:
 
 				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
 				// rare.)
-				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+				sound_editor_for_session().currentSource->repeatMode = SampleRepeatMode::LOOP;
 				doingSingleCycleNow = true;
 			}
 
 			// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-			if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
-			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
+			if (sound_editor_for_session().currentSource->repeatMode == SampleRepeatMode::STRETCH
+			    || sound_editor_for_session().currentSource->repeatMode == SampleRepeatMode::LOOP) {}
 
 			// Otherwise...
 			else {
@@ -977,38 +998,40 @@ doLoadAsSample:
 
 					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
 					// long, we can do a ONCE.
-					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
+					if (((MultisampleRange*)sound_editor_for_session().currentMultiRange)->sampleHolder.loopEndPos
+					    && mSec < 2002) {
+						sound_editor_for_session().currentSource->repeatMode = SampleRepeatMode::ONCE;
 					}
 					else {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+						sound_editor_for_session().currentSource->repeatMode = SampleRepeatMode::LOOP;
 					}
 				}
 
 				else {
 
 					// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-					soundEditor.currentSource->repeatMode =
+					sound_editor_for_session().currentSource->repeatMode =
 					    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 				}
 			}
 
 			// If Kit...
-			if (soundEditor.editingKit()) {
+			if (sound_editor_for_session().editingKit()) {
 
-				SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
+				SoundDrum* drum = (SoundDrum*)sound_editor_for_session().currentSound;
 
-				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
+				autoDetectSideChainSending(drum, sound_editor_for_session().currentSource,
+				                           entered_text_for_session().get());
 
 				// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
 				drum->drumName.clear();
 
 				String newName;
-				if (!numCharsInPrefix || display->haveOLED()) {
-					newName.set(&enteredText);
+				if (!num_chars_in_prefix_for_session() || display->haveOLED()) {
+					newName.set(&entered_text_for_session());
 				}
 				else {
-					error = newName.set(&enteredText.get()[numCharsInPrefix]);
+					error = newName.set(&entered_text_for_session().get()[num_chars_in_prefix_for_session()]);
 					if (error != Error::NONE) {
 						goto removeLoadingAnimationAndGetOut;
 					}
@@ -1033,39 +1056,40 @@ doLoadAsSample:
 
 				// Detect pitch
 				if (mayDoPitchDetection) {
-					bool shouldMinimizeOctaves = (soundEditor.currentSource->ranges.getNumElements() == 1);
+					bool shouldMinimizeOctaves =
+					    (sound_editor_for_session().currentSource->ranges.getNumElements() == 1);
 
-					((MultisampleRange*)soundEditor.currentMultiRange)
+					((MultisampleRange*)sound_editor_for_session().currentMultiRange)
 					    ->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
 				}
 
 				else {
 					// Otherwise, reset pitch. Popular request, late 2022.
 					// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = 0;
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(0);
+					((MultisampleRange*)sound_editor_for_session().currentMultiRange)->sampleHolder.transpose = 0;
+					((MultisampleRange*)sound_editor_for_session().currentMultiRange)->sampleHolder.setCents(0);
 				}
 			}
 
 			// Anyway, by now we know we've loaded as a Sample, not a Wavetable.
 			// So remove WaveTable gold knob assignments.
 			bool anyChange = false;
-			int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
-			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
+			int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + sound_editor_for_session().currentSourceIndex;
+			if (sound_editor_for_session().currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
+				sound_editor_for_session().currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
 				    params::UNPATCHED_BITCRUSHING + params::UNPATCHED_START);
 				anyChange = true;
 			}
-			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
+			if (sound_editor_for_session().currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
+				sound_editor_for_session().currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
 				    params::UNPATCHED_SAMPLE_RATE_REDUCTION + params::UNPATCHED_START);
 				anyChange = true;
 			}
 
 			if (anyChange) {
 				getCurrentOutput()->modKnobMode = 1;
-				view.setKnobIndicatorLevels(); // Visually update.
-				view.setModLedStates();
+				view_for_session().setKnobIndicatorLevels(); // Visually update.
+				view_for_session().setModLedStates();
 			}
 		}
 
@@ -1074,9 +1098,11 @@ doLoadAsSample:
 		getCurrentInstrument()->beenEdited();
 
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && soundEditor.navigationDepth
-		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
-			soundEditor.navigationDepth--;
+		if (sound_editor_for_session().currentSource->ranges.getNumElements() <= 1
+		    && sound_editor_for_session().navigationDepth
+		    && sound_editor_for_session().menuItemNavigationRecord[sound_editor_for_session().navigationDepth - 1]
+		           == &menu_item::multiRangeMenu) {
+			sound_editor_for_session().navigationDepth--;
 		}
 	}
 
@@ -1084,20 +1110,20 @@ doLoadAsSample:
 		exitAndNeverDeleteDrum();
 
 		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
-			if (isUIOpen(&soundEditor)) {
-				closeUI(&soundEditor);
+			if (isUIOpen(&sound_editor_for_session())) {
+				closeUI(&sound_editor_for_session());
 			}
 
 			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
-			soundEditor.navigationDepth = 0;
-			openUI(&soundEditor);
+			sound_editor_for_session().menuItemNavigationRecord[0] = parentMenuHeadingTo;
+			sound_editor_for_session().navigationDepth = 0;
+			openUI(&sound_editor_for_session());
 
 			parentMenuHeadingTo = nullptr;
 			menuItemHeadingTo = nullptr;
 		}
 
-		uiNeedsRendering(&audioClipView);
+		uiNeedsRendering(&audio_clip_view_for_session());
 	}
 	display->removeWorkingAnimation();
 	return true;
@@ -1114,10 +1140,10 @@ void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, 
 void SampleBrowser::audioFileIsNowSet() {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+	ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(modelStackMemory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	PatchedParamSet* paramSet = (PatchedParamSet*)summary->paramCollection;
-	int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+	int32_t paramId = params::LOCAL_OSC_A_VOLUME + sound_editor_for_session().currentSourceIndex;
 	auto* collection_stack = modelStack->addParamCollection(paramSet, summary);
 
 	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
@@ -1226,7 +1252,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 		}
 	}
 	else {
-		dirToLoad.set(&currentDir);
+		dirToLoad.set(&current_dir_for_session());
 		previouslyViewedFilename = currentFileItem->filename.get();
 	}
 
@@ -1668,17 +1694,17 @@ doReturnFalse:
 	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
-	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
+	int32_t oldNumRanges = sound_editor_for_session().currentSource->ranges.getNumElements();
 	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
-		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
+		sound_editor_for_session().currentSound->deleteMultiRange(sound_editor_for_session().currentSourceIndex, i);
 	}
 
 	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory
 	// it's going to use
 	if (numSamples > 1) {
-		soundEditor.currentSound->killAllVoices();
+		sound_editor_for_session().currentSound->killAllVoices();
 		AudioEngine::audioRoutineLocked = true;
-		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
+		bool success = sound_editor_for_session().currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
@@ -1697,7 +1723,7 @@ doReturnFalse:
 		}
 	}
 
-	soundEditor.setCurrentMultiRange(0);
+	sound_editor_for_session().setCurrentMultiRange(0);
 
 	AudioEngine::audioRoutineLocked = false;
 
@@ -1760,9 +1786,9 @@ skipOctaveCorrection:
 	int32_t numWithFileLoopPoints = 0;
 	int32_t numWithResultingLoopEndPoints = 0;
 
-	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-		soundEditor.currentSound->killAllVoices();
-		soundEditor.currentSource->setOscType(OscType::SAMPLE);
+	if (sound_editor_for_session().currentSource->oscType != OscType::SAMPLE) {
+		sound_editor_for_session().currentSound->killAllVoices();
+		sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
 	}
 
 	D_PRINTLN("creating ranges");
@@ -1797,15 +1823,15 @@ skipOctaveCorrection:
 
 		MultisampleRange* range;
 		if (rangeIndex == 0) {
-			range = (MultisampleRange*)soundEditor.currentMultiRange;
+			range = (MultisampleRange*)sound_editor_for_session().currentMultiRange;
 		}
 		else {
 #if ALPHA_OR_BETA_VERSION
-			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
+			if (sound_editor_for_session().currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
 				FREEZE_WITH_ERROR("E431");
 			}
 #endif
-			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
+			range = (MultisampleRange*)sound_editor_for_session().currentSource->ranges.insertMultiRange(
 			    rangeIndex); // We know it's gonna succeed
 		}
 
@@ -1814,8 +1840,8 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
-		                                 true);
+		range->sampleHolder.setAudioFile(
+		    thisSample, sound_editor_for_session().currentSource->sampleControls.isCurrentlyReversed(), true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);
@@ -1859,20 +1885,21 @@ skipOctaveCorrection:
 		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do
 		// a ONCE
 		if (numWithResultingLoopEndPoints * 2 >= numSamples && averageMSec < 2002) {
-			soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
+			sound_editor_for_session().currentSource->repeatMode = SampleRepeatMode::ONCE;
 		}
 		else {
-			soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+			sound_editor_for_session().currentSource->repeatMode = SampleRepeatMode::LOOP;
 		}
 	}
 
 	// Or if no loop points set...
 	else {
 		// If 2 seconds or less, set play mode to ONCE. Otherwise, cut
-		soundEditor.currentSource->repeatMode = (averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+		sound_editor_for_session().currentSource->repeatMode =
+		    (averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 	}
 
-	soundEditor.setCurrentMultiRange(numSamples >> 1);
+	sound_editor_for_session().setCurrentMultiRange(numSamples >> 1);
 
 	exitAndNeverDeleteDrum();
 	getCurrentInstrument()->beenEdited();
@@ -1900,11 +1927,11 @@ doReturnFalse:
 	}
 
 	Kit* kit = getCurrentKit();
-	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
+	SoundDrum* firstDrum = (SoundDrum*)sound_editor_for_session().currentSound;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(modelStackMemory);
 
 		for (int32_t s = 0; s < numSamples; s++) {
 
@@ -1928,14 +1955,14 @@ getOut:
 				}
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
-				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-					soundEditor.currentSound->killAllVoices();
-					soundEditor.currentSource->setOscType(OscType::SAMPLE);
+				if (sound_editor_for_session().currentSource->oscType != OscType::SAMPLE) {
+					sound_editor_for_session().currentSound->killAllVoices();
+					sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
 				}
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-				int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+				int32_t paramId = params::LOCAL_OSC_A_VOLUME + sound_editor_for_session().currentSourceIndex;
 				auto* collection_stack = modelStack->addParamCollection(paramSet, summary);
 
 				// Reset osc volume, if it's not automated
@@ -2035,7 +2062,7 @@ skipNameStuff:
 	getCurrentInstrument()->beenEdited();
 
 	exitAndNeverDeleteDrum();
-	uiNeedsRendering(&instrumentClipView);
+	uiNeedsRendering(&instrument_clip_view_for_session());
 	display->removeWorkingAnimation();
 	return true;
 }
@@ -2045,7 +2072,8 @@ static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
 ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	// Or, maybe we want to scroll or zoom around the waveform...
 	if (currentlyShowingSamplePreview
-	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
+	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
+	        || waveform_basic_navigator_for_session().isZoomedIn())) {
 
 		// We're quite likely going to need to read the SD card to do either scrolling or zooming
 		if (sdRoutineLock) {
@@ -2055,25 +2083,26 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 		// Zoom
 		if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 			if (isUIModeWithinRange(zoomUIModes)) {
-				waveformBasicNavigator.zoom(offset);
+				waveform_basic_navigator_for_session().zoom(offset);
 			}
 		}
 
 		// Scroll
 		else if (isUIModeWithinRange(&zoomUIModes[1])) { // Allow during auditioning only
-			bool success = waveformBasicNavigator.scroll(offset);
+			bool success = waveform_basic_navigator_for_session().scroll(offset);
 
 			if (success) {
-				waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-				                                  waveformBasicNavigator.xZoom, PadLEDs::image,
-				                                  &waveformBasicNavigator.renderData);
+				waveform_renderer_for_session().renderFullScreen(
+				    waveform_basic_navigator_for_session().sample, waveform_basic_navigator_for_session().xScroll,
+				    waveform_basic_navigator_for_session().xZoom, PadLEDs::image_for_session(),
+				    &waveform_basic_navigator_for_session().renderData);
 				PadLEDs::sendOutMainPadColours();
 			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
 	else {
-		qwertyVisible = true;
+		qwerty_visible_for_session() = true;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
@@ -2090,22 +2119,22 @@ ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRou
 	if (Buttons::isShiftButtonPressed()) {
 		return Browser::verticalEncoderAction(offset, false);
 	}
-	if (getRootUI() == &instrumentClipView) {
+	if (getRootUI() == &instrument_clip_view_for_session()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
 		}
-		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+		return instrument_clip_view_for_session().verticalEncoderAction(offset, inCardRoutine);
 	}
 
 	return ActionResult::DEALT_WITH;
 }
 
 bool SampleBrowser::canSeeViewUnderneath() {
-	return !currentlyShowingSamplePreview && !qwertyVisible;
+	return !currentlyShowingSamplePreview && !qwerty_visible_for_session();
 }
 
 bool SampleBrowser::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
-	return (qwertyVisible || currentlyShowingSamplePreview);
+	return (qwerty_visible_for_session() || currentlyShowingSamplePreview);
 }

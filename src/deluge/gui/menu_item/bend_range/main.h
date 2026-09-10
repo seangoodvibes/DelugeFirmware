@@ -27,13 +27,15 @@ public:
 	using BendRange::BendRange;
 	void readCurrentValue() override {
 		ExpressionParamSet* expressionParams =
-		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
+		    sound_editor_for_session().currentParamManager->getOrCreateExpressionParamSet(
+		        sound_editor_for_session().editingKit());
 		this->setValue(expressionParams != nullptr ? expressionParams->bendRanges[BEND_RANGE_MAIN]
 		                                           : FlashStorage::defaultBendRange[BEND_RANGE_MAIN]);
 	}
 	void writeCurrentValue() override {
 		ExpressionParamSet* expressionParams =
-		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
+		    sound_editor_for_session().currentParamManager->getOrCreateExpressionParamSet(
+		        sound_editor_for_session().editingKit());
 		if (expressionParams != nullptr) {
 			expressionParams->bendRanges[BEND_RANGE_MAIN] = this->getValue();
 		}

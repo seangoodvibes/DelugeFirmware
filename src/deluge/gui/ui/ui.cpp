@@ -15,31 +15,44 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "extern.h"
+#include "gui/ui/graphics_routing.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "hid/mirror.h"
+#include "modulation/automation/parameter_revision.h"
 #include "util/misc.h"
 #include <utility>
 
 using deluge::hid::display::OLED;
+
+namespace {
+auto& navigation() {
+	return deluge::gui::ui_session::navigation.active();
+}
+} // namespace
 
 UI::UI() {
 	oledShowsUIUnderneath = false;
 }
 
 void UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	view.modEncoderAction(whichModEncoder, offset);
+	view_for_session().modEncoderAction(whichModEncoder, offset);
 }
 
 void UI::modButtonAction(uint8_t whichButton, bool on) {
-	view.modButtonAction(whichButton, on);
+	view_for_session().modButtonAction(whichButton, on);
 }
 
 void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
-	view.modEncoderButtonAction(whichModEncoder, on);
+	view_for_session().modEncoderButtonAction(whichModEncoder, on);
 }
 
 void UI::graphicsRoutine() {
@@ -58,13 +71,6 @@ void UI::close() {
 	closeUI(this);
 }
 
-constexpr size_t kUiNavigationHistoryLength = 16;
-static std::array<UI*, kUiNavigationHistoryLength> uiNavigationHierarchy;
-
-int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
-
-UI* lastUIBeforeNullifying = nullptr;
-
 /**
  * @brief Get the greyout rows and columns for the current UI
  *
@@ -73,8 +79,8 @@ UI* lastUIBeforeNullifying = nullptr;
 std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows() {
 	uint32_t cols = 0;
 	uint32_t rows = 0;
-	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
-		bool useThis = uiNavigationHierarchy[u]->getGreyoutColsAndRows(&cols, &rows);
+	for (int32_t u = navigation().depth - 1; u >= 0; u--) {
+		bool useThis = navigation().hierarchy[u]->getGreyoutColsAndRows(&cols, &rows);
 		if (useThis) {
 			return std::make_pair(cols, rows);
 		}
@@ -84,18 +90,18 @@ std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows() {
 
 bool changeUIAtLevel(UI* newUI, int32_t level) {
 	UI* oldUI = getCurrentUI();
-	UI* oldRootUI = uiNavigationHierarchy[level];
-	int32_t oldNumUIs = numUIsOpen;
-	uiNavigationHierarchy[level] = newUI;
-	numUIsOpen = level + 1;
+	UI* oldRootUI = navigation().hierarchy[level];
+	int32_t oldNumUIs = navigation().depth;
+	navigation().hierarchy[level] = newUI;
+	navigation().depth = level + 1;
 
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
 
 	if (!success) {
-		numUIsOpen = oldNumUIs;
-		uiNavigationHierarchy[level] = oldRootUI;
+		navigation().depth = oldNumUIs;
+		navigation().hierarchy[level] = oldRootUI;
 		PadLEDs::reassessGreyout();
 		oldUI->focusRegained();
 	}
@@ -106,8 +112,8 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 // performanceView, etc.
 void changeRootUI(UI* newUI) {
 	newUI = newUI->getUI();
-	uiNavigationHierarchy[0] = newUI;
-	numUIsOpen = 1;
+	navigation().hierarchy[0] = newUI;
+	navigation().depth = 1;
 
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
@@ -123,14 +129,14 @@ void changeRootUI(UI* newUI) {
 // Only called when setting up blank song, so don't worry about this
 void setRootUILowLevel(UI* newUI) {
 	newUI = newUI->getUI();
-	uiNavigationHierarchy[0] = newUI;
-	numUIsOpen = 1;
+	navigation().hierarchy[0] = newUI;
+	navigation().depth = 1;
 	PadLEDs::reassessGreyout();
 }
 
 bool changeUISideways(UI* newUI) {
 	newUI = newUI->getUI();
-	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
+	bool success = changeUIAtLevel(newUI, navigation().depth - 1);
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
@@ -138,19 +144,19 @@ bool changeUISideways(UI* newUI) {
 }
 
 UI* getCurrentUI() {
-	if (numUIsOpen == 0) {
-		return lastUIBeforeNullifying; // Very ugly work-around to stop everything breaking
+	if (navigation().depth == 0) {
+		return navigation().last_before_nullifying; // Very ugly work-around to stop everything breaking
 	}
-	return uiNavigationHierarchy[numUIsOpen - 1];
+	return navigation().hierarchy[navigation().depth - 1];
 }
 
 // This will be NULL while waiting to swap songs, so you'd better check for this anytime you're gonna call a function on
 // the result!
 RootUI* getRootUI() {
-	if (numUIsOpen == 0) {
+	if (navigation().depth == 0) {
 		return nullptr;
 	}
-	return (RootUI*)uiNavigationHierarchy[0];
+	return (RootUI*)navigation().hierarchy[0];
 }
 
 bool currentUIIsClipMinderScreen() {
@@ -165,15 +171,15 @@ bool rootUIIsClipMinderScreen() {
 
 void swapOutRootUILowLevel(UI* newUI) {
 	newUI = newUI->getUI();
-	uiNavigationHierarchy[0] = newUI;
+	navigation().hierarchy[0] = newUI;
 }
 
 UI* getUIUpOneLevel(int32_t numLevelsUp) {
-	if (numUIsOpen < (1 + numLevelsUp)) {
+	if (navigation().depth < (1 + numLevelsUp)) {
 		return nullptr;
 	}
 	else {
-		return uiNavigationHierarchy[numUIsOpen - 1 - numLevelsUp];
+		return navigation().hierarchy[navigation().depth - 1 - numLevelsUp];
 	}
 }
 
@@ -184,9 +190,9 @@ void closeUI(UI* uiToClose) {
 	bool redrawSidebar = false;
 
 	int32_t u;
-	for (u = numUIsOpen - 1; u >= 1; u--) {
+	for (u = navigation().depth - 1; u >= 1; u--) {
 
-		UI* thisUI = uiNavigationHierarchy[u];
+		UI* thisUI = navigation().hierarchy[u];
 		redrawMainPads |= thisUI->renderMainPads();
 		redrawSidebar |= thisUI->renderSidebar();
 
@@ -195,8 +201,8 @@ void closeUI(UI* uiToClose) {
 		}
 	}
 
-	UI* newUI = uiNavigationHierarchy[u - 1];
-	numUIsOpen = u;
+	UI* newUI = navigation().hierarchy[u - 1];
+	navigation().depth = u;
 
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
@@ -208,17 +214,19 @@ void closeUI(UI* uiToClose) {
 	bool redrawMainPadsOrig = redrawMainPads;
 	bool redrawSidebarOrig = redrawSidebar;
 
-	for (u = numUIsOpen - 1; u >= 0; u--) {
+	for (u = navigation().depth - 1; u >= 0; u--) {
 		if (!redrawMainPads && !redrawSidebar) {
 			break;
 		}
 
-		UI* thisUI = uiNavigationHierarchy[u];
+		UI* thisUI = navigation().hierarchy[u];
 		if (redrawMainPads) {
-			redrawMainPads = !thisUI->renderMainPads(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
+			redrawMainPads = !thisUI->renderMainPads(0xFFFFFFFF, PadLEDs::image_for_session(),
+			                                         PadLEDs::occupancy_mask_for_session());
 		}
 		if (redrawSidebar) {
-			redrawSidebar = !thisUI->renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask);
+			redrawSidebar =
+			    !thisUI->renderSidebar(0xFFFFFFFF, PadLEDs::image_for_session(), PadLEDs::occupancy_mask_for_session());
 		}
 	}
 
@@ -231,17 +239,20 @@ void closeUI(UI* uiToClose) {
 }
 
 bool openUI(UI* newUI) {
+	if (!newUI || navigation().depth < 0 || navigation().depth >= navigation().capacity) {
+		return false;
+	}
 	newUI = newUI->getUI();
 	UI* oldUI = getCurrentUI();
-	uiNavigationHierarchy[numUIsOpen] = newUI;
-	numUIsOpen++;
+	navigation().hierarchy[navigation().depth] = newUI;
+	navigation().depth++;
 
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
 
 	if (!success) {
-		numUIsOpen--;
+		navigation().depth--;
 		PadLEDs::reassessGreyout();
 		oldUI->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if
 		                        // they wish?
@@ -253,35 +264,31 @@ bool openUI(UI* newUI) {
 }
 
 bool isUIOpen(UI* ui) {
-	for (int32_t u = 0; u < numUIsOpen; u++) {
-		if (uiNavigationHierarchy[u] == ui) {
+	for (int32_t u = 0; u < navigation().depth; u++) {
+		if (navigation().hierarchy[u] == ui) {
 			return true;
 		}
 	}
 	return false;
 }
-bool doesOLEDNeedRendering = false;
 
 void nullifyUIs() {
-	lastUIBeforeNullifying = getCurrentUI();
-	numUIsOpen = 0;
-	doesOLEDNeedRendering = false;
+	navigation().last_before_nullifying = getCurrentUI();
+	navigation().depth = 0;
+	navigation().oled_dirty = false;
 }
 
 void renderUIsForOled() {
-	doesOLEDNeedRendering = true;
+	navigation().oled_dirty = true;
 }
 
-uint32_t whichMainRowsNeedRendering = 0;
-uint32_t whichSideRowsNeedRendering = 0;
-
 void clearPendingUIRendering() {
-	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
+	navigation().main_rows_dirty = navigation().side_rows_dirty = 0;
 }
 
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows, uint32_t whichSideRows) {
-	whichMainRowsNeedRendering |= whichMainRows;
-	whichSideRowsNeedRendering |= whichSideRows;
+	navigation().main_rows_dirty |= whichMainRows;
+	navigation().side_rows_dirty |= whichSideRows;
 }
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
@@ -289,11 +296,11 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 	// We might be in the middle of an audio routine or something, so just see whether the selected bit of the UI is
 	// visible
 
-	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
-		UI* thisUI = uiNavigationHierarchy[u];
+	for (int32_t u = navigation().depth - 1; u >= 0; u--) {
+		UI* thisUI = navigation().hierarchy[u];
 		if (ui == thisUI) {
-			whichMainRowsNeedRendering |= whichMainRows;
-			whichSideRowsNeedRendering |= whichSideRows;
+			navigation().main_rows_dirty |= whichMainRows;
+			navigation().side_rows_dirty |= whichSideRows;
 			break;
 		}
 
@@ -312,7 +319,7 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 
 void doAnyPendingGridRendering() {
 
-	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) {
+	if (!navigation().main_rows_dirty && !navigation().side_rows_dirty) {
 		return;
 	}
 
@@ -320,24 +327,25 @@ void doAnyPendingGridRendering() {
 		return;
 	}
 	// Make a local copy of our instructions
-	uint32_t mainRowsNow = whichMainRowsNeedRendering;
-	uint32_t sideRowsNow = whichSideRowsNeedRendering;
+	uint32_t mainRowsNow = navigation().main_rows_dirty;
+	uint32_t sideRowsNow = navigation().side_rows_dirty;
 
 	// Clear the overall instructions - so it may now be written to again during this function call
 	clearPendingUIRendering();
 
-	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
+	for (int32_t u = navigation().depth - 1; u >= 0; u--) {
 
 		if (!mainRowsNow && !sideRowsNow) {
 			break;
 		}
 
-		UI* thisUI = uiNavigationHierarchy[u];
+		UI* thisUI = navigation().hierarchy[u];
 
 		if (mainRowsNow) {
-			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
+			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image_for_session(),
+			                                     PadLEDs::occupancy_mask_for_session());
 			if (usedUp) {
-				if (!whichMainRowsNeedRendering) {
+				if (!navigation().main_rows_dirty) {
 					PadLEDs::sendOutMainPadColours();
 				}
 				mainRowsNow = 0;
@@ -345,9 +353,10 @@ void doAnyPendingGridRendering() {
 		}
 
 		if (sideRowsNow) {
-			bool usedUp = thisUI->renderSidebar(sideRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
+			bool usedUp =
+			    thisUI->renderSidebar(sideRowsNow, PadLEDs::image_for_session(), PadLEDs::occupancy_mask_for_session());
 			if (usedUp) {
-				if (!whichSideRowsNeedRendering) {
+				if (!navigation().side_rows_dirty) {
 					PadLEDs::sendOutSidebarColours();
 				}
 				sideRowsNow = 0;
@@ -357,47 +366,63 @@ void doAnyPendingGridRendering() {
 }
 
 void doAnyPendingOLEDRendering() {
-	if (doesOLEDNeedRendering) {
-		int32_t u = numUIsOpen - 1;
-		while ((u > 0) && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
+	if (navigation().oled_dirty) {
+		int32_t u = navigation().depth - 1;
+		while ((u > 0) && navigation().hierarchy[u]->oledShowsUIUnderneath) {
 			u--;
 		}
 
 		OLED::clearMainImage();
 		u = std::max(u, 0L);
-		for (; u < numUIsOpen; u++) {
+		for (; u < navigation().depth; u++) {
 			OLED::stopScrollingAnimation();
-			uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::main);
+			navigation().hierarchy[u]->renderOLED(deluge::hid::display::OLED::main_for_session());
 		}
 
 		// Don't need to mark dirty because clearMainImage has already done that for us
 
-		doesOLEDNeedRendering = false;
+		navigation().oled_dirty = false;
 	}
 
 	OLED::sendMainImage();
 }
 
-bool pendingUIRenderingLock = false;
-
 void doAnyPendingUIRendering() {
-	if (pendingUIRenderingLock) {
+	if (deluge::hid::mirror::is_client())
+		return;
+	if (navigation().rendering) {
 		return; // There's no point going in here multiple times inside each other
 	}
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
+	if (!deluge::gui::ui_session::graphics_output_ready([] {
+		    return uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2;
+	    })) {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 	}
 
-	pendingUIRenderingLock = true;
+	navigation().rendering = true;
+
+	// Re-reading menu targets is deferred until storage has finished yielding.
+	// Each panel consumes its own notifications; this never switches UI owners.
+	if (!sdRoutineLock && !currentlyAccessingCard && navigation().depth > 0
+	    && navigation().shared_model_refresh.consume(deluge::modulation::automation::parameter_revision)) {
+		getCurrentUI()->refresh_shared_model();
+	}
+
+	const bool overview =
+	    navigation().depth == 1
+	    && (getCurrentUI() == &session_view_for_session() || getCurrentUI() == &arranger_view_for_session());
+	if (navigation().structural_refresh.consume(sdRoutineLock || currentlyAccessingCard, overview,
+	                                            currentUIMode == 0)) {
+		uiNeedsRendering(getCurrentUI());
+		renderUIsForOled();
+	}
 
 	doAnyPendingGridRendering();
 	doAnyPendingOLEDRendering();
 
-	pendingUIRenderingLock = false;
+	navigation().rendering = false;
 }
-
-uint32_t currentUIMode = 0;
 
 bool isUIModeActive(uint32_t uiMode) {
 	if (uiMode > EXCLUSIVE_UI_MODES_MASK) {

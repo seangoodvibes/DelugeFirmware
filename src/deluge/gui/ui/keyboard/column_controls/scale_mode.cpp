@@ -77,7 +77,7 @@ void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelSt
 	if (previousScale == NO_SCALE) {
 		return;
 	}
-	if (keyboardScreen.setScale(previousScale)) {
+	if (keyboard_screen_for_session().setScale(previousScale)) {
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			if (scaleModes[y] == previousScale) {
 				currentScalePad = y;
@@ -95,7 +95,7 @@ void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTim
 			return;
 		}
 		previousScale = currentSong->getCurrentScale();
-		if (keyboardScreen.setScale(scaleModes[pad.y])) {
+		if (keyboard_screen_for_session().setScale(scaleModes[pad.y])) {
 			currentScalePad = pad.y;
 		}
 	}
@@ -104,7 +104,7 @@ void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTim
 		if (!layout->supportsScale(scaleModes[pad.y])) {
 			return;
 		}
-		if (keyboardScreen.setScale(scaleModes[pad.y])) {
+		if (keyboard_screen_for_session().setScale(scaleModes[pad.y])) {
 			previousScale = scaleModes[pad.y];
 			currentScalePad = pad.y;
 		}
@@ -112,7 +112,7 @@ void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTim
 	else {
 		// Pad released after long press
 
-		if (keyboardScreen.setScale(previousScale)) {
+		if (keyboard_screen_for_session().setScale(previousScale)) {
 			for (int32_t y = 0; y < kDisplayHeight; ++y) {
 				if (scaleModes[y] == previousScale) {
 					currentScalePad = y;

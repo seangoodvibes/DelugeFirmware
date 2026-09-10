@@ -29,9 +29,9 @@ public:
 	using MenuItem::MenuItem;
 
 	MenuItem* selectButtonPress() override {
-		soundEditor.exitCompletely();
+		sound_editor_for_session().exitCompletely();
 		RootUI* rootUI = getRootUI();
-		if (rootUI == &arrangerView) {
+		if (rootUI == &arranger_view_for_session()) {
 			if (stemExport.exportMixdown) {
 				stemExport.startStemExportProcess(StemExportType::MIXDOWN);
 			}
@@ -39,10 +39,10 @@ public:
 				stemExport.startStemExportProcess(StemExportType::TRACK);
 			}
 		}
-		else if (rootUI == &sessionView) {
+		else if (rootUI == &session_view_for_session()) {
 			stemExport.startStemExportProcess(StemExportType::CLIP);
 		}
-		else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
+		else if (rootUI == &instrument_clip_view_for_session() && getCurrentOutputType() == OutputType::KIT) {
 			stemExport.startStemExportProcess(StemExportType::DRUM);
 		}
 		return NO_NAVIGATION;

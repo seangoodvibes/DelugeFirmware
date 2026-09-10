@@ -32,12 +32,14 @@ public:
 		                                                   ModFXType::GRAIN, ModFXType::WARBLE, ModFXType::DIMENSION}));
 	}
 	[[nodiscard]] std::string_view getName() const override {
-		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET);
+		return modfx::getParamName(sound_editor_for_session().currentModControllable->getModFXType(),
+		                           ModFXParam::OFFSET);
 	}
 	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET, true));
+		label.append(modfx::getParamName(sound_editor_for_session().currentModControllable->getModFXType(),
+		                                 ModFXParam::OFFSET, true));
 	}
 };
 

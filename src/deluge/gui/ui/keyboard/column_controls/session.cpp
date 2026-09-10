@@ -29,10 +29,10 @@ namespace deluge::gui::ui::keyboard::controls {
 void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	bool armed = false;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		armed |= view.renderMacros(column, y, -1, image, nullptr);
+		armed |= view_for_session().renderMacros(column, y, -1, image, nullptr);
 	}
 	if (armed) {
-		view.flashPlayEnable();
+		view_for_session().flashPlayEnable();
 	}
 }
 
@@ -78,9 +78,9 @@ void SessionColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimel
 
 	if (pad.active) {}
 	else {
-		view.activateMacro(pad.y);
+		view_for_session().activateMacro(pad.y);
 	}
-	view.flashPlayEnable();
+	view_for_session().flashPlayEnable();
 };
 
 } // namespace deluge::gui::ui::keyboard::controls

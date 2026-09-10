@@ -20,14 +20,20 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 
-ConsequenceClipHorizontalShift::ConsequenceClipHorizontalShift(int32_t newAmount, bool newShiftAutomation,
-                                                               bool newShiftSequenceAndMPE) {
+ConsequenceClipHorizontalShift::ConsequenceClipHorizontalShift(Clip* targetClip, int32_t newAmount,
+                                                               bool newShiftAutomation, bool newShiftSequenceAndMPE) {
 	amount = newAmount;
+	clip = targetClip;
 	shiftAutomation = newShiftAutomation;
 	shiftSequenceAndMPE = newShiftSequenceAndMPE;
 }
 
 Error ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || !modelStack->song->contains_clip_for_undo(clip))
+		return Error::BUG;
+	// Both undo directions must be representable before changing the clip.
+	if (!deluge::model::is_reversible_shift(amount))
+		return Error::BUG;
 
 	int32_t amountNow = amount;
 
@@ -35,11 +41,9 @@ Error ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelSta
 		amountNow = -amountNow;
 	}
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(modelStack->song->getCurrentClip());
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-	((Clip*)modelStackWithTimelineCounter->getTimelineCounter())
-	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow, shiftAutomation, shiftSequenceAndMPE);
-
-	return Error::NONE;
+	return clip->shiftHorizontally(modelStackWithTimelineCounter, amountNow, shiftAutomation, shiftSequenceAndMPE)
+	           ? Error::NONE
+	           : Error::BUG;
 }

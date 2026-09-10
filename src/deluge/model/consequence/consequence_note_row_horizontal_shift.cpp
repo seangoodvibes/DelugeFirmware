@@ -16,40 +16,45 @@
  */
 
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
-#include "hid/display/display.h"
+#include "model/action/reversible_shift.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 
-ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount,
-                                                                     bool newShiftAutomation,
+ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(InstrumentClip* targetClip, int32_t newNoteRowId,
+                                                                     int32_t newAmount, bool newShiftAutomation,
                                                                      bool newShiftSequenceAndMPE) {
 	amount = newAmount;
+	clip = targetClip;
 	noteRowId = newNoteRowId;
+	if (clip && clip->type == ClipType::INSTRUMENT) {
+		if (auto* row = clip->getNoteRowFromId(noteRowId))
+			note_row_identity = row->undo_identity;
+	}
 	shiftAutomation = newShiftAutomation;
 	shiftSequenceAndMPE = newShiftSequenceAndMPE;
 }
 
 Error ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || !modelStack->song->contains_clip_for_undo(clip)
+	    || clip->type != ClipType::INSTRUMENT)
+		return Error::BUG;
+	NoteRow* row = clip->getNoteRowFromId(noteRowId);
+	if (!row || !note_row_identity || row->undo_identity != note_row_identity || clip->loopLength <= 0
+	    || row->loopLengthIfIndependent < 0)
+		return Error::BUG;
 
+	if (!deluge::model::is_reversible_shift(amount))
+		return Error::BUG;
 	int32_t amountNow = amount;
 
 	if (time == BEFORE) {
 		amountNow = -amountNow;
 	}
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->getCurrentClip())
-	                                                   ->addNoteRowId(noteRowId)
-	                                                   ->automaticallyAddNoteRowFromId();
-
-	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-#if ALPHA_OR_BETA_VERSION
-		FREEZE_WITH_ERROR("E377");
-#endif
-		return Error::BUG;
-	}
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(clip)->addNoteRow(noteRowId, row);
 
 	((InstrumentClip*)modelStackWithNoteRow->getTimelineCounter())
 	    ->shiftOnlyOneNoteRowHorizontally(modelStackWithNoteRow, amountNow, shiftAutomation, shiftSequenceAndMPE);

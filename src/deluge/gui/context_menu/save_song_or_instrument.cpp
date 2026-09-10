@@ -24,7 +24,13 @@
 #include "storage/file_item.h"
 
 namespace deluge::gui::context_menu {
-SaveSongOrInstrument saveSongOrInstrument{};
+namespace {
+SaveSongOrInstrument local_save_song_or_instrument{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SaveSongOrInstrument> remote_save_song_or_instrument;
+} // namespace
+SaveSongOrInstrument& save_song_or_instrument_for_session() {
+	return remote_save_song_or_instrument.get(local_save_song_or_instrument);
+}
 
 char const* SaveSongOrInstrument::getTitle() {
 	using enum l10n::String;
@@ -44,8 +50,8 @@ std::span<char const*> SaveSongOrInstrument::getOptions() {
 bool SaveSongOrInstrument::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Collect media
-		saveSongUI.collectingSamples = true;
-		return saveSongUI.performSave();
+		save_song_ui_for_session().collectingSamples = true;
+		return save_song_ui_for_session().performSave();
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();
@@ -59,11 +65,11 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 		return true;
 	}
 	case 2: { // Delete file
-		bool available = context_menu::deleteFile.setupAndCheckAvailability();
+		bool available = context_menu::delete_file_for_session().setupAndCheckAvailability();
 
 		if (available) { // It always will be - but we gotta check.
 			display->setNextTransitionDirection(1);
-			openUI(&context_menu::deleteFile); // Might fail
+			openUI(&context_menu::delete_file_for_session()); // Might fail
 		}
 		return available;
 	}
@@ -79,10 +85,10 @@ bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 
 	switch (currentOption) {
 	case 0: // Collect media
-		return (isUIOpen(&saveSongUI)) && (!currentFileItem || !currentFileItem->isFolder);
+		return (isUIOpen(&save_song_ui_for_session())) && (!currentFileItem || !currentFileItem->isFolder);
 
 	case 1: // Create folder
-		return (!QwertyUI::enteredText.isEmpty() && !currentFileItem);
+		return (!QwertyUI::entered_text_for_session().isEmpty() && !currentFileItem);
 
 	case 2: // Delete file
 		return (currentFileItem && !currentFileItem->isFolder);

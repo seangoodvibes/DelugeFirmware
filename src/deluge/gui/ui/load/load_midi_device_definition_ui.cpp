@@ -35,7 +35,14 @@ using namespace deluge;
 
 #define MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER "MIDI_DEVICES/DEFINITION"
 
-LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI{};
+namespace {
+LoadMidiDeviceDefinitionUI local_load_midi_device_definition_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<LoadMidiDeviceDefinitionUI>
+    remote_load_midi_device_definition_ui;
+} // namespace
+LoadMidiDeviceDefinitionUI& load_midi_device_definition_ui_for_session() {
+	return remote_load_midi_device_definition_ui.get(local_load_midi_device_definition_ui);
+}
 
 bool LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
@@ -89,7 +96,7 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 		fileIconPt2Width = 1;
 	}
 
-	enteredText.clear();
+	entered_text_for_session().clear();
 
 	String searchFilename;
 
@@ -97,7 +104,7 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 
 	// is empty we just start with nothing. currentSlot etc remain set to "zero" from before
 	if (midiInstrument->deviceDefinitionFileName.isEmpty()) {
-		Error error = currentDir.set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+		Error error = current_dir_for_session().set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -117,7 +124,7 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));
 
-		currentDir.set(dir);
+		current_dir_for_session().set(dir);
 		searchFilename.set(++filename);
 	}
 
@@ -133,7 +140,7 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 		return error;
 	}
 
-	currentLabelLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
+	currentLabelLoadError = (file_index_selected_for_session() >= 0) ? Error::NONE : Error::UNSPECIFIED;
 
 	drawKeys();
 
@@ -192,7 +199,7 @@ ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
+			if (!strcmp(current_dir_for_session().get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
 				close();
 				return ActionResult::DEALT_WITH;
 			}
@@ -226,9 +233,9 @@ Error LoadMidiDeviceDefinitionUI::performLoad(bool doClone) {
 	}
 
 	String fileName;
-	fileName.set(currentDir.get());
+	fileName.set(current_dir_for_session().get());
 	fileName.concatenate("/");
-	fileName.concatenate(enteredText.get());
+	fileName.concatenate(entered_text_for_session().get());
 	fileName.concatenate(".XML");
 
 	Error error = StorageManager::loadMidiDeviceDefinitionFile((MIDIInstrument*)getCurrentOutput(),

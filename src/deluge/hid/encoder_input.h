@@ -17,13 +17,10 @@
 
 #pragma once
 
+#include "hid/encoder_input_state.h"
 #include <cstdint>
 
 namespace deluge::hid::encoders {
-
-/// Last AudioEngine::audioSampleTimer tick at which a mod encoder changed.
-/// Written here and by view.cpp to reset the "turned recently" window.
-extern uint32_t timeModEncoderLastTurned[];
 
 /// Translate accumulated encoder ticks into UI actions.
 ///
@@ -31,6 +28,13 @@ extern uint32_t timeModEncoderLastTurned[];
 ///                       (used during SD card I/O and audio engine yield paths).
 /// @return true if any encoder produced an action this call.
 bool interpretEncoders(bool skipActioning = false);
+
+// These APIs retain the caller's UI session. Queue once, service until pending
+// becomes false, then acknowledge dispatch and advance to the next input.
+bool queue_session_encoder(uint8_t index, int32_t delta);
+bool interpret_session_encoders(bool skipActioning = false);
+bool session_encoders_pending();
+void clear_session_encoders();
 
 /// Scheduler task entry point: actions any pending encoder movement, then re-blocks itself so it
 /// won't run again until the encoder IRQ unblocks it.

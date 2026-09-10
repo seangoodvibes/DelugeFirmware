@@ -33,7 +33,7 @@ public:
 	    : HorizontalMenuContainer(items), morph_item_unpatched_{morph_item} {}
 
 	void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const auto [freq_raw, reso_raw, morph_raw, is_morphable, is_hpf] = getFilterValues();
 		const float freq_value = freq_raw / 50.f;

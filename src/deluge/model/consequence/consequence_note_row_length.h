@@ -22,12 +22,16 @@
 class Action;
 class ModelStackWithNoteRow;
 
+class InstrumentClip;
+
 class ConsequenceNoteRowLength final : public Consequence {
 public:
-	ConsequenceNoteRowLength(int32_t newNoteRowId, int32_t newLength);
+	ConsequenceNoteRowLength(InstrumentClip* targetClip, int32_t newNoteRowId, int32_t newLength);
 	Error revert(TimeType time, ModelStack* modelStack) override;
-	void performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo, int32_t oldPos,
-	                   bool hadIndependentPlayPosBefore);
+	Error performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo, int32_t oldPos,
+	                    bool hadIndependentPlayPosBefore);
 	int32_t backedUpLength;
+	InstrumentClip* clip;
 	int32_t noteRowId;
+	uint64_t note_row_identity = 0;
 };

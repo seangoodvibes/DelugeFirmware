@@ -29,7 +29,8 @@ class CompressorValue : public DecimalWithoutScrolling {
 		q31_t knobPos = lshiftAndSaturate<24>(value);
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -43,7 +44,7 @@ class CompressorValue : public DecimalWithoutScrolling {
 		}
 		// Or, the normal case of just one sound
 		else {
-			setCompressorValue(knobPos, &soundEditor.currentModControllable->compressor);
+			setCompressorValue(knobPos, &sound_editor_for_session().currentModControllable->compressor);
 		}
 	}
 	virtual uint64_t getCompressorValue() = 0;
@@ -58,10 +59,12 @@ class Attack final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getAttack();
+		return (uint64_t)sound_editor_for_session().currentModControllable->compressor.getAttack();
 	}
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setAttack(value); }
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
+	float getDisplayValue() override {
+		return sound_editor_for_session().currentModControllable->compressor.getAttackMS();
+	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT)); }
 };
@@ -69,10 +72,12 @@ class Release final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() final {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getRelease();
+		return (uint64_t)sound_editor_for_session().currentModControllable->compressor.getRelease();
 	}
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) final { compressor->setRelease(value); }
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
+	float getDisplayValue() override {
+		return sound_editor_for_session().currentModControllable->compressor.getReleaseMS();
+	}
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
 
@@ -82,29 +87,35 @@ class Ratio final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getRatio();
+		return (uint64_t)sound_editor_for_session().currentModControllable->compressor.getRatio();
 	}
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setRatio(value); }
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
+	float getDisplayValue() override {
+		return sound_editor_for_session().currentModControllable->compressor.getRatioForDisplay();
+	}
 	const char* getUnit() override { return " : 1"; }
 };
 class SideHPF final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override {
-		return (uint64_t)soundEditor.currentModControllable->compressor.getSidechain();
+		return (uint64_t)sound_editor_for_session().currentModControllable->compressor.getSidechain();
 	}
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override {
 		compressor->setSidechain(value);
 	}
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getSidechainForDisplay(); }
+	float getDisplayValue() override {
+		return sound_editor_for_session().currentModControllable->compressor.getSidechainForDisplay();
+	}
 	const char* getUnit() override { return "HZ"; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return HPF; }
 };
 class Blend final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
-	uint64_t getCompressorValue() final { return (uint64_t)soundEditor.currentModControllable->compressor.getBlend(); }
+	uint64_t getCompressorValue() final {
+		return (uint64_t)sound_editor_for_session().currentModControllable->compressor.getBlend();
+	}
 	void setCompressorValue(q31_t, RMSFeedbackCompressor* compressor) final {
 		auto value = this->getValue();
 
@@ -118,7 +129,9 @@ public:
 		compressor->setBlend(knobPos);
 	}
 
-	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
+	float getDisplayValue() override {
+		return sound_editor_for_session().currentModControllable->compressor.getBlendForDisplay();
+	}
 	const char* getUnit() override { return " %"; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
 	[[nodiscard]] int32_t getOccupiedSlots() const override { return 1; }

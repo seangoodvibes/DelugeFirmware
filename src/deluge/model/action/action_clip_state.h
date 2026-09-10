@@ -20,17 +20,20 @@
 #include <cstdint>
 
 class Clip;
+class Drum;
+class Output;
 
 class ActionClipState {
 public:
-	ActionClipState();
-	virtual ~ActionClipState();
 	void grabFromClip(Clip* thisClip);
+	Clip* clip_identity = nullptr;
+	Output* output_identity = nullptr;
+	bool matches(Clip* clip, Output* output) const { return clip_identity == clip && output_identity == output; }
 
-	int32_t yScrollSessionView[2];
+	int32_t yScrollSessionView[2]{};
 	// uint8_t modKnobMode;
-	bool affectEntire;
-	bool wrapEditing;
-	uint32_t wrapEditLevel;
-	int32_t selectedDrumIndex; // -1 means none
+	bool affectEntire = false;
+	bool wrapEditing = false;
+	uint32_t wrapEditLevel = 0;
+	Drum* selected_drum_identity = nullptr; // Compared against live kit members before restoration.
 };

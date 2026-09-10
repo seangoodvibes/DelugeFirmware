@@ -26,7 +26,13 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-DoneStemExport doneStemExport{};
+namespace {
+DoneStemExport local_done_stem_export{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<DoneStemExport> remote_done_stem_export;
+} // namespace
+DoneStemExport& done_stem_export_for_session() {
+	return remote_done_stem_export.get(local_done_stem_export);
+}
 
 char const* DoneStemExport::getTitle() {
 	using enum l10n::String;

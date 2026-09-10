@@ -43,7 +43,7 @@ void AutomationEditorLayoutNote::renderNoteEditor(ModelStackWithNoteRow* modelSt
 	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
-		                    getAutomationView()->toTimelineView(), currentSong->tripletsOn, xDisplay);
+		                    getAutomationView()->toTimelineView(), currentSong->triplets_on_for_session(), xDisplay);
 	}
 }
 
@@ -70,12 +70,13 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	bool isKit = outputType == OutputType::KIT;
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-	                                                                        modelStack); // don't create
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    clip->getNoteRowOnScreen(instrument_clip_view_for_session().lastAuditionedYDisplay,
+	                             modelStack); // don't create
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 		if (!isKit) {
-			modelStackWithNoteRow =
-			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
+			modelStackWithNoteRow = instrument_clip_view_for_session().createNoteRowForYDisplay(
+			    modelStack, instrument_clip_view_for_session().lastAuditionedYDisplay);
 		}
 	}
 
@@ -96,12 +97,13 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	bool isKit = outputType == OutputType::KIT;
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-	                                                                        modelStack); // don't create
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    clip->getNoteRowOnScreen(instrument_clip_view_for_session().lastAuditionedYDisplay,
+	                             modelStack); // don't create
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 		if (!isKit) {
-			modelStackWithNoteRow =
-			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
+			modelStackWithNoteRow = instrument_clip_view_for_session().createNoteRowForYDisplay(
+			    modelStack, instrument_clip_view_for_session().lastAuditionedYDisplay);
 		}
 	}
 
@@ -160,8 +162,9 @@ void AutomationEditorLayoutNote::noteEditPadAction(ModelStackWithNoteRow* modelS
 
 // call instrument clip view edit pad action function to process pad press actions
 void AutomationEditorLayoutNote::recordNoteEditPadAction(int32_t x, int32_t velocity) {
-	instrumentClipView.editPadAction(velocity, instrumentClipView.lastAuditionedYDisplay, x,
-	                                 currentSong->xZoom[NAVIGATION_CLIP]);
+	instrument_clip_view_for_session().editPadAction(velocity,
+	                                                 instrument_clip_view_for_session().lastAuditionedYDisplay, x,
+	                                                 currentSong->x_zoom_for_session()[NAVIGATION_CLIP]);
 }
 
 // }; // namespace deluge::gui::views::automation::editor_layout

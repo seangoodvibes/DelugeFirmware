@@ -67,6 +67,7 @@ public:
 
 	// move data from ring buffer to dataSendingNow, assuming it is free
 	bool consumeSendData();
+	void discard_queued_non_sys_ex();
 	bool hasBufferedSendData();
 	int sendBufferSpace();
 #else
@@ -74,6 +75,7 @@ public:
 struct ConnectedUSBMIDIDevice {
 	struct MIDICableUSB* device[4];
 #endif
+	uint32_t connection_generation; // Incremented for each USB setup, in both roles.
 	uint8_t currentlyWaitingToReceive;
 	uint8_t sq; // Only for connections as HOST
 	uint8_t canHaveMIDISent;

@@ -63,7 +63,7 @@ public:
 		constexpr int32_t base_y = start_y + draw_height;
 		const int32_t sustain_y = base_y - round(sustain / 50.0f * draw_height);
 
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		// Draw stage lines
 		image.drawLine(start_x, base_y, attack_x, start_y);
@@ -87,7 +87,7 @@ public:
 		}
 
 		// Draw transition indicators
-		selected_x_ = -1, selected_y_ = -1;
+		render_states_.active().x = -1, render_states_.active().y = -1;
 		const int32_t selected_pos = std::distance(items.begin(), std::ranges::find(items, currentItem));
 
 		drawTransitionIndicator(attack_x, start_y, selected_pos == 0);
@@ -97,15 +97,19 @@ public:
 	}
 
 private:
-	int32_t selected_x_, selected_y_;
+	struct RenderState {
+		int32_t x = -1;
+		int32_t y = -1;
+	};
+	ui_session::State<RenderState> render_states_;
 
 	void drawTransitionIndicator(const float center_x, const float center_y, const bool is_selected) {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const int32_t ix = static_cast<int32_t>(center_x);
 		const int32_t iy = static_cast<int32_t>(center_y);
 
-		if (!is_selected && ix == selected_x_ && iy == selected_y_) {
+		if (!is_selected && ix == render_states_.active().x && iy == render_states_.active().y) {
 			// Overlap occurred, skip drawing
 			return;
 		}
@@ -121,7 +125,7 @@ private:
 
 		if (is_selected) {
 			// Invert region inside to highlight selection
-			selected_x_ = ix, selected_y_ = iy;
+			render_states_.active().x = ix, render_states_.active().y = iy;
 			image.invertArea(ix - innerSquareSize, square_size * 2 - 1, iy - innerSquareSize, iy + innerSquareSize);
 		}
 

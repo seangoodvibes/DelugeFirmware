@@ -37,19 +37,19 @@ bool DxSyxBrowser::opened() {
 	if (!success)
 		return false;
 
-	allowedFileExtensions = allowedFileExtensionsSyx;
+	allowed_file_extensions_for_session() = allowedFileExtensionsSyx;
 
-	allowFoldersSharingNameWithFile = true;
-	outputTypeToLoad = OutputType::NONE;
-	qwertyVisible = false;
+	allow_folders_sharing_name_with_file_for_session() = true;
+	output_type_to_load_for_session() = OutputType::NONE;
+	qwerty_visible_for_session() = false;
 
-	fileIndexSelected = 0;
+	file_index_selected_for_session() = 0;
 
 	Error error = StorageManager::initSD();
 	if (error != Error::NONE)
 		goto sdError;
 
-	currentDir.set("DX7");
+	current_dir_for_session().set("DX7");
 
 	// TODO: fill in last used name!
 	error = arrivedInNewFolder(1, "", "DX7");
@@ -66,7 +66,7 @@ sdError:
 Error DxSyxBrowser::getCurrentFilePath(String* path) {
 	Error error;
 
-	path->set(&currentDir);
+	path->set(&current_dir_for_session());
 	int oldLength = path->getLength();
 	if (oldLength) {
 		error = path->concatenateAtPos("/", oldLength);
@@ -113,8 +113,8 @@ void DxSyxBrowser::enterKeyPress() {
 
 		if (!path.isEmpty()) {
 			if (menu_item::dxCartridge.tryLoad(path.get())) {
-				soundEditor.enterSubmenu(&menu_item::dxCartridge);
-				soundEditor.shouldGoUpOneLevelOnBegin = false;
+				sound_editor_for_session().enterSubmenu(&menu_item::dxCartridge);
+				sound_editor_for_session().shouldGoUpOneLevelOnBegin = false;
 				close();
 			}
 		}
@@ -123,4 +123,10 @@ void DxSyxBrowser::enterKeyPress() {
 	}
 }
 
-DxSyxBrowser dxBrowser{};
+namespace {
+DxSyxBrowser local_dx_browser{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<DxSyxBrowser> remote_dx_browser;
+} // namespace
+DxSyxBrowser& dx_browser_for_session() {
+	return remote_dx_browser.get(local_dx_browser);
+}

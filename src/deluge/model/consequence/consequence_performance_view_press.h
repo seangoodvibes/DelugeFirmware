@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "gui/ui/ui_session.h"
 #include "gui/views/performance_view.h"
 #include "model/consequence/consequence.h"
 #include <cstdint>
@@ -26,6 +27,7 @@ public:
 	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
+	const deluge::gui::ui_session::Id owner = deluge::gui::ui_session::current();
 	int32_t xDisplayChanged = kNoSelection;
 	FXColumnPress fxPress[2];
 };

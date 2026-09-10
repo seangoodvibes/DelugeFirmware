@@ -34,5 +34,5 @@ public:
 	char const* getTitle() override;
 };
 
-extern Synth synth;
+Synth& synth_for_session();
 } // namespace deluge::gui::context_menu::sample_browser

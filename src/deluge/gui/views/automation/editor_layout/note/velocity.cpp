@@ -157,12 +157,12 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 	bool showNewVelocity = true;
 
 	// check for middle or multi pad press
-	if (velocity && squareInfo.numNotes != 0 && instrumentClipView.numEditPadPresses == 1) {
+	if (velocity && squareInfo.numNotes != 0 && instrument_clip_view_for_session().numEditPadPresses == 1) {
 		// Find that original press
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (instrumentClipView.editPadPresses[i].isActive) {
+			if (instrument_clip_view_for_session().editPadPresses[i].isActive) {
 				// if found, calculate middle velocity between two velocity pad presses
-				if (instrumentClipView.editPadPresses[i].xDisplay == x) {
+				if (instrument_clip_view_for_session().editPadPresses[i].xDisplay == x) {
 					// the last pad press will have updated the default velocity
 					// so get it as it will be used to calculate average between previous and new velocity
 					int32_t previousVelocity = getCurrentInstrument()->defaultVelocity;
@@ -177,7 +177,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 				}
 				// found a second press that isn't in the same column as the first press
 				else {
-					int32_t firstPadX = instrumentClipView.editPadPresses[i].xDisplay;
+					int32_t firstPadX = instrument_clip_view_for_session().editPadPresses[i].xDisplay;
 
 					// get note info on all the squares in the note row
 					noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
@@ -370,33 +370,33 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 	int32_t velocityValue = 0;
 
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-		bool foundPadPress = instrumentClipView.editPadPresses[i].isActive;
+		bool foundPadPress = instrument_clip_view_for_session().editPadPresses[i].isActive;
 
 		// if we found an active pad press and we're looking for a pad press with a specific xDisplay
 		// see if the active pad press is the one we are looking for
 		if (foundPadPress && (x != kNoSelection)) {
-			foundPadPress = (instrumentClipView.editPadPresses[i].xDisplay == x);
+			foundPadPress = (instrument_clip_view_for_session().editPadPresses[i].xDisplay == x);
 		}
 
 		if (foundPadPress) {
-			instrumentClipView.editPadPresses[i].deleteOnDepress = false;
+			instrument_clip_view_for_session().editPadPresses[i].deleteOnDepress = false;
 
 			// Multiple notes in square
-			if (instrumentClipView.editPadPresses[i].isBlurredSquare) {
+			if (instrument_clip_view_for_session().editPadPresses[i].isBlurredSquare) {
 
 				uint32_t velocitySumThisSquare = 0;
 				uint32_t numNotesThisSquare = 0;
 
-				int32_t noteI =
-				    noteRow->notes.search(instrumentClipView.editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+				int32_t noteI = noteRow->notes.search(instrument_clip_view_for_session().editPadPresses[i].intendedPos,
+				                                      GREATER_OR_EQUAL);
 				Note* note = noteRow->notes.getElement(noteI);
 				while (note
-				       && note->pos - instrumentClipView.editPadPresses[i].intendedPos
-				              < instrumentClipView.editPadPresses[i].intendedLength) {
+				       && note->pos - instrument_clip_view_for_session().editPadPresses[i].intendedPos
+				              < instrument_clip_view_for_session().editPadPresses[i].intendedLength) {
 					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_SET_VELOCITY, newVelocity);
 
-					instrumentClipView.updateVelocityValue(velocityValue, note->getVelocity());
+					instrument_clip_view_for_session().updateVelocityValue(velocityValue, note->getVelocity());
 
 					numNotesThisSquare++;
 					velocitySumThisSquare += note->getVelocity();
@@ -413,27 +413,28 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 
 				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
 				// the pad press note so you can hear the velocity changes as you're holding the note down
-				instrumentClipView.editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
+				instrument_clip_view_for_session().editPadPresses[i].intendedVelocity =
+				    velocitySumThisSquare / numNotesThisSquare;
 			}
 
 			// Only one note in square
 			else {
 				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
 				// the pad press note so you can hear the velocity changes as you're holding the note down
-				instrumentClipView.editPadPresses[i].intendedVelocity = newVelocity;
-				noteRow->changeNotesAcrossAllScreens(instrumentClipView.editPadPresses[i].intendedPos,
+				instrument_clip_view_for_session().editPadPresses[i].intendedVelocity = newVelocity;
+				noteRow->changeNotesAcrossAllScreens(instrument_clip_view_for_session().editPadPresses[i].intendedPos,
 				                                     modelStackWithNoteRow, action, CORRESPONDING_NOTES_SET_VELOCITY,
 				                                     newVelocity);
 
-				instrumentClipView.updateVelocityValue(velocityValue,
-				                                       instrumentClipView.editPadPresses[i].intendedVelocity);
+				instrument_clip_view_for_session().updateVelocityValue(
+				    velocityValue, instrument_clip_view_for_session().editPadPresses[i].intendedVelocity);
 			}
 		}
 	}
 
-	instrumentClipView.displayVelocity(velocityValue, 0);
+	instrument_clip_view_for_session().displayVelocity(velocityValue, 0);
 
-	instrumentClipView.reassessAllAuditionStatus();
+	instrument_clip_view_for_session().reassessAllAuditionStatus();
 }
 
 // set velocity of notes between pressed squares

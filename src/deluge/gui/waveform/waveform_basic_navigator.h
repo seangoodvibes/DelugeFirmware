@@ -49,4 +49,4 @@ public:
 	WaveformRenderData renderData;
 };
 
-extern WaveformBasicNavigator waveformBasicNavigator;
+WaveformBasicNavigator& waveform_basic_navigator_for_session();

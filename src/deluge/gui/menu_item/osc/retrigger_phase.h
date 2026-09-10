@@ -67,7 +67,7 @@ public:
 	}
 
 	void drawPixelsForOled() override {
-		oled_canvas::Canvas& canvas = OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main_for_session();
 		if (this->getValue() < 0) {
 			canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_OFF), 20, kTextHugeSpacingX, kTextHugeSizeY);
 		}
@@ -97,11 +97,12 @@ public:
 	}
 
 	int32_t getNumberEditSize() override {
-		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		if (parent_for_session() != nullptr
+		    && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
 			// In Horizontal menus we use 0.10 step by default, and 0.01 step for fine editing
 			return Buttons::isAnyOfButtonsPressed({hid::button::SELECT_ENC, hid::button::SHIFT}) ? 1 : 10;
 		}
-		return soundEditor.numberEditSize;
+		return sound_editor_for_session().numberEditSize;
 	}
 
 	void selectEncoderAction(int32_t offset) override {
@@ -112,7 +113,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& canvas = OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main_for_session();
 		if (this->getValue() < 0) {
 			const char* off = l10n::get(l10n::String::STRING_FOR_OFF);
 			return canvas.drawStringCentered(off, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
@@ -141,9 +142,9 @@ private:
 
 	[[nodiscard]] uint32_t* getValueAddress() const {
 		if (for_modulator_) {
-			return &soundEditor.currentSound->modulatorRetriggerPhase[source_id_];
+			return &sound_editor_for_session().currentSound->modulatorRetriggerPhase[source_id_];
 		}
-		return &soundEditor.currentSound->oscRetriggerPhase[source_id_];
+		return &sound_editor_for_session().currentSound->oscRetriggerPhase[source_id_];
 	}
 };
 } // namespace deluge::gui::menu_item::osc

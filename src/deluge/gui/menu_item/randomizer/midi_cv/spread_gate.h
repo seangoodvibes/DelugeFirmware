@@ -25,11 +25,12 @@ class SpreadGate final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->spreadGate));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->spreadGate));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->spreadGate = value;
+		sound_editor_for_session().currentArpSettings->spreadGate = value;
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };

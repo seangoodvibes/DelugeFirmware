@@ -27,7 +27,13 @@
 #include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
-Synth synth{};
+namespace {
+Synth local_synth{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<Synth> remote_synth;
+} // namespace
+Synth& synth_for_session() {
+	return remote_synth.get(local_synth);
+}
 
 char const* Synth::getTitle() {
 	using enum l10n::String;
@@ -49,18 +55,18 @@ bool Synth::isCurrentOptionAvailable() {
 
 	// Multisamples (load entire folder and auto-detect ranges). Will delete all previous Ranges.
 	if (currentOption == 0) {
-		return (soundEditor.currentSound->getSynthMode() != SynthMode::RINGMOD);
+		return (sound_editor_for_session().currentSound->getSynthMode() != SynthMode::RINGMOD);
 	}
 
 	// Apart from that option, none of the other ones are valid if currently sitting on a folder-name.
-	if (sampleBrowser.getCurrentFileItem()->isFolder) {
+	if (sample_browser_for_session().getCurrentFileItem()->isFolder) {
 		return false;
 	}
 
 	switch (currentOption) {
 	case 1:
 		// "Basic" Sample - unavailable if ringmod.
-		return (soundEditor.currentSound->getSynthMode() != SynthMode::RINGMOD);
+		return (sound_editor_for_session().currentSound->getSynthMode() != SynthMode::RINGMOD);
 
 	case 3:
 		// WaveTable
@@ -83,13 +89,13 @@ bool Synth::acceptCurrentOption() {
 
 	switch (currentOption) {
 	case 0: // Multisamples
-		return sampleBrowser.importFolderAsMultisamples();
+		return sample_browser_for_session().importFolderAsMultisamples();
 	case 1: // Basic
-		return sampleBrowser.claimCurrentFile(0, 0, 0);
+		return sample_browser_for_session().claimCurrentFile(0, 0, 0);
 	case 2: // Single-cycle
-		return sampleBrowser.claimCurrentFile(2, 2, 1);
-	case 3:                                             // WaveTable
-		return sampleBrowser.claimCurrentFile(1, 1, 2); // Could probably also be 0,0,2
+		return sample_browser_for_session().claimCurrentFile(2, 2, 1);
+	case 3:                                                            // WaveTable
+		return sample_browser_for_session().claimCurrentFile(1, 1, 2); // Could probably also be 0,0,2
 	default:
 		__builtin_unreachable();
 		return false;
@@ -97,10 +103,10 @@ bool Synth::acceptCurrentOption() {
 }
 
 ActionResult Synth::padAction(int32_t x, int32_t y, int32_t on) {
-	return sampleBrowser.padAction(x, y, on);
+	return sample_browser_for_session().padAction(x, y, on);
 }
 
 bool Synth::canSeeViewUnderneath() {
-	return sampleBrowser.canSeeViewUnderneath();
+	return sample_browser_for_session().canSeeViewUnderneath();
 }
 } // namespace deluge::gui::context_menu::sample_browser

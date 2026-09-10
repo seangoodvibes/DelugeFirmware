@@ -36,7 +36,8 @@ private:
 	// first device (which would leave blank rows at the bottom and hide devices above the selection).
 	int32_t computeScrollForSelected(int32_t selected);
 
-	int32_t current_scroll_ = 0;
+	ui_session::State<int32_t> scroll_positions;
+	int32_t& scroll_for_session();
 };
 
 extern Devices devicesMenu;

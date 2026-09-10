@@ -18,15 +18,21 @@
 #include "model/consequence/consequence_note_existence.h"
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/note/note_vector.h"
+#include "model/song/song.h"
 #include "util/misc.h"
 
 ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int32_t newNoteRowId, Note* note,
                                                    ExistenceChangeType newType) {
 	clip = newClip;
 	noteRowId = newNoteRowId;
+	if (clip && clip->type == ClipType::INSTRUMENT) {
+		if (auto* row = clip->getNoteRowFromId(noteRowId))
+			note_row_identity = row->undo_identity;
+	}
 	pos = note->pos;
 	length = note->getLength();
 	velocity = note->getVelocity();
@@ -39,8 +45,11 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int3
 }
 
 Error ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || !modelStack->song->contains_clip_for_undo(clip)
+	    || clip->type != ClipType::INSTRUMENT)
+		return Error::BUG;
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
-	if (!noteRow) {
+	if (!noteRow || !note_row_identity || noteRow->undo_identity != note_row_identity) {
 		return Error::BUG;
 	}
 
@@ -54,18 +63,40 @@ Error ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 		noteRow->notes.deleteAtIndex(i);
 	}
 	else {
-		// Create a note now
-		int32_t i = noteRow->notes.insertAtKey(pos);
-		Note* note = noteRow->notes.getElement(i);
-		if (!note) {
+		// Reserve before committing. Reservation may service callbacks: retain
+		// value metadata and re-resolve the live row before touching its storage.
+		Song* const song = modelStack->song;
+		InstrumentClip* const targetClip = clip;
+		const int32_t target_row_id = noteRowId;
+		const uint64_t target_identity = note_row_identity;
+		Note restored;
+		restored.pos = pos;
+		restored.setLength(length);
+		restored.setVelocity(velocity);
+		restored.setProbability(probability);
+		restored.setLift(lift);
+		restored.setIterance(iterance);
+		restored.setFill(fill);
+		if (song != currentSong)
+			return Error::BUG;
+		bool reserved = noteRow->notes.ensureEnoughSpaceAllocated(1);
+		if (currentSong != song || !song->contains_clip_for_undo(targetClip)
+		    || targetClip->type != ClipType::INSTRUMENT)
+			return Error::BUG;
+		noteRow = targetClip->getNoteRowFromId(target_row_id);
+		if (!noteRow || noteRow->undo_identity != target_identity)
+			return Error::BUG;
+		if (!reserved)
 			return Error::INSUFFICIENT_RAM;
-		}
-		note->setLength(length);
-		note->setVelocity(velocity);
-		note->setProbability(probability);
-		note->setLift(lift);
-		note->setIterance(iterance);
-		note->setFill(fill);
+		int32_t i = noteRow->notes.search(restored.pos, GREATER_OR_EQUAL);
+		auto* existing = noteRow->notes.getElement(i);
+		if (existing && existing->pos == restored.pos)
+			return Error::BUG;
+		// No allocation or yield between validation and initialization.
+		Error error = noteRow->notes.insert_at_index_without_allocation(i);
+		if (error != Error::NONE)
+			return error;
+		*noteRow->notes.getElement(i) = restored;
 	}
 
 	return Error::NONE;

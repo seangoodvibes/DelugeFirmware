@@ -1,6 +1,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
+#include "hid/mirror.h"
 #include "util/misc.h"
 #include <array>
 #include <cstddef>
@@ -8,6 +9,7 @@
 #include <functional>
 #include <initializer_list>
 #include <optional>
+#include <span>
 #include <stdint.h>
 
 extern "C" {
@@ -72,6 +74,11 @@ class PIC {
 	};
 
 public:
+	// Only the mirror receiver calls this, after validating complete commands.
+	static void replay_mirror_bytes(std::span<const uint8_t> bytes) {
+		for (uint8_t byte : bytes)
+			send(byte);
+	}
 	/**
 	 * @brief The response received from the PIC
 	 */
@@ -308,6 +315,8 @@ private:
 	 * @brief Send a byte. This was originally bufferPICUart()
 	 */
 	inline static void send(uint8_t msg) {
+		if (!deluge::hid::mirror::panel_byte(msg))
+			return;
 		intptr_t writePos = uartItems[UART_ITEM_PIC].txBufferWritePos;
 		volatile char* uncached_tx_buf = (volatile char*)(picTxBuffer + UNCACHED_MIRROR_OFFSET);
 		uncached_tx_buf[writePos] = msg;

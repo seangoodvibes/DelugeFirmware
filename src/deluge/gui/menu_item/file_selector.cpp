@@ -33,14 +33,14 @@
 namespace deluge::gui::menu_item {
 
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.shouldGoUpOneLevelOnBegin = true;
-	soundEditor.setCurrentSource(sourceId_);
+	sound_editor_for_session().shouldGoUpOneLevelOnBegin = true;
+	sound_editor_for_session().setCurrentSource(sourceId_);
 
-	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
-		keyboardScreen.exitAuditionMode();
+	if (getRootUI() == &keyboard_screen_for_session() && currentUIMode == UI_MODE_AUDITIONING) {
+		keyboard_screen_for_session().exitAuditionMode();
 	}
 
-	if (!openUI(&sampleBrowser)) {
+	if (!openUI(&sample_browser_for_session())) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
@@ -81,12 +81,13 @@ MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio*
 		return MenuPermission::NO;
 	}
 
-	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
+	return sound_editor_for_session().checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_,
+	                                                                                     currentRange);
 }
 
 void FileSelector::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace hid::display;
-	OLED::main.drawIconCentered(OLED::folderIconBig, slot.start_x, slot.width, slot.start_y - 1);
+	OLED::main_for_session().drawIconCentered(OLED::folderIconBig, slot.start_x, slot.width, slot.start_y - 1);
 }
 
 void FileSelector::getColumnLabel(StringBuf& label) {
@@ -97,7 +98,7 @@ void FileSelector::getColumnLabel(StringBuf& label) {
 		return MenuItem::getColumnLabel(label);
 	}
 
-	auto& source = soundEditor.currentSound->sources[sourceId_];
+	auto& source = sound_editor_for_session().currentSound->sources[sourceId_];
 	if (!source.hasAtLeastOneAudioFileLoaded()) {
 		return MenuItem::getColumnLabel(label);
 	}

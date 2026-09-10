@@ -83,11 +83,12 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	}
 
 	UI* currentUI = getCurrentUI();
-	bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+	bool isOLEDSessionView =
+	    display->haveOLED() && (currentUI == &session_view_for_session() || currentUI == &arranger_view_for_session());
 	if (isOLEDSessionView) {
-		if (currentSong->key.rootNote != sessionView.lastDisplayedRootNote) {
+		if (currentSong->key.rootNote != session_view_for_session().lastDisplayedRootNote) {
 			currentSong->displayCurrentRootNoteAndScaleName();
-			sessionView.lastDisplayedRootNote = currentSong->key.rootNote;
+			session_view_for_session().lastDisplayedRootNote = currentSong->key.rootNote;
 		}
 	}
 }
@@ -100,7 +101,7 @@ void exitScaleModeForMIDITransposeClips() {
 			if (clip->output->type == OutputType::MIDI_OUT
 			    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
 			    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
-				instrumentClipView.exitScaleMode();
+				instrument_clip_view_for_session().exitScaleMode();
 				clip->inScaleMode = false;
 			}
 		}

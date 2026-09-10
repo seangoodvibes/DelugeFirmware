@@ -37,7 +37,7 @@ public:
 	}
 	void drawPixelsForOled() override {
 		char buffer[12];
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 
 		intToString(96 << this->getValue(), buffer);
 		canvas.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, 18, 20);

@@ -42,9 +42,9 @@ MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(ModControllable
 
 void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 
-	soundEditor.shouldGoUpOneLevelOnBegin = true;
-	sampleMarkerEditor.markerType = whichMarker;
-	bool success = openUI(&sampleMarkerEditor); // Shouldn't be able to fail anymore
+	sound_editor_for_session().shouldGoUpOneLevelOnBegin = true;
+	sample_marker_editor_for_session().markerType = whichMarker;
+	bool success = openUI(&sample_marker_editor_for_session()); // Shouldn't be able to fail anymore
 	if (!success) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
@@ -52,7 +52,7 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void SampleMarkerEditor::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace hid::display;
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	const int32_t line_x = slot.start_x + slot.width - 6;
 	for (int32_t y = slot.start_y + 1; y <= slot.start_y + slot.height - 5; y += 2) {

@@ -23,12 +23,12 @@ namespace deluge::gui::menu_item::flash {
 class Status final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(PadLEDs::flashCursor); }
+	void readCurrentValue() override { this->setValue(PadLEDs::flash_cursor_for_session()); }
 	void writeCurrentValue() override {
-		if (PadLEDs::flashCursor == FLASH_CURSOR_SLOW) {
+		if (PadLEDs::flash_cursor_for_session() == FLASH_CURSOR_SLOW) {
 			PadLEDs::clearTickSquares();
 		}
-		PadLEDs::flashCursor = this->getValue();
+		PadLEDs::flash_cursor_for_session() = this->getValue();
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;

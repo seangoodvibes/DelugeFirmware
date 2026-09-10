@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/reverb/model.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -30,12 +31,15 @@
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/scale_mapper.h"
+#include "model/song/song_clip_selection.h"
+#include "model/song/song_navigation_state.h"
 #include "model/sync.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+#include "util/container/retained_list.h"
 #include "util/d_string.h"
 
 class MidiCommand;
@@ -177,6 +181,18 @@ public:
 	void deleteOrHibernateOutput(Output* output);
 	Instrument* getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
 	                                            int16_t newSlot, int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
+	void notify_peer_clip_inserted(int32_t index) {
+		navigation.peer_clip_inserted(index);
+		deluge::gui::ui_session::request_peer_structural_refresh();
+	}
+	void notify_peer_clip_removed(int32_t index) {
+		navigation.peer_clip_removed(index);
+		deluge::gui::ui_session::request_peer_structural_refresh();
+	}
+	void notify_peer_clips_swapped(int32_t first, int32_t second) {
+		navigation.peer_clips_swapped(first, second);
+		deluge::gui::ui_session::request_peer_structural_refresh();
+	}
 	void removeSessionClipLowLevel(Clip* clip, int32_t clipIndex);
 	void changeSwingInterval(int32_t newValue);
 	int32_t convertSyncLevelFromFileValueToInternalValue(int32_t fileValue);
@@ -190,18 +206,27 @@ public:
 	ClipArray sessionClips;
 	ClipArray arrangementOnlyClips;
 
+	bool contains_clip_for_undo(const Clip* clip);
+	int32_t get_clip_index_for_undo(ClipArray* array, const Clip* clip);
+	bool can_reference_clip_from_output(const Clip* clip, const Output* output);
+	bool owns_output_for_undo(const Output* output, bool include_detached = true) const;
+	void retain_output_for_undo(Output* output) { undo_detached_outputs.retain(output); }
+	bool is_output_retained_for_undo(const Output* output) const { return undo_detached_outputs.contains(output); }
 	Output* firstOutput;
 	Instrument*
 	    firstHibernatingInstrument; // All Instruments have inValidState set to false when they're added to this list
 
 	OrderedResizeableArrayWithMultiWordKey backedUpParamManagers;
 
-	uint32_t xZoom[2];  // Set default zoom at max zoom-out;
-	int32_t xScroll[2]; // Leave this as signed
-	int32_t xScrollForReturnToSongView;
-	int32_t xZoomForReturnToSongView;
-	bool tripletsOn;
-	uint32_t tripletsLevel; // The number of ticks in one of the three triplets
+	auto& x_scroll_for_session() { return navigation.active().xScroll; }
+	auto& x_zoom_for_session() { return navigation.active().xZoom; }
+	auto& x_scroll_for_return_to_song_view_for_session() { return navigation.active().xScrollForReturnToSongView; }
+	auto& x_zoom_for_return_to_song_view_for_session() { return navigation.active().xZoomForReturnToSongView; }
+
+	auto& triplets_on_for_session() { return navigation.active().tripletsOn; }
+	auto& triplets_level_for_session() {
+		return navigation.active().tripletsLevel;
+	} // The number of ticks in one of the three triplets
 
 	uint64_t timePerTimerTickBig;
 	int32_t divideByTimePerTimerTick;
@@ -227,21 +252,25 @@ public:
 
 	String name;
 
-	bool affectEntire;
+	bool& affect_entire_for_session() { return navigation.active().affectEntire; }
+	bool affect_entire_for_session() const { return navigation.active().affectEntire; }
 
-	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
-	int32_t songGridScrollX = 0;
-	int32_t songGridScrollY = 0;
-	int32_t songViewYScroll;
-	int32_t arrangementYScroll;
+	SessionLayoutType& session_layout_for_session() { return navigation.active().sessionLayout; }
+	SessionLayoutType session_layout_for_session() const { return navigation.active().sessionLayout; }
+	auto& song_grid_scroll_x_for_session() { return navigation.active().songGridScrollX; }
+	auto& song_grid_scroll_y_for_session() { return navigation.active().songGridScrollY; }
+	auto& song_view_y_scroll_for_session() { return navigation.active().songViewYScroll; }
+	auto& arrangement_y_scroll_for_session() { return navigation.active().arrangementYScroll; }
 
 	uint8_t sectionToReturnToAfterSongEnd;
 
 	bool wasLastInArrangementEditor;
-	int32_t lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the
-	                                         // ArrangementEditor, it's 0
+	auto& last_clip_instance_entered_start_pos_for_session() {
+		return navigation.active().lastClipInstanceEnteredStartPos;
+	} // -1 means we are not "inside" an arrangement. While we're in the
+	  // ArrangementEditor, it's 0
 
-	bool arrangerAutoScrollModeActive;
+	auto& arranger_auto_scroll_mode_active_for_session() { return navigation.active().arrangerAutoScrollModeActive; }
 
 	MIDIInstrument* hibernatingMIDIInstrument;
 
@@ -260,20 +289,17 @@ public:
 
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
-	void setCurrentClip(Clip* clip) {
-		if (currentClip != nullptr) {
-			previousClip = currentClip;
-		}
-		currentClip = clip;
-	}
+	void setCurrentClip(Clip* clip) { clip_selection.select(clip); }
+	void invalidate_clip_selection(Clip* clip) { clip_selection.replace(clip, nullptr); }
+
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
 	inline bool isFillModeActive() { return fillModeActive; }
 	void changeFillMode(bool on);
 	void loadNextSong();
-	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
-	void doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
+	bool setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
+	bool doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr,
 	                        bool require_compatible_param_manager = false);
 	Error readFromFile(Deserializer& reader);
@@ -342,8 +368,9 @@ public:
 	                                                         char const* errorMessageHibernating);
 	Error placeFirstInstancesOfActiveClips(int32_t pos);
 	void endInstancesOfActiveClips(int32_t pos, bool detachClipsToo = false);
-	void clearArrangementBeyondPos(int32_t pos, Action* action);
-	void deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip);
+	Error clearArrangementBeyondPos(int32_t pos, Action* action);
+	Error deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip,
+	                                  bool preserve_history_on_failure = false);
 	bool arrangementHasAnyClipInstances();
 	void resumeClipsClonedForArrangementRecording();
 	void setParamsInAutomationMode(bool newState);
@@ -413,12 +440,33 @@ public:
 	SyncLevel reverbSidechainSync;
 
 	// START ~ new Automation Arranger View Variables
-	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
-	deluge::modulation::params::Kind
-	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
-	int32_t lastSelectedParamShortcutX;
-	int32_t lastSelectedParamShortcutY;
-	int32_t lastSelectedParamArrayPosition;
+	auto& last_selected_param_id_for_session() { return navigation.active().automation.lastSelectedParamID; }
+	const auto& last_selected_param_id_for_session() const {
+		return navigation.active().automation.lastSelectedParamID;
+	}
+	auto& last_selected_param_kind_for_session() { return navigation.active().automation.lastSelectedParamKind; }
+	const auto& last_selected_param_kind_for_session() const {
+		return navigation.active().automation.lastSelectedParamKind;
+	}
+	auto& last_selected_param_shortcut_x_for_session() {
+		return navigation.active().automation.lastSelectedParamShortcutX;
+	}
+	const auto& last_selected_param_shortcut_x_for_session() const {
+		return navigation.active().automation.lastSelectedParamShortcutX;
+	}
+	auto& last_selected_param_shortcut_y_for_session() {
+		return navigation.active().automation.lastSelectedParamShortcutY;
+	}
+	const auto& last_selected_param_shortcut_y_for_session() const {
+		return navigation.active().automation.lastSelectedParamShortcutY;
+	}
+	auto& last_selected_param_array_position_for_session() {
+		return navigation.active().automation.lastSelectedParamArrayPosition;
+	}
+	const auto& last_selected_param_array_position_for_session() const {
+		return navigation.active().automation.lastSelectedParamArrayPosition;
+	}
+
 	// END ~ new Automation Arranger View Variables
 
 	// Song level transpose control (encoder actions)
@@ -469,8 +517,9 @@ private:
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;
 	bool fillModeActive;
-	Clip* currentClip = nullptr;
-	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
+	SongClipSelection clip_selection;
+	RetainedList<Output> undo_detached_outputs;
+	SongNavigation navigation;
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	Error readClipsFromFile(Deserializer& reader, ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);

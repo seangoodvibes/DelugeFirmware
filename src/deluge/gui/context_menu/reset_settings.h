@@ -42,6 +42,6 @@ private:
 	ResetSettingsAction action_ = ResetSettingsAction::All;
 };
 
-extern ResetSettings resetSettings;
+ResetSettings& reset_settings_for_session();
 
 } // namespace deluge::gui::context_menu

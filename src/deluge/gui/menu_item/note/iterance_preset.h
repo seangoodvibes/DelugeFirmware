@@ -42,7 +42,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
 	void readCurrentValue() override {
-		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		Note* leftMostNote = instrument_clip_view_for_session().getLeftMostNotePressed();
 
 		if (leftMostNote) {
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
@@ -52,7 +52,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		instrumentClipView.adjustNoteIteranceWithOffset(offset);
+		instrument_clip_view_for_session().adjustNoteIteranceWithOffset(offset);
 		readValueAgain();
 	}
 
@@ -68,13 +68,15 @@ public:
 
 	void drawPixelsForOled() override {
 		const std::string value = get_iterance_display_value("%d of %d", Iterance::DisplayLabelType::LONG);
-		OLED::main.drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
+		OLED::main_for_session().drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+		                                           kTextHugeSizeY);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const std::string value = get_iterance_display_value("%d:%d", Iterance::DisplayLabelType::SHORT);
-		OLED::main.drawStringCentered(value.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
-		                              kTextSpacingX, kTextSpacingY, slot.width);
+		OLED::main_for_session().drawStringCentered(value.data(), slot.start_x,
+		                                            slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                                            kTextSpacingY, slot.width);
 	}
 
 	void drawValue() override {

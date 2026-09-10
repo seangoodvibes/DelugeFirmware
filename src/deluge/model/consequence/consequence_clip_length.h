@@ -30,6 +30,7 @@ public:
 	Clip* clip;
 	int32_t lengthToRevertTo;
 
-	uint64_t* pointerToMarkerValue;
+	enum class SampleMarker : uint8_t { NONE, START, END };
+	SampleMarker sample_marker = SampleMarker::NONE;
 	uint64_t markerValueToRevertTo;
 };

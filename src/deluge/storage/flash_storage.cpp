@@ -282,7 +282,7 @@ void resetSettings() {
 	playbackHandler.midiInClockEnabled = true;
 	playbackHandler.tempoMagnitudeMatchingEnabled = false;
 
-	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+	PadLEDs::flash_cursor_for_session() = FLASH_CURSOR_SLOW;
 
 	midiEngine.midiThru = false;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
@@ -306,7 +306,7 @@ void resetSettings() {
 
 	defaultScale = 0;
 
-	soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+	sound_editor_for_session().setShortcutsVersion(SHORTCUTS_VERSION_3);
 
 	audioClipRecordMargins = true;
 	playbackHandler.countInBars = 0;
@@ -435,7 +435,7 @@ void readSettings() {
 	playbackHandler.midiInClockEnabled = buffer[52];
 	playbackHandler.tempoMagnitudeMatchingEnabled = buffer[35];
 
-	PadLEDs::flashCursor = buffer[36];
+	PadLEDs::flash_cursor_for_session() = buffer[36];
 
 	midiEngine.midiThru = buffer[37];
 
@@ -563,7 +563,7 @@ void readSettings() {
 		}
 	}
 
-	soundEditor.setShortcutsVersion(buffer[60]);
+	sound_editor_for_session().setShortcutsVersion(buffer[60]);
 	audioClipRecordMargins = buffer[61];
 	playbackHandler.countInBars = buffer[62];
 	keyboardLayout =
@@ -870,7 +870,7 @@ void writeSettings() {
 	buffer[34] = playbackHandler.midiOutClockEnabled;
 	buffer[52] = playbackHandler.midiInClockEnabled;
 	buffer[35] = playbackHandler.tempoMagnitudeMatchingEnabled;
-	buffer[36] = PadLEDs::flashCursor;
+	buffer[36] = PadLEDs::flash_cursor_for_session();
 	buffer[37] = midiEngine.midiThru;
 	buffer[38] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAYBACK_RESTART)].channelOrZone + 1;
@@ -960,7 +960,7 @@ void writeSettings() {
 
 	buffer[59] = OFFICIAL_FIRMWARE_NONE_SCALE_INDEX; // tombstone value for official firmware Default Scale slot
 	buffer[148] = defaultScale;
-	buffer[60] = soundEditor.shortcutsVersion;
+	buffer[60] = sound_editor_for_session().shortcutsVersion;
 
 	buffer[61] = audioClipRecordMargins;
 	buffer[62] = playbackHandler.countInBars;

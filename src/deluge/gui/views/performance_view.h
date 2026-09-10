@@ -206,4 +206,4 @@ private:
 	bool sessionButtonUsed = false;
 };
 
-extern PerformanceView performanceView;
+PerformanceView& performance_view_for_session();

@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "modulation/automation/parameter_revision.h"
 
 #include "gui/menu_item/integer.h"
 #include "menu_item_with_cc_learning.h"
@@ -71,6 +72,7 @@ public:
 	}
 
 protected:
+	uint64_t model_value_revision() const override { return deluge::modulation::automation::parameter_revision; }
 	virtual int32_t getFinalValue();
 
 private:

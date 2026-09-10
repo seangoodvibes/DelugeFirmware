@@ -23,9 +23,11 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/screensaver.h"
+#include "hid/encoder_input_bank.h"
 #include "hid/encoders.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "hid/mirror.h"
 #include "model/action/action_logger.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -36,13 +38,8 @@
 
 namespace deluge::hid::encoders {
 
-uint32_t timeModEncoderLastTurned[2];
-static int8_t modEncoderInitialTurnDirection[2];
-
 static uint32_t timeNextSDTestAction = 0;
 static int32_t nextSDTestDirection = 1;
-
-static uint32_t encodersWaitingForCardRoutineEnd;
 
 void interpretEncodersTask() {
 	// Block before draining so an IRQ that arrives during interpretation can re-wake this task.
@@ -51,7 +48,44 @@ void interpretEncodersTask() {
 	interpretEncoders(false);
 }
 
+namespace {
+PLACE_SDRAM_BSS gui::ui_session::State<EncoderInputBank> injected_encoders;
+bool interpret_encoder_bank(DetentedEncoder* const* funcPtrs, ContinuousEncoder* const* mod_ptrs, bool skipActioning);
+} // namespace
+
+bool queue_session_encoder(uint8_t index, int32_t delta) {
+	return injected_encoders.active().queue(index, delta);
+}
+
+bool session_encoders_pending() {
+	return injected_encoders.active().pending();
+}
+void clear_session_encoders() {
+	injected_encoders.active().clear();
+}
+
+bool interpret_session_encoders(bool skipActioning) {
+	auto& bank = injected_encoders.active();
+	EncoderInputBank::Dispatch dispatch(bank);
+	if (!dispatch)
+		return false;
+	DetentedEncoder* functions[] = {&bank.functions[0], &bank.functions[1], &bank.functions[2], &bank.functions[3]};
+	ContinuousEncoder* mods[] = {&bank.mods[0], &bank.mods[1]};
+	return interpret_encoder_bank(functions, mods, skipActioning);
+}
+
 bool interpretEncoders(bool skipActioning) {
+	// This entry point drains physical IRQ counters, even if a Remote operation yielded.
+	gui::ui_session::Scope hardware(gui::ui_session::Id::Local);
+	if (deluge::hid::mirror::encoders())
+		return true;
+	DetentedEncoder* functions[] = {&scrollY, &scrollX, &tempo, &select};
+	ContinuousEncoder* mods[] = {&mod0, &mod1};
+	return interpret_encoder_bank(functions, mods, skipActioning);
+}
+
+namespace {
+bool interpret_encoder_bank(DetentedEncoder* const* funcPtrs, ContinuousEncoder* const* mod_ptrs, bool skipActioning) {
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {
 		return false;
@@ -61,7 +95,7 @@ bool interpretEncoders(bool skipActioning) {
 	bool anything = false;
 
 	if (!skipActioning) {
-		encodersWaitingForCardRoutineEnd = 0;
+		input_state().waiting_for_card_routine_end = 0;
 	}
 
 #if SD_TEST_MODE_ENABLED
@@ -81,7 +115,6 @@ bool interpretEncoders(bool skipActioning) {
 
 	for (int32_t e = 0; e < (int32_t)kNumFunctionEncoders; e++) {
 		// 0=scrollY 1=scrollX 2=tempo 3=select
-		DetentedEncoder* const funcPtrs[] = {&scrollY, &scrollX, &tempo, &select};
 		bool isScrollY = (e == 0);
 		if (!isScrollY) {
 
@@ -91,7 +124,7 @@ bool interpretEncoders(bool skipActioning) {
 			}
 		}
 
-		if (encodersWaitingForCardRoutineEnd & (1 << e)) {
+		if (input_state().waiting_for_card_routine_end & (1 << e)) {
 			continue;
 		}
 
@@ -117,7 +150,7 @@ bool interpretEncoders(bool skipActioning) {
 				// the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
 				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-					encodersWaitingForCardRoutineEnd |= (1 << e);
+					input_state().waiting_for_card_routine_end |= (1 << e);
 					fe.restore(detentDelta); // Put it back for next time
 				}
 				break;
@@ -133,13 +166,14 @@ checkResult:
 				break;
 
 			case 2: // tempo
-				if ((getCurrentUI() == &instrumentClipView
-				     || (getCurrentUI() == &automationView && automationView.inNoteEditor()))
+				if ((getCurrentUI() == &instrument_clip_view_for_session()
+				     || (getCurrentUI() == &automation_view_for_session()
+				         && automation_view_for_session().inNoteEditor()))
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
-					instrumentClipView.tempoEncoderAction(saturatedDelta,
-					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
-					                                      Buttons::isShiftButtonPressed());
+					instrument_clip_view_for_session().tempoEncoderAction(
+					    saturatedDelta, Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					    Buttons::isShiftButtonPressed());
 				}
 				else {
 					playbackHandler.tempoEncoderAction(saturatedDelta,
@@ -169,7 +203,7 @@ checkResult:
 		// Mod knobs
 		for (int32_t e = 0; e < 2; e++) {
 			// 0=mod0 (lower gold), 1=mod1 (upper gold)
-			auto& encoder = modEncoderAt(e);
+			auto& encoder = *mod_ptrs[e];
 
 			int8_t offset = encoder.take();
 
@@ -178,17 +212,17 @@ checkResult:
 				anything = true;
 
 				// Do it, only if
-				if (offset + modEncoderInitialTurnDirection[e] != 0) {
+				if (offset + input_state().initial_turn_direction[e] != 0) {
 					int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);
 
 					getCurrentUI()->modEncoderAction(e, offset_accelerated);
 
-					modEncoderInitialTurnDirection[e] = 0;
+					input_state().initial_turn_direction[e] = 0;
 				}
 
 				// Otherwise, write this off as an accidental wiggle
 				else {
-					modEncoderInitialTurnDirection[e] = offset;
+					input_state().initial_turn_direction[e] = offset;
 				}
 			}
 		}
@@ -200,5 +234,7 @@ checkResult:
 
 	return anything;
 }
+
+} // namespace
 
 } // namespace deluge::hid::encoders

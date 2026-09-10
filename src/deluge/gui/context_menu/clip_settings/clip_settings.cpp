@@ -28,7 +28,13 @@
 
 namespace deluge::gui::context_menu::clip_settings {
 
-ClipSettingsMenu clipSettings{};
+namespace {
+ClipSettingsMenu local_clip_settings{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<ClipSettingsMenu> remote_clip_settings;
+} // namespace
+ClipSettingsMenu& clip_settings_for_session() {
+	return remote_clip_settings.get(local_clip_settings);
+}
 
 char const* ClipSettingsMenu::getTitle() {
 	static char const* title = "Clip Settings";
@@ -65,7 +71,7 @@ void ClipSettingsMenu::selectEncoderAction(int8_t offset) {
 
 bool ClipSettingsMenu::acceptCurrentOption() {
 	if (clip->type == ClipType::INSTRUMENT && this->currentOption == 0) {
-		sessionView.replaceInstrumentClipWithAudioClip(clip);
+		session_view_for_session().replaceInstrumentClipWithAudioClip(clip);
 		return false; // exit UI
 	}
 	else {
@@ -74,14 +80,14 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 			option--; // rebase option selection to 0
 		}
 		if (option == 0) {
-			launchStyle.clip = clip;
-			launchStyle.setupAndCheckAvailability();
-			openUI(&launchStyle);
+			launch_style_for_session().clip = clip;
+			launch_style_for_session().setupAndCheckAvailability();
+			openUI(&launch_style_for_session());
 		}
 		else {
 			currentUIMode = UI_MODE_NONE;
-			renameClipUI.clip = clip;
-			openUI(&renameClipUI);
+			rename_clip_ui_for_session().clip = clip;
+			openUI(&rename_clip_ui_for_session());
 		}
 		return true;
 	}
@@ -91,8 +97,8 @@ ActionResult ClipSettingsMenu::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on) {
 		return ContextMenu::padAction(x, y, on);
 	}
-	else {                                      // this would happen if you release pad after entering the menu
-		return sessionView.padAction(x, y, on); // let the grid handle this
+	else { // this would happen if you release pad after entering the menu
+		return session_view_for_session().padAction(x, y, on); // let the grid handle this
 	}
 }
 

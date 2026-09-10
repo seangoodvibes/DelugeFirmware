@@ -48,8 +48,8 @@ MenuItem* Automation::selectButtonPress() {
 
 			// if automation view is open in background and automation is deleted
 			// then refresh automation view UI
-			if (getRootUI() == &automationView) {
-				uiNeedsRendering(&automationView);
+			if (getRootUI() == &automation_view_for_session()) {
+				uiNeedsRendering(&automation_view_for_session());
 			}
 		}
 
@@ -62,37 +62,37 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	using namespace deluge::hid::button;
 
 	bool clipMinder = rootUIIsClipMinderScreen();
-	bool arrangerView = !clipMinder && (currentSong->lastClipInstanceEnteredStartPos != -1);
+	bool in_arranger_view =
+	    !clipMinder && currentSong && (currentSong->last_clip_instance_entered_start_pos_for_session() != -1);
 	RootUI* rootUI = getRootUI();
 
 	// Clip or Song button
 	// Used to enter automation view from sound editor
-	if (clipMinder || arrangerView) {
+	if (clipMinder || in_arranger_view) {
 		if (b == CLIP_VIEW) {
 			if (on) {
 				// if we're not in automation view yet
 				// save current UI so you can switch back to it once we exit out of current menu
 				// flag automation view as onMenuView so we know that we're dealing with the background
 				// automation view used exclusively with the menu
-				if (rootUI != &automationView) {
-					automationView.onMenuView = true;
-					automationView.previousUI = rootUI;
-					selectAutomationViewParameter(clipMinder);
-					swapOutRootUILowLevel(&automationView);
-					automationView.initializeView();
-					automationView.openedInBackground();
+				if (rootUI != &automation_view_for_session()) {
+					if (!select_automation_view_parameter(clipMinder)) {
+						return ActionResult::DEALT_WITH;
+					}
+					automation_view_for_session().onMenuView = true;
+					automation_view_for_session().previousUI = rootUI;
+					swapOutRootUILowLevel(&automation_view_for_session());
+					automation_view_for_session().initializeView();
+					automation_view_for_session().openedInBackground();
 				}
 				// if we're in automation view and it's the menu view
 				// swap out background UI from automation view to the previous UI
-				else if (automationView.onMenuView) {
-					automationView.onMenuView = false;
-					automationView.resetInterpolationShortcutBlinking();
-					automationView.resetPadSelectionShortcutBlinking();
-					swapOutRootUILowLevel(automationView.previousUI);
-					uiNeedsRendering(automationView.previousUI);
-					view.setKnobIndicatorLevels();
+				else if (automation_view_for_session().onMenuView) {
+					if (!restore_previous_view()) {
+						return ActionResult::DEALT_WITH;
+					}
 				}
-				view.setModLedStates();
+				view_for_session().setModLedStates();
 				PadLEDs::reassessGreyout();
 			}
 			return ActionResult::DEALT_WITH;
@@ -101,24 +101,23 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		// Back button, used to back out of current automatable parameter menu
 		else if (b == SELECT_ENC || b == BACK) {
 			if (on) {
-				if (rootUI == &automationView) {
+				if (rootUI == &automation_view_for_session()) {
 					// if we got here, and we're in the automation menu view
 					// then we want to reset the background root UI to the previous UI
 					// because you just entered a new menu or backed out of the current param menu
-					if (automationView.onMenuView) {
-						automationView.onMenuView = false;
-						automationView.resetInterpolationShortcutBlinking();
-						automationView.resetPadSelectionShortcutBlinking();
-						swapOutRootUILowLevel(automationView.previousUI);
-						uiNeedsRendering(automationView.previousUI);
-						view.setKnobIndicatorLevels();
+					if (automation_view_for_session().onMenuView) {
+						if (!restore_previous_view()) {
+							return ActionResult::DEALT_WITH;
+						}
 					}
 					// if you are already in automation view and entered an automatable parameter menu
 					else {
-						selectAutomationViewParameter(clipMinder);
+						if (!select_automation_view_parameter(clipMinder)) {
+							return ActionResult::DEALT_WITH;
+						}
 						uiNeedsRendering(rootUI);
 					}
-					view.setModLedStates();
+					view_for_session().setModLedStates();
 					PadLEDs::reassessGreyout();
 				}
 			}
@@ -126,8 +125,8 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		}
 		else if (b == X_ENC) {
 			// Horizontal encoder button to zoom in/out of underlying automation view
-			if (rootUI == &automationView) {
-				automationView.buttonAction(b, on, inCardRoutine);
+			if (rootUI == &automation_view_for_session()) {
+				automation_view_for_session().buttonAction(b, on, inCardRoutine);
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -135,44 +134,63 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::NOT_DEALT_WITH;
 }
 
-void Automation::selectAutomationViewParameter(bool clipMinder) {
+bool Automation::restore_previous_view() {
+	auto& automation_view = automation_view_for_session();
+	auto* previous_view = automation_view.previousUI;
+	if (!previous_view || previous_view == &automation_view) {
+		return false;
+	}
+	automation_view.onMenuView = false;
+	automation_view.previousUI = nullptr;
+	automation_view.resetInterpolationShortcutBlinking();
+	automation_view.resetPadSelectionShortcutBlinking();
+	swapOutRootUILowLevel(previous_view);
+	uiNeedsRendering(previous_view);
+	view_for_session().setKnobIndicatorLevels();
+	return true;
+}
+
+bool Automation::select_automation_view_parameter(bool clipMinder) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
-	if (modelStack) {
-		int32_t knobPos = automationView.getAutomationParameterKnobPos(modelStack, view.modPos) + kKnobPosOffset;
-		automationView.setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
-
-		int32_t p = modelStack->paramId;
-		modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
-
-		Clip* clip = getCurrentClip();
-
-		if (clipMinder) {
-			clip->lastSelectedParamID = p;
-			clip->lastSelectedParamKind = kind;
-			clip->lastSelectedOutputType = clip->output->type;
-			clip->lastSelectedPatchSource = getPatchSource();
-			clip->lastSelectedParamShortcutX = kNoSelection;
-			clip->lastSelectedParamShortcutY = kNoSelection;
-			clip->lastSelectedParamArrayPosition = 0;
-		}
-		else {
-			currentSong->lastSelectedParamID = p;
-			currentSong->lastSelectedParamKind = kind;
-			currentSong->lastSelectedParamShortcutX = kNoSelection;
-			currentSong->lastSelectedParamShortcutY = kNoSelection;
-			currentSong->lastSelectedParamArrayPosition = 0;
-			automationView.onArrangerView = true;
-		}
-		// not blinking any shortcuts for patch cables
-		// no scroll selection for patch cables
-		if (kind != deluge::modulation::params::Kind::PATCH_CABLE) {
-			automationView.getLastSelectedParamShortcut(clip);
-			automationView.getLastSelectedParamArrayPosition(clip);
-		}
-
-		automationView.automationParamType = AutomationParamType::PER_SOUND;
+	Clip* clip = getCurrentClip();
+	if (!modelStack || !modelStack->autoParam || !modelStack->paramCollection
+	    || (clipMinder && (!clip || !clip->output)) || (!clipMinder && !currentSong)) {
+		return false;
 	}
+	automation_view_for_session().onArrangerView = !clipMinder;
+	int32_t knobPos = automation_view_for_session().getAutomationParameterKnobPos(modelStack, view_for_session().modPos)
+	                  + kKnobPosOffset;
+	automation_view_for_session().setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
+
+	int32_t p = modelStack->paramId;
+	modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
+
+	if (clipMinder) {
+		clip->last_selected_param_id_for_session() = p;
+		clip->last_selected_param_kind_for_session() = kind;
+		clip->last_selected_output_type_for_session() = clip->output->type;
+		clip->last_selected_patch_source_for_session() = getPatchSource();
+		clip->last_selected_param_shortcut_x_for_session() = kNoSelection;
+		clip->last_selected_param_shortcut_y_for_session() = kNoSelection;
+		clip->last_selected_param_array_position_for_session() = 0;
+	}
+	else {
+		currentSong->last_selected_param_id_for_session() = p;
+		currentSong->last_selected_param_kind_for_session() = kind;
+		currentSong->last_selected_param_shortcut_x_for_session() = kNoSelection;
+		currentSong->last_selected_param_shortcut_y_for_session() = kNoSelection;
+		currentSong->last_selected_param_array_position_for_session() = 0;
+	}
+	// not blinking any shortcuts for patch cables
+	// no scroll selection for patch cables
+	if (kind != deluge::modulation::params::Kind::PATCH_CABLE) {
+		automation_view_for_session().getLastSelectedParamShortcut(clip);
+		automation_view_for_session().getLastSelectedParamArrayPosition(clip);
+	}
+
+	automation_view_for_session().automationParamType = AutomationParamType::PER_SOUND;
+	return true;
 }
 
 } // namespace deluge::gui::menu_item

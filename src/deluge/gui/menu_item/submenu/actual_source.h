@@ -31,8 +31,9 @@ public:
 
 		// If we are in the sample oscillator menu and not on the first page,
 		// we display OSC1/2 SAMPLE as the menu title
-		const auto& source = soundEditor.currentSound->sources[source_id_];
-		if (renderingStyle() == HORIZONTAL && source.oscType == OscType::SAMPLE && paging.visiblePageNumber > 0) {
+		const auto& source = sound_editor_for_session().currentSound->sources[source_id_];
+		if (renderingStyle() == HORIZONTAL && source.oscType == OscType::SAMPLE
+		    && horizontal_state().paging.visiblePageNumber > 0) {
 			l10nString = l10n::String::STRING_FOR_OSC_SAMPLE_MENU_TITLE;
 		}
 
@@ -41,7 +42,7 @@ public:
 
 	// 7seg Only
 	void drawName() override {
-		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
+		if (sound_editor_for_session().currentSound->getSynthMode() == SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(source_id_ + 1, buffer + 3);

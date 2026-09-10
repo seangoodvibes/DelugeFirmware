@@ -48,7 +48,13 @@
 #include "util/try.h"
 #include <string.h>
 
-LoadSongUI loadSongUI{};
+namespace {
+LoadSongUI local_load_song_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<LoadSongUI> remote_load_song_ui;
+} // namespace
+LoadSongUI& load_song_ui_for_session() {
+	return remote_load_song_ui.get(local_load_song_ui);
+}
 
 extern void songLoaded(Song* song);
 extern void setUIForLoadedSong(Song* song);
@@ -75,8 +81,8 @@ bool LoadSongUI::opened() {
 
 	favouritesManager.setCategory("SONG");
 	favouritesChanged();
-	outputTypeToLoad = OutputType::NONE;
-	currentDir.set(&currentSong->dirPath);
+	output_type_to_load_for_session() = OutputType::NONE;
+	current_dir_for_session().set(&currentSong->dirPath);
 
 	Error error = beginSlotSession(false, true);
 	if (error != Error::NONE) {
@@ -218,7 +224,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 						displayArmedPopup();
 					}
 					else {
-						sessionView.redrawNumericDisplay();
+						session_view_for_session().redrawNumericDisplay();
 					}
 				}
 			}
@@ -227,8 +233,8 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	else if (b == KEYBOARD && on) {
 		qwertyAlwaysVisible = !qwertyAlwaysVisible;
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
-		qwertyVisible = qwertyAlwaysVisible;
-		if (qwertyVisible) {
+		qwerty_visible_for_session() = qwertyAlwaysVisible;
+		if (qwerty_visible_for_session()) {
 			drawKeys();
 			qwertyCurrentlyDrawnOnscreen = true;
 		}
@@ -255,7 +261,7 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 		// If another load is in progress, ignore this request
 		return;
 	}
-	if (fileIndexSelected == -1) {
+	if (file_index_selected_for_session() == -1) {
 		// If no song is loaded/selected yet, we have nothing to do
 		return;
 	}
@@ -264,19 +270,19 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 
 // This method actually executes the loading of next song (by offset)
 void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
-	outputTypeToLoad = OutputType::NONE;
-	currentDir.set(&currentSong->dirPath);
+	output_type_to_load_for_session() = OutputType::NONE;
+	current_dir_for_session().set(&currentSong->dirPath);
 
-	int32_t currentFileIndexSelected = fileIndexSelected;
+	int32_t currentFileIndexSelected = file_index_selected_for_session();
 
 	bool songFound = false;
 	do {
-		fileIndexSelected = fileIndexSelected + offset;
-		if (fileIndexSelected < 0) {
-			fileIndexSelected = fileItems.getNumElements() - 1;
+		file_index_selected_for_session() = file_index_selected_for_session() + offset;
+		if (file_index_selected_for_session() < 0) {
+			file_index_selected_for_session() = file_items_for_session().getNumElements() - 1;
 		}
-		else if (fileIndexSelected >= fileItems.getNumElements()) {
-			fileIndexSelected = 0;
+		else if (file_index_selected_for_session() >= file_items_for_session().getNumElements()) {
+			file_index_selected_for_session() = 0;
 		}
 		Browser::setEnteredTextFromCurrentFilename();
 
@@ -299,7 +305,7 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 				}
 			}
 		}
-	} while (currentFileIndexSelected != fileIndexSelected && !songFound);
+	} while (currentFileIndexSelected != file_index_selected_for_session() && !songFound);
 	// in case we wrapped around the whole list of files and didn't find a song,
 	// we just exit without doing anything else
 
@@ -419,7 +425,7 @@ gotErrorAfterCreatingSong:
 		goto fail;
 	}
 
-	preLoadedSong->dirPath.set(&currentDir);
+	preLoadedSong->dirPath.set(&current_dir_for_session());
 
 	String currentFilenameWithoutExtension;
 	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
@@ -427,7 +433,8 @@ gotErrorAfterCreatingSong:
 		goto gotErrorAfterCreatingSong;
 	}
 
-	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
+	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
+	                                                    current_dir_for_session().get(),
 	                                                    currentFilenameWithoutExtension.get());
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
@@ -459,7 +466,7 @@ gotErrorAfterCreatingSong:
 	}
 #endif
 
-	preLoadedSong->name.set(&enteredText);
+	preLoadedSong->name.set(&entered_text_for_session());
 
 	Song* toDelete = currentSong;
 
@@ -480,7 +487,7 @@ gotErrorAfterCreatingSong:
 				displayArmedPopup();
 			}
 			else {
-				sessionView.redrawNumericDisplay();
+				session_view_for_session().redrawNumericDisplay();
 			}
 		}
 
@@ -577,9 +584,9 @@ ActionResult LoadSongUI::timerCallback() {
 		PadLEDs::vertical::renderScroll();
 
 		// If we've finished scrolling...
-		if (PadLEDs::vertical::squaresScrolled >= kDisplayHeight) {
+		if (PadLEDs::vertical::squares_scrolled_for_session() >= kDisplayHeight) {
 			// If exiting this UI...
-			if (PadLEDs::vertical::scrollDirection == -1) {
+			if (PadLEDs::vertical::scroll_direction_for_session() == -1) {
 				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card
 				              // routine, which we're in right now...
 			}
@@ -697,14 +704,14 @@ ignoring the file extension.
 void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
 	if (movementDirection && !qwertyAlwaysVisible) {
-		qwertyVisible = false;
+		qwerty_visible_for_session() = false;
 		qwertyCurrentlyDrawnOnscreen = false;
 
 		// Start horizontal scrolling
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, true,
 		                                 kDisplayWidth + kSideBarWidth);
 		for (int32_t i = 0; i < kDisplayHeight; i++) {
-			PadLEDs::transitionTakingPlaceOnRow[i] = true;
+			PadLEDs::transition_taking_place_on_row_for_session()[i] = true;
 		}
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = false;
@@ -720,7 +727,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, false,
 		                                 kDisplayWidth + kSideBarWidth);
 		for (int32_t i = 0; i < kDisplayHeight; i++) {
-			PadLEDs::transitionTakingPlaceOnRow[i] = true;
+			PadLEDs::transition_taking_place_on_row_for_session()[i] = true;
 		}
 		PadLEDs::horizontal::renderScroll();
 	}
@@ -741,7 +748,7 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 			displayLoopsRemainingPopup();
 		}
 		else {
-			sessionView.redrawNumericDisplay();
+			session_view_for_session().redrawNumericDisplay();
 		}
 	}
 
@@ -756,10 +763,9 @@ goAgain:
 
 			// Start horizontal scrolling
 			PadLEDs::setupScroll(offset, kDisplayWidth + kSideBarWidth, true, kDisplayWidth + kSideBarWidth);
-			for (int32_t i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
-			currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
-			scrollingIntoSlot = false;
-			PadLEDs::renderScroll(); // The scrolling animation will begin while file is being found and loaded
+			for (int32_t i = 0; i < kDisplayHeight; i++) PadLEDs::transition_taking_place_on_row_for_session()[i] =
+true; currentUIMode = UI_MODE_HORIZONTAL_SCROLL; scrollingIntoSlot = false; PadLEDs::renderScroll(); // The scrolling
+animation will begin while file is being found and loaded
 
 			int32_t result = findNextFile(offset);
 			if (result) {
@@ -782,8 +788,8 @@ goAgain:
 
 			// Set up another horizontal scroll
 			PadLEDs::setupScroll(offset, kDisplayWidth + kSideBarWidth, false, kDisplayWidth + kSideBarWidth);
-			for (int32_t i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
-			PadLEDs::renderScroll();
+			for (int32_t i = 0; i < kDisplayHeight; i++) PadLEDs::transition_taking_place_on_row_for_session()[i] =
+true; PadLEDs::renderScroll();
 			*/
 		}
 	}
@@ -813,8 +819,10 @@ void LoadSongUI::exitAction() {
 
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
 	PadLEDs::vertical::setupScroll(-1, false);
-	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-	getRootUI()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::image_store_for_session(),
+	                            PadLEDs::occupancy_mask_store_for_session());
+	getRootUI()->renderSidebar(0xFFFFFFFF, PadLEDs::image_store_for_session(),
+	                           PadLEDs::occupancy_mask_store_for_session());
 	//((ViewScreen*)getRootUI())->renderToStore(0, true);
 	timerCallback();
 }
@@ -827,10 +835,10 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 
 	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
-		imageStore = PadLEDs::imageStore;
+		imageStore = PadLEDs::image_store_for_session();
 	}
 	else {
-		imageStore = PadLEDs::image;
+		imageStore = PadLEDs::image_for_session();
 	}
 
 	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
@@ -906,7 +914,7 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 
 	LoadUI::displayText();
 
-	if (qwertyVisible && !qwertyCurrentlyDrawnOnscreen) {
+	if (qwerty_visible_for_session() && !qwertyCurrentlyDrawnOnscreen) {
 		FileItem* currentFileItem = getCurrentFileItem();
 
 		drawKeys();
@@ -917,23 +925,23 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 
 ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 	// If QWERTY not visible yet, make it visible now
-	if (!qwertyVisible) {
+	if (!qwerty_visible_for_session()) {
 		if (on && !currentUIMode) {
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			qwertyVisible = true;
+			qwerty_visible_for_session() = true;
 			displayText(false); // This will also draw the QWERTY keys
 
 			// Process first press only if its not a favourite row press to prevent blind keypresses
-			if (y < favouriteRow) {
+			if (y < favourite_row_for_session()) {
 				return LoadUI::padAction(x, y, on);
 			}
 		}
 	}
 
 	// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
-	else if (qwertyVisible) {
+	else if (qwerty_visible_for_session()) {
 		return LoadUI::padAction(x, y, on);
 	}
 	return ActionResult::DEALT_WITH;

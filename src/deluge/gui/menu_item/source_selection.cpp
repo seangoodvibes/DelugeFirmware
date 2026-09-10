@@ -50,8 +50,10 @@ const PatchSource sourceMenuContents[] = {
 static_assert(kNumPatchSources == (sizeof(sourceMenuContents) / sizeof(PatchSource)));
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
-	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, getDestinationDescriptor())
+	return sound_editor_for_session()
+	               .currentParamManager->getPatchCableSet()
+	               ->isSourcePatchedToDestinationDescriptorVolumeInspecific(source_for_session(),
+	                                                                        getDestinationDescriptor())
 	           ? 3
 	           : 255;
 }
@@ -188,7 +190,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 	this->setValue(0);
 
 	if (navigatedBackwardFrom) {
-		while (sourceMenuContents[this->getValue()] != s) {
+		while (sourceMenuContents[this->getValue()] != source_for_session()) {
 			this->setValue(this->getValue() + 1);
 		}
 	}
@@ -196,16 +198,18 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 		int32_t firstAllowedIndex = kNumPatchSources - 1;
 		// Find the first source which patching exists, or the first allowed one if nothing is patched.
 		while (true) {
-			s = sourceMenuContents[this->getValue()];
+			source_for_session() = sourceMenuContents[this->getValue()];
 
 			// Patched already?
-			if (soundEditor.currentParamManager->getPatchCableSet()
-			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor())) {
+			if (sound_editor_for_session()
+			        .currentParamManager->getPatchCableSet()
+			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(source_for_session(),
+			                                                                 getDestinationDescriptor())) {
 				break;
 			}
 
 			// Note down the first "allowed" or "editable" source
-			if (this->getValue() < firstAllowedIndex && sourceIsAllowed(s)) {
+			if (this->getValue() < firstAllowedIndex && sourceIsAllowed(source_for_session())) {
 				firstAllowedIndex = this->getValue();
 			}
 
@@ -213,7 +217,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 
 			if (this->getValue() >= kNumPatchSources) {
 				this->setValue(firstAllowedIndex);
-				s = sourceMenuContents[this->getValue()];
+				source_for_session() = sourceMenuContents[this->getValue()];
 				break;
 			}
 		}
@@ -255,7 +259,7 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 		}
 	}
 
-	s = sourceMenuContents[newValue];
+	source_for_session() = sourceMenuContents[newValue];
 	this->setValue(newValue);
 
 	if (display->haveOLED()) {
@@ -286,33 +290,34 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 
 	// Check that this source is allowed to be patched to the selected param
 	if (p == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
-		return (
-		    soundEditor.currentSound->maySourcePatchToParam(source, deluge::modulation::params::GLOBAL_VOLUME_POST_FX,
-		                                                    (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		        != PatchCableAcceptance::DISALLOWED
-		    || soundEditor.currentSound->maySourcePatchToParam(
-		           source, deluge::modulation::params::LOCAL_VOLUME,
-		           (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		           != PatchCableAcceptance::DISALLOWED
-		    || soundEditor.currentSound->maySourcePatchToParam(
-		           source, deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
-		           (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		           != PatchCableAcceptance::DISALLOWED);
+		return (sound_editor_for_session().currentSound->maySourcePatchToParam(
+		            source, deluge::modulation::params::GLOBAL_VOLUME_POST_FX,
+		            (ParamManagerForTimeline*)sound_editor_for_session().currentParamManager)
+		            != PatchCableAcceptance::DISALLOWED
+		        || sound_editor_for_session().currentSound->maySourcePatchToParam(
+		               source, deluge::modulation::params::LOCAL_VOLUME,
+		               (ParamManagerForTimeline*)sound_editor_for_session().currentParamManager)
+		               != PatchCableAcceptance::DISALLOWED
+		        || sound_editor_for_session().currentSound->maySourcePatchToParam(
+		               source, deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
+		               (ParamManagerForTimeline*)sound_editor_for_session().currentParamManager)
+		               != PatchCableAcceptance::DISALLOWED);
 	}
 	else {
-		return (soundEditor.currentSound->maySourcePatchToParam(
-		            source, p, (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		return (sound_editor_for_session().currentSound->maySourcePatchToParam(
+		            source, p, (ParamManagerForTimeline*)sound_editor_for_session().currentParamManager)
 		        != PatchCableAcceptance::DISALLOWED);
 	}
 }
 
 uint8_t SourceSelection::getIndexOfPatchedParamToBlink() {
-	return soundEditor.patchingParamSelected;
+	return sound_editor_for_session().patchingParamSelected;
 }
 
 uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
-	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, getDestinationDescriptor())
+	return sound_editor_for_session()
+	               .currentParamManager->getPatchCableSet()
+	               ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor())
 	           ? 3
 	           : 255;
 }

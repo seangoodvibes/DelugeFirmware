@@ -30,7 +30,8 @@ void Pan::drawValue() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(getP());
 	uint8_t drawDot =
-	    soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
+	    sound_editor_for_session().currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(
+	        paramDescriptor)
 	        ? 3
 	        : 255;
 	char buffer[5];
@@ -49,6 +50,14 @@ int32_t Pan::getFinalValue() {
 }
 
 void Pan::readCurrentValue() {
-	this->setValue(computeCurrentValueForPan(soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
+	auto* param_manager = sound_editor_for_session().currentParamManager;
+	if (!param_manager || !param_manager->matches_type(ParamManagerType::SOUND)) {
+		return;
+	}
+	auto* param_set = param_manager->getPatchedParamSet();
+	if (!param_set->has_current_value(getP())) {
+		return;
+	}
+	this->setValue(computeCurrentValueForPan(param_set->getValue(getP())));
 }
 } // namespace deluge::gui::menu_item::patched_param

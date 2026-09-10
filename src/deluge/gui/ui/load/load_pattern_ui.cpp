@@ -36,11 +36,26 @@ static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHY
 static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
-LoadPatternUI loadPatternUI{};
+namespace {
+// This is an implicit preview rollback, not an explicit shared-history undo.
+bool latest_action_matches_pattern_preview() {
+	const Action* action = actionLogger.firstAction[BEFORE];
+	return currentSong && action && action->type == ActionType::PATTERN_PASTE
+	       && action->navigation_owner == deluge::gui::ui_session::current()
+	       && action->currentClip == currentSong->getCurrentClip() && currentSong->getCurrentClip()
+	       && action->captured_song == currentSong && action->captured_output == currentSong->getCurrentClip()->output;
+}
+
+LoadPatternUI local_load_pattern_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<LoadPatternUI> remote_load_pattern_ui;
+} // namespace
+LoadPatternUI& load_pattern_ui_for_session() {
+	return remote_load_pattern_ui.get(local_load_pattern_ui);
+}
 
 bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// greyout the sidebar, not the main pads
-	if (qwertyVisible) {
+	if (qwerty_visible_for_session()) {
 		*cols = 0x03;
 	}
 	// greyout everything
@@ -98,7 +113,7 @@ bool LoadPatternUI::opened() {
 	}
 
 	favouritesChanged();
-	currentDir.set(defaultDir.c_str());
+	current_dir_for_session().set(defaultDir.c_str());
 
 	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
@@ -127,34 +142,51 @@ void LoadPatternUI::setupLoadPatternUI(bool overwriteExistingState, bool noScali
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NOOVERWRITE));
 	}
 	if (noScaling) {
-		instrumentClipView.patternClear();
+		Error error = instrument_clip_view_for_session().patternClear();
+		if (error != Error::NONE) {
+			display->displayError(error);
+			return;
+		}
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NOSCALING));
 	}
-	performLoad();
+	Error error = performLoad();
+	if (error != Error::NONE) {
+		display->displayError(error);
+	}
 }
 
 void LoadPatternUI::selectEncoderAction(int8_t offset) {
 	if (noScaling) {
-		instrumentClipView.patternClear();
+		Error error = instrument_clip_view_for_session().patternClear();
+		if (error != Error::NONE) {
+			display->displayError(error);
+			return;
+		}
 	}
 	LoadUI::selectEncoderAction(offset);
 }
 
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
-	if (!overwriteExisting && actionLogger.firstAction[BEFORE]
-	    && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
-		actionLogger.revert(BEFORE);
+	if (!overwriteExisting && latest_action_matches_pattern_preview()) {
+		if (!actionLogger.revert(BEFORE)) {
+			display->displayError(Error::UNSPECIFIED);
+			return;
+		}
 		// Create a new Action where the Events can be added
 		actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 	if (noScaling) {
-		instrumentClipView.patternClear();
+		Error error = instrument_clip_view_for_session().patternClear();
+		if (error != Error::NONE) {
+			display->displayError(error);
+			return;
+		}
 	}
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 Error LoadPatternUI::setupForLoadingPattern() {
-	enteredText.clear();
+	entered_text_for_session().clear();
 
 	if (display->haveOLED()) {
 		fileIcon = deluge::hid::display::OLED::midiIcon;
@@ -164,7 +196,7 @@ Error LoadPatternUI::setupForLoadingPattern() {
 
 	String searchFilename;
 
-	Error error = currentDir.set(defaultDir.c_str());
+	Error error = current_dir_for_session().set(defaultDir.c_str());
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -180,8 +212,6 @@ Error LoadPatternUI::setupForLoadingPattern() {
 	if (error != Error::NONE) {
 		return error;
 	}
-
-	currentLabelLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
 
 	drawKeys();
 
@@ -215,7 +245,11 @@ void LoadPatternUI::enterKeyPress() {
 
 	else {
 		previewOnly = false;
-		performLoad();
+		Error error = performLoad();
+		if (error != Error::NONE) {
+			display->displayError(error);
+			return;
+		}
 		close();
 	}
 }
@@ -231,17 +265,24 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else if (b == PLAY) {
 		// Need to use special preview mode for this as on constant playing, big Midi files can lead to stucked notes
 		FileItem* currentFileItem = getCurrentFileItem();
+		if (!currentFileItem) {
+			return ActionResult::DEALT_WITH;
+		}
 		if (!currentFileItem->isFolder) {
 			if (on) {
 				previewOnly = true;
 
-				performLoad();
+				Error error = performLoad();
+				if (error != Error::NONE) {
+					display->displayError(error);
+					return ActionResult::DEALT_WITH;
+				}
 				// rerenndering Keyboard
 				renderingNeededRegardlessOfUI();
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_PREVIEW));
 			}
 		}
-		instrumentClipView.patternPreview();
+		instrument_clip_view_for_session().patternPreview();
 		// rerenndering Keyboard
 
 		return ActionResult::DEALT_WITH;
@@ -249,12 +290,14 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
+			if (!strcmp(current_dir_for_session().get(), defaultDir.c_str())) {
 				// Undo all Changes made during Pattern Preview
-				if (actionLogger.firstAction[BEFORE]
-				    && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+				if (latest_action_matches_pattern_preview()) {
 					actionLogger.closeAction(ActionType::PATTERN_PASTE);
-					actionLogger.revert(BEFORE, false, false);
+					if (!actionLogger.revert(BEFORE, false, false)) {
+						display->displayError(Error::UNSPECIFIED);
+						return ActionResult::DEALT_WITH;
+					}
 				}
 				close();
 				return ActionResult::DEALT_WITH;
@@ -287,24 +330,25 @@ Error LoadPatternUI::performLoad() {
 	}
 
 	if (!previewOnly && !noScaling) {
-		if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+		if (latest_action_matches_pattern_preview()) {
 			actionLogger.closeAction(ActionType::PATTERN_PASTE);
-			actionLogger.revert(BEFORE, false, false);
+			if (!actionLogger.revert(BEFORE, false, false)) {
+				return Error::UNSPECIFIED;
+			}
 		}
 		actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 
 	String fileName;
-	fileName.set(currentDir.get());
+	fileName.set(current_dir_for_session().get());
 	fileName.concatenate("/");
-	fileName.concatenate(enteredText.get());
+	fileName.concatenate(entered_text_for_session().get());
 	fileName.concatenate(".XML");
 
 	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExisting,
 	                                              noScaling, previewOnly, selectedDrumOnly);
 
 	if (error != Error::NONE) {
-		display->displayError(currentLabelLoadError);
 		return error;
 	}
 

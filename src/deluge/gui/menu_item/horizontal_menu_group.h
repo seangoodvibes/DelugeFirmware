@@ -44,7 +44,12 @@ protected:
 
 private:
 	std::vector<HorizontalMenu*> menus_{};
-	HorizontalMenu* current_menu_{nullptr};
-	MenuItem* navigated_backward_from{nullptr};
+	struct GroupState {
+		HorizontalMenu* current_menu_ = nullptr;
+		MenuItem* navigated_backward_from = nullptr;
+	};
+	ui_session::State<GroupState> group_states_;
+	GroupState& group_state() { return group_states_.active(); }
+	const GroupState& group_state() const { return group_states_.active(); }
 };
 } // namespace deluge::gui::menu_item

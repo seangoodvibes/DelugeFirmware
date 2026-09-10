@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
+#include "gui/ui/ui_session.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
@@ -146,8 +147,13 @@ public:
 	char const* getXMLTag() override { return "kit"; }
 
 	Drum* firstDrum;
-	Drum* selectedDrum;
+	Drum*& selected_drum_for_session() { return selected_drums.active(); }
+	Drum* selected_drum_for_session() const { return selected_drums.active(); }
 
+private:
+	deluge::gui::ui_session::State<Drum*> selected_drums;
+
+public:
 	OrderedResizeableArrayWith32bitKey drumsWithRenderingActive;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,

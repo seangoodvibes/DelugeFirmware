@@ -25,9 +25,9 @@ public:
 	using MenuItem::MenuItem;
 
 	MenuItem* selectButtonPress() override {
-		gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)getCurrentOutput();
-		gui::context_menu::audioInputSelector.setupAndCheckAvailability();
-		openUI(&gui::context_menu::audioInputSelector);
+		gui::context_menu::audio_input_selector_for_session().audioOutput = (AudioOutput*)getCurrentOutput();
+		gui::context_menu::audio_input_selector_for_session().setupAndCheckAvailability();
+		openUI(&gui::context_menu::audio_input_selector_for_session());
 		return NO_NAVIGATION;
 	}
 

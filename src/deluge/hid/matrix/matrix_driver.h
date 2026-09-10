@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui_session.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "pad.h"
 #include <cstdint>
@@ -34,7 +35,11 @@ public:
 
 	void noPressesHappening(bool inCardRoutine);
 
-	bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight];
+private:
+	struct State {
+		bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight]{};
+	};
+	deluge::gui::ui_session::State<State> states_;
 };
 
 extern char* matrixDriverDisplayWritePos;

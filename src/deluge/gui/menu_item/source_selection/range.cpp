@@ -25,7 +25,8 @@ Range rangeMenu{};
 
 ParamDescriptor Range::getDestinationDescriptor() {
 	ParamDescriptor descriptor{};
-	descriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, regularMenu.s);
+	descriptor.setToHaveParamAndSource(sound_editor_for_session().patchingParamSelected,
+	                                   regularMenu.source_for_session());
 	return descriptor;
 }
 

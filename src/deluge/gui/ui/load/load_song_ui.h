@@ -62,6 +62,6 @@ private:
 	void exitActionWithError();
 	void performLoadFixedSM();
 };
-extern LoadSongUI loadSongUI;
+LoadSongUI& load_song_ui_for_session();
 
 extern char loopsRemainingText[];

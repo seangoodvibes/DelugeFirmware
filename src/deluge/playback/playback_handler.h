@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/deferred_session_command.h"
 #include "util/d_string.h"
 #include <cstdint>
 
@@ -81,6 +82,9 @@ public:
 	int32_t getActualArrangementRecordPos();
 	int32_t getArrangementRecordPosAtLastActionedSwungTick();
 	void slowRoutine();
+	void pend_global_m_id_i_command(GlobalMIDICommand command);
+	deluge::gui::ui_session::DeferredSessionCommand<GlobalMIDICommand>::Suspension
+	suspend_pending_global_m_id_i_commands();
 	void scheduleSwungTickFromExternalClock();
 	int32_t getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder = nullptr);
 	int32_t getNumSwungTicksInSinceLastActionedSwungTick(uint32_t* timeRemainder = nullptr);

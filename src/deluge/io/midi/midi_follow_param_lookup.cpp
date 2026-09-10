@@ -87,7 +87,7 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 	int32_t paramID = PARAM_ID_NONE;
 	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-	if (!instrumentClip->affectEntire) {
+	if (!instrumentClip->affect_entire_for_session()) {
 		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
 			paramKind = params::Kind::PATCHED;
 			paramID = soundParamId;
@@ -109,8 +109,9 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 
 	if ((paramKind != params::Kind::NONE) && (paramID != PARAM_ID_NONE)) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID,
-		                                                           paramKind, instrumentClip->affectEntire, false);
+		modelStackWithParam =
+		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind,
+		                                         instrumentClip->affect_entire_for_session(), false);
 	}
 
 	return modelStackWithParam;

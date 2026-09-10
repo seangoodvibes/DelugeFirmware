@@ -41,23 +41,25 @@ public:
 	FilterInfo(FilterSlot slot_, FilterParamType type_) : slot{slot_}, type{type_} {}
 	::FilterMode getMode() const {
 		if (slot == FilterSlot::LPF) {
-			return soundEditor.currentModControllable->lpfMode;
+			return sound_editor_for_session().currentModControllable->lpfMode;
 		}
 		else {
-			return soundEditor.currentModControllable->hpfMode;
+			return sound_editor_for_session().currentModControllable->hpfMode;
 		}
 	}
 	int32_t getModeValue() const {
 		if (slot == FilterSlot::HPF) {
-			return util::to_underlying(soundEditor.currentModControllable->hpfMode) - kFirstHPFMode;
+			return util::to_underlying(sound_editor_for_session().currentModControllable->hpfMode) - kFirstHPFMode;
 		}
 		else {
 			// Off is located past the HPFLadder, which isn't an option for the low pass filter (should it be?)
-			int32_t selection = util::to_underlying(soundEditor.currentModControllable->lpfMode);
+			int32_t selection = util::to_underlying(sound_editor_for_session().currentModControllable->lpfMode);
 			return std::min(selection, kNumLPFModes);
 		}
 	}
-	void setMode(int32_t value) const { setModeForModControllable(value, soundEditor.currentModControllable); }
+	void setMode(int32_t value) const {
+		setModeForModControllable(value, sound_editor_for_session().currentModControllable);
+	}
 	void setModeForModControllable(int32_t value, ModControllableAudio* modControllable) const {
 		if (slot == FilterSlot::HPF) {
 			modControllable->hpfMode = static_cast<FilterMode>(value + kFirstHPFMode);

@@ -99,10 +99,12 @@ public:
 	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire);
 
 	ActionResult timerCallback() override;
+	void refresh_shared_model() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut);
 	void updateSourceBlinks(MenuItem* currentItem);
 	void resetSourceBlinks();
+	void reset_for_session_startup();
 
 	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
@@ -201,4 +203,4 @@ private:
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
 };
 
-extern SoundEditor soundEditor;
+SoundEditor& sound_editor_for_session();

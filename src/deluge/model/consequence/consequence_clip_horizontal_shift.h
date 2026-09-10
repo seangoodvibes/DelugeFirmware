@@ -17,15 +17,26 @@
 
 #pragma once
 
+#include "model/action/reversible_shift.h"
 #include "model/consequence/consequence.h"
 #include <cstdint>
+#include <limits>
+
+class Clip;
 
 class ConsequenceClipHorizontalShift final : public Consequence {
 public:
-	ConsequenceClipHorizontalShift(int32_t newAmount, bool newShiftAutomation, bool newShiftSequenceAndMPE);
+	ConsequenceClipHorizontalShift(Clip* targetClip, int32_t newAmount, bool newShiftAutomation,
+	                               bool newShiftSequenceAndMPE);
 	Error revert(TimeType time, ModelStack* modelStack) override;
+	bool can_accumulate(Clip* target, int32_t delta, bool automation, bool sequence_and_mpe) const {
+		const int64_t combined = static_cast<int64_t>(amount) + delta;
+		return clip == target && shiftAutomation == automation && shiftSequenceAndMPE == sequence_and_mpe
+		       && deluge::model::is_reversible_shift(combined);
+	}
 
 	int32_t amount;
 	bool shiftAutomation;
 	bool shiftSequenceAndMPE;
+	Clip* clip;
 };

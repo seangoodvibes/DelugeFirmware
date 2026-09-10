@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/views/automation/editor_layout/mod_controllable/parameter_edit.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
@@ -1301,8 +1302,184 @@ TEST(parameter_lifecycle, failed_node_capture_preserves_source_and_allows_retry)
 	}
 }
 
-TEST(parameter_lifecycle, partial_node_insertion_reports_failure_and_retries_without_consuming_record) {
-	bool reached_success = false, saw_partial = false, saw_failure = false;
+TEST(parameter_lifecycle, move_node_copy_preserves_source_on_failure_and_success) {
+	for (bool wrapping : {false, true}) {
+		fixture f;
+		f.set().setCurrentValueBasicForSetup(32, 17);
+		f.add_node(32, 2, 200, true);
+		f.add_node(32, 28, 2800, false);
+		auto* parameter = f.param(32)->autoParam;
+		stolen_nodes copied;
+		const int32_t pos = wrapping ? 24 : 0;
+		const int32_t region_length = wrapping ? 12 : 32;
+		{
+			fail_allocations failure;
+			CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, &copied.record) == Error::INSUFFICIENT_RAM);
+		}
+		LONGS_EQUAL(0, copied.record.num);
+		POINTERS_EQUAL(nullptr, copied.record.nodes);
+		check_node(*parameter, 0, 2, 200, true);
+		check_node(*parameter, 1, 28, 2800, false);
+		CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, &copied.record) == Error::NONE);
+		LONGS_EQUAL(2, copied.record.num);
+		LONGS_EQUAL(wrapping ? 4 : 2, copied.record.nodes[0].pos);
+		LONGS_EQUAL(wrapping ? 10 : 28, copied.record.nodes[1].pos);
+		LONGS_EQUAL(wrapping ? 2800 : 200, copied.record.nodes[0].value);
+		LONGS_EQUAL(wrapping ? 200 : 2800, copied.record.nodes[1].value);
+		check_node(*parameter, 0, 2, 200, true);
+		check_node(*parameter, 1, 28, 2800, false);
+		check_flag(f.summary(), 32, true);
+		LONGS_EQUAL(17, f.set().getValue(32));
+		auto* owned_nodes = copied.record.nodes;
+		CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, &copied.record) == Error::BUG);
+		POINTERS_EQUAL(owned_nodes, copied.record.nodes);
+		CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, nullptr) == Error::BUG);
+	}
+}
+TEST(parameter_lifecycle, node_capture_rejects_source_changes_during_allocation) {
+	for (bool remove_source : {false, true}) {
+		for (bool fail_allocation : {false, true}) {
+			fixture f;
+			f.add_node(32, 2, 200);
+			f.add_node(32, 28, 2800);
+			auto* context = f.param(32);
+			stolen_nodes copied;
+			parameter_test::on_allocation = [&] {
+				context->autoParam->nodes.empty();
+				if (fail_allocation)
+					parameter_test::allocations_before_failure = 0;
+			};
+			Error result = remove_source ? context->autoParam->stealNodes(context, 24, 12, 32, nullptr, &copied.record)
+			                             : context->autoParam->copy_nodes_for_move(24, 12, 32, &copied.record);
+			parameter_test::allocations_before_failure = -1;
+			CHECK(result == Error::BUG);
+			LONGS_EQUAL(0, copied.record.num);
+			POINTERS_EQUAL(nullptr, copied.record.nodes);
+			LONGS_EQUAL(0, context->autoParam->nodes.getNumElements());
+		}
+	}
+}
+TEST(parameter_lifecycle, node_capture_rejects_in_place_changes_to_region_boundaries) {
+	for (bool remove_source : {false, true}) {
+		for (int boundary = 0; boundary < 3; ++boundary) {
+			fixture f;
+			f.add_node(32, 2, 200);
+			f.add_node(32, 12, 1200);
+			f.add_node(32, 28, 2800);
+			auto* context = f.param(32);
+			stolen_nodes copied;
+			const int32_t position = boundary == 2 ? 24 : 8;
+			const int32_t length = boundary == 2 ? 12 : 16;
+			const int32_t changed_index = boundary == 2 ? 0 : 1;
+			const int32_t changed_position = boundary == 0 ? 6 : boundary == 1 ? 26 : 6;
+			void* first_node = context->autoParam->nodes.getElementAddress(0);
+			parameter_test::on_allocation = [&] {
+				context->autoParam->nodes.getElement(changed_index)->pos = changed_position;
+			};
+			Error result = remove_source
+			                   ? context->autoParam->stealNodes(context, position, length, 32, nullptr, &copied.record)
+			                   : context->autoParam->copy_nodes_for_move(position, length, 32, &copied.record);
+			CHECK(result == Error::BUG);
+			LONGS_EQUAL(0, copied.record.num);
+			POINTERS_EQUAL(nullptr, copied.record.nodes);
+			POINTERS_EQUAL(first_node, context->autoParam->nodes.getElementAddress(0));
+			LONGS_EQUAL(3, context->autoParam->nodes.getNumElements());
+			LONGS_EQUAL(changed_position, context->autoParam->nodes.getElement(changed_index)->pos);
+			check_ordered_nodes(*context->autoParam, 32);
+		}
+	}
+}
+TEST(parameter_lifecycle, node_capture_uses_current_values_when_selection_remains_valid) {
+	fixture f;
+	f.add_node(32, 12, 1200);
+	auto* parameter = f.param(32)->autoParam;
+	stolen_nodes copied;
+	parameter_test::on_allocation = [&] {
+		parameter->nodes.getElement(0)->pos = 14;
+		parameter->nodes.getElement(0)->value = 1400;
+	};
+	CHECK(parameter->copy_nodes_for_move(8, 16, 32, &copied.record) == Error::NONE);
+	LONGS_EQUAL(1, copied.record.num);
+	LONGS_EQUAL(6, copied.record.nodes[0].pos);
+	LONGS_EQUAL(1400, copied.record.nodes[0].value);
+	check_node(*parameter, 0, 14, 1400, false);
+}
+
+TEST(parameter_lifecycle, destructive_capture_rejects_an_already_owned_record) {
+	fixture f;
+	f.add_node(32, 2, 200);
+	auto* context = f.param(32);
+	stolen_nodes copied;
+	CHECK(context->autoParam->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::NONE);
+	auto* original_record = copied.record.nodes;
+	const auto allocations = parameter_test::outstanding_allocations();
+	CHECK(context->autoParam->stealNodes(context, 0, 16, 32, nullptr, &copied.record) == Error::BUG);
+	POINTERS_EQUAL(original_record, copied.record.nodes);
+	LONGS_EQUAL(1, copied.record.num);
+	LONGS_EQUAL(allocations, parameter_test::outstanding_allocations());
+	check_node(*context->autoParam, 0, 2, 200, false);
+}
+
+TEST(parameter_lifecycle, node_capture_preserves_nested_output_record) {
+	fixture f;
+	f.add_node(32, 2, 200);
+	auto* parameter = f.param(32)->autoParam;
+	stolen_nodes copied;
+	parameter_test::on_allocation = [&] {
+		CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::NONE);
+	};
+	CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::BUG);
+	LONGS_EQUAL(1, copied.record.num);
+	LONGS_EQUAL(2, copied.record.nodes[0].pos);
+	LONGS_EQUAL(200, copied.record.nodes[0].value);
+	check_node(*parameter, 0, 2, 200, false);
+}
+TEST(parameter_lifecycle, node_capture_rejects_structural_refresh_during_allocation) {
+	using namespace deluge::gui::ui_session;
+	for (auto owner : {Id::Local, Id::Remote}) {
+		fixture f;
+		f.add_node(32, 2, 200);
+		auto* parameter = f.param(32)->autoParam;
+		stolen_nodes copied;
+		parameter_test::on_allocation = [=] { navigation.for_owner(owner).structural_refresh.request(); };
+		CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::BUG);
+		LONGS_EQUAL(0, copied.record.num);
+		check_node(*parameter, 0, 2, 200, false);
+	}
+}
+
+TEST(parameter_lifecycle, node_capture_checks_structural_revision_before_accessing_released_parameter) {
+	fixture f;
+	f.add_node(32, 2, 200);
+	auto* parameter = f.param(32)->autoParam;
+	stolen_nodes copied;
+	parameter_test::on_allocation = [&] {
+		deluge::gui::ui_session::navigation.for_owner(deluge::gui::ui_session::Id::Remote).structural_refresh.request();
+		parameter->nodes.empty();
+		f.set().paramHasNoAutomationNow(f.stack(), 32);
+		auto_param_pool::get().clear_unused();
+	};
+	CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::BUG);
+	LONGS_EQUAL(0, copied.record.num);
+	POINTERS_EQUAL(nullptr, copied.record.nodes);
+	CHECK_FALSE(f.set().isAutomated(32));
+}
+
+TEST(parameter_lifecycle, empty_move_node_copy_does_not_allocate_or_change_source) {
+	fixture f;
+	f.add_node(32, 20, 2000);
+	stolen_nodes copied;
+	auto* parameter = f.param(32)->autoParam;
+	fail_allocations failure;
+	CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::NONE);
+	LONGS_EQUAL(0, copied.record.num);
+	POINTERS_EQUAL(nullptr, copied.record.nodes);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	check_node(*parameter, 0, 20, 2000, false);
+}
+
+TEST(parameter_lifecycle, failed_node_replacement_preserves_destination_and_retries_without_consuming_record) {
+	bool reached_success = false, saw_failure = false;
 	for (int budget = 0; budget < 16 && !reached_success; ++budget) {
 		fixture f;
 		f.set().setCurrentValueBasicForSetup(32, 17);
@@ -1326,8 +1503,12 @@ TEST(parameter_lifecycle, partial_node_insertion_reports_failure_and_retries_wit
 		reached_success = result == Error::NONE;
 		CHECK(reached_success || result == Error::INSUFFICIENT_RAM);
 		saw_failure |= !reached_success;
-		const int count = f.param(32)->autoParam->nodes.getNumElements();
-		saw_partial |= !reached_success && count > 1 && count < 33;
+		if (!reached_success) {
+			LONGS_EQUAL(3, f.param(32)->autoParam->nodes.getNumElements());
+			check_node(*f.param(32)->autoParam, 0, 8, -800, false);
+			check_node(*f.param(32)->autoParam, 1, 96, 9600, false);
+			check_node(*f.param(32)->autoParam, 2, 116, -11600, false);
+		}
 		check_ordered_nodes(*f.param(32)->autoParam, 128);
 		check_flag(f.summary(), 32, f.set().isAutomated(32));
 		LONGS_EQUAL(17, f.set().getValue(32));
@@ -1353,10 +1534,48 @@ TEST(parameter_lifecycle, partial_node_insertion_reports_failure_and_retries_wit
 	}
 	CHECK(reached_success);
 	CHECK(saw_failure);
-	CHECK(saw_partial);
 }
 
-TEST(parameter_lifecycle, failed_first_replacement_node_clears_flags_and_keeps_record_for_retry) {
+TEST(parameter_lifecycle, stolen_node_reservation_preserves_values_and_prepares_allocation_free_transfer) {
+	bool saw_failure = false;
+	bool saw_success = false;
+	for (int allocation_budget = 0; allocation_budget < 8 && !saw_success; ++allocation_budget) {
+		fixture f;
+		f.add_node(32, 8, 800, true);
+		f.add_node(32, 96, 9600);
+		auto* context = f.param(32);
+		std::array<ParamNode, 32> source{};
+		for (int index = 0; index < 32; ++index) {
+			source[index].pos = index * 3;
+			source[index].value = index + 100;
+		}
+		StolenParamNodes record{32, source.data()};
+		{
+			fail_allocations failure(allocation_budget);
+			saw_success = context->autoParam->reserve_stolen_nodes(112, 96, 128, &record);
+		}
+		saw_failure |= !saw_success;
+		LONGS_EQUAL(2, context->autoParam->nodes.getNumElements());
+		check_node(*context->autoParam, 0, 8, 800, true);
+		check_node(*context->autoParam, 1, 96, 9600, false);
+		check_flag(f.summary(), 32, true);
+		LONGS_EQUAL(32, record.num);
+		if (saw_success) {
+			fail_allocations failure;
+			CHECK(context->autoParam->insertStolenNodes(context, 112, 96, 128, nullptr, &record) == Error::NONE);
+			LONGS_EQUAL(33, context->autoParam->nodes.getNumElements());
+			check_ordered_nodes(*context->autoParam, 128);
+		}
+		for (int index = 0; index < 32; ++index) {
+			LONGS_EQUAL(index * 3, source[index].pos);
+			LONGS_EQUAL(index + 100, source[index].value);
+		}
+	}
+	CHECK(saw_failure);
+	CHECK(saw_success);
+}
+
+TEST(parameter_lifecycle, full_region_node_replacement_reuses_capacity_when_allocations_fail) {
 	fixture f;
 	f.set().setCurrentValueBasicForSetup(32, 17);
 	f.add_node(32, 4, 400, true);
@@ -1365,20 +1584,107 @@ TEST(parameter_lifecycle, failed_first_replacement_node_clears_flags_and_keeps_r
 	ParamNode node;
 	node.pos = 8;
 	node.value = 800;
+	node.interpolated = false;
 	StolenParamNodes record{1, &node};
 	{
 		fail_allocations failure;
 		auto* context = f.param(32);
-		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::INSUFFICIENT_RAM);
+		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
 	}
 	LONGS_EQUAL(17, f.set().getValue(32));
-	check_flag(f.summary(), 32, false);
-	CHECK_FALSE(f.set().isAutomated(32));
-	LONGS_EQUAL(1, record.num);
-	auto* context = f.param(32);
-	CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
+	check_flag(f.summary(), 32, true, true);
 	check_node(*f.param(32)->autoParam, 0, 8, 800, false);
-	check_flag(f.summary(), 32, true);
+	LONGS_EQUAL(16, f.param(32)->autoParam->valueIncrementPerHalfTick);
+	LONGS_EQUAL(1, record.num);
+	LONGS_EQUAL(8, record.nodes[0].pos);
+}
+
+TEST(parameter_lifecycle, node_replacement_reuses_reserved_capacity_for_wrapped_growth_shrink_and_clear) {
+	fixture f;
+	f.add_node(32, 12, 1200);
+	auto* context = f.param(32);
+	CHECK(context->autoParam->nodes.ensureEnoughSpaceAllocated(8));
+	std::array<ParamNode, 4> source{};
+	for (int32_t index = 0; index < 4; ++index) {
+		source[index].pos = index * 4;
+		source[index].value = index + 100;
+	}
+	StolenParamNodes record{4, source.data()};
+	{
+		fail_allocations failure;
+		CHECK(context->autoParam->insertStolenNodes(context, 24, 16, 32, nullptr, &record) == Error::NONE);
+		LONGS_EQUAL(5, context->autoParam->nodes.getNumElements());
+		check_node(*context->autoParam, 0, 0, 102, false);
+		check_node(*context->autoParam, 1, 4, 103, false);
+		check_node(*context->autoParam, 2, 12, 1200, false);
+		check_node(*context->autoParam, 3, 24, 100, false);
+		check_node(*context->autoParam, 4, 28, 101, false);
+		record.num = 1;
+		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
+		LONGS_EQUAL(1, context->autoParam->nodes.getNumElements());
+		check_node(*context->autoParam, 0, 0, 100, false);
+		record.num = 0;
+		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
+	}
+	check_flag(f.summary(), 32, false);
+	for (int32_t index = 0; index < 4; ++index) {
+		LONGS_EQUAL(index * 4, source[index].pos);
+		LONGS_EQUAL(index + 100, source[index].value);
+	}
+}
+
+TEST(parameter_lifecycle, capacity_preserving_deletion_rejects_invalid_ranges_without_mutation) {
+	ResizeableArray array(sizeof(int32_t));
+	CHECK(array.insertAtIndex(0, 2) == Error::NONE);
+	*static_cast<int32_t*>(array.getElementAddress(0)) = 42;
+	*static_cast<int32_t*>(array.getElementAddress(1)) = 43;
+	fail_allocations failure;
+	array.delete_at_index_preserving_capacity(-1);
+	array.delete_at_index_preserving_capacity(0, 0);
+	array.delete_at_index_preserving_capacity(0, -1);
+	array.delete_at_index_preserving_capacity(0, INT32_MAX);
+	array.delete_at_index_preserving_capacity(2);
+	array.delete_at_index_preserving_capacity(INT32_MAX);
+	LONGS_EQUAL(2, array.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(array.getElementAddress(0)));
+	LONGS_EQUAL(43, *static_cast<int32_t*>(array.getElementAddress(1)));
+	array.delete_at_index_preserving_capacity(0, 2);
+	CHECK(array.insert_at_index_without_allocation(0, 2) == Error::NONE);
+}
+
+TEST(parameter_lifecycle, capacity_preserving_deletion_handles_every_ring_range_and_reuses_all_storage) {
+	struct test_ring : ResizeableArray {
+		test_ring() : ResizeableArray(sizeof(int32_t)) {}
+		void set_start(int32_t start) { memoryStart = start; }
+	};
+	for (int32_t capacity = 1; capacity <= 8; ++capacity) {
+		for (int32_t start = 0; start < capacity; ++start) {
+			for (int32_t size = 1; size <= capacity; ++size) {
+				for (int32_t index = 0; index < size; ++index) {
+					for (int32_t count = 1; count <= size - index; ++count) {
+						std::array<int32_t, 8> storage{};
+						test_ring ring;
+						ring.setStaticMemory(storage.data(), capacity * sizeof(int32_t));
+						ring.set_start(start);
+						CHECK(ring.insert_at_index_without_allocation(0, size) == Error::NONE);
+						for (int32_t element = 0; element < size; ++element) {
+							*static_cast<int32_t*>(ring.getElementAddress(element)) = element + 10;
+						}
+						fail_allocations failure;
+						ring.delete_at_index_preserving_capacity(index, count);
+						LONGS_EQUAL(size - count, ring.getNumElements());
+						for (int32_t element = 0; element < size - count; ++element) {
+							LONGS_EQUAL(element + 10 + (element >= index ? count : 0),
+							            *static_cast<int32_t*>(ring.getElementAddress(element)));
+						}
+						CHECK(ring.insert_at_index_without_allocation(size - count, capacity - size + count)
+						      == Error::NONE);
+						LONGS_EQUAL(capacity, ring.getNumElements());
+					}
+				}
+			}
+		}
+	}
 }
 
 TEST(parameter_lifecycle, deterministic_edit_delete_clone_and_undo_sequence_preserves_ownership) {
@@ -1929,8 +2235,8 @@ TEST(parameter_lifecycle, json_pool_failure_after_parsing_frees_nodes_and_preser
 TEST(parameter_lifecycle, scalar_knob_indicator_uses_noncreating_lookup_and_correct_bipolar_display) {
 	fixture f;
 	knob_lookup controls(f);
-	view.activeModControllableModelStack.modControllable = &controls;
-	view.modPos = 0;
+	view_for_session().activeModControllableModelStack.modControllable = &controls;
+	view_for_session().modPos = 0;
 	for (int32_t id :
 	     {int32_t(deluge::modulation::params::UNPATCHED_PAN), int32_t(deluge::modulation::params::UNPATCHED_VOLUME)}) {
 		controls.param_id = id;
@@ -1938,7 +2244,7 @@ TEST(parameter_lifecycle, scalar_knob_indicator_uses_noncreating_lookup_and_corr
 			f.set().setCurrentValueBasicForSetup(id, value);
 			fail_allocations failure;
 			const auto calls = parameter_test::indicator_calls;
-			view.setKnobIndicatorLevel(1);
+			view_for_session().setKnobIndicatorLevel(1);
 			LONGS_EQUAL(calls + 1, parameter_test::indicator_calls);
 			LONGS_EQUAL(1, parameter_test::indicator_knob);
 			LONGS_EQUAL(value == INT32_MIN ? 0 : value == 0 ? 64 : 128, parameter_test::indicator_level);
@@ -1950,7 +2256,7 @@ TEST(parameter_lifecycle, scalar_knob_indicator_uses_noncreating_lookup_and_corr
 		}
 	}
 	LONGS_EQUAL(6, controls.lookups);
-	view.activeModControllableModelStack.modControllable = nullptr;
+	view_for_session().activeModControllableModelStack.modControllable = nullptr;
 }
 
 TEST(parameter_lifecycle, clearing_full_idle_cache_preserves_active_automation_and_allows_more_acquisitions) {
@@ -3223,4 +3529,704 @@ TEST(parameter_lifecycle, midi_collection_xml_save_preserves_cc_order_and_scalar
 	source.check_ownership();
 	destination.check_ownership();
 	native_parameter_tests::file_contents = {};
+}
+
+// Backup cleanup reuses an entry and moves it to the first key for its output.
+// Exercise the real ring-array move code, not the backup-table double.
+TEST(parameter_lifecycle, ring_reposition_preserves_complete_entries_without_allocation) {
+	struct Entry {
+		uint32_t key;
+		uint32_t payload[3];
+		bool operator==(const Entry&) const = default;
+	};
+	class Ring : public ResizeableArray {
+	public:
+		std::array<Entry, 8> storage{};
+		Ring(int count, int start) : ResizeableArray(sizeof(Entry)) {
+			setStaticMemory(storage.data(), sizeof(storage));
+			numElements = count;
+			memoryStart = start;
+		}
+		~Ring() {
+			// Test-owned static storage must not reach the firmware deallocator.
+			memory = nullptr;
+		}
+	};
+	for (int count = 1; count <= 8; ++count) {
+		for (int start = 0; start < 8; ++start) {
+			for (int from = 0; from < count; ++from) {
+				for (int to = 0; to < count; ++to) {
+					Ring ring(count, start);
+					std::vector<Entry> expected;
+					for (uint32_t i = 0; i < static_cast<uint32_t>(count); ++i) {
+						Entry entry{i, {i + 100, i + 200, i + 300}};
+						*static_cast<Entry*>(ring.getElementAddress(i)) = entry;
+						expected.push_back(entry);
+					}
+					if (from < to)
+						std::rotate(expected.begin() + from, expected.begin() + from + 1, expected.begin() + to + 1);
+					else if (from > to)
+						std::rotate(expected.begin() + to, expected.begin() + from, expected.begin() + from + 1);
+					{
+						fail_allocations failure(0, false);
+						ring.repositionElement(from, to);
+					}
+					LONGS_EQUAL(count, ring.getNumElements());
+					for (int i = 0; i < count; ++i)
+						CHECK(*static_cast<Entry*>(ring.getElementAddress(i)) == expected[i]);
+				}
+			}
+		}
+	}
+}
+
+namespace {
+struct RepeatEntry {
+	int32_t key;
+	uint32_t payload[3];
+	bool operator==(const RepeatEntry&) const = default;
+};
+class RepeatRing : public OrderedResizeableArrayWith32bitKey {
+public:
+	RepeatRing(int count, int start) : OrderedResizeableArrayWith32bitKey(sizeof(RepeatEntry), 0, 0) {
+		CHECK_TRUE(insertAtIndex(0, 32) == Error::NONE);
+		numElements = count;
+		memoryStart = start;
+	}
+	RepeatEntry& entry(int index) { return *static_cast<RepeatEntry*>(getElementAddress(index)); }
+};
+} // namespace
+
+TEST(parameter_lifecycle, repeated_ring_entries_match_reference_for_partial_and_complete_loops) {
+	const std::vector<RepeatEntry> source{{0, {11, 12, 13}}, {2, {21, 22, 23}}, {5, {31, 32, 33}}, {9, {41, 42, 43}}};
+	for (int start = 0; start < 32; ++start) {
+		for (int end = 0; end <= 40; ++end) {
+			RepeatRing ring(source.size(), start);
+			for (int i = 0; i < static_cast<int>(source.size()); ++i)
+				ring.entry(i) = source[i];
+			std::vector<RepeatEntry> expected;
+			for (int offset = 0; offset < end; offset += 7) {
+				for (auto entry : source) {
+					if (entry.key >= 7 || offset + entry.key >= end)
+						continue;
+					entry.key += offset;
+					expected.push_back(entry);
+				}
+			}
+			{
+				fail_allocations failure(0, false);
+				CHECK_TRUE(ring.generateRepeats(7, end));
+			}
+			LONGS_EQUAL(expected.size(), ring.getNumElements());
+			for (int i = 0; i < ring.getNumElements(); ++i)
+				CHECK(ring.entry(i) == expected[i]);
+		}
+	}
+}
+
+TEST(parameter_lifecycle, repetition_failure_preserves_existing_entries) {
+	RepeatRing ring(2, 31);
+	ring.entry(0) = {0, {11, 12, 13}};
+	ring.entry(1) = {1, {21, 22, 23}};
+	const auto first = ring.entry(0), second = ring.entry(1);
+	for (auto limits :
+	     {std::pair{0, 64}, std::pair{-1, 64}, std::pair{2, -1}, std::pair{2, INT32_MAX}, std::pair{2, 128}}) {
+		fail_allocations failure(0, false);
+		CHECK_FALSE(ring.generateRepeats(limits.first, limits.second));
+		LONGS_EQUAL(2, ring.getNumElements());
+		CHECK(ring.entry(0) == first);
+		CHECK(ring.entry(1) == second);
+	}
+}
+
+TEST(parameter_lifecycle, repetition_with_no_source_entries_does_not_walk_huge_repeat_range) {
+	RepeatRing empty(0, 0);
+	CHECK_TRUE(empty.generateRepeats(1, INT32_MAX));
+	LONGS_EQUAL(0, empty.getNumElements());
+	RepeatRing outside(1, 31);
+	outside.entry(0) = {3, {11, 12, 13}};
+	CHECK_TRUE(outside.generateRepeats(1, INT32_MAX));
+	LONGS_EQUAL(0, outside.getNumElements());
+}
+
+TEST(parameter_lifecycle, shallow_ring_clone_failure_preserves_source_through_destruction_and_reuse) {
+	const std::vector<RepeatEntry> expected{{1, {11, 12, 13}}, {3, {21, 22, 23}}, {5, {31, 32, 33}}};
+	for (int start = 0; start < 32; ++start) {
+		RepeatRing source(expected.size(), start);
+		for (int i = 0; i < 3; ++i)
+			source.entry(i) = expected[i];
+		{
+			RepeatRing clone = source; // The shallow-copy contract used by beenCloned().
+			{
+				fail_allocations failure(0, false);
+				CHECK_TRUE(clone.beenCloned() == Error::INSUFFICIENT_RAM);
+			}
+			LONGS_EQUAL(0, clone.getNumElements());
+			// Reusing the failed copy must acquire its own storage.
+			CHECK_TRUE(clone.insertAtIndex(0, 1) == Error::NONE);
+			clone.entry(0) = {7, {41, 42, 43}};
+			for (int i = 0; i < 3; ++i)
+				CHECK_TRUE(source.entry(i) == expected[i]);
+		}
+		for (int i = 0; i < 3; ++i)
+			CHECK_TRUE(source.entry(i) == expected[i]);
+	}
+}
+TEST(parameter_lifecycle, shallow_ring_clone_success_owns_independent_payload_storage) {
+	const std::vector<RepeatEntry> expected{{1, {11, 12, 13}}, {3, {21, 22, 23}}, {5, {31, 32, 33}}};
+	for (int start = 0; start < 32; ++start) {
+		RepeatRing source(expected.size(), start);
+		for (int i = 0; i < 3; ++i)
+			source.entry(i) = expected[i];
+		{
+			RepeatRing clone = source;
+			CHECK_TRUE(clone.beenCloned() == Error::NONE);
+			LONGS_EQUAL(3, clone.getNumElements());
+			for (int i = 0; i < 3; ++i)
+				CHECK_TRUE(clone.entry(i) == expected[i]);
+			CHECK_TRUE(clone.getElementAddress(0) != source.getElementAddress(0));
+			clone.entry(1).payload[0] = 999;
+			CHECK_TRUE(source.entry(1) == expected[1]);
+		}
+		for (int i = 0; i < 3; ++i)
+			CHECK_TRUE(source.entry(i) == expected[i]);
+	}
+}
+
+TEST(parameter_lifecycle, array_insertion_rejects_invalid_ranges_without_allocation) {
+	ResizeableArray array(sizeof(int32_t));
+	parameter_test::allocations_before_failure = 0;
+	CHECK_TRUE(array.insertAtIndex(-1, 1) == Error::BUG);
+	CHECK_TRUE(array.insertAtIndex(1, 1) == Error::BUG);
+	CHECK_TRUE(array.insertAtIndex(0, 0) == Error::BUG);
+	CHECK_TRUE(array.insertAtIndex(0, -1) == Error::BUG);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(0, array.getNumElements());
+}
+TEST(parameter_lifecycle, array_insertion_bounds_include_spare_capacity) {
+	ResizeableArray array(sizeof(int32_t), 16, 15);
+	parameter_test::allocations_before_failure = 0;
+	CHECK_TRUE(array.insertAtIndex(0, INT32_MAX) == Error::INSUFFICIENT_RAM);
+	CHECK_TRUE(array.insertAtIndex(0, INT32_MAX / sizeof(int32_t)) == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	CHECK_TRUE(array.insertAtIndex(0, INT32_MAX / sizeof(int32_t) - 15) == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(1, parameter_test::allocation_failures);
+	LONGS_EQUAL(0, array.getNumElements());
+}
+TEST(parameter_lifecycle, array_rejected_growth_preserves_elements_and_allows_retry) {
+	ResizeableArray array(sizeof(int32_t));
+	CHECK_TRUE(array.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(array.getElementAddress(0)) = 42;
+	CHECK_TRUE(array.insertAtIndex(1, INT32_MAX) == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(1, array.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(array.getElementAddress(0)));
+	CHECK_TRUE(array.insertAtIndex(1, 1) == Error::NONE);
+	LONGS_EQUAL(2, array.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(array.getElementAddress(0)));
+}
+
+TEST(parameter_lifecycle, array_reservation_rejects_invalid_and_oversized_counts_before_allocation) {
+	ResizeableArray array(sizeof(int32_t));
+	parameter_test::allocations_before_failure = 0;
+	CHECK_FALSE(array.ensureEnoughSpaceAllocated(-1));
+	CHECK_FALSE(array.ensureEnoughSpaceAllocated(INT32_MIN));
+	CHECK_FALSE(array.ensureEnoughSpaceAllocated(INT32_MAX));
+	CHECK_FALSE(array.ensureEnoughSpaceAllocated(INT32_MAX / sizeof(int32_t)));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(0, array.getNumElements());
+}
+TEST(parameter_lifecycle, array_zero_reservation_succeeds_without_allocation) {
+	ResizeableArray array(sizeof(int32_t));
+	parameter_test::allocations_before_failure = 0;
+	CHECK_TRUE(array.ensureEnoughSpaceAllocated(0));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	parameter_test::allocations_before_failure = -1;
+	CHECK_TRUE(array.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(array.getElementAddress(0)) = 42;
+	parameter_test::allocations_before_failure = 0;
+	CHECK_TRUE(array.ensureEnoughSpaceAllocated(0));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(1, array.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(array.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, array_reservation_counts_existing_elements_and_can_retry) {
+	ResizeableArray array(sizeof(int32_t));
+	CHECK_TRUE(array.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(array.getElementAddress(0)) = 42;
+	parameter_test::allocations_before_failure = 0;
+	CHECK_FALSE(array.ensureEnoughSpaceAllocated(INT32_MAX / sizeof(int32_t) - 15));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(1, array.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(array.getElementAddress(0)));
+	parameter_test::allocations_before_failure = -1;
+	CHECK_TRUE(array.ensureEnoughSpaceAllocated(32));
+	LONGS_EQUAL(1, array.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(array.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, array_reservation_boundary_handles_allocation_failure) {
+	ResizeableArray array(sizeof(int32_t));
+	parameter_test::allocations_before_failure = 0;
+	CHECK_FALSE(array.ensureEnoughSpaceAllocated(INT32_MAX / sizeof(int32_t) - 15));
+	LONGS_EQUAL(1, parameter_test::allocation_failures);
+	LONGS_EQUAL(0, array.getNumElements());
+	parameter_test::allocations_before_failure = -1;
+	CHECK_TRUE(array.ensureEnoughSpaceAllocated(2));
+	LONGS_EQUAL(0, array.getNumElements());
+}
+
+TEST(parameter_lifecycle, array_clone_rejects_invalid_sources_without_changing_destination) {
+	ResizeableArray destination(sizeof(int32_t));
+	ResizeableArray incompatible(sizeof(int64_t));
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 42;
+	parameter_test::allocations_before_failure = 0;
+	CHECK_FALSE(destination.cloneFrom(nullptr));
+	CHECK_FALSE(destination.cloneFrom(&incompatible));
+	CHECK_TRUE(destination.cloneFrom(&destination));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(1, destination.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, array_clone_rejects_malformed_layout_and_capacity_before_allocation) {
+	struct source_array : ResizeableArray {
+		source_array() : ResizeableArray(sizeof(int32_t)) {}
+		void set_layout(int32_t count, int32_t size, int32_t start) {
+			numElements = count;
+			memorySize = size;
+			memoryStart = start;
+		}
+	} source;
+	ResizeableArray destination(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 42;
+	parameter_test::allocations_before_failure = 0;
+	for (auto layout : {std::array<int32_t, 3>{-1, 1, 0},
+	                    {2, 1, 0},
+	                    {1, 1, -1},
+	                    {1, 1, 1},
+	                    {INT32_MAX, INT32_MAX, 0},
+	                    {1, INT32_MAX, 0}}) {
+		source.set_layout(layout[0], layout[1], layout[2]);
+		CHECK_FALSE(destination.cloneFrom(&source));
+		LONGS_EQUAL(1, destination.getNumElements());
+		LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	}
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}
+
+TEST(parameter_lifecycle, failed_array_clone_preserves_destination_and_successful_retry_releases_old_storage) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 2) == Error::NONE);
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 11;
+	*static_cast<int32_t*>(source.getElementAddress(1)) = 22;
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 42;
+	void* previous_address = destination.getElementAddress(0);
+	const auto allocations = parameter_test::outstanding_allocations();
+	parameter_test::allocations_before_failure = 0;
+	CHECK_FALSE(destination.cloneFrom(&source));
+	POINTERS_EQUAL(previous_address, destination.getElementAddress(0));
+	LONGS_EQUAL(1, destination.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	LONGS_EQUAL(allocations, parameter_test::outstanding_allocations());
+	parameter_test::allocations_before_failure = -1;
+	CHECK_TRUE(destination.cloneFrom(&source));
+	LONGS_EQUAL(2, destination.getNumElements());
+	LONGS_EQUAL(11, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	LONGS_EQUAL(22, *static_cast<int32_t*>(destination.getElementAddress(1)));
+	LONGS_EQUAL(allocations, parameter_test::outstanding_allocations());
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 99;
+	LONGS_EQUAL(11, *static_cast<int32_t*>(destination.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, cloning_empty_array_releases_old_destination_storage) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	CHECK_TRUE(destination.cloneFrom(&source));
+	LONGS_EQUAL(0, destination.getNumElements());
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+
+TEST(parameter_lifecycle, array_clone_detaches_shallow_source_alias_without_freeing_source) {
+	ResizeableArray source(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	ResizeableArray destination = source;
+	CHECK_TRUE(destination.cloneFrom(&source));
+	LONGS_EQUAL(2, parameter_test::outstanding_allocations());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(source.getElementAddress(0)));
+	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, array_clone_preserves_static_destination) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+	std::array<int32_t, 4> storage{};
+	destination.setStaticMemory(storage.data(), sizeof(storage));
+	CHECK_TRUE(destination.insert_at_index_without_allocation(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 42;
+	CHECK_FALSE(destination.cloneFrom(&source));
+	LONGS_EQUAL(1, destination.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	CHECK_TRUE(destination.cloneFrom(&destination));
+}
+
+TEST(parameter_lifecycle, failed_borrowed_clone_destruction_preserves_original) {
+	ResizeableArray source(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	void* original_address = source.getElementAddress(0);
+	{
+		ResizeableArray destination = source;
+		parameter_test::allocations_before_failure = 0;
+		CHECK_FALSE(destination.cloneFrom(&source));
+		LONGS_EQUAL(0, destination.getNumElements());
+	}
+	LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+	POINTERS_EQUAL(original_address, source.getElementAddress(0));
+	LONGS_EQUAL(1, source.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(source.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, failed_borrowed_clone_can_retry_independently) {
+	ResizeableArray source(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	ResizeableArray destination = source;
+	parameter_test::allocations_before_failure = 0;
+	CHECK_FALSE(destination.cloneFrom(&source));
+	parameter_test::allocations_before_failure = -1;
+	CHECK_TRUE(destination.cloneFrom(&source));
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 99;
+	LONGS_EQUAL(42, *static_cast<int32_t*>(source.getElementAddress(0)));
+	LONGS_EQUAL(2, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, rejected_borrowed_clone_destruction_preserves_original) {
+	ResizeableArray source(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	{
+		ResizeableArray destination = source;
+		destination.elementSize = sizeof(int64_t);
+		CHECK_FALSE(destination.cloneFrom(&source));
+		LONGS_EQUAL(0, destination.getNumElements());
+	}
+	LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(source.getElementAddress(0)));
+}
+
+TEST(parameter_lifecycle, failed_shallow_clone_repair_destruction_preserves_original) {
+	ResizeableArray source(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	{
+		ResizeableArray destination = source;
+		parameter_test::allocations_before_failure = 0;
+		CHECK_TRUE(destination.beenCloned() == Error::INSUFFICIENT_RAM);
+		LONGS_EQUAL(0, destination.getNumElements());
+	}
+	LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(source.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, rejected_shallow_clone_repair_detaches_original_storage) {
+	struct source_array : ResizeableArray {
+		source_array() : ResizeableArray(sizeof(int32_t)) {}
+		void corrupt_count() { numElements = INT32_MAX; }
+	} source;
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	{
+		source_array destination = source;
+		destination.corrupt_count();
+		parameter_test::allocations_before_failure = 0;
+		CHECK_TRUE(destination.beenCloned() == Error::BUG);
+		LONGS_EQUAL(0, destination.getNumElements());
+		LONGS_EQUAL(0, parameter_test::allocation_failures);
+	}
+	LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(source.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, shallow_clone_repair_copies_wrapped_elements_independently) {
+	ResizeableArray source(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 2) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 11;
+	*static_cast<int32_t*>(source.getElementAddress(1)) = 22;
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 7;
+	ResizeableArray destination = source;
+	CHECK_TRUE(destination.beenCloned() == Error::NONE);
+	LONGS_EQUAL(3, destination.getNumElements());
+	LONGS_EQUAL(7, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	LONGS_EQUAL(11, *static_cast<int32_t*>(destination.getElementAddress(1)));
+	LONGS_EQUAL(22, *static_cast<int32_t*>(destination.getElementAddress(2)));
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 99;
+	LONGS_EQUAL(7, *static_cast<int32_t*>(source.getElementAddress(0)));
+}
+
+TEST(parameter_lifecycle, clone_rejects_source_storage_released_during_allocation) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 42;
+	void* previous_address = destination.getElementAddress(0);
+	parameter_test::on_allocation = [&] { source.empty(); };
+	CHECK_FALSE(destination.cloneFrom(&source));
+	POINTERS_EQUAL(previous_address, destination.getElementAddress(0));
+	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	LONGS_EQUAL(0, source.getNumElements());
+	LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, clone_rejects_source_layout_changed_during_allocation) {
+	for (bool change_size : {false, true}) {
+		ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+		CHECK_TRUE(source.insertAtIndex(0, 2) == Error::NONE);
+		*static_cast<int32_t*>(source.getElementAddress(0)) = 11;
+		parameter_test::on_allocation = [&] {
+			if (change_size)
+				source.elementSize = sizeof(int64_t);
+			else
+				source.deleteAtIndex(1, 1, false);
+		};
+		CHECK_FALSE(destination.cloneFrom(&source));
+		LONGS_EQUAL(0, destination.getNumElements());
+		LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+		source.elementSize = sizeof(int32_t);
+		CHECK_TRUE(destination.cloneFrom(&source));
+		LONGS_EQUAL(11, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	}
+}
+
+TEST(parameter_lifecycle, clone_preserves_destination_emptied_during_allocation) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 11;
+	parameter_test::on_allocation = [&] { destination.empty(); };
+	CHECK_FALSE(destination.cloneFrom(&source));
+	LONGS_EQUAL(0, destination.getNumElements());
+	LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+	LONGS_EQUAL(11, *static_cast<int32_t*>(source.getElementAddress(0)));
+	CHECK_TRUE(destination.cloneFrom(&source));
+	LONGS_EQUAL(11, *static_cast<int32_t*>(destination.getElementAddress(0)));
+}
+TEST(parameter_lifecycle, clone_preserves_nested_destination_replacement) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t)), nested_source(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	CHECK_TRUE(nested_source.insertAtIndex(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 11;
+	*static_cast<int32_t*>(nested_source.getElementAddress(0)) = 99;
+	parameter_test::on_allocation = [&] { CHECK_TRUE(destination.cloneFrom(&nested_source)); };
+	CHECK_FALSE(destination.cloneFrom(&source));
+	LONGS_EQUAL(1, destination.getNumElements());
+	LONGS_EQUAL(99, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	LONGS_EQUAL(11, *static_cast<int32_t*>(source.getElementAddress(0)));
+	LONGS_EQUAL(3, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, clone_failure_preserves_callback_destination_change) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+	CHECK_TRUE(source.insertAtIndex(0, 1) == Error::NONE);
+	CHECK_TRUE(destination.insertAtIndex(0, 1) == Error::NONE);
+	parameter_test::on_allocation = [&] { destination.empty(); };
+	parameter_test::allocations_before_failure = 0;
+	CHECK_FALSE(destination.cloneFrom(&source));
+	LONGS_EQUAL(0, destination.getNumElements());
+	LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+}
+
+TEST(parameter_lifecycle, static_array_reserves_only_supplied_capacity_and_preserves_storage_on_destruction) {
+	std::array<int32_t, 4> storage{42, 0, 0, 0};
+	{
+		ResizeableArray array(sizeof(int32_t));
+		array.setStaticMemory(storage.data(), sizeof(storage));
+		parameter_test::allocations_before_failure = 0;
+		CHECK_TRUE(array.ensureEnoughSpaceAllocated(4));
+		CHECK_FALSE(array.ensureEnoughSpaceAllocated(5));
+		CHECK_TRUE(array.insert_at_index_without_allocation(0, 1) == Error::NONE);
+		*static_cast<int32_t*>(array.getElementAddress(0)) = 99;
+		void* original_address = array.getElementAddress(0);
+		CHECK_TRUE(array.ensureEnoughSpaceAllocated(3));
+		CHECK_FALSE(array.ensureEnoughSpaceAllocated(4));
+		CHECK_FALSE(array.ensureEnoughSpaceAllocated(INT32_MAX));
+		CHECK_TRUE(array.ensureEnoughSpaceAllocated(0));
+		POINTERS_EQUAL(original_address, array.getElementAddress(0));
+		LONGS_EQUAL(1, array.getNumElements());
+		LONGS_EQUAL(99, *static_cast<int32_t*>(array.getElementAddress(0)));
+		LONGS_EQUAL(0, parameter_test::allocation_failures);
+		LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+	}
+	LONGS_EQUAL(99, storage[0]);
+}
+TEST(parameter_lifecycle, repaired_static_array_copy_owns_only_its_new_storage) {
+	std::array<int32_t, 2> storage{};
+	ResizeableArray source(sizeof(int32_t));
+	source.setStaticMemory(storage.data(), sizeof(storage));
+	CHECK_TRUE(source.insert_at_index_without_allocation(0, 1) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	{
+		ResizeableArray destination = source;
+		CHECK_TRUE(destination.beenCloned() == Error::NONE);
+		LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+		*static_cast<int32_t*>(destination.getElementAddress(0)) = 99;
+	}
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+	LONGS_EQUAL(42, storage[0]);
+}
+
+TEST(parameter_lifecycle, array_storage_swap_transfers_static_ownership_with_buffer) {
+	std::array<int32_t, 4> storage{};
+	{
+		ResizeableArray external(sizeof(int32_t)), heap(sizeof(int32_t));
+		external.setStaticMemory(storage.data(), sizeof(storage));
+		CHECK_TRUE(external.insert_at_index_without_allocation(0, 1) == Error::NONE);
+		*static_cast<int32_t*>(external.getElementAddress(0)) = 42;
+		CHECK_TRUE(heap.insertAtIndex(0, 1) == Error::NONE);
+		*static_cast<int32_t*>(heap.getElementAddress(0)) = 99;
+		external.swapStateWith(&heap);
+		LONGS_EQUAL(0, external.staticMemoryAllocationSize);
+		LONGS_EQUAL(sizeof(storage), heap.staticMemoryAllocationSize);
+		LONGS_EQUAL(99, *static_cast<int32_t*>(external.getElementAddress(0)));
+		LONGS_EQUAL(42, *static_cast<int32_t*>(heap.getElementAddress(0)));
+		CHECK_TRUE(heap.ensureEnoughSpaceAllocated(3));
+		CHECK_FALSE(heap.ensureEnoughSpaceAllocated(4));
+		heap.empty();
+		LONGS_EQUAL(1, parameter_test::outstanding_allocations());
+		external.empty();
+		LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+	}
+	LONGS_EQUAL(42, storage[0]);
+}
+TEST(parameter_lifecycle, swapped_external_arrays_keep_their_buffer_capacities) {
+	std::array<int32_t, 2> small{};
+	std::array<int32_t, 5> large{};
+	ResizeableArray first(sizeof(int32_t)), second(sizeof(int32_t));
+	first.setStaticMemory(small.data(), sizeof(small));
+	second.setStaticMemory(large.data(), sizeof(large));
+	first.swapStateWith(&second);
+	LONGS_EQUAL(sizeof(large), first.staticMemoryAllocationSize);
+	LONGS_EQUAL(sizeof(small), second.staticMemoryAllocationSize);
+	CHECK_TRUE(first.ensureEnoughSpaceAllocated(5));
+	CHECK_FALSE(first.ensureEnoughSpaceAllocated(6));
+	CHECK_TRUE(second.ensureEnoughSpaceAllocated(2));
+	CHECK_FALSE(second.ensureEnoughSpaceAllocated(3));
+	first.swapStateWith(&first);
+	LONGS_EQUAL(sizeof(large), first.staticMemoryAllocationSize);
+	CHECK_TRUE(first.ensureEnoughSpaceAllocated(5));
+}
+
+TEST(parameter_lifecycle, regular_static_insertion_rejects_growth_without_heap_access) {
+	std::array<int32_t, 6> storage{123, 0, 0, 0, 0, 456};
+	ResizeableArray array(sizeof(int32_t));
+	array.setStaticMemory(storage.data() + 1, 4 * sizeof(int32_t));
+	parameter_test::allocations_before_failure = 0;
+	CHECK_TRUE(array.insertAtIndex(0, 4) == Error::NONE);
+	for (int32_t index = 0; index < 4; ++index)
+		*static_cast<int32_t*>(array.getElementAddress(index)) = index + 1;
+	CHECK_TRUE(array.insertAtIndex(2, 1) == Error::INSUFFICIENT_RAM);
+	CHECK_TRUE(array.insertAtIndex(0, INT32_MAX) == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(4, array.getNumElements());
+	for (int32_t index = 0; index < 4; ++index)
+		LONGS_EQUAL(index + 1, *static_cast<int32_t*>(array.getElementAddress(index)));
+	LONGS_EQUAL(123, storage.front());
+	LONGS_EQUAL(456, storage.back());
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}
+TEST(parameter_lifecycle, regular_static_insertion_reuses_wrapped_capacity) {
+	std::array<int32_t, 6> storage{123, 0, 0, 0, 0, 456};
+	ResizeableArray array(sizeof(int32_t));
+	array.setStaticMemory(storage.data() + 1, 4 * sizeof(int32_t));
+	CHECK_TRUE(array.insertAtIndex(0, 4) == Error::NONE);
+	for (int32_t index = 0; index < 4; ++index)
+		*static_cast<int32_t*>(array.getElementAddress(index)) = index + 1;
+	array.deleteAtIndex(0, 2, false);
+	CHECK_TRUE(array.insertAtIndex(1, 2) == Error::NONE);
+	*static_cast<int32_t*>(array.getElementAddress(1)) = 7;
+	*static_cast<int32_t*>(array.getElementAddress(2)) = 8;
+	LONGS_EQUAL(4, array.getNumElements());
+	LONGS_EQUAL(3, *static_cast<int32_t*>(array.getElementAddress(0)));
+	LONGS_EQUAL(7, *static_cast<int32_t*>(array.getElementAddress(1)));
+	LONGS_EQUAL(8, *static_cast<int32_t*>(array.getElementAddress(2)));
+	LONGS_EQUAL(4, *static_cast<int32_t*>(array.getElementAddress(3)));
+	LONGS_EQUAL(123, storage.front());
+	LONGS_EQUAL(456, storage.back());
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+
+TEST(parameter_lifecycle, array_deletion_rejects_invalid_ranges_without_mutation) {
+	for (bool external : {false, true}) {
+		std::array<int32_t, 6> storage{123, 0, 0, 0, 0, 456};
+		ResizeableArray array(sizeof(int32_t));
+		if (external)
+			array.setStaticMemory(storage.data() + 1, 4 * sizeof(int32_t));
+		CHECK_TRUE(array.insertAtIndex(0, 4) == Error::NONE);
+		for (int32_t index = 0; index < 4; ++index)
+			*static_cast<int32_t*>(array.getElementAddress(index)) = index + 1;
+		void* original_address = array.getElementAddress(0);
+		const auto allocations = parameter_test::outstanding_allocations();
+		for (auto range : {std::array<int32_t, 2>{-1, 1},
+		                   {0, -1},
+		                   {0, INT32_MIN},
+		                   {0, 0},
+		                   {0, 5},
+		                   {2, 4},
+		                   {4, 1},
+		                   {INT32_MAX, 1},
+		                   {1, INT32_MAX}}) {
+			array.deleteAtIndex(range[0], range[1]);
+			LONGS_EQUAL(4, array.getNumElements());
+			POINTERS_EQUAL(original_address, array.getElementAddress(0));
+			for (int32_t index = 0; index < 4; ++index)
+				LONGS_EQUAL(index + 1, *static_cast<int32_t*>(array.getElementAddress(index)));
+			LONGS_EQUAL(allocations, parameter_test::outstanding_allocations());
+		}
+		array.deleteAtIndex(1, 2, false);
+		LONGS_EQUAL(2, array.getNumElements());
+		LONGS_EQUAL(1, *static_cast<int32_t*>(array.getElementAddress(0)));
+		LONGS_EQUAL(4, *static_cast<int32_t*>(array.getElementAddress(1)));
+		array.deleteAtIndex(0, 2);
+		LONGS_EQUAL(0, array.getNumElements());
+		LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+		LONGS_EQUAL(123, storage.front());
+		LONGS_EQUAL(456, storage.back());
+	}
+}
+
+TEST(parameter_lifecycle, array_reordering_rejects_invalid_indices_and_self_moves) {
+	for (bool external : {false, true}) {
+		std::array<int32_t, 6> storage{123, 0, 0, 0, 0, 456};
+		ResizeableArray array(sizeof(int32_t));
+		array.swapElements(0, 1);
+		array.repositionElement(0, 1);
+		if (external)
+			array.setStaticMemory(storage.data() + 1, 4 * sizeof(int32_t));
+		CHECK_TRUE(array.insertAtIndex(0, 4) == Error::NONE);
+		for (int32_t index = 0; index < 4; ++index)
+			*static_cast<int32_t*>(array.getElementAddress(index)) = index + 1;
+		for (auto indices :
+		     {std::array<int32_t, 2>{-1, 0}, {0, -1}, {4, 0}, {0, 4}, {INT32_MIN, 0}, {0, INT32_MAX}, {0, 0}, {3, 3}}) {
+			array.swapElements(indices[0], indices[1]);
+			array.repositionElement(indices[0], indices[1]);
+			LONGS_EQUAL(4, array.getNumElements());
+			for (int32_t index = 0; index < 4; ++index)
+				LONGS_EQUAL(index + 1, *static_cast<int32_t*>(array.getElementAddress(index)));
+		}
+		LONGS_EQUAL(123, storage.front());
+		LONGS_EQUAL(456, storage.back());
+	}
+}
+TEST(parameter_lifecycle, array_reordering_preserves_wrapped_external_buffer_guards) {
+	std::array<int32_t, 6> storage{123, 0, 0, 0, 0, 456};
+	ResizeableArray array(sizeof(int32_t));
+	array.setStaticMemory(storage.data() + 1, 4 * sizeof(int32_t));
+	CHECK_TRUE(array.insertAtIndex(0, 4) == Error::NONE);
+	for (int32_t index = 0; index < 4; ++index)
+		*static_cast<int32_t*>(array.getElementAddress(index)) = index + 1;
+	array.deleteAtIndex(0, 1, false);
+	CHECK_TRUE(array.insertAtIndex(3, 1) == Error::NONE);
+	*static_cast<int32_t*>(array.getElementAddress(3)) = 5;
+	array.repositionElement(0, 3);
+	array.swapElements(0, 3);
+	array.repositionElement(3, 0);
+	const std::array<int32_t, 4> expected{3, 2, 4, 5};
+	for (int32_t index = 0; index < 4; ++index)
+		LONGS_EQUAL(expected[index], *static_cast<int32_t*>(array.getElementAddress(index)));
+	LONGS_EQUAL(123, storage.front());
+	LONGS_EQUAL(456, storage.back());
 }

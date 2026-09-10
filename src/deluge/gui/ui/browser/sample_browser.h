@@ -99,4 +99,4 @@ private:
 	bool qwertyCurrentlyDrawnOnscreen; // This will linger as true even when qwertyVisible has been set to false
 };
 
-extern SampleBrowser sampleBrowser;
+SampleBrowser& sample_browser_for_session();
