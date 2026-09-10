@@ -43,6 +43,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/lookuptables.cpp
         ../../src/deluge/util/waves.cpp
         ../../src/deluge/modulation/lfo.cpp
+        ../../src/deluge/util/shift_value.cpp
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
@@ -74,6 +75,9 @@ add_executable(UnitTests
         value_scaling_tests.cpp
         clip_iterator_tests.cpp
         function_tests.cpp
+        shift_value_tests.cpp
+        param_value_binding_tests.cpp
+        param_value_serializer_tests.cpp
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp

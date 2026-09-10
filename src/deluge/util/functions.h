@@ -26,6 +26,7 @@
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
+#include "util/shift_value.h"
 #include "util/waves.h"
 #include <bit>
 #include <cstdint>

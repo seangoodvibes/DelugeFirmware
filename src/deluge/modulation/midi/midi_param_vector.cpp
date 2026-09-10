@@ -45,7 +45,7 @@ doesntExistYet:
 			return NULL;
 		}
 		param->cc = cc;
-		param->param.setCurrentValueBasicForSetup(defaultValue);
+		param->set_current_value(defaultValue);
 	}
 	else {
 		param = getElement(i);
@@ -59,15 +59,58 @@ doesntExistYet:
 MIDIParam* MIDIParamVector::insertParam(int32_t i) {
 	Error error = insertAtIndex(i);
 	if (error != Error::NONE) {
+		rebind_automation();
 		return NULL;
 	}
 	else {
 		void* address = getElementAddress(i);
 		MIDIParam* param = new (address) MIDIParam();
+		rebind_automation();
 		return param;
 	}
 }
 
 MIDIParam* MIDIParamVector::getElement(int32_t i) {
 	return (MIDIParam*)getElementAddress(i);
+}
+
+MIDIParamVector::~MIDIParamVector() {
+	clear();
+}
+
+void MIDIParamVector::clear() {
+	for (int32_t index = 0; index < getNumElements(); ++index)
+		getElement(index)->~MIDIParam();
+	empty();
+}
+
+const MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) const {
+	return const_cast<MIDIParamVector*>(this)->getParamFromCC(cc);
+}
+
+void MIDIParamVector::rebind_automation() {
+	for (int32_t index = 0; index < getNumElements(); ++index)
+		getElement(index)->rebind_automation();
+}
+
+void MIDIParamVector::deleteAtKey(int32_t cc) {
+	auto index = searchExact(cc);
+	if (index < 0)
+		return;
+	getElement(index)->~MIDIParam();
+	deleteAtIndex(index);
+	rebind_automation();
+}
+
+Error MIDIParamVector::clone_automation(bool copy_automation, int32_t reverse_length) {
+	auto error = ResizeableArray::beenCloned();
+	if (error != Error::NONE)
+		return error;
+	// Detach all source AutoParam pointers even if an earlier allocation failed.
+	for (int32_t index = 0; index < getNumElements(); ++index) {
+		auto result = getElement(index)->clone_automation(copy_automation && error == Error::NONE, reverse_length);
+		if (result != Error::NONE)
+			error = result;
+	}
+	return error;
 }

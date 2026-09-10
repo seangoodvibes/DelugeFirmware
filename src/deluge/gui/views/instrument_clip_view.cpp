@@ -4460,12 +4460,17 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 							if (!editPadPresses[i].mpeCachedYet) {
 								stolenNodeRecord = &editPadPresses[i].stolenMPE[m];
 							}
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m, false);
+							if (!param)
+								continue;
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->stealNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength, action,
-							                  stolenNodeRecord);
+							Error transfer_error = param->stealNodes(modelStackWithAutoParam, pos, distanceToNextNote,
+							                                         loopLength, action, stolenNodeRecord);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 
@@ -4640,12 +4645,21 @@ cancelPress:
 						int32_t loopLength = modelStackWithNoteRow->getLoopLength();
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m, editPadPresses[i].stolenMPE[m].num != 0);
+							if (!param) {
+								if (editPadPresses[i].stolenMPE[m].num)
+									display->displayError(Error::INSUFFICIENT_RAM);
+								continue;
+							}
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
-							                         action, &editPadPresses[i].stolenMPE[m]);
+							Error transfer_error =
+							    param->insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
+							                             action, &editPadPresses[i].stolenMPE[m]);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 				}
@@ -6325,12 +6339,18 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 						        mpeParams, mpeParamsSummary);
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m, false);
+							if (!param)
+								continue;
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->stealNodes(modelStackWithAutoParam, note->pos, distanceToNextNote, loopLength,
-							                  action, &ntm.stolenMPE[m]);
+							Error transfer_error =
+							    param->stealNodes(modelStackWithAutoParam, note->pos, distanceToNextNote, loopLength,
+							                      action, &ntm.stolenMPE[m]);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 
@@ -6384,12 +6404,21 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 						int32_t loopLength = destModelStack->getLoopLength();
 
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							AutoParam* param = &mpeParams->params[m];
+							AutoParam* param = mpeParams->getParam(m, ntm.stolenMPE[m].num != 0);
+							if (!param) {
+								if (ntm.stolenMPE[m].num)
+									display->displayError(Error::INSUFFICIENT_RAM);
+								continue;
+							}
 							ModelStackWithAutoParam* modelStackWithAutoParam =
 							    modelStackWithParamCollection->addAutoParam(m, param);
 
-							param->insertStolenNodes(modelStackWithAutoParam, ntm.pos, distanceToNextNote, loopLength,
-							                         action, &ntm.stolenMPE[m]);
+							Error transfer_error =
+							    param->insertStolenNodes(modelStackWithAutoParam, ntm.pos, distanceToNextNote,
+							                             loopLength, action, &ntm.stolenMPE[m]);
+							if (transfer_error != Error::NONE) {
+								display->displayError(transfer_error);
+							}
 						}
 					}
 				}
@@ -7967,7 +7996,9 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
 		for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions; expressionDimension++) {
-			AutoParam* param = &mpeParams->params[expressionDimension];
+			AutoParam* param = mpeParams->getParam(expressionDimension);
+			if (!param)
+				continue;
 
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamCollection->addAutoParam(expressionDimension, param);
