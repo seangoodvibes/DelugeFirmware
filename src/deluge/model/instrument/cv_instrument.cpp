@@ -135,7 +135,7 @@ bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmC
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 			if (expressionParams) {
-				monophonicPitchBendValue = expressionParams->params[0].getCurrentValue();
+				monophonicPitchBendValue = expressionParams->getValue(0);
 
 				cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
 				cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];

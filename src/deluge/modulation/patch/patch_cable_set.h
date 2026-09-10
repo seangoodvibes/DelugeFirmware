@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include <array>
 
 class Song;
 class ModelStackWithParamCollection;
@@ -43,6 +44,8 @@ public:
 	PatchCableSet(ParamCollectionSummary* summary);
 	~PatchCableSet() override;
 
+	void clear_cables(ParamCollectionSummary* summary = nullptr);
+	Error setup_cable(PatchSource source, uint8_t destination, int32_t value);
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
 	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
@@ -71,8 +74,8 @@ public:
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) override;
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                 ParamCollectionSummary* summary = nullptr) override;
 	ParamManagerForTimeline* getParamManager();
 
 	void writePatchCablesToFile(Serializer& writer, bool writeAutomation);
@@ -81,13 +84,14 @@ public:
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) override;
 
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
+	Error remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
 	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
 	                    ParamDescriptor destinationParamDescriptor, bool allowCreation = false);
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;
 	static int32_t getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 
-	AutoParam* getParam(int32_t paramId);
+	bool has_current_value(int32_t param_id) const override;
+	int32_t get_current_value(int32_t param_id) const override;
 
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
@@ -108,7 +112,7 @@ public:
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
-	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
+	std::array<PatchCable*, kMaxNumPatchCables> patch_cables_{};
 	uint8_t numUsablePatchCables;
 	uint8_t numPatchCables;
 
@@ -119,6 +123,9 @@ public:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 
 private:
+	PatchCable* append_cable();
+	int32_t find_cable(int32_t param_id) const;
+	void refresh_automation_flags(ParamCollectionSummary* summary);
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 };

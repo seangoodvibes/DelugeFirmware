@@ -60,7 +60,7 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 	else {
 		patch_cable_exists_ = true;
-		polarity_in_the_ui_ = patch_cable_set->patchCables[patch_cable_index].polarity;
+		polarity_in_the_ui_ = patch_cable_set->patch_cables_[patch_cable_index]->polarity;
 	}
 	setPatchCablePolarity(polarity_in_the_ui_);
 	updatePolarityUI();
@@ -199,8 +199,8 @@ void PatchCableStrength::readCurrentValue() {
 		patch_cable_exists_ = false;
 	}
 	else {
-		PatchCable& patchCable = patchCableSet->patchCables[c];
-		const int32_t paramValue = patchCable.param.getCurrentValue();
+		PatchCable& patchCable = *patchCableSet->patch_cables_[c];
+		const int32_t paramValue = patchCable.get_current_value();
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
 		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
@@ -365,7 +365,7 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	    index != kNoSelection) {
-		patchCableSet->patchCables[index].polarity = newPolarity;
+		patchCableSet->patch_cables_[index]->polarity = newPolarity;
 	}
 }
 

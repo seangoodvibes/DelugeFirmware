@@ -141,7 +141,24 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 
 		// Initialize flags first so collection-specific cloning can clear entries
 		// whose automation could not be copied (e.g. a node allocation failure).
-		newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength, newSummary);
+		auto clone_error =
+		    newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength, newSummary);
+		if (clone_error != Error::NONE) {
+			const auto count = otherStopAt - other->summaries;
+			for (int32_t index = 0; index < count; ++index) {
+				auto* allocated = &newSummaries[index];
+				// Later entries contain raw allocation only; their constructors have not run.
+				if (allocated <= newSummary)
+					allocated->paramCollection->~ParamCollection();
+				delugeDealloc(allocated->paramCollection);
+			}
+			if (this == other) {
+				for (auto& summary : summaries)
+					summary = {0};
+				expressionParamSetOffset = 0;
+			}
+			return clone_error;
+		}
 
 		newSummary++;
 		otherSummary++;

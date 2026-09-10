@@ -16,11 +16,9 @@
  */
 
 #include "definitions_cxx.hpp"
-#include "model/song/song.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/d_stringbuf.h"
-#include "version.h"
 #include <string.h>
 
 extern "C" {
@@ -34,14 +32,6 @@ extern "C" {
     XMLSerializer
 
 ********************************************************************************/
-
-void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine) {
-	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(internalValue), onNewLine);
-}
-
-void Serializer::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
-}
 
 XMLSerializer::XMLSerializer() {
 	reset();

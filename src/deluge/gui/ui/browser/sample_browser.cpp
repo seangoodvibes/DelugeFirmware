@@ -1118,13 +1118,12 @@ void SampleBrowser::audioFileIsNowSet() {
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	PatchedParamSet* paramSet = (PatchedParamSet*)summary->paramCollection;
 	int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
-	ModelStackWithAutoParam* modelStackWithParam =
-	    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
+	auto* collection_stack = modelStack->addParamCollection(paramSet, summary);
 
 	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
 	// ParamManager... there could be other ones...
-	if (!modelStackWithParam->autoParam->containsSomething(-2147483648)) {
-		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
+	if (!paramSet->containsSomething(paramId, uint32_t{1} << 31)) {
+		paramSet->set_current_value(collection_stack, paramId, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
 		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
@@ -1937,13 +1936,11 @@ getOut:
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 				int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
-				ModelStackWithAutoParam* modelStackWithParam =
-				    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
+				auto* collection_stack = modelStack->addParamCollection(paramSet, summary);
 
 				// Reset osc volume, if it's not automated
-				if (!modelStackWithParam->autoParam->isAutomated()) {
-					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
-					                                                                          2147483647);
+				if (!paramSet->isAutomated(paramId)) {
+					paramSet->set_current_value(collection_stack, paramId, 2147483647);
 					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME
 					//+ soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong,
 					// getCurrentClip(), false);

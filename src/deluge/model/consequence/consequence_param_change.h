@@ -32,4 +32,7 @@ public:
 		ModelStackWithParamId modelStack; // TODO: yikes, is this safe? What about NoteRow pointers etc?
 	};
 	AutoParamState state;
+
+private:
+	bool snapshot_complete = true;
 };
