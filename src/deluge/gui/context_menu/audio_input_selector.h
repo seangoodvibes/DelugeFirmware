@@ -42,5 +42,5 @@ public:
 	std::span<const char*> getOptions() override;
 };
 
-extern AudioInputSelector audioInputSelector;
+AudioInputSelector& audio_input_selector_for_session();
 } // namespace deluge::gui::context_menu

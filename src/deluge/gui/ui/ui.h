@@ -27,8 +27,10 @@ class MIDICable;
 class RootUI;
 class TimelineView;
 
-extern uint32_t currentUIMode;
-extern bool pendingUIRenderingLock;
+#include "gui/ui/ui_navigation_state.h"
+
+// Preserve the existing lvalue API while moving mode ownership into the UI session.
+#define currentUIMode (::deluge::gui::ui_session::navigation.active().mode)
 
 // Exclusive UI modes - only one of these can be active at a time.
 #define UI_MODE_NONE 0
@@ -107,6 +109,8 @@ public:
 
 	virtual void graphicsRoutine();
 	virtual ActionResult timerCallback() { return ActionResult::DEALT_WITH; }
+	// Called from the owning UI render pass after shared model changes.
+	virtual void refresh_shared_model() {}
 
 	virtual bool opened() {
 		focusRegained();

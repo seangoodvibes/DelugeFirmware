@@ -46,7 +46,7 @@ public:
 	}
 
 	void renderSubmenuItemTypeForOled(int32_t yPixel) final {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main_for_session();
 
 		int32_t startX = getSubmenuItemTypeRenderIconStart();
 

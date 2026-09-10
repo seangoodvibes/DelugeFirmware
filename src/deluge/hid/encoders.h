@@ -18,6 +18,8 @@
 #pragma once
 
 #include "OSLikeStuff/scheduler_api.h"
+#include "hid/encoder_acceleration.h"
+#include "hid/encoder_input_state.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -38,7 +40,7 @@ public:
 	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated signed detent count and resets pos to 0.
-	int32_t take();
+	int32_t take() { return pos.exchange(0, std::memory_order_relaxed); }
 
 	/// Puts a value back (used by the SD card-routine retry path).
 	/// fetch_add rather than store so a detent that arrived from the IRQ since take() isn't clobbered.
@@ -62,14 +64,15 @@ public:
 	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated tick count and resets pos to 0.
-	int8_t take();
+	int8_t take() { return pos.exchange(0, std::memory_order_relaxed); }
 
 	/// Returns multiplier for encoder offset
 	double calcNextKnobSpeed(int8_t offset);
+	void reset_speed_for_session() { acceleration_.active() = EncoderAcceleration{}; }
 
 private:
-	std::atomic_int8_t pos = 0;   ///< Written by the IRQ (applyEdges), drained by the encoder task.
-	double currentKnobSpeed{0.0}; // Used for encoder acceleration
+	std::atomic_int8_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	gui::ui_session::State<EncoderAcceleration> acceleration_;
 };
 
 // ── Named encoder globals ─────────────────────────────────────────────────
@@ -88,12 +91,6 @@ constexpr size_t kNumModEncoders = 2;
 
 DetentedEncoder& functionEncoderAt(size_t i); ///< 0=scrollY 1=scrollX 2=tempo 3=select
 ContinuousEncoder& modEncoderAt(size_t i);    ///< 0=mod0 1=mod1
-
-// ── Shared timestamp ──────────────────────────────────────────────────────
-
-/// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
-/// Defined in encoder_input.cpp; also written by view.cpp.
-extern uint32_t timeModEncoderLastTurned[];
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 

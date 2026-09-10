@@ -25,7 +25,13 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
-RenameOutputUI renameOutputUI{"Track name"};
+namespace {
+RenameOutputUI local_rename_output_ui{"Track name"};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<RenameOutputUI> remote_rename_output_ui;
+} // namespace
+RenameOutputUI& rename_output_ui_for_session() {
+	return remote_rename_output_ui.get(local_rename_output_ui, "Track name");
+}
 
 std::string_view RenameOutputUI::getCurrentName() const {
 	return output->name.get();

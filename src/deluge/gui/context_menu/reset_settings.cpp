@@ -26,7 +26,13 @@
 
 namespace deluge::gui::context_menu {
 
-ResetSettings resetSettings{};
+namespace {
+ResetSettings local_reset_settings{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<ResetSettings> remote_reset_settings;
+} // namespace
+ResetSettings& reset_settings_for_session() {
+	return remote_reset_settings.get(local_reset_settings);
+}
 
 char const* ResetSettings::getTitle() {
 	using enum l10n::String;

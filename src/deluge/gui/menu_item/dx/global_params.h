@@ -34,8 +34,14 @@ public:
 	MenuItem* selectButtonPress() final;
 	void drawValue();
 
-	int32_t currentValue = 0;
-	int scrollPos = 0; // Each instance needs to store this separately
+private:
+	struct PanelState {
+		int32_t currentValue = 0;
+		int scrollPos = 0;
+	};
+	ui_session::State<PanelState> states_;
+	PanelState& panel_state() { return states_.active(); }
+	const PanelState& panel_state() const { return states_.active(); }
 };
 
 extern DxGlobalParams dxGlobalParams;

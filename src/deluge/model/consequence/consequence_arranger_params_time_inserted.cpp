@@ -24,25 +24,24 @@
 #include "modulation/params/param_set.h"
 
 ConsequenceArrangerParamsTimeInserted::ConsequenceArrangerParamsTimeInserted(int32_t newPos, int32_t newLength) {
+	type = Consequence::ARRANGER_TIME_INSERTED;
 	pos = newPos;
 	length = newLength;
 }
 
-Error ConsequenceArrangerParamsTimeInserted::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceArrangerParamsTimeInserted::revert(TimeType time, ModelStack* model_stack) {
 
-	ParamCollectionSummary* unpatchedParamsSummary = modelStack->song->paramManager.getUnpatchedParamSetSummary();
+	ParamCollectionSummary* summary = model_stack->song->paramManager.getUnpatchedParamSetSummary();
 
-	ModelStackWithParamCollection* modelStackWithParamCollection =
-	    modelStack->song->setupModelStackWithSongAsTimelineCounter(modelStack)
-	        ->addParamCollectionSummary(unpatchedParamsSummary);
+	ModelStackWithParamCollection* param_stack =
+	    model_stack->song->setupModelStackWithSongAsTimelineCounter(model_stack)->addParamCollectionSummary(summary);
 
 	if (time == BEFORE) {
-		((ParamSet*)modelStackWithParamCollection->paramCollection)
-		    ->deleteTime(modelStackWithParamCollection, pos, length);
+		if (!static_cast<ParamSet*>(param_stack->paramCollection)->remove_inserted_time(param_stack, pos, length))
+			return Error::BUG;
 	}
 	else {
-		((ParamSet*)modelStackWithParamCollection->paramCollection)
-		    ->insertTime(modelStackWithParamCollection, pos, length);
+		((ParamSet*)param_stack->paramCollection)->insertTime(param_stack, pos, length);
 	}
 
 	return Error::NONE;

@@ -48,6 +48,7 @@ public:
 			readCurrentValue();
 			setValue(!getValue());
 			writeCurrentValue();
+			value_committed();
 		}
 	};
 
@@ -56,7 +57,7 @@ public:
 	MenuItem* selectButtonPress() override {
 		// this is true if you open a selection menu using grid shortcut
 		// or you enter a selection menu that isn't a toggle
-		if (soundEditor.getCurrentMenuItem() == this) {
+		if (sound_editor_for_session().getCurrentMenuItem() == this) {
 			return nullptr; // go up a level
 		}
 		// you're toggling selection menu from submenu level

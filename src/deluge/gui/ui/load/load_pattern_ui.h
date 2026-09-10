@@ -62,7 +62,6 @@ private:
 	bool noScaling;
 	std::string defaultDir;
 	Error setupForLoadingPattern();
-	Error currentLabelLoadError = Error::NONE;
 };
 
-extern LoadPatternUI loadPatternUI;
+LoadPatternUI& load_pattern_ui_for_session();

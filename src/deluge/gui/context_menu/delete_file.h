@@ -30,5 +30,5 @@ public:
 	char const* getTitle() override;
 };
 
-extern DeleteFile deleteFile;
+DeleteFile& delete_file_for_session();
 } // namespace deluge::gui::context_menu

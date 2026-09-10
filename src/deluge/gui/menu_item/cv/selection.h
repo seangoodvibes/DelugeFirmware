@@ -33,13 +33,13 @@ public:
 			this->setValue(0);
 		}
 		else {
-			this->setValue(soundEditor.currentSourceIndex);
+			this->setValue(sound_editor_for_session().currentSourceIndex);
 		}
 		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		soundEditor.currentSourceIndex = this->getValue();
+		sound_editor_for_session().currentSourceIndex = this->getValue();
 		setCvNumberForTitle(this->getValue());
 		return &cvSubmenu;
 	}

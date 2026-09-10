@@ -50,7 +50,13 @@
 
 using namespace deluge::gui;
 
-Slicer slicer{};
+namespace {
+Slicer local_slicer{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<Slicer> remote_slicer;
+} // namespace
+Slicer& slicer_for_session() {
+	return remote_slicer.get(local_slicer);
+}
 
 namespace params = deluge::modulation::params;
 
@@ -108,14 +114,16 @@ bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 
 	if (slicerMode == SLICER_MODE_REGION) {
 		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
-		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-		                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
+		waveform_renderer_for_session().renderFullScreen(
+		    waveform_basic_navigator_for_session().sample, waveform_basic_navigator_for_session().xScroll,
+		    waveform_basic_navigator_for_session().xZoom, image, &waveform_basic_navigator_for_session().renderData);
 	}
 	else if (slicerMode == SLICER_MODE_MANUAL) {
 
 		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
-		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-		                                  waveformBasicNavigator.xZoom, myImage, &waveformBasicNavigator.renderData);
+		waveform_renderer_for_session().renderFullScreen(
+		    waveform_basic_navigator_for_session().sample, waveform_basic_navigator_for_session().xScroll,
+		    waveform_basic_navigator_for_session().xZoom, myImage, &waveform_basic_navigator_for_session().renderData);
 
 		for (int32_t xx = 0; xx < kDisplayWidth; xx++) {
 			for (int32_t yy = 0; yy < kDisplayHeight / 2; yy++) {
@@ -123,7 +131,8 @@ bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 			}
 		}
 		for (int32_t i = 0; i < numManualSlice; i++) { // Slices
-			int32_t x = manualSlicePoints[i].startPos / (waveformBasicNavigator.sample->lengthInSamples + 0.0) * 16;
+			int32_t x = manualSlicePoints[i].startPos
+			            / (waveform_basic_navigator_for_session().sample->lengthInSamples + 0.0) * 16;
 			image[4][x] = RGB{
 			    1,
 			    (i == currentSlice) ? 200_u8 : 16_u8,
@@ -180,15 +189,16 @@ void Slicer::graphicsRoutine() {
 			VoiceUnisonPartSource* part = &voice->unisonParts[drum->numUnison >> 1].sources[0];
 			if (part != nullptr && part->active) {
 				voiceSample = part->voiceSample;
-				guide = &voice->guides[soundEditor.currentSourceIndex];
+				guide = &voice->guides[sound_editor_for_session().currentSourceIndex];
 			}
 		}
 	}
 
 	if (voiceSample != nullptr) {
 		int32_t samplePos = voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
-		if (samplePos >= waveformBasicNavigator.xScroll) {
-			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
+		if (samplePos >= waveform_basic_navigator_for_session().xScroll) {
+			newTickSquare = (samplePos - waveform_basic_navigator_for_session().xScroll)
+			                / waveform_basic_navigator_for_session().xZoom;
 			if (newTickSquare >= kDisplayWidth) {
 				newTickSquare = 255;
 			}
@@ -220,8 +230,8 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 
 		if (newPos < 0)
 			newPos = 0;
-		if (newPos > waveformBasicNavigator.sample->lengthInSamples)
-			newPos = waveformBasicNavigator.sample->lengthInSamples;
+		if (newPos > waveform_basic_navigator_for_session().sample->lengthInSamples)
+			newPos = waveform_basic_navigator_for_session().sample->lengthInSamples;
 		manualSlicePoints[currentSlice].startPos = newPos;
 
 		if (display->haveOLED()) {
@@ -392,8 +402,9 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 				MultisampleRange* range = (MultisampleRange*)soundDrum->sources[0].getOrCreateFirstRange();
 				Sample* sample = (Sample*)range->sampleHolder.audioFile;
 				range->sampleHolder.startPos = manualSlicePoints[i].startPos;
-				range->sampleHolder.endPos = (i == numManualSlice - 1) ? waveformBasicNavigator.sample->lengthInSamples
-				                                                       : this->manualSlicePoints[i + 1].startPos;
+				range->sampleHolder.endPos = (i == numManualSlice - 1)
+				                                 ? waveform_basic_navigator_for_session().sample->lengthInSamples
+				                                 : this->manualSlicePoints[i + 1].startPos;
 				range->sampleHolder.transpose = manualSlicePoints[i].transpose;
 			}
 		}
@@ -405,9 +416,10 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		}
 		if (slicerMode == SLICER_MODE_MANUAL) {
 			RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
-			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-			                                  waveformBasicNavigator.xZoom, PadLEDs::image,
-			                                  &waveformBasicNavigator.renderData);
+			waveform_renderer_for_session().renderFullScreen(
+			    waveform_basic_navigator_for_session().sample, waveform_basic_navigator_for_session().xScroll,
+			    waveform_basic_navigator_for_session().xZoom, PadLEDs::image_for_session(),
+			    &waveform_basic_navigator_for_session().renderData);
 			getCurrentKit()->firstDrum->killAllVoices(); // stop
 			Kit* kit = getCurrentKit();
 			Drum* drum = kit->firstDrum;
@@ -444,15 +456,15 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(modelStackMemory);
 
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 		drum->drumName = "1";
 		drum->sources[0].repeatMode = SampleRepeatMode::ONCE;
 
-		if (!waveformBasicNavigator.sample->filePath.equals(&range->sampleHolder.filePath)) {
+		if (!waveform_basic_navigator_for_session().sample->filePath.equals(&range->sampleHolder.filePath)) {
 			stopAnyPreviewing();
-			range->sampleHolder.filePath.set(waveformBasicNavigator.sample->filePath.get());
+			range->sampleHolder.filePath.set(waveform_basic_navigator_for_session().sample->filePath.get());
 			range->sampleHolder.loadFile(false, true, true);
 		}
 		range->sampleHolder.startPos = startPoint;
@@ -472,7 +484,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		    ->set_current_value(modelStackWithParamId, modelStackWithParamId->paramId,
 		                        getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
-	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
+	instrument_clip_view_for_session().sendAuditionNote(on, 0, 64, 0);
 }
 
 ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
@@ -489,7 +501,8 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 				        manualSlicePoints[slicePadIndex].transpose, on);
 			}
 			else if (slicePadIndex + 1 == numManualSlice) {
-				preview(manualSlicePoints[slicePadIndex].startPos, waveformBasicNavigator.sample->lengthInSamples,
+				preview(manualSlicePoints[slicePadIndex].startPos,
+				        waveform_basic_navigator_for_session().sample->lengthInSamples,
 				        manualSlicePoints[slicePadIndex].transpose, on);
 			}
 
@@ -520,13 +533,14 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 					VoiceUnisonPartSource* part = &assigned_voice->unisonParts[drum->numUnison >> 1].sources[0];
 					if (part != nullptr && part->active) {
 						voiceSample = part->voiceSample;
-						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
+						guide = &assigned_voice->guides[sound_editor_for_session().currentSourceIndex];
 					}
 				}
 			}
 			if (voiceSample != nullptr) {
 				int32_t samplePos = voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
-				if (samplePos < waveformBasicNavigator.sample->lengthInSamples && numManualSlice < MAX_MANUAL_SLICES) {
+				if (samplePos < waveform_basic_navigator_for_session().sample->lengthInSamples
+				    && numManualSlice < MAX_MANUAL_SLICES) {
 					manualSlicePoints[numManualSlice].startPos = samplePos;
 					manualSlicePoints[numManualSlice].transpose = 0;
 
@@ -563,14 +577,14 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	return sampleBrowser.padAction(x, y, on);
+	return sample_browser_for_session().padAction(x, y, on);
 }
 
 void Slicer::doSlice() {
 
 	AudioEngine::stopAnyPreviewing();
 
-	Error error = sampleBrowser.claimAudioFileForInstrument();
+	Error error = sample_browser_for_session().claimAudioFileForInstrument();
 	if (error != Error::NONE) {
 getOut:
 		display->displayError(error);
@@ -582,17 +596,17 @@ getOut:
 	// Do the first Drum
 
 	// Ensure osc type is "sample"
-	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-		soundEditor.currentSound->killAllVoices();
-		soundEditor.currentSource->setOscType(OscType::SAMPLE);
+	if (sound_editor_for_session().currentSource->oscType != OscType::SAMPLE) {
+		sound_editor_for_session().currentSound->killAllVoices();
+		sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(modelStackMemory);
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-		int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+		int32_t paramId = params::LOCAL_OSC_A_VOLUME + sound_editor_for_session().currentSourceIndex;
 		auto* collection_stack = modelStack->addParamCollection(paramSet, summary);
 
 		// Reset osc volume, if it's not automated
@@ -603,7 +617,7 @@ getOut:
 			// getCurrentClip(), false);
 		}
 
-		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
+		SoundDrum* firstDrum = (SoundDrum*)sound_editor_for_session().currentSound;
 
 		if (firstDrum->nameIsDiscardable) {
 			firstDrum->drumName = "1";
@@ -715,9 +729,9 @@ ramError2:
 	getCurrentInstrument()->beenEdited();
 
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-	instrumentClipView.recalculateColours();
+	instrument_clip_view_for_session().recalculateColours();
 
 	display->setNextTransitionDirection(-1);
-	sampleBrowser.exitAndNeverDeleteDrum();
-	uiNeedsRendering(&instrumentClipView);
+	sample_browser_for_session().exitAndNeverDeleteDrum();
+	uiNeedsRendering(&instrument_clip_view_for_session());
 }

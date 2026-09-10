@@ -433,6 +433,27 @@ void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos
 	FOR_EACH_PARAM_END
 }
 
+// Inverse of insertTime, without deleteTime's node removal and envelope cleanup.
+// Validate every parameter before mutation; no allocation or callbacks occur here.
+bool ParamSet::remove_inserted_time(ModelStackWithParamCollection* model_stack, int32_t pos, int32_t length) {
+	if (!model_stack || !model_stack->summary || model_stack->paramCollection != this || pos < 0 || length <= 0
+	    || static_cast<int64_t>(pos) + length > INT32_MAX)
+		return false;
+	const int32_t end_pos = pos + length;
+	FOR_EACH_FLAGGED_PARAM(model_stack->summary->whichParamsAreAutomated);
+
+	if (p >= numParams_ || !params[p])
+		return false;
+	auto& nodes = params[p]->nodes;
+	const int32_t index = nodes.search(pos, GREATER_OR_EQUAL);
+	if (index < nodes.getNumElements() && nodes.getElement(index)->pos < end_pos)
+		return false;
+
+	FOR_EACH_PARAM_END
+	insertTime(model_stack, end_pos, -length);
+	return true;
+}
+
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
 void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t startPos, int32_t lengthToDelete) {
 
@@ -466,19 +487,19 @@ void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int3
 	FOR_EACH_PARAM_END
 }
 
-void ParamSet::backUpAllAutomatedParamsToAction(Action* action, ModelStackWithParamCollection* modelStack) {
+bool ParamSet::backup_all_automated_params_to_action(Action* action, ModelStackWithParamCollection* model_stack) {
+	if (!action || !model_stack || !model_stack->summary)
+		return false;
+	FOR_EACH_FLAGGED_PARAM(model_stack->summary->whichParamsAreAutomated);
 
-	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
-
-	backUpParamToAction(p, action, modelStack);
+	auto* param_stack = model_stack->addAutoParam(p, params[p]);
+	// Snapshot allocation/cloning can invalidate this collection, its summary or
+	// the action. On failure, return before advancing the iterator or reading them.
+	if (!action->recordParamChangeIfNotAlreadySnapshotted(param_stack, false))
+		return false;
 
 	FOR_EACH_PARAM_END
-}
-
-void ParamSet::backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack) {
-	AutoParam* param = params[p];
-	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
-	action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithAutoParam, false);
+	return true;
 }
 
 void ParamSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) {

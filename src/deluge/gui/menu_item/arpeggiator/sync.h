@@ -27,8 +27,8 @@ class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 	void readCurrentValue() {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
-		                                            soundEditor.currentArpSettings->syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(sound_editor_for_session().currentArpSettings->syncType,
+		                                            sound_editor_for_session().currentArpSettings->syncLevel));
 	}
 
 	bool usesAffectEntire() override { return true; }
@@ -36,7 +36,8 @@ public:
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -48,8 +49,8 @@ public:
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentArpSettings->syncType = syncValueToSyncType(current_value);
-			soundEditor.currentArpSettings->syncLevel = syncValueToSyncLevel(current_value);
+			sound_editor_for_session().currentArpSettings->syncType = syncValueToSyncType(current_value);
+			sound_editor_for_session().currentArpSettings->syncLevel = syncValueToSyncLevel(current_value);
 		}
 	}
 };

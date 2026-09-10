@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/session_menu_entries.h"
 #include "gui/ui/sound_editor.h"
 #include "util/containers.h"
 #include <initializer_list>
@@ -30,13 +31,12 @@ public:
 	enum RenderingStyle { VERTICAL, HORIZONTAL };
 
 	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems)
-	    : MenuItem(newName), items{newItems}, current_item_{items.end()} {}
-	Submenu(l10n::String newName, std::span<MenuItem*> newItems)
-	    : MenuItem(newName), items{newItems.begin(), newItems.end()}, current_item_{items.end()} {}
+	    : MenuItem(newName), entries_(std::span(newItems.begin(), newItems.size())) {}
+	Submenu(l10n::String newName, std::span<MenuItem*> newItems) : MenuItem(newName), entries_(newItems) {}
 	Submenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems}, current_item_{items.end()} {}
+	    : MenuItem(newName, title), entries_(std::span(newItems.begin(), newItems.size())) {}
 	Submenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()}, current_item_{items.end()} {}
+	    : MenuItem(newName, title), entries_(newItems) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
@@ -44,6 +44,7 @@ public:
 	MenuItem* selectButtonPress() final;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void readValueAgain() final { updateDisplay(); }
+	void refresh_shared_value() override;
 	void unlearnAction() final;
 	bool usesAffectEntire() override;
 	bool allowsLearnMode() final;
@@ -67,11 +68,17 @@ public:
 	[[nodiscard]] bool showNotification() const override { return false; }
 
 protected:
-	deluge::vector<MenuItem*> items;
-	typename decltype(items)::iterator current_item_;
+	using Items = deluge::vector<MenuItem*>;
+	using ItemIterator = Items::iterator;
+	Items& items_for_session() { return entries_.active().items; }
+	const Items& items_for_session() const { return entries_.active().items; }
+	ItemIterator& current_item_iterator() { return entries_.active().current; }
+	const ItemIterator& current_item_iterator() const { return entries_.active().current; }
+	bool& initial_selection_pending() { return entries_.active().initial_selection_pending; }
 	uint32_t initial_index_ = 0;
 
 private:
+	SessionMenuEntries<Items> entries_;
 	bool shouldForwardButtons();
 };
 

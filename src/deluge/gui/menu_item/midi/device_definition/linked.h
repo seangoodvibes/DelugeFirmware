@@ -39,7 +39,7 @@ public:
 
 		// if you want to link a definition file, open the load definition file UI
 		if (t) {
-			openUI(&loadMidiDeviceDefinitionUI);
+			openUI(&load_midi_device_definition_ui_for_session());
 		}
 		// if you want to unlink a definition file, just clear the definition file name
 		else {
@@ -54,7 +54,7 @@ public:
 	}
 
 	void renderSubmenuItemTypeForOled(int32_t yPixel) final {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main_for_session();
 
 		int32_t startX = getSubmenuItemTypeRenderIconStart();
 

@@ -27,13 +27,16 @@ namespace deluge::gui::menu_item::delay {
 class Analog final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.analog); }
+	void readCurrentValue() override {
+		this->setValue(sound_editor_for_session().currentModControllable->delay.analog);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -46,7 +49,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.analog = current_value;
+			sound_editor_for_session().currentModControllable->delay.analog = current_value;
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

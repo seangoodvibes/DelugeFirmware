@@ -47,7 +47,13 @@
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
 
-LoadInstrumentPresetUI loadInstrumentPresetUI{};
+namespace {
+LoadInstrumentPresetUI local_load_instrument_preset_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<LoadInstrumentPresetUI> remote_load_instrument_preset_ui;
+} // namespace
+LoadInstrumentPresetUI& load_instrument_preset_ui_for_session() {
+	return remote_load_instrument_preset_ui.get(local_load_instrument_preset_ui);
+}
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// grey out the mute pads, not the audition pads or main pads
@@ -66,9 +72,9 @@ bool LoadInstrumentPresetUI::opened() {
 	// The QWERTY keyboard is always shown in this UI (qwertyAlwaysVisible stays true), so the favourites row should
 	// be too. The static qwertyVisible flag can be left false by another browser (e.g. song load with the keyboard
 	// toggled off); without resetting it here the favourites row would stay hidden until something else set it. #4674
-	qwertyVisible = true;
+	qwerty_visible_for_session() = true;
 
-	if (getRootUI() == &keyboardScreen) {
+	if (getRootUI() == &keyboard_screen_for_session()) {
 		PadLEDs::skipGreyoutFade();
 	}
 	if (instrumentToReplace) {
@@ -78,7 +84,7 @@ bool LoadInstrumentPresetUI::opened() {
 	}
 
 	if (loadingSynthToKitRow) {
-		initialOutputType = outputTypeToLoad = OutputType::SYNTH;
+		initialOutputType = output_type_to_load_for_session() = OutputType::SYNTH;
 		if (soundDrumToReplace) {
 			initialName.set(soundDrumToReplace->drumName);
 		}
@@ -144,10 +150,10 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
-	else if (outputTypeToLoad == OutputType::SYNTH) {
+	else if (output_type_to_load_for_session() == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
-	else if (outputTypeToLoad == OutputType::MIDI_OUT) {
+	else if (output_type_to_load_for_session() == OutputType::MIDI_OUT) {
 		indicator_leds::blinkLed(IndicatorLED::MIDI);
 	}
 	else {
@@ -164,7 +170,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 			fileIcon = deluge::hid::display::OLED::synthIcon;
 		}
 		else {
-			switch (outputTypeToLoad) {
+			switch (output_type_to_load_for_session()) {
 			case OutputType::SYNTH:
 				title = "Load synth";
 				fileIcon = deluge::hid::display::OLED::synthIcon;
@@ -188,11 +194,11 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	}
 
 	// not used for midi
-	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
+	filePrefix = (output_type_to_load_for_session() == OutputType::SYNTH) ? "SYNT" : "KIT";
 
-	enteredText.clear();
+	entered_text_for_session().clear();
 
-	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
+	char const* defaultDir = getInstrumentFolder(output_type_to_load_for_session());
 
 	String searchFilename;
 
@@ -200,13 +206,13 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	// existing preset, or call confirmPresetOrNextUnlaunchedOne() to skip any which aren't "available".
 
 	// If same Instrument type as we already had...
-	if (instrumentToReplace && instrumentToReplace->type == outputTypeToLoad) {
+	if (instrumentToReplace && instrumentToReplace->type == output_type_to_load_for_session()) {
 
 		// Then we can start by just looking at the existing Instrument, cos they're the same type...
-		currentDir.set(&instrumentToReplace->dirPath);
+		current_dir_for_session().set(&instrumentToReplace->dirPath);
 		searchFilename.set(&instrumentToReplace->name);
 
-		if (currentDir.isEmpty()) {
+		if (current_dir_for_session().isEmpty()) {
 			goto useDefaultFolder;
 		}
 	}
@@ -216,13 +222,13 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		if (loadingSynthToKitRow && soundDrumToReplace) {
 
 			if (!soundDrumToReplace->drumName.empty()) {
-				enteredText.set(soundDrumToReplace->drumName);
+				entered_text_for_session().set(soundDrumToReplace->drumName);
 				searchFilename.set(soundDrumToReplace->drumName);
 			}
 
 			if (&soundDrumToReplace->path) {
-				currentDir.set(&soundDrumToReplace->path);
-				if (currentDir.isEmpty()) {
+				current_dir_for_session().set(&soundDrumToReplace->path);
+				if (current_dir_for_session().isEmpty()) {
 					goto useDefaultFolder;
 				}
 			}
@@ -232,13 +238,13 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 			}
 		}
 		// If we've got a Clip, we can see if it used to use another Instrument of this new type...
-		else if (instrumentClipToLoadFor && outputTypeToLoad != OutputType::MIDI_OUT) {
-			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(outputTypeToLoad);
+		else if (instrumentClipToLoadFor && output_type_to_load_for_session() != OutputType::MIDI_OUT) {
+			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(output_type_to_load_for_session());
 			String* backedUpName = &instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
-			enteredText.set(backedUpName);
+			entered_text_for_session().set(backedUpName);
 			searchFilename.set(backedUpName);
-			currentDir.set(&instrumentClipToLoadFor->backedUpInstrumentDirPath[outputTypeToLoadAsIdx]);
-			if (currentDir.isEmpty()) {
+			current_dir_for_session().set(&instrumentClipToLoadFor->backedUpInstrumentDirPath[outputTypeToLoadAsIdx]);
+			if (current_dir_for_session().isEmpty()) {
 				goto useDefaultFolder;
 			}
 		}
@@ -246,7 +252,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
-			Error error = currentDir.set(defaultDir);
+			Error error = current_dir_for_session().set(defaultDir);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -265,7 +271,7 @@ useDefaultFolder:
 		return error;
 	}
 
-	currentInstrumentLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
+	currentInstrumentLoadError = (file_index_selected_for_session() >= 0) ? Error::NONE : Error::UNSPECIFIED;
 
 	// The redrawing of the sidebar only actually has to happen if we just changed to a different type *or* if we came
 	// in from (musical) keyboard view, I think
@@ -275,7 +281,7 @@ useDefaultFolder:
 	favouritesChanged();
 
 	if (showingAuditionPads()) {
-		instrumentClipView.recalculateColours();
+		instrument_clip_view_for_session().recalculateColours();
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -343,9 +349,9 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		        ->instrument) { // When would this not have something? Well ok, maybe now that we have folders.
 		}
 
-		if (outputTypeToLoad == OutputType::KIT && showingAuditionPads()) {
+		if (output_type_to_load_for_session() == OutputType::KIT && showingAuditionPads()) {
 			// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-			instrumentClipView.recalculateColours();
+			instrument_clip_view_for_session().recalculateColours();
 		}
 
 		close();
@@ -433,11 +439,11 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 			return ActionResult::DEALT_WITH;
 		}
 
-		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
+		bool available = gui::context_menu::load_instrument_preset_for_session().setupAndCheckAvailability();
 
 		if (available) {
 			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::loadInstrumentPreset);
+			openUI(&gui::context_menu::load_instrument_preset_for_session());
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);
@@ -451,7 +457,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 }
 
 void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
-	if (newOutputType == outputTypeToLoad) {
+	if (newOutputType == output_type_to_load_for_session()) {
 		return;
 	}
 
@@ -459,7 +465,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 
 	// don't allow clip type change if clip is not empty
 	// only impose this restriction if switching to/from kit clip
-	if (((outputTypeToLoad == OutputType::KIT) || (newOutputType == OutputType::KIT))
+	if (((output_type_to_load_for_session() == OutputType::KIT) || (newOutputType == OutputType::KIT))
 	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
 		return;
 	}
@@ -505,12 +511,12 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 
 	// Or, for normal synths, kits and midi
 	else {
-		OutputType oldOutputType = outputTypeToLoad;
-		outputTypeToLoad = newOutputType;
+		OutputType oldOutputType = output_type_to_load_for_session();
+		output_type_to_load_for_session() = newOutputType;
 
 		Error error = setupForOutputType();
 		if (error != Error::NONE) {
-			outputTypeToLoad = oldOutputType;
+			output_type_to_load_for_session() = oldOutputType;
 			return;
 		}
 
@@ -614,9 +620,9 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 				// Set this stuff so that getCurrentFilePath() will return what we want. This is just ok because we're
 				// exiting anyway
-				outputTypeToLoad = initialOutputType;
-				enteredText.set(&initialName);
-				currentDir.set(&initialDirPath);
+				output_type_to_load_for_session() = initialOutputType;
+				entered_text_for_session().set(&initialName);
+				current_dir_for_session().set(&initialDirPath);
 
 				// Try getting from file
 				String filePath;
@@ -724,12 +730,12 @@ doSlotNumber:
 
 				buffer[3] = 'A' + subSlot;
 
-				int32_t i = fileItems.search(buffer);
-				if (i >= fileItems.getNumElements()) {
+				int32_t i = file_items_for_session().search(buffer);
+				if (i >= file_items_for_session().getNumElements()) {
 					break;
 				}
 
-				FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+				FileItem* fileItem = (FileItem*)file_items_for_session().getElementAddress(i);
 				char const* fileItemNameChars = fileItem->filename.get();
 				if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 					if (fileItemNameChars[4] == 0) {
@@ -752,12 +758,12 @@ tryWholeNewSlotNumbers:
 					}
 					intToString(slotNumber, buffer, 3);
 
-					int32_t i = fileItems.search(buffer);
-					if (i >= fileItems.getNumElements()) {
+					int32_t i = file_items_for_session().search(buffer);
+					if (i >= file_items_for_session().getNumElements()) {
 						break;
 					}
 
-					FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+					FileItem* fileItem = (FileItem*)file_items_for_session().getElementAddress(i);
 					char const* fileItemNameChars = fileItem->filename.get();
 					if (!memcasecmp(buffer, fileItemNameChars, 4)) {
 						if (fileItemNameChars[4] == 0) {
@@ -832,12 +838,12 @@ addNumber:
 			newName->concatenateInt(oldNumber + 1);
 			char const* newNameChars = newName->get();
 
-			int32_t i = fileItems.search(newNameChars);
-			if (i >= fileItems.getNumElements()) {
+			int32_t i = file_items_for_session().search(newNameChars);
+			if (i >= file_items_for_session().getNumElements()) {
 				break;
 			}
 
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+			FileItem* fileItem = (FileItem*)file_items_for_session().getElementAddress(i);
 			char const* fileItemNameChars = fileItem->filename.get();
 			int32_t newNameLength = strlen(newNameChars);
 			if (!memcasecmp(newNameChars, fileItemNameChars, newNameLength)) {
@@ -927,7 +933,7 @@ giveUsedError:
 		String clonedName;
 
 		if (doClone) {
-			bool success = findUnusedSlotVariation(&enteredText, &clonedName);
+			bool success = findUnusedSlotVariation(&entered_text_for_session(), &clonedName);
 			if (!success) {
 				return Error::UNSPECIFIED;
 			}
@@ -937,9 +943,9 @@ giveUsedError:
 		// Browser::checkFP();
 
 		// synth or kit
-		error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                               &newInstrument, &currentFileItem->filePointer, &enteredText,
-		                                               &currentDir);
+		error = StorageManager::loadInstrumentFromFile(
+		    currentSong, instrumentClipToLoadFor, output_type_to_load_for_session(), false, &newInstrument,
+		    &currentFileItem->filePointer, &entered_text_for_session(), &current_dir_for_session());
 
 		if (error != Error::NONE) {
 			return error;
@@ -1008,8 +1014,8 @@ giveUsedError:
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
 	if (!isInstrumentInList(instrumentToReplace, currentSong->firstOutput)
 	    && !isInstrumentInList(instrumentToReplace, currentSong->firstHibernatingInstrument)) {
-		for (int32_t f = fileItems.getNumElements() - 1; f >= 0; f--) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
+		for (int32_t f = file_items_for_session().getNumElements() - 1; f >= 0; f--) {
+			FileItem* fileItem = (FileItem*)file_items_for_session().getElementAddress(f);
 			if (fileItem->instrument == instrumentToReplace) {
 				fileItem->instrument = nullptr;
 				break;
@@ -1021,8 +1027,9 @@ giveUsedError:
 	currentInstrument = newInstrument;
 
 	if (instrumentClipToLoadFor) {
-		view.instrumentChanged(modelStack,
-		                       newInstrument); // modelStack's TimelineCounter is set to instrumentClipToLoadFor, FYI
+		view_for_session().instrumentChanged(
+		    modelStack,
+		    newInstrument); // modelStack's TimelineCounter is set to instrumentClipToLoadFor, FYI
 
 		if (showingAuditionPads()) {
 			renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
@@ -1030,7 +1037,7 @@ giveUsedError:
 	}
 	else {
 		currentSong->instrumentSwapped(newInstrument);
-		view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
+		view_for_session().setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 	}
 
 	instrumentToReplace = newInstrument;
@@ -1082,7 +1089,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// swaps out the drum pointed to by soundDrumToReplace
 	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-	                                              &currentFileItem->filePointer, &enteredText, &currentDir);
+	                                              &currentFileItem->filePointer, &entered_text_for_session(),
+	                                              &current_dir_for_session());
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1090,8 +1098,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	display->displayLoadingAnimationText("Loading", false, true);
 	soundDrumToReplace->loadAllSamples(true);
 
-	soundDrumToReplace->drumName = enteredText.get();
-	soundDrumToReplace->path.set(&currentDir);
+	soundDrumToReplace->drumName = entered_text_for_session().get();
+	soundDrumToReplace->path.set(&current_dir_for_session());
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
@@ -1100,7 +1108,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
 		                 false);
 
-		kitToLoadFor->selectedDrum = soundDrumToReplace;
+		kitToLoadFor->selected_drum_for_session() = soundDrumToReplace;
 		kitToLoadFor->beenEdited();
 	}
 	else {
@@ -1129,7 +1137,7 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 			}
 		}
 		else {
-			return instrumentClipView.padAction(x, y, on);
+			return instrument_clip_view_for_session().padAction(x, y, on);
 		}
 	}
 
@@ -1160,13 +1168,13 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 			return ActionResult::DEALT_WITH;
 		}
 
-		ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+		ActionResult result = instrument_clip_view_for_session().verticalEncoderAction(offset, inCardRoutine);
 
 		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 			return result;
 		}
 
-		if (getRootUI() == &keyboardScreen) {
+		if (getRootUI() == &keyboard_screen_for_session()) {
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 
@@ -1178,10 +1186,10 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 
 bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (getRootUI() != &keyboardScreen) {
+	if (getRootUI() != &keyboard_screen_for_session()) {
 		return false;
 	}
-	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+	return instrument_clip_view_for_session().renderSidebar(whichRows, image, occupancyMask);
 }
 
 bool LoadInstrumentPresetUI::showingAuditionPads() {
@@ -1189,8 +1197,9 @@ bool LoadInstrumentPresetUI::showingAuditionPads() {
 }
 
 void LoadInstrumentPresetUI::instrumentEdited(Instrument* instrument) {
-	if (instrument == currentInstrument && currentInstrumentLoadError == Error::NONE && enteredText.isEmpty()) {
-		enteredText.set(&instrument->name);
+	if (instrument == currentInstrument && currentInstrumentLoadError == Error::NONE
+	    && entered_text_for_session().isEmpty()) {
+		entered_text_for_session().set(&instrument->name);
 		// TODO: update the FileItem too?
 		displayText(false);
 	}
@@ -1205,9 +1214,9 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
                                                                         Availability availabilityRequirement) {
 
 	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
-	allowedFileExtensions = allowedFileExtensionsXML;
+	allowed_file_extensions_for_session() = allowedFileExtensionsXML;
 
-	int32_t initialDirLength = currentDir.getLength();
+	int32_t initialDirLength = current_dir_for_session().getLength();
 
 	int32_t folderIndex = -1;
 	bool doingSubfolders = false;
@@ -1225,7 +1234,7 @@ goAgain:
 	sortFileItems();
 
 	// If that folder-read gave us no files, that's gotta mean we got to the end of the folder.
-	if (!fileItems.getNumElements()) {
+	if (!file_items_for_session().getNumElements()) {
 
 		// If we weren't yet looking at subfolders, do that now, going back to the start of this folder's contents.
 		if (!doingSubfolders) {
@@ -1243,7 +1252,8 @@ startDoingFolders:
 
 	// Store rightmost display name before filtering, for later.
 	String lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+	auto* rightmostFileItemBeforeFiltering =
+	    (FileItem*)file_items_for_session().getElementAddress(file_items_for_session().getNumElements() - 1);
 	error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
 	if (error != Error::NONE) {
 		return std::unexpected{error};
@@ -1255,8 +1265,8 @@ startDoingFolders:
 	if (!doingSubfolders) {
 
 		// Look through our list of FileItems, for a preset.
-		for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
-			auto* fileItem = (FileItem*)fileItems.getElementAddress(i);
+		for (int32_t i = 0; i < file_items_for_session().getNumElements(); i++) {
+			auto* fileItem = (FileItem*)file_items_for_session().getElementAddress(i);
 			if (!fileItem->isFolder) {
 				return fileItem; // We found a preset / file.
 			}
@@ -1264,14 +1274,14 @@ startDoingFolders:
 
 		// Ok, we found none. Should we do some more reading of the folder contents, to get more files, or are there no
 		// more?
-		if (numFileItemsDeletedAtEnd) {
+		if (num_file_items_deleted_at_end_for_session()) {
 			searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering); // Can't fail.
 			goto goAgain;
 		}
 
 		// Ok, we've looked at every file, and none were presets we could use. So now we want to look in subfolders. Do
 		// we still have the "start" of our folder's contents in memory?
-		if (numFileItemsDeletedAtStart) {
+		if (num_file_items_deleted_at_start_for_session()) {
 			goto startDoingFolders;
 		}
 
@@ -1281,13 +1291,13 @@ startDoingFolders:
 	// Ok, do folders now.
 	int32_t i;
 	FileItem* fileItem;
-	for (i = 0; i < fileItems.getNumElements(); i++) {
-		fileItem = (FileItem*)fileItems.getElementAddress(i);
+	for (i = 0; i < file_items_for_session().getNumElements(); i++) {
+		fileItem = (FileItem*)file_items_for_session().getElementAddress(i);
 		if (fileItem->isFolder) {
 			goto doThisFolder;
 		}
 	}
-	if (numFileItemsDeletedAtEnd) {
+	if (num_file_items_deleted_at_end_for_session()) {
 		searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering);
 		goto goAgain;
 	}
@@ -1297,15 +1307,16 @@ startDoingFolders:
 
 	if (false) {
 doThisFolder:
-		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (fileItems.getNumElements() - 1));
+		bool anyMoreForLater =
+		    num_file_items_deleted_at_end_for_session() || (i < (file_items_for_session().getNumElements() - 1));
 		searchNameLocalCopy.set(fileItem->displayName);
 
-		Error error = currentDir.concatenate("/");
+		Error error = current_dir_for_session().concatenate("/");
 		if (error != Error::NONE) {
 			emptyFileItems();
 			return std::unexpected{error};
 		}
-		error = currentDir.concatenate(&fileItem->filename);
+		error = current_dir_for_session().concatenate(&fileItem->filename);
 		if (error != Error::NONE) {
 			emptyFileItems();
 			return std::unexpected{error};
@@ -1316,7 +1327,7 @@ doThisFolder:
 		                   error, {
 			                   if (error == Error::NO_FURTHER_FILES_THIS_DIRECTION) {
 				                   if (anyMoreForLater) {
-					                   currentDir.shorten(initialDirLength);
+					                   current_dir_for_session().shorten(initialDirLength);
 					                   goto goAgain;
 				                   }
 				                   return result;
@@ -1338,7 +1349,7 @@ LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, 
 
 	// This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
 	auto justGetAnyPreset = [&]() -> std::expected<FileItem*, Error> {
-		Error error = currentDir.set(getInstrumentFolder(outputType));
+		Error error = current_dir_for_session().set(getInstrumentFolder(outputType));
 		if (error != Error::NONE) {
 			return std::unexpected{error};
 		}
@@ -1359,12 +1370,12 @@ doReadFiles:
 	}
 
 	sortFileItems();
-	if (!fileItems.getNumElements()) {
+	if (!file_items_for_session().getNumElements()) {
 		if (shouldJustGrabLeftmost) {
 			return justGetAnyPreset();
 		}
 
-		if (numFileItemsDeletedAtStart) {
+		if (num_file_items_deleted_at_start_for_session()) {
 needToGrabLeftmostButHaveToReadFirst:
 			searchNameLocalCopy.clear();
 			shouldJustGrabLeftmost = true;
@@ -1377,7 +1388,8 @@ needToGrabLeftmostButHaveToReadFirst:
 
 	// Store rightmost display name before filtering, for later.
 	String lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+	auto* rightmostFileItemBeforeFiltering =
+	    (FileItem*)file_items_for_session().getElementAddress(file_items_for_session().getNumElements() - 1);
 	error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
 	if (error != Error::NONE) {
 		return std::unexpected{error};
@@ -1387,8 +1399,8 @@ needToGrabLeftmostButHaveToReadFirst:
 
 	// If we've shot off the end of the list, that means our searched-for preset didn't exist or wasn't available, and
 	// any subsequent ones which at first made it onto the (possibly truncated) list also weren't available.
-	if (!fileItems.getNumElements()) {
-		if (numFileItemsDeletedAtEnd) { // Probably couldn'g happen anymore...
+	if (!file_items_for_session().getNumElements()) {
+		if (num_file_items_deleted_at_end_for_session()) { // Probably couldn'g happen anymore...
 			// We have to read more FileItems, further to the right.
 			searchNameLocalCopy.set(&lastFileItemDisplayNameBeforeFiltering); // Can't fail.
 			goto doReadFiles;
@@ -1401,21 +1413,21 @@ needToGrabLeftmostButHaveToReadFirst:
 
 			// Otherwise, let's do that now:
 			// We might have to go back and read FileItems again from the start...
-			else if (numFileItemsDeletedAtStart) {
+			else if (num_file_items_deleted_at_start_for_session()) {
 				goto needToGrabLeftmostButHaveToReadFirst;
 			}
 
 			// Or, if we've actually managed to fit the whole folder contents into our fileItems...
 			else {
 				// Well, if there's still nothing in that, then we really need to give up.
-				if (!fileItems.getNumElements()) {
+				if (!file_items_for_session().getNumElements()) {
 					return justGetAnyPreset();
 				}
 				// Otherwise, everything's fine and we can just take the first element.
 			}
 		}
 	}
-	return (FileItem*)fileItems.getElementAddress(0);
+	return (FileItem*)file_items_for_session().getElementAddress(0);
 }
 
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
@@ -1425,7 +1437,7 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 
 	AudioEngine::logAction("doPresetNavigation");
 
-	currentDir.set(&oldInstrument->dirPath);
+	current_dir_for_session().set(&oldInstrument->dirPath);
 	OutputType outputType = oldInstrument->type;
 
 	PresetNavigationResult toReturn;
@@ -1467,7 +1479,7 @@ emptyFileItemsAndReturn:
 	AudioEngine::logAction("doPresetNavigation5");
 
 	// Now that we've deleted duplicates etc...
-	if (!fileItems.getNumElements()) {
+	if (!file_items_for_session().getNumElements()) {
 reachedEnd:
 		// If we've reached one end, try going again from the far other end.
 		if (!oldNameString.isEmpty()) {
@@ -1481,12 +1493,12 @@ noErrorButGetOut:
 			return toReturn;
 		}
 	}
-	else if (fileItems.getNumElements() == 1
-	         && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument) {
+	else if (file_items_for_session().getNumElements() == 1
+	         && ((FileItem*)file_items_for_session().getElementAddress(0))->instrument == oldInstrument) {
 		goto reachedEnd;
 	}
 
-	int32_t i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
+	int32_t i = (offset >= 0) ? 0 : (file_items_for_session().getNumElements() - 1);
 	/*
 	if (i >= fileItems.getNumElements()) { // If not found *and* we'd be past the end of the list...
 	    if (offset >= 0) i = 0;
@@ -1521,31 +1533,31 @@ moveAgain:
 
 	// If moved left off the start of the list...
 	if (i < 0) {
-		if (numFileItemsDeletedAtStart) {
+		if (num_file_items_deleted_at_start_for_session()) {
 			goto readAgain;
 		}
 		else { // Wrap to end
 			wrapped += 1;
-			if (numFileItemsDeletedAtEnd) {
+			if (num_file_items_deleted_at_end_for_session()) {
 searchFromOneEnd:
 				oldNameString.clear();
 				D_PRINTLN("reloading and wrap");
 				goto readAgain;
 			}
 			else {
-				i = fileItems.getNumElements() - 1;
+				i = file_items_for_session().getNumElements() - 1;
 			}
 		}
 	}
 
 	// Or if moved right off the end of the list...
-	else if (i >= fileItems.getNumElements()) {
-		if (numFileItemsDeletedAtEnd) {
+	else if (i >= file_items_for_session().getNumElements()) {
+		if (num_file_items_deleted_at_end_for_session()) {
 			goto readAgain;
 		}
 		else { // Wrap to start
 			wrapped += 1;
-			if (numFileItemsDeletedAtStart) {
+			if (num_file_items_deleted_at_start_for_session()) {
 				goto searchFromOneEnd;
 			}
 			else {
@@ -1555,7 +1567,7 @@ searchFromOneEnd:
 	}
 
 doneMoving:
-	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
+	toReturn.fileItem = (FileItem*)file_items_for_session().getElementAddress(i);
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
 	// wrapped is here to prevent an infinite loop
@@ -1567,7 +1579,7 @@ doneMoving:
 	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
 
 	if (toReturn.fileItem->instrument) {
-		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
+		view_for_session().displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
 		toReturn.error = toReturn.fileItem->getFilenameWithoutExtension(&newName);
@@ -1580,7 +1592,8 @@ doneMoving:
 			emptyFileItems();
 			return toReturn;
 		}
-		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink);
+		view_for_session().drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false,
+		                                             doBlink);
 	}
 
 	if (display->haveOLED()) {
@@ -1607,7 +1620,7 @@ doPendingPresetNavigation:
 	if (!toReturn.fileItem->instrument) {
 		toReturn.error = StorageManager::loadInstrumentFromFile(
 		    currentSong, nullptr, outputType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
-		    &newName, &Browser::currentDir);
+		    &newName, &Browser::current_dir_for_session());
 		if (toReturn.error != Error::NONE) {
 			emptyFileItems();
 			return toReturn;

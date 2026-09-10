@@ -33,7 +33,7 @@ public:
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		constexpr uint8_t porta_graphics_width = 25;
 		const uint8_t center_x = slot.start_x + slot.width / 2;

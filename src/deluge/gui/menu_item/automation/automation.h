@@ -32,6 +32,9 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory) = 0;
 	virtual PatchSource getPatchSource() { return PatchSource::NONE; }
-	void selectAutomationViewParameter(bool clipMinder);
+	bool select_automation_view_parameter(bool clipMinder);
+
+private:
+	bool restore_previous_view();
 };
 } // namespace deluge::gui::menu_item

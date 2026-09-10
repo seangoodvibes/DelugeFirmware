@@ -66,7 +66,7 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override;
 
 	/// Used when scrolling horizontally to briefly catch on min / max decimal number edit position
-	uint32_t delayHorizontalScrollUntil = 0;
+	uint32_t& scroll_delay_for_session();
 
 protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
@@ -76,9 +76,12 @@ private:
 	bool isInHorizontalMenu() const;
 	void setPatchCablePolarity(Polarity newPolarity);
 	void updatePolarityUI();
-	Polarity polarity_in_the_ui_;
+	Polarity& polarity_for_session();
+	ui_session::State<Polarity> polarities;
 	// if polarity is set before the patch cable is created then we'll need to update the patch cable when it exists
-	bool patch_cable_exists_ = false;
+	bool& cable_exists_for_session();
+	ui_session::State<bool> existing_cables;
+	ui_session::State<uint32_t> scroll_delays;
 };
 
 } // namespace deluge::gui::menu_item

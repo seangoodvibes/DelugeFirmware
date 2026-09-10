@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param.h"
+#include "modulation/automation/parameter_revision.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
@@ -73,6 +74,7 @@ public:
 	}
 
 protected:
+	uint64_t model_value_revision() const override { return deluge::modulation::automation::parameter_revision; }
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();

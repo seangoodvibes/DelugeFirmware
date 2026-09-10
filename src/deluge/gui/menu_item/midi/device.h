@@ -5,6 +5,8 @@
 namespace deluge::gui::menu_item::midi {
 struct Device : Submenu {
 	using Submenu::Submenu;
-	[[nodiscard]] std::string_view getTitle() const override { return soundEditor.currentMIDICable->getDisplayName(); }
+	[[nodiscard]] std::string_view getTitle() const override {
+		return sound_editor_for_session().currentMIDICable->getDisplayName();
+	}
 };
 } // namespace deluge::gui::menu_item::midi

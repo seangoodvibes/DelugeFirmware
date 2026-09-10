@@ -494,7 +494,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		activeClip->expectNoFurtherTicks(song);
 		activeClip->activeIfNoSolo = false;
 
-		uint32_t xZoom = song->xZoom[NAVIGATION_ARRANGEMENT];
+		uint32_t xZoom = song->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 
 		int32_t alternativeLongerLength = 0;
 
@@ -552,7 +552,8 @@ skipThat: {}
 
 		// Set the ClipInstance's length to match the Clip's new length
 		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-		clipInstance->change(action, this, clipInstance->pos, activeClip->loopLength, activeClip);
+		if (!clipInstance->change(action, this, clipInstance->pos, activeClip->loopLength, activeClip))
+			return;
 
 		recordingInArrangement = false;
 	}

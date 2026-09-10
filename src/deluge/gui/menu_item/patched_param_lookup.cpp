@@ -7,7 +7,7 @@ using params::kNoParamID;
 
 namespace deluge::gui::menu_item {
 ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
-	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
-	return modelStack->getPatchedAutoParamFromId(getP());
+	ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(memory);
+	return modelStack ? modelStack->getPatchedAutoParamFromId(getP()) : nullptr;
 }
 } // namespace deluge::gui::menu_item

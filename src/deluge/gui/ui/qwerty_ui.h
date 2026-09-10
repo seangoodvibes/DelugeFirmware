@@ -34,8 +34,8 @@ public:
 		return true;
 	}
 
-	static bool predictionInterrupted;
-	static String enteredText;
+	static bool& prediction_interrupted_for_session();
+	static String& entered_text_for_session();
 
 protected:
 	bool opened() override;
@@ -57,14 +57,16 @@ protected:
 	// Favourites
 	void renderFavourites();
 
-	static uint8_t favouriteRow;
+	static uint8_t& favourite_row_for_session();
 	static constexpr uint8_t favouriteBankRow = 7;
 
-	static int16_t enteredTextEditPos;
-	static int32_t scrollPosHorizontal;
+	static int16_t& entered_text_edit_pos_for_session();
+	static int32_t& scroll_pos_horizontal_for_session();
 
 private:
-	static uint8_t currentBank;
-	static std::optional<uint8_t> currentFavourite;
-	static FavouritesDefaultLayout favouritesLayoutSelected;
+	static uint8_t& current_bank_for_session();
+	static std::optional<uint8_t>& current_favourite_for_session();
+	static FavouritesDefaultLayout& favourites_layout_selected_for_session();
+	struct SessionState;
+	static SessionState& session_state();
 };

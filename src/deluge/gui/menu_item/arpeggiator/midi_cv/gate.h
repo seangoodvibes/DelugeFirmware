@@ -28,11 +28,11 @@ class Gate final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForStandardMenuItem(soundEditor.currentArpSettings->gate));
+		this->setValue(computeCurrentValueForStandardMenuItem(sound_editor_for_session().currentArpSettings->gate));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
-		soundEditor.currentArpSettings->gate = value;
+		sound_editor_for_session().currentArpSettings->gate = value;
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return LENGTH_SLIDER; }
 };

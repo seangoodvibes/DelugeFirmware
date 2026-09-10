@@ -40,11 +40,11 @@ void DxParam::beginSession(MenuItem* navigatedBackwardFrom) {
 #define MAX_PARAM_IDX 143
 
 int DxParam::getValue() {
-	if (param >= 0 && param <= MAX_PARAM_IDX) {
-		return patch->params[param];
+	if (panel_state().param >= 0 && panel_state().param <= MAX_PARAM_IDX) {
+		return panel_state().patch->params[panel_state().param];
 	}
-	else if (param == -1) {
-		return patch->random_detune;
+	else if (panel_state().param == -1) {
+		return panel_state().patch->random_detune;
 	}
 	else {
 		return 0;
@@ -52,39 +52,39 @@ int DxParam::getValue() {
 }
 
 void DxParam::setValue(int val) {
-	if (param >= 0 && param <= MAX_PARAM_IDX) {
-		patch->params[param] = val;
+	if (panel_state().param >= 0 && panel_state().param <= MAX_PARAM_IDX) {
+		panel_state().patch->params[panel_state().param] = val;
 	}
-	else if (param == -1) {
-		patch->random_detune = val;
+	else if (panel_state().param == -1) {
+		panel_state().patch->random_detune = val;
 	}
 
 	// NOTE: we don't use currentSource as currently only OSC1 can be DX7
-	soundEditor.currentSound->sources[0].dxPatchChanged = true;
+	sound_editor_for_session().currentSound->sources[0].dxPatchChanged = true;
 }
 
 void DxParam::readValueAgain() {
-	patch = soundEditor.currentSound->sources[0].ensureDxPatch();
-	displayValue = getValue();
-	flash_row = 1;
+	panel_state().patch = sound_editor_for_session().currentSound->sources[0].ensureDxPatch();
+	panel_state().displayValue = getValue();
+	panel_state().flash_row = 1;
 
 	int x = -1, y = -1;
 
-	upper_limit = 99;
-	int op = param / 21;
-	int idx = param % 21;
-	if (0 <= param && param < 6 * 21) {
+	panel_state().upper_limit = 99;
+	int op = panel_state().param / 21;
+	int idx = panel_state().param % 21;
+	if (0 <= panel_state().param && panel_state().param < 6 * 21) {
 		if (idx == 11 || idx == 12) {
-			upper_limit = 3;
+			panel_state().upper_limit = 3;
 		}
 		else if (idx == 13 || idx == 15) {
-			upper_limit = 7;
+			panel_state().upper_limit = 7;
 		}
 		else if (idx == 14) {
-			upper_limit = 3;
+			panel_state().upper_limit = 3;
 		}
 		else if (idx == 20) {
-			upper_limit = 14;
+			panel_state().upper_limit = 14;
 		}
 
 		y = 7 - op;
@@ -97,29 +97,29 @@ void DxParam::readValueAgain() {
 		else if (idx == 16) {
 			x = 13;
 		}
-		flash_row = 7 - op;
+		panel_state().flash_row = 7 - op;
 	}
-	else if (param == 6 * 21 + 8) {
-		upper_limit = 31;
+	else if (panel_state().param == 6 * 21 + 8) {
+		panel_state().upper_limit = 31;
 	}
-	else if (param == 6 * 21 + 9) {
-		upper_limit = 7;
+	else if (panel_state().param == 6 * 21 + 9) {
+		panel_state().upper_limit = 7;
 	}
-	else if (param == 6 * 21 + 10) {
-		upper_limit = 1;
+	else if (panel_state().param == 6 * 21 + 10) {
+		panel_state().upper_limit = 1;
 	}
 
-	blink_next = false;
+	panel_state().blink_next = false;
 
-	if (param >= 6 * 21 && param < 6 * 21 + 11) {
+	if (panel_state().param >= 6 * 21 && panel_state().param < 6 * 21 + 11) {
 		y = 1;
-		x = param - 6 * 21;
+		x = panel_state().param - 6 * 21;
 	}
-	else if (param >= 6 * 21 + 11 && param < 6 * 21 + 11 + 7) {
+	else if (panel_state().param >= 6 * 21 + 11 && panel_state().param < 6 * 21 + 11 + 7) {
 		y = 0;
-		x = param - 6 * 21 - 11;
+		x = panel_state().param - 6 * 21 - 11;
 	}
-	else if (param == -1) {
+	else if (panel_state().param == -1) {
 		y = 0;
 		x = 7;
 	}
@@ -127,8 +127,8 @@ void DxParam::readValueAgain() {
 	drawValue();
 	if (x >= 0 && y >= 0) {
 		// TODO: different color!
-		soundEditor.setupShortcutBlink(x, y, 1);
-		soundEditor.blinkShortcut();
+		sound_editor_for_session().setupShortcutBlink(x, y, 1);
+		sound_editor_for_session().blinkShortcut();
 	}
 	else {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
@@ -139,14 +139,14 @@ void DxParam::readValueAgain() {
 
 bool DxParam::hasSideColumn() {
 	// TODO: check if dx column is really active
-	return getRootUI() == &keyboardScreen;
+	return getRootUI() == &keyboard_screen_for_session();
 }
 
 void DxParam::blinkSideColumn() {
 	if (hasSideColumn()) {
-		uiNeedsRendering(&keyboardScreen, 0, 0xFFFFFFFF);
-		blink_next = !blink_next;
-		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, blink_next ? 100 : 300);
+		uiNeedsRendering(&keyboard_screen_for_session(), 0, 0xFFFFFFFF);
+		panel_state().blink_next = !panel_state().blink_next;
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, panel_state().blink_next ? 100 : 300);
 	}
 	else {
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
@@ -161,24 +161,24 @@ void DxParam::selectEncoderAction(int32_t offset) {
 	int value = getValue();
 
 	int newval = value + offset;
-	if (newval > upper_limit) {
-		newval = upper_limit;
+	if (newval > panel_state().upper_limit) {
+		newval = panel_state().upper_limit;
 	}
 	else if (newval < 0) {
 		newval = 0;
 	}
 
 	setValue(newval);
-	displayValue = newval;
+	panel_state().displayValue = newval;
 
 	drawValue();
 }
 
 void DxParam::horizontalEncoderAction(int32_t offset) {
 	if (Buttons::isShiftButtonPressed()) {
-		if (param < 0 || param > 6 * 21 || !patch)
+		if (panel_state().param < 0 || panel_state().param > 6 * 21 || !panel_state().patch)
 			return; // TODO: remember last OP param?
-		int cur_op = param / 21;
+		int cur_op = panel_state().param / 21;
 		int next_op = cur_op;
 		do {
 			next_op += offset;
@@ -188,17 +188,17 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 			else if (next_op < 0) {
 				next_op = 5;
 			}
-		} while (!patch->opSwitch(next_op) && next_op != cur_op);
+		} while (!panel_state().patch->opSwitch(next_op) && next_op != cur_op);
 
-		param = (param % 21) + 21 * next_op;
+		panel_state().param = (panel_state().param % 21) + 21 * next_op;
 	}
 	else {
-		param = param + offset;
-		if (param < -1) {
-			param = 143;
+		panel_state().param = panel_state().param + offset;
+		if (panel_state().param < -1) {
+			panel_state().param = 143;
 		}
-		else if (param >= 143) {
-			param = -1;
+		else if (panel_state().param >= 143) {
+			panel_state().param = -1;
 		}
 	}
 
@@ -240,7 +240,7 @@ bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	}
 
 	if (found_param >= -1) {
-		param = found_param;
+		panel_state().param = found_param;
 		readValueAgain();
 		if (display->have7SEG()) {
 			flashParamName();
@@ -274,15 +274,15 @@ const char* shapes_long[]{"tri", "saw down", "saw up", "square", "sin", "s-hold"
 const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 
 [[nodiscard]] std::string_view DxParam::getTitle() const {
-	static char buffer[25];
+	char* buffer = title_buffers_.active().data();
 
-	if (param < 0) {
+	if (panel_state().param < 0) {
 		return "random detune";
 	}
 
-	int op = param / 21;
-	int idx = param % 21;
-	if (param < 6 * 21) {
+	int op = panel_state().param / 21;
+	int idx = panel_state().param % 21;
+	if (panel_state().param < 6 * 21) {
 
 		strcpy(buffer, "op0 ");
 		buffer[2] = '6' - op;
@@ -305,24 +305,24 @@ const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 
 		return buffer;
 	}
-	else if (param < 6 * 21 + 8) {
+	else if (panel_state().param < 6 * 21 + 8) {
 		return "dx7 pitch env";
 	}
-	else if (param >= 137 && param < 144) {
+	else if (panel_state().param >= 137 && panel_state().param < 144) {
 		return "dx7 LFO";
 	}
-	else if (param < 6 * 21 + 18) {
-		return desc_global_long[param - 6 * 21];
+	else if (panel_state().param < 6 * 21 + 18) {
+		return desc_global_long[panel_state().param - 6 * 21];
 	}
 
 	return "DX7 PARAM";
 }
 
 void DxParam::flashParamName() {
-	if (0 <= param && param < 6 * 21) {
+	if (0 <= panel_state().param && panel_state().param < 6 * 21) {
 		char buf[12] = {0};
-		int op = param / 21;
-		int idx = param % 21;
+		int op = panel_state().param / 21;
+		int idx = panel_state().param % 21;
 		buf[0] = 'o';
 		buf[1] = '6' - op;
 		if (idx < 4) {
@@ -344,8 +344,8 @@ void DxParam::flashParamName() {
 		}
 		display->setScrollingText(buf, 0, 600, 1);
 	}
-	else if (param >= 6 * 21 && param < 6 * 21 + 18) {
-		display->setScrollingText(desc_global_short[param - 6 * 21], 0, 600, 1);
+	else if (panel_state().param >= 6 * 21 && panel_state().param < 6 * 21 + 18) {
+		display->setScrollingText(desc_global_short[panel_state().param - 6 * 21], 0, 600, 1);
 	}
 	else {
 		display->setScrollingText(getTitle().begin(), 0, 600, 1);
@@ -356,10 +356,10 @@ using deluge::hid::display::OLED;
 static void show(const char* text, int r, int c, bool inv = false) {
 	int ybel = 7 + (2 + r) * (kTextSizeYUpdated + 2);
 	int xpos = 5 + c * kTextSpacingX;
-	OLED::main.drawString(text, xpos, ybel, kTextSpacingX, kTextSizeYUpdated);
+	OLED::main_for_session().drawString(text, xpos, ybel, kTextSpacingX, kTextSizeYUpdated);
 	if (inv) {
 		int width = strlen(text);
-		OLED::main.invertArea(xpos - 1, kTextSpacingX * width + 1, ybel - 1, ybel + kTextSizeYUpdated);
+		OLED::main_for_session().invertArea(xpos - 1, kTextSpacingX * width + 1, ybel - 1, ybel + kTextSizeYUpdated);
 	}
 }
 
@@ -395,14 +395,15 @@ static void renderScaling(uint8_t* params, int op, int idx) {
 	int val = params[op * 21 + 8];
 	intToString(val, buffer, 2);
 	int xpos = 14 + 6 * kTextSpacingX;
-	OLED::main.drawString(buffer, xpos, ybelmid, kTextSpacingX, kTextSizeYUpdated);
+	OLED::main_for_session().drawString(buffer, xpos, ybelmid, kTextSpacingX, kTextSizeYUpdated);
 	if (8 == idx) {
-		OLED::main.invertArea(xpos - 1, kTextSpacingX * 2 + 1, ybelmid - 1, ybelmid + kTextSizeYUpdated);
+		OLED::main_for_session().invertArea(xpos - 1, kTextSpacingX * 2 + 1, ybelmid - 1, ybelmid + kTextSizeYUpdated);
 	}
 
 	int noteCode = val + 17;
-	ui::keyboard::KeyboardState& state = getCurrentInstrumentClip()->keyboardState;
-	if (getRootUI() == &keyboardScreen && state.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeIsomorphic) {
+	ui::keyboard::KeyboardState& state = getCurrentInstrumentClip()->keyboard_state_for_session();
+	if (getRootUI() == &keyboard_screen_for_session()
+	    && state.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeIsomorphic) {
 		int notedisp = noteCode - state.isomorphic.scrollOffset;
 		int x = notedisp;
 		int y = 0;
@@ -417,8 +418,8 @@ static void renderScaling(uint8_t* params, int op, int idx) {
 
 		if (x >= 0 && x < 16) {
 			// TODO: different color than the main shortcut blink? or at least different frequency
-			soundEditor.setupShortcutBlink(x, y, 2);
-			soundEditor.blinkShortcut();
+			sound_editor_for_session().setupShortcutBlink(x, y, 2);
+			sound_editor_for_session().blinkShortcut();
 		}
 		else {
 			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
@@ -489,7 +490,7 @@ static void renderAlgorithm(uint8_t* params) {
 
 	char buffer[12];
 	intToString(params[134] + 1, buffer, 2);
-	OLED::main.drawString(buffer, 116, 7, kTextSpacingX, kTextSizeYUpdated);
+	OLED::main_for_session().drawString(buffer, 116, 7, kTextSpacingX, kTextSizeYUpdated);
 
 	FmAlgorithm a = FmCore::algorithms[params[134]];
 	for (int i = 0; i < 6; i++) {
@@ -517,32 +518,32 @@ void DxParam::drawPixelsForOled() {
 	const int y0 = 20;
 	char buffer[12];
 
-	if (param < 0 || param == 135 || param == 136) {
+	if (panel_state().param < 0 || panel_state().param == 135 || panel_state().param == 136) {
 		int val = getValue();
-		intToString(val, buffer, param < 0 ? 2 : 1);
-		OLED::main.drawString(buffer, 50, y0, kTextHugeSpacingX, kTextHugeSizeY);
+		intToString(val, buffer, panel_state().param < 0 ? 2 : 1);
+		OLED::main_for_session().drawString(buffer, 50, y0, kTextHugeSpacingX, kTextHugeSizeY);
 		return;
 	}
 
-	int op = param / 21;
-	int idx = param % 21;
-	if (param < (6 * 21 + 8) && idx < 8) {
-		renderEnvelope(patch->params, op, idx); // op== 6 for pitch envelope
+	int op = panel_state().param / 21;
+	int idx = panel_state().param % 21;
+	if (panel_state().param < (6 * 21 + 8) && idx < 8) {
+		renderEnvelope(panel_state().patch->params, op, idx); // op== 6 for pitch envelope
 	}
-	else if (param < 6 * 21 && idx < 13) {
-		renderScaling(patch->params, op, idx);
+	else if (panel_state().param < 6 * 21 && idx < 13) {
+		renderScaling(panel_state().patch->params, op, idx);
 	}
-	else if (param < 6 * 21 && idx < 16) {
-		renderSensParams(patch->params, op, idx);
+	else if (panel_state().param < 6 * 21 && idx < 16) {
+		renderSensParams(panel_state().patch->params, op, idx);
 	}
-	else if (param < 6 * 21 && idx < 21) {
-		renderTuning(patch->params, op, idx);
+	else if (panel_state().param < 6 * 21 && idx < 21) {
+		renderTuning(panel_state().patch->params, op, idx);
 	}
-	else if (param == 134) {
-		renderAlgorithm(patch->params);
+	else if (panel_state().param == 134) {
+		renderAlgorithm(panel_state().patch->params);
 	}
-	else if (param >= 137 && param < 144) {
-		renderLFO(patch->params, param);
+	else if (panel_state().param >= 137 && panel_state().param < 144) {
+		renderLFO(panel_state().patch->params, panel_state().param);
 	}
 }
 
@@ -551,24 +552,24 @@ void DxParam::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		int op = param / 21;
-		int idx = param % 21;
+		int op = panel_state().param / 21;
+		int idx = panel_state().param % 21;
 		int val = getValue();
 		const char* text = NULL;
-		if (param < 6 * 21 && (idx == 17)) {
+		if (panel_state().param < 6 * 21 && (idx == 17)) {
 			text = val ? "fixd" : "rati";
 		}
-		else if (param < 6 * 21 && (idx == 11 || idx == 12)) {
+		else if (panel_state().param < 6 * 21 && (idx == 11 || idx == 12)) {
 			text = curves[std::min(val, 4)];
 		}
-		else if (param == 142) {
+		else if (panel_state().param == 142) {
 			int shap = std::min(val, 5);
 			text = shapes_short[shap];
 		}
-		else if (param == 6 * 21 + 8) {
+		else if (panel_state().param == 6 * 21 + 8) {
 			val += 1; // algorithms start at one
 		}
-		else if (param < 6 * 21 && (idx == 20)) {
+		else if (panel_state().param < 6 * 21 && (idx == 20)) {
 			val -= 7; // detuning -7 - 7
 		}
 		if (text) {
@@ -582,31 +583,31 @@ void DxParam::drawValue() {
 
 void DxParam::openForOpOrGlobal(int op) {
 	bool was_focused = true; // was already in DxParam
-	if (!isUIOpen(&soundEditor) || soundEditor.getCurrentMenuItem() != this) {
-		bool success = soundEditor.setup(getCurrentClip(), this, 0);
+	if (!isUIOpen(&sound_editor_for_session()) || sound_editor_for_session().getCurrentMenuItem() != this) {
+		bool success = sound_editor_for_session().setup(getCurrentClip(), this, 0);
 		if (!success) {
 			return;
 		}
-		soundEditor.enterOrUpdateSoundEditor(true);
+		sound_editor_for_session().enterOrUpdateSoundEditor(true);
 		was_focused = false;
 	}
 
 	int new_param = op < 6 ? op * 21 + 16 : 134;
 	bool flash = true;
 	if (was_focused) {
-		if (param == new_param) {
+		if (panel_state().param == new_param) {
 			new_param = op < 6 ? op * 21 + 18 : 135;
 		}
-		else if (0 <= param && param < 6 * 21 + 8) {
+		else if (0 <= panel_state().param && panel_state().param < 6 * 21 + 8) {
 			// tricky: we allow to go from op env to pitch env and back
-			int param_for_op = op * 21 + (param % 21);
-			if (param != param_for_op && param_for_op < 6 * 21 + 8) {
+			int param_for_op = op * 21 + (panel_state().param % 21);
+			if (panel_state().param != param_for_op && param_for_op < 6 * 21 + 8) {
 				new_param = param_for_op;
 				flash = false;
 			}
 		}
 	}
-	param = new_param;
+	panel_state().param = new_param;
 	readValueAgain();
 	if (flash && display->have7SEG()) {
 		flashParamName();

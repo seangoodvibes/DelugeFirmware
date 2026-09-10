@@ -38,13 +38,25 @@ const char* getButtonName(deluge::hid::Button b);
  * notification so we can clear the buttons.cpp:shiftIsHeld to avoid shift getting permanantly stuck.
  */
 void clearShiftSticky();
+void reset_for_session_startup();
 /**
  * Determine if the shift button has changed since the last time someone asked.
  * This implicitly clears the "shiftHasChangedSinceLastCheck" flag, so only the main loop should call this function.
  */
 bool shiftHasChanged();
 
-extern bool recordButtonPressUsedUp;
-extern bool considerCrossScreenReleaseForCrossScreenMode;
-extern bool selectButtonPressUsedUp;
+struct State {
+	bool recordButtonPressUsedUp = false;
+	bool considerCrossScreenReleaseForCrossScreenMode = false;
+	bool selectButtonPressUsedUp = false;
+	uint32_t timeRecordButtonPressed = 0;
+	uint32_t timeShiftButtonPressed = 0;
+	bool shiftCurrentlyPressed = false;
+	bool shiftCurrentlyStuck = false;
+	bool shiftHasChangedSinceLastCheck = false;
+	bool considerShiftReleaseForSticky = false;
+	bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]{};
+};
+
+State& state();
 } // namespace Buttons

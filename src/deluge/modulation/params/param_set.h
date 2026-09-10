@@ -94,7 +94,8 @@ public:
 	void deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p);
 	void insertTime(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t lengthToInsert);
 	void deleteTime(ModelStackWithParamCollection* modelStack, int32_t startPos, int32_t lengthToDelete);
-	void backUpAllAutomatedParamsToAction(Action* action, ModelStackWithParamCollection* modelStack);
+	bool remove_inserted_time(ModelStackWithParamCollection* model_stack, int32_t pos, int32_t length);
+	bool backup_all_automated_params_to_action(Action* action, ModelStackWithParamCollection* model_stack);
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) final;
 
 	// For undoing / redoing
@@ -113,7 +114,6 @@ protected:
 	virtual void notify_value_change(ModelStackWithAutoParam const*, int32_t, bool, bool, bool) {}
 
 private:
-	void backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack);
 	void checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 };
 

@@ -23,11 +23,13 @@ std::unordered_map<void*, uint32_t> allocations;
 }
 } // namespace
 namespace parameter_test {
+std::function<bool(ModelStackWithAutoParam const*)> on_record_param;
 bool allow_midi_params = false;
 std::vector<midi_notification> midi_notifications;
 bool allow_patch_cables = false;
 size_t notifications = 0;
 int allocations_before_failure = -1;
+std::function<void()> on_allocation;
 size_t allocation_failures = 0;
 uint32_t last_failed_allocation_size = 0;
 bool allow_no_action = false;
@@ -43,6 +45,8 @@ size_t outstanding_allocations() {
 	return allocations.size();
 }
 void reset() {
+	on_record_param = nullptr;
+	on_allocation = {};
 	allow_midi_params = false;
 	midi_notifications.clear();
 	allow_patch_cables = false;
@@ -64,6 +68,10 @@ void reset() {
 MemoryRegion::MemoryRegion() = default;
 GeneralMemoryAllocator::GeneralMemoryAllocator() = default;
 void* GeneralMemoryAllocator::alloc(uint32_t size, bool, bool, void*) {
+	auto callback = std::move(parameter_test::on_allocation);
+	parameter_test::on_allocation = {};
+	if (callback)
+		callback();
 	if (parameter_test::allocations_before_failure == 0) {
 		++parameter_test::allocation_failures;
 		parameter_test::last_failed_allocation_size = size;
@@ -105,7 +113,15 @@ extern "C" void delugeDealloc(void* address) {
 }
 
 View::View() = default;
-View view;
+namespace {
+deluge::gui::ui_session::State<View> views;
+}
+View& view_for_session() {
+	return views.active();
+}
+const View* view_for_session_if_initialized() {
+	return &views.active();
+}
 void View::notifyParamAutomationOccurred(ParamManager*, bool) {
 	++parameter_test::notifications;
 }
@@ -119,10 +135,15 @@ Action* ActionLogger::getNewAction(ActionType, ActionAddition) {
 bool Action::containsConsequenceParamChange(ParamCollection*, int32_t) {
 	unsupported();
 }
-void Action::recordParamChangeDefinitely(ModelStackWithAutoParam const*, bool) {
+bool Action::recordParamChangeDefinitely(ModelStackWithAutoParam const*, bool) {
 	unsupported();
 }
-void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const*, bool) {
+// Action allocation and cloning outcomes are injected; the ParamSet loop is real.
+Action::Action(ActionType action_type) : type(action_type) {
+}
+bool Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* model_stack, bool) {
+	if (parameter_test::on_record_param)
+		return parameter_test::on_record_param(model_stack);
 	unsupported();
 }
 PlaybackHandler::PlaybackHandler() = default;

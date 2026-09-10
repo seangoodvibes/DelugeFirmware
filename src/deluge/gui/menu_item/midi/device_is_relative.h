@@ -24,9 +24,9 @@ namespace deluge::gui::menu_item::midi {
 class DeviceIsRelative final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->is_relative); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentMIDICable->is_relative); }
 	void writeCurrentValue() override {
-		soundEditor.currentMIDICable->is_relative = this->getValue();
+		sound_editor_for_session().currentMIDICable->is_relative = this->getValue();
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };

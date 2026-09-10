@@ -23,8 +23,8 @@ void ActiveScaleMenu::readValueAgain() {
 		renderUIsForOled();
 	}
 	else {
-		const char* name = getScaleName(static_cast<Scale>(currentPos));
-		uint8_t dotPos = isDisabled(currentPos) ? 255 : 3;
+		const char* name = getScaleName(static_cast<Scale>(current_pos_for_session()));
+		uint8_t dotPos = isDisabled(current_pos_for_session()) ? 255 : 3;
 		display->setScrollingText(name, 0, 600, -1, dotPos);
 	}
 }
@@ -38,19 +38,19 @@ void ActiveScaleMenu::drawPixelsForOled() {
 
 	// Build a vector with visible scale items. No wrap-around.
 	etl::vector<uint8_t, kOLEDMenuNumOptionsVisible> visible = {};
-	if (currentPos == 0) {
+	if (current_pos_for_session() == 0) {
 		sel = 0;
 		// beginning of the list
 		for (uint8_t n = 0; n < kOLEDMenuNumOptionsVisible; n++) {
-			uint8_t p = currentPos + n;
+			uint8_t p = current_pos_for_session() + n;
 			visible.push_back(p);
 		}
 	}
-	else if (currentPos == LAST_PRESET_SCALE) {
+	else if (current_pos_for_session() == LAST_PRESET_SCALE) {
 		sel = 2;
 		// end of the list
 		for (uint8_t n = 0; n < kOLEDMenuNumOptionsVisible; n++) {
-			uint8_t p = currentPos + 1 - kOLEDMenuNumOptionsVisible + n;
+			uint8_t p = current_pos_for_session() + 1 - kOLEDMenuNumOptionsVisible + n;
 			visible.push_back(p);
 		}
 	}
@@ -58,7 +58,7 @@ void ActiveScaleMenu::drawPixelsForOled() {
 		sel = 1;
 		// middle of the list
 		for (uint8_t n = 0; n < kOLEDMenuNumOptionsVisible; n++) {
-			uint8_t p = currentPos - 1 + n;
+			uint8_t p = current_pos_for_session() - 1 + n;
 			visible.push_back(p);
 		}
 	}
@@ -68,7 +68,7 @@ void ActiveScaleMenu::drawPixelsForOled() {
 
 // adapted from submenu.cpp & toggle.cpp
 void ActiveScaleMenu::drawSubmenuItemsForOled(std::span<uint8_t> scales, const uint8_t selected) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main_for_session();
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
@@ -109,12 +109,13 @@ void ActiveScaleMenu::drawSubmenuItemsForOled(std::span<uint8_t> scales, const u
 void ActiveScaleMenu::selectEncoderAction(int32_t offset) {
 	// clamp instead of mod, because we want to avoid wraparound: otherwise when the list gets
 	// long it's hard to tell when you've gone through, esp. since it's not in alphabetical order.
-	currentPos = std::clamp((int8_t)(currentPos + offset), (int8_t)0, (int8_t)LAST_PRESET_SCALE);
+	current_pos_for_session() =
+	    std::clamp((int8_t)(current_pos_for_session() + offset), (int8_t)0, (int8_t)LAST_PRESET_SCALE);
 	readValueAgain();
 }
 
 MenuItem* ActiveScaleMenu::selectButtonPress() {
-	setDisabled(currentPos, !isDisabled(currentPos));
+	setDisabled(current_pos_for_session(), !isDisabled(current_pos_for_session()));
 	readValueAgain();
 	return NO_NAVIGATION;
 }

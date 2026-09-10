@@ -25,11 +25,12 @@ class RatchetProbability final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->ratchetProbability));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->ratchetProbability));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->ratchetProbability = value;
+		sound_editor_for_session().currentArpSettings->ratchetProbability = value;
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PERCENT; }

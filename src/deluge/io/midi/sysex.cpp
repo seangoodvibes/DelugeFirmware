@@ -172,7 +172,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	uint32_t pad = (18 * 8 * pos) / (load_bufsize - 0xffff);
 	uint8_t col = pad % 18;
 	uint8_t row = pad / 18;
-	PadLEDs::image[row][col] = RGB((255 / 7) * row, 0, 255 - (255 / 7) * row);
+	PadLEDs::image_for_session()[row][col] = RGB((255 / 7) * row, 0, 255 - (255 / 7) * row);
 	if ((pos / 512) % 16 == 0) {
 		PadLEDs::sendOutMainPadColours();
 		PadLEDs::sendOutSidebarColours();

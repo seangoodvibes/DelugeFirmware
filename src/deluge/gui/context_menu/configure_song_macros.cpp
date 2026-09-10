@@ -29,7 +29,13 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-ConfigureSongMacros configureSongMacros{};
+namespace {
+ConfigureSongMacros local_configure_song_macros{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<ConfigureSongMacros> remote_configure_song_macros;
+} // namespace
+ConfigureSongMacros& configure_song_macros_for_session() {
+	return remote_configure_song_macros.get(local_configure_song_macros);
+}
 
 bool ConfigureSongMacros::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0x01; // Only mode (audition) column
@@ -56,12 +62,12 @@ std::span<char const*> ConfigureSongMacros::getOptions() {
 }
 
 bool ConfigureSongMacros::setupAndCheckAvailability() {
-	sessionView.enterMacrosConfigMode();
+	session_view_for_session().enterMacrosConfigMode();
 	return true;
 }
 
 bool ConfigureSongMacros::acceptCurrentOption() {
-	sessionView.exitMacrosConfigMode();
+	session_view_for_session().exitMacrosConfigMode();
 	return false; // return false so you exit out of the context menu
 }
 
@@ -73,7 +79,7 @@ ActionResult ConfigureSongMacros::buttonAction(deluge::hid::Button b, bool on, b
 	}
 
 	if (b == BACK) {
-		sessionView.exitMacrosConfigMode();
+		session_view_for_session().exitMacrosConfigMode();
 	}
 
 	return ContextMenu::buttonAction(b, on, inCardRoutine);
@@ -85,11 +91,11 @@ ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 	// don't allow user to switch modes
 	if (x <= kDisplayWidth) {
-		return sessionView.gridHandlePads(x, y, on);
+		return session_view_for_session().gridHandlePads(x, y, on);
 	}
 	// exit menu with audition pad column
 	else {
-		sessionView.exitMacrosConfigMode();
+		session_view_for_session().exitMacrosConfigMode();
 		return ContextMenu::padAction(x, y, on);
 	}
 }
@@ -98,9 +104,9 @@ ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
 void ConfigureSongMacros::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	ContextMenu::renderOLED(canvas);
 
-	if (sessionView.selectedMacro != -1) {
-		const char* macroKind =
-		    sessionView.getMacroKindString(currentSong->sessionMacros[sessionView.selectedMacro].kind);
+	if (session_view_for_session().selectedMacro != -1) {
+		const char* macroKind = session_view_for_session().getMacroKindString(
+		    currentSong->sessionMacros[session_view_for_session().selectedMacro].kind);
 		int32_t windowHeight = 40;
 		int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 		int32_t textPixelY = windowMinY + 20 + kTextSpacingY;
@@ -112,14 +118,14 @@ ActionResult ConfigureSongMacros::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	return sessionView.gridHandleScroll(offset, 0);
+	return session_view_for_session().gridHandleScroll(offset, 0);
 }
 
 ActionResult ConfigureSongMacros::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	return sessionView.gridHandleScroll(0, offset);
+	return session_view_for_session().gridHandleScroll(0, offset);
 }
 
 } // namespace deluge::gui::context_menu

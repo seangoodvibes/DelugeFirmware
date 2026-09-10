@@ -22,7 +22,6 @@
 
 RenameUI::RenameUI(const char* title_) : QwertyUI() {
 	title = title_;
-	scrollPosHorizontal = 0;
 	oledShowsUIUnderneath = true;
 }
 
@@ -34,7 +33,7 @@ bool RenameUI::opened() {
 		return false;
 	}
 
-	enteredText.set(getCurrentName());
+	entered_text_for_session().set(getCurrentName());
 
 	displayText();
 	drawKeys();
@@ -43,10 +42,10 @@ bool RenameUI::opened() {
 }
 
 void RenameUI::enterKeyPress() {
-	if (enteredText.isEmpty() && !allowEmpty()) {
+	if (entered_text_for_session().isEmpty() && !allowEmpty()) {
 		return;
 	}
-	if (trySetName(enteredText.get())) {
+	if (trySetName(entered_text_for_session().get())) {
 		exitUI();
 	}
 }

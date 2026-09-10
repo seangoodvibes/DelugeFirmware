@@ -37,5 +37,5 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 };
 
-extern MidiLearnMode midiLearnMode;
+MidiLearnMode& midi_learn_mode_for_session();
 } // namespace deluge::gui::context_menu

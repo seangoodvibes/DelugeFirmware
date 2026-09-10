@@ -1,4 +1,5 @@
 #pragma once
+#include "gui/ui/ui_session.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
 namespace params = deluge::modulation::params;
@@ -22,6 +23,16 @@ class Clip : public TimelineCounter {
 public:
 	Output* output = nullptr;
 	ParamManagerForTimeline paramManager;
+	int32_t& last_selected_param_id_for_session() {
+		return deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local ? lastSelectedParamID
+		                                                                                : remote_param_id;
+	}
+	params::Kind& last_selected_param_kind_for_session() {
+		return deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local ? lastSelectedParamKind
+		                                                                                : remote_param_kind;
+	}
+	int32_t remote_param_id = params::kNoParamID;
+	params::Kind remote_param_kind = params::Kind::NONE;
 	int32_t lastSelectedParamID = params::kNoParamID;
 	params::Kind lastSelectedParamKind = params::Kind::NONE;
 };
@@ -31,6 +42,7 @@ public:
 };
 class InstrumentClip : public Clip {
 public:
+	bool& affect_entire_for_session() { return affectEntire; }
 	bool affectEntire = false;
 	NoteRow* row = nullptr;
 	ModelStackWithNoteRow* getNoteRowForSelectedDrum(ModelStackWithTimelineCounter* stack) {
@@ -69,6 +81,7 @@ public:
 class Kit : public Output {
 public:
 	ParamManagerType required_param_manager_type() const override { return ParamManagerType::GLOBAL; }
+	Drum*& selected_drum_for_session() { return selectedDrum; }
 	Drum* selectedDrum = nullptr;
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter*, Clip*, int32_t, params::Kind, bool,
 	                                                bool) override;
@@ -82,13 +95,20 @@ public:
 	ModControllable* currentModControllable = nullptr;
 	ParamManager* currentParamManager = nullptr;
 	bool settings = false;
+	bool model_stack_available = true;
 	bool inSettingsMenu() { return settings; }
 	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory) {
+		if (!model_stack_available)
+			return nullptr;
 		return setupModelStackWithTimelineCounter(memory, nullptr, nullptr)
 		    ->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
 	}
 };
 extern SoundEditor soundEditor;
+inline SoundEditor remote_sound_editor;
+inline SoundEditor& sound_editor_for_session() {
+	return deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local ? soundEditor : remote_sound_editor;
+}
 extern void* currentUI;
 inline void* getCurrentUI() {
 	return currentUI;
@@ -110,9 +130,11 @@ public:
 	struct Descriptor {
 		int32_t data;
 	} descriptor{2};
-	bool patch_cable_exists_ = false;
+	bool cable_exists = false;
+	bool& cable_exists_for_session() { return cable_exists; }
 	bool horizontal = false;
-	int polarity_in_the_ui_ = 1;
+	int polarity = 1;
+	int& polarity_for_session() { return polarity; }
 	int polarityChanges = 0;
 	Descriptor getLearningThing() { return descriptor; }
 	bool isInHorizontalMenu() { return horizontal; }
@@ -128,6 +150,7 @@ public:
 };
 class UnpatchedParam {
 public:
+	params::Kind getParamKind();
 	int32_t id = 0;
 	int32_t getP() { return id; }
 	ModelStackWithAutoParam* getModelStack(void*);

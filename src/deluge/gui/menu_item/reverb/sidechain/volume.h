@@ -42,7 +42,7 @@ public:
 	}
 
 	void drawPixelsForOled() override {
-		oled_canvas::Canvas& canvas = OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main_for_session();
 		if (getValue() < 0) {
 			canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTO), 18 + OLED_MAIN_TOPMOST_PIXEL,
 			                         kTextHugeSpacingX, kTextHugeSizeY);
@@ -53,7 +53,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& canvas = OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main_for_session();
 		if (getValue() < 0) {
 			const char* string_for_auto = l10n::get(l10n::String::STRING_FOR_AUTO);
 			canvas.drawStringCentered(string_for_auto, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,

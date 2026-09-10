@@ -35,7 +35,7 @@ void MenuItem::learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int3
 }
 
 void MenuItem::renderOLED() {
-	deluge::hid::display::OLED::main.drawScreenTitle(getTitle());
+	deluge::hid::display::OLED::main_for_session().drawScreenTitle(getTitle());
 	deluge::hid::display::OLED::markChanged();
 	drawPixelsForOled();
 }
@@ -47,7 +47,7 @@ void MenuItem::drawName() {
 // A couple of our child classes call this - that's all
 void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption,
                                 const int32_t offset) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main_for_session();
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
@@ -68,7 +68,7 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 
 // renders the default sub menu item type ("  >")
 void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
-	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main_for_session();
 
 	const int32_t startX = getSubmenuItemTypeRenderIconStart();
 
@@ -76,18 +76,19 @@ void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 }
 
 void MenuItem::updatePadLights() {
-	soundEditor.updatePadLightsFor(this);
+	sound_editor_for_session().updatePadLightsFor(this);
 }
 
 void MenuItem::endSession() {
 	// need to reset current coords for correct work of the second page shortcuts
-	soundEditor.currentParamShortcutX = kNoSelection;
-	soundEditor.currentParamShortcutY = kNoSelection;
+	sound_editor_for_session().currentParamShortcutX = kNoSelection;
+	sound_editor_for_session().currentParamShortcutY = kNoSelection;
 }
 
 bool isItemRelevant(MenuItem* item) {
 	if (item == nullptr) {
 		return false;
 	}
-	return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
+	return item->isRelevant(sound_editor_for_session().currentModControllable,
+	                        sound_editor_for_session().currentSourceIndex);
 }

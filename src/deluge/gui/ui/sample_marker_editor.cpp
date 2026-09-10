@@ -51,10 +51,16 @@ using namespace deluge::gui;
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-SampleMarkerEditor sampleMarkerEditor{};
+namespace {
+SampleMarkerEditor local_sample_marker_editor{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SampleMarkerEditor> remote_sample_marker_editor;
+} // namespace
+SampleMarkerEditor& sample_marker_editor_for_session() {
+	return remote_sample_marker_editor.get(local_sample_marker_editor);
+}
 
 MultisampleRange& getCurrentMultisampleRange() {
-	return *static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
+	return *static_cast<MultisampleRange*>(sound_editor_for_session().currentMultiRange);
 }
 
 SampleHolder& getCurrentSampleHolder() {
@@ -71,7 +77,7 @@ SampleControls* getCurrentSampleControls() {
 		return &getCurrentAudioClip()->sampleControls;
 	}
 
-	return &soundEditor.currentSource->sampleControls;
+	return &sound_editor_for_session().currentSource->sampleControls;
 }
 
 bool isLoopLocked() {
@@ -108,20 +114,20 @@ bool SampleMarkerEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
 bool SampleMarkerEditor::opened() {
 
-	if (getRootUI() == &keyboardScreen) {
+	if (getRootUI() == &keyboard_screen_for_session()) {
 		PadLEDs::skipGreyoutFade();
 	}
 
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-	waveformBasicNavigator.sample = static_cast<Sample*>(getCurrentSampleHolder().audioFile);
+	waveform_basic_navigator_for_session().sample = static_cast<Sample*>(getCurrentSampleHolder().audioFile);
 
-	if (!waveformBasicNavigator.sample) {
+	if (!waveform_basic_navigator_for_session().sample) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return false;
 	}
 
-	waveformBasicNavigator.opened(&getCurrentSampleHolder());
+	waveform_basic_navigator_for_session().opened(&getCurrentSampleHolder());
 
 	blinkPhase = 0;
 
@@ -131,7 +137,7 @@ bool SampleMarkerEditor::opened() {
 		displayText();
 	}
 
-	if (getRootUI() != &instrumentClipView) {
+	if (getRootUI() != &instrument_clip_view_for_session()) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -142,8 +148,8 @@ bool SampleMarkerEditor::opened() {
 void SampleMarkerEditor::recordScrollAndZoom() {
 	if (markerType != MarkerType::NONE) {
 		auto& sampleHolder = getCurrentSampleHolder();
-		sampleHolder.waveformViewScroll = waveformBasicNavigator.xScroll;
-		sampleHolder.waveformViewZoom = waveformBasicNavigator.xZoom;
+		sampleHolder.waveformViewScroll = waveform_basic_navigator_for_session().xScroll;
+		sampleHolder.waveformViewZoom = waveform_basic_navigator_for_session().xZoom;
 	}
 }
 
@@ -210,28 +216,30 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	}
 	else {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-		soundEditor.currentSound->sampleZoneChanged(markerTypeNow, soundEditor.currentSourceIndex, modelStack);
+		ModelStackWithSoundFlags* modelStack =
+		    sound_editor_for_session().getCurrentModelStack(modelStackMemory)->addSoundFlags();
+		sound_editor_for_session().currentSound->sampleZoneChanged(
+		    markerTypeNow, sound_editor_for_session().currentSourceIndex, modelStack);
 		getCurrentInstrument()->beenEdited(true);
 	}
 }
 
 int32_t SampleMarkerEditor::getStartColOnScreen(int32_t unscrolledPos) {
-	return divide_round_negative((int32_t)(unscrolledPos - waveformBasicNavigator.xScroll),
-	                             waveformBasicNavigator.xZoom);
+	return divide_round_negative((int32_t)(unscrolledPos - waveform_basic_navigator_for_session().xScroll),
+	                             waveform_basic_navigator_for_session().xZoom);
 }
 
 int32_t SampleMarkerEditor::getEndColOnScreen(int32_t unscrolledPos) {
-	return divide_round_negative((int32_t)(unscrolledPos - 1 - waveformBasicNavigator.xScroll),
-	                             waveformBasicNavigator.xZoom);
+	return divide_round_negative((int32_t)(unscrolledPos - 1 - waveform_basic_navigator_for_session().xScroll),
+	                             waveform_basic_navigator_for_session().xZoom);
 }
 
 int32_t SampleMarkerEditor::getStartPosFromCol(int32_t col) {
-	return waveformBasicNavigator.xScroll + col * waveformBasicNavigator.xZoom;
+	return waveform_basic_navigator_for_session().xScroll + col * waveform_basic_navigator_for_session().xZoom;
 }
 
 int32_t SampleMarkerEditor::getEndPosFromCol(int32_t col) {
-	return waveformBasicNavigator.xScroll + (col + 1) * waveformBasicNavigator.xZoom;
+	return waveform_basic_navigator_for_session().xScroll + (col + 1) * waveform_basic_navigator_for_session().xZoom;
 }
 
 void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
@@ -301,8 +309,8 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 			}
 		}
 		else {
-			if (newMarkerPos > waveformBasicNavigator.sample->lengthInSamples) {
-				newMarkerPos = waveformBasicNavigator.sample->lengthInSamples;
+			if (newMarkerPos > waveform_basic_navigator_for_session().sample->lengthInSamples) {
+				newMarkerPos = waveform_basic_navigator_for_session().sample->lengthInSamples;
 			}
 		}
 	}
@@ -321,10 +329,10 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 		if (newCol < 0 || newCol >= kDisplayWidth) {
 
 			// Move scroll
-			waveformBasicNavigator.xScroll += waveformBasicNavigator.xZoom * offset;
+			waveform_basic_navigator_for_session().xScroll += waveform_basic_navigator_for_session().xZoom * offset;
 
-			if (waveformBasicNavigator.xScroll < 0) {
-				waveformBasicNavigator.xScroll = 0; // Shouldn't happen...
+			if (waveform_basic_navigator_for_session().xScroll < 0) {
+				waveform_basic_navigator_for_session().xScroll = 0; // Shouldn't happen...
 			}
 
 			recordScrollAndZoom();
@@ -349,7 +357,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	if (currentUIMode != UI_MODE_AUDITIONING) { // Don't want to do this while auditioning - too easy to do by mistake
-		ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
+		ActionResult soundEditorResult = sound_editor_for_session().potentialShortcutPadAction(x, y, on);
 		if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
 			return soundEditorResult;
 		}
@@ -358,7 +366,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	// Audition pads - pass to UI beneath
 	if (x == kDisplayWidth + 1) {
 		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-			instrumentClipView.padAction(x, y, on);
+			instrument_clip_view_for_session().padAction(x, y, on);
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -448,7 +456,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 ensureNotPastSampleLength:
 						// Loop start and end points are not allowed to be further right than the sample waveform length
-						if (newValue >= waveformBasicNavigator.sample->lengthInSamples) {
+						if (newValue >= waveform_basic_navigator_for_session().sample->lengthInSamples) {
 							return ActionResult::DEALT_WITH;
 						}
 						markerType = newMarkerType;
@@ -604,7 +612,7 @@ exitAfterRemovingLoopMarker:
 					value = (markerType < MarkerType::LOOP_END) ? getStartPosFromCol(x) : getEndPosFromCol(x);
 
 					{
-						uint32_t lengthInSamples = waveformBasicNavigator.sample->lengthInSamples;
+						uint32_t lengthInSamples = waveform_basic_navigator_for_session().sample->lengthInSamples;
 
 						// Only the END marker, and only in some cases, is allowed to be further right than the waveform
 						// length
@@ -613,7 +621,8 @@ exitAfterRemovingLoopMarker:
 							    && value < cols[util::to_underlying(markerType)].pos) {
 								return ActionResult::DEALT_WITH; // Probably not actually necessary
 							}
-							if (value > lengthInSamples && value < lengthInSamples + waveformBasicNavigator.xZoom) {
+							if (value > lengthInSamples
+							    && value < lengthInSamples + waveform_basic_navigator_for_session().xZoom) {
 								value = lengthInSamples;
 							}
 						}
@@ -756,7 +765,8 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	// Zoom
 	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		if (isUIModeWithinRange(zoomUIModes)) {
-			success = waveformBasicNavigator.zoom(offset, shouldAllowExtraScrollRight(), colsToSend, markerType);
+			success = waveform_basic_navigator_for_session().zoom(offset, shouldAllowExtraScrollRight(), colsToSend,
+			                                                      markerType);
 			if (success) {
 				uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			}
@@ -765,7 +775,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
 	// Scroll
 	else if (isUIModeWithinRange(&zoomUIModes[1])) { // Allow during auditioning only
-		success = waveformBasicNavigator.scroll(offset, shouldAllowExtraScrollRight(), colsToSend);
+		success = waveform_basic_navigator_for_session().scroll(offset, shouldAllowExtraScrollRight(), colsToSend);
 
 		if (success) {
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -818,13 +828,14 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	switch (blinkPhase) {
 		// Flash a full column of color for the primary selection
 	case 1:
-		for (auto& col : PadLEDs::image) {
+		for (auto& col : PadLEDs::image_for_session()) {
 			col[x] = colours::black;
 		}
 
-		waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-		                              &waveformBasicNavigator.renderData);
-		renderMarkerInCol(x, PadLEDs::image, markerType, 0, kDisplayHeight, false);
+		waveform_renderer_for_session().renderOneCol(waveform_basic_navigator_for_session().sample, x,
+		                                             PadLEDs::image_for_session(),
+		                                             &waveform_basic_navigator_for_session().renderData);
+		renderMarkerInCol(x, PadLEDs::image_for_session(), markerType, 0, kDisplayHeight, false);
 		PadLEDs::sortLedsForCol(x);
 		break;
 	case 3:
@@ -838,33 +849,36 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	case 2:
 		if (otherMarker != MarkerType::NONE && otherMarkerX != x) {
 			// Need to clear both columns
-			for (auto& col : PadLEDs::image) {
+			for (auto& col : PadLEDs::image_for_session()) {
 				col[x] = colours::black;
 				col[otherMarkerX] = colours::black;
 			}
 
-			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-			                              &waveformBasicNavigator.renderData);
-			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, otherMarkerX, PadLEDs::image,
-			                              &waveformBasicNavigator.renderData);
+			waveform_renderer_for_session().renderOneCol(waveform_basic_navigator_for_session().sample, x,
+			                                             PadLEDs::image_for_session(),
+			                                             &waveform_basic_navigator_for_session().renderData);
+			waveform_renderer_for_session().renderOneCol(waveform_basic_navigator_for_session().sample, otherMarkerX,
+			                                             PadLEDs::image_for_session(),
+			                                             &waveform_basic_navigator_for_session().renderData);
 
-			renderColumn(x, PadLEDs::image, cols, supressMask);
-			renderColumn(otherMarkerX, PadLEDs::image, cols, supressMask);
+			renderColumn(x, PadLEDs::image_for_session(), cols, supressMask);
+			renderColumn(otherMarkerX, PadLEDs::image_for_session(), cols, supressMask);
 
 			PadLEDs::sortLedsForCol(x);
 			PadLEDs::sortLedsForCol(otherMarkerX);
 		}
 		else {
 			// Only 1 marker to render or both markers are on the same column, only clear and re-render once
-			for (auto& col : PadLEDs::image) {
+			for (auto& col : PadLEDs::image_for_session()) {
 				col[x] = colours::black;
 			}
 
-			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-			                              &waveformBasicNavigator.renderData);
+			waveform_renderer_for_session().renderOneCol(waveform_basic_navigator_for_session().sample, x,
+			                                             PadLEDs::image_for_session(),
+			                                             &waveform_basic_navigator_for_session().renderData);
 
 			// render the selected marker solid, and flash the rest of the column with the color for the other marker
-			renderColumn(x, PadLEDs::image, cols, supressMask);
+			renderColumn(x, PadLEDs::image_for_session(), cols, supressMask);
 			PadLEDs::sortLedsForCol(x);
 		}
 
@@ -887,13 +901,13 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	}
 
 	// Must say these buttons were not pressed, or else editing might take place
-	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+	ActionResult result = instrument_clip_view_for_session().verticalEncoderAction(offset, inCardRoutine);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return result;
 	}
 
-	if (getRootUI() == &keyboardScreen) {
+	if (getRootUI() == &keyboard_screen_for_session()) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
 
@@ -902,10 +916,10 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 
 bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (getRootUI() != &keyboardScreen) {
+	if (getRootUI() != &keyboard_screen_for_session()) {
 		return false;
 	}
-	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+	return instrument_clip_view_for_session().renderSidebar(whichRows, image, occupancyMask);
 }
 
 void SampleMarkerEditor::graphicsRoutine() {
@@ -923,15 +937,15 @@ void SampleMarkerEditor::graphicsRoutine() {
 			// Change start
 			Uart::println("change loop start -------------------------------");
 
-			if (!soundEditor.currentSource->reversed) {
+			if (!sound_editor_for_session().currentSource->reversed) {
 
 				int32_t newStartPos = ((uint32_t)getNoise() % (kSampleRate * 120)) + 10 * kSampleRate;
 
-				if (newStartPos > soundEditor.currentMultiRange->endPos - minDistance)
-					newStartPos = soundEditor.currentMultiRange->endPos - minDistance;
-				if (soundEditor.currentMultiRange->loopEndPos
-				    && newStartPos >= soundEditor.currentMultiRange->loopEndPos - minDistance)
-					newStartPos = soundEditor.currentMultiRange->loopEndPos - minDistance;
+				if (newStartPos > sound_editor_for_session().currentMultiRange->endPos - minDistance)
+					newStartPos = sound_editor_for_session().currentMultiRange->endPos - minDistance;
+				if (sound_editor_for_session().currentMultiRange->loopEndPos
+				    && newStartPos >= sound_editor_for_session().currentMultiRange->loopEndPos - minDistance)
+					newStartPos = sound_editor_for_session().currentMultiRange->loopEndPos - minDistance;
 
 				writeValue(newStartPos, MarkerType::START);
 			}
@@ -942,14 +956,14 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 				// int32_t newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// -
 				// (((uint32_t)getNoise() % (kSampleRate * 120)) + 10 * kSampleRate);
-				int32_t newStartPos = soundEditor.currentMultiRange->sample->lengthInSamples
+				int32_t newStartPos = sound_editor_for_session().currentMultiRange->sample->lengthInSamples
 				                      - (((uint32_t)getNoise() % (kSampleRate * 12)) + 0 * kSampleRate);
 
-				if (newStartPos < soundEditor.currentMultiRange->startPos + minDistance)
-					newStartPos = soundEditor.currentMultiRange->startPos + minDistance;
-				if (soundEditor.currentMultiRange->loopStartPos
-				    && newStartPos <= soundEditor.currentMultiRange->loopStartPos + minDistance)
-					newStartPos = soundEditor.currentMultiRange->loopStartPos + minDistance;
+				if (newStartPos < sound_editor_for_session().currentMultiRange->startPos + minDistance)
+					newStartPos = sound_editor_for_session().currentMultiRange->startPos + minDistance;
+				if (sound_editor_for_session().currentMultiRange->loopStartPos
+				    && newStartPos <= sound_editor_for_session().currentMultiRange->loopStartPos + minDistance)
+					newStartPos = sound_editor_for_session().currentMultiRange->loopStartPos + minDistance;
 
 				writeValue(newStartPos, MarkerType::END);
 			}
@@ -958,20 +972,20 @@ void SampleMarkerEditor::graphicsRoutine() {
 		else { // if (r < 128) {
 			// Change loop point
 
-			if (!soundEditor.currentSource->reversed) {
+			if (!sound_editor_for_session().currentSource->reversed) {
 
 				int32_t newLoopEndPos;
-				if (soundEditor.currentMultiRange->loopEndPos) {
+				if (sound_editor_for_session().currentMultiRange->loopEndPos) {
 					Uart::println("remove loop end -------------------------------");
 					newLoopEndPos = 0;
 				}
 				else {
 					Uart::println("set loop end -------------------------------");
-					newLoopEndPos = soundEditor.currentMultiRange->startPos + minDistance
+					newLoopEndPos = sound_editor_for_session().currentMultiRange->startPos + minDistance
 					                + ((uint32_t)getNoise() % (kSampleRate * 1));
 
-					if (newLoopEndPos > soundEditor.currentMultiRange->endPos)
-						newLoopEndPos = soundEditor.currentMultiRange->endPos;
+					if (newLoopEndPos > sound_editor_for_session().currentMultiRange->endPos)
+						newLoopEndPos = sound_editor_for_session().currentMultiRange->endPos;
 				}
 
 				writeValue(newLoopEndPos, MarkerType::LOOP_END);
@@ -979,17 +993,17 @@ void SampleMarkerEditor::graphicsRoutine() {
 			else {
 
 				int32_t newLoopEndPos;
-				if (soundEditor.currentMultiRange->loopStartPos) {
+				if (sound_editor_for_session().currentMultiRange->loopStartPos) {
 					Uart::println("remove loop end -------------------------------");
 					newLoopEndPos = 0;
 				}
 				else {
 					Uart::println("set loop end -------------------------------");
-					newLoopEndPos = soundEditor.currentMultiRange->endPos - minDistance
+					newLoopEndPos = sound_editor_for_session().currentMultiRange->endPos - minDistance
 					                - ((uint32_t)getNoise() % (kSampleRate * 1));
 
-					if (newLoopEndPos < soundEditor.currentMultiRange->startPos)
-						newLoopEndPos = soundEditor.currentMultiRange->startPos;
+					if (newLoopEndPos < sound_editor_for_session().currentMultiRange->startPos)
+						newLoopEndPos = sound_editor_for_session().currentMultiRange->startPos;
 				}
 
 				writeValue(newLoopEndPos, MarkerType::LOOP_START);
@@ -1000,7 +1014,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 	}
 #endif
 
-	if (PadLEDs::flashCursor == FLASH_CURSOR_OFF) {
+	if (PadLEDs::flash_cursor_for_session() == FLASH_CURSOR_OFF) {
 		return;
 	}
 
@@ -1011,22 +1025,24 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 	// InstrumentClips / Samples
 	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-		if (soundEditor.currentSound->hasActiveVoices()) {
+		if (sound_editor_for_session().currentSound->hasActiveVoices()) {
 			auto valid_voices_view =
-			    soundEditor.currentSound->voices() | std::views::filter([](const Sound::ActiveVoice& voice) {
-				    // Ensure correct MultisampleRange.
-				    return voice->guides[soundEditor.currentSourceIndex].audioFileHolder
-				           == soundEditor.currentMultiRange->getAudioFileHolder();
-			    });
+			    sound_editor_for_session().currentSound->voices()
+			    | std::views::filter([](const Sound::ActiveVoice& voice) {
+				      // Ensure correct MultisampleRange.
+				      return voice->guides[sound_editor_for_session().currentSourceIndex].audioFileHolder
+				             == sound_editor_for_session().currentMultiRange->getAudioFileHolder();
+			      });
 
 			if (!valid_voices_view.empty()) {
 				auto& assigned_voice = *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
 
-				VoiceUnisonPartSource* part = &assigned_voice->unisonParts[soundEditor.currentSound->numUnison >> 1]
-				                                   .sources[soundEditor.currentSourceIndex];
+				VoiceUnisonPartSource* part =
+				    &assigned_voice->unisonParts[sound_editor_for_session().currentSound->numUnison >> 1]
+				         .sources[sound_editor_for_session().currentSourceIndex];
 				if (part != nullptr && part->active) {
 					voiceSample = part->voiceSample;
-					guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
+					guide = &assigned_voice->guides[sound_editor_for_session().currentSourceIndex];
 				}
 			}
 		}
@@ -1039,9 +1055,10 @@ void SampleMarkerEditor::graphicsRoutine() {
 	}
 
 	if (voiceSample) {
-		int32_t samplePos = voiceSample->getPlaySample(waveformBasicNavigator.sample, guide);
-		if (samplePos >= waveformBasicNavigator.xScroll) {
-			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
+		int32_t samplePos = voiceSample->getPlaySample(waveform_basic_navigator_for_session().sample, guide);
+		if (samplePos >= waveform_basic_navigator_for_session().xScroll) {
+			newTickSquare = (samplePos - waveform_basic_navigator_for_session().xScroll)
+			                / waveform_basic_navigator_for_session().xZoom;
 			if (newTickSquare >= kDisplayWidth) {
 				newTickSquare = 255;
 			}
@@ -1063,7 +1080,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 		return true;
 	}
 	else {
-		return (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH);
+		return (sound_editor_for_session().currentSource->repeatMode == SampleRepeatMode::STRETCH);
 	}
 }
 
@@ -1152,7 +1169,7 @@ void SampleMarkerEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& c
 	uint32_t hours = 0;
 	uint32_t minutes = 0;
 	uint64_t hundredmilliseconds =
-	    (uint64_t)markerPosSamples * 100000 / waveformBasicNavigator.sample->sampleRate; // mSec
+	    (uint64_t)markerPosSamples * 100000 / waveform_basic_navigator_for_session().sample->sampleRate; // mSec
 
 	if (hundredmilliseconds >= 6000000) {
 		minutes = hundredmilliseconds / 6000000;
@@ -1253,7 +1270,7 @@ void SampleMarkerEditor::displayText() {
 
 	// Draw decimal number too
 	uint32_t markerPos = cols[util::to_underlying(markerType)].pos;
-	int32_t number = (uint64_t)markerPos * 1000 / waveformBasicNavigator.sample->sampleRate; // mSec
+	int32_t number = (uint64_t)markerPos * 1000 / waveform_basic_navigator_for_session().sample->sampleRate; // mSec
 	int32_t numDecimals = 3;
 
 	while (number > 9999) {
@@ -1380,8 +1397,9 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 		return true;
 	}
 
-	waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-	                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
+	waveform_renderer_for_session().renderFullScreen(
+	    waveform_basic_navigator_for_session().sample, waveform_basic_navigator_for_session().xScroll,
+	    waveform_basic_navigator_for_session().xZoom, image, &waveform_basic_navigator_for_session().renderData);
 
 	if (markerType != MarkerType::NONE) {
 		MarkerColumn cols[kNumMarkerTypes];

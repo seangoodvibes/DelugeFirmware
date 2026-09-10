@@ -20,6 +20,7 @@
 #include "drivers/pic/pic.h"
 #include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui_session.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
@@ -508,21 +509,16 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName
 
 	AudioEngine::logAction("readPatternFile");
 
-	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling, previewOnly,
-	                                              selectedDrumOnly);
+	error = instrument_clip_view_for_session().pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling,
+	                                                              previewOnly, selectedDrumOnly);
 
 	FRESULT fileSuccess = activeDeserializer->closeWriter();
 
-	// If that somehow didn't work...
-	if (error != Error::NONE || fileSuccess != FR_OK) {
-		if (!fileSuccess) {
-			error = Error::SD_CARD;
-		}
-
+	// Preserve a parsing/import error; otherwise report failure to close the file.
+	if (error != Error::NONE) {
 		return error;
 	}
-
-	return Error::NONE;
+	return fileSuccess == FR_OK ? Error::NONE : Error::SD_CARD;
 }
 
 // Returns error status
@@ -823,6 +819,7 @@ void FileReader::readDone() {
 	}
 
 	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
+		deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local);
 		AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();

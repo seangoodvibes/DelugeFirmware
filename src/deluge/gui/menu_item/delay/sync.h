@@ -29,14 +29,16 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() override {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
-		                                            soundEditor.currentModControllable->delay.syncLevel));
+		this->setValue(
+		    syncTypeAndLevelToMenuOption(sound_editor_for_session().currentModControllable->delay.syncType,
+		                                 sound_editor_for_session().currentModControllable->delay.syncLevel));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -50,8 +52,8 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.syncType = syncValueToSyncType(current_value);
-			soundEditor.currentModControllable->delay.syncLevel = syncValueToSyncLevel(current_value);
+			sound_editor_for_session().currentModControllable->delay.syncType = syncValueToSyncType(current_value);
+			sound_editor_for_session().currentModControllable->delay.syncLevel = syncValueToSyncLevel(current_value);
 		}
 	}
 };

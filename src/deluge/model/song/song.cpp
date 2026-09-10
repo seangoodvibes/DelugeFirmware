@@ -22,6 +22,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -38,6 +39,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/clip_length_resync.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/instrument/cv_instrument.h"
@@ -135,22 +137,18 @@ OutputType getCurrentOutputType() {
 using namespace deluge;
 
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
+	navigation.initialize_layout(FlashStorage::defaultSessionLayout);
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
 	syncScalingClip = nullptr;
-	currentClip = nullptr;
-	xScroll[NAVIGATION_CLIP] = 0;
-	xScroll[NAVIGATION_ARRANGEMENT] = 0;
-	xScrollForReturnToSongView = 0;
+	clip_selection.select(nullptr);
+	navigation.initialize(increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude),
+	                      kDefaultArrangerZoom << insideWorldTickMagnitude);
 
-	xZoom[NAVIGATION_CLIP] = increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
-	xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
-	xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
+	triplets_on_for_session() = false;
 
-	tripletsOn = false;
-
-	affectEntire = false;
+	affect_entire_for_session() = false;
 
 	fillModeActive = false;
 
@@ -161,18 +159,12 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	swingInterval = FlashStorage::defaultSwingInterval;
 
-	songViewYScroll = 1 - kDisplayHeight;
-	arrangementYScroll = -kDisplayHeight;
-
 	anyClipsSoloing = false;
 	anyOutputsSoloingInArrangement = false;
 
 	firstOutput = nullptr;
 	firstHibernatingInstrument = nullptr;
 	hibernatingMIDIInstrument = nullptr;
-
-	lastClipInstanceEnteredStartPos = -1;
-	arrangerAutoScrollModeActive = false;
 
 	paramsInAutomationMode = false;
 
@@ -192,11 +184,11 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	globalEffectable.compressor.setBaseGain(0.85);
 
 	// initialize automation arranger view variables
-	lastSelectedParamID = params::kNoParamID;
-	lastSelectedParamKind = params::Kind::NONE;
-	lastSelectedParamShortcutX = kNoSelection;
-	lastSelectedParamShortcutY = kNoSelection;
-	lastSelectedParamArrayPosition = 0;
+	last_selected_param_id_for_session() = params::kNoParamID;
+	last_selected_param_kind_for_session() = params::Kind::NONE;
+	last_selected_param_shortcut_x_for_session() = kNoSelection;
+	last_selected_param_shortcut_y_for_session() = kNoSelection;
+	last_selected_param_array_position_for_session() = 0;
 	// end initialize of automation arranger view variables
 
 	masterTransposeInterval = 0;
@@ -208,23 +200,22 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 Song::~Song() {
 
-	// Delete existing Clips, if any
-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
-			AudioEngine::routineWithClusterLoading();
+	// Pop before destruction so membership checks cannot find a freed clip in a
+	// later audio callback. Removing from the end preserves capacity and avoids
+	// moving the remaining entries during teardown.
+	for (auto* clips : {&sessionClips, &arrangementOnlyClips}) {
+		for (uint32_t deleted_count = 0; clips->getNumElements() > 0; ++deleted_count) {
+			if (!(deleted_count & 31)) {
+				AudioEngine::routineWithClusterLoading();
+			}
+			// Audio servicing can remove the remaining entries itself.
+			const int32_t index = clips->getNumElements() - 1;
+			if (index < 0)
+				break;
+			Clip* clip = clips->getClipAtIndex(index);
+			clips->delete_at_index_preserving_capacity(index);
+			deleteClipObject(clip, true, InstrumentRemoval::NONE);
 		}
-
-		Clip* clip = sessionClips.getClipAtIndex(c);
-		deleteClipObject(clip, true, InstrumentRemoval::NONE);
-	}
-
-	for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
-		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
-			AudioEngine::routineWithClusterLoading();
-		}
-
-		Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
-		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
 	AudioEngine::logAction("s4");
@@ -235,6 +226,7 @@ Song::~Song() {
 	deleteAllBackedUpParamManagers(false); // Don't empty vector - its destructor will do that
 
 	deleteAllOutputs(&firstOutput);
+	deleteAllOutputs(&undo_detached_outputs.head());
 	deleteAllOutputs((Output**)&firstHibernatingInstrument);
 
 	deleteHibernatingMIDIInstrument();
@@ -248,7 +240,7 @@ extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
 Clip* Song::getCurrentClip() {
-	return currentClip;
+	return clip_selection.current();
 }
 
 // It's not super clear to me why this isn't done as part of the constructor.
@@ -402,19 +394,19 @@ bool Song::ensureAtLeastOneSessionClip() {
 		goto couldntLoad;
 	}
 
-	error = Browser::currentDir.set("SYNTHS");
+	error = Browser::current_dir_for_session().set("SYNTHS");
 	if (error != Error::NONE) {
 		goto couldntLoad;
 	}
 
-	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(nullptr, OutputType::SYNTH,
-	                                                                                Availability::ANY);
+	result = load_instrument_preset_ui_for_session().findAnUnlaunchedPresetIncludingWithinSubfolders(
+	    nullptr, OutputType::SYNTH, Availability::ANY);
 	if (result) {
 		String newPresetName;
 		result.value()->getFilenameWithoutExtension(&newPresetName);
-		error =
-		    StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
-		                                           &result.value()->filePointer, &newPresetName, &Browser::currentDir);
+		error = StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
+		                                               &result.value()->filePointer, &newPresetName,
+		                                               &Browser::current_dir_for_session());
 
 		Browser::emptyFileItems();
 		if (error != Error::NONE) {
@@ -455,7 +447,7 @@ couldntLoad:
 	// TODO: error checking?
 	addOutput(newInstrument);
 
-	currentClip = firstClip;
+	clip_selection.select(firstClip);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -527,8 +519,8 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 						// stay exactly the same.
 						// Just have to scroll the clip so that the change in song root note
 						// does not visually move the notes on the grid.
-						yNoteOnBottomRow = getYNoteFromYVisual(instrumentClip->yScroll, true, oldKey);
-						instrumentClip->yScroll = getYVisualFromYNote(yNoteOnBottomRow, true, newKey);
+						yNoteOnBottomRow = getYNoteFromYVisual(instrumentClip->y_scroll_for_session(), true, oldKey);
+						instrumentClip->y_scroll_for_session() = getYVisualFromYNote(yNoteOnBottomRow, true, newKey);
 					}
 					else {
 						instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
@@ -618,10 +610,10 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (instrumentClip != clipToAvoidAdjustingScrollFor && instrumentClip->isScaleModeClip()) {
 			// Compensation for the change in number of mode notes
-			int32_t oldScrollRelativeToRootNote = instrumentClip->yScroll - oldRootNote;
+			int32_t oldScrollRelativeToRootNote = instrumentClip->y_scroll_for_session() - oldRootNote;
 			int32_t numOctaves = oldScrollRelativeToRootNote / oldNumModeNotes;
 
-			instrumentClip->yScroll += numMoreNotes * numOctaves + rootNoteChangeEffect;
+			instrumentClip->y_scroll_for_session() += numMoreNotes * numOctaves + rootNoteChangeEffect;
 		}
 	}
 }
@@ -937,15 +929,14 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 
 // This is a little bit of an ugly hack - normally this is true, but we'll briefly set it to false while doing that
 // "revert" that we do when (re)lengthening a Clip
-bool allowResyncingDuringClipLengthChange = true;
 
 void Song::changeFillMode(bool on) {
 	fillModeActive = on;
 
 	UI* root_ui = getRootUI();
-	if (root_ui == &instrumentClipView) {
+	if (root_ui == &instrument_clip_view_for_session()) {
 		// we peek fill notes when fill is held so need to re render rows
-		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		uiNeedsRendering(&instrument_clip_view_for_session(), 0xFFFFFFFF, 0);
 	}
 
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
@@ -955,42 +946,76 @@ void Song::changeFillMode(bool on) {
 }
 
 void Song::loadNextSong() {
-	loadSongUI.queueLoadNextSongIfAvailable(1);
+	load_song_ui_for_session().queueLoadNextSongIfAvailable(1);
 }
 
 // If action is NULL, that means this is being called as part of an undo, so don't do any extra stuff.
 // Currently mayReSyncClip is only set to false in a call that happens when we've just finished recording that Clip.
-void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
+bool Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
+	if (!clip || !clip->output || !newLength || newLength > INT32_MAX || clip->loopLength <= 0)
+		return false;
+	Song* const active_song = currentSong;
+	const auto initiating_owner = deluge::gui::ui_session::current();
+	auto* const target_output = clip->output;
+	const auto target_type = clip->type;
+	bool registered = contains_clip_for_undo(clip);
+	auto revision = [](deluge::gui::ui_session::Id id) {
+		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
+	};
+	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+	auto context_valid = [&] {
+		if (currentSong != active_song || deluge::gui::ui_session::current() != initiating_owner
+		    || revision(deluge::gui::ui_session::Id::Local) != local_revision
+		    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision)
+			return false;
+		const bool currently_registered = contains_clip_for_undo(clip);
+		if (registered && !currently_registered)
+			return false;
+		registered |= currently_registered;
+		return clip->output == target_output && clip->type == target_type && clip->loopLength == newLength;
+	};
 	uint32_t oldLength = clip->loopLength;
 
 	if (clip == syncScalingClip) {
 		uint32_t oldScale = getInputTickScale();
 		clip->loopLength = newLength;
 		inputTickScalePotentiallyJustChanged(oldScale);
+		if (!context_valid())
+			return false;
 	}
 	else {
 		clip->loopLength = newLength;
 	}
 
 	if (action) {
-		action->recordClipLengthChange(clip,
-		                               oldLength); // Records just the simple fact that clip->length has changed
+		if (!action->recordClipLengthChange(clip, oldLength))
+			return false;
+		if (!context_valid())
+			return false;
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, this)->addTimelineCounter(clip);
+	auto stack_context_valid = [&] {
+		return context_valid() && modelStack->song == this && modelStack->getTimelineCounterAllowNull() == clip;
+	};
 
 	if (newLength < oldLength) {
 		clip->lengthChanged(modelStack, oldLength, action);
+		if (!stack_context_valid())
+			return false;
 	}
 
 	clip->output->clipLengthChanged(clip, oldLength);
+	if (!stack_context_valid())
+		return false;
 
 	if (playbackHandler.isEitherClockActive() && isClipActive(clip)) {
 
 		if (mayReSyncClip) {
-			if (allowResyncingDuringClipLengthChange) {
+			if (deluge::model::clip_length_resync_allowed()) {
 				currentPlaybackMode->reSyncClip(modelStack, false,
 				                                false); // Don't "resume" - we're going to do that below.
 			}
@@ -999,32 +1024,59 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 			playbackHandler.expectEvent(); // Is this maybe redundant now that Arranger has a reSyncClip()?
 		}
 
+		if (!stack_context_valid())
+			return false;
 		clip->resumePlayback(modelStack);
 	}
+	return stack_context_valid();
 }
 
-void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack =
-	    setupModelStackWithSong(modelStackMemory, this)->addTimelineCounter(clip);
-
-	int32_t oldLength = clip->loopLength;
-
-	uint32_t oldScale = getInputTickScale();
-
-	clip->increaseLengthWithRepeats(modelStack, oldLength << 1, IndependentNoteRowLengthIncrease::DOUBLE, false,
-	                                action);
-
+bool Song::doubleClipLength(InstrumentClip* clip, Action* action) {
+	if (!clip || !clip->output || clip->loopLength <= 0 || clip->loopLength > INT32_MAX / 2)
+		return false;
+	Song* const active_song = currentSong;
+	const auto initiating_owner = deluge::gui::ui_session::current();
+	auto* const target_output = clip->output;
+	const auto target_type = clip->type;
+	const int32_t old_length = clip->loopLength;
+	const int32_t new_length = old_length * 2;
+	bool registered = contains_clip_for_undo(clip);
+	auto revision = [](deluge::gui::ui_session::Id id) {
+		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
+	};
+	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	auto* model_stack = setupModelStackWithSong(model_stack_memory, this)->addTimelineCounter(clip);
+	auto context_valid = [&] {
+		if (currentSong != active_song || deluge::gui::ui_session::current() != initiating_owner
+		    || revision(deluge::gui::ui_session::Id::Local) != local_revision
+		    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision)
+			return false;
+		const bool currently_registered = contains_clip_for_undo(clip);
+		if (registered && !currently_registered)
+			return false;
+		registered |= currently_registered;
+		return model_stack->song == this && model_stack->getTimelineCounterAllowNull() == clip
+		       && clip->output == target_output && clip->type == target_type && clip->loopLength == new_length;
+	};
+	const uint32_t old_scale = getInputTickScale();
+	if (!clip->increaseLengthWithRepeats(model_stack, new_length, IndependentNoteRowLengthIncrease::DOUBLE, false,
+	                                     action)
+	    || !context_valid())
+		return false;
 	if (clip == syncScalingClip) {
-		inputTickScalePotentiallyJustChanged(oldScale);
+		inputTickScalePotentiallyJustChanged(old_scale);
+		if (!context_valid())
+			return false;
 	}
-
-	clip->output->clipLengthChanged(clip, oldLength);
-
+	target_output->clipLengthChanged(clip, old_length);
+	if (!context_valid())
+		return false;
 	if (playbackHandler.isEitherClockActive() && isClipActive(clip)) {
-		currentPlaybackMode->reSyncClip(modelStack);
+		currentPlaybackMode->reSyncClip(model_stack);
 	}
+	return context_valid();
 }
 
 Clip* Song::getClipWithOutput(Output* output, bool mustBeActive, Clip* excludeClip,
@@ -1174,34 +1226,34 @@ void Song::writeToFile() {
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 			for (int32_t colour = 0; colour < 3; colour++) {
 				char buffer[3];
-				byteToHex(PadLEDs::imageStore[y][x][colour], buffer);
+				byteToHex(PadLEDs::image_store_for_session()[y][x][colour], buffer);
 				writer.write(buffer);
 			}
 		}
 	}
 	writer.write("\"");
 
-	if (getRootUI() == &arrangerView) {
+	if (getRootUI() == &arranger_view_for_session()) {
 		writer.writeAttribute("inArrangementView", 1);
 		goto weAreInArrangementEditorOrInClipInstance;
 	}
 
-	if (lastClipInstanceEnteredStartPos != -1) {
-		writer.writeAttribute("currentTrackInstanceArrangementPos", lastClipInstanceEnteredStartPos);
+	if (last_clip_instance_entered_start_pos_for_session() != -1) {
+		writer.writeAttribute("currentTrackInstanceArrangementPos", last_clip_instance_entered_start_pos_for_session());
 
 weAreInArrangementEditorOrInClipInstance:
-		writer.writeAttribute("xScrollSongView", xScrollForReturnToSongView);
-		writer.writeAttribute("xZoomSongView", xZoomForReturnToSongView);
+		writer.writeAttribute("xScrollSongView", x_scroll_for_return_to_song_view_for_session());
+		writer.writeAttribute("xZoomSongView", x_zoom_for_return_to_song_view_for_session());
 	}
 
-	writer.writeAttribute("arrangementAutoScrollOn", arrangerAutoScrollModeActive);
+	writer.writeAttribute("arrangementAutoScrollOn", arranger_auto_scroll_mode_active_for_session());
 
-	writer.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
-	writer.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
-	writer.writeAttribute("yScrollSongView", songViewYScroll);
-	writer.writeAttribute("yScrollArrangementView", arrangementYScroll);
-	writer.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
-	writer.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
+	writer.writeAttribute("xScroll", x_scroll_for_session()[NAVIGATION_CLIP]);
+	writer.writeAttribute("xZoom", x_zoom_for_session()[NAVIGATION_CLIP]);
+	writer.writeAttribute("yScrollSongView", song_view_y_scroll_for_session());
+	writer.writeAttribute("yScrollArrangementView", arrangement_y_scroll_for_session());
+	writer.writeAttribute("xScrollArrangementView", x_scroll_for_session()[NAVIGATION_ARRANGEMENT]);
+	writer.writeAttribute("xZoomArrangementView", x_zoom_for_session()[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
 	writer.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
 	writer.writeAttribute("rootNote", key.rootNote);
@@ -1209,27 +1261,27 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("swingAmount", swingAmount);
 	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval, true);
 
-	if (tripletsOn) {
-		writer.writeAttribute("tripletsLevel", tripletsLevel);
+	if (triplets_on_for_session()) {
+		writer.writeAttribute("tripletsLevel", triplets_level_for_session());
 	}
 
-	writer.writeAttribute("affectEntire", affectEntire);
+	writer.writeAttribute("affectEntire", affect_entire_for_session());
 	writer.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
-	if (lastSelectedParamID != params::kNoParamID) {
-		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
-		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+	if (last_selected_param_id_for_session() != params::kNoParamID) {
+		writer.writeAttribute("lastSelectedParamID", last_selected_param_id_for_session());
+		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(last_selected_param_kind_for_session()));
+		writer.writeAttribute("lastSelectedParamShortcutX", last_selected_param_shortcut_x_for_session());
+		writer.writeAttribute("lastSelectedParamShortcutY", last_selected_param_shortcut_y_for_session());
+		writer.writeAttribute("lastSelectedParamArrayPosition", last_selected_param_array_position_for_session());
 	}
 
 	globalEffectable.writeAttributesToFile(writer, false);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("songGridScrollX", songGridScrollX);
-	writer.writeAttribute("songGridScrollY", songGridScrollY);
-	writer.writeAttribute("sessionLayout", sessionLayout);
+	writer.writeAttribute("songGridScrollX", song_grid_scroll_x_for_session());
+	writer.writeAttribute("songGridScrollY", song_grid_scroll_y_for_session());
+	writer.writeAttribute("sessionLayout", session_layout_for_session());
 
 	writer.writeOpeningTagEnd();
 	// Attributes end
@@ -1532,15 +1584,16 @@ Error Song::readFromFile(Deserializer& reader) {
 
 			// "oll\x00" ->xScroll
 			case 0x006c6c6f:
-				xScroll[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
-				xScroll[NAVIGATION_CLIP] = std::max((int32_t)0, xScroll[NAVIGATION_CLIP]);
+				x_scroll_for_session()[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
+				x_scroll_for_session()[NAVIGATION_CLIP] = std::max((int32_t)0, x_scroll_for_session()[NAVIGATION_CLIP]);
 				break;
 
 			// "ollS" -> xScrollSongView
 			case 0x536c6c6f:
 				if (!strcmp(tagName, "xScrollSongView")) {
-					xScrollForReturnToSongView = reader.readTagOrAttributeValueInt();
-					xScrollForReturnToSongView = std::max((int32_t)0, xScrollForReturnToSongView);
+					x_scroll_for_return_to_song_view_for_session() = reader.readTagOrAttributeValueInt();
+					x_scroll_for_return_to_song_view_for_session() =
+					    std::max((int32_t)0, x_scroll_for_return_to_song_view_for_session());
 					break;
 				}
 				else {
@@ -1550,7 +1603,7 @@ Error Song::readFromFile(Deserializer& reader) {
 			// "ollA" -> xScrollArrangementView"
 			case 0x416c6c6f:
 				if (!strcmp(tagName, "xScrollArrangementView")) {
-					xScroll[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
+					x_scroll_for_session()[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
 					break;
 				}
 				else {
@@ -1569,14 +1622,15 @@ Error Song::readFromFile(Deserializer& reader) {
 
 			// "xZoomSongView"
 			if (!strcmp(tagName, "xZoomSongView")) {
-				xZoomForReturnToSongView = reader.readTagOrAttributeValueInt();
-				xZoomForReturnToSongView = std::max((int32_t)1, xZoomForReturnToSongView);
+				x_zoom_for_return_to_song_view_for_session() = reader.readTagOrAttributeValueInt();
+				x_zoom_for_return_to_song_view_for_session() =
+				    std::max((int32_t)1, x_zoom_for_return_to_song_view_for_session());
 			}
 
 			// "xZoom"
 			else if (!strcmp(tagName, "xZoom")) {
-				xZoom[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
-				xZoom[NAVIGATION_CLIP] = std::max((uint32_t)1, xZoom[NAVIGATION_CLIP]);
+				x_zoom_for_session()[NAVIGATION_CLIP] = reader.readTagOrAttributeValueInt();
+				x_zoom_for_session()[NAVIGATION_CLIP] = std::max((uint32_t)1, x_zoom_for_session()[NAVIGATION_CLIP]);
 			}
 			else {
 				goto unknownTag;
@@ -1593,8 +1647,8 @@ Error Song::readFromFile(Deserializer& reader) {
 			// "ollS" -> yScrollSongView"
 			case 0x536c6c6f:
 				if (!strcmp(tagName, "yScrollSongView")) {
-					songViewYScroll = reader.readTagOrAttributeValueInt();
-					songViewYScroll = std::max(1 - kDisplayHeight, songViewYScroll);
+					song_view_y_scroll_for_session() = reader.readTagOrAttributeValueInt();
+					song_view_y_scroll_for_session() = std::max(1 - kDisplayHeight, song_view_y_scroll_for_session());
 					break;
 				}
 				else {
@@ -1604,8 +1658,9 @@ Error Song::readFromFile(Deserializer& reader) {
 			// "yScrollArrangementView"
 			case 0x416c6c6f:
 				if (!strcmp(tagName, "yScrollArrangementView")) {
-					arrangementYScroll = reader.readTagOrAttributeValueInt();
-					arrangementYScroll = std::max(1 - kDisplayHeight, arrangementYScroll);
+					arrangement_y_scroll_for_session() = reader.readTagOrAttributeValueInt();
+					arrangement_y_scroll_for_session() =
+					    std::max(1 - kDisplayHeight, arrangement_y_scroll_for_session());
 					break;
 				}
 				else {
@@ -1629,39 +1684,39 @@ unknownTag:
 				reader.exitTag(tagName);
 			}
 			else if (!strcmp(tagName, "sessionLayout")) {
-				sessionLayout = (SessionLayoutType)reader.readTagOrAttributeValueInt();
+				session_layout_for_session() = (SessionLayoutType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("sessionLayout");
 			}
 
 			else if (!strcmp(tagName, "songGridScrollX")) {
-				songGridScrollX = reader.readTagOrAttributeValueInt();
+				song_grid_scroll_x_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("songGridScrollX");
 			}
 
 			else if (!strcmp(tagName, "songGridScrollY")) {
-				songGridScrollY = reader.readTagOrAttributeValueInt();
+				song_grid_scroll_y_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("songGridScrollY");
 			}
 
 			else if (!strcmp(tagName, "xZoomArrangementView")) {
-				xZoom[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
+				x_zoom_for_session()[NAVIGATION_ARRANGEMENT] = reader.readTagOrAttributeValueInt();
 				reader.exitTag("xZoomArrangementView");
 			}
 
 			else if (!strcmp(tagName,
 			                 "inArrangementView")) { // For V2.0 pre-beta songs. There'd be another way to detect
 				                                     // this...
-				lastClipInstanceEnteredStartPos = 0;
+				last_clip_instance_entered_start_pos_for_session() = 0;
 				reader.exitTag("inArrangementView");
 			}
 
 			else if (!strcmp(tagName, "currentTrackInstanceArrangementPos")) {
-				lastClipInstanceEnteredStartPos = reader.readTagOrAttributeValueInt();
+				last_clip_instance_entered_start_pos_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("currentTrackInstanceArrangementPos");
 			}
 
 			else if (!strcmp(tagName, "arrangementAutoScrollOn")) {
-				arrangerAutoScrollModeActive = reader.readTagOrAttributeValueInt();
+				arranger_auto_scroll_mode_active_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("arrangementAutoScrollOn");
 			}
 
@@ -1705,9 +1760,9 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "tripletsLevel")) {
-				tripletsLevel = reader.readTagOrAttributeValueInt();
+				triplets_level_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("tripletsLevel");
-				tripletsOn = true;
+				triplets_on_for_session() = true;
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {
@@ -1717,32 +1772,32 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "affectEntire")) {
-				affectEntire = reader.readTagOrAttributeValueInt();
+				affect_entire_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("affectEntire");
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamID")) {
-				lastSelectedParamID = reader.readTagOrAttributeValueInt();
+				last_selected_param_id_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("lastSelectedParamID");
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamKind")) {
-				lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
+				last_selected_param_kind_for_session() = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
 				reader.exitTag("lastSelectedParamKind");
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-				lastSelectedParamShortcutX = reader.readTagOrAttributeValueInt();
+				last_selected_param_shortcut_x_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("lastSelectedParamShortcutX");
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-				lastSelectedParamShortcutY = reader.readTagOrAttributeValueInt();
+				last_selected_param_shortcut_y_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("lastSelectedParamShortcutY");
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-				lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
+				last_selected_param_array_position_for_session() = reader.readTagOrAttributeValueInt();
 				reader.exitTag("lastSelectedParamArrayPosition");
 			}
 
@@ -2288,9 +2343,7 @@ skipInstance:
 #if ALPHA_OR_BETA_VERSION
 			display->displayPopup("E043");
 #endif
-			if (currentClip == clip) {
-				currentClip = nullptr;
-			}
+			invalidate_clip_selection(clip);
 			if (syncScalingClip == clip) {
 				syncScalingClip = nullptr;
 			}
@@ -2328,7 +2381,8 @@ skipInstance:
 
 	AudioEngine::routineWithClusterLoading();
 
-	int32_t playbackWillStartInArrangerAtPos = playbackHandler.playbackState ? lastClipInstanceEnteredStartPos : -1;
+	int32_t playbackWillStartInArrangerAtPos =
+	    playbackHandler.playbackState ? last_clip_instance_entered_start_pos_for_session() : -1;
 
 	AudioEngine::logAction("aaa5.1");
 	sortOutWhichClipsAreActiveWithoutSendingPGMs(modelStack, playbackWillStartInArrangerAtPos);
@@ -2445,7 +2499,8 @@ void Song::deleteSoundsWhichWontSound() {
 		Clip* clip = *it;
 
 		AudioEngine::routineWithClusterLoading();
-		if (!clip->isActiveOnOutput() && clip != view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		if (!clip->isActiveOnOutput()
+		    && clip != view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
 			it.deleteClip(InstrumentRemoval::NONE);
 		}
 		else {
@@ -3176,6 +3231,7 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 }
 
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
+	invalidate_clip_selection(clip);
 
 	if (!songBeingDestroyedToo) {
 #if ALPHA_OR_BETA_VERSION
@@ -3308,13 +3364,60 @@ uint32_t Song::getTimePerTimerTickRounded() {
 	return (uint64_t)((uint64_t)timePerTimerTickBig + (uint64_t)(uint32_t)2147483648uL) >> 32; // Rounds
 }
 
+// Compare identity before dereferencing a history target. Detached outputs are
+// still song-owned, but cannot be removed from the active list a second time.
+int32_t Song::get_clip_index_for_undo(ClipArray* array, const Clip* clip) {
+	// Compare ownership before dereferencing either retained target.
+	if (!clip || (array != &sessionClips && array != &arrangementOnlyClips))
+		return -1;
+	for (int32_t i = 0; i < array->getNumElements(); ++i) {
+		if (array->getClipAtIndex(i) == clip)
+			return i;
+	}
+	return -1;
+}
+
+bool Song::contains_clip_for_undo(const Clip* clip) {
+	if (!clip)
+		return false;
+	for (auto* clips : {&sessionClips, &arrangementOnlyClips}) {
+		for (int32_t i = 0; i < clips->getNumElements(); ++i) {
+			if (clips->getClipAtIndex(i) == clip)
+				return true;
+		}
+	}
+	return false;
+}
+
+bool Song::can_reference_clip_from_output(const Clip* clip, const Output* output) {
+	if (!owns_output_for_undo(output))
+		return false;
+	// Empty arranger instances are valid. Nonempty instances must reference a
+	// clip currently registered in this song, not merely retained in undo history.
+	if (!clip)
+		return true;
+	return contains_clip_for_undo(clip) && clip->output == output;
+}
+
+bool Song::owns_output_for_undo(const Output* output, bool include_detached) const {
+	if (!output)
+		return false;
+	for (auto* candidate = firstOutput; candidate; candidate = candidate->next) {
+		if (candidate == output)
+			return true;
+	}
+	return include_detached && undo_detached_outputs.contains(output);
+}
+
 void Song::addOutput(Output* output, bool atStart) {
+	undo_detached_outputs.release(output);
 
 	if (atStart) {
 		output->next = firstOutput;
 		firstOutput = output;
 
-		arrangementYScroll++;
+		navigation.output_inserted_at_start();
+		deluge::gui::ui_session::request_peer_structural_refresh();
 	}
 	else {
 		Output** prevPointer = &firstOutput;
@@ -3382,17 +3485,8 @@ int32_t Song::removeOutputFromMainList(
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 
-	int32_t bottomYDisplay = -arrangementYScroll;
-	int32_t topYDisplay = bottomYDisplay + getNumOutputs();
-
-	bottomYDisplay = std::max(0_i32, bottomYDisplay);
-	topYDisplay = std::min(kDisplayHeight - 1, topYDisplay);
-
-	int32_t yDisplay = outputIndex - arrangementYScroll;
-
-	if (yDisplay - bottomYDisplay < topYDisplay - yDisplay) {
-		arrangementYScroll--;
-	}
+	navigation.output_removed(outputIndex, getNumOutputs());
+	deluge::gui::ui_session::request_peer_structural_refresh();
 
 	// If the removed Output was soloing, and we haven't yet seen any other soloing Outputs, we'd better check out
 	// the rest
@@ -3590,14 +3684,17 @@ deleteIt:
 // AudioOutputs can be recording from it (a cloned overdub copies the pointer without taking over the monitoring), and
 // each of those would be left pointing at freed memory.
 void Song::clearRecordingFromReferencesTo(Output* output) {
-	for (Output* other = firstOutput; other; other = other->next) {
-		if (other != output && other->getOutputRecordingFrom() == output) {
-			other->clearRecordingFrom();
+	for (auto* list : {firstOutput, undo_detached_outputs.head()}) {
+		for (Output* other = list; other; other = other->next) {
+			if (other != output && other->getOutputRecordingFrom() == output) {
+				other->clearRecordingFrom();
+			}
 		}
 	}
 }
 
 void Song::deleteOutput(Output* output) {
+	undo_detached_outputs.release(output);
 	clearRecordingFromReferencesTo(output);
 	for (int y = 0; y < 8; y++) {
 		auto& m = sessionMacros[y];
@@ -4420,11 +4517,30 @@ void Song::resumeClipsClonedForArrangementRecording() {
 	}
 }
 
-void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
+Error Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
+	// Only this operation opts into strict snapshot failure propagation. Preserve
+	// the caller's requirement across every early return, including nested scopes.
+	struct SnapshotRequirement {
+		Action* action;
+		bool previous;
+		explicit SnapshotRequirement(Action* target)
+		    : action(target), previous(target && target->require_complete_snapshots) {
+			if (action)
+				action->require_complete_snapshots = true;
+		}
+		~SnapshotRequirement() {
+			if (action)
+				action->require_complete_snapshots = previous;
+		}
+	} snapshots(action);
+	if (action && action->snapshot_error != Error::NONE)
+		return action->snapshot_error;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	paramManager.trimToLength(pos, modelStack, action, false);
+	if (action && action->snapshot_error != Error::NONE)
+		return action->snapshot_error;
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		int32_t i = thisOutput->clipInstances.search(pos, GREATER_OR_EQUAL);
@@ -4436,15 +4552,16 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 		// exist anymore.
 		for (int32_t j = thisOutput->clipInstances.getNumElements() - 1; j >= i; j--) {
 			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(j);
-			if (action) {
-				action->recordClipInstanceExistenceChange(thisOutput, clipInstance, ExistenceChangeType::DELETE);
+			if (action
+			    && !action->recordClipInstanceExistenceChange(thisOutput, clipInstance, ExistenceChangeType::DELETE)) {
+				return Error::INSUFFICIENT_RAM;
 			}
 			Clip* clip = clipInstance->clip;
 			thisOutput->clipInstances.deleteAtIndex(j);
 
-			deletingClipInstanceForClip(thisOutput, clip, action,
-			                            true); // Could be bad that this calls the audio routine before we've
-			                                   // actually deleted the ClipInstances...
+			Error error = deletingClipInstanceForClip(thisOutput, clip, action, true, true);
+			if (error != Error::NONE)
+				return error;
 		}
 
 		// Shorten the previous one if need be
@@ -4453,16 +4570,21 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(numElements - 1);
 			int32_t maxLength = pos - clipInstance->pos;
 			if (clipInstance->length > maxLength) {
-				clipInstance->change(action, thisOutput, clipInstance->pos, maxLength, clipInstance->clip);
+				if (!clipInstance->change(action, thisOutput, clipInstance->pos, maxLength, clipInstance->clip))
+					return Error::BUG;
+				if (action && action->snapshot_error != Error::NONE)
+					return action->snapshot_error;
 			}
 		}
 	}
+	return Error::NONE;
 }
 
 // Will call audio routine!!
 // Note: in most cases (when action supplied), will try to pick a new activeClip even if told not to. But this
 // should be ok
-void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip) {
+Error Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip,
+                                        bool preserve_history_on_failure) {
 
 	// If clipInstance had a Clip, and it's a (white) arrangement-only Clip, then the whole Clip needs deleting.
 	if (clip && clip->isArrangementOnlyClip()) {
@@ -4472,12 +4594,39 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 		bool deletionDone = false;
 
 		if (action) {
+			Song* const active_song = currentSong;
+			const auto retained_identity = action->action_identity;
+			const bool retained_in_history = actionLogger.firstAction[BEFORE] == action;
+			using namespace deluge::gui::ui_session;
+			const auto owner = current();
+			const auto local_revision =
+			    deluge::gui::ui_session::navigation.for_owner(Id::Local).structural_refresh.revision();
+			const auto remote_revision =
+			    deluge::gui::ui_session::navigation.for_owner(Id::Remote).structural_refresh.revision();
 			deletionDone =
 			    action->recordClipExistenceChange(this, &arrangementOnlyClips, clip, ExistenceChangeType::DELETE);
+			// A failed recorder can mean invalidation, not just insufficient RAM.
+			// Validate external ownership before reading retained action/model pointers
+			// or falling back to destructive cleanup.
+			if (!deletionDone
+			    && (currentSong != active_song || current() != owner
+			        || deluge::gui::ui_session::navigation.for_owner(Id::Local).structural_refresh.revision()
+			               != local_revision
+			        || deluge::gui::ui_session::navigation.for_owner(Id::Remote).structural_refresh.revision()
+			               != remote_revision
+			        || (retained_in_history && actionLogger.firstAction[BEFORE] != action)
+			        || action->action_identity != retained_identity || !contains_clip_for_undo(clip)
+			        || !owns_output_for_undo(output) || clip->output != output))
+				return Error::BUG;
 			// That call will call pickAnActiveClipIfPossible() whether we like it or not...
 		}
 
 		if (!deletionDone) { // If not enough memory to create undo-history...
+			if (action && preserve_history_on_failure) {
+				// The caller may hold a detached consequence chain referencing this
+				// clip. Keep it owned by the song and let the caller recover.
+				return Error::INSUFFICIENT_RAM;
+			}
 			actionLogger.deleteAllLogs();
 			// Delete the actual Clip.
 			// Will not remove Instrument from Song. Will call audio routine! That's why we deleted the ClipInstance
@@ -4495,6 +4644,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 			}
 		}
 	}
+	return Error::NONE;
 }
 
 bool Song::arrangementHasAnyClipInstances() {
@@ -4536,7 +4686,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 		}
 	}
 
-	view.notifyParamAutomationOccurred(&paramManager, true);
+	view_for_session().notifyParamAutomationOccurred(&paramManager, true);
 }
 
 // returns true if the whole instrument should be replaced, and not just the instrument for the given clip
@@ -4546,7 +4696,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a
 	// different Output If in session view, change the whole instrument
-	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
+	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &session_view_for_session()) {
 		if (availabilityRequirement) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
@@ -4673,13 +4823,13 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
 
-		view.displayOutputName(oldNonAudioInstrument);
+		view_for_session().displayOutputName(oldNonAudioInstrument);
 	}
 
 	// Or if we're on a Kit or Synth...
 	else {
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
+		PresetNavigationResult results = load_instrument_preset_ui_for_session().doPresetNavigation(
+		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->haveOLED()) {
@@ -4815,18 +4965,19 @@ gotAnInstrument: {}
 
 	// Synth or Kit
 	else {
-		Error error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+		Error error = Browser::current_dir_for_session().set(getInstrumentFolder(newOutputType));
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return nullptr;
 		}
 
-		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-		                                     this, newOutputType, Availability::INSTRUMENT_UNUSED),
-		                                 error, {
-			                                 display->displayError(error);
-			                                 return nullptr;
-		                                 });
+		FileItem* fileItem =
+		    D_TRY_CATCH(load_instrument_preset_ui_for_session().findAnUnlaunchedPresetIncludingWithinSubfolders(
+		                    this, newOutputType, Availability::INSTRUMENT_UNUSED),
+		                error, {
+			                display->displayError(error);
+			                return nullptr;
+		                });
 
 		newInstrument = fileItem->instrument;
 		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
@@ -4834,9 +4985,9 @@ gotAnInstrument: {}
 		if (!newInstrument) {
 			String newPresetName;
 			fileItem->getFilenameWithoutExtension(&newPresetName);
-			error =
-			    StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
-			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
+			error = StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
+			                                               &fileItem->filePointer, &newPresetName,
+			                                               &Browser::current_dir_for_session());
 		}
 
 		Browser::emptyFileItems();
@@ -4863,7 +5014,7 @@ gotAnInstrument: {}
 	replaceInstrument(oldInstrument, newInstrument);
 #if ALPHA_OR_BETA_VERSION
 	if (display->have7SEG()) {
-		view.displayOutputName(newInstrument);
+		view_for_session().displayOutputName(newInstrument);
 	}
 #endif
 
@@ -5125,9 +5276,7 @@ gotAnInstrument:
 void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically) {
 
 	// If this is the current Clip for the ClipView...
-	if (currentClip == clip) {
-		currentClip = nullptr;
-	}
+	invalidate_clip_selection(clip);
 
 	// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip
 	if (clip->soloingInSessionMode) {
@@ -5189,13 +5338,7 @@ lookAtNextOne:
 		}
 	}
 
-	int32_t clipYDisplay = clipIndex - songViewYScroll;
-	int32_t bottomYDisplay = -songViewYScroll;
-	int32_t topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
-	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
-	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
-	int32_t amountOfStuffAbove = topYDisplay - clipYDisplay;
-	int32_t amountOfStuffBelow = clipYDisplay - bottomYDisplay;
+	const int32_t remaining_clip_count = sessionClips.getNumElements() - 1;
 
 	removeSessionClipLowLevel(clip, clipIndex);
 
@@ -5212,9 +5355,8 @@ lookAtNextOne:
 		deleteClipObject(clip, false, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 	}
 
-	if (forceClipsAboveToMoveVertically || amountOfStuffAbove > amountOfStuffBelow) {
-		songViewYScroll--;
-	}
+	navigation.session_clip_removed(clipIndex, remaining_clip_count, forceClipsAboveToMoveVertically);
+	deluge::gui::ui_session::request_peer_structural_refresh();
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender =
 	    true; // Necessary? Maybe the Instrument would get deleted from the master list?
@@ -5276,9 +5418,9 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 }
 
 int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
+	int32_t numToSearch = std::min(sessionClips.getNumElements(), song_view_y_scroll_for_session() + kDisplayHeight);
 
-	int32_t outputValue = songViewYScroll;
+	int32_t outputValue = song_view_y_scroll_for_session();
 
 	for (int32_t i = 0; i < numToSearch; i++) {
 		Clip* clip = sessionClips.getClipAtIndex(i);
@@ -5326,7 +5468,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		return nullptr;
 	}
 	// if we're in rows or the clip can't support in place overdub then use the traditional deluge cloning looper
-	if (sessionLayout == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
+	if (session_layout_for_session() == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
@@ -5337,12 +5479,11 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		if (newClip && newClip != clip) {
 			newClip->overdubNature = newOverdubNature;
 			sessionClips.insertClipAtIndex(newClip, clipIndex);
-			if (clipIndex != songViewYScroll) {
-				songViewYScroll++;
-			}
+			navigation.pending_overdub_inserted(clipIndex);
+			deluge::gui::ui_session::request_peer_structural_refresh();
 
 			// use root UI in case this is called from performance view
-			sessionView.requestRendering(getRootUI());
+			session_view_for_session().requestRendering(getRootUI());
 		}
 	}
 	else {
@@ -5416,9 +5557,7 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 		syncScalingClip = newClip;
 	}
 
-	if (oldClip == currentClip) {
-		currentClip = newClip;
-	}
+	clip_selection.replace(oldClip, newClip);
 
 	deleteClipObject(oldClip);
 }
@@ -5546,7 +5685,7 @@ int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 }
 
 void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	if (affectEntire) {
+	if (affect_entire_for_session()) {
 		modelStack->setTimelineCounter(this);
 		modelStack->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
 	}
@@ -5694,11 +5833,11 @@ doHibernatingInstruments:
 		Instrument* thisInstrument = (Instrument*)thisOutput;
 
 		// If different path, it's not relevant.
-		if (!thisInstrument->dirPath.equals(&Browser::currentDir)) {
+		if (!thisInstrument->dirPath.equals(&Browser::current_dir_for_session())) {
 			continue;
 		}
 
-		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
+		FileItem* thisItem = load_instrument_preset_ui_for_session().getNewFileItem();
 
 		if (!thisItem) {
 			return Error::INSUFFICIENT_RAM;
@@ -5735,10 +5874,11 @@ void Song::displayCurrentRootNoteAndScaleName() {
 	getCurrentRootNoteAndScaleName(popupMsg);
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
-		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+		bool isSessionView = (currentUI == &session_view_for_session() || currentUI == &arranger_view_for_session());
 		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 		if (isSessionView && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
-			sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
+			session_view_for_session().displayCurrentRootNoteAndScaleName(
+			    deluge::hid::display::OLED::main_for_session(), popupMsg, true);
 			deluge::hid::display::OLED::markChanged();
 			return;
 		}
@@ -5805,7 +5945,7 @@ ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(vo
 }
 
 ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory) {
-	return setupModelStackWithTimelineCounter(memory, this, currentClip);
+	return setupModelStackWithTimelineCounter(memory, this, getCurrentClip());
 }
 
 ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {

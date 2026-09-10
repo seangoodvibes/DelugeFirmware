@@ -33,4 +33,4 @@ protected:
 	std::string_view getCurrentName() const override;
 };
 
-extern RenameOutputUI renameOutputUI;
+RenameOutputUI& rename_output_ui_for_session();

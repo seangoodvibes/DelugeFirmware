@@ -9,11 +9,11 @@
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.currentMultiRange = nullptr;
+	sound_editor_for_session().currentMultiRange = nullptr;
 
-	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
-		navigatedBackwardFrom = items[initial_index_];
-		initial_index_ = 0; // only set on first access, remember previously accessed menu otherwise.
+	if (navigatedBackwardFrom == nullptr && initial_selection_pending() && initial_index_ > 0) {
+		navigatedBackwardFrom = items_for_session()[initial_index_];
+		initial_selection_pending() = false; // Apply the initial selection once per panel.
 	}
 	focusChild(navigatedBackwardFrom);
 	if (display->have7SEG()) {
@@ -25,35 +25,45 @@ bool Submenu::focusChild(const MenuItem* child) {
 	if (child != nullptr) {
 		// if the specific child is passed, try to find it among the items
 		// if not found or not relevant, keep the previous selection
-		auto candidate = std::find(items.begin(), items.end(), child);
-		if (candidate != items.end() && isItemRelevant(*candidate)) {
-			current_item_ = candidate;
+		auto candidate = std::find(items_for_session().begin(), items_for_session().end(), child);
+		if (candidate != items_for_session().end() && isItemRelevant(*candidate)) {
+			current_item_iterator() = candidate;
 		}
 	}
 
 	// If the current item isn't valid or isn't relevant, set to first relevant one instead.
-	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
-		current_item_ = std::ranges::find_if(items, isItemRelevant); // Find first relevant item.
+	if (current_item_iterator() == items_for_session().end() || !isItemRelevant(*current_item_iterator())) {
+		current_item_iterator() =
+		    std::ranges::find_if(items_for_session(), isItemRelevant); // Find first relevant item.
 	}
 
-	return current_item_ != items.end();
+	return current_item_iterator() != items_for_session().end();
+}
+
+void Submenu::refresh_shared_value() {
+	// Preserve the cursor even if another panel changes item relevance. Normal
+	// navigation will handle that separately; a refresh must not leave this menu.
+	if (display->haveOLED())
+		renderUIsForOled();
+	else if (current_item_iterator() != items_for_session().end())
+		(*current_item_iterator())->drawName();
 }
 
 void Submenu::updateDisplay() {
 	if (!focusChild(nullptr)) {
 		// no relevant items, back out
-		soundEditor.goUpOneLevel();
+		sound_editor_for_session().goUpOneLevel();
 	}
 	else if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
-		(*current_item_)->drawName();
+		(*current_item_iterator())->drawName();
 	}
 }
 
 void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
-	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main_for_session();
 
 	// Draw arrow icon centered indicating that there is another layer
 	const int32_t arrow_y = slot.start_y + kHorizontalMenuSlotYOffset;
@@ -64,9 +74,11 @@ void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
 void Submenu::drawPixelsForOled() {
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
-	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
+	for (auto it = current_item_iterator() - 1;
+	     it != items_for_session().begin() - 1 && before.size() < before.capacity(); it--) {
 		MenuItem* menuItem = (*it);
-		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+		if (menuItem->isRelevant(sound_editor_for_session().currentModControllable,
+		                         sound_editor_for_session().currentSourceIndex)) {
 			before.push_back(menuItem);
 		}
 	}
@@ -74,9 +86,10 @@ void Submenu::drawPixelsForOled() {
 
 	// Collect current item and fill the tail
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> after = {};
-	for (auto it = current_item_; it != items.end() && after.size() < after.capacity(); it++) {
+	for (auto it = current_item_iterator(); it != items_for_session().end() && after.size() < after.capacity(); it++) {
 		MenuItem* menuItem = (*it);
-		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+		if (menuItem->isRelevant(sound_editor_for_session().currentModControllable,
+		                         sound_editor_for_session().currentSourceIndex)) {
 			after.push_back(menuItem);
 		}
 	}
@@ -103,7 +116,7 @@ void Submenu::drawPixelsForOled() {
 }
 
 void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main_for_session();
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
@@ -137,46 +150,50 @@ bool Submenu::wrapAround() {
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {
-	if (current_item_ == items.end()) {
+	if (current_item_iterator() == items_for_session().end()) {
 		return;
 	}
 
 	if (offset > 0) {
 		// Scan items forward, counting relevant items.
-		auto lastRelevant = current_item_;
+		auto lastRelevant = current_item_iterator();
 		do {
-			current_item_++;
-			if (current_item_ == items.end()) {
+			current_item_iterator()++;
+			if (current_item_iterator() == items_for_session().end()) {
 				if (wrapAround()) {
-					current_item_ = items.begin();
+					current_item_iterator() = items_for_session().begin();
 				}
 				else {
-					current_item_ = lastRelevant;
+					current_item_iterator() = lastRelevant;
 					break;
 				}
 			}
-			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-				lastRelevant = current_item_;
+			if ((*current_item_iterator())
+			        ->isRelevant(sound_editor_for_session().currentModControllable,
+			                     sound_editor_for_session().currentSourceIndex)) {
+				lastRelevant = current_item_iterator();
 				offset--;
 			}
 		} while (offset > 0);
 	}
 	else if (offset < 0) {
 		// Scan items backwad, counting relevant items.
-		auto lastRelevant = current_item_;
+		auto lastRelevant = current_item_iterator();
 		do {
-			if (current_item_ == items.begin()) {
+			if (current_item_iterator() == items_for_session().begin()) {
 				if (wrapAround()) {
-					current_item_ = items.end();
+					current_item_iterator() = items_for_session().end();
 				}
 				else {
-					current_item_ = lastRelevant;
+					current_item_iterator() = lastRelevant;
 					break;
 				}
 			}
-			current_item_--;
-			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-				lastRelevant = current_item_;
+			current_item_iterator()--;
+			if ((*current_item_iterator())
+			        ->isRelevant(sound_editor_for_session().currentModControllable,
+			                     sound_editor_for_session().currentSourceIndex)) {
+				lastRelevant = current_item_iterator();
 				offset++;
 			}
 		} while (offset < 0);
@@ -186,26 +203,26 @@ void Submenu::selectEncoderAction(int32_t offset) {
 
 bool Submenu::shouldForwardButtons() {
 	// Should we deliver buttons to selected menu item instead?
-	return renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()
-	       && (*current_item_)->isSubmenu() == false;
+	return renderingStyle() == RenderingStyle::HORIZONTAL && current_item_iterator() != items_for_session().end()
+	       && (*current_item_iterator())->isSubmenu() == false;
 }
 
 MenuItem* Submenu::selectButtonPress() {
 	if (shouldForwardButtons()) {
 		// In horizontal menus, some items (e.g. patch cable menus like vibrato)
 		// should enter their own full-screen session before handling SELECT.
-		if ((*current_item_)->allowToBeginSessionFromHorizontalMenu()) {
-			return *current_item_;
+		if ((*current_item_iterator())->allowToBeginSessionFromHorizontalMenu()) {
+			return *current_item_iterator();
 		}
-		return (*current_item_)->selectButtonPress();
+		return (*current_item_iterator())->selectButtonPress();
 	}
 
-	return *current_item_;
+	return *current_item_iterator();
 }
 
 ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (shouldForwardButtons()) {
-		return (*current_item_)->buttonAction(b, on, inCardRoutine);
+		return (*current_item_iterator())->buttonAction(b, on, inCardRoutine);
 	}
 	else {
 		return MenuItem::buttonAction(b, on, inCardRoutine);
@@ -214,7 +231,7 @@ ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 
 deluge::modulation::params::Kind Submenu::getParamKind() {
 	if (shouldForwardButtons()) {
-		return (*current_item_)->getParamKind();
+		return (*current_item_iterator())->getParamKind();
 	}
 	else {
 		return MenuItem::getParamKind();
@@ -223,7 +240,7 @@ deluge::modulation::params::Kind Submenu::getParamKind() {
 
 uint32_t Submenu::getParamIndex() {
 	if (shouldForwardButtons()) {
-		return (*current_item_)->getParamIndex();
+		return (*current_item_iterator())->getParamIndex();
 	}
 	else {
 		return MenuItem::getParamIndex();
@@ -231,39 +248,39 @@ uint32_t Submenu::getParamIndex() {
 }
 
 void Submenu::unlearnAction() {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->unlearnAction();
+	if (sound_editor_for_session().getCurrentMenuItem() == this) {
+		(*current_item_iterator())->unlearnAction();
 	}
 }
 
 bool Submenu::allowsLearnMode() {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->allowsLearnMode();
+	if (sound_editor_for_session().getCurrentMenuItem() == this) {
+		return (*current_item_iterator())->allowsLearnMode();
 	}
 	return false;
 }
 
 void Submenu::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnKnob(cable, whichKnob, modKnobMode, midiChannel);
+	if (sound_editor_for_session().getCurrentMenuItem() == this) {
+		(*current_item_iterator())->learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	}
 }
 void Submenu::learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnProgramChange(cable, channel, programNumber);
+	if (sound_editor_for_session().getCurrentMenuItem() == this) {
+		(*current_item_iterator())->learnProgramChange(cable, channel, programNumber);
 	}
 }
 
 bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->learnNoteOn(cable, channel, noteCode);
+	if (sound_editor_for_session().getCurrentMenuItem() == this) {
+		return (*current_item_iterator())->learnNoteOn(cable, channel, noteCode);
 	}
 	return false;
 }
 
 void Submenu::updatePadLights() {
-	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
-		soundEditor.updatePadLightsFor(*current_item_);
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_iterator() != items_for_session().end()) {
+		sound_editor_for_session().updatePadLightsFor(*current_item_iterator());
 	}
 	else {
 		MenuItem::updatePadLights();
@@ -271,18 +288,18 @@ void Submenu::updatePadLights() {
 }
 
 bool Submenu::usesAffectEntire() {
-	if (current_item_ != items.end()
-	    && (renderingStyle() == RenderingStyle::HORIZONTAL || !(*current_item_)->shouldEnterSubmenu())) {
+	if (current_item_iterator() != items_for_session().end()
+	    && (renderingStyle() == RenderingStyle::HORIZONTAL || !(*current_item_iterator())->shouldEnterSubmenu())) {
 		// If the menu is Horizontal or is the focused menu item is a toggle,
 		// then we should use affect-entire from this item
-		return (*current_item_)->usesAffectEntire();
+		return (*current_item_iterator())->usesAffectEntire();
 	}
 	return false;
 }
 
 MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
-	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
-		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_iterator() != items_for_session().end()) {
+		return (*current_item_iterator())->patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 	else {
 		return MenuItem::patchingSourceShortcutPress(s, previousPressStillActive);

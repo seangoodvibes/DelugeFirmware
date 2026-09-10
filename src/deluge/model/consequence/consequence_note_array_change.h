@@ -28,9 +28,14 @@ public:
 	ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId, NoteVector* newNoteVector,
 	                           bool stealData);
 	Error revert(TimeType time, ModelStack* modelStack) override;
+	bool snapshot_valid() const { return snapshot_valid_; }
 
 	InstrumentClip* clip;
 	int32_t noteRowId;
+	uint64_t note_row_identity = 0;
 
 	NoteVector backedUpNoteVector;
+
+private:
+	bool snapshot_valid_ = true;
 };

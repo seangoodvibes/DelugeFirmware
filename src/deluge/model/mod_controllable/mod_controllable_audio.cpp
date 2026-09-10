@@ -1079,10 +1079,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 				// region.
-				if (view.modLength
-				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-					modPos = view.modPos;
-					modLength = view.modLength;
+				if (view_for_session().modLength
+				    && timelineCounter
+				           == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					modPos = view_for_session().modPos;
+					modLength = view_for_session().modLength;
 					isStepEditing = true;
 				}
 
@@ -1131,7 +1132,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
-				if (getRootUI() == &automationView && !automationView.onArrangerView) {
+				if (getRootUI() == &automation_view_for_session() && !automation_view_for_session().onArrangerView) {
 					Clip* clip = (Clip*)modelStack->getTimelineCounter();
 					// check that the clip that the param is being edited for is the same as the
 					// current clip as the current clip is what's actively displayed in automation view
@@ -1140,7 +1141,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 						// for the same clip active in automation view
 						int32_t id = modelStackWithParam->paramId;
 						params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
+						automation_view_for_session().possiblyRefreshAutomationEditorGrid(clip, kind, id);
 					}
 				}
 			}
@@ -1176,10 +1177,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 
 				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 				// region.
-				if (view.modLength
-				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-					modPos = view.modPos;
-					modLength = view.modLength;
+				if (view_for_session().modLength
+				    && timelineCounter
+				           == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					modPos = view_for_session().modPos;
+					modLength = view_for_session().modLength;
 					isStepEditing = true;
 				}
 			}
@@ -1223,15 +1225,15 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				// performance view if so, you will need to refresh the automation editor grid or the
 				// performance view
 				RootUI* rootUI = getRootUI();
-				if (rootUI == &automationView || rootUI == &performanceView) {
+				if (rootUI == &automation_view_for_session() || rootUI == &performance_view_for_session()) {
 					int32_t id = modelStackWithParam->paramId;
 					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-					if (rootUI == &automationView) {
-						automationView.possiblyRefreshAutomationEditorGrid(nullptr, kind, id);
+					if (rootUI == &automation_view_for_session()) {
+						automation_view_for_session().possiblyRefreshAutomationEditorGrid(nullptr, kind, id);
 					}
 					else {
-						performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+						performance_view_for_session().possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
 					}
 				}
 			}
@@ -1264,10 +1266,11 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 			if (modelStack->timelineCounterIsSet()) {
 				TimelineCounter* timelineCounter = modelStack->getTimelineCounter();
-				if (view.modLength
-				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-					modPos = view.modPos;
-					modLength = view.modLength;
+				if (view_for_session().modLength
+				    && timelineCounter
+				           == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					modPos = view_for_session().modPos;
+					modLength = view_for_session().modLength;
 				}
 
 				timelineCounter->possiblyCloneForArrangementRecording(modelStack);
@@ -1308,7 +1311,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	        stutterConfig.useSongStutter ? currentSong->globalEffectable.stutterConfig : stutterConfig,
 	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
 		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
-		view.notifyParamAutomationOccurred(paramManager);
+		view_for_session().notifyParamAutomationOccurred(paramManager);
 		enterUIMode(UI_MODE_STUTTERING);
 	}
 }
@@ -1325,7 +1328,7 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 	stutterer.endStutter(paramManager);
 	if (paramManager) {
 		// Redraw the LEDs.
-		view.notifyParamAutomationOccurred(paramManager);
+		view_for_session().notifyParamAutomationOccurred(paramManager);
 	}
 	exitUIMode(UI_MODE_STUTTERING);
 }
@@ -1645,7 +1648,7 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 			popupMsg.append("\n");
 
 			// Reverb
-			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			popupMsg.append(view_for_session().getReverbPresetDisplayName(view_for_session().getCurrentReverbPreset()));
 
 			display->popupText(popupMsg.c_str());
 		}
@@ -1658,7 +1661,8 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 			display->displayPopup(getSidechainDisplayName());
 		}
 		else {
-			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			display->displayPopup(
+			    view_for_session().getReverbPresetDisplayName(view_for_session().getCurrentReverbPreset()));
 		}
 	}
 }
@@ -1703,12 +1707,12 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	// then we will display the top gold knob parameter
 	if (display->haveOLED() || on) {
 		char parameterName[30];
-		view.getParameterNameFromModEncoder(1, parameterName);
+		view_for_session().getParameterNameFromModEncoder(1, parameterName);
 		popupMsg.append(parameterName);
 	}
 	// in the song context,
 	// the bottom knob for modButton 6 (stutter) doesn't have a parameter
-	if (!((whichModButton == 6) && (!view.isClipContext()))) {
+	if (!((whichModButton == 6) && (!view_for_session().isClipContext()))) {
 		// if we have an OLED display, we want to add a new line so we can
 		// display the bottom gold knob param below the top gold knob param
 		if (display->haveOLED()) {
@@ -1721,7 +1725,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 		if (display->haveOLED() || !on) {
 
 			char parameterName[30];
-			view.getParameterNameFromModEncoder(0, parameterName);
+			view_for_session().getParameterNameFromModEncoder(0, parameterName);
 			popupMsg.append(parameterName);
 		}
 	}

@@ -25,11 +25,11 @@ namespace deluge::gui::menu_item {
 DxBrowseMenu dxBrowseMenu{l10n::String::STRING_FOR_DX_BROWSER};
 
 void DxBrowseMenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.shouldGoUpOneLevelOnBegin = true;
+	sound_editor_for_session().shouldGoUpOneLevelOnBegin = true;
 	// if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 	// 	keyboardScreen.exitAuditionMode();
 	// }
-	bool success = openUI(&dxBrowser);
+	bool success = openUI(&dx_browser_for_session());
 	if (!success) {
 		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);

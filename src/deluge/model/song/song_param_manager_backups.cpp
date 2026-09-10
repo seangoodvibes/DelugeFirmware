@@ -8,6 +8,18 @@
 ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
                                                         ParamManager* stealInto) {
 
+	if (!modControllable)
+		return nullptr;
+	// Lookup exposes backup storage for preflight, but transfers must target a
+	// live manager outside that array: removal can move or destroy its entries.
+	if (stealInto) {
+		for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); ++i) {
+			auto* backup = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(i));
+			if (stealInto == &backup->paramManager)
+				return nullptr;
+		}
+	}
+
 	uint32_t keyWords[2];
 	keyWords[0] = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable));
 	keyWords[1] = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(clip));
@@ -156,6 +168,8 @@ doStealing:
 }
 
 void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
+	if (!clip)
+		return;
 
 	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
@@ -167,14 +181,21 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 		if (backedUp->clip == clip) {
 
-			AudioEngine::routineWithClusterLoading();
-
 			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have
 			// the same ModControllable
 			if (i == 0
 			    || ((BackedUpParamManager*)backedUpParamManagers.getElementAddress(i - 1))->modControllable
 			           != backedUp->modControllable) {
+				// A generic output backup must not carry the deleted clip's
+				// expression state, even when this is already the first entry.
+				ModControllableAudio* owner = backedUp->modControllable;
+				ParamManagerForTimeline main_parameters;
+				main_parameters.stealParamCollectionsFrom(&backedUp->paramManager);
+				backedUp->~BackedUpParamManager();
+				backedUp = new (backedUp) BackedUpParamManager();
+				backedUp->modControllable = owner;
 				backedUp->clip = nullptr;
+				backedUp->paramManager.stealParamCollectionsFrom(&main_parameters);
 				i++;
 			}
 
@@ -185,49 +206,34 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
 				ModControllableAudio* modControllable = backedUp->modControllable;
 
-				// We have to delete that element...
-				// The main-only steal leaves expression behind; deleteAtIndex() does not run destructors.
-				// Song backup regression tests caught that expression leaking when this entry was removed.
-				backedUp->~BackedUpParamManager();
-				backedUpParamManagers.deleteAtIndex(i);
-
-				// ...and then go find the first one that had this ModControllable
 				int32_t j = backedUpParamManagers.search(
-				    static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable)), GREATER_OR_EQUAL, 0,
-				    i); // Search by first word only
-				BackedUpParamManager* firstElementWithModControllable =
-				    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
+				    static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable)), GREATER_OR_EQUAL, 0, i);
+				auto* first_element = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(j));
 
-				// If it already had a NULL Clip, we have to replace its ParamManager
-				if (!firstElementWithModControllable->clip) {
-					firstElementWithModControllable->paramManager.destructAndForgetParamCollections();
-
-					firstElementWithModControllable->paramManager.stealParamCollectionsFrom(&paramManager);
-
-					// Don't increment i, as we've deleted an element instead
+				// Main parameters survive as the generic backup. Expression still
+				// belongs to the removed clip and must be destroyed.
+				backedUp->~BackedUpParamManager();
+				if (!first_element->clip) {
+					backedUpParamManagers.deleteAtIndex(i);
+					first_element = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(j));
+					first_element->paramManager.destructAndForgetParamCollections();
+					first_element->paramManager.stealParamCollectionsFrom(&paramManager);
 				}
-
-				// Otherwise, we insert before it
 				else {
-					Error error = backedUpParamManagers.insertAtIndex(j);
-
-					// If RAM error (surely would never happen since we just deleted an element)...
-					if (error != Error::NONE) {
-						// Don't increment i, as we've deleted an element instead
-					}
-
-					// Or if that went fine...
-					else {
-						BackedUpParamManager* newElement =
-						    new (backedUpParamManagers.getElementAddress(j)) BackedUpParamManager();
-
-						newElement->modControllable = modControllable;
-						newElement->clip = nullptr;
-						newElement->paramManager.stealParamCollectionsFrom(&paramManager);
-						i++; // We deleted an element, but inserted one too
-					}
+					// Reuse the occupied slot rather than delete and allocate a
+					// replacement. Repositioning preserves the sorted lookup keys.
+					auto* replacement = new (backedUp) BackedUpParamManager();
+					replacement->modControllable = modControllable;
+					replacement->clip = nullptr;
+					replacement->paramManager.stealParamCollectionsFrom(&paramManager);
+					backedUpParamManagers.repositionElement(i, j);
 				}
 			}
+			// Do not retain an entry pointer or scan index across callbacks. The
+			// processed entry no longer references this clip; restart to find any
+			// remaining entries after callback-driven removal or insertion.
+			AudioEngine::routineWithClusterLoading();
+			i = 0;
 		}
 		else {
 			i++;

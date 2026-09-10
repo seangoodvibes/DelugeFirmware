@@ -142,7 +142,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	}
 	else {
 		if (!rootUIIsClipMinderScreen()) {
-			sessionView.redrawNumericDisplay();
+			session_view_for_session().redrawNumericDisplay();
 		}
 		// here is the right place to call InstrumentClipMinder::redrawNumericDisplay()
 	}
@@ -183,8 +183,9 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 		}
 		bool normalization =
 		    currentStemExportType == StemExportType::DRUM ? allowNormalizationForDrums : allowNormalization;
-		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), normalization);
-		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
+		audio_recorder_for_session().beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(),
+		                                                  normalization);
+		if (audio_recorder_for_session().recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}
 	}
@@ -207,7 +208,7 @@ void StemExport::stopOutputRecording() {
 		// if not exporting to silence, stop recording soon
 		// if you cancelled stem export and exited out of UI mode, stop recording soon
 		if (!isUIModeActive(UI_MODE_STEM_EXPORT) || !exportToSilence || (exportToSilence && checkForSilence())) {
-			audioRecorder.endRecordingSoon();
+			audio_recorder_for_session().endRecordingSoon();
 			stopRecording = false;
 		}
 	}
@@ -366,7 +367,7 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 						stemExport.stopOutputRecording();
 					}
 					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
+					         || audio_recorder_for_session().recordingSource > AudioInputChannel::NONE
 					         || playbackHandler.isEitherClockActive());
 				});
 
@@ -414,7 +415,7 @@ int32_t StemExport::exportMixdownStem(StemExportType stemExportType) {
 				stemExport.stopOutputRecording();
 			}
 			return !(playbackHandler.recording != RecordingMode::OFF
-			         || audioRecorder.recordingSource > AudioInputChannel::NONE
+			         || audio_recorder_for_session().recordingSource > AudioInputChannel::NONE
 			         || playbackHandler.isEitherClockActive());
 		});
 
@@ -430,7 +431,7 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
-	currentSong->xScroll[NAVIGATION_CLIP] = 0;
+	currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = 0;
 
 	// when we trigger stem export, we don't know how many clips there are yet
 	// so get the number and store it so we only need to ping getNumElements once
@@ -548,7 +549,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 						stemExport.stopOutputRecording();
 					}
 					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
+					         || audio_recorder_for_session().recordingSource > AudioInputChannel::NONE
 					         || playbackHandler.isEitherClockActive());
 				});
 
@@ -573,7 +574,7 @@ int32_t StemExport::disarmAllDrumsForStemExport() {
 	// when we begin stem export, we haven't exported any drums yet, so initialize these variables
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
-	currentSong->xScroll[NAVIGATION_CLIP] = 0;
+	currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = 0;
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	OutputType outputType = clip->output->type;
@@ -670,7 +671,7 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 						stemExport.stopOutputRecording();
 					}
 					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
+					         || audio_recorder_for_session().recordingSource > AudioInputChannel::NONE
 					         || playbackHandler.isEitherClockActive());
 				});
 
@@ -756,10 +757,10 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType, int32_t 
 	}
 
 	// display stem export completed context menu
-	bool available = context_menu::doneStemExport.setupAndCheckAvailability();
+	bool available = context_menu::done_stem_export_for_session().setupAndCheckAvailability();
 	if (available) {
 		display->setNextTransitionDirection(1);
-		openUI(&context_menu::doneStemExport);
+		openUI(&context_menu::done_stem_export_for_session());
 	}
 
 	// exit out of the stem export UI mode
@@ -783,20 +784,20 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType, int32_t 
 void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t indexNumber) {
 	if (stemExportType == StemExportType::CLIP) {
 		// if we're in song row view, we'll reset the y scroll so we're back at the top
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
+		if (currentSong->session_layout_for_session() == SessionLayoutType::SessionLayoutTypeRows) {
+			currentSong->song_view_y_scroll_for_session() = indexNumber - kDisplayHeight;
 		}
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MIXDOWN) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
-		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
-		arrangerView.repopulateOutputsOnScreen(false);
+		currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] = 0;
+		currentSong->arrangement_y_scroll_for_session() = indexNumber - kDisplayHeight;
+		arranger_view_for_session().repopulateOutputsOnScreen(false);
 	}
 	else if (stemExportType == StemExportType::DRUM) {
 		// reset clip view scrolling so we're back at the top left of the kit
-		currentSong->xScroll[NAVIGATION_CLIP] = 0;
-		getCurrentInstrumentClip()->yScroll = indexNumber - kDisplayHeight;
+		currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = 0;
+		getCurrentInstrumentClip()->y_scroll_for_session() = indexNumber - kDisplayHeight;
 	}
 }
 

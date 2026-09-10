@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/ui/ui_session.h"
 #include "gui/views/timeline_view.h"
 #include <cstdint>
 
@@ -29,5 +30,5 @@ public:
 protected:
 	void horizontalScrollForLinearRecording(int32_t newXScroll);
 
-	static int32_t xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
+	static int32_t& recording_scroll_for_session(); // -1 means none
 };

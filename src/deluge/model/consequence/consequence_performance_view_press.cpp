@@ -30,7 +30,8 @@ ConsequencePerformanceViewPress::ConsequencePerformanceViewPress(FXColumnPress f
 }
 
 Error ConsequencePerformanceViewPress::revert(TimeType time, ModelStack* modelStack) {
-	memcpy(&performanceView.fxPress[xDisplayChanged], &fxPress[time], sizeof(FXColumnPress));
+	deluge::gui::ui_session::Scope panel_owner(owner);
+	memcpy(&performance_view_for_session().fxPress[xDisplayChanged], &fxPress[time], sizeof(FXColumnPress));
 
 	return Error::NONE;
 }

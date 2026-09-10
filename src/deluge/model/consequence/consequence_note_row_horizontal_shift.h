@@ -20,13 +20,17 @@
 #include "model/consequence/consequence.h"
 #include <cstdint>
 
+class InstrumentClip;
+
 class ConsequenceNoteRowHorizontalShift final : public Consequence {
 public:
-	ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount, bool newShiftAutomation,
-	                                  bool newShiftSequenceAndMPE);
+	ConsequenceNoteRowHorizontalShift(InstrumentClip* targetClip, int32_t newNoteRowId, int32_t newAmount,
+	                                  bool newShiftAutomation, bool newShiftSequenceAndMPE);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
+	InstrumentClip* clip;
 	int32_t noteRowId;
+	uint64_t note_row_identity = 0;
 	int32_t amount;
 	bool shiftAutomation;
 	bool shiftSequenceAndMPE;

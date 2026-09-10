@@ -95,7 +95,12 @@ public:
 	// On capture allocation failure, leave the source and caller-owned record unchanged.
 	Error stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
 	                 Action* action, StolenParamNodes* stolenNodeRecord = nullptr);
-	// May leave a partial replacement on allocation failure; the record remains intact for retry.
+	// Copy relative-position nodes into an empty owned record without changing the source.
+	Error copy_nodes_for_move(int32_t pos, int32_t region_length, int32_t loop_length, StolenParamNodes* copied_nodes);
+	// Reserve net growth without modifying node values or consuming the source record.
+	bool reserve_stolen_nodes(int32_t pos, int32_t region_length, int32_t loop_length,
+	                          StolenParamNodes const* stolen_nodes);
+	// Allocation failure preserves destination nodes; the record remains intact for retry.
 	Error insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
 	                        int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
 	void moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, int32_t offset,
@@ -147,7 +152,8 @@ public:
 
 private:
 	Error stealNodesWithoutNotification(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
-	                                    int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
+	                                    int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord,
+	                                    bool remove_source = true);
 	deluge::modulation::params::param_value_binding current_value_binding;
 	int32_t& current_value_ref() { return current_value_binding.value(); }
 

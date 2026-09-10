@@ -30,5 +30,5 @@ public:
 	std::span<const char*> getOptions() override;
 };
 
-extern LaunchStyleMenu launchStyle;
+LaunchStyleMenu& launch_style_for_session();
 } // namespace deluge::gui::context_menu::clip_settings

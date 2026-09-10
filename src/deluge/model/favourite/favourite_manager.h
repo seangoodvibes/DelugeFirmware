@@ -18,23 +18,16 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/favourite/favourites_session_state.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
 
-#include <etl/vector.h>
-
-constexpr size_t kNumFavourites = 16;
-
 class FavouritesManager {
 public:
-	struct Favourite {
-		int position = 0;
-		std::optional<uint8_t> colour;
-		std::string filename;
-	};
+	using Favourite = FavouritesSessionState::Favourite;
 
 public:
 	FavouritesManager();
@@ -52,8 +45,8 @@ public:
 	const std::string& getFavouriteFilename(uint8_t position);
 	static constexpr uint8_t favouriteDefaultColor = 4;
 
-	uint8_t currentBankNumber = 0;
-	std::optional<uint8_t> currentFavouriteNumber;
+	uint8_t current_bank_number_for_session() const { return sessions_.bank().number; }
+	std::optional<uint8_t> current_favourite_number_for_session() const { return sessions_.selection().favourite; }
 
 private:
 	void resetFavourites();
@@ -61,10 +54,7 @@ private:
 	void saveFavouriteBank() const;
 
 	std::string getFilenameForSave() const;
-	mutable bool unsavedChanges = false;
-
-	std::string currentCategory;
-	etl::vector<Favourite, kNumFavourites> favourites;
+	mutable FavouritesSessionState sessions_;
 };
 
 extern FavouritesManager favouritesManager;

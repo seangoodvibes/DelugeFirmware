@@ -31,7 +31,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 128; } // Probably not needed cos we override below...
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		oled_canvas::Canvas& canvas = OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main_for_session();
 		char buffer[12];
 		char const* text;
 		if (this->getValue() == 128) {
@@ -69,7 +69,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		DEF_STACK_STRING_BUF(paramValue, 5);
 		int32_t size_x, size_y;
