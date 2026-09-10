@@ -17,7 +17,10 @@
 
 #include "modulation/patch/patch_cable.h"
 #include "definitions_cxx.hpp"
+#include "modulation/automation/auto_param_pool.h"
 #include "util/fixedpoint.h"
+#include <cstring>
+#include <utility>
 
 #include <storage/flash_storage.h>
 
@@ -83,14 +86,80 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 }
 
 bool PatchCable::isActive() {
-	return param.containsSomething(0);
+	return current_value_ != 0 || is_automated();
 }
 
 void PatchCable::initAmount(int32_t value) {
-	param.nodes.empty();
-	param.currentValue = value;
+	release_automation();
+	current_value_ = value;
 }
 
 void PatchCable::makeUnusable() {
 	destinationParamDescriptor.setToNull();
+}
+
+PatchCable::~PatchCable() {
+	release_automation();
+}
+
+AutoParam* PatchCable::get_auto_param(bool allow_creation) {
+	if (!automation_ && allow_creation) {
+		automation_ = auto_param_pool::get().acquire();
+		rebind_automation();
+	}
+	return automation_;
+}
+
+void PatchCable::release_automation() {
+	auto_param_pool::get().release(std::exchange(automation_, nullptr));
+}
+
+void PatchCable::release_unautomated() {
+	if (!is_automated())
+		release_automation();
+}
+
+void PatchCable::rebind_automation() {
+	if (automation_)
+		automation_->bind_current_value(current_value_);
+}
+
+Error PatchCable::clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length) {
+	initAmount(source.current_value_);
+	from = source.from;
+	polarity = source.polarity;
+	destinationParamDescriptor = source.destinationParamDescriptor;
+	rangeAdjustmentPointer = source.rangeAdjustmentPointer;
+	if (copy_automation && source.is_automated()) {
+		auto* destination = get_auto_param(true);
+		if (!destination)
+			return Error::INSUFFICIENT_RAM;
+		memcpy(destination, source.automation_, sizeof(AutoParam));
+		rebind_automation();
+		auto error = destination->beenCloned(true, reverse_length);
+		release_unautomated();
+		return error;
+	}
+	return Error::NONE;
+}
+
+Error PatchCable::take_automation_from(AutoParam& source) {
+	initAmount(source.getCurrentValue());
+	if (!source.isAutomated())
+		return Error::NONE;
+	auto* destination = get_auto_param(true);
+	if (!destination)
+		return Error::INSUFFICIENT_RAM;
+	destination->nodes.swapStateWith(&source.nodes);
+	return Error::NONE;
+}
+
+void PatchCable::write_amount(Serializer& writer, bool write_automation) {
+	if (automation_)
+		automation_->writeToFile(writer, write_automation);
+	else {
+		AutoParam scalar;
+		scalar.setCurrentValueBasicForSetup(current_value_);
+		scalar.writeToFile(writer, false);
+	}
 }

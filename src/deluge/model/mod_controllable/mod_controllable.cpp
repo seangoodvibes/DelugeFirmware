@@ -26,8 +26,7 @@ int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, 
 }
 
 void setTheAutoParamToNull(ModelStackWithThreeMainThings* modelStack) {
-	ModelStackWithAutoParam* modelStackWithAutoParam = (ModelStackWithAutoParam*)modelStack;
-	modelStackWithAutoParam->autoParam = nullptr;
+	modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr);
 }
 
 ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int32_t whichModEncoder,

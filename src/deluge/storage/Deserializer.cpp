@@ -17,7 +17,6 @@
 
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
-#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
@@ -25,7 +24,6 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
-#include "version.h"
 #include <string.h>
 
 extern "C" {

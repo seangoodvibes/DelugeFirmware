@@ -37,12 +37,28 @@ class ParamSet : public ParamCollection {
 protected:
 	/// Number of parameters in the params array
 	int32_t numParams_;
+	AutoParam** params;
+	int32_t* current_values;
 
 public:
-	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
+	ParamSet(const ParamSet&) = delete;
+	ParamSet& operator=(const ParamSet&) = delete;
 
-	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
+	// Non-creating lookup returns nullptr for a scalar-only parameter. Creation can fail.
+	// Notifications may release the object; reacquire before another edit.
+	// Use scalar accessors below when no automation object is needed.
+	AutoParam* getParam(int32_t p, bool allow_creation = true);
+	void release_unautomated(int32_t p);
+	void set_current_value(ModelStackWithParamCollection const* model_stack, int32_t p, int32_t value);
+	bool has_current_value(int32_t id) const override { return id >= 0 && id < numParams_; }
+	int32_t get_current_value(int32_t id) const override { return has_current_value(id) ? getValue(id) : 0; }
+	inline int32_t getValue(int32_t p) const { return current_values[p]; }
+	inline bool isAutomated(int32_t p) { return params[p] && params[p]->isAutomated(); }
+	inline bool containsSomething(int32_t p, uint32_t neutralValue = 0) {
+		return static_cast<uint32_t>(getValue(p)) != neutralValue || isAutomated(p);
+	}
+	inline void setCurrentValueBasicForSetup(int32_t p, int32_t value) { current_values[p] = value; }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
@@ -59,8 +75,8 @@ public:
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                 ParamCollectionSummary* summary = nullptr) override;
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
@@ -70,6 +86,7 @@ public:
 	void paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p);
 	void paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 
+	void shiftValues(int32_t p, int32_t offset);
 	void shiftParamValues(int32_t p, int32_t offset);
 	void shiftParamVolumeByDB(int32_t p, float offset);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) final;
@@ -81,15 +98,19 @@ public:
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) final;
 
 	// For undoing / redoing
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) final;
+	Error remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) final;
 
 	int32_t getNumParams() { return numParams_; }
 
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) final;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	                                  bool automationChanged, bool automatedBefore, bool automatedNow) final;
 
 	uint8_t topUintToRepParams;
+
+protected:
+	void release_all();
+	virtual void notify_value_change(ModelStackWithAutoParam const*, int32_t, bool, bool, bool) {}
 
 private:
 	void backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack);
@@ -98,9 +119,10 @@ private:
 
 class UnpatchedParamSet final : public ParamSet {
 public:
+	~UnpatchedParamSet() override { release_all(); }
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                 ParamCollectionSummary* summary = nullptr) override;
 	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
@@ -112,32 +134,36 @@ public:
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
 private:
-	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
+	std::array<AutoParam*, deluge::modulation::params::kMaxNumUnpatchedParams> params_{};
+	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> current_values_;
 };
 
 class PatchedParamSet final : public ParamSet {
 public:
+	~PatchedParamSet() override { release_all(); }
 	PatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                ParamCollectionSummary* summary = nullptr) override;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                 ParamCollectionSummary* summary = nullptr) override;
+	void notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
+	                         bool automatedBefore, bool automatedNow) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCHED; }
 
 private:
-	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
+	std::array<AutoParam*, deluge::modulation::params::kNumParams> params_{};
+	std::array<int32_t, deluge::modulation::params::kNumParams> current_values_;
 };
 
 class ExpressionParamSet final : public ParamSet {
 public:
+	~ExpressionParamSet() override { release_all(); }
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                ParamCollectionSummary* summary = nullptr) override;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                 ParamCollectionSummary* summary = nullptr) override;
+	void notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
+	                         bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override { return false; }
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
@@ -158,5 +184,6 @@ public:
 	uint8_t bendRanges[2];
 
 private:
-	std::array<AutoParam, kNumExpressionDimensions> params_;
+	std::array<AutoParam*, kNumExpressionDimensions> params_{};
+	std::array<int32_t, kNumExpressionDimensions> current_values_;
 };

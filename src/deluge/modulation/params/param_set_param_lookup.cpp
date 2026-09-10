@@ -8,5 +8,5 @@ ModelStackWithAutoParam* ParamSet::getAutoParamFromId(ModelStackWithParamId* mod
 	if (modelStack->paramId < 0 || modelStack->paramId >= numParams_) {
 		return modelStack->addAutoParam(nullptr);
 	}
-	return modelStack->addAutoParam(&params[modelStack->paramId]);
+	return modelStack->addAutoParam(getParam(modelStack->paramId, allowCreation));
 }
