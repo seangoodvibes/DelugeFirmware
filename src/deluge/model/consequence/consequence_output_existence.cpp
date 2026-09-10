@@ -28,20 +28,26 @@ ConsequenceOutputExistence::ConsequenceOutputExistence(Output* newOutput, Existe
 	type = newType;
 }
 
-// TODO: wait a minute, do we have a memory leak here? Never deletes the Output?
+// Detached outputs remain owned by the song until restored or song teardown.
+// Other consequences may still retain references when this one is discarded.
 
 Error ConsequenceOutputExistence::revert(TimeType time, ModelStack* modelStack) {
 	if (time != util::to_underlying(type)) { // Re-create
+		if (!modelStack->song->is_output_retained_for_undo(output)) {
+			return Error::BUG;
+		}
 		modelStack->song->addOutput(output, true);
 	}
 
 	else { // Re-delete
-
-		outputIndex = modelStack->song->removeOutputFromMainList(output);
-		if (ALPHA_OR_BETA_VERSION && outputIndex == -1) {
-			FREEZE_WITH_ERROR("E263");
+		if (!modelStack->song->owns_output_for_undo(output, false)) {
+			return Error::BUG;
 		}
-
+		outputIndex = modelStack->song->removeOutputFromMainList(output);
+		if (outputIndex == -1) {
+			return Error::BUG;
+		}
+		modelStack->song->retain_output_for_undo(output);
 		output->prepareForHibernationOrDeletion();
 	}
 

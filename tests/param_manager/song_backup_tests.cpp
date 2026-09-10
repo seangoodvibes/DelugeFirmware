@@ -1,6 +1,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -53,6 +54,79 @@ void populate(ParamManagerForTimeline& manager, bool expression = true) {
 }
 
 int main() {
+	for (bool include_expression : {false, true}) {
+		Song song;
+		ModControllableAudio owner;
+		Clip clip;
+		ParamManagerForTimeline parameters, restored;
+		populate(parameters, include_expression);
+		auto* main = parameters.summaries[0].paramCollection;
+		song.backUpParamManager(&owner, &clip, &parameters, true);
+		song.backedUpParamManagers.failInsertion = true;
+		song.deleteBackedUpParamManagersForClip(&clip);
+		auto* generic = song.getBackedUpParamManagerForExactClip(&owner, nullptr);
+		check(generic && generic->summaries[0].paramCollection == main,
+		      "First-entry generic conversion must preserve main collection identity");
+		check(generic->getExpressionParamSet() == nullptr && allocations.size() == 1,
+		      "First-entry generic conversion must discard only deleted clip expression");
+		check(song.getBackedUpParamManagerForExactClip(&owner, nullptr, &restored) == &restored,
+		      "Converted generic backup must remain restorable");
+		check(restored.summaries[0].paramCollection == main && restored.getExpressionParamSet() == nullptr,
+		      "Generic restoration must not inherit deleted clip expression");
+	}
+	check(allocations.empty(), "First-entry expression cleanup must not leak");
+
+	{
+		Song song;
+		ModControllableAudio owner;
+		ParamManagerForTimeline parameters;
+		populate(parameters);
+		song.backUpParamManager(&owner, nullptr, &parameters, true);
+		song.deleteBackedUpParamManagersForClip(nullptr);
+		check(song.getBackedUpParamManagerForExactClip(&owner, nullptr) != nullptr,
+		      "Null clip cleanup must preserve generic backups and terminate");
+	}
+
+	{
+		Song song;
+		ModControllableAudio owner;
+		Clip clip;
+		ParamManagerForTimeline parameters;
+		populate(parameters);
+		song.backUpParamManager(&owner, &clip, &parameters, true);
+		int callbacks = 0;
+		AudioEngine::on_routine = [&] {
+			++callbacks;
+			check(!song.getBackedUpParamManagerForExactClip(&owner, &clip),
+			      "Entry must be processed before callback dispatch");
+			song.deleteBackedUpParamManagersForModControllable(&owner);
+		};
+		song.deleteBackedUpParamManagersForClip(&clip);
+		AudioEngine::on_routine = {};
+		check(callbacks == (ALPHA_OR_BETA_VERSION ? 2 : 1) && song.backedUpParamManagers.getNumElements() == 0,
+		      "Callback removal must not leave a stale entry access");
+	}
+
+	{
+		Song song;
+		ModControllableAudio owner;
+		Clip clip;
+		ParamManagerForTimeline parameters;
+		populate(parameters);
+		song.backUpParamManager(&owner, &clip, &parameters, true);
+		int callbacks = 0;
+		AudioEngine::on_routine = [&] {
+			if (++callbacks == 1) {
+				ParamManagerForTimeline replacement;
+				populate(replacement);
+				song.backUpParamManager(&owner, &clip, &replacement, true);
+			}
+		};
+		song.deleteBackedUpParamManagersForClip(&clip);
+		AudioEngine::on_routine = {};
+		check(callbacks == (ALPHA_OR_BETA_VERSION ? 3 : 2) && !song.getBackedUpParamManagerForExactClip(&owner, &clip),
+		      "Restarted scan must process a callback-inserted backup");
+	}
 	for (uint32_t seed : {1u, 42u, 0xDE1u, 0xC0FFEEu}) {
 		lifecycleSeed = seed;
 		{
@@ -245,14 +319,14 @@ int main() {
 		auto* survivor = song.getBackedUpParamManagerForExactClip(&owner, &clips[0]);
 		song.backedUpParamManagers.failInsertion = true;
 		song.deleteBackedUpParamManagersForClip(&clips[1]);
-		check(song.backedUpParamManagers.getNumElements() == 1 && allocations.size() == 2,
-		      "Failed reinsertion must release removed main and expression collections");
-		check(song.getBackedUpParamManagerPreferablyWithClip(&owner, &clips[1]) == survivor,
-		      "Failed reinsertion must leave another clip's backup available as fallback");
-		check(!song.getBackedUpParamManagerForExactClip(&owner, nullptr),
-		      "Failed reinsertion must not leave a partial null-clip entry");
+		check(song.backedUpParamManagers.getNumElements() == 2 && allocations.size() == 3,
+		      "Generic conversion must preserve main parameters without allocating a table entry");
+		check(song.getBackedUpParamManagerForExactClip(&owner, &clips[0]) == survivor,
+		      "In-place conversion must preserve the other clip's backup");
+		check(song.getBackedUpParamManagerForExactClip(&owner, nullptr) != nullptr,
+		      "Generic conversion must succeed even when insertion is disabled");
 	}
-	check(allocations.empty(), "Reinsertion failure must not leak");
+	check(allocations.empty(), "In-place conversion must not leak");
 	{
 		Song song;
 		ModControllableAudio owner;

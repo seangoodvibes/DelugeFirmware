@@ -26,40 +26,41 @@ FavouritesManager::FavouritesManager() {
 }
 
 FavouritesManager::~FavouritesManager() {
-	if (!currentCategory.empty()) {
-		saveFavouriteBank();
+	using namespace deluge::gui::ui_session;
+	for (Id owner : {Id::Local, Id::Remote}) {
+		Scope scope(owner);
+		if (!sessions_.bank().category.empty()) {
+			saveFavouriteBank();
+		}
 	}
 }
 void FavouritesManager::close() {
-	if (unsavedChanges) {
+	if (sessions_.bank().unsavedChanges) {
 		saveFavouriteBank();
 	}
-	resetFavourites();
-	currentCategory.clear();
-	currentFavouriteNumber = std::nullopt;
+	sessions_.release();
 	return;
 }
 
 void FavouritesManager::resetFavourites() {
-	favourites.clear();
-	favourites.resize(kNumFavourites);
+	sessions_.bank().favourites = {};
 	for (uint8_t i = 0; i < kNumFavourites; i++) {
-		favourites[i].position = i;
+		sessions_.bank().favourites[i].position = i;
 	}
 }
 
 void FavouritesManager::setCategory(const std::string& category) {
-	if (unsavedChanges && !currentCategory.empty()) {
+	if (sessions_.bank().unsavedChanges && !sessions_.bank().category.empty()) {
 		saveFavouriteBank();
 	}
-	currentCategory = category;
-	currentBankNumber = 0;
-	currentFavouriteNumber = std::nullopt;
-	loadFavouritesBank();
+	if (sessions_.select(category, 0)) {
+		loadFavouritesBank();
+	}
 }
 
 std::string FavouritesManager::getFilenameForSave() const {
-	return "SETTINGS/FAVOURITES/" + currentCategory + "_Bank" + std::to_string(currentBankNumber) + ".xml";
+	return "SETTINGS/FAVOURITES/" + sessions_.bank().category + "_Bank" + std::to_string(sessions_.bank().number)
+	       + ".xml";
 }
 
 void FavouritesManager::loadFavouritesBank() {
@@ -91,7 +92,7 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 				if (!strcmp(tagName, "position")) {
 					position = reader.readTagOrAttributeValueInt();
 					if (position >= 0 && position < kNumFavourites) {
-						favourites[position].position = position;
+						sessions_.bank().favourites[position].position = position;
 					}
 					else {
 						position = -1;
@@ -100,13 +101,13 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 				else if (!strcmp(tagName, "colour")) {
 					int32_t colour = reader.readTagOrAttributeValueInt();
 					if (position >= 0) {
-						favourites[position].colour = static_cast<uint8_t>(colour);
+						sessions_.bank().favourites[position].colour = static_cast<uint8_t>(colour);
 					}
 				}
 				else if (!strcmp(tagName, "instrumentPresetFolder")) {
 					reader.readTagOrAttributeValueString(&fileName);
 					if (position >= 0) {
-						favourites[position].filename = fileName.get();
+						sessions_.bank().favourites[position].filename = fileName.get();
 					}
 				}
 			}
@@ -116,7 +117,7 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 }
 
 void FavouritesManager::saveFavouriteBank() const {
-	if (currentCategory.empty()) {
+	if (sessions_.bank().category.empty()) {
 		return;
 	}
 
@@ -126,7 +127,7 @@ void FavouritesManager::saveFavouriteBank() const {
 		return;
 	}
 
-	if (favourites.empty()) {
+	if (sessions_.bank().favourites.empty()) {
 		return;
 	}
 
@@ -134,7 +135,7 @@ void FavouritesManager::saveFavouriteBank() const {
 
 	char buffer[9];
 	writer.writeArrayStart("favourites");
-	for (const auto& fav : favourites) {
+	for (const auto& fav : sessions_.bank().favourites) {
 		if (fav.colour.has_value()) {
 			writer.writeOpeningTagBeginning("favourite");
 			writer.writeAttribute("position", fav.position);
@@ -145,59 +146,58 @@ void FavouritesManager::saveFavouriteBank() const {
 	}
 	writer.writeArrayEnding("favourites");
 	error = writer.closeFileAfterWriting();
-	unsavedChanges = false;
+	sessions_.bank().unsavedChanges = false;
 	return;
 }
 
 void FavouritesManager::selectFavouritesBank(uint8_t bankNumber) {
 	if (bankNumber > 15)
 		return;
-	if (unsavedChanges) {
+	if (sessions_.bank().unsavedChanges) {
 		saveFavouriteBank();
 	}
-	currentBankNumber = bankNumber;
-	currentFavouriteNumber = std::nullopt;
-	loadFavouritesBank();
+	if (sessions_.select(sessions_.bank().category, bankNumber)) {
+		loadFavouritesBank();
+	}
 }
 
 void FavouritesManager::setFavourite(uint8_t position, uint8_t colour, const std::string& filename) {
 	if (position >= kNumFavourites)
 		return;
-	if (favourites.size() <= position) {
-		favourites.resize(kNumFavourites);
-	}
-	currentFavouriteNumber = position;
-	favourites[position] = Favourite(position, static_cast<uint8_t>(colour), filename);
+	sessions_.selection().favourite = position;
+	sessions_.bank().favourites[position] = Favourite(position, static_cast<uint8_t>(colour), filename);
 	saveFavouriteBank();
 }
 
 void FavouritesManager::unsetFavourite(uint8_t position) {
 	if (position >= kNumFavourites)
 		return;
-	currentFavouriteNumber = position;
-	favourites[position] = Favourite(position, std::nullopt, "");
+	sessions_.selection().favourite = position;
+	sessions_.bank().favourites[position] = Favourite(position, std::nullopt, "");
 	saveFavouriteBank();
 }
 
 bool FavouritesManager::isEmpty(uint8_t position) const {
-	if (position >= kNumFavourites || favourites.size() <= position)
+	if (position >= kNumFavourites || sessions_.bank().favourites.size() <= position)
 		return true;
-	return !favourites[position].colour.has_value();
+	return !sessions_.bank().favourites[position].colour.has_value();
 }
 
 std::array<std::optional<uint8_t>, kNumFavourites> FavouritesManager::getFavouriteColours() const {
 	std::array<std::optional<uint8_t>, kNumFavourites> colours{};
-	for (uint8_t i = 0; i < kNumFavourites && i < favourites.size(); i++) {
-		colours[i] = favourites[i].colour;
+	for (uint8_t i = 0; i < kNumFavourites && i < sessions_.bank().favourites.size(); i++) {
+		colours[i] = sessions_.bank().favourites[i].colour;
 	}
 	return colours; // Copy elision makes this efficient
 }
 
 void FavouritesManager::changeColour(uint8_t position, int32_t offset) {
-	if (position < kNumFavourites && favourites.size() > position && favourites[position].colour.has_value()) {
-		favourites[position].colour =
-		    ((favourites[position].colour.value() + offset) % kNumFavourites + kNumFavourites) % kNumFavourites;
-		unsavedChanges = true;
+	if (position < kNumFavourites && sessions_.bank().favourites.size() > position
+	    && sessions_.bank().favourites[position].colour.has_value()) {
+		sessions_.bank().favourites[position].colour =
+		    ((sessions_.bank().favourites[position].colour.value() + offset) % kNumFavourites + kNumFavourites)
+		    % kNumFavourites;
+		sessions_.bank().unsavedChanges = true;
 		return;
 	}
 	return;
@@ -205,9 +205,10 @@ void FavouritesManager::changeColour(uint8_t position, int32_t offset) {
 
 const std::string& FavouritesManager::getFavouriteFilename(uint8_t position) {
 	static const std::string emptyString = ""; // Safe default value
-	currentFavouriteNumber = position;
-	if (position >= kNumFavourites || favourites.size() <= position || !favourites[position].colour.has_value()) {
+	sessions_.selection().favourite = position;
+	if (position >= kNumFavourites || sessions_.bank().favourites.size() <= position
+	    || !sessions_.bank().favourites[position].colour.has_value()) {
 		return emptyString; // Return a reference to an empty string instead of nullptr
 	}
-	return favourites[position].filename;
+	return sessions_.bank().favourites[position].filename;
 }

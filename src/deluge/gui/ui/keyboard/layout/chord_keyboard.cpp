@@ -157,10 +157,10 @@ void KeyboardLayoutChord::precalculate() {
 
 	if (!(acceptedScales.find(currentScale) != acceptedScales.end())) {
 		if (lastScale == NO_SCALE) {
-			keyboardScreen.setScale(MAJOR_SCALE);
+			keyboard_screen_for_session().setScale(MAJOR_SCALE);
 		}
 		else {
-			keyboardScreen.setScale(lastScale);
+			keyboard_screen_for_session().setScale(lastScale);
 		}
 		if (display->haveOLED()) {
 			display->popupTextTemporary("Chord mode only supports modes of major and minor scales");
@@ -248,7 +248,7 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
 		if (mode != ChordKeyboardMode::ROW) {
 			mode = ChordKeyboardMode::ROW;
-			keyboardScreen.requestRendering();
+			keyboard_screen_for_session().requestRendering();
 		}
 		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
 		display->displayPopup(shortLong);
@@ -256,7 +256,7 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
 		if (mode != ChordKeyboardMode::COLUMN) {
 			mode = ChordKeyboardMode::COLUMN;
-			keyboardScreen.requestRendering();
+			keyboard_screen_for_session().requestRendering();
 		}
 		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
 		display->displayPopup(shortLong);

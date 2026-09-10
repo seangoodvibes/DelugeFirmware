@@ -35,7 +35,7 @@ public:
 		this->setValue(noteCode);
 		midiEngine.midiFollowKitRootNote = noteCode;
 
-		if (soundEditor.getCurrentMenuItem() == this) {
+		if (sound_editor_for_session().getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
 				renderUIsForOled();
 			}

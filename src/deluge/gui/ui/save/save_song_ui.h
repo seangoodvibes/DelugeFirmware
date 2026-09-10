@@ -36,4 +36,4 @@ protected:
 	// int32_t arrivedInNewFolder(int32_t direction);
 };
 
-extern SaveSongUI saveSongUI;
+SaveSongUI& save_song_ui_for_session();

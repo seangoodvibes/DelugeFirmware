@@ -5,7 +5,7 @@ uint32_t __frunk_slack_end = 0;
 uint32_t program_stack_start = 0;
 uint32_t program_stack_end = 0;
 uint32_t __heap_start = 0;
-uint32_t currentUIMode = 0;
+#include "gui/ui/ui_navigation_state.h"
 
 #define NUM_ENCODERS 6
 #define NUM_FUNCTION_ENCODERS 4

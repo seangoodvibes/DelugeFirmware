@@ -86,6 +86,9 @@ add_executable(UnitTests
         default_name_tests.cpp
         rgb_tests.cpp
         notes_state_tests.cpp
+        mirror_protocol_tests.cpp
+        ui_session_tests.cpp
+        favourites_session_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
@@ -112,3 +115,28 @@ target_link_libraries(UnitTests CppUTestExt etl::etl)
 target_compile_options(UnitTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )
+
+# Compile the production Remote OLED snapshot accessor with real frame/session
+# storage, without linking the hardware-backed OLED UI implementation.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(oled_snapshot_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/display/oled.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/oled_snapshot_method.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${oled_snapshot_source} ${CMAKE_CURRENT_BINARY_DIR}/oled_snapshot_method.inc OLED::copy_remote_frame OLED::invalidate_remote_frame
+    DEPENDS ${oled_snapshot_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE oled_snapshot_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/oled_snapshot_method.inc)
+target_include_directories(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+set(seven_segment_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/display/seven_segment.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/seven_segment_render.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${seven_segment_source} ${CMAKE_CURRENT_BINARY_DIR}/seven_segment_render.inc SevenSegment::render
+    DEPENDS ${seven_segment_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE seven_segment_routing_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/seven_segment_render.inc)
+
+set(pad_column_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/led/pad_leds.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pad_column_render.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${pad_column_source} ${CMAKE_CURRENT_BINARY_DIR}/pad_column_render.inc sortLedsForCol PadLEDs::flashMainPad
+    DEPENDS ${pad_column_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE pad_column_routing_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/pad_column_render.inc)

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -17,6 +18,7 @@ extern std::vector<midi_notification> midi_notifications;
 extern bool allow_patch_cables;
 extern size_t notifications;
 extern int allocations_before_failure;
+extern std::function<void()> on_allocation;
 extern size_t allocation_failures;
 extern uint32_t last_failed_allocation_size;
 extern bool allow_no_action;

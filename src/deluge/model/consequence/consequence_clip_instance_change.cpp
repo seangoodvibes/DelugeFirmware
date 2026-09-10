@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance.h"
 #include "model/instrument/instrument.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 
 ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance,
                                                              int32_t posAfter, int32_t lengthAfter, Clip* clipAfter) {
@@ -32,9 +34,16 @@ ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, 
 }
 
 Error ConsequenceClipInstanceChange::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || !modelStack->song->owns_output_for_undo(output)) {
+		return Error::BUG;
+	}
+
 	int32_t i = output->clipInstances.search(pos[1 - time], GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if (!clipInstance) {
+	if (!clipInstance || clipInstance->pos != pos[1 - time] || clipInstance->clip != clip[1 - time]) {
+		return Error::BUG;
+	}
+	if (!modelStack->song->can_reference_clip_from_output(clip[time], output)) {
 		return Error::BUG;
 	}
 	clipInstance->pos = pos[time];

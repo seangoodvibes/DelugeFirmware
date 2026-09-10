@@ -28,13 +28,14 @@ class Detune final : public Integer {
 public:
 	using Integer::Integer;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->unisonDetune); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentSound->unisonDetune); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -53,15 +54,16 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			ModelStackWithSoundFlags* modelStack =
+			    sound_editor_for_session().getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			soundEditor.currentSound->setUnisonDetune(current_value, modelStack);
+			sound_editor_for_session().currentSound->setUnisonDetune(current_value, modelStack);
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const float norm = normalize(getValue());
 

@@ -59,7 +59,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		int32_t newValue = instrumentClipView.setNoteRowIteranceWithOffset(offset);
+		int32_t newValue = instrument_clip_view_for_session().setNoteRowIteranceWithOffset(offset);
 		if (newValue != -1) {
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
 			int32_t preset = Iterance::fromInt(newValue).toPresetIndex();
@@ -80,13 +80,15 @@ public:
 
 	void drawPixelsForOled() override {
 		const std::string value = get_iterance_display_value("%d of %d", Iterance::DisplayLabelType::LONG);
-		OLED::main.drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
+		OLED::main_for_session().drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+		                                           kTextHugeSizeY);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const std::string value = get_iterance_display_value("%d:%d", Iterance::DisplayLabelType::SHORT);
-		OLED::main.drawStringCentered(value.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
-		                              kTextSpacingX, kTextSpacingY, slot.width);
+		OLED::main_for_session().drawStringCentered(value.data(), slot.start_x,
+		                                            slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                                            kTextSpacingY, slot.width);
 	}
 
 	void drawValue() override {

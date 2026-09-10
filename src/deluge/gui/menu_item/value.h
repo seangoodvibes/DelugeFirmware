@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "gui/menu_item/shared_value_cache.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "hid/display/display.h"
 #include "menu_item.h"
 #include "util/misc.h"
@@ -32,30 +34,46 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
 	void readValueAgain() override;
+	void refresh_shared_value() override {
+		if (value_.needs_reload(model_value_revision()))
+			readValueAgain();
+	}
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
-	void setValue(T value) { value_ = value; }
+	void setValue(T value) { value_.set(value, model_value_revision()); }
 
 	template <util::enumeration E>
 	void setValue(E value) {
-		value_ = util::to_underlying(value);
+		value_.set(util::to_underlying(value), model_value_revision());
 	}
 
-	T getValue() { return value_; }
+	T getValue() {
+		return value_.get([this] { readCurrentValue(); }, model_value_revision());
+	}
 
 	template <util::enumeration E>
 	E getValue() {
-		return static_cast<E>(value_);
+		return static_cast<E>(getValue());
 	}
 
 protected:
 	virtual void writeCurrentValue() {}
+	// Only menus backed by live shared parameters opt into model revisions.
+	virtual uint64_t model_value_revision() const { return 0; }
+
+	void value_committed() {
+		value_.committed();
+		// Schedule refresh only; never draw the other panel into shared hardware.
+		const auto peer =
+		    ui_session::current() == ui_session::Id::Local ? ui_session::Id::Remote : ui_session::Id::Local;
+		ui_session::navigation.for_owner(peer).shared_model_refresh.request();
+	}
 
 	// 7SEG ONLY
 	virtual void drawValue() = 0;
 
 private:
-	T value_;
+	SharedValueCache<T> value_;
 };
 
 template <typename T>
@@ -71,10 +89,11 @@ void Value<T>::beginSession(MenuItem* navigatedBackwardFrom) {
 template <typename T>
 void Value<T>::selectEncoderAction(int32_t offset) {
 	if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
-		Buttons::selectButtonPressUsedUp = true;
+		Buttons::state().selectButtonPressUsedUp = true;
 	}
 
 	writeCurrentValue();
+	value_committed();
 
 	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render
 	// the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.

@@ -25,15 +25,15 @@ public:
 	using MenuItem::MenuItem;
 
 	MenuItem* selectButtonPress() override {
-		gui::context_menu::midiLearnMode.setupAndCheckAvailability();
-		openUI(&gui::context_menu::midiLearnMode);
+		gui::context_menu::midi_learn_mode_for_session().setupAndCheckAvailability();
+		openUI(&gui::context_menu::midi_learn_mode_for_session());
 		return NO_NAVIGATION;
 	}
 
 	bool shouldEnterSubmenu() override { return false; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (getRootUI() == &sessionView);
+		return (getRootUI() == &session_view_for_session());
 	}
 };
 } // namespace deluge::gui::menu_item::song

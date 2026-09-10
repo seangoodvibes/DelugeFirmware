@@ -100,7 +100,7 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 
 	// leave stutter running in perfomance session view
-	if (getRootUI() != &performanceView) {
+	if (getRootUI() != &performance_view_for_session()) {
 		// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 		endStutter(paramManager);
 	}
@@ -144,7 +144,8 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 			}
 			else {
 				// Reverb
-				popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+				popupMsg.append(
+				    view_for_session().getReverbPresetDisplayName(view_for_session().getCurrentReverbPreset()));
 			}
 
 			display->popupText(popupMsg.c_str());
@@ -162,7 +163,8 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 				display->displayPopup(getCompressorParamDisplayName());
 			}
 			else {
-				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+				display->displayPopup(
+				    view_for_session().getReverbPresetDisplayName(view_for_session().getCurrentReverbPreset()));
 			}
 		}
 	}
@@ -416,7 +418,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				// if we're in full mode/editingComp then we cycle through the comp params
 				// otherwise cycle reverb sizes
 				if (!editingComp) {
-					view.cycleThroughReverbPresets();
+					view_for_session().cycleThroughReverbPresets();
 
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
@@ -424,7 +426,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayCompressorAndReverbSettings(on);
 					}
 					else {
-						display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+						display->displayPopup(
+						    view_for_session().getReverbPresetDisplayName(view_for_session().getCurrentReverbPreset()));
 					}
 				}
 				else {

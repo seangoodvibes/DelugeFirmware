@@ -24,19 +24,21 @@ Range rangeMenu{};
 
 ParamDescriptor Range::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamAndTwoSources(soundEditor.patchingParamSelected, source_selection::regularMenu.s,
-	                                            source_selection::rangeMenu.s);
+	paramDescriptor.setToHaveParamAndTwoSources(sound_editor_for_session().patchingParamSelected,
+	                                            source_selection::regularMenu.source_for_session(),
+	                                            source_selection::rangeMenu.source_for_session());
 	return paramDescriptor;
 }
 
 ParamDescriptor Range::getDestinationDescriptor() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, source_selection::regularMenu.s);
+	paramDescriptor.setToHaveParamAndSource(sound_editor_for_session().patchingParamSelected,
+	                                        source_selection::regularMenu.source_for_session());
 	return paramDescriptor;
 }
 
 PatchSource Range::getS() {
-	return source_selection::rangeMenu.s;
+	return source_selection::rangeMenu.source_for_session();
 }
 
 uint8_t Range::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
@@ -48,7 +50,7 @@ uint8_t Range::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour)
 	}
 
 	// Or, if it's the source whose range we are controlling...
-	if (source_selection::regularMenu.s == s) {
+	if (source_selection::regularMenu.source_for_session() == s) {
 		return 3; // Did I get this right? #patchingoverhaul2021
 	}
 

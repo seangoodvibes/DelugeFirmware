@@ -1,3 +1,4 @@
+#include "gui/ui/ui_navigation_state.h"
 /*
  * Copyright © 2017-2023 Synthstrom Audible Limited
  *
@@ -15,10 +16,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/action/action.h"
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
 #include "model/action/action_clip_state.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -33,6 +34,7 @@
 #include "model/consequence/consequence_param_change.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
+#include "model/note/note_row.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -86,16 +88,25 @@ EnumStringMap<ActionType, 28> actionTypeMap{
 
 // Call this before the destructor!
 void Action::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
+	// Snapshot storage belongs to this cleanup from here onward. Reentrant observers
+	// must not see it as a live navigation snapshot while consequences are destroyed.
+	ActionClipState* states_to_delete = clipStates;
+	clipStates = nullptr;
+	numClipStates = 0;
+	openForAdditions = false;
 
-	deleteAllConsequences(whichQueueActionIn, song, true);
+	deleteAllConsequences(whichQueueActionIn, song);
 
-	if (clipStates) {
-		delugeDealloc(clipStates);
+	if (states_to_delete) {
+		delugeDealloc(states_to_delete);
 	}
 }
 
-void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool destructing) {
+void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song) {
 	Consequence* currentConsequence = firstConsequence;
+	// Detach before audio servicing or consequence callbacks can yield. The action
+	// must not expose nodes that this cleanup owns and may already have destroyed.
+	firstConsequence = nullptr;
 	while (currentConsequence) {
 		AudioEngine::routineWithClusterLoading();
 		Consequence* toDelete = currentConsequence;
@@ -103,9 +114,6 @@ void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool 
 		toDelete->prepareForDestruction(whichQueueActionIn, song);
 		toDelete->~Consequence();
 		delugeDealloc(toDelete);
-	}
-	if (!destructing) {
-		firstConsequence = nullptr;
 	}
 }
 
@@ -116,6 +124,10 @@ void Action::addConsequence(Consequence* consequence) {
 
 // Returns error code
 Error Action::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || modelStack->song != currentSong)
+		return Error::BUG;
+	Song* const song = modelStack->song;
+	const auto context_changed = [song, modelStack] { return currentSong != song || modelStack->song != song; };
 	Consequence* thisConsequence = firstConsequence;
 
 	// If we're a record-arrangement-from-session Action, there's a trick - we know that whether we're being undone or
@@ -124,7 +136,16 @@ Error Action::revert(TimeType time, ModelStack* modelStack) {
 	// next time
 	if (type == ActionType::ARRANGEMENT_RECORD) {
 		firstConsequence = nullptr;
-		currentSong->clearArrangementBeyondPos(posToClearArrangementFrom, this);
+		Error clear_error = modelStack->song->clearArrangementBeyondPos(posToClearArrangementFrom, this);
+		if (clear_error != Error::NONE || context_changed()) {
+			// Preserve both sets for the caller's failure cleanup. Do not apply
+			// old consequences against an arrangement that was only partly cleared.
+			Consequence** tail = &firstConsequence;
+			while (*tail)
+				tail = &(*tail)->next;
+			*tail = thisConsequence;
+			return context_changed() ? Error::BUG : clear_error;
+		}
 		time = BEFORE;
 	}
 
@@ -133,6 +154,17 @@ Error Action::revert(TimeType time, ModelStack* modelStack) {
 	Error error = Error::NONE;
 
 	while (thisConsequence) {
+		if (context_changed()) {
+			// Keep both processed and pending history reachable. In particular,
+			// do not destroy arrangement consequences using a changed song.
+			Consequence** tail = &thisConsequence;
+			while (*tail)
+				tail = &(*tail)->next;
+			*tail = type == ActionType::ARRANGEMENT_RECORD ? firstConsequence : newFirstConsequence;
+			firstConsequence = thisConsequence;
+			return Error::BUG;
+		}
+
 		if (error == Error::NONE) {
 
 			// Can't quite remember why, but we don't wanna revert param changes for arrangement-record actions
@@ -143,6 +175,17 @@ Error Action::revert(TimeType time, ModelStack* modelStack) {
 				// If an error occurs, keep swapping the order cos it's too late to stop, but don't keep calling the
 				// things
 			}
+		}
+
+		if (context_changed()) {
+			// Keep both processed and pending history reachable. In particular,
+			// do not destroy arrangement consequences using a changed song.
+			Consequence** tail = &thisConsequence;
+			while (*tail)
+				tail = &(*tail)->next;
+			*tail = type == ActionType::ARRANGEMENT_RECORD ? firstConsequence : newFirstConsequence;
+			firstConsequence = thisConsequence;
+			return Error::BUG;
 		}
 
 		Consequence* nextConsequence = thisConsequence->next;
@@ -172,7 +215,7 @@ Error Action::revert(TimeType time, ModelStack* modelStack) {
 		firstConsequence = newFirstConsequence;
 	}
 
-	return error;
+	return context_changed() ? Error::BUG : error;
 }
 
 bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId) {
@@ -189,7 +232,7 @@ bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, in
 	return false;
 }
 
-void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData) {
+bool Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData) {
 
 	// If we already have a snapshot of this, we can get out.
 	if (containsConsequenceParamChange(modelStack->paramCollection, modelStack->paramId)) {
@@ -199,30 +242,46 @@ void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam co
 		if (stealData) {
 			modelStack->autoParam->nodes.empty();
 		}
-		return;
+		return true;
 	}
 
 	// If we're still here, we need to snapshot.
-	recordParamChangeDefinitely(modelStack, stealData);
+	return recordParamChangeDefinitely(modelStack, stealData);
 }
 
-void Action::recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData) {
+bool Action::recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData) {
 
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceParamChange));
 
 	if (consMemory) {
 		ConsequenceParamChange* newCons = new (consMemory) ConsequenceParamChange(modelStack, stealData);
+		if (!newCons->snapshot_valid()) {
+			newCons->~ConsequenceParamChange();
+			delugeDealloc(newCons);
+			return snapshot_failed();
+		}
 		addConsequence(newCons);
+		return true;
 	}
+	return snapshot_failed();
 }
 
 bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t noteRowId, bool moveToFrontIfFound) {
+	// Callers supply a live edit target. A reused row ID is not an existing
+	// snapshot of that target, even when its storage address is unchanged.
+	if (!clip || clip->type != ClipType::INSTRUMENT)
+		return false;
+	auto* row = clip->getNoteRowFromId(noteRowId);
+	if (!row || !row->undo_identity)
+		return false;
 
 	for (Consequence** prevPointer = &firstConsequence; *prevPointer; prevPointer = &(*prevPointer)->next) {
 		Consequence* thisCons = *prevPointer;
 		if (thisCons->type == Consequence::NOTE_ARRAY_CHANGE) {
 			ConsequenceNoteArrayChange* thisNoteArrayChange = (ConsequenceNoteArrayChange*)thisCons;
-			if (thisNoteArrayChange->clip == clip && thisNoteArrayChange->noteRowId == noteRowId) {
+			if (thisNoteArrayChange->clip == clip && thisNoteArrayChange->noteRowId == noteRowId
+			    && thisNoteArrayChange->note_row_identity == row->undo_identity
+			    && thisNoteArrayChange->snapshot_valid()) {
 				if (moveToFrontIfFound) {
 					*prevPointer = thisCons->next;
 
@@ -249,36 +308,145 @@ Error Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip,
 
 Error Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
                                               bool stealData) {
+	if (!currentSong || !clip || !noteVector || clip->type != ClipType::INSTRUMENT)
+		return Error::BUG;
+	auto* row = clip->getNoteRowFromId(noteRowId);
+	if (!row || !row->undo_identity)
+		return Error::BUG;
+	const int32_t original_count = noteVector->getNumElements();
+	Note* const original_first = original_count ? noteVector->getElement(0) : nullptr;
+	NoteRow* const original_row = row;
+	const auto row_identity = row->undo_identity;
+	Song* const song = currentSong;
+	using namespace deluge::gui::ui_session;
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteArrayChange));
 
-	if (!consMemory) {
-		return Error::INSUFFICIENT_RAM;
+	// Allocation can service callbacks. Do not access the old clip or source
+	// vector if the song or structure changed while obtaining storage.
+	if (currentSong != song || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+	    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision) {
+		if (consMemory)
+			delugeDealloc(consMemory);
+		return Error::BUG;
 	}
+	row = clip->getNoteRowFromId(noteRowId);
+	if (!row || row != original_row || row->undo_identity != row_identity) {
+		if (consMemory)
+			delugeDealloc(consMemory);
+		return Error::BUG;
+	}
+
+	// Callers may retain indices and note pointers while recording. Refuse to
+	// continue if allocation changed the source vector's shape or storage.
+	if (noteVector->getNumElements() != original_count
+	    || (original_count && noteVector->getElement(0) != original_first)) {
+		if (consMemory)
+			delugeDealloc(consMemory);
+		return Error::BUG;
+	}
+
+	if (!consMemory)
+		return Error::INSUFFICIENT_RAM;
 
 	ConsequenceNoteArrayChange* newCons =
 	    new (consMemory) ConsequenceNoteArrayChange(clip, noteRowId, noteVector, stealData);
+	// Cloning the note vector can allocate as well. Keep the new consequence
+	// private until the captured target has survived that second boundary.
+	bool invalidated = currentSong != song
+	                   || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+	                   || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision;
+	if (!invalidated) {
+		row = clip->getNoteRowFromId(noteRowId);
+		invalidated = !row || row != original_row || row->undo_identity != row_identity;
+	}
+	if (!invalidated && !stealData) {
+		invalidated = noteVector->getNumElements() != original_count
+		              || (original_count && noteVector->getElement(0) != original_first);
+	}
+	if (invalidated || !newCons->snapshot_valid()) {
+		newCons->~ConsequenceNoteArrayChange();
+		delugeDealloc(newCons);
+		return invalidated ? Error::BUG : Error::INSUFFICIENT_RAM;
+	}
 	addConsequence(newCons);
 
-	return Error::NONE; // Though we wouldn't know if there was a RAM error as ConsequenceNoteArrayChange tried to clone
-	                    // the data...
+	return Error::NONE;
 }
 
-void Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type) {
+Error Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type,
+                                        Note** recorded_note) {
+
+	if (recorded_note)
+		*recorded_note = nullptr;
+	if (!currentSong || !clip || !note || clip->type != ClipType::INSTRUMENT)
+		return Error::BUG;
+	auto* row = clip->getNoteRowFromId(noteRowId);
+	if (!row || !row->undo_identity)
+		return Error::BUG;
+	NoteRow* const original_row = row;
+	const auto identity = row->undo_identity;
+	Note saved_note = *note;
+	Song* const song = currentSong;
+	using namespace deluge::gui::ui_session;
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
 
 	if (containsConsequenceNoteArrayChange(clip, noteRowId)) {
-		return;
+		if (recorded_note)
+			*recorded_note = note;
+		return Error::NONE;
 	}
 
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteExistence));
 
-	if (consMemory) {
-		ConsequenceNoteExistence* newConsequence =
-		    new (consMemory) ConsequenceNoteExistence(clip, noteRowId, note, type);
-		addConsequence(newConsequence);
+	// Allocation may yield even when it fails. Check context before reporting a
+	// recoverable memory error, so callers cannot recover against an invalid row.
+	if (currentSong != song || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+	    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision) {
+		if (consMemory)
+			delugeDealloc(consMemory);
+		return Error::BUG;
 	}
+	row = clip->getNoteRowFromId(noteRowId);
+	// Callers retain their NoteRow this pointer across recording. Identity alone
+	// is insufficient: relocation preserves identity but invalidates that pointer.
+	if (!row || row != original_row || row->undo_identity != identity) {
+		if (consMemory)
+			delugeDealloc(consMemory);
+		return Error::BUG;
+	}
+	Note* inserted = nullptr;
+	int32_t index = -1;
+	if (type == ExistenceChangeType::CREATE || recorded_note) {
+		// Reacquire a requested target after allocation: both its address and
+		// index may have changed while callers were recording history.
+		index = row->notes.search(saved_note.pos, GREATER_OR_EQUAL);
+		inserted = row->notes.getElement(index);
+		if (!inserted || inserted->pos != saved_note.pos || inserted->length != saved_note.length
+		    || inserted->velocity != saved_note.velocity || inserted->lift != saved_note.lift
+		    || inserted->probability != saved_note.probability || inserted->iterance != saved_note.iterance
+		    || inserted->fill != saved_note.fill) {
+			if (consMemory)
+				delugeDealloc(consMemory);
+			return Error::BUG;
+		}
+	}
+	if (!consMemory) {
+		if (inserted && type == ExistenceChangeType::CREATE)
+			row->notes.deleteAtIndex(index);
+		return Error::INSUFFICIENT_RAM;
+	}
+	ConsequenceNoteExistence* newConsequence =
+	    new (consMemory) ConsequenceNoteExistence(clip, noteRowId, &saved_note, type);
+	addConsequence(newConsequence);
+	if (recorded_note)
+		*recorded_note = inserted;
+	return Error::NONE;
 }
 
-void Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type) {
+bool Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type) {
 
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipInstanceExistence));
 
@@ -286,27 +454,59 @@ void Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* cli
 		ConsequenceClipInstanceExistence* newConsequence =
 		    new (consMemory) ConsequenceClipInstanceExistence(output, clipInstance, type);
 		addConsequence(newConsequence);
+		return true;
 	}
+	return false;
 }
 
-void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
-
-	// Check we don't already have a Consequence for this Clip's length
-	for (Consequence* cons = firstConsequence; cons; cons = cons->next) {
-		if (cons->type == Consequence::CLIP_LENGTH) {
-			ConsequenceClipLength* consequenceClipLength = (ConsequenceClipLength*)cons;
-			if (consequenceClipLength->clip == clip) {
-				return;
-			}
+bool Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
+	if (!currentSong || !clip || oldLength <= 0 || clip->loopLength <= 0)
+		return false;
+	const uint64_t retained_identity = action_identity;
+	if (!retained_identity)
+		return false;
+	Song* const target_song = currentSong;
+	const bool registered_clip = target_song->contains_clip_for_undo(clip);
+	const bool retained_in_history = actionLogger.firstAction[BEFORE] == this;
+	auto* const target_output = clip->output;
+	const auto target_type = clip->type;
+	const int32_t target_length = clip->loopLength;
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	auto already_recorded = [&] {
+		for (auto* candidate = firstConsequence; candidate; candidate = candidate->next) {
+			if (candidate->type == Consequence::CLIP_LENGTH
+			    && static_cast<ConsequenceClipLength*>(candidate)->clip == clip)
+				return true;
 		}
+		return false;
+	};
+	if (already_recorded())
+		return true;
+	void* consequence_memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipLength));
+	// Allocation can service callbacks. Validate external ownership before
+	// accessing retained model objects or this action again.
+	if (currentSong != target_song || current() != owner
+	    || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+	    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision
+	    || (retained_in_history && actionLogger.firstAction[BEFORE] != this) || action_identity != retained_identity
+	    || (registered_clip && !target_song->contains_clip_for_undo(clip)) || clip->output != target_output
+	    || clip->type != target_type || clip->loopLength != target_length) {
+		if (consequence_memory)
+			delugeDealloc(consequence_memory);
+		return false;
 	}
-
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipLength));
-
-	if (consMemory) {
-		ConsequenceClipLength* consequenceClipLength = new (consMemory) ConsequenceClipLength(clip, oldLength);
-		addConsequence(consequenceClipLength);
+	if (!consequence_memory)
+		return false;
+	// A nested edit may have recorded the same target while allocating.
+	if (already_recorded()) {
+		delugeDealloc(consequence_memory);
+		return true;
 	}
+	addConsequence(new (consequence_memory) ConsequenceClipLength(clip, oldLength));
+	return true;
 }
 
 bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type) {
@@ -320,7 +520,13 @@ bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* c
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, song);
 
-		consequence->revert(AFTER, modelStack); // Does the actual "deletion" for us
+		// Only record a deletion that actually succeeded. Current deletion
+		// failures must leave the clip owned by its song.
+		if (consequence->revert(AFTER, modelStack) != Error::NONE) {
+			consequence->~ConsequenceClipExistence();
+			delugeDealloc(consequence);
+			return false;
+		}
 	}
 	addConsequence(consequence);
 
@@ -361,7 +567,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 		if (thisClip->type == ClipType::INSTRUMENT) {
 
 			if (!clip || thisClip == clip) {
-				clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)thisClip)->yScroll;
+				clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)thisClip)->y_scroll_for_session();
 				break;
 			}
 		}

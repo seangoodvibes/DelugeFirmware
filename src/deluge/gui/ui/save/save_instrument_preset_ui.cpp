@@ -39,13 +39,19 @@
 
 using namespace deluge;
 
-SaveInstrumentPresetUI saveInstrumentPresetUI{};
+namespace {
+SaveInstrumentPresetUI local_save_instrument_preset_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SaveInstrumentPresetUI> remote_save_instrument_preset_ui;
+} // namespace
+SaveInstrumentPresetUI& save_instrument_preset_ui_for_session() {
+	return remote_save_instrument_preset_ui.get(local_save_instrument_preset_ui);
+}
 
 bool SaveInstrumentPresetUI::opened() {
 
 	Instrument* currentInstrument = getCurrentInstrument();
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
-	outputTypeToLoad = currentInstrument->type;
+	output_type_to_load_for_session() = currentInstrument->type;
 
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
@@ -55,16 +61,16 @@ doReturnFalse:
 		return false;
 	}
 
-	enteredText.set(&currentInstrument->name);
-	enteredTextEditPos = enteredText.getLength();
-	currentFolderIsEmpty = false;
+	entered_text_for_session().set(&currentInstrument->name);
+	entered_text_edit_pos_for_session() = entered_text_for_session().getLength();
+	current_folder_is_empty_for_session() = false;
 
-	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
+	char const* defaultDir = getInstrumentFolder(output_type_to_load_for_session());
 
-	currentDir.set(&currentInstrument->dirPath);
-	if (currentDir.isEmpty()) { // Would this even be able to happen?
+	current_dir_for_session().set(&currentInstrument->dirPath);
+	if (current_dir_for_session().isEmpty()) { // Would this even be able to happen?
 tryDefaultDir:
-		currentDir.set(defaultDir);
+		current_dir_for_session().set(defaultDir);
 	}
 
 	// reset
@@ -72,7 +78,7 @@ tryDefaultDir:
 	fileIconPt2Width = 0;
 
 	if (display->haveOLED()) {
-		switch (outputTypeToLoad) {
+		switch (output_type_to_load_for_session()) {
 		case OutputType::SYNTH:
 			title = "Save synth";
 			fileIcon = deluge::hid::display::OLED::synthIcon;
@@ -95,7 +101,7 @@ tryDefaultDir:
 	}
 
 	// set file prefix
-	switch (outputTypeToLoad) {
+	switch (output_type_to_load_for_session()) {
 	case OutputType::SYNTH:
 		filePrefix = "SYNT";
 		break;
@@ -111,7 +117,7 @@ tryDefaultDir:
 	case OutputType::NONE:;
 	}
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	Error error = arrivedInNewFolder(0, entered_text_for_session().get(), defaultDir);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -119,7 +125,7 @@ gotError:
 	}
 
 	// blink led of the type of instrument we're saving
-	switch (outputTypeToLoad) {
+	switch (output_type_to_load_for_session()) {
 	case OutputType::SYNTH:
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 		break;
@@ -152,13 +158,14 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	}
 	Instrument* instrumentToSave = getCurrentInstrument();
 
-	bool isDifferentSlot = !enteredText.equalsCaseIrrespective(&instrumentToSave->name);
+	bool isDifferentSlot = !entered_text_for_session().equalsCaseIrrespective(&instrumentToSave->name);
 
 	// If saving into a new, different slot than the Instrument previously had...
 	if (isDifferentSlot) {
 
 		// We can't save into this slot if another Instrument in this Song already uses it
-		if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
+		if (currentSong->getInstrumentFromPresetSlot(output_type_to_load_for_session(), 0, 0,
+		                                             entered_text_for_session().get(), current_dir_for_session().get(),
 		                                             false)) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 			display->removeWorkingAnimation();
@@ -167,7 +174,8 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 
 		// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
 		// in memory with that slot, which we need to just delete
-		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.get());
+		currentSong->deleteHibernatingInstrumentWithSlot(output_type_to_load_for_session(),
+		                                                 entered_text_for_session().get());
 	}
 
 	String filePath;
@@ -181,13 +189,13 @@ fail:
 	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
+		gui::context_menu::overwrite_file_for_session().currentSaveUI = this;
 
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
+		bool available = gui::context_menu::overwrite_file_for_session().setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
 			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::overwriteFile);
+			openUI(&gui::context_menu::overwrite_file_for_session());
 			return true;
 		}
 		else {
@@ -207,7 +215,7 @@ fail:
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 
 	char const* endString;
-	switch (outputTypeToLoad) {
+	switch (output_type_to_load_for_session()) {
 	case OutputType::SYNTH:
 		endString = "\n</sound>\n";
 		break;
@@ -230,8 +238,8 @@ fail:
 	}
 
 	// Give the Instrument in memory its new slot
-	instrumentToSave->name.set(&enteredText);
-	instrumentToSave->dirPath.set(&currentDir);
+	instrumentToSave->name.set(&entered_text_for_session());
+	instrumentToSave->dirPath.set(&current_dir_for_session());
 	instrumentToSave->mightExistOnCard = true;
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the

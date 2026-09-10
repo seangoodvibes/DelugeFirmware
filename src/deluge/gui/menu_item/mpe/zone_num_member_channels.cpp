@@ -27,7 +27,7 @@ namespace deluge::gui::menu_item::mpe {
 ZoneNumMemberChannels zoneNumMemberChannelsMenu{};
 
 MIDIPort* ZoneNumMemberChannels::getPort() const {
-	return &soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection];
+	return &sound_editor_for_session().currentMIDICable->ports[directionSelectorMenu.whichDirection];
 }
 
 int32_t ZoneNumMemberChannels::getMaxValue() const {
@@ -80,7 +80,7 @@ void ZoneNumMemberChannels::writeCurrentValue() {
 	if (directionSelectorMenu.whichDirection == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
 		int32_t masterChannel = (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) ? 0 : 15;
 
-		soundEditor.currentMIDICable->sendRPN(masterChannel, 0, 6, this->getValue());
+		sound_editor_for_session().currentMIDICable->sendRPN(masterChannel, 0, 6, this->getValue());
 	}
 }
 } // namespace deluge::gui::menu_item::mpe

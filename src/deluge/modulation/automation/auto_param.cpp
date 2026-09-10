@@ -32,6 +32,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
+#include "modulation/automation/parameter_revision.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_node_deserializer.h"
@@ -104,6 +105,7 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
                                                      bool shouldLogAction, int32_t livePos,
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
+	deluge::modulation::automation::ParameterEditRevision edit_revision;
 	int32_t oldValue = current_value_ref();
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
@@ -1175,7 +1177,7 @@ yesChangeCurrentValue:
 			current_value_ref() = value;
 		}
 		else {
-			view.notifyParamAutomationOccurred(modelStack->paramManager);
+			view_for_session().notifyParamAutomationOccurred(modelStack->paramManager);
 		}
 	}
 
@@ -1904,6 +1906,9 @@ void AutoParam::deleteNodesBeyondPos(int32_t pos) {
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {
 
+	if (action && action->require_complete_snapshots && action->snapshot_error != Error::NONE)
+		return;
+
 	// If no nodes, nothing to do
 	if (!nodes.getNumElements()) {
 		return;
@@ -1952,6 +1957,10 @@ addNewNodeAt0IfNecessary:
 					newNode->value = oldValueAt0;
 					newNode->interpolated = false;
 				}
+				else if (action && action->require_complete_snapshots) {
+					action->snapshot_failed();
+					return;
+				}
 			}
 		}
 
@@ -1968,6 +1977,10 @@ addNewNodeAt0IfNecessary:
 				ParamNodeVector newNodes;
 				Error error = newNodes.insertAtIndex(0, newNumNodes);
 				if (error != Error::NONE) {
+					if (action->require_complete_snapshots) {
+						action->snapshot_failed();
+						return;
+					}
 					goto basicTrim;
 				}
 
@@ -1979,7 +1992,8 @@ addNewNodeAt0IfNecessary:
 				}
 
 				// We've kept the original Nodes separate in memory, so can steal them into an undo-accessible snapshot
-				action->recordParamChangeDefinitely(modelStack, true); // Steal
+				if (!action->recordParamChangeDefinitely(modelStack, true) && action->require_complete_snapshots)
+					return;
 
 				// And, need to swap the new Nodes in
 				nodes.swapStateWith(&newNodes);
@@ -1992,7 +2006,9 @@ addNewNodeAt0IfNecessary:
 	// Or if no nodes afterwards
 	else {
 		if (action) {
-			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
+			if (!action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true)
+			    && action->require_complete_snapshots)
+				return;
 		}
 		nodes.empty();                 // Delete them - either if no action, or if the above chose not to steal them.
 		resetInterpolationIncrement(); // In case we were interpolating.

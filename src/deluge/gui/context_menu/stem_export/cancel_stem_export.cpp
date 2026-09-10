@@ -27,7 +27,13 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-CancelStemExport cancelStemExport{};
+namespace {
+CancelStemExport local_cancel_stem_export{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<CancelStemExport> remote_cancel_stem_export;
+} // namespace
+CancelStemExport& cancel_stem_export_for_session() {
+	return remote_cancel_stem_export.get(local_cancel_stem_export);
+}
 
 char const* CancelStemExport::getTitle() {
 	using enum l10n::String;

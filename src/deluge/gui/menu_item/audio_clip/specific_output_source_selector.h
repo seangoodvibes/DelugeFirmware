@@ -67,7 +67,7 @@ public:
 		}
 	}
 	void drawPixelsForOled() override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 
 		// track
 		Output* output = getOutputFromSelectedIndex();

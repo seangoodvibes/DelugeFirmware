@@ -24,8 +24,8 @@ class Rate final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow()
-		       && !soundEditor.editingKitAffectEntire();
+		return !sound_editor_for_session().editingCVOrMIDIClip() && !sound_editor_for_session().editingNonAudioDrumRow()
+		       && !sound_editor_for_session().editingKitAffectEntire();
 	}
 };
 
@@ -33,7 +33,7 @@ class KitRate final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKitAffectEntire();
+		return sound_editor_for_session().editingKitAffectEntire();
 	}
 };
 

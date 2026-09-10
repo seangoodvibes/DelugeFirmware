@@ -43,5 +43,5 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 };
 
-extern ClipSettingsMenu clipSettings;
+ClipSettingsMenu& clip_settings_for_session();
 } // namespace deluge::gui::context_menu::clip_settings

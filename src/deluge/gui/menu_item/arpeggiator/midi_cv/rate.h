@@ -26,11 +26,11 @@ class Rate final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForStandardMenuItem(soundEditor.currentArpSettings->rate));
+		this->setValue(computeCurrentValueForStandardMenuItem(sound_editor_for_session().currentArpSettings->rate));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
-		soundEditor.currentArpSettings->rate = value;
+		sound_editor_for_session().currentArpSettings->rate = value;
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

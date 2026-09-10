@@ -32,24 +32,24 @@ void EditName::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	switch (target_) {
 	case Target::CLIP:
-		renameClipUI.clip = clip;
-		ui = &renameClipUI;
+		rename_clip_ui_for_session().clip = clip;
+		ui = &rename_clip_ui_for_session();
 		break;
 
 	case Target::DRUM:
-		ui = &renameDrumUI;
+		ui = &rename_drum_ui_for_session();
 		break;
 
 	case Target::AUDIO_OUTPUT:
-		renameOutputUI.output = getCurrentOutput();
-		ui = &renameOutputUI;
+		rename_output_ui_for_session().output = getCurrentOutput();
+		ui = &rename_output_ui_for_session();
 		break;
 	}
 
 	// Done, go for it.
-	soundEditor.shouldGoUpOneLevelOnBegin = true;
+	sound_editor_for_session().shouldGoUpOneLevelOnBegin = true;
 	if (clip->type == ClipType::INSTRUMENT) {
-		instrumentClipView.cancelAllAuditioning();
+		instrument_clip_view_for_session().cancelAllAuditioning();
 	}
 	openUI(ui);
 }

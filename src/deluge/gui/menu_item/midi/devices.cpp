@@ -39,7 +39,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool found = false;
 	if (navigatedBackwardFrom != nullptr) {
 		for (int32_t idx = lowestDeviceNum; idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); idx++) {
-			if (getCable(idx) == soundEditor.currentMIDICable) {
+			if (getCable(idx) == sound_editor_for_session().currentMIDICable) {
 				found = true;
 				this->setValue(idx);
 				break;
@@ -51,7 +51,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 		this->setValue(lowestDeviceNum); // Start on "DIN". That's the only one that'll always be there.
 	}
 
-	soundEditor.currentMIDICable = getCable(this->getValue());
+	sound_editor_for_session().currentMIDICable = getCable(this->getValue());
 	if (display->haveOLED()) {
 		current_scroll_ = computeScrollForSelected(this->getValue());
 	}
@@ -93,7 +93,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (display->haveOLED()) {
 				this->setValue(startValue);
-				soundEditor.currentMIDICable = getCable(startValue);
+				sound_editor_for_session().currentMIDICable = getCable(startValue);
 				return;
 			}
 			newValue = lowestDeviceNum;
@@ -101,7 +101,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 		else if (newValue < lowestDeviceNum) {
 			if (display->haveOLED()) {
 				this->setValue(startValue);
-				soundEditor.currentMIDICable = getCable(startValue);
+				sound_editor_for_session().currentMIDICable = getCable(startValue);
 				return;
 			}
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
@@ -109,9 +109,9 @@ void Devices::selectEncoderAction(int32_t offset) {
 
 		this->setValue(newValue);
 
-		soundEditor.currentMIDICable = getCable(this->getValue());
+		sound_editor_for_session().currentMIDICable = getCable(this->getValue());
 
-	} while (!soundEditor.currentMIDICable->connectionFlags);
+	} while (!sound_editor_for_session().currentMIDICable->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 	if (display->haveOLED()) {
@@ -167,7 +167,7 @@ void Devices::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		char const* displayName = soundEditor.currentMIDICable->getDisplayName();
+		char const* displayName = sound_editor_for_session().currentMIDICable->getDisplayName();
 		display->setScrollingText(displayName);
 	}
 }

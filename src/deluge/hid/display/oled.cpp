@@ -23,8 +23,10 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/oled_frame_state.h"
 #include "hid/display/screensaver.h"
 #include "hid/hid_sysex.h"
+#include "hid/mirror.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
 #include "playback/playback_handler.h"
@@ -52,36 +54,104 @@ extern uint8_t usbInitializationPeriodComplete;
 namespace deluge::hid::display {
 
 using ImageStore = oled_canvas::Canvas::ImageStore;
+struct ConsoleItem {
+	uint32_t timeoutTime;
+	int16_t minY;
+	int16_t maxY;
+	bool cleared;
+};
+struct SideScroller {
+	char const* text; // NULL means not active.
+	int32_t textLength;
+	int32_t pos;
+	int32_t startX;
+	int32_t endX;
+	int32_t startY;
+	int32_t endY;
+	int32_t textSpacingX;
+	int32_t textSizeY;
+	int32_t stringLengthPixels;
+	int32_t boxLengthPixels;
+	bool finished;
+	bool doHighlight;
+	String string_;
+};
+union BlinkArea {
+	uint32_t u32;
+	struct {
+		uint8_t minX;
+		uint8_t width;
+		uint8_t minY;
+		uint8_t maxY;
+	};
+};
+namespace {
+struct PanelState {
+	int32_t working_animation_count = 0;
+	bool started_animation = false;
+	bool loading = false;
+	int32_t sideScrollerDirection = 0;
+	bool drawnPermanentPopup = false;
+	int32_t oledPopupWidth = 0;
+	int32_t popupHeight = 0;
+	PopupType popupType = PopupType::NONE;
+	int32_t popupMinX = 0;
+	int32_t popupMaxX = 0;
+	int32_t popupMinY = 0;
+	int32_t popupMaxY = 0;
+	int32_t consoleMaxX = 0;
+	int32_t consoleMinX = -1;
+	int32_t numConsoleItems = 0;
+	uint16_t renderStartTime = 0;
+	ConsoleItem consoleItemStoreDontAccessDirectly[4]{};
+	SideScroller sideScrollers[2]{};
+	BlinkArea blinkArea{};
+};
+PLACE_SDRAM_BSS deluge::gui::ui_session::State<PanelState> panel_states;
+PLACE_SDRAM_BSS deluge::gui::ui_session::State<OLEDFrameState> frame_states;
+PanelState& panel_state() {
+	return panel_states.active();
+}
+} // namespace
 
-uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS];
-oled_canvas::Canvas OLED::main;
-oled_canvas::Canvas OLED::popup;
-oled_canvas::Canvas OLED::console;
-
-bool OLED::needsSending;
-
-static int32_t working_animation_count;
-static bool started_animation;
-static bool loading;
-
-int32_t sideScrollerDirection; // 0 means none active
-
-#if ENABLE_TEXT_OUTPUT
-uint16_t renderStartTime;
-#endif
-
-bool drawnPermanentPopup = false;
+oled_canvas::Canvas& OLED::main_for_session() {
+	return frame_states.active().main;
+}
+oled_canvas::Canvas& OLED::popup_for_session() {
+	return frame_states.active().popup;
+}
+oled_canvas::Canvas& OLED::console_for_session() {
+	return frame_states.active().console;
+}
+bool& OLED::needs_sending_for_session() {
+	return frame_states.active().needsSending;
+}
+OLED::ImagePointer& OLED::oled_current_image_for_session() {
+	return frame_states.active().current_image;
+}
+OLED::ImagePointer OLED::local_image() {
+	return frame_states.for_owner(deluge::gui::ui_session::Id::Local).current_image;
+}
+std::optional<uint32_t> OLED::copy_remote_frame(std::span<uint8_t> destination) {
+	return frame_states.for_owner(deluge::gui::ui_session::Id::Remote).copy_published(destination);
+}
+void OLED::invalidate_remote_frame() {
+	frame_states.for_owner(deluge::gui::ui_session::Id::Remote).invalidate_published();
+}
+uint32_t OLED::remote_frame_revision() {
+	return frame_states.for_owner(deluge::gui::ui_session::Id::Remote).revision;
+}
 
 void OLED::clearMainImage() {
 #if ENABLE_TEXT_OUTPUT
-	renderStartTime = *TCNT[TIMER_SYSTEM_FAST];
+	panel_state().renderStartTime = *TCNT[TIMER_SYSTEM_FAST];
 #endif
 
 	stopBlink();
 	stopScrollingAnimation();
-	main.clear();
+	main_for_session().clear();
 	markChanged();
-	drawnPermanentPopup = false;
+	panel_state().drawnPermanentPopup = false;
 }
 
 void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int32_t delta, ImageStore image) {
@@ -123,61 +193,43 @@ void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int
 	}
 }
 
-int32_t oledPopupWidth = 0; // If 0, means popup isn't present / active.
-int32_t popupHeight;
-PopupType popupType = PopupType::NONE;
-
-int32_t popupMinX;
-int32_t popupMaxX;
-int32_t popupMinY;
-int32_t popupMaxY;
-
 void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::optional<int32_t> startX,
                       std::optional<int32_t> startY) {
-	popupType = type;
+	panel_state().popupType = type;
 
 	width = std::clamp<int32_t>(width, 0, OLED_MAIN_WIDTH_PIXELS - 1);
 	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS - 1);
 
-	popupMinX = startX.has_value() ? startX.value() : (OLED_MAIN_WIDTH_PIXELS - width) / 2;
-	popupMinX = std::clamp<int32_t>(popupMinX, 0, OLED_MAIN_WIDTH_PIXELS - 1);
-	popupMaxX = std::clamp<int32_t>(popupMinX + width, popupMinX, OLED_MAIN_WIDTH_PIXELS - 1);
-	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
-	popupMinY = std::clamp<int32_t>(popupMinY, 0, OLED_MAIN_HEIGHT_PIXELS - 1);
-	popupMaxY = std::clamp<int32_t>(popupMinY + height, popupMinY, OLED_MAIN_HEIGHT_PIXELS - 1);
+	panel_state().popupMinX = startX.has_value() ? startX.value() : (OLED_MAIN_WIDTH_PIXELS - width) / 2;
+	panel_state().popupMinX = std::clamp<int32_t>(panel_state().popupMinX, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	panel_state().popupMaxX =
+	    std::clamp<int32_t>(panel_state().popupMinX + width, panel_state().popupMinX, OLED_MAIN_WIDTH_PIXELS - 1);
+	panel_state().popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
+	panel_state().popupMinY = std::clamp<int32_t>(panel_state().popupMinY, 0, OLED_MAIN_HEIGHT_PIXELS - 1);
+	panel_state().popupMaxY =
+	    std::clamp<int32_t>(panel_state().popupMinY + height, panel_state().popupMinY, OLED_MAIN_HEIGHT_PIXELS - 1);
 
-	oledPopupWidth = popupMaxX - popupMinX + 1;
-	popupHeight = popupMaxY - popupMinY + 1;
+	panel_state().oledPopupWidth = panel_state().popupMaxX - panel_state().popupMinX + 1;
+	panel_state().popupHeight = panel_state().popupMaxY - panel_state().popupMinY + 1;
 
-	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
+	popup_for_session().clearAreaExact(panel_state().popupMinX, panel_state().popupMinY, panel_state().popupMaxX,
+	                                   panel_state().popupMaxY);
 
 	if (type != PopupType::NOTIFICATION) {
-		popup.drawRectangleRounded(popupMinX, popupMinY, popupMaxX, popupMaxY);
+		popup_for_session().drawRectangleRounded(panel_state().popupMinX, panel_state().popupMinY,
+		                                         panel_state().popupMaxX, panel_state().popupMaxY);
 	}
 }
 
-int32_t consoleMaxX;
-int32_t consoleMinX = -1;
-
-struct ConsoleItem {
-	uint32_t timeoutTime;
-	int16_t minY;
-	int16_t maxY;
-	bool cleared;
-};
-
 #define MAX_NUM_CONSOLE_ITEMS 4
 
-ConsoleItem consoleItemStoreDontAccessDirectly[MAX_NUM_CONSOLE_ITEMS] = {0};
-int32_t numConsoleItems = 0;
-
 void normalizeConsoleItemCount() {
-	numConsoleItems = std::clamp<int32_t>(numConsoleItems, 0, MAX_NUM_CONSOLE_ITEMS);
+	panel_state().numConsoleItems = std::clamp<int32_t>(panel_state().numConsoleItems, 0, MAX_NUM_CONSOLE_ITEMS);
 }
 
 bool hasConsoleItems() {
 	normalizeConsoleItemCount();
-	return numConsoleItems > 0;
+	return panel_state().numConsoleItems > 0;
 }
 
 // There is suspicion that we're under or overflowing the memory for the consoleItems
@@ -193,7 +245,7 @@ public:
 		if (index < 0 || MAX_NUM_CONSOLE_ITEMS <= index) [[unlikely]] {
 			FREEZE_WITH_ERROR("D003");
 		}
-		return consoleItemStoreDontAccessDirectly[index];
+		return panel_state().consoleItemStoreDontAccessDirectly[index];
 	}
 };
 
@@ -203,7 +255,8 @@ void OLED::drawConsoleTopLine() {
 	if (!hasConsoleItems()) {
 		return;
 	}
-	console.drawHorizontalLine(consoleItems[numConsoleItems - 1].minY - 1, consoleMinX + 1, consoleMaxX - 1);
+	console_for_session().drawHorizontalLine(consoleItems[panel_state().numConsoleItems - 1].minY - 1,
+	                                         panel_state().consoleMinX + 1, panel_state().consoleMaxX - 1);
 }
 
 // Returns y position (minY)
@@ -211,22 +264,22 @@ int32_t OLED::setupConsole(int32_t height) {
 	normalizeConsoleItemCount();
 	height = std::clamp<int32_t>(height, 1, kConsoleImageHeight - 2);
 
-	consoleMinX = 4;
-	consoleMaxX = OLED_MAIN_WIDTH_PIXELS - consoleMinX;
+	panel_state().consoleMinX = 4;
+	panel_state().consoleMaxX = OLED_MAIN_WIDTH_PIXELS - panel_state().consoleMinX;
 
 	bool shouldRedrawTopLine = false;
 
 	// If already some console items...
-	if (numConsoleItems) {
+	if (panel_state().numConsoleItems) {
 
 		// If hit max num console items...
-		if (numConsoleItems >= MAX_NUM_CONSOLE_ITEMS) {
-			numConsoleItems = MAX_NUM_CONSOLE_ITEMS - 1;
+		if (panel_state().numConsoleItems >= MAX_NUM_CONSOLE_ITEMS) {
+			panel_state().numConsoleItems = MAX_NUM_CONSOLE_ITEMS - 1;
 			shouldRedrawTopLine = true;
 		}
 
 		// Shuffle existing console items along
-		for (int32_t i = numConsoleItems; i > 0; i--) {
+		for (int32_t i = panel_state().numConsoleItems; i > 0; i--) {
 			consoleItems[i] = consoleItems[i - 1];
 		}
 
@@ -239,8 +292,8 @@ int32_t OLED::setupConsole(int32_t height) {
 		if (howMuchTooLow > 0) {
 
 			// Move their min and max values up
-			int32_t topSurvivingItem = numConsoleItems;
-			for (int32_t i = numConsoleItems; i >= 0; i--) {
+			int32_t topSurvivingItem = panel_state().numConsoleItems;
+			for (int32_t i = panel_state().numConsoleItems; i >= 0; i--) {
 				// numConsoleItems hasn't been updated yet - there's actually one more
 				consoleItems[i].minY -= howMuchTooLow;
 				// If at all offscreen, scrap that one
@@ -254,10 +307,11 @@ int32_t OLED::setupConsole(int32_t height) {
 
 			// Do the actual copying
 			// numConsoleItems hasn't been updated yet - there's actually one more
-			numConsoleItems = std::max<int32_t>(topSurvivingItem, 0);
-			int32_t moveMinY = consoleItems[numConsoleItems].minY - 1;
+			panel_state().numConsoleItems = std::max<int32_t>(topSurvivingItem, 0);
+			int32_t moveMinY = consoleItems[panel_state().numConsoleItems].minY - 1;
 			int32_t moveMaxY = consoleItems[1].maxY + howMuchTooLow;
-			moveAreaUpCrude(consoleMinX, moveMinY, consoleMaxX, moveMaxY, howMuchTooLow, console.hackGetImageStore());
+			moveAreaUpCrude(panel_state().consoleMinX, moveMinY, panel_state().consoleMaxX, moveMaxY, howMuchTooLow,
+			                console_for_session().hackGetImageStore());
 		}
 	}
 
@@ -273,13 +327,14 @@ int32_t OLED::setupConsole(int32_t height) {
 	consoleItems[0].timeoutTime = AudioEngine::audioSampleTimer + 52000; // 1 and a bit seconds
 	consoleItems[0].cleared = false;
 
-	numConsoleItems++;
+	panel_state().numConsoleItems++;
 
 	// Clear the new console item's area
-	console.clearAreaExact(consoleMinX, consoleItems[0].minY, consoleMaxX, consoleItems[0].maxY);
+	console_for_session().clearAreaExact(panel_state().consoleMinX, consoleItems[0].minY, panel_state().consoleMaxX,
+	                                     consoleItems[0].maxY);
 
-	console.drawVerticalLine(consoleMinX, consoleItems[0].minY - 1, consoleItems[0].maxY);
-	console.drawVerticalLine(consoleMaxX, consoleItems[0].minY - 1, consoleItems[0].maxY);
+	console_for_session().drawVerticalLine(panel_state().consoleMinX, consoleItems[0].minY - 1, consoleItems[0].maxY);
+	console_for_session().drawVerticalLine(panel_state().consoleMaxX, consoleItems[0].minY - 1, consoleItems[0].maxY);
 
 	if (shouldRedrawTopLine) {
 		drawConsoleTopLine();
@@ -291,25 +346,25 @@ int32_t OLED::setupConsole(int32_t height) {
 void OLED::removePopup() {
 	// if (!oledPopupWidth) return;
 
-	oledPopupWidth = 0;
-	popupType = PopupType::NONE;
+	panel_state().oledPopupWidth = 0;
+	panel_state().popupType = PopupType::NONE;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
 }
 
 bool OLED::isPopupPresent() {
-	return oledPopupWidth;
+	return panel_state().oledPopupWidth;
 }
 bool OLED::isPopupPresentOfType(PopupType type) {
-	return oledPopupWidth && popupType == type;
+	return panel_state().oledPopupWidth && panel_state().popupType == type;
 }
 
 bool OLED::isPermanentPopupPresent() {
-	return drawnPermanentPopup;
+	return panel_state().drawnPermanentPopup;
 }
 
 bool OLED::isWorkingAnimationPresent() {
-	return working_animation_count != 0;
+	return panel_state().working_animation_count != 0;
 }
 
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
@@ -371,19 +426,21 @@ void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foreg
 }
 
 void OLED::sendMainImage() {
-	if (!needsSending) {
+	if (deluge::hid::mirror::is_client())
+		return;
+	if (!needs_sending_for_session()) {
 		return;
 	}
 
-	oledCurrentImage = &main.hackGetImageStore()[0];
+	oled_current_image_for_session() = &main_for_session().hackGetImageStore()[0];
 
-	if (Screensaver::isActive()) {
+	if (deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local && Screensaver::isActive()) {
 		// Point at the screensaver canvas before the dirty guard below, not after. This
 		// global is also read independently by the sysex display mirror
 		// (HIDSysex::sendOLEDData / sendOLEDDataDelta), which runs on its own schedule --
 		// if it were still pointed at `main` here, that mirror would show the live UI while
 		// the panel itself is showing the screensaver.
-		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
+		oled_current_image_for_session() = &Screensaver::getCanvas().hackGetImageStore()[0];
 
 		if (!Screensaver::consumeFrameDirty()) {
 			// Some other timer marked the display dirty while we're showing. Nothing
@@ -395,32 +452,40 @@ void OLED::sendMainImage() {
 			// idle. Without this check, an idle Deluge sitting on a side-scrolling menu
 			// label would push a full unchanged frame at that rate over the SPI bus we
 			// share with CV output.
-			needsSending = false;
+			needs_sending_for_session() = false;
 			return;
 		}
 	}
 	else {
 		if (hasConsoleItems()) {
-			copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
-			                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
-			                               OLED_MAIN_HEIGHT_PIXELS - 1);
-			oledCurrentImage = &console.hackGetImageStore()[0];
+			copyBackgroundAroundForeground(main_for_session().hackGetImageStore(),
+			                               console_for_session().hackGetImageStore(), panel_state().consoleMinX,
+			                               consoleItems[panel_state().numConsoleItems - 1].minY - 1,
+			                               panel_state().consoleMaxX, OLED_MAIN_HEIGHT_PIXELS - 1);
+			oled_current_image_for_session() = &console_for_session().hackGetImageStore()[0];
 		}
-		if (oledPopupWidth) {
-			copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
-			                               popupMaxY);
-			oledCurrentImage = &popup.hackGetImageStore()[0];
+		if (panel_state().oledPopupWidth) {
+			copyBackgroundAroundForeground(oled_current_image_for_session(), popup_for_session().hackGetImageStore(),
+			                               panel_state().popupMinX, panel_state().popupMinY, panel_state().popupMaxX,
+			                               panel_state().popupMaxY);
+			oled_current_image_for_session() = &popup_for_session().hackGetImageStore()[0];
 		}
 	}
 
 #if OLED_LOG_TIMING
 	uint16_t renderStopTime = *TCNT[TIMER_SYSTEM_FAST];
 	uartPrint("oled render time: ");
-	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
+	uartPrintNumber((uint16_t)(renderStopTime - panel_state().renderStartTime));
 #endif
-	enqueueOLEDFrame(oledCurrentImage[0]);
+	// Remote composition ends in a stable software frame, never the physical queue.
+	if (deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Remote) {
+		frame_states.active().publish();
+		needs_sending_for_session() = false;
+		return;
+	}
+	enqueueOLEDFrame(oled_current_image_for_session()[0]);
 	HIDSysex::sendDisplayIfChanged();
-	needsSending = false;
+	needs_sending_for_session() = false;
 }
 
 #define TEXT_MAX_NUM_LINES 8
@@ -444,14 +509,14 @@ struct TextLineBreakdown {
 bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth, int32_t& lineLength,
                         int32_t& charSpacing) {
 	// we're in a word, calculate width (in px) of the character in that word
-	int32_t charWidth = deluge::hid::display::OLED::popup.getCharWidthInPixels(c, textHeight);
+	int32_t charWidth = deluge::hid::display::OLED::popup_for_session().getCharWidthInPixels(c, textHeight);
 
 	// increase line width for the character added
 	lineWidth += charWidth;
 
 	// add spacing (not relevant if you're using a monospaced font, which we are here, but keep it anyway in case we
 	// don't)
-	charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, textHeight, false);
+	charSpacing = deluge::hid::display::OLED::popup_for_session().getCharSpacingInPixels(c, textHeight, false);
 	lineWidth += charSpacing;
 
 	// increment the number of characters in this line
@@ -639,7 +704,7 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 	int32_t minY = (OLED_MAIN_HEIGHT_PIXELS - textHeight - doubleMargin) >> 1;
 	int32_t maxY = OLED_MAIN_HEIGHT_PIXELS - minY - 1;
 
-	main.drawRectangle(minX, minY, maxX, maxY);
+	main_for_session().drawRectangle(minX, minY, maxX, maxY);
 
 	int32_t textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1;
 	if (textPixelY < 0) {
@@ -648,12 +713,12 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 
 	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
 		int32_t textPixelX = (OLED_MAIN_WIDTH_PIXELS - textLineBreakdown.lineWidths[l]) >> 1;
-		main.drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
-		                textPixelY, kTextSpacingX, kTextSpacingY);
+		main_for_session().drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]},
+		                              textPixelX, textPixelY, kTextSpacingX, kTextSpacingY);
 		textPixelY += kTextSpacingY;
 	}
 
-	drawnPermanentPopup = true;
+	panel_state().drawnPermanentPopup = true;
 }
 
 void OLED::popupText(char const* text, bool persistent, PopupType type) {
@@ -681,8 +746,8 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 			continue;
 		}
 		int32_t textPixelX = (OLED_MAIN_WIDTH_PIXELS - textLineBreakdown.lineWidths[l]) >> 1;
-		popup.drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
-		                 textPixelY, kTextSpacingX, kTextSpacingY);
+		popup_for_session().drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]},
+		                               textPixelX, textPixelY, kTextSpacingX, kTextSpacingY);
 		textPixelY += kTextSpacingY;
 	}
 
@@ -709,14 +774,14 @@ void updateWorkingAnimation() {
 	const int32_t popupX = OLED_MAIN_WIDTH_PIXELS - 1 - animation_width;
 	const int32_t popupY = OLED_MAIN_TOPMOST_PIXEL + 2;
 
-	if (!started_animation) { // initialize the animation
-		started_animation = true;
+	if (!panel_state().started_animation) { // initialize the animation
+		panel_state().started_animation = true;
 
 		deluge::hid::display::OLED::setupPopup(PopupType::NOTIFICATION, animation_width, animation_height, popupX,
 		                                       popupY);
 	}
 
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::popup;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::popup_for_session();
 
 	// Calculate positions using absolute coordinates (popup coordinates)
 	const int32_t x_max = popupX + animation_width;
@@ -726,10 +791,11 @@ void updateWorkingAnimation() {
 	const int32_t y2 = y1 + h - 1;               // bottom of rectangles
 	int32_t h2 = 0;                              // height of animated portion (will increase over time)
 	// position of left side of starting stack that will be shifted over
-	const int32_t x_pos2 = loading ? x2 - working_animation_count + 1 : x_min + 1 + working_animation_count;
+	const int32_t x_pos2 = panel_state().loading ? x2 - panel_state().working_animation_count + 1
+	                                             : x_min + 1 + panel_state().working_animation_count;
 	const int32_t t_reset = w1 + w2 + (h - 2) * offset;
 
-	if (working_animation_count == 1) { // first frame after initialization
+	if (panel_state().working_animation_count == 1) { // first frame after initialization
 		// clear space and draw outer borders that will not change during the animation
 		image.clearAreaExact(popupX, popupY, popupX + animation_width - 1, popupY + animation_height - 1);
 		image.drawRectangle(x_min, y1, x_max, y2);
@@ -737,36 +803,36 @@ void updateWorkingAnimation() {
 		h2 = h - 2; // will cause rectangle to be filled in at the start
 	}
 	else {
-		h2 = std::min((working_animation_count + 2) / offset, h - 2);
+		h2 = std::min((panel_state().working_animation_count + 2) / offset, h - 2);
 	}
 
 	// clears the area gradually on subsequent loops.
 	image.clearAreaExact(x_min + 1, y1 + 1, x_max - 1, y1 + h2);
-	if (!loading)
+	if (!panel_state().loading)
 		offset *= -1;
 	for (int i = 0; i < h2; i++) {
 		int32_t x_pos = x_pos2 + i * offset; // Offsets positions which are later clamped. Causes staggered shifting.
 		// backfilling lines from top to bottom
-		if (loading && x_pos < x_min)
+		if (panel_state().loading && x_pos < x_min)
 			image.drawHorizontalLine(y1 + 1 + i, x2, x_max - 1);
-		if (!loading && x_pos > x2)
+		if (!panel_state().loading && x_pos > x2)
 			image.drawHorizontalLine(y1 + 1 + i, x_min + 1, x_min + w2);
 		x_pos = std::clamp(x_pos, x_min + 1, x2);
 		// horizontally shifting lines
 		image.drawHorizontalLine(y1 + 1 + i, x_pos, x_pos + w2 - 1);
 	}
 
-	if (working_animation_count == t_reset) {
+	if (panel_state().working_animation_count == t_reset) {
 		// completed animation, just have to add final backfill line.
-		working_animation_count = 1;
-		if (loading)
+		panel_state().working_animation_count = 1;
+		if (panel_state().loading)
 			image.drawHorizontalLine(y2 - 1, x2, x_max - 1);
 		else
 			image.drawHorizontalLine(y2 - 1, x_min + 1, x_min + w2);
 		uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, 350); // pause at end of animation cycle before restarting
 	}
 	else {
-		if (working_animation_count == 1)
+		if (panel_state().working_animation_count == 1)
 			uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, 350); // delay the start of the animation sequence
 		else
 			uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, 70); // time interval between animation steps
@@ -774,12 +840,12 @@ void updateWorkingAnimation() {
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
-	loading = !strcmp(word, "Loading");
-	if (working_animation_count) {
+	panel_state().loading = !strcmp(word, "Loading");
+	if (panel_state().working_animation_count) {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
 	}
-	working_animation_count = 1;
-	started_animation = false;
+	panel_state().working_animation_count = 1;
+	panel_state().started_animation = false;
 	updateWorkingAnimation();
 	markChanged();
 }
@@ -789,9 +855,9 @@ void OLED::removeWorkingAnimation() {
 	if (hasPopupOfType(PopupType::NOTIFICATION)) {
 		removePopup();
 	}
-	if (working_animation_count) {
+	if (panel_state().working_animation_count) {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
-		working_animation_count = 0;
+		panel_state().working_animation_count = 0;
 	}
 }
 
@@ -807,15 +873,16 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 	constexpr uint8_t height = end_y - start_y;
 	constexpr int32_t padding_left = 4;
 
-	int32_t title_width = popup.getStringWidthInPixels(param_title.data(), kTextSpacingY);
+	int32_t title_width = popup_for_session().getStringWidthInPixels(param_title.data(), kTextSpacingY);
 	const int32_t value_width =
-	    param_value.has_value() ? popup.getStringWidthInPixels(param_value.value().data(), kTextSpacingY) : 0;
+	    param_value.has_value() ? popup_for_session().getStringWidthInPixels(param_value.value().data(), kTextSpacingY)
+	                            : 0;
 
 	if (value_width > 0) {
 		// Truncate the title string until we have space to display the value
 		while (title_width + padding_left + value_width > OLED_MAIN_WIDTH_PIXELS - 7) {
 			titleBuf.truncate(titleBuf.size() - 1);
-			title_width = popup.getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
+			title_width = popup_for_session().getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
 		}
 	}
 
@@ -825,23 +892,23 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 	const bool no_inversion = FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION;
 	constexpr uint8_t title_start_x = padding_left;
 	const uint8_t title_start_y = no_inversion ? start_y : start_y + 1;
-	popup.drawString(titleBuf.data(), title_start_x, title_start_y, kTextSpacingX, kTextSpacingY);
+	popup_for_session().drawString(titleBuf.data(), title_start_x, title_start_y, kTextSpacingX, kTextSpacingY);
 
 	if (value_width > 0) {
-		popup.drawChar(':', title_start_x + title_width, title_start_y, kTextSpacingX, kTextSpacingY);
-		popup.drawString(param_value.value().data(), title_start_x + title_width + 8, title_start_y, kTextSpacingX,
-		                 kTextSpacingY);
+		popup_for_session().drawChar(':', title_start_x + title_width, title_start_y, kTextSpacingX, kTextSpacingY);
+		popup_for_session().drawString(param_value.value().data(), title_start_x + title_width + 8, title_start_y,
+		                               kTextSpacingX, kTextSpacingY);
 	}
 
 	if (no_inversion) {
 		for (uint8_t x = start_x + 1; x < end_x; x += 2) {
-			popup.drawPixel(x, end_y);
+			popup_for_session().drawPixel(x, end_y);
 		}
 	}
 	else {
-		popup.invertAreaRounded(start_x, width, start_y, end_y);
-		popup.drawPixel(start_x, start_y);
-		popup.drawPixel(end_x, start_y);
+		popup_for_session().invertAreaRounded(start_x, width, start_y, end_y);
+		popup_for_session().drawPixel(start_x, start_y);
+		popup_for_session().drawPixel(end_x, start_y);
 	}
 
 	markChanged();
@@ -858,9 +925,9 @@ void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& 
 		for (int y = 0; y < 3; y++) {
 			if (display[i] & (1 << horz[y])) {
 				int ybase = 7 + dy * y;
-				main.invertArea(ix + 3, 15, ybase + 0, ybase + 0);
-				main.invertArea(ix + 2, 17, ybase + 1, ybase + 1);
-				main.invertArea(ix + 3, 15, ybase + 2, ybase + 2);
+				main_for_session().invertArea(ix + 3, 15, ybase + 0, ybase + 0);
+				main_for_session().invertArea(ix + 2, 17, ybase + 1, ybase + 1);
+				main_for_session().invertArea(ix + 3, 15, ybase + 2, ybase + 2);
 			}
 		}
 
@@ -872,15 +939,15 @@ void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& 
 					int xbase = ix + 18 * x + 1;
 					int ybase = 10 + dy * y;
 					int yside = y * -2 + 1;
-					main.invertArea(xbase + xside, 1, ybase + yside, ybase + 13 + yside);
-					main.invertArea(xbase, 1, ybase + 0, ybase + 13);
-					main.invertArea(xbase - xside, 1, ybase + 1, ybase + 12);
+					main_for_session().invertArea(xbase + xside, 1, ybase + yside, ybase + 13 + yside);
+					main_for_session().invertArea(xbase, 1, ybase + 0, ybase + 13);
+					main_for_session().invertArea(xbase - xside, 1, ybase + 1, ybase + 12);
 				}
 			}
 		}
 
 		if (display[i] & (1 << 7)) {
-			main.invertArea(ix + 21, 3, 41, 43);
+			main_for_session().invertArea(ix + 21, 3, 41, 43);
 		}
 	}
 	markChanged();
@@ -904,8 +971,8 @@ void OLED::consoleText(char const* text) {
 	int32_t textPixelY = setupConsole(numLines * charHeight + 1) + 1;
 
 	for (int32_t l = 0; l < numLines; l++) {
-		console.drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
-		                   textPixelY, charWidth, charHeight);
+		console_for_session().drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]},
+		                                 textPixelX, textPixelY, charWidth, charHeight);
 		textPixelY += charHeight;
 	}
 
@@ -914,74 +981,48 @@ void OLED::consoleText(char const* text) {
 	uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
 }
 
-union {
-	uint32_t u32;
-	struct {
-		uint8_t minX;
-		uint8_t width;
-		uint8_t minY;
-		uint8_t maxY;
-	};
-} blinkArea;
-
 void performBlink() {
-	OLED::main.invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY);
+	OLED::main_for_session().invertArea(panel_state().blinkArea.minX, panel_state().blinkArea.width,
+	                                    panel_state().blinkArea.minY, panel_state().blinkArea.maxY);
 	OLED::markChanged();
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 }
 
 void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
-	blinkArea.minX = minX;
-	blinkArea.width = width;
-	blinkArea.minY = minY;
-	blinkArea.maxY = maxY;
+	panel_state().blinkArea.minX = minX;
+	panel_state().blinkArea.width = width;
+	panel_state().blinkArea.minY = minY;
+	panel_state().blinkArea.maxY = maxY;
 	if (shouldBlinkImmediately) {
-		main.invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY);
+		main_for_session().invertArea(panel_state().blinkArea.minX, panel_state().blinkArea.width,
+		                              panel_state().blinkArea.minY, panel_state().blinkArea.maxY);
 	}
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 	markChanged();
 }
 
 void OLED::stopBlink() {
-	if (blinkArea.u32) {
-		blinkArea.u32 = 0;
+	if (panel_state().blinkArea.u32) {
+		panel_state().blinkArea.u32 = 0;
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
 }
 
-struct SideScroller {
-	char const* text; // NULL means not active.
-	int32_t textLength;
-	int32_t pos;
-	int32_t startX;
-	int32_t endX;
-	int32_t startY;
-	int32_t endY;
-	int32_t textSpacingX;
-	int32_t textSizeY;
-	int32_t stringLengthPixels;
-	int32_t boxLengthPixels;
-	bool finished;
-	bool doHighlight;
-	String string_;
-};
-
 #define NUM_SIDE_SCROLLERS 2
 
-SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 // text will be copied into the scroller, caller does not need to keep it allocated
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
 
-	SideScroller* scroller = &sideScrollers[index];
+	SideScroller* scroller = &panel_state().sideScrollers[index];
 	scroller->textLength = text.size();
 
 	scroller->stringLengthPixels = 0;
 
 	int32_t charIdx = 0;
 	for (char const c : text) {
-		int32_t charSpacing = main.getCharSpacingInPixels(c, textSizeY, charIdx == scroller->textLength);
-		int32_t charWidth = main.getCharWidthInPixels(c, textSizeY) + charSpacing;
+		int32_t charSpacing = main_for_session().getCharSpacingInPixels(c, textSizeY, charIdx == scroller->textLength);
+		int32_t charWidth = main_for_session().getCharWidthInPixels(c, textSizeY) + charSpacing;
 		scroller->stringLengthPixels += charWidth;
 		charIdx++;
 	}
@@ -1003,15 +1044,15 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->finished = false;
 	scroller->doHighlight = doHighlight;
 
-	sideScrollerDirection = 1;
+	panel_state().sideScrollerDirection = 1;
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
 }
 
 void OLED::stopScrollingAnimation() {
-	if (sideScrollerDirection) {
-		sideScrollerDirection = 0;
+	if (panel_state().sideScrollerDirection) {
+		panel_state().sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
-			SideScroller* scroller = &sideScrollers[s];
+			SideScroller* scroller = &panel_state().sideScrollers[s];
 			scroller->string_.clear();
 			scroller->text = nullptr;
 		}
@@ -1020,8 +1061,8 @@ void OLED::stopScrollingAnimation() {
 }
 
 void OLED::timerRoutine() {
-	if (working_animation_count) {
-		working_animation_count++;
+	if (panel_state().working_animation_count) {
+		panel_state().working_animation_count++;
 		updateWorkingAnimation();
 		markChanged();
 	}
@@ -1032,12 +1073,12 @@ void OLED::timerRoutine() {
 
 void OLED::scrollingAndBlinkingTimerEvent() {
 
-	if (blinkArea.u32) {
+	if (panel_state().blinkArea.u32) {
 		performBlink();
 		return;
 	}
 
-	if (!sideScrollerDirection) {
+	if (!panel_state().sideScrollerDirection) {
 		return; // Probably isn't necessary...
 	}
 
@@ -1046,14 +1087,14 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 		bool doRender = true;
-		SideScroller* scroller = &sideScrollers[s];
+		SideScroller* scroller = &panel_state().sideScrollers[s];
 		if (scroller->text) {
 			if (doScroll) {
 				if (scroller->finished) {
 					continue;
 				}
 
-				scroller->pos += sideScrollerDirection;
+				scroller->pos += panel_state().sideScrollerDirection;
 
 				if (scroller->pos <= 0) {
 					scroller->finished = true;
@@ -1082,12 +1123,13 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 					endX += 4;
 				}
 				// Ok, have to render.
-				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
-				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
-				                scroller->textSizeY, scroller->pos, scroller->endX);
+				main_for_session().clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
+				main_for_session().drawString(scroller->text, scroller->startX, scroller->startY,
+				                              scroller->textSpacingX, scroller->textSizeY, scroller->pos,
+				                              scroller->endX);
 				if (scroller->doHighlight && doInversion) {
-					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
-					                scroller->endY);
+					main_for_session().invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
+					                              scroller->endY);
 				}
 			}
 		}
@@ -1101,19 +1143,19 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 	int32_t timeInterval;
 	if (!finished) {
-		timeInterval = (sideScrollerDirection >= 0) ? 15 : 5;
+		timeInterval = (panel_state().sideScrollerDirection >= 0) ? 15 : 5;
 	}
 	else {
 		timeInterval = kScrollTime;
 		if (doScroll) {
-			sideScrollerDirection = -sideScrollerDirection;
+			panel_state().sideScrollerDirection = -panel_state().sideScrollerDirection;
 		}
 		// if  we're not scrolling, we reset the scroll position to forward
 		else {
-			sideScrollerDirection = 1;
+			panel_state().sideScrollerDirection = 1;
 		}
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
-			sideScrollers[s].finished = false;
+			panel_state().sideScrollers[s].finished = false;
 		}
 	}
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, timeInterval);
@@ -1133,8 +1175,8 @@ void OLED::consoleTimerEvent() {
 		bool anyRemoved = false;
 
 		// Get rid of any items which have hit the top of the screen
-		while (numConsoleItems > 0 && consoleItems[numConsoleItems - 1].minY < 2) {
-			numConsoleItems--;
+		while (panel_state().numConsoleItems > 0 && consoleItems[panel_state().numConsoleItems - 1].minY < 2) {
+			panel_state().numConsoleItems--;
 			anyRemoved = true;
 		}
 
@@ -1143,24 +1185,24 @@ void OLED::consoleTimerEvent() {
 		}
 
 		// If every item scrolled off the top, there's nothing left to animate.
-		if (numConsoleItems <= 0) {
+		if (panel_state().numConsoleItems <= 0) {
 			return;
 		}
 
-		int32_t firstRow = (consoleItems[numConsoleItems - 1].minY - 2) >> 3;
+		int32_t firstRow = (consoleItems[panel_state().numConsoleItems - 1].minY - 2) >> 3;
 		int32_t lastRow = consoleItems[0].maxY >> 3;
 
-		for (int32_t x = consoleMinX; x <= consoleMaxX; x++) {
+		for (int32_t x = panel_state().consoleMinX; x <= panel_state().consoleMaxX; x++) {
 			uint8_t carry = 0;
 
 			for (int32_t row = lastRow; row >= firstRow; row--) {
-				uint8_t prevBitsHere = console.hackGetImageStore()[row][x];
-				console.hackGetImageStore()[row][x] = (prevBitsHere >> 1) | (carry << 7);
+				uint8_t prevBitsHere = console_for_session().hackGetImageStore()[row][x];
+				console_for_session().hackGetImageStore()[row][x] = (prevBitsHere >> 1) | (carry << 7);
 				carry = prevBitsHere;
 			}
 		}
 
-		for (int32_t i = 0; i < numConsoleItems; i++) {
+		for (int32_t i = 0; i < panel_state().numConsoleItems; i++) {
 			consoleItems[i].minY--;
 			consoleItems[i].maxY--;
 		}
@@ -1206,23 +1248,25 @@ void OLED::consoleTimerEvent() {
 */
 	// If top console item timed out
 checkTimeTilTimeout:
-	int32_t timeLeft = consoleItems[numConsoleItems - 1].timeoutTime - AudioEngine::audioSampleTimer;
+	int32_t timeLeft = consoleItems[panel_state().numConsoleItems - 1].timeoutTime - AudioEngine::audioSampleTimer;
 	if (timeLeft <= 0) {
-		if (!consoleItems[numConsoleItems - 1].cleared) {
-			consoleItems[numConsoleItems - 1].cleared = true;
-			console.clearAreaExact(consoleMinX + 1, consoleItems[numConsoleItems - 1].minY, consoleMaxX - 1,
-			                       consoleItems[numConsoleItems - 1].maxY);
+		if (!consoleItems[panel_state().numConsoleItems - 1].cleared) {
+			consoleItems[panel_state().numConsoleItems - 1].cleared = true;
+			console_for_session().clearAreaExact(
+			    panel_state().consoleMinX + 1, consoleItems[panel_state().numConsoleItems - 1].minY,
+			    panel_state().consoleMaxX - 1, consoleItems[panel_state().numConsoleItems - 1].maxY);
 		}
-		consoleItems[numConsoleItems - 1].minY++;
+		consoleItems[panel_state().numConsoleItems - 1].minY++;
 		bool shouldCheckAgain = false;
-		if (consoleItems[numConsoleItems - 1].minY > consoleItems[numConsoleItems - 1].maxY) {
-			numConsoleItems--;
-			shouldCheckAgain = numConsoleItems;
+		if (consoleItems[panel_state().numConsoleItems - 1].minY
+		    > consoleItems[panel_state().numConsoleItems - 1].maxY) {
+			panel_state().numConsoleItems--;
+			shouldCheckAgain = panel_state().numConsoleItems;
 		}
 		else {
 			timeTilNext = CONSOLE_ANIMATION_FRAME_TIME_SAMPLES;
 		}
-		if (numConsoleItems) {
+		if (panel_state().numConsoleItems) {
 			drawConsoleTopLine();
 		}
 		if (shouldCheckAgain) {
@@ -1244,19 +1288,25 @@ checkTimeTilTimeout:
 }
 
 void OLED::freezeWithError(char const* text) {
+	// Fatal diagnostics intentionally take over the physical host panel.
+	deluge::gui::ui_session::Scope hardware(deluge::gui::ui_session::Id::Local);
 	OLED::clearMainImage();
 	int32_t yPixel = OLED_MAIN_TOPMOST_PIXEL;
-	main.drawString("Error:", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
-	main.drawString(text, kTextSpacingX * 7, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
+	main_for_session().drawString("Error:", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
+	main_for_session().drawString(text, kTextSpacingX * 7, yPixel, kTextSpacingX, kTextSizeYUpdated, 0,
+	                              OLED_MAIN_WIDTH_PIXELS);
 
 	yPixel += kTextSpacingY;
-	main.drawString("Press select knob to", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
+	main_for_session().drawString("Press select knob to", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0,
+	                              OLED_MAIN_WIDTH_PIXELS);
 
 	yPixel += kTextSpacingY;
-	main.drawString("attempt resume. Then", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
+	main_for_session().drawString("attempt resume. Then", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0,
+	                              OLED_MAIN_WIDTH_PIXELS);
 
 	yPixel += kTextSpacingY;
-	main.drawString("save to new file.", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
+	main_for_session().drawString("save to new file.", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0,
+	                              OLED_MAIN_WIDTH_PIXELS);
 
 	// Wait for existing DMA transfer to finish
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
@@ -1301,7 +1351,7 @@ void OLED::freezeWithError(char const* text) {
 
 	int32_t transferSize = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
 	DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
-	uint32_t dataAddress = (uint32_t)(&OLED::main.hackGetImageStore()[0][0]);
+	uint32_t dataAddress = (uint32_t)(&OLED::main_for_session().hackGetImageStore()[0][0]);
 	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
 	// oledFrameQueueReadPos = (oledFrameQueueReadPos + 1) & (OLED_FRAME_QUEUE_SIZE - 1);
 	// todo - should only need a flush

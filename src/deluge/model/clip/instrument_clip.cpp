@@ -20,6 +20,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/session_view.h"
@@ -75,30 +76,35 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 		colourOffset -= song->key.rootNote;
 	}
 
-	wrapEditing = false;
+	wrap_editing_for_session() = false;
 	for (int32_t i = 0; i < 4; i++) {
 		backedUpInstrumentSlot[i] = 0;
 		backedUpInstrumentSubSlot[i] = -1;
 	}
 
-	affectEntire = true;
+	affect_entire_for_session() = true;
 
 	inScaleMode = flashStorageCodeToScale(FlashStorage::defaultScale) != NO_SCALE;
-	onKeyboardScreen = false;
+	on_keyboard_screen_for_session() = false;
 
 	if (song) {
 		int32_t yNote = ((uint16_t)(song->key.rootNote + 120) % 12) + 60;
 		if (yNote > 66) {
 			yNote -= 12;
 		}
-		yScroll = getYVisualFromYNote(yNote,
-		                              song); // This takes into account the rootNote, which could be anything. Must be
-		                                     // called after the above stuff is set up
+		y_scroll_for_session() = getYVisualFromYNote(yNote,
+		                                             song); // This takes into account the rootNote, which could be
+		                                                    // anything. Must be called after the above stuff is set up
 	}
 	else {
-		yScroll =
+		y_scroll_for_session() =
 		    0; // Only for safety. Shouldn't actually get here if we're not going to overwrite this elsewhere I think...
 	}
+
+	// Both panels need the same root-note-aware initial viewport.
+	const int32_t initial_scroll = y_scroll_for_session();
+	panel_view_state.for_owner(deluge::gui::ui_session::Id::Local).yScroll = initial_scroll;
+	panel_view_state.for_owner(deluge::gui::ui_session::Id::Remote).yScroll = initial_scroll;
 
 	outputTypeWhileLoading = OutputType::SYNTH; // NOTE: (Kate) was 0, should probably be NONE
 }
@@ -130,15 +136,19 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	midiSub = otherInstrumentClip->midiSub;
 	midiPGM = otherInstrumentClip->midiPGM;
 
-	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
+	on_keyboard_screen_for_session() = otherInstrumentClip->on_keyboard_screen_for_session();
 	inScaleMode = otherInstrumentClip->inScaleMode;
-	wrapEditing = otherInstrumentClip->wrapEditing;
-	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
-	yScroll = otherInstrumentClip->yScroll;
-	keyboardState = otherInstrumentClip->keyboardState;
+	wrap_editing_for_session() = otherInstrumentClip->wrap_editing_for_session();
+	wrap_edit_level_for_session() = otherInstrumentClip->wrap_edit_level_for_session();
+	y_scroll_for_session() = otherInstrumentClip->y_scroll_for_session();
+	keyboard_state_for_session() = otherInstrumentClip->keyboard_state_for_session();
+	// Column pointers must refer to this clip's independently constructed controls.
+	auto& columns = keyboard_state_for_session().columnControl;
+	columns.leftCol = columns.getColumnForFunc(columns.leftColFunc);
+	columns.rightCol = columns.getColumnForFunc(columns.rightColFunc);
 	sequenceDirectionMode = otherInstrumentClip->sequenceDirectionMode;
 
-	affectEntire = otherInstrumentClip->affectEntire;
+	affect_entire_for_session() = otherInstrumentClip->affect_entire_for_session();
 
 	memcpy(backedUpInstrumentSlot, otherInstrumentClip->backedUpInstrumentSlot, sizeof(backedUpInstrumentSlot));
 	memcpy(backedUpInstrumentSubSlot, otherInstrumentClip->backedUpInstrumentSubSlot,
@@ -155,6 +165,9 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 
 // Will replace the Clip in the modelStack, if success.
 Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
+
+	if (!modelStack || modelStack->getTimelineCounterAllowNull() != this || loopLength <= 0)
+		return Error::BUG;
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
@@ -191,12 +204,19 @@ deleteClipAndGetOut:
 
 	for (int32_t i = 0; i < newClip->noteRows.getNumElements(); i++) {
 		NoteRow* noteRow = newClip->noteRows.getElement(i);
+		// cloneFrom copied storage, but these are newly owned rows.
+		noteRow->undo_identity = deluge::model::next_note_row_identity();
 		int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		Error error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+		Error row_error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+		if (error == Error::NONE && row_error != Error::NONE)
+			error = row_error;
 
-		// If that fails, we have to keep going, cos otherwise some NoteRows' NoteVector will be left pointing to stuff
-		// it shouldn't be
+		// Finish every row even after failure so none retain borrowed source storage.
+	}
+	if (error != Error::NONE) {
+		modelStack->setTimelineCounter(const_cast<InstrumentClip*>(this));
+		goto deleteClipAndGetOut;
 	}
 
 	if (shouldFlattenReversing && newClip->sequenceDirectionMode == SequenceDirection::REVERSE) {
@@ -211,12 +231,68 @@ deleteClipAndGetOut:
 
 // newLength might not be any longer than we already were - but this function still gets called in case any shorter
 // NoteRows need lengthening. So, this function must allow for that case (Clip length staying the same).
-void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
+bool InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
                                                IndependentNoteRowLengthIncrease independentNoteRowInstruction,
                                                bool completelyRenderOutIterationDependence, Action* action) {
 
-	int32_t numRepeatsRounded =
-	    completelyRenderOutIterationDependence ? 0 : (uint32_t)(newLength + (loopLength >> 1)) / (uint32_t)loopLength;
+	if (!modelStack || !modelStack->song || modelStack->getTimelineCounterAllowNull() != this)
+		return false;
+	Song* owner = modelStack->song;
+	Song* active_song = currentSong;
+	const auto initiating_owner = deluge::gui::ui_session::current();
+	const auto original_type = type;
+	auto expected_direction = sequenceDirectionMode;
+	bool registered = owner->contains_clip_for_undo(this);
+	auto revision = [](deluge::gui::ui_session::Id id) {
+		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
+	};
+	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+	const int32_t originalLength = loopLength;
+	const int32_t original_count = noteRows.getNumElements();
+	auto* original_output = output;
+	auto context_valid = [&] {
+		if (currentSong != active_song || deluge::gui::ui_session::current() != initiating_owner
+		    || modelStack->song != owner || revision(deluge::gui::ui_session::Id::Local) != local_revision
+		    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision
+		    || modelStack->getTimelineCounterAllowNull() != this)
+			return false;
+		// Unpublished arrangement clones are valid repeat targets too.
+		const bool currently_registered = owner->contains_clip_for_undo(this);
+		if (registered && !currently_registered)
+			return false;
+		registered = registered || currently_registered;
+		return type == original_type && sequenceDirectionMode == expected_direction && loopLength == originalLength
+		       && output == original_output && noteRows.getNumElements() == original_count;
+	};
+	if (!output || type != ClipType::INSTRUMENT || loopLength <= 0 || newLength <= 0)
+		return false;
+	auto independent_target = [&](int32_t length) -> int64_t {
+		if (length <= 0)
+			return -1;
+		switch (independentNoteRowInstruction) {
+		case IndependentNoteRowLengthIncrease::DOUBLE:
+			return int64_t{length} * 2;
+		case IndependentNoteRowLengthIncrease::ROUND_UP:
+			return ((int64_t{newLength} - 1) / length + 1) * length;
+		default:
+			return -1;
+		}
+	};
+	// Validate every target before changing any row, including rows visited
+	// before an invalid independent length or an overflowing rounded target.
+	for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+		int32_t length = noteRows.getElement(i)->loopLengthIfIndependent;
+		if (length) {
+			int64_t target = independent_target(length);
+			if (target <= 0 || target > INT32_MAX)
+				return false;
+		}
+	}
+
+	int32_t numRepeatsRounded = completelyRenderOutIterationDependence
+	                                ? 0
+	                                : (uint64_t{static_cast<uint32_t>(newLength)} + (loopLength >> 1)) / loopLength;
 
 	// Tell all the noteRows
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
@@ -230,32 +306,30 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 		// Deal specially with NoteRows with independent length.
 		if (thisNoteRow->loopLengthIfIndependent) {
 
-			switch (independentNoteRowInstruction) {
-			case IndependentNoteRowLengthIncrease::DOUBLE:
-				newLengthHere = thisNoteRow->loopLengthIfIndependent << 1;
-				break;
+			newLengthHere = static_cast<int32_t>(independent_target(thisNoteRow->loopLengthIfIndependent));
 
-			case IndependentNoteRowLengthIncrease::ROUND_UP:
-				newLengthHere = ((uint32_t)(newLength - 1) / (uint32_t)thisNoteRow->loopLengthIfIndependent + 1)
-				                * thisNoteRow->loopLengthIfIndependent;
-				break;
-
-			default:
-				__builtin_unreachable();
-			}
-
-			numRepeatsRoundedHere = completelyRenderOutIterationDependence
-			                            ? 0
-			                            : (uint32_t)(newLengthHere + (thisNoteRow->loopLengthIfIndependent >> 1))
-			                                  / (uint32_t)thisNoteRow->loopLengthIfIndependent;
+			numRepeatsRoundedHere =
+			    completelyRenderOutIterationDependence
+			        ? 0
+			        : (uint64_t{static_cast<uint32_t>(newLengthHere)} + (thisNoteRow->loopLengthIfIndependent >> 1))
+			              / (uint32_t)thisNoteRow->loopLengthIfIndependent;
 
 			oldLengthHere = thisNoteRow->loopLengthIfIndependent;
 		}
 
 		if (newLengthHere > oldLengthHere) { // Or do nothing if length staying the same
+			const uint64_t identity = thisNoteRow->undo_identity;
+			const int32_t independent_length = thisNoteRow->loopLengthIfIndependent;
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
-			thisNoteRow->generateRepeats(modelStackWithNoteRow, oldLengthHere, newLengthHere, numRepeatsRoundedHere,
-			                             action);
+			if (!thisNoteRow->generateRepeats(modelStackWithNoteRow, oldLengthHere, newLengthHere,
+			                                  numRepeatsRoundedHere, action))
+				return false;
+			if (!context_valid() || modelStackWithNoteRow->song != owner
+			    || modelStackWithNoteRow->getTimelineCounterAllowNull() != this
+			    || modelStackWithNoteRow->getNoteRowAllowNull() != thisNoteRow
+			    || modelStackWithNoteRow->noteRowId != noteRowId || getNoteRowFromId(noteRowId) != thisNoteRow
+			    || thisNoteRow->undo_identity != identity || thisNoteRow->loopLengthIfIndependent != independent_length)
+				return false;
 		}
 
 		if (thisNoteRow->loopLengthIfIndependent) {
@@ -269,6 +343,8 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 		ModelStackWithThreeMainThings* modelStackWithParamManager =
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 		paramManager.generateRepeats(modelStackWithParamManager, loopLength, newLength, pingponging);
+		if (!context_valid())
+			return false;
 	}
 
 	if (pingponging) {
@@ -278,6 +354,7 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 	}
 
 	loopLength = newLength;
+	return true;
 }
 
 // If action is NULL, that means this is being called as part of an undo
@@ -292,7 +369,8 @@ void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, in
 			if (!thisNoteRow->loopLengthIfIndependent) {
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-				thisNoteRow->trimToLength(loopLength, modelStackWithNoteRow, action);
+				if (thisNoteRow->trimToLength(loopLength, modelStackWithNoteRow, action) != Error::NONE)
+					return;
 			}
 
 			// Or if it does have independent length, are we now the same length as it?
@@ -309,7 +387,44 @@ void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, in
 
 // Does this individually for each NoteRow, because they might be different lengths, and some might need repeating while
 // others need chopping.
-void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength) {
+bool InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength) {
+	if (!modelStack || !modelStack->song || modelStack->getTimelineCounterAllowNull() != this)
+		return false;
+	Song* owner = modelStack->song;
+	Song* active_song = currentSong;
+	const auto initiating_owner = deluge::gui::ui_session::current();
+	const auto original_type = type;
+	auto expected_direction = sequenceDirectionMode;
+	bool registered = owner->contains_clip_for_undo(this);
+	auto revision = [](deluge::gui::ui_session::Id id) {
+		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
+	};
+	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+	const int32_t originalLength = loopLength;
+	const int32_t original_count = noteRows.getNumElements();
+	auto* original_output = output;
+	auto context_valid = [&](int32_t expected_length) {
+		if (currentSong != active_song || deluge::gui::ui_session::current() != initiating_owner
+		    || modelStack->song != owner || revision(deluge::gui::ui_session::Id::Local) != local_revision
+		    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision
+		    || modelStack->getTimelineCounterAllowNull() != this)
+			return false;
+		// Unpublished arrangement clones are valid repeat targets too.
+		const bool currently_registered = owner->contains_clip_for_undo(this);
+		if (registered && !currently_registered)
+			return false;
+		registered = registered || currently_registered;
+		return type == original_type && sequenceDirectionMode == expected_direction && loopLength == expected_length
+		       && output == original_output && noteRows.getNumElements() == original_count;
+	};
+	if (!output || type != ClipType::INSTRUMENT || loopLength <= 0 || newLength <= 0)
+		return false;
+	for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+		if (noteRows.getElement(i)->loopLengthIfIndependent < 0)
+			return false;
+	}
+
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		int32_t oldLengthHere = thisNoteRow->loopLengthIfIndependent;
@@ -319,17 +434,28 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 
 		if (oldLengthHere != newLength) {
 			int32_t noteRowId = getNoteRowId(thisNoteRow, i);
+			const uint64_t identity = thisNoteRow->undo_identity;
+			const int32_t independent_length = thisNoteRow->loopLengthIfIndependent;
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
 
 			if (newLength > oldLengthHere) {
-				int32_t numRepeatsRounded = (uint32_t)(newLength + (oldLengthHere >> 1)) / (uint32_t)oldLengthHere;
-				thisNoteRow->generateRepeats(modelStackWithNoteRow, oldLengthHere, newLength, numRepeatsRounded,
-				                             nullptr);
+				int32_t numRepeatsRounded =
+				    (uint64_t{static_cast<uint32_t>(newLength)} + (oldLengthHere >> 1)) / oldLengthHere;
+				if (!thisNoteRow->generateRepeats(modelStackWithNoteRow, oldLengthHere, newLength, numRepeatsRounded,
+				                                  nullptr))
+					return false;
 			}
 
 			else {
-				thisNoteRow->trimToLength(newLength, modelStackWithNoteRow, nullptr);
+				if (thisNoteRow->trimToLength(newLength, modelStackWithNoteRow, nullptr) != Error::NONE)
+					return false;
 			}
+			if (!context_valid(originalLength) || modelStackWithNoteRow->song != owner
+			    || modelStackWithNoteRow->getTimelineCounterAllowNull() != this
+			    || modelStackWithNoteRow->getNoteRowAllowNull() != thisNoteRow
+			    || modelStackWithNoteRow->noteRowId != noteRowId || getNoteRowFromId(noteRowId) != thisNoteRow
+			    || thisNoteRow->undo_identity != identity || thisNoteRow->loopLengthIfIndependent != independent_length)
+				return false;
 		}
 
 		thisNoteRow->loopLengthIfIndependent = 0; // It doesn't need to be independent anymore.
@@ -342,6 +468,8 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
 		paramManager.generateRepeats(modelStackWithParamManager, loopLength, newLength, pingponging);
+		if (!context_valid(originalLength))
+			return false;
 
 		if (pingponging) {
 			sequenceDirectionMode =
@@ -349,6 +477,7 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 			                                // either way, I think removing that setting now is best.
 		}
 	}
+	expected_direction = sequenceDirectionMode;
 
 	int32_t oldLength = loopLength;
 
@@ -358,23 +487,70 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 	                    nullptr); // Call this on Clip::, not us InstrumentClip, because we've done our own version
 	                              // above of what that call would do.
 
+	if (!context_valid(newLength))
+		return false;
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
 		resumePlayback(modelStack);
 	}
+	return context_valid(newLength);
 }
 
 // This only gets called when undoing a "multiply Clip".
-void InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack) {
-	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+Error InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack) {
+	if (!modelStack || !modelStack->song || modelStack->getTimelineCounterAllowNull() != this
+	    || !modelStack->song->contains_clip_for_undo(this))
+		return Error::BUG;
+	Song* owner = modelStack->song;
+	Song* active_song = currentSong;
+	auto revision = [](deluge::gui::ui_session::Id id) {
+		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
+	};
+	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+	const int32_t count = noteRows.getNumElements();
+	if (loopLength <= 0)
+		return Error::BUG;
+	// Validate every target before the first row can be shortened.
+	for (int32_t row_index = 0; row_index < count; ++row_index) {
+		const int32_t row_length = noteRows.getElement(row_index)->loopLengthIfIndependent;
+		if (row_length != 0 && row_length < 2)
+			return Error::BUG;
+	}
+	const int32_t parent_length = loopLength;
+	auto* original_output = output;
+	for (int32_t i = 0; i < count; i++) {
 		NoteRow* noteRow = noteRows.getElement(i);
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(getNoteRowId(noteRow, i), noteRow);
 
 		if (noteRow->loopLengthIfIndependent) {
-			noteRow->setLength(modelStackWithNoteRow, noteRow->loopLengthIfIndependent >> 1, nullptr,
-			                   modelStackWithNoteRow->getLastProcessedPos(), true);
+			const int32_t row_id = getNoteRowId(noteRow, i);
+			const uint64_t identity = noteRow->undo_identity;
+			const int32_t target_length = noteRow->loopLengthIfIndependent >> 1;
+			Error error = noteRow->setLength(modelStackWithNoteRow, target_length, nullptr,
+			                                 modelStackWithNoteRow->getLastProcessedPos(), true);
+			if (error != Error::NONE)
+				return error;
+			// A resume callback can release the clip. Check external state and
+			// ownership before reading this or looking up the next row.
+			if (currentSong != active_song || modelStack->song != owner
+			    || revision(deluge::gui::ui_session::Id::Local) != local_revision
+			    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision)
+				return Error::BUG;
+			if (!owner->contains_clip_for_undo(this) || modelStack->getTimelineCounterAllowNull() != this
+			    || modelStackWithNoteRow->song != owner || modelStackWithNoteRow->getTimelineCounterAllowNull() != this
+			    || modelStackWithNoteRow->getNoteRowAllowNull() != noteRow)
+				return Error::BUG;
+			if (loopLength != parent_length || output != original_output || noteRows.getNumElements() != count
+			    || getNoteRowFromId(row_id) != noteRow || noteRow->undo_identity != identity)
+				return Error::BUG;
+			const int32_t effective_length =
+			    noteRow->loopLengthIfIndependent ? noteRow->loopLengthIfIndependent : parent_length;
+			if (effective_length != target_length)
+				return Error::BUG;
 		}
 	}
+	return Error::NONE;
 }
 
 // Accepts any pos >= -length
@@ -973,7 +1149,7 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Mode
 NoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_t* getIndex) {
 	// Kit
 	if (output->type == OutputType::KIT) {
-		int32_t i = yDisplay + yScroll;
+		int32_t i = yDisplay + y_scroll_for_session();
 		if (i < 0 || i >= noteRows.getNumElements()) {
 			return nullptr;
 		}
@@ -1024,8 +1200,8 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowForSelectedDrum(ModelStackWithT
 	NoteRow* noteRow = nullptr;
 	if (output->type == OutputType::KIT) {
 		Kit* kit = (Kit*)output;
-		if (kit->selectedDrum) {
-			noteRow = getNoteRowForDrum(kit->selectedDrum, &noteRowId);
+		if (kit->selected_drum_for_session()) {
+			noteRow = getNoteRowForDrum(kit->selected_drum_for_session(), &noteRowId);
 		}
 	}
 	return modelStack->addNoteRow(noteRowId, noteRow);
@@ -1226,10 +1402,9 @@ NoteRow* InstrumentClip::createNewNoteRowForYVisual(int32_t yVisual, Song* song)
 // Returns false in rare case that there wasn't enough ram to do this
 NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart,
                                                 int32_t* getIndex) {
+	deluge::gui::ui_session::PeerStructuralChange structural_change;
 
 	int32_t index = atStart ? 0 : noteRows.getNumElements();
-
-	Drum* newDrum = ((Kit*)output)->getFirstUnassignedDrum(this);
 
 	NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(index);
 	if (!newNoteRow) {
@@ -1238,10 +1413,12 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(index, newNoteRow);
 
+	// Resolve after insertion's allocation yield instead of retaining a drum across it.
+	Drum* newDrum = ((Kit*)output)->getFirstUnassignedDrum(this);
 	newNoteRow->setDrum(newDrum, (Kit*)output, modelStackWithNoteRow); // It might end up NULL. That's fine
 
 	if (atStart) {
-		yScroll++;
+		shift_clip_views(panel_view_state, 1);
 
 		// Adjust colour offset, because colour offset is relative to the lowest NoteRow, and we just made a new lowest
 		// one
@@ -1282,11 +1459,13 @@ void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWi
 	uint8_t oldSize = changes.source.scaleSize();
 	uint8_t newSize = changes.target.scaleSize();
 
-	// Which octave & scale degree was at the bottom of the view before scale change?
-	int yOctave = yScroll / oldSize;
-	int yDegree = yScroll - (yOctave * oldSize);
-	// Take scale size changes into account and adjust yScroll to keep same octave visible
-	yScroll = yOctave * newSize + yDegree;
+	// Scale contents are shared: preserve each panel's visible octave and degree.
+	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+		auto& scroll = panel_view_state.for_owner(owner).yScroll;
+		int yOctave = scroll / oldSize;
+		int yDegree = scroll - yOctave * oldSize;
+		scroll = yOctave * newSize + yDegree;
+	}
 }
 
 void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) {
@@ -1338,7 +1517,7 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 		thisNoteRow->y += semitones;
 	}
 
-	yScroll += semitones;
+	shift_clip_views(panel_view_state, semitones);
 	colourOffset -= semitones;
 }
 
@@ -1458,7 +1637,7 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		i++;
 	}
 
-	yScroll += change;
+	shift_clip_views(panel_view_state, change);
 	return true;
 }
 
@@ -1471,10 +1650,11 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	AudioEngine::logAction("InstrumentClip::renderAsSingleRow");
 
 	// Special case if we're a simple keyboard-mode Clip
-	if (onKeyboardScreen && !containsAnyNotes()) {
-		int32_t increment = (kDisplayWidth + (kDisplayHeight * keyboardState.isomorphic.rowInterval)) / kDisplayWidth;
+	if (on_keyboard_screen_for_session() && !containsAnyNotes()) {
+		int32_t increment =
+		    (kDisplayWidth + (kDisplayHeight * keyboard_state_for_session().isomorphic.rowInterval)) / kDisplayWidth;
 		for (int32_t x = xStart; x < xEnd; x++) {
-			image[x] = getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0);
+			image[x] = getMainColourFromY(keyboard_state_for_session().isomorphic.scrollOffset + x * increment, 0);
 		}
 		return true;
 	}
@@ -1519,7 +1699,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	}
 	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
-		                  currentSong->tripletsOn);
+		                  currentSong->triplets_on_for_session());
 	}
 
 	return true;
@@ -1655,7 +1835,7 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 		paramManager.destructMainParamCollections();
 	}
 	output = newInstrument;
-	affectEntire = true; // Moved here from changeInstrument, March 2021
+	reset_clip_affect_entire(panel_view_state, true);
 
 	return Error::NONE;
 }
@@ -1681,7 +1861,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		NoteRow* noteRow = getNoteRowOnScreen(yDisplay, song);
 		if (!noteRow) {
-			noteRow = createNewNoteRowForYVisual(yDisplay + yScroll, song);
+			noteRow = createNewNoteRowForYVisual(yDisplay + y_scroll_for_session(), song);
 			if (!noteRow) {
 				return;
 			}
@@ -1692,7 +1872,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		int32_t yDisplay = getYVisualFromYNote(thisNoteRow->y, song) - yScroll;
+		int32_t yDisplay = getYVisualFromYNote(thisNoteRow->y, song) - y_scroll_for_session();
 
 		if ((yDisplay < 0 || yDisplay >= kDisplayHeight) && thisNoteRow->hasNoNotes()) {
 			noteRows.deleteNoteRowAtIndex(i);
@@ -1704,10 +1884,10 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 
 	// Figure out the new scroll value
 	if (noteRows.getNumElements()) {
-		yScroll -= getYVisualFromYNote(noteRows.getElement(0)->y, song);
+		y_scroll_for_session() -= getYVisualFromYNote(noteRows.getElement(0)->y, song);
 	}
 	else {
-		yScroll = 0;
+		y_scroll_for_session() = 0;
 	}
 }
 
@@ -1730,7 +1910,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 
 	Instrument* oldInstrument = (Instrument*)output;
-	int32_t oldYScroll = yScroll;
+	int32_t oldYScroll = y_scroll_for_session();
 
 	AudioEngine::routineWithClusterLoading();
 
@@ -1841,7 +2021,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			AudioEngine::routineWithClusterLoading();
 		}
 
-		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;
+		int32_t numNoteRowsDeletedFromBottom =
+		    (oldInstrument->type == OutputType::KIT) ? oldYScroll - y_scroll_for_session() : 0;
 
 		assignDrumsToNoteRows(
 		    modelStack, true,
@@ -1905,7 +2086,7 @@ probablyApplyBendRangeMain:
 		if (oldInstrument->type == OutputType::KIT) {
 			prepNoteRowsForExitingKitMode(modelStack->song);
 
-			yScroll += getYVisualFromYNote(noteRows.getElement(0)->y, modelStack->song);
+			y_scroll_for_session() += getYVisualFromYNote(noteRows.getElement(0)->y, modelStack->song);
 		}
 	}
 
@@ -1972,7 +2153,7 @@ void InstrumentClip::deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStac
 		}
 		noteRows.deleteNoteRowAtIndex(0, firstToKeep);
 
-		yScroll -= firstToKeep;
+		y_scroll_for_session() -= firstToKeep;
 	}
 }
 
@@ -2083,7 +2264,7 @@ insertSomeAtBottom:
 			newNoteRow->setDrum(thisDrum, kit, modelStackWithNoteRow);
 			numNoteRowsInsertedAtBottom++;
 		}
-		yScroll += numNoteRowsInsertedAtBottom;
+		y_scroll_for_session() += numNoteRowsInsertedAtBottom;
 	}
 
 	else {
@@ -2204,22 +2385,47 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 // Returns error code.
 // Should only call for Kit Clips.
 Error InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack) {
+	if (!modelStack || !modelStack->song || modelStack->song != currentSong)
+		return Error::BUG;
+	Song* const song = modelStack->song;
+	using namespace deluge::gui::ui_session;
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	const auto context_changed = [song, local_revision, remote_revision] {
+		return currentSong != song || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+		       || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision;
+	};
+	// Check every required backup before stealing any collections. A drum/clip
+	// key identifies one backup, so two rows cannot consume the same key.
+	for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+		auto* row = noteRows.getElement(i);
+		if (!row->drum || row->drum->type != DrumType::SOUND)
+			continue;
+		if (!modelStack->song->getBackedUpParamManagerForExactClip((SoundDrum*)row->drum, this))
+			return Error::BUG;
+		for (int32_t j = 0; j < i; ++j) {
+			if (noteRows.getElement(j)->drum == row->drum)
+				return Error::BUG;
+		}
+	}
+
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* noteRow = noteRows.getElement(i);
 		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
 
-			bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)noteRow->drum, this,
-			                                                                           &noteRow->paramManager);
+			bool success = modelStack->song->getBackedUpParamManagerForExactClip((SoundDrum*)noteRow->drum, this,
+			                                                                     &noteRow->paramManager);
 
-			if (!success) {
-				if (ALPHA_OR_BETA_VERSION) {
-					FREEZE_WITH_ERROR("E229");
-				}
+			if (context_changed() || !success) {
 				return Error::BUG;
 			}
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(i, noteRow);
 			noteRow->trimParamManager(modelStackWithNoteRow);
+			// Do not read this clip, its row vector or stack again if a callback
+			// invalidated them. Already transferred parameters are not rolled back.
+			if (context_changed())
+				return Error::BUG;
 		}
 	}
 
@@ -2306,6 +2512,14 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 // Returns error code
 Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
+	if (!modelStack || !modelStack->song || modelStack->song != currentSong || !output)
+		return Error::BUG;
+
+	Song* const song = modelStack->song;
+	using namespace deluge::gui::ui_session;
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+
 	// We really just need all our ParamManagers back
 
 	if (output->type == OutputType::MIDI_OUT) {
@@ -2314,16 +2528,24 @@ Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* mo
 		    modelStack->addModControllableButNoNoteRow(output->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStackWithModControllable);
 
+		// Trimming can invalidate the clip. Check external state before reading
+		// its output or parameter manager again.
+		if (currentSong != song || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+		    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision)
+			return Error::BUG;
+
 		if (!paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
-			if (ALPHA_OR_BETA_VERSION) {
-				FREEZE_WITH_ERROR("PM22"); // was E230
-			}
 			return Error::BUG;
 		}
 	}
 	else if (output->type != OutputType::CV) {
 
 		if (output->type == OutputType::KIT) {
+			// The kit-level transfer follows the rows; reject a missing backup
+			// before any row collections are consumed.
+			if (!modelStack->song->getBackedUpParamManagerForExactClip(
+			        (ModControllableAudio*)output->toModControllable(), this))
+				return Error::BUG;
 			Error error = undoUnassignmentOfAllNoteRowsFromDrums(modelStack);
 			if (error != Error::NONE) {
 				return error;
@@ -2342,7 +2564,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
                                          InstrumentClip* favourClipForCloningParamManager) {
 
 	output = newInstrument;
-	affectEntire = (newInstrument->type != OutputType::KIT); // Moved here from changeInstrument, March 2021
+	reset_clip_affect_entire(panel_view_state, newInstrument->type != OutputType::KIT);
 
 	Error error = solicitParamManager(song, newParamManager, favourClipForCloningParamManager);
 	if (error != Error::NONE) {
@@ -2370,28 +2592,29 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.writeAttribute("clipName", name.get());
 	writer.writeAttribute("inKeyMode", inScaleMode);
-	writer.writeAttribute("yScroll", yScroll);
-	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
+	writer.writeAttribute("yScroll", y_scroll_for_session());
+	writer.writeAttribute("yScrollKeyboard", keyboard_state_for_session().isomorphic.scrollOffset);
 
-	if (onKeyboardScreen) {
+	if (on_keyboard_screen_for_session()) {
 		writer.writeAttribute("onKeyboardScreen", 1);
 	}
-	if (onAutomationClipView) {
+	if (on_automation_clip_view_for_session()) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
-	if (lastSelectedParamID != params::kNoParamID) {
-		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
-		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		writer.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
-		writer.writeAttribute("lastSelectedPatchSource", util::to_underlying(lastSelectedPatchSource));
+	if (last_selected_param_id_for_session() != params::kNoParamID) {
+		writer.writeAttribute("lastSelectedParamID", last_selected_param_id_for_session());
+		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(last_selected_param_kind_for_session()));
+		writer.writeAttribute("lastSelectedParamShortcutX", last_selected_param_shortcut_x_for_session());
+		writer.writeAttribute("lastSelectedParamShortcutY", last_selected_param_shortcut_y_for_session());
+		writer.writeAttribute("lastSelectedInstrumentType",
+		                      util::to_underlying(last_selected_output_type_for_session()));
+		writer.writeAttribute("lastSelectedPatchSource", util::to_underlying(last_selected_patch_source_for_session()));
 	}
-	if (wrapEditing) {
-		writer.writeAttribute("crossScreenEditLevel", wrapEditLevel);
+	if (wrap_editing_for_session()) {
+		writer.writeAttribute("crossScreenEditLevel", wrap_edit_level_for_session());
 	}
 	if (output->type == OutputType::KIT) {
-		writer.writeAttribute("affectEntire", affectEntire);
+		writer.writeAttribute("affectEntire", affect_entire_for_session());
 	}
 
 	Instrument* instrument = (Instrument*)output;
@@ -2428,12 +2651,12 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	Clip::writeDataToFile(writer, song);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
-	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scroll_offset);
-	writer.writeAttribute("drumsZoomLevel", keyboardState.drums.zoom_level);
-	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
-	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+	writer.writeAttribute("keyboardLayout", keyboard_state_for_session().currentLayout);
+	writer.writeAttribute("keyboardRowInterval", keyboard_state_for_session().isomorphic.rowInterval);
+	writer.writeAttribute("drumsScrollOffset", keyboard_state_for_session().drums.scroll_offset);
+	writer.writeAttribute("drumsZoomLevel", keyboard_state_for_session().drums.zoom_level);
+	writer.writeAttribute("inKeyScrollOffset", keyboard_state_for_session().inKey.scrollOffset);
+	writer.writeAttribute("inKeyRowInterval", keyboard_state_for_session().inKey.rowInterval);
 
 	writer.writeOpeningTagEnd();
 
@@ -2477,7 +2700,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 
 	writer.writeOpeningTag("columnControls");
-	keyboardState.columnControl.writeToFile(writer);
+	keyboard_state_for_session().columnControl.writeToFile(writer);
 	writer.writeClosingTag("columnControls");
 
 	if (noteRows.getNumElements()) {
@@ -2604,80 +2827,80 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "yScroll")) {
-			yScroll = reader.readTagOrAttributeValueInt();
+			y_scroll_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
-			keyboardState.currentLayout = (KeyboardLayoutType)reader.readTagOrAttributeValueInt();
+			keyboard_state_for_session().currentLayout = (KeyboardLayoutType)reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
-			keyboardState.isomorphic.scrollOffset = reader.readTagOrAttributeValueInt();
+			keyboard_state_for_session().isomorphic.scrollOffset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardRowInterval")) {
-			keyboardState.isomorphic.rowInterval = reader.readTagOrAttributeValueInt();
+			keyboard_state_for_session().isomorphic.rowInterval = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumsScrollOffset")) {
-			keyboardState.drums.scroll_offset = reader.readTagOrAttributeValueInt();
+			keyboard_state_for_session().drums.scroll_offset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumsZoomLevel")) {
-			keyboardState.drums.zoom_level = reader.readTagOrAttributeValueInt();
+			keyboard_state_for_session().drums.zoom_level = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyScrollOffset")) {
-			keyboardState.inKey.scrollOffset = reader.readTagOrAttributeValueInt();
+			keyboard_state_for_session().inKey.scrollOffset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyRowInterval")) {
-			keyboardState.inKey.rowInterval = reader.readTagOrAttributeValueInt();
+			keyboard_state_for_session().inKey.rowInterval = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {
-			wrapEditLevel = reader.readTagOrAttributeValueInt();
-			wrapEditing = true;
+			wrap_edit_level_for_session() = reader.readTagOrAttributeValueInt();
+			wrap_editing_for_session() = true;
 		}
 
 		else if (!strcmp(tagName, "onKeyboardScreen")) {
-			onKeyboardScreen = reader.readTagOrAttributeValueInt();
+			on_keyboard_screen_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = reader.readTagOrAttributeValueInt();
+			on_automation_clip_view_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = reader.readTagOrAttributeValueInt();
+			last_selected_param_id_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
+			last_selected_param_kind_for_session() = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = reader.readTagOrAttributeValueInt();
+			last_selected_param_shortcut_x_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = reader.readTagOrAttributeValueInt();
+			last_selected_param_shortcut_y_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
+			last_selected_param_array_position_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
-			lastSelectedOutputType = static_cast<OutputType>(reader.readTagOrAttributeValueInt());
+			last_selected_output_type_for_session() = static_cast<OutputType>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedPatchSource")) {
-			lastSelectedPatchSource = static_cast<PatchSource>(reader.readTagOrAttributeValueInt());
+			last_selected_patch_source_for_session() = static_cast<PatchSource>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
-			affectEntire = reader.readTagOrAttributeValueInt();
+			affect_entire_for_session() = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "soundMidiCommand")) { // Only for pre V2.0 song files
@@ -2941,7 +3164,7 @@ doReadBendRange:
 			goto doReadBendRange;
 		}
 		else if (!strcmp(tagName, "columnControls")) {
-			keyboardState.columnControl.readFromFile(reader);
+			keyboard_state_for_session().columnControl.readFromFile(reader);
 		}
 		else {
 			readTagFromFile(reader, tagName, song, &readAutomationUpToPos);
@@ -3272,6 +3495,15 @@ useRootNote:
 
 // Returns whether whole Clip should be deleted
 bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
+	// A visible clip can retain row/editor pointers even when no drum is selected.
+	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+		deluge::gui::ui_session::Scope panel(owner);
+		const View* panel_view = view_for_session_if_initialized();
+		if (song->getCurrentClip() == this
+		    || (panel_view && this == panel_view->activeModControllableModelStack.getTimelineCounterAllowNull())) {
+			return false;
+		}
+	}
 
 	deleteBackedUpParamManagerMIDI();
 
@@ -3282,14 +3514,25 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 		for (int32_t i = 0; i < noteRows.getNumElements();) {
 			NoteRow* noteRow = noteRows.getElement(i);
+			bool drum_is_panel_target = false;
+			if (noteRow->drum) {
+				for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+					deluge::gui::ui_session::Scope panel(owner);
+					drum_is_panel_target |= kit->selected_drum_for_session() == noteRow->drum;
+					const View* panel_view = view_for_session_if_initialized();
+					if (panel_view && noteRow->drum->type == DrumType::SOUND) {
+						drum_is_panel_target |= static_cast<SoundDrum*>(noteRow->drum)
+						                        == panel_view->activeModControllableModelStack.modControllable;
+					}
+				}
+			}
 
 			// If the NoteRow isn't gonna make any more sound...
 			if ((!clipIsActive || noteRow->muted || noteRow->hasNoNotes())
 			    // ...and it doesn't have a currently still-rendering Drum Sound
 			    && (!noteRow->drum || noteRow->drum->type != DrumType::SOUND
 			        || ((SoundDrum*)noteRow->drum)->skippingRendering)
-			    && (!noteRow->drum || noteRow->drum->type != DrumType::SOUND
-			        || (SoundDrum*)noteRow->drum != view.activeModControllableModelStack.modControllable)) {
+			    && !drum_is_panel_target) {
 
 				// OI!! Don't nest any of those conditions inside other if statements. We need the "else" below to take
 				// effect. Thanks
@@ -3334,6 +3577,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 // Will cause serious problems if the NoteRow doesn't exist in here
 void InstrumentClip::deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex) {
+	deluge::gui::ui_session::PeerStructuralChange structural_change;
 
 	NoteRow* noteRow = noteRows.getElement(noteRowIndex);
 
@@ -3382,8 +3626,9 @@ int16_t InstrumentClip::getBottomYNote() {
 }
 
 uint32_t InstrumentClip::getWrapEditLevel() {
-	return wrapEditing ? wrapEditLevel : kMaxSequenceLength; // Used to return the Clip length in this case, but that
-	                                                         // causes problems now that NoteRows may be longer.
+	return wrap_editing_for_session() ? wrap_edit_level_for_session()
+	                                  : kMaxSequenceLength; // Used to return the Clip length in this case, but that
+	                                                        // causes problems now that NoteRows may be longer.
 }
 
 bool InstrumentClip::hasSameInstrument(InstrumentClip* otherClip) {
@@ -3455,7 +3700,7 @@ int32_t InstrumentClip::getDistanceToNextNote(Note* givenNote, ModelStackWithNot
 	int32_t distance;
 
 	// If non-affect-entire Kit, only think about one NoteRow
-	if (output->type == OutputType::KIT && !affectEntire) {
+	if (output->type == OutputType::KIT && !affect_entire_for_session()) {
 		distance = modelStack->getNoteRow()->getDistanceToNextNote(givenNote->pos, modelStack);
 	}
 
@@ -3507,8 +3752,22 @@ NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 	}
 }
 
+bool InstrumentClip::can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) {
+	if (!Clip::can_shift_horizontally(amount, shiftSequenceAndMPE))
+		return false;
+	// Validate all rows before moving any clip-level automation. Zero inherits
+	// the already-validated parent length; negative independent lengths are invalid.
+	for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+		if (noteRows.getElement(i)->loopLengthIfIndependent < 0)
+			return false;
+	}
+	return true;
+}
+
 bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
                                        bool shiftSequenceAndMPE) {
+	if (!can_shift_horizontally(amount, shiftSequenceAndMPE))
+		return false;
 	// the following code iterates through all param collections and shifts automation and MPE separately
 	// automation only gets shifted if shiftAutomation is true
 	// MPE only gets shifted if shiftSequenceAndMPE is true
@@ -3703,13 +3962,13 @@ void InstrumentClip::deleteOldDrumNames() {
 }
 
 void InstrumentClip::ensureScrollWithinKitBounds() {
-	if (yScroll < 1 - kDisplayHeight) {
-		yScroll = 1 - kDisplayHeight;
+	if (y_scroll_for_session() < 1 - kDisplayHeight) {
+		y_scroll_for_session() = 1 - kDisplayHeight;
 	}
 	else {
 		int32_t maxYScroll = getNumNoteRows() - 1;
-		if (yScroll > maxYScroll) {
-			yScroll = maxYScroll;
+		if (y_scroll_for_session() > maxYScroll) {
+			y_scroll_for_session() = maxYScroll;
 		}
 	}
 }
@@ -3785,7 +4044,7 @@ bool InstrumentClip::containsAnyNotes() {
 }
 
 int32_t InstrumentClip::getYNoteFromYDisplay(int32_t yDisplay, Song* song) {
-	return getYNoteFromYVisual(yDisplay + yScroll, song);
+	return getYNoteFromYVisual(yDisplay + y_scroll_for_session(), song);
 }
 
 // Called when the user presses one of the instrument-type buttons (synth/kit/MIDI/CV). This function takes care of
@@ -3832,22 +4091,22 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		Error error;
 
 		newName.set(&backedUpInstrumentName[newOutputTypeAsIdx]);
-		Browser::currentDir.set(&backedUpInstrumentDirPath[newOutputTypeAsIdx]);
+		Browser::current_dir_for_session().set(&backedUpInstrumentDirPath[newOutputTypeAsIdx]);
 
-		if (Browser::currentDir.isEmpty()) {
-			error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+		if (Browser::current_dir_for_session().isEmpty()) {
+			error = Browser::current_dir_for_session().set(getInstrumentFolder(newOutputType));
 			if (error != Error::NONE) {
 				display->displayError(error);
 				return nullptr;
 			}
 		}
 
-		FileItem* fileItem = D_TRY_CATCH(
-		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement),
-		    error, {
-			    display->displayError(error);
-			    return nullptr;
-		    });
+		FileItem* fileItem = D_TRY_CATCH(load_instrument_preset_ui_for_session().confirmPresetOrNextUnlaunchedOne(
+		                                     newOutputType, &newName, availabilityRequirement),
+		                                 error, {
+			                                 display->displayError(error);
+			                                 return nullptr;
+		                                 });
 
 		newInstrument = fileItem->instrument;
 		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
@@ -3856,9 +4115,9 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		if (!newInstrument) {
 			String newPresetName;
 			fileItem->getFilenameWithoutExtension(&newPresetName);
-			error =
-			    StorageManager::loadInstrumentFromFile(modelStack->song, nullptr, newOutputType, false, &newInstrument,
-			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
+			error = StorageManager::loadInstrumentFromFile(modelStack->song, nullptr, newOutputType, false,
+			                                               &newInstrument, &fileItem->filePointer, &newPresetName,
+			                                               &Browser::current_dir_for_session());
 		}
 
 		Browser::emptyFileItems();
@@ -3899,8 +4158,8 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		// deleted in the functions called above)
 		int32_t maxScroll = (int32_t)getNumNoteRows() - kDisplayHeight;
 		maxScroll = std::max(0_i32, maxScroll);
-		yScroll = std::min(yScroll, maxScroll);
-		((Kit*)newInstrument)->selectedDrum = nullptr;
+		y_scroll_for_session() = std::min(y_scroll_for_session(), maxScroll);
+		((Kit*)newInstrument)->selected_drum_for_session() = nullptr;
 	}
 
 	outputChanged(modelStack, newInstrument);
@@ -3931,8 +4190,8 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 ParamManagerForTimeline* InstrumentClip::getCurrentParamManager() {
 	ParamManagerForTimeline* currentParamManager = nullptr;
 
-	if (output->type == OutputType::KIT && !affectEntire) {
-		Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+	if (output->type == OutputType::KIT && !affect_entire_for_session()) {
+		Drum* selectedDrum = ((Kit*)output)->selected_drum_for_session();
 
 		// If a SoundDrum is selected...
 		if (selectedDrum) {
@@ -4117,11 +4376,11 @@ haveNoDrum:
 		}
 
 		// Check scroll is within range
-		if (yScroll < 1 - kDisplayHeight) {
-			yScroll = 1 - kDisplayHeight;
+		if (y_scroll_for_session() < 1 - kDisplayHeight) {
+			y_scroll_for_session() = 1 - kDisplayHeight;
 		}
-		else if (yScroll > noteRowCount - 1) {
-			yScroll = noteRowCount - 1;
+		else if (y_scroll_for_session() > noteRowCount - 1) {
+			y_scroll_for_session() = noteRowCount - 1;
 		}
 	}
 
@@ -4154,8 +4413,8 @@ haveNoDrum:
 		}
 
 		// Occasionally we get a song file with a crazy scroll value. Not sure how. It happened to Tia
-		if (!isScrollWithinRange(0, yScroll)) {
-			yScroll = 60;
+		if (!isScrollWithinRange(0, y_scroll_for_session())) {
+			y_scroll_for_session() = 60;
 		}
 	}
 
@@ -4213,8 +4472,8 @@ haveNoDrum:
 void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
                                            int32_t buttonLatencyForTempolessRecord) {
 
-	if (getRootUI() == &arrangerView) {
-		arrangerView.clipNeedsReRendering(this);
+	if (getRootUI() == &arranger_view_for_session()) {
+		arranger_view_for_session().clipNeedsReRendering(this);
 	}
 
 	InstrumentClip* newInstrumentClip = nullptr;
@@ -4344,7 +4603,7 @@ ramError:
 	newInstrumentClip->setupForRecordingAsAutoOverdub(
 	    this, modelStack->song,
 	    newOverdubNature); // Hopefully fine - I've moved this to after setInstrument in March 2021, so we can override
-	                       // the new affectEntire default value set there.
+	                       // the new affect_entire_for_session() default value set there.
 
 	char modelStackMemoryNewClip[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackNewClip =
@@ -4401,7 +4660,8 @@ useAlternativeLength:
 }
 
 bool InstrumentClip::currentlyScrollableAndZoomable() {
-	return !onKeyboardScreen || (getRootUI() == &sessionView && containsAnyNotes()); // Cheating a bit!
+	return !on_keyboard_screen_for_session()
+	       || (getRootUI() == &session_view_for_session() && containsAnyNotes()); // Cheating a bit!
 }
 
 // Call this after setInstrument() / setAudioInstrument(). I forget exactly where setupPatching() fits into this
@@ -4410,7 +4670,7 @@ void InstrumentClip::setupAsNewKitClipIfNecessary(ModelStackWithTimelineCounter*
 	if (output->type == OutputType::KIT) {
 		((Kit*)output)->resetDrumTempValues();
 		assignDrumsToNoteRows(modelStack);
-		yScroll = 0;
+		y_scroll_for_session() = 0;
 	}
 }
 
@@ -4425,18 +4685,18 @@ void InstrumentClip::abortRecording() {
 // ----- PlayPositionCounter implementation -------
 
 void InstrumentClip::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	if (output->type == OutputType::KIT && !affectEntire && getRootUI() != &sessionView
-	    && getRootUI() != &arrangerView) {
+	if (output->type == OutputType::KIT && !affect_entire_for_session() && getRootUI() != &session_view_for_session()
+	    && getRootUI() != &arranger_view_for_session()) {
 		Kit* kit = (Kit*)output;
 
-		if (!kit->selectedDrum || kit->selectedDrum->type != DrumType::SOUND) {
+		if (!kit->selected_drum_for_session() || kit->selected_drum_for_session()->type != DrumType::SOUND) {
 returnNull:
 			modelStack->setTimelineCounter(nullptr);
 			modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
 		}
 		else {
 			int32_t noteRowIndex;
-			NoteRow* noteRow = getNoteRowForDrum(kit->selectedDrum, &noteRowIndex);
+			NoteRow* noteRow = getNoteRowForDrum(kit->selected_drum_for_session(), &noteRowIndex);
 
 			// Ensure that the selected drum in fact has a NoteRow in this Clip. It may have been deleted.
 			if (!noteRow) {
@@ -4444,7 +4704,7 @@ returnNull:
 			}
 
 			modelStack->addNoteRow(noteRowIndex, noteRow)
-			    ->addOtherTwoThings((SoundDrum*)kit->selectedDrum, &noteRow->paramManager);
+			    ->addOtherTwoThings((SoundDrum*)kit->selected_drum_for_session(), &noteRow->paramManager);
 		}
 	}
 
@@ -4495,7 +4755,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 		if (FlashStorage::recordQuantizeLevel) {
 			// If triplets are currently enabled in the song
-			uint32_t baseThing = modelStack->song->tripletsOn ? 4 : 3;
+			uint32_t baseThing = modelStack->song->triplets_on_for_session() ? 4 : 3;
 			// Number of sequencer ticks we're quantizing to.
 			//
 			// If this is larger than 0x7fffffff we have significant problems down the line, so just cast here so we're
@@ -4739,7 +4999,7 @@ void InstrumentClip::recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t ve
 // Kit?
 void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 	if (output->type == OutputType::KIT) {
-		int32_t noteRowIndex = yDisplay + yScroll;
+		int32_t noteRowIndex = yDisplay + y_scroll_for_session();
 		if (noteRowIndex >= 0 && noteRowIndex <= noteRows.getNumElements()) {
 			NoteRow* noteRow = noteRows.getElement(noteRowIndex);
 			if (noteRow->drum) {

@@ -27,19 +27,21 @@ public:
 	using BendRange::BendRange;
 	void readCurrentValue() override {
 		ExpressionParamSet* expressionParams =
-		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
+		    sound_editor_for_session().currentParamManager->getOrCreateExpressionParamSet(
+		        sound_editor_for_session().editingKit());
 		this->setValue(expressionParams != nullptr ? expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]
 		                                           : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL]);
 	}
 	void writeCurrentValue() override {
 		ExpressionParamSet* expressionParams =
-		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
+		    sound_editor_for_session().currentParamManager->getOrCreateExpressionParamSet(
+		        sound_editor_for_session().editingKit());
 		if (expressionParams != nullptr) {
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = this->getValue();
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();
+		return sound_editor_for_session().navigationDepth == 1 || sound_editor_for_session().editingKit();
 	}
 };
 } // namespace deluge::gui::menu_item::bend_range

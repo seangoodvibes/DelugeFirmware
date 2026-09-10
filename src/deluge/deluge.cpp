@@ -247,6 +247,8 @@ bool isShortPress(uint32_t pressTime) {
 }
 
 bool readButtonsAndPads() {
+	// PIC events belong to the physical panel, including when a Remote operation yields here.
+	deluge::gui::ui_session::Scope hardware_scope(deluge::gui::ui_session::Id::Local);
 
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
 		usbInitializationPeriodComplete = 1;
@@ -275,10 +277,13 @@ bool readButtonsAndPads() {
 		if (value < PIC::kPadAndButtonMessagesEnd) {
 
 			// Any pad or button edge counts as activity, press or release alike.
-			deluge::hid::display::Screensaver::noteActivity();
+			if (!hid::mirror::is_client())
+				deluge::hid::display::Screensaver::noteActivity();
 
 			int32_t thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
+			if (hid::mirror::local_input(util::to_underlying(value), thisPadPressIsOn != 0))
+				return true;
 
 			ActionResult result;
 			if (Pad::isPad(util::to_underlying(value))) {
@@ -319,15 +324,17 @@ bool readButtonsAndPads() {
 				waitingForSDRoutineToEnd = true;
 				return false;
 			}
-			matrixDriver.noPressesHappening(sdRoutineLock);
-			Buttons::noPressesHappening(sdRoutineLock);
+			if (!hid::mirror::local_all_released()) {
+				matrixDriver.noPressesHappening(sdRoutineLock);
+				Buttons::noPressesHappening(sdRoutineLock);
+			}
 		}
 		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 		}
 	}
 
-	if (!sdRoutineLock && Buttons::shiftHasChanged()
+	if (!hid::mirror::is_client() && !sdRoutineLock && Buttons::shiftHasChanged()
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
 		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 	}
@@ -345,29 +352,29 @@ void setUIForLoadedSong(Song* song) {
 	Clip* currentClip = song->getCurrentClip();
 	// If in a Clip-minder view
 	if (currentClip && song->inClipMinderViewOnLoad) {
-		if (currentClip->onAutomationClipView) {
-			newUI = &automationView;
+		if (currentClip->on_automation_clip_view_for_session()) {
+			newUI = &automation_view_for_session();
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			if (((InstrumentClip*)currentClip)->onKeyboardScreen) {
-				newUI = &keyboardScreen;
+			if (((InstrumentClip*)currentClip)->on_keyboard_screen_for_session()) {
+				newUI = &keyboard_screen_for_session();
 			}
 			else {
-				newUI = &instrumentClipView;
+				newUI = &instrument_clip_view_for_session();
 			}
 		}
 		else {
-			newUI = &audioClipView;
+			newUI = &audio_clip_view_for_session();
 		}
 	}
 
 	// Otherwise we're in session or arranger view
 	else {
-		if (song->lastClipInstanceEnteredStartPos != -1) {
-			newUI = &arrangerView;
+		if (song->last_clip_instance_entered_start_pos_for_session() != -1) {
+			newUI = &arranger_view_for_session();
 		}
 		else {
-			newUI = &sessionView;
+			newUI = &session_view_for_session();
 		}
 	}
 
@@ -393,7 +400,8 @@ void setupBlankSong() {
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);
 	preLoadedSong->setupDefault();
 
-	setRootUILowLevel(&instrumentClipView); // Prevents crash. (Wait, I'd like to know more about what crash...)
+	setRootUILowLevel(
+	    &instrument_clip_view_for_session()); // Prevents crash. (Wait, I'd like to know more about what crash...)
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
 	currentSong = preLoadedSong;
@@ -477,8 +485,8 @@ void setupStartupSong() {
 		}
 		// Load song, if we got this far!
 		currentSong->setSongFullPath(filename);
-		if (openUI(&loadSongUI)) {
-			loadSongUI.performLoad();
+		if (openUI(&load_song_ui_for_session())) {
+			load_song_ui_for_session().performLoad();
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
 				// Wipe the name so the Save action asks you for a new song
 				currentSong->name.clear();
@@ -565,6 +573,7 @@ void registerTasks() {
 	// named "slow" but isn't actually, it handles audio recording setup
 	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
 	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads", RESOURCE_NONE);
+	addRepeatingTask(&hid::mirror::routine, p++, 0.001, 0.002, 0.005, "USB mirror", RESOURCE_NONE);
 
 	// 11-19: Medium priority (20 for dyn tasks)
 	p = 11;
@@ -573,8 +582,12 @@ void registerTasks() {
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
 
 	// Check for and handle queued SysEx traffic
-	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",
-	                 RESOURCE_SD);
+	addRepeatingTask(
+	    []() {
+		    if (!hid::mirror::is_client())
+			    smSysex::handleNextSysEx();
+	    },
+	    p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.", RESOURCE_SD);
 
 	// 21-29: Low priority (30 for dyn tasks)
 	p = 21;
@@ -583,7 +596,7 @@ void registerTasks() {
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow", RESOURCE_SD);
 	// Needs the SD resources: it can call finishRecording(), which frees the SampleRecorder, and that must not happen
 	// while the card routine is part-way through using it.
-	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow",
+	addRepeatingTask([]() { audio_recorder_for_session().slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow",
 	                 RESOURCE_SD | RESOURCE_SD_ROUTINE);
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
 	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
@@ -604,6 +617,7 @@ void registerTasks() {
 }
 void mainLoop() {
 	while (1) {
+		hid::mirror::routine();
 
 		uiTimerManager.routine();
 
@@ -637,7 +651,7 @@ void mainLoop() {
 		audioFileManager.slowRoutine();
 		AudioEngine::slowRoutine();
 
-		audioRecorder.slowRoutine();
+		audio_recorder_for_session().slowRoutine();
 	}
 }
 extern "C" int32_t deluge_main(void) {
@@ -969,6 +983,9 @@ enum class UIStage { oled, readEnc, readButtons };
 
 /// this function is used as a busy wait loop for long SD reads, and while swapping songs
 extern "C" void routineForSD(void) {
+	// These are physical input and engine services, even when the storage
+	// operation that yielded belongs to the remote UI.
+	deluge::gui::ui_session::Scope hardware_scope(deluge::gui::ui_session::Id::Local);
 
 	if (intc_func_active != 0) {
 		return;
@@ -1042,9 +1059,9 @@ void deleteOldSongBeforeLoadingNew() {
 	AudioEngine::killAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
 	                                  // Instruments detached and everything on delete
 
-	view.activeModControllableModelStack.modControllable = nullptr;
-	view.activeModControllableModelStack.setTimelineCounter(nullptr);
-	view.activeModControllableModelStack.paramManager = nullptr;
+	view_for_session().activeModControllableModelStack.modControllable = nullptr;
+	view_for_session().activeModControllableModelStack.setTimelineCounter(nullptr);
+	view_for_session().activeModControllableModelStack.paramManager = nullptr;
 
 	Song* toDelete = currentSong;
 	currentSong = nullptr;

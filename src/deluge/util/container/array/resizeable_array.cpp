@@ -18,6 +18,7 @@
 #include "util/container/array/resizeable_array.h"
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
+#include "util/container/array/reserved_ring_insert.h"
 // #include <algorithm>
 #include "hid/display/display.h"
 #include "io/debug/log.h"
@@ -66,7 +67,7 @@ ResizeableArray::ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptyS
 ResizeableArray::~ResizeableArray() {
 	LOCK_ENTRY
 
-	if (memory) {
+	if (memory && !staticMemoryAllocationSize) {
 		delugeDealloc(memoryAllocationStart);
 	}
 	// Don't call empty() - this does some other writing, which is a waste of time
@@ -112,11 +113,27 @@ Error ResizeableArray::beenCloned() {
 
 	LOCK_ENTRY
 
-	int32_t otherMemorySize = memorySize;
-	int32_t otherMemoryStart = memoryStart;
-	void* __restrict__ oldMemory = memory;
+	const int32_t source_size = memorySize;
+	const int32_t source_start = memoryStart;
+	void* const source_memory = memory;
+	// This entry point repairs a memberwise copy; its storage belongs to
+	// the original until a new allocation has been made successfully.
+	memory = nullptr;
+	memoryAllocationStart = nullptr;
+	memorySize = 0;
+	memoryStart = 0;
+	staticMemoryAllocationSize = 0;
+	if (!elementSize || numElements < 0
+	    || (numElements
+	        && (!source_memory || source_size < numElements || source_start < 0 || source_start >= source_size
+	            || (uint64_t(numElements) + 1) * elementSize > INT32_MAX
+	            || uint64_t(source_size) * elementSize > INT32_MAX))) {
+		numElements = 0;
+		LOCK_EXIT
+		return Error::BUG;
+	}
 
-	Error error = copyElementsFromOldMemory(oldMemory, otherMemorySize, otherMemoryStart);
+	Error error = copyElementsFromOldMemory(source_memory, source_size, source_start);
 
 	LOCK_EXIT
 
@@ -125,20 +142,53 @@ Error ResizeableArray::beenCloned() {
 
 bool ResizeableArray::cloneFrom(ResizeableArray const* other) {
 
-	LOCK_ENTRY
+	if (!other)
+		return false;
+	if (other != this && memoryAllocationStart && memoryAllocationStart == other->memoryAllocationStart) {
+		// A memberwise copy borrows the source allocation. Detach it before
+		// any failure path so destroying the failed copy cannot free the source.
+		init();
+		staticMemoryAllocationSize = 0;
+	}
+	if (!elementSize || elementSize != other->elementSize || other->numElements < 0)
+		return false;
+	if (other == this)
+		return true;
+	if (staticMemoryAllocationSize)
+		return false;
+	if (other->numElements
+	    && (!other->memory || other->memorySize < other->numElements || other->memoryStart < 0
+	        || other->memoryStart >= other->memorySize || (uint64_t(other->numElements) + 1) * elementSize > INT32_MAX
+	        || uint64_t(other->memorySize) * elementSize > INT32_MAX))
+		return false;
 
-	numElements = other->numElements;
-	Error error = copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart);
-
-	LOCK_EXIT
-
-	return error == Error::NONE;
+	void* const previous_memory = memory;
+	void* const previous_allocation = memoryAllocationStart;
+	const int32_t previous_count = numElements;
+	const int32_t previous_size = memorySize;
+	const int32_t previous_start = memoryStart;
+	const uint32_t previous_element_size = elementSize;
+	ResizeableArray replacement(elementSize, maxNumEmptySpacesToKeep, numExtraSpacesToAllocate);
+	replacement.numElements = other->numElements;
+	Error error = replacement.copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart, other);
+	if (error != Error::NONE)
+		return false;
+	// Allocation may service callbacks. Preserve a callback's destination
+	// rather than publishing over storage it changed or released.
+	if (memory != previous_memory || memoryAllocationStart != previous_allocation || numElements != previous_count
+	    || memorySize != previous_size || memoryStart != previous_start || elementSize != previous_element_size
+	    || staticMemoryAllocationSize)
+		return false;
+	swapStateWith(&replacement);
+	return true;
 }
 
 // Returns error
 Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int32_t otherMemorySize,
-                                                 int32_t otherMemoryStart) {
+                                                 int32_t otherMemoryStart, const ResizeableArray* source) {
 
+	const int32_t source_count = numElements;
+	const uint32_t source_element_size = elementSize;
 	memoryStart = 0;
 
 	if (!numElements) {
@@ -158,6 +208,17 @@ Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory,
 			return Error::INSUFFICIENT_RAM;
 		}
 
+		if (source
+		    && (source->memory != otherMemory || source->memorySize != otherMemorySize
+		        || source->memoryStart != otherMemoryStart || source->numElements != source_count
+		        || source->elementSize != source_element_size)) {
+			delugeDealloc(memory);
+			memory = nullptr;
+			memoryAllocationStart = nullptr;
+			numElements = 0;
+			memorySize = 0;
+			return Error::BUG;
+		}
 		memorySize = allocatedSize / elementSize;
 		memoryAllocationStart = memory;
 
@@ -190,18 +251,21 @@ void ResizeableArray::swapStateWith(ResizeableArray* other) {
 	int32_t numElementsTemp = numElements;
 	int32_t memorySizeTemp = memorySize;
 	int32_t memoryStartTemp = memoryStart;
+	const uint32_t previous_static_size = staticMemoryAllocationSize;
 
 	memory = other->memory;
 	memoryAllocationStart = other->memoryAllocationStart;
 	numElements = other->numElements;
 	memorySize = other->memorySize;
 	memoryStart = other->memoryStart;
+	staticMemoryAllocationSize = other->staticMemoryAllocationSize;
 
 	other->memory = memoryTemp;
 	other->memoryAllocationStart = memoryAllocationStartTemp;
 	other->numElements = numElementsTemp;
 	other->memorySize = memorySizeTemp;
 	other->memoryStart = memoryStartTemp;
+	other->staticMemoryAllocationSize = previous_static_size;
 
 	LOCK_EXIT
 }
@@ -235,6 +299,8 @@ void ResizeableArray::attemptMemoryShorten() {
 }
 
 void ResizeableArray::deleteAtIndex(int32_t i, int32_t numToDelete, bool mayShortenMemoryAfter) {
+	if (i < 0 || numToDelete <= 0 || i > numElements || numToDelete > numElements - i)
+		return;
 	LOCK_ENTRY
 
 	int32_t newNum = numElements - numToDelete;
@@ -461,8 +527,19 @@ moveBitBetweenWrapPointAndDeletionPoint:
 	LOCK_EXIT
 }
 
-// Currently this doesn't really support having a static memory allocation, so don't call this
+// Static-backed arrays may reserve within their supplied capacity, but cannot grow.
 bool ResizeableArray::ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded) {
+
+	if (numAdditionalElementsNeeded < 0 || numElements < 0 || !elementSize || numExtraSpacesToAllocate < 0)
+		return false;
+	if (!numAdditionalElementsNeeded)
+		return true;
+	if (staticMemoryAllocationSize)
+		return memory && memorySize >= numElements && numAdditionalElementsNeeded <= memorySize - numElements;
+	const uint64_t padded_count =
+	    uint64_t(numElements) + uint32_t(numAdditionalElementsNeeded) + numExtraSpacesToAllocate;
+	if (padded_count > INT32_MAX || padded_count * elementSize > INT32_MAX)
+		return false;
 
 	LOCK_ENTRY
 
@@ -895,7 +972,27 @@ void ResizeableArray::setStaticMemory(void* newMemory, int32_t newMemorySize) {
 }
 
 // Returns error code
+Error ResizeableArray::insert_at_index_without_allocation(int32_t i, int32_t numToInsert) {
+	if (i < 0 || i > numElements || numToInsert <= 0)
+		return Error::BUG;
+	LOCK_ENTRY
+	bool inserted =
+	    insert_into_reserved_ring(memory, memorySize, memoryStart, numElements, elementSize, i, numToInsert);
+	LOCK_EXIT
+	return inserted ? Error::NONE : Error::INSUFFICIENT_RAM;
+}
+
 Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
+
+	if (i < 0 || i > numElements || numElements < 0 || numToInsert <= 0 || !elementSize || numExtraSpacesToAllocate < 0)
+		return Error::BUG;
+	if (staticMemoryAllocationSize)
+		return insert_at_index_without_allocation(i, numToInsert);
+	// Include spare capacity used by allocation/expansion before any signed
+	// element-count or byte arithmetic, and before entering the array lock.
+	const uint64_t padded_count = uint64_t(numElements) + uint32_t(numToInsert) + numExtraSpacesToAllocate;
+	if (padded_count > INT32_MAX || padded_count * elementSize > INT32_MAX)
+		return Error::INSUFFICIENT_RAM;
 
 	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
 		FREEZE_WITH_ERROR("E280");
@@ -1178,6 +1275,8 @@ getBrandNewMemoryAgain:
 #pragma GCC diagnostic ignored "-Wstack-usage="
 
 void ResizeableArray::swapElements(int32_t i1, int32_t i2) {
+	if (i1 < 0 || i2 < 0 || i1 >= numElements || i2 >= numElements || i1 == i2)
+		return;
 	LOCK_ENTRY
 
 	char workingMemory[elementSize];
@@ -1190,6 +1289,8 @@ void ResizeableArray::swapElements(int32_t i1, int32_t i2) {
 }
 
 void ResizeableArray::repositionElement(int32_t iFrom, int32_t iTo) {
+	if (iFrom < 0 || iTo < 0 || iFrom >= numElements || iTo >= numElements || iFrom == iTo)
+		return;
 	LOCK_ENTRY
 
 	char workingMemory[elementSize];

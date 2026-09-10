@@ -25,7 +25,13 @@
 #include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
-Kit kit{};
+namespace {
+Kit local_kit{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<Kit> remote_kit;
+} // namespace
+Kit& kit_for_session() {
+	return remote_kit.get(local_kit);
+}
 
 char const* Kit::getTitle() {
 	using enum l10n::String;
@@ -46,26 +52,26 @@ bool Kit::isCurrentOptionAvailable() {
 	case 0: // "ALL" option - to import whole folder. Works whether they're currently on a file or a folder.
 		return true;
 	default: // Slicer option - only works if currently on a file, not a folder.
-		return (!sampleBrowser.getCurrentFileItem()->isFolder);
+		return (!sample_browser_for_session().getCurrentFileItem()->isFolder);
 	}
 }
 
 bool Kit::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Import whole folder
-		return sampleBrowser.importFolderAsKit();
+		return sample_browser_for_session().importFolderAsKit();
 	default: // Slicer
 		display->setNextTransitionDirection(1);
-		openUI(&slicer);
+		openUI(&slicer_for_session());
 		return true;
 	}
 }
 
 ActionResult Kit::padAction(int32_t x, int32_t y, int32_t on) {
-	return sampleBrowser.padAction(x, y, on);
+	return sample_browser_for_session().padAction(x, y, on);
 }
 
 bool Kit::canSeeViewUnderneath() {
-	return sampleBrowser.canSeeViewUnderneath();
+	return sample_browser_for_session().canSeeViewUnderneath();
 }
 } // namespace deluge::gui::context_menu::sample_browser

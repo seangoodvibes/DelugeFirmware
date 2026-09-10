@@ -19,8 +19,10 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/language.h"
+#include "gui/ui/ui_session.h"
 #include "hid/display/display.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
+#include "hid/display/seven_segment_frame.h"
 #include <array>
 #include <string>
 
@@ -31,6 +33,10 @@ namespace deluge::hid::display {
 class SevenSegment : public Display {
 public:
 	SevenSegment() : Display(DisplayType::SEVENSEG) { l10n::chosenLanguage = &l10n::built_in::seven_segment; }
+
+	~SevenSegment() override;
+	SevenSegment(const SevenSegment&) = delete;
+	SevenSegment& operator=(const SevenSegment&) = delete;
 
 	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = nullptr, bool blinkImmediately = false, bool shouldBlinkFast = false,
@@ -58,10 +64,14 @@ public:
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) override;
-	std::array<uint8_t, kNumericDisplayLength> getLast() override { return lastDisplay_; }
+	std::array<uint8_t, kNumericDisplayLength> getLast() override { return panel_state().frame.segments; }
 
-	bool hasPopup() override { return this->popupActive; }
-	bool hasPopupOfType(PopupType type) override { return this->popupActive && type == this->popupType; }
+	uint32_t frame_revision() const { return panel_state().frame.revision; }
+
+	bool hasPopup() override { return panel_state().popupActive; }
+	bool hasPopupOfType(PopupType type) override {
+		return panel_state().popupActive && type == panel_state().popupType;
+	}
 
 	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
 
@@ -81,15 +91,22 @@ public:
 	}
 	void removeLoadingAnimation() override { SevenSegment::removeTopLayer(); }
 
-	void enableLowercase() { use_lowercase = true; }
-	void disableLowercase() { use_lowercase = false; }
+	void enableLowercase() { panel_state().use_lowercase = true; }
+	void disableLowercase() { panel_state().use_lowercase = false; }
 
 private:
-	NumericLayerBasicText popup;
-	NumericLayer* topLayer = nullptr;
-	int8_t nextTransitionDirection = 0;
-	bool popupActive = false;
-	PopupType popupType = PopupType::NONE;
+	struct PanelState {
+		NumericLayerBasicText popup;
+		NumericLayer* topLayer = nullptr;
+		int8_t nextTransitionDirection = 0;
+		bool popupActive = false;
+		PopupType popupType = PopupType::NONE;
+		SevenSegmentFrame frame;
+		bool use_lowercase = false;
+	};
+	gui::ui_session::State<PanelState> states_;
+	PanelState& panel_state() { return states_.active(); }
+	const PanelState& panel_state() const { return states_.active(); }
 
 	void deleteAllLayers();
 
@@ -104,7 +121,5 @@ private:
 	void setTopLayer(NumericLayer* newTopLayer);
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
-	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
-	bool use_lowercase = false;
 };
 } // namespace deluge::hid::display

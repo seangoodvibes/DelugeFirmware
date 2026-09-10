@@ -35,15 +35,16 @@ MenuItem* PatchedParam::selectButtonPress() {
 	if (Buttons::isShiftButtonPressed()) {
 		return Param::selectButtonPress();
 	}
-	soundEditor.patchingParamSelected = this->getP();
+	sound_editor_for_session().patchingParamSelected = this->getP();
 	return &source_selection::regularMenu;
 }
 
 uint8_t PatchedParam::shouldDrawDotOnName() {
 	ParamDescriptor paramDescriptor{};
 	paramDescriptor.setToHaveParamOnly(this->getP());
-	return soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(
-	           paramDescriptor)
+	return sound_editor_for_session()
+	               .currentParamManager->getPatchCableSet()
+	               ->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
 	           ? 3
 	           : 255;
 }
@@ -55,7 +56,7 @@ ParamDescriptor PatchedParam::getLearningThing() {
 }
 
 ParamSet* PatchedParam::getParamSet() {
-	return soundEditor.currentParamManager->getPatchedParamSet();
+	return sound_editor_for_session().currentParamManager->getPatchedParamSet();
 }
 
 deluge::modulation::params::Kind PatchedParam::getParamKind() {
@@ -69,15 +70,16 @@ uint32_t PatchedParam::getParamIndex() {
 uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 	ParamDescriptor paramDescriptor{};
 	paramDescriptor.setToHaveParamOnly(this->getP());
-	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, paramDescriptor)
+	return sound_editor_for_session()
+	               .currentParamManager->getPatchCableSet()
+	               ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, paramDescriptor)
 	           ? 3
 	           : 255;
 }
 
 MenuItem* PatchedParam::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
-	soundEditor.patchingParamSelected = this->getP();
-	source_selection::regularMenu.s = s;
+	sound_editor_for_session().patchingParamSelected = this->getP();
+	source_selection::regularMenu.source_for_session() = s;
 	return &patch_cable_strength::regularMenu;
 }
 

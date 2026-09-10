@@ -259,4 +259,4 @@ private:
 	uint32_t timeSelectKnobLastReleased;
 };
 
-extern AutomationView automationView;
+AutomationView& automation_view_for_session();

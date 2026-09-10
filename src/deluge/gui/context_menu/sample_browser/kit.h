@@ -34,5 +34,5 @@ public:
 	char const* getTitle() override;
 };
 
-extern Kit kit;
+Kit& kit_for_session();
 } // namespace deluge::gui::context_menu::sample_browser

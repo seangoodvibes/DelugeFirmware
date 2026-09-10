@@ -39,13 +39,14 @@ public:
 		int32_t transpose = 0;
 		int32_t cents = 0;
 
-		Source& source = soundEditor.currentSound->sources[source_id_];
+		Source& source = sound_editor_for_session().currentSound->sources[source_id_];
 
-		if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		if (source.ranges.getNumElements() && sound_editor_for_session().currentSound->getSynthMode() != SynthMode::FM
 		    && source.oscType == OscType::SAMPLE) {
 			const auto* multi_sample_range =
-			    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
-			        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
+			    sound_editor_for_session().currentSourceIndex == source_id_
+			            && sound_editor_for_session().currentMultiRange != nullptr
+			        ? static_cast<MultisampleRange*>(sound_editor_for_session().currentMultiRange)
 			        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
 			transpose = multi_sample_range->sampleHolder.transpose;
 			cents = multi_sample_range->sampleHolder.cents;
@@ -64,7 +65,7 @@ public:
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && sound_editor_for_session().editingKit()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -94,13 +95,15 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			Source& source = soundEditor.currentSound->sources[source_id_];
+			Source& source = sound_editor_for_session().currentSound->sources[source_id_];
 
-			if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+			if (source.ranges.getNumElements()
+			    && sound_editor_for_session().currentSound->getSynthMode() != SynthMode::FM
 			    && source.oscType == OscType::SAMPLE) {
 				auto* multi_sample_range =
-				    soundEditor.currentSourceIndex == source_id_ && soundEditor.currentMultiRange != nullptr
-				        ? static_cast<MultisampleRange*>(soundEditor.currentMultiRange)
+				    sound_editor_for_session().currentSourceIndex == source_id_
+				            && sound_editor_for_session().currentMultiRange != nullptr
+				        ? static_cast<MultisampleRange*>(sound_editor_for_session().currentMultiRange)
 				        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
 				multi_sample_range->sampleHolder.transpose = transpose;
 				multi_sample_range->sampleHolder.setCents(cents);
@@ -111,9 +114,10 @@ public:
 			}
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			ModelStackWithSoundFlags* modelStack =
+			    sound_editor_for_session().getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
+			sound_editor_for_session().currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 		}
 	}
 
@@ -131,7 +135,8 @@ public:
 			return MenuPermission::YES;
 		}
 
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, currentRange);
+		return sound_editor_for_session().checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_,
+		                                                                                     currentRange);
 	}
 
 	bool isRangeDependent() override { return true; }
@@ -148,12 +153,13 @@ public:
 	void getNotificationValue(StringBuf& valueBuf) override {
 		Decimal::getNotificationValue(valueBuf);
 
-		Source& source = soundEditor.currentSound->sources[source_id_];
-		const int32_t rangeIndex = soundEditor.currentMultiRangeIndex;
+		Source& source = sound_editor_for_session().currentSound->sources[source_id_];
+		const int32_t rangeIndex = sound_editor_for_session().currentMultiRangeIndex;
 		const int32_t numRanges = source.ranges.getNumElements();
 
-		if (soundEditor.currentSourceIndex != source_id_ || soundEditor.currentMultiRange == nullptr || numRanges <= 1
-		    || rangeIndex < 0 || rangeIndex >= numRanges || source.oscType != OscType::SAMPLE) {
+		if (sound_editor_for_session().currentSourceIndex != source_id_
+		    || sound_editor_for_session().currentMultiRange == nullptr || numRanges <= 1 || rangeIndex < 0
+		    || rangeIndex >= numRanges || source.oscType != OscType::SAMPLE) {
 			return;
 		}
 

@@ -31,4 +31,4 @@ public:
 	UIType getUIType() override { return UIType::DX_BROWSER; }
 };
 
-extern DxSyxBrowser dxBrowser;
+DxSyxBrowser& dx_browser_for_session();

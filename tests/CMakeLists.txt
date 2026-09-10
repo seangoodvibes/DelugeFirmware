@@ -23,6 +23,18 @@ add_subdirectory(unit)
 add_subdirectory(integration/parameters/native)
 
 
+add_subdirectory(undo)
+
+add_subdirectory(mirror)
+
+add_subdirectory(contracts)
+
 add_subdirectory(param_manager)
 
 add_subdirectory(integration/parameters/lifecycle)
+
+add_subdirectory(clip_repeat)
+
+add_subdirectory(arrangement_clone)
+
+add_subdirectory(instrument_clone)

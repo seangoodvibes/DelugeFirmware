@@ -61,7 +61,8 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
+		if (parent_for_session() != nullptr
+		    && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
 		    && info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()
 		    && info.getSlot() == FilterSlot::HPF) {
 			// Treat HPF as fully morphed LPF visually, reverse direction
@@ -102,7 +103,8 @@ public:
 		}
 	}
 	void selectEncoderAction(int32_t offset) override {
-		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
+		if (parent_for_session() != nullptr
+		    && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
 		    && info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()
 		    && info.getSlot() == FilterSlot::HPF) {
 			// Treat HPF as fully morphed LPF visually, reverse direction

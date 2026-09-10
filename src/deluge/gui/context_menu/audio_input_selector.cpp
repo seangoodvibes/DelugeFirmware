@@ -39,7 +39,13 @@ enum class AudioInputSelector::Value {
 };
 constexpr size_t kNumValues = 8;
 
-AudioInputSelector audioInputSelector{};
+namespace {
+AudioInputSelector local_audio_input_selector{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<AudioInputSelector> remote_audio_input_selector;
+} // namespace
+AudioInputSelector& audio_input_selector_for_session() {
+	return remote_audio_input_selector.get(local_audio_input_selector);
+}
 
 namespace {
 // A saved source pointer can become stale if its instrument leaves the active song list, e.g. by being hibernated.
@@ -199,8 +205,8 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on && getUIUpOneLevel() == &sessionView) {
-		auto track = (&sessionView)->getOutputFromPad(x, y);
+	if (on && getUIUpOneLevel() == &session_view_for_session()) {
+		auto track = (&session_view_for_session())->getOutputFromPad(x, y);
 		if (audioOutput->canRecordFrom(track)) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);

@@ -51,7 +51,7 @@ void Selection::displayToggleValue() {
 
 // handles rendering of the community features menu items that are identified as toggles
 void Selection::renderSubmenuItemTypeForOled(int32_t yPixel) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main_for_session();
 
 	int32_t startX = getSubmenuItemTypeRenderIconStart();
 

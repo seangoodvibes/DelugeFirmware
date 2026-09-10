@@ -32,10 +32,10 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKitRow() && !soundEditor.editingNonAudioDrumRow();
+		return sound_editor_for_session().editingKitRow() && !sound_editor_for_session().editingNonAudioDrumRow();
 	}
 	void readCurrentValue() override {
-		int32_t value = soundEditor.currentSound->outputMidiNoteForDrum;
+		int32_t value = sound_editor_for_session().currentSound->outputMidiNoteForDrum;
 		if (value == MIDI_NOTE_NONE) {
 			value = kNoteForDrum;
 		}
@@ -45,7 +45,8 @@ public:
 	void writeCurrentValue() override {
 		int32_t value = this->getValue();
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -58,7 +59,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->outputMidiNoteForDrum = value;
+			sound_editor_for_session().currentSound->outputMidiNoteForDrum = value;
 		}
 	}
 };

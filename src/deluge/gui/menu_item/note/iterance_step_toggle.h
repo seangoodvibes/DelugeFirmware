@@ -32,7 +32,7 @@ public:
 	}
 
 	void readCurrentValue() override {
-		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		Note* leftMostNote = instrument_clip_view_for_session().getLeftMostNotePressed();
 
 		if (leftMostNote) {
 			Iterance iterance = leftMostNote->getIterance();
@@ -46,7 +46,7 @@ public:
 	}
 	void writeCurrentValue() override {
 		bool value = this->getValue();
-		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		Note* leftMostNote = instrument_clip_view_for_session().getLeftMostNotePressed();
 
 		if (leftMostNote) {
 			Iterance iterance = leftMostNote->getIterance();
@@ -62,14 +62,15 @@ public:
 			else {
 				newIteranceSteps &= ~(1 << index);
 			}
-			instrumentClipView.adjustNoteIteranceWithFinalValue(Iterance{iterance.divisor, newIteranceSteps});
+			instrument_clip_view_for_session().adjustNoteIteranceWithFinalValue(
+			    Iterance{iterance.divisor, newIteranceSteps});
 		}
 	}
 
 	uint8_t index;
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		Note* leftMostNote = instrument_clip_view_for_session().getLeftMostNotePressed();
 
 		if (leftMostNote) {
 			Iterance iterance = leftMostNote->getIterance();

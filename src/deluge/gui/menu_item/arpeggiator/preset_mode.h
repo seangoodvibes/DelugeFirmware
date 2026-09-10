@@ -34,20 +34,22 @@ namespace deluge::gui::menu_item::arpeggiator {
 class PresetMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->preset); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentArpSettings->preset); }
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ArpPreset>();
 
 		// If affect-entire button held, do the whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
 			// If was off, or is now becoming off...
-			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpPreset::OFF) {
-				if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
+			if (sound_editor_for_session().currentArpSettings->mode == ArpMode::OFF
+			    || current_value == ArpPreset::OFF) {
+				if (getCurrentClip()->isActiveOnOutput() && !sound_editor_for_session().editingKitAffectEntire()) {
 					kit->cutAllSound();
 				}
 			}
@@ -61,35 +63,37 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			// If was off, or is now becoming off...
-			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpPreset::OFF) {
-				if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
+			if (sound_editor_for_session().currentArpSettings->mode == ArpMode::OFF
+			    || current_value == ArpPreset::OFF) {
+				if (getCurrentClip()->isActiveOnOutput() && !sound_editor_for_session().editingKitAffectEntire()) {
 					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+					ModelStackWithThreeMainThings* modelStack =
+					    sound_editor_for_session().getCurrentModelStack(modelStackMemory);
 
-					if (soundEditor.editingKit()) {
+					if (sound_editor_for_session().editingKit()) {
 						// Drum
-						Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
+						Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selected_drum_for_session();
 						if (currentDrum != nullptr) {
 							currentDrum->killAllVoices();
 						}
 					}
-					else if (soundEditor.editingCVOrMIDIClip()) {
+					else if (sound_editor_for_session().editingCVOrMIDIClip()) {
 						getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 					}
 					else {
 						ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-						soundEditor.currentSound->allNotesOff(
+						sound_editor_for_session().currentSound->allNotesOff(
 						    modelStackWithSoundFlags,
-						    soundEditor.currentSound
-						        ->getArp()); // Must switch off all notes when switching arp on / off
-						soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
+						    sound_editor_for_session()
+						        .currentSound->getArp()); // Must switch off all notes when switching arp on / off
+						sound_editor_for_session().currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
 					}
 				}
 			}
 
-			soundEditor.currentArpSettings->preset = current_value;
-			soundEditor.currentArpSettings->updateSettingsFromCurrentPreset();
-			soundEditor.currentArpSettings->flagForceArpRestart = true;
+			sound_editor_for_session().currentArpSettings->preset = current_value;
+			sound_editor_for_session().currentArpSettings->updateSettingsFromCurrentPreset();
+			sound_editor_for_session().currentArpSettings->flagForceArpRestart = true;
 		}
 	}
 
@@ -110,7 +114,7 @@ public:
 	MenuItem* selectButtonPress() override {
 		auto current_value = this->getValue<ArpPreset>();
 		if (current_value == ArpPreset::CUSTOM) {
-			if (soundEditor.editingKitRow()) {
+			if (sound_editor_for_session().editingKitRow()) {
 				return &arpOctaveModeToNoteModeMenuForDrums;
 			}
 			return &arpOctaveModeToNoteModeMenu;
@@ -124,7 +128,7 @@ public:
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		if (this->getValue<ArpPreset>() == ArpPreset::OFF) {
 			const auto off = l10n::get(l10n::String::STRING_FOR_OFF);

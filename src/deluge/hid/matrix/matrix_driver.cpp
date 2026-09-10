@@ -59,7 +59,7 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (padStates[x][y]) {
+			if (states_.active().padStates[x][y]) {
 				padAction(x, y, false);
 			}
 		}
@@ -67,12 +67,15 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 }
 
 ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
+	if (x < 0 || x >= kDisplayWidth + kSideBarWidth || y < 0 || y >= kDisplayHeight) {
+		return ActionResult::DEALT_WITH;
+	}
 	// do not interpret pad actions when stem export is underway
 	if (stemExport.processStarted) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	padStates[x][y] = velocity;
+	states_.active().padStates[x][y] = velocity;
 #if ENABLE_MATRIX_DEBUG
 	D_PRINT("UI=%s,PAD_X=%d,PAD_Y=%d,VEL=%d", getCurrentUI()->getUIName(), x, y, velocity);
 #endif
@@ -93,5 +96,5 @@ bool MatrixDriver::isPadPressed(int32_t x, int32_t y) {
 	if (x < 0 || x >= kDisplayWidth + kSideBarWidth || y < 0 || y >= kDisplayHeight) {
 		return false;
 	}
-	return padStates[x][y];
+	return states_.active().padStates[x][y];
 }

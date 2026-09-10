@@ -27,29 +27,35 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
-RenameDrumUI renameDrumUI{"Drum Name"};
+namespace {
+RenameDrumUI local_rename_drum_ui{"Drum Name"};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<RenameDrumUI> remote_rename_drum_ui;
+} // namespace
+RenameDrumUI& rename_drum_ui_for_session() {
+	return remote_rename_drum_ui.get(local_rename_drum_ui, "Drum Name");
+}
 
 std::string_view RenameDrumUI::getCurrentName() const {
 	Kit* kit = getCurrentKit();
-	if (kit == nullptr || kit->selectedDrum == nullptr) {
+	if (kit == nullptr || kit->selected_drum_for_session() == nullptr) {
 		FREEZE_WITH_ERROR("RN01");
 		return "NONE";
 	}
-	return kit->selectedDrum->drumName;
+	return kit->selected_drum_for_session()->drumName;
 }
 
 bool RenameDrumUI::trySetName(std::string_view name) {
 	Kit* kit = getCurrentKit();
-	if (kit == nullptr || kit->selectedDrum == nullptr) {
+	if (kit == nullptr || kit->selected_drum_for_session() == nullptr) {
 		FREEZE_WITH_ERROR("RN02");
 		return false;
 	}
 	Drum* other = kit->getDrumFromName(name);
-	if (other != nullptr && other != kit->selectedDrum) {
+	if (other != nullptr && other != kit->selected_drum_for_session()) {
 		// We only allow renaming if there are no other drums with the same name.
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	kit->selectedDrum->drumName = name;
+	kit->selected_drum_for_session()->drumName = name;
 	return true;
 }

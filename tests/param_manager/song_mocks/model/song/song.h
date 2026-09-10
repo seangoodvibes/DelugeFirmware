@@ -64,6 +64,11 @@ public:
 		entries.insert(entries.begin() + index, memory);
 		return Error::NONE;
 	}
+	void repositionElement(int from, int to) {
+		void* entry = entries.at(from);
+		entries.erase(entries.begin() + from);
+		entries.insert(entries.begin() + to, entry);
+	}
 	void deleteAtIndex(int index) {
 		std::free(entries.at(index));
 		entries.erase(entries.begin() + index);

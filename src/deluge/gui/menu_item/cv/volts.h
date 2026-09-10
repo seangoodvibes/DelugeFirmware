@@ -34,13 +34,13 @@ public:
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
 	void readCurrentValue() override {
-		this->setValue(cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave);
+		this->setValue(cvEngine.cvChannels[sound_editor_for_session().currentSourceIndex].voltsPerOctave);
 	}
 	void writeCurrentValue() override {
-		cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->getValue());
+		cvEngine.setCVVoltsPerOctave(sound_editor_for_session().currentSourceIndex, this->getValue());
 	}
 	void drawPixelsForOled() override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 		if (this->getValue() == 0) {
 			canvas.drawStringCentred("Hz/V", 20, kTextHugeSpacingX, kTextHugeSizeY);
 		}

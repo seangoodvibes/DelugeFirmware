@@ -32,5 +32,5 @@ public:
 	bool acceptCurrentOption() override;
 };
 
-extern ClearSong clearSong;
+ClearSong& clear_song_for_session();
 } // namespace deluge::gui::context_menu

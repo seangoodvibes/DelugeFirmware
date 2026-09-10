@@ -121,10 +121,10 @@ protected:
 		return getCurrentInstrumentClip()->getMainColourFromY(note, colourOffset);
 	}
 
-	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboardScreen.highlightedNotes; }
-	inline NoteHighlightIntensity& getNornsNotes() { return keyboardScreen.nornsNotes; }
+	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboard_screen_for_session().highlightedNotes; }
+	inline NoteHighlightIntensity& getNornsNotes() { return keyboard_screen_for_session().nornsNotes; }
 
-	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboardState; }
+	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboard_state_for_session(); }
 
 public:
 	uint8_t velocity = 64;

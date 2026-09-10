@@ -18,7 +18,10 @@
 #include "hid/led/indicator_leds.h"
 #include "RZA1/uart/sio_char.h"
 #include "drivers/pic/pic.h"
+#include "gui/ui/ui_session.h"
 #include "gui/ui_timer_manager.h"
+#include "hid/led/indicator_leds_state.h"
+#include "hid/mirror.h"
 #include <array>
 #include <cstdint>
 
@@ -28,20 +31,22 @@ extern "C" {
 
 namespace indicator_leds {
 
-bool ledStates[NUM_LED_COLS * NUM_LED_ROWS];
+namespace {
+deluge::gui::ui_session::State<IndicatorState> states;
+IndicatorState& panel_state() {
+	return states.active();
+}
+bool local_output() {
+	return deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local;
+}
+} // namespace
 
-LedBlinker ledBlinkers[numLedBlinkers];
-bool ledBlinkState[NUM_LEVEL_INDICATORS];
-
-uint8_t knobIndicatorLevels[NUM_LEVEL_INDICATORS];
-bool knobIndicatorBipolar[NUM_LEVEL_INDICATORS];
-
-uint8_t whichLevelIndicatorBlinking;
-bool levelIndicatorBlinkOn;
-uint8_t levelIndicatorBlinksLeft;
-bool levelIndicatorBipolar;
-
-uint8_t whichKnobMetering;
+bool blink_state_for_session(uint8_t blinkingType) {
+	return panel_state().ledBlinkState[blinkingType];
+}
+const IndicatorFrame& frame_for_session() {
+	return panel_state().frame;
+}
 
 void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 
@@ -50,7 +55,13 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 	}
 
 	uint8_t l = static_cast<int32_t>(led);
-	ledStates[l] = newState;
+	panel_state().frame.set_led(l, newState);
+	if (!local_output()) {
+		// PIC wire commands: off starts at 152, on at 188. Remote output
+		// enters the mirror parser directly and never reaches physical hardware.
+		deluge::hid::mirror::panel_byte((newState ? 188 : 152) + l);
+		return;
+	}
 
 	if (newState) {
 		PIC::setLEDOn(l);
@@ -67,24 +78,24 @@ void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialStat
 	// Find unallocated blinker
 	int32_t i;
 	for (i = 0; i < numLedBlinkers - 1; i++) {
-		if (!ledBlinkers[i].active) {
+		if (!panel_state().ledBlinkers[i].active) {
 			break;
 		}
 	}
 
-	ledBlinkers[i].led = led;
-	ledBlinkers[i].active = true;
-	ledBlinkers[i].blinkingType = blinkingType;
+	panel_state().ledBlinkers[i].led = led;
+	panel_state().ledBlinkers[i].active = true;
+	panel_state().ledBlinkers[i].blinkingType = blinkingType;
 
 	if (numBlinks == 255) {
-		ledBlinkers[i].blinksLeft = 255;
+		panel_state().ledBlinkers[i].blinksLeft = 255;
 	}
 	else {
-		ledBlinkers[i].returnToState = ledStates[static_cast<int32_t>(led)];
-		ledBlinkers[i].blinksLeft = numBlinks * 2;
+		panel_state().ledBlinkers[i].returnToState = panel_state().frame.leds[static_cast<int32_t>(led)];
+		panel_state().ledBlinkers[i].blinksLeft = numBlinks * 2;
 	}
 
-	ledBlinkState[blinkingType] = initialState;
+	panel_state().ledBlinkState[blinkingType] = initialState;
 	updateBlinkingLedStates(blinkingType);
 
 	int32_t thisInitialFlashTime;
@@ -106,10 +117,10 @@ void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialStat
 
 void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 	if (forceReset) {
-		ledBlinkState[blinkingType] = resetToState;
+		panel_state().ledBlinkState[blinkingType] = resetToState;
 	}
 	else {
-		ledBlinkState[blinkingType] = !ledBlinkState[blinkingType];
+		panel_state().ledBlinkState[blinkingType] = !panel_state().ledBlinkState[blinkingType];
 	}
 
 	bool anyActive = updateBlinkingLedStates(blinkingType);
@@ -125,23 +136,23 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 bool updateBlinkingLedStates(uint8_t blinkingType) {
 	bool anyActive = false;
 	for (int32_t i = 0; i < numLedBlinkers; i++) {
-		if (ledBlinkers[i].active && ledBlinkers[i].blinkingType == blinkingType) {
+		if (panel_state().ledBlinkers[i].active && panel_state().ledBlinkers[i].blinkingType == blinkingType) {
 
 			// If only doing a fixed number of blinks...
-			if (ledBlinkers[i].blinksLeft != 255) {
-				ledBlinkers[i].blinksLeft--;
+			if (panel_state().ledBlinkers[i].blinksLeft != 255) {
+				panel_state().ledBlinkers[i].blinksLeft--;
 
 				// If no more blinks...
-				if (ledBlinkers[i].blinksLeft == 0) {
-					ledBlinkers[i].active = false;
-					setLedState(ledBlinkers[i].led, ledBlinkers[i].returnToState, true);
+				if (panel_state().ledBlinkers[i].blinksLeft == 0) {
+					panel_state().ledBlinkers[i].active = false;
+					setLedState(panel_state().ledBlinkers[i].led, panel_state().ledBlinkers[i].returnToState, true);
 					continue;
 				}
 			}
 
 			// We only get here if we haven't run out of blinks..
 			anyActive = true;
-			setLedState(ledBlinkers[i].led, ledBlinkState[blinkingType], true);
+			setLedState(panel_state().ledBlinkers[i].led, panel_state().ledBlinkState[blinkingType], true);
 		}
 	}
 	return anyActive;
@@ -150,16 +161,16 @@ bool updateBlinkingLedStates(uint8_t blinkingType) {
 void stopLedBlinking(LED led, bool resetState) {
 	uint8_t i = getLedBlinkerIndex(led);
 	if (i != 255) {
-		ledBlinkers[i].active = false;
+		panel_state().ledBlinkers[i].active = false;
 		if (resetState) {
-			setLedState(led, ledBlinkers[i].returnToState, true);
+			setLedState(led, panel_state().ledBlinkers[i].returnToState, true);
 		}
 	}
 }
 
 uint8_t getLedBlinkerIndex(LED led) {
 	for (uint8_t i = 0; i < numLedBlinkers; i++) {
-		if (ledBlinkers[i].led == led && ledBlinkers[i].active) {
+		if (panel_state().ledBlinkers[i].led == led && panel_state().ledBlinkers[i].active) {
 			return i;
 		}
 	}
@@ -172,7 +183,7 @@ void indicateAlertOnLed(LED led) {
 
 // this sets the level only if there hasn't been a value update in 500ms
 void setMeterLevel(uint8_t whichKnob, uint8_t level) {
-	whichKnobMetering = whichKnob;
+	panel_state().whichKnobMetering = whichKnob;
 	if (!uiTimerManager.isTimerSet(TimerName::METER_INDICATOR_BLINK)) {
 		actuallySetKnobIndicatorLevel(whichKnob, level);
 	}
@@ -181,7 +192,7 @@ void setMeterLevel(uint8_t whichKnob, uint8_t level) {
 // Level is out of 128
 // Set level and block metering for 500ms
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipolar) {
-	if (whichKnob == whichKnobMetering) {
+	if (whichKnob == panel_state().whichKnobMetering) {
 		uiTimerManager.setTimer(TimerName::METER_INDICATOR_BLINK, 500);
 	}
 	actuallySetKnobIndicatorLevel(whichKnob, level, isBipolar);
@@ -190,11 +201,13 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipolar) {
 // Just set level
 void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipolar) {
 	// If this indicator was blinking, stop it
-	if (uiTimerManager.isTimerSet(TimerName::LEVEL_INDICATOR_BLINK) && whichLevelIndicatorBlinking == whichKnob) {
+	if (uiTimerManager.isTimerSet(TimerName::LEVEL_INDICATOR_BLINK)
+	    && panel_state().whichLevelIndicatorBlinking == whichKnob) {
 		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
 	}
 	else {
-		if (level == knobIndicatorLevels[whichKnob] && isBipolar == knobIndicatorBipolar[whichKnob]) {
+		if (level == panel_state().knobIndicatorLevels[whichKnob]
+		    && isBipolar == panel_state().knobIndicatorBipolar[whichKnob]) {
 			return;
 		}
 	}
@@ -224,7 +237,7 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 		if (isBipolar) {
 			// is the indicator currently blinking
 			// if so, blink the two middle LED's
-			if (levelIndicatorBlinkOn && (levelIndicatorBlinksLeft > 1)) {
+			if (panel_state().levelIndicatorBlinkOn && (panel_state().levelIndicatorBlinksLeft > 1)) {
 				switch (i) {
 				case 0:
 					break;
@@ -247,10 +260,17 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 
 		indicator.at(i) = brightnessOutputValue;
 	}
-	PIC::setGoldKnobIndicator(whichKnob, indicator);
+	panel_state().frame.set_knob(whichKnob, indicator);
+	if (local_output())
+		PIC::setGoldKnobIndicator(whichKnob, indicator);
+	else {
+		deluge::hid::mirror::panel_byte(20 + whichKnob);
+		for (uint8_t brightness_value : indicator)
+			deluge::hid::mirror::panel_byte(brightness_value);
+	}
 
-	knobIndicatorLevels[whichKnob] = level;
-	knobIndicatorBipolar[whichKnob] = isBipolar;
+	panel_state().knobIndicatorLevels[whichKnob] = level;
+	panel_state().knobIndicatorBipolar[whichKnob] = isBipolar;
 }
 
 /// return brightness value for current LED indicator being looked at
@@ -291,37 +311,37 @@ int32_t getBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLed
 void blinkKnobIndicator(int32_t whichKnob, bool isBipolar) {
 	if (uiTimerManager.isTimerSet(TimerName::LEVEL_INDICATOR_BLINK)) {
 		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
-		if (whichLevelIndicatorBlinking != whichKnob) {
-			setKnobIndicatorLevel(whichLevelIndicatorBlinking, 64, levelIndicatorBipolar);
+		if (panel_state().whichLevelIndicatorBlinking != whichKnob) {
+			setKnobIndicatorLevel(panel_state().whichLevelIndicatorBlinking, 64, panel_state().levelIndicatorBipolar);
 		}
 	}
 
-	whichLevelIndicatorBlinking = whichKnob;
-	levelIndicatorBlinkOn = false;
-	levelIndicatorBlinksLeft = 26;
-	levelIndicatorBipolar = isBipolar;
+	panel_state().whichLevelIndicatorBlinking = whichKnob;
+	panel_state().levelIndicatorBlinkOn = false;
+	panel_state().levelIndicatorBlinksLeft = 26;
+	panel_state().levelIndicatorBipolar = isBipolar;
 	blinkKnobIndicatorLevelTimeout();
 }
 
 void stopBlinkingKnobIndicator(int32_t whichKnob) {
 	if (isKnobIndicatorBlinking(whichKnob)) {
-		levelIndicatorBlinksLeft = 0;
+		panel_state().levelIndicatorBlinksLeft = 0;
 		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
 	}
 }
 
 void blinkKnobIndicatorLevelTimeout() {
-	setKnobIndicatorLevel(whichLevelIndicatorBlinking, levelIndicatorBlinkOn ? 64 : 0,
-	                      levelIndicatorBlinkOn ? levelIndicatorBipolar : false);
+	setKnobIndicatorLevel(panel_state().whichLevelIndicatorBlinking, panel_state().levelIndicatorBlinkOn ? 64 : 0,
+	                      panel_state().levelIndicatorBlinkOn ? panel_state().levelIndicatorBipolar : false);
 
-	levelIndicatorBlinkOn = !levelIndicatorBlinkOn;
-	if (--levelIndicatorBlinksLeft) {
+	panel_state().levelIndicatorBlinkOn = !panel_state().levelIndicatorBlinkOn;
+	if (--panel_state().levelIndicatorBlinksLeft) {
 		uiTimerManager.setTimer(TimerName::LEVEL_INDICATOR_BLINK, 20);
 	}
 }
 
 bool isKnobIndicatorBlinking(int32_t whichKnob) {
-	return (levelIndicatorBlinksLeft && whichLevelIndicatorBlinking == whichKnob);
+	return (panel_state().levelIndicatorBlinksLeft && panel_state().whichLevelIndicatorBlinking == whichKnob);
 }
 
 void clearKnobIndicatorLevels() {

@@ -45,7 +45,8 @@ void SyncLevel::drawPixelsForOled() {
 		text = buffer.data();
 		getNoteLengthName(buffer);
 	}
-	hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX, kTextBigSizeY);
+	hid::display::OLED::main_for_session().drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX,
+	                                                         kTextBigSizeY);
 }
 
 void SyncLevel::getColumnLabel(StringBuf& label) {
@@ -62,7 +63,7 @@ void SyncLevel::getColumnLabel(StringBuf& label) {
 
 void SyncLevel::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace deluge::hid::display;
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	const int32_t value = getValue();
 

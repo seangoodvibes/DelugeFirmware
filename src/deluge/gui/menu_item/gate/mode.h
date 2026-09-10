@@ -36,9 +36,11 @@ public:
 	Mode() : Selection(), FormattedTitle(l10n::String::STRING_FOR_GATE_MODE_TITLE) {}
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void readCurrentValue() override { this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
+	void readCurrentValue() override {
+		this->setValue(cvEngine.gateChannels[sound_editor_for_session().currentSourceIndex].mode);
+	}
 	void writeCurrentValue() override {
-		cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>());
+		cvEngine.setGateType(sound_editor_for_session().currentSourceIndex, this->getValue<GateType>());
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;

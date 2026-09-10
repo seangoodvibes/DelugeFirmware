@@ -49,12 +49,12 @@ class InstrumentClip final : public Clip {
 public:
 	explicit InstrumentClip(Song* song = nullptr);
 	~InstrumentClip() override;
-	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
+	bool increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                               bool completelyRenderOutIterationDependence = false,
 	                               Action* action = nullptr) override;
-	void halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack);
-	void repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength);
+	Error halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack);
+	bool repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength);
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t posIncrement) override;
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
 	                       uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
@@ -86,7 +86,8 @@ public:
 	void restoreBackedUpParamManagerMIDI(ModelStackWithModControllable* modelStack);
 	int32_t getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex);
 	NoteRow* getNoteRowFromId(int32_t id);
-	/// Return true if successfully shifted. Instrument clips always succeed
+	bool can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) override;
+	/// Return true if successfully shifted; invalid clip or row lengths reject the edit.
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
 	                       bool shiftSequenceAndMPE) override;
 	bool isEmpty(bool displayPopup = true) override;
@@ -106,10 +107,13 @@ public:
 
 	bool inScaleMode; // Probably don't quiz this directly - call isScaleModeClip() instead
 
-	int32_t yScroll;
+	int32_t& y_scroll_for_session() { return panel_view_state.active().yScroll; }
+	int32_t y_scroll_for_session() const { return panel_view_state.active().yScroll; }
 
 	// TODO: Unscope this once namespacing is done
-	deluge::gui::ui::keyboard::KeyboardState keyboardState;
+	deluge::gui::ui_session::State<deluge::gui::ui::keyboard::KeyboardState> keyboard_states;
+	auto& keyboard_state_for_session() { return keyboard_states.active(); }
+	const auto& keyboard_state_for_session() const { return keyboard_states.active(); }
 
 	int32_t ticksTilNextNoteRowEvent{};
 	int32_t noteRowsNumTicksBehindClip{};
@@ -119,8 +123,10 @@ public:
 
 	NoteRowVector noteRows;
 
-	bool wrapEditing;
-	uint32_t wrapEditLevel{};
+	bool& wrap_editing_for_session() { return panel_view_state.active().wrapEditing; }
+	bool wrap_editing_for_session() const { return panel_view_state.active().wrapEditing; }
+	uint32_t& wrap_edit_level_for_session() { return panel_view_state.active().wrapEditLevel; }
+	uint32_t wrap_edit_level_for_session() const { return panel_view_state.active().wrapEditLevel; }
 
 	// These *only* store a valid preset number for the instrument-types that the Clip is not currently on
 	int8_t backedUpInstrumentSlot[4]{};
@@ -128,9 +134,8 @@ public:
 	String backedUpInstrumentName[2];
 	String backedUpInstrumentDirPath[2];
 
-	bool affectEntire;
-
-	bool onKeyboardScreen;
+	bool& affect_entire_for_session() { return panel_view_state.active().affectEntire; }
+	bool affect_entire_for_session() const { return panel_view_state.active().affectEntire; }
 
 	uint8_t midiBank; // 128 means none
 	uint8_t midiSub;  // 128 means none
@@ -233,7 +238,7 @@ public:
 
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
-		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+		return instrument_clip_view_for_session().renderSidebar(whichRows, image, occupancyMask);
 	};
 
 protected:

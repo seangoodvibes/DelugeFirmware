@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
+#include "hid/mirror.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
@@ -1230,6 +1231,8 @@ copy7ToMe:
 // Only needs calling a couple times per second. Must be called outside of the audio / SD-reading routine
 // Call this repeatedly so SD card is re-initialized on re-insert before we actually urgently need audio from it
 void AudioFileManager::slowRoutine() {
+	if (deluge::hid::mirror::is_client())
+		return;
 
 	// If we know the card's been ejected...
 	if (cardEjected && !sdRoutineLock) {
@@ -1254,6 +1257,8 @@ uint16_t timeLastFinish;
 #endif
 
 void AudioFileManager::loadAnyEnqueuedClusters(int32_t maxNum, bool mayProcessUserActionsBetween) {
+	if (deluge::hid::mirror::is_client())
+		return;
 
 	if (currentlyAccessingCard) {
 		return;

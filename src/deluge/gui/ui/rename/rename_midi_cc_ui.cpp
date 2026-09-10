@@ -27,11 +27,17 @@
 #include "model/song/song.h"
 #include <string_view>
 
-RenameMidiCCUI renameMidiCCUI{"CC Name"};
+namespace {
+RenameMidiCCUI local_rename_midi_cc_ui{"CC Name"};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<RenameMidiCCUI> remote_rename_midi_cc_ui;
+} // namespace
+RenameMidiCCUI& rename_midi_cc_ui_for_session() {
+	return remote_rename_midi_cc_ui.get(local_rename_midi_cc_ui, "CC Name");
+}
 
 bool RenameMidiCCUI::canRename() const {
 	Clip* clip = getCurrentClip();
-	int32_t cc = clip->lastSelectedParamID;
+	int32_t cc = clip->last_selected_param_id_for_session();
 	// if we're not dealing with a real cc number
 	// then don't allow user to edit the name
 	return cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers;
@@ -40,7 +46,7 @@ bool RenameMidiCCUI::canRename() const {
 std::string_view RenameMidiCCUI::getCurrentName() const {
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-	int32_t cc = clip->lastSelectedParamID;
+	int32_t cc = clip->last_selected_param_id_for_session();
 	return midiInstrument->getNameFromCC(cc);
 }
 
@@ -48,7 +54,7 @@ bool RenameMidiCCUI::trySetName(std::string_view name) {
 
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-	int32_t cc = clip->lastSelectedParamID;
+	int32_t cc = clip->last_selected_param_id_for_session();
 
 	midiInstrument->setNameForCC(cc, name);
 	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset

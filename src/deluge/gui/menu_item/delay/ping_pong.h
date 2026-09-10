@@ -28,13 +28,16 @@ class PingPong final : public Selection {
 public:
 	using Selection::Selection;
 	bool isToggle() override { return true; }
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
+	void readCurrentValue() override {
+		this->setValue(sound_editor_for_session().currentModControllable->delay.pingPong);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -47,7 +50,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.pingPong = current_value;
+			sound_editor_for_session().currentModControllable->delay.pingPong = current_value;
 		}
 	}
 
@@ -63,7 +66,7 @@ public:
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
-		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
+		OLED::main_for_session().drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 };
 

@@ -62,38 +62,38 @@ void DxGlobalParams::drawPixelsForOled() {
 	for (auto& item : items) {
 		itemNames.push_back(item.name);
 	}
-	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
+	drawItemsForOled(itemNames, panel_state().currentValue - panel_state().scrollPos, panel_state().scrollPos);
 }
 
 void DxGlobalParams::drawValue() {
-	display->setScrollingText(items[currentValue].shortname);
+	display->setScrollingText(items[panel_state().currentValue].shortname);
 }
 
 void DxGlobalParams::selectEncoderAction(int32_t offset) {
-	int32_t newValue = std::clamp<int32_t>(currentValue + offset, 0, numValues - 1);
+	int32_t newValue = std::clamp<int32_t>(panel_state().currentValue + offset, 0, numValues - 1);
 
 	// if no change, just exit
-	if (newValue == currentValue) {
+	if (newValue == panel_state().currentValue) {
 		return;
 	}
 
-	currentValue = newValue;
+	panel_state().currentValue = newValue;
 
 	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
+		panel_state().scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
 	}
 
 	readValueAgain(); // redraw
 }
 
 MenuItem* DxGlobalParams::selectButtonPress() {
-	int index = items[currentValue].index;
+	int index = items[panel_state().currentValue].index;
 	if (index >= 0) {
-		dxParam.param = index;
+		dxParam.param_for_session() = index;
 		return &dxParam;
 	}
 	else if (index >= -6) {
-		dxOperatorParams.op = 6 + index;
+		dxOperatorParams.op_for_session() = 6 + index;
 		dxOperatorParams.format(-index);
 		return &dxOperatorParams;
 	}

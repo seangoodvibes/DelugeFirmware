@@ -242,7 +242,10 @@ void TaskManager::runTask(TaskID id) {
 		current_task->lastCallTime = timeNow;
 		current_task->yielded = false;
 	}
-	current_task->handle();
+	{
+		deluge::gui::ui_session::Scope owner_scope(current_task->ui_owner);
+		current_task->handle();
+	}
 
 	{
 		Time start_time = current_task->lastCallTime;

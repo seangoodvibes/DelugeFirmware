@@ -428,21 +428,21 @@ Clip* MidiFollow::getSelectedClip() {
 	switch (uiType) {
 	case UIType::SESSION:
 		// if you're in session view, check if you're pressing a clip to control that clip
-		clip = sessionView.getClipForLayout();
+		clip = session_view_for_session().getClipForLayout();
 		break;
 	case UIType::ARRANGER:
-		clip = arrangerView.getClipForSelection();
+		clip = arranger_view_for_session().getClipForSelection();
 		break;
 	case UIType::PERFORMANCE:
 		// if you're in the arranger performance view, check if you're holding audition pad
-		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-			clip = arrangerView.getClipForSelection();
+		if (currentSong->last_clip_instance_entered_start_pos_for_session() != -1) {
+			clip = arranger_view_for_session().getClipForSelection();
 		}
 		break;
 	case UIType::AUTOMATION:
 		// if you're in the arranger automation view, check if you're holding audition pad
-		if (automationView.onArrangerView) {
-			clip = arrangerView.getClipForSelection();
+		if (automation_view_for_session().onArrangerView) {
+			clip = arranger_view_for_session().getClipForSelection();
 			break;
 		}
 		[[fallthrough]]; // you're in automation clip view
@@ -574,7 +574,7 @@ bool MidiFollow::isGlobalEffectableContext() {
 		}
 		// kits may be global effectable depending on affect entire status
 		else if (clip->output->type == OutputType::KIT) {
-			bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			bool affectEntire = ((InstrumentClip*)clip)->affect_entire_for_session();
 			// if affect entire is enabled, then midi follow controls global effectable params
 			if (affectEntire) {
 				return true;
@@ -939,9 +939,10 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			modPos = view.modPos;
-			modLength = view.modLength;
+		if (view_for_session().modLength
+		    && timelineCounter == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			modPos = view_for_session().modPos;
+			modLength = view_for_session().modLength;
 			isStepEditing = true;
 		}
 
@@ -991,19 +992,19 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			// performance view
 			bool editingParamInAutomationOrPerformanceView = false;
 			RootUI* rootUI = getRootUI();
-			if (rootUI == &automationView || rootUI == &performanceView) {
+			if (rootUI == &automation_view_for_session() || rootUI == &performance_view_for_session()) {
 				int32_t id = modelStackWithParam->paramId;
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-				if (rootUI == &automationView) {
+				if (rootUI == &automation_view_for_session()) {
 					// pass the current clip because you want to check that you're editing the param
 					// for the same clip active in automation view
 					editingParamInAutomationOrPerformanceView =
-					    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
+					    automation_view_for_session().possiblyRefreshAutomationEditorGrid(clip, kind, id);
 				}
 				else {
 					editingParamInAutomationOrPerformanceView =
-					    performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+					    performance_view_for_session().possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
 				}
 			}
 
@@ -1012,7 +1013,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			// mode don't display popup if you're currently editing the same param
 			if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				view_for_session().displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 			}
 		}
 	}
@@ -1186,15 +1187,16 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 
 			// Only if this exact TimelineCounter is having automation step-edited, we can send the value for just a
 			// region.
-			if (view.modLength
-			    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			if (view_for_session().modLength
+			    && timelineCounter
+			           == view_for_session().activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 				// don't send automation feedback if you're step editing
 				if (isAutomation) {
 					return;
 				}
 
-				modPos = view.modPos;
+				modPos = view_for_session().modPos;
 				isStepEditing = true;
 			}
 		}

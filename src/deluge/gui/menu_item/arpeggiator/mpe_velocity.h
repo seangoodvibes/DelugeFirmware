@@ -26,14 +26,15 @@ namespace deluge::gui::menu_item::arpeggiator {
 class ArpMpeVelocity final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mpeVelocity); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentArpSettings->mpeVelocity); }
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ArpMpeModSource>();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -46,12 +47,12 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentArpSettings->mpeVelocity = current_value;
+			sound_editor_for_session().currentArpSettings->mpeVelocity = current_value;
 		}
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingGateDrumRow();
+		return !sound_editor_for_session().editingGateDrumRow();
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

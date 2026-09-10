@@ -16,6 +16,7 @@
  */
 
 #include "model/consequence/consequence_clip_begin_linear_record.h"
+#include "gui/ui/ui_session.h"
 
 #include "gui/ui/ui.h"
 #include "model/clip/clip.h"
@@ -57,8 +58,12 @@ Error ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelS
 
 			// Or if we're viewing the Clip, don't deactivate it, cos it's a massive hassle, and confusing, for user to
 			// go out and reactivate it
-			if (modelStack->song->getCurrentClip() == clip && getCurrentUI()->toClipMinder()) {
-				return Error::NONE;
+			for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+				deluge::gui::ui_session::Scope panel_owner(owner);
+				UI* ui = getCurrentUI();
+				if (modelStack->song->getCurrentClip() == clip && ui && ui->toClipMinder()) {
+					return Error::NONE;
+				}
 			}
 doToggle:
 			int32_t clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);

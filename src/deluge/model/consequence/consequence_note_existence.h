@@ -31,6 +31,7 @@ public:
 
 	InstrumentClip* clip;
 	int32_t noteRowId;
+	uint64_t note_row_identity = 0;
 	int32_t pos;
 	int32_t length;
 	int8_t velocity;

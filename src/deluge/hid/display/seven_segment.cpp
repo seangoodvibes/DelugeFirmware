@@ -26,6 +26,7 @@
 #include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
+#include "hid/mirror.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
 #include "memory/general_memory_allocator.h"
@@ -122,40 +123,48 @@ uint8_t letterSegments[] = {
     0x6D,
 };
 
-void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
-	newTopLayer->next = topLayer;
-	topLayer = newTopLayer;
-
-	if (!popupActive) {
+SevenSegment::~SevenSegment() {
+	for (auto owner : {gui::ui_session::Id::Local, gui::ui_session::Id::Remote}) {
+		gui::ui_session::Scope scope(owner);
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
-		topLayer->isNowOnTop();
+		deleteAllLayers();
+	}
+}
+
+void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
+	newTopLayer->next = panel_state().topLayer;
+	panel_state().topLayer = newTopLayer;
+
+	if (!panel_state().popupActive) {
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
+		panel_state().topLayer->isNowOnTop();
 		render();
 	}
 }
 
 void SevenSegment::deleteAllLayers() {
-	while (topLayer) {
-		NumericLayer* toDelete = topLayer;
-		topLayer = topLayer->next;
+	while (panel_state().topLayer) {
+		NumericLayer* toDelete = panel_state().topLayer;
+		panel_state().topLayer = panel_state().topLayer->next;
 		toDelete->~NumericLayer();
 		delugeDealloc(toDelete);
 	}
 }
 
 void SevenSegment::removeTopLayer() {
-	if (!topLayer || !topLayer->next) {
+	if (!panel_state().topLayer || !panel_state().topLayer->next) {
 		return;
 	}
 
-	NumericLayer* toDelete = topLayer;
-	topLayer = topLayer->next;
+	NumericLayer* toDelete = panel_state().topLayer;
+	panel_state().topLayer = panel_state().topLayer->next;
 
 	toDelete->~NumericLayer();
 	delugeDealloc(toDelete);
 
-	if (!popupActive) {
+	if (!panel_state().popupActive) {
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
-		topLayer->isNowOnTop();
+		panel_state().topLayer->isNowOnTop();
 		render();
 	}
 }
@@ -254,7 +263,11 @@ NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, i
 }
 
 void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
-	NumericLayer** prevPointer = &topLayer;
+	if (!panel_state().topLayer) {
+		setTopLayer(newLayer);
+		return;
+	}
+	NumericLayer** prevPointer = &panel_state().topLayer;
 	while ((*prevPointer)->next) {
 		prevPointer = &(*prevPointer)->next;
 	}
@@ -264,9 +277,9 @@ void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 	toDelete->~NumericLayer();
 	delugeDealloc(toDelete);
 
-	if (!popupActive && topLayer == newLayer) {
+	if (!panel_state().popupActive && panel_state().topLayer == newLayer) {
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
-		topLayer->isNowOnTop();
+		panel_state().topLayer->isNowOnTop();
 	}
 
 	render();
@@ -277,18 +290,18 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 	NumericLayerScrollTransition* scrollTransition = nullptr;
 
 	// If transition...
-	if (!popupActive && nextTransitionDirection != 0 && topLayer != nullptr) {
+	if (!panel_state().popupActive && panel_state().nextTransitionDirection != 0 && panel_state().topLayer != nullptr) {
 
 		// Paul: Render time could be lower putting this into internal
 		void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollTransition));
 
 		if (layerSpace) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
-			scrollTransition->transitionDirection = nextTransitionDirection;
+			scrollTransition->transitionDirection = panel_state().nextTransitionDirection;
 
 			scrollTransition->transitionProgress = -kNumericDisplayLength * scrollTransition->transitionDirection;
 
-			topLayer->renderWithoutBlink(scrollTransition->segments);
+			panel_state().topLayer->renderWithoutBlink(scrollTransition->segments);
 		}
 	}
 
@@ -297,13 +310,13 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 
 	// And if doing a transition, put that on top
 	if (scrollTransition) {
-		topLayer = newLayer;
+		panel_state().topLayer = newLayer;
 		setTopLayer(scrollTransition);
 	}
 	else {
 		setTopLayer(newLayer);
 	}
-	nextTransitionDirection = 0;
+	panel_state().nextTransitionDirection = 0;
 }
 
 // Automatically stops at end of string
@@ -451,7 +464,7 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 				break;
 
 			case 'a' ... 'z':
-				if (use_lowercase) {
+				if (panel_state().use_lowercase) {
 					*segments = letterSegments[thisChar - 'A']; // Letters
 				}
 				else {
@@ -583,51 +596,54 @@ void SevenSegment::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, boo
 }
 
 void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
-	nextTransitionDirection = thisDirection;
+	panel_state().nextTransitionDirection = thisDirection;
 }
 
 void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
                                 int32_t blinkSpeed, PopupType type) {
-	encodeText(newText, popup.segments, alignRight, {drawDot});
-	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
+	encodeText(newText, panel_state().popup.segments, alignRight, {drawDot});
+	memset(&panel_state().popup.blinkedSegments, 0, kNumericDisplayLength);
 	if (numFlashes == 0) {
-		popup.blinkCount = -1;
+		panel_state().popup.blinkCount = -1;
 	}
 	else {
-		popup.blinkCount = numFlashes * 2 + 1;
+		panel_state().popup.blinkCount = numFlashes * 2 + 1;
 	}
-	popup.currentlyBlanked = false;
-	popupActive = true;
-	popupType = type;
-	popup.blinkSpeed = blinkSpeed;
+	panel_state().popup.currentlyBlanked = false;
+	panel_state().popupActive = true;
+	panel_state().popupType = type;
+	panel_state().popup.blinkSpeed = blinkSpeed;
 
 	indicator_leds::ledBlinkTimeout(0, true);
-	popup.isNowOnTop();
+	panel_state().popup.isNowOnTop();
 	render();
 }
 
 void SevenSegment::cancelPopup() {
-	if (popupActive) {
+	if (panel_state().popupActive) {
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
-		popupActive = false;
-		topLayer->isNowOnTop();
+		panel_state().popupActive = false;
+		if (panel_state().topLayer)
+			panel_state().topLayer->isNowOnTop();
 		render();
 	}
 }
 
 void SevenSegment::timerRoutine() {
 	NumericLayer* layer;
-	if (popupActive) {
-		layer = &popup;
+	if (panel_state().popupActive) {
+		layer = &panel_state().popup;
 	}
 	else {
-		layer = topLayer;
+		layer = panel_state().topLayer;
 	}
 
+	if (!layer)
+		return;
 	bool shouldRemoveLayer = layer->callBack();
 
 	if (shouldRemoveLayer) {
-		if (!popupActive) {
+		if (!panel_state().popupActive) {
 			removeTopLayer();
 		}
 		else {
@@ -642,35 +658,34 @@ void SevenSegment::timerRoutine() {
 void SevenSegment::render() {
 
 	NumericLayer* layer;
-	if (popupActive) {
-		layer = &popup;
+	if (panel_state().popupActive) {
+		layer = &panel_state().popup;
 	}
 	else {
-		layer = topLayer;
+		layer = panel_state().topLayer;
 	}
 
-	std::array<uint8_t, kNumericDisplayLength> segments;
-	layer->render(segments.data());
-	lastDisplay_ = segments;
+	std::array<uint8_t, kNumericDisplayLength> rendered{};
+	if (layer)
+		layer->render(rendered.data());
+	panel_state().frame.publish(rendered, layer ? layer->fixedDot : 255);
+	const auto& segments = panel_state().frame.segments;
 
-	// In most cases dots are already encoded, but if we have scrolling
-	// text with dots in fixed screen positions, we need to put them in
-	// here, and take them out afterwards.
-	if (layer->fixedDot != 255) {
-		putDot(segments.data(), layer->fixedDot);
-	}
-
-	if (have_oled_screen) {
+	// Remote numeric output is a software snapshot. OLED emulation renders only
+	// into this panel's canvas; it does not access the physical OLED queue.
+	if (have_oled_screen)
 		OLED::renderEmulated7Seg(segments);
+	if (gui::ui_session::current() == gui::ui_session::Id::Remote) {
+		if (!have_oled_screen) {
+			mirror::panel_byte(224); // UPDATE_SEVEN_SEGMENT_DISPLAY
+			for (uint8_t segment : segments)
+				mirror::panel_byte(segment);
+		}
+		return;
 	}
-	else {
+	if (!have_oled_screen)
 		PIC::update7SEG(segments);
-	}
 	HIDSysex::sendDisplayIfChanged();
-
-	if (layer->fixedDot != 255) {
-		clearDot(segments.data(), layer->fixedDot);
-	}
 }
 
 // Call this to make the loading animation happen
@@ -705,6 +720,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 //   PM4x  Song-load and whole-song consistency. Highest used: PM43
 
 void SevenSegment::freezeWithError(char const* text) {
+	gui::ui_session::Scope hardware(gui::ui_session::Id::Local);
 	setTextVeryBasicA1(text);
 
 	deluge::hid::display::wait_for_select_encoder_press();
@@ -713,7 +729,7 @@ void SevenSegment::freezeWithError(char const* text) {
 }
 
 bool SevenSegment::isLayerCurrentlyOnTop(NumericLayer* layer) {
-	return (!popupActive && layer == topLayer);
+	return (!panel_state().popupActive && layer == panel_state().topLayer);
 }
 
 extern std::string_view getErrorMessage(Error error);

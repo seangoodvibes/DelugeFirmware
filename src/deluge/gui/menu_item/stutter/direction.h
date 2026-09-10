@@ -50,7 +50,7 @@ public:
 	}
 
 	void readCurrentValue() override {
-		const auto* stutter = &soundEditor.currentModControllable->stutterConfig;
+		const auto* stutter = &sound_editor_for_session().currentModControllable->stutterConfig;
 
 		if (showUseSongOption() && stutter->useSongStutter) {
 			setValue(USE_SONG_STUTTER);
@@ -75,7 +75,8 @@ public:
 		Direction value = getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 			Kit* kit = getCurrentKit();
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
@@ -86,7 +87,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			applyOptionToStutterConfig(value, soundEditor.currentModControllable->stutterConfig);
+			applyOptionToStutterConfig(value, sound_editor_for_session().currentModControllable->stutterConfig);
 		}
 	}
 
@@ -102,7 +103,7 @@ private:
 		return Selection::setValue(value - shift);
 	}
 
-	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
+	static bool showUseSongOption() { return !sound_editor_for_session().currentModControllable->isSong(); }
 
 	static void applyOptionToStutterConfig(const Direction value, StutterConfig& stutter) {
 		stutter.useSongStutter = value == USE_SONG_STUTTER;
@@ -123,7 +124,7 @@ private:
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const auto value = getValue();
 

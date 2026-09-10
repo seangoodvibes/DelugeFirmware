@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
+#include "hid/led/pad_leds_state.h"
 #include <cstdint>
 
 #define FLASH_CURSOR_FAST 0
@@ -33,29 +34,6 @@ class UI;
 class AudioClip;
 
 namespace PadLEDs {
-extern RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                      // 255 = full brightness
-extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-extern RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];             // 255 = full brightness
-extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
-
-extern bool transitionTakingPlaceOnRow[kDisplayHeight];
-
-extern int32_t explodeAnimationYOriginBig;
-extern int32_t explodeAnimationXStartBig;
-extern int32_t explodeAnimationXWidthBig;
-
-extern int8_t explodeAnimationDirection;
-extern UI* explodeAnimationTargetUI;
-extern bool renderingLock;
-extern uint8_t flashCursor;
-
-extern int16_t animatedRowGoingTo[];
-extern int16_t animatedRowGoingFrom[];
-extern uint8_t numAnimatedRows;
-
-extern int32_t zoomPinSquare[kDisplayHeight];
-extern bool zoomingIn;
-extern int8_t zoomMagnitude;
 
 void init();
 void sortLedsForCol(int32_t x);
@@ -97,9 +75,6 @@ namespace vertical {
 void setupScroll(int8_t thisScrollDirection, bool scrollIntoNothing = false);
 void renderScroll();
 
-extern uint8_t squaresScrolled;
-extern int8_t scrollDirection;
-extern bool scrollingToNothing;
 } // namespace vertical
 
 RGB prepareColour(int32_t x, int32_t y, RGB colourSource);
@@ -128,14 +103,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
 
-static inline void flashMainPad(int32_t x, int32_t y, int32_t colour = 0) {
-	auto idx = y + (x * kDisplayHeight);
-	if (colour > 0) {
-		PIC::flashMainPadWithColourIdx(idx, colour);
-		return;
-	}
-	PIC::flashMainPad(idx);
-}
+void flashMainPad(int32_t x, int32_t y, int32_t colour = 0);
 
 void setTimerForSoon();
 void renderZoomedSquare(int32_t outputSquareStartOnOutImage, int32_t outputSquareEndOnOutImage,

@@ -90,19 +90,19 @@ public:
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	static String currentDir;
-	static CStringArray fileItems;
-	static int32_t numFileItemsDeletedAtStart;
-	static int32_t numFileItemsDeletedAtEnd;
+	static String& current_dir_for_session();
+	static CStringArray& file_items_for_session();
+	static int32_t& num_file_items_deleted_at_start_for_session();
+	static int32_t& num_file_items_deleted_at_end_for_session();
 	// These hold the displayName of the boundary FileItem kept when we cull items off either end of the list to stay
 	// under the memory cap. They must own a *copy* of the name (not borrow the FileItem's buffer): the FileItem they
 	// came from can be destructed - freeing its filename buffer - before these get used as search keys in a later
 	// sortFileItems(). (See the kit-copy use-after-free fix.)
-	static String firstFileItemRemaining;
-	static String lastFileItemRemaining;
+	static String& first_file_item_remaining_for_session();
+	static String& last_file_item_remaining_for_session();
 
-	static OutputType outputTypeToLoad;
-	static char const* filenameToStartSearchAt;
+	static OutputType& output_type_to_load_for_session();
+	static char const*& filename_to_start_search_at_for_session();
 
 	// ui
 	ActionResult exitUI() override {
@@ -138,23 +138,23 @@ protected:
 	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 	void favouritesChanged();
 
-	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
-	                                  // maybe we're typing a new name.
-	static int32_t scrollPosVertical;
-	static int32_t
-	    numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
-	static bool qwertyVisible;
-	static bool arrivedAtFileByTyping;
-	static bool allowFoldersSharingNameWithFile;
-	static char const** allowedFileExtensions;
+	static int32_t& file_index_selected_for_session(); // If -1, we have not selected any real file/folder. Maybe there
+	                                                   // are no files, or maybe we're typing a new name.
+	static int32_t& scroll_pos_vertical_for_session();
+	static int32_t& num_chars_in_prefix_for_session(); // Only used for deciding Drum names within Kit. Oh and initial
+	                                                   // text scroll position.
+	static bool& qwerty_visible_for_session();
+	static bool& arrived_at_file_by_typing_for_session();
+	static bool& allow_folders_sharing_name_with_file_for_session();
+	static char const**& allowed_file_extensions_for_session();
 
 	const uint8_t* fileIcon;
 	const uint8_t* fileIconPt2;
 	int32_t fileIconPt2Width;
 
 	// 7Seg Only
-	static int8_t numberEditPos; // -1 is default
-	static NumericLayerScrollingText* scrollingText;
+	static int8_t& number_edit_pos_for_session(); // -1 is default
+	static NumericLayerScrollingText*& scrolling_text_for_session();
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
 
 	bool mayDefaultToBrandNewNameOnEntry;
@@ -162,14 +162,18 @@ protected:
 	// filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
+
+private:
+	struct SessionState;
+	static SessionState& session_state();
 };
 
 inline void printInstrumentFileList(const char* where) {
 	D_PRINT("\n");
 	D_PRINT(where);
 	D_PRINT(" List: \n");
-	for (uint32_t idx = 0; idx < Browser::fileItems.getNumElements(); ++idx) {
-		FileItem* fileItem = (FileItem*)Browser::fileItems.getElementAddress(idx);
+	for (uint32_t idx = 0; idx < Browser::file_items_for_session().getNumElements(); ++idx) {
+		FileItem* fileItem = (FileItem*)Browser::file_items_for_session().getElementAddress(idx);
 		D_PRINTLN(" - %s (%lu)", fileItem->displayName, fileItem->filePointer.sclust);
 	}
 	D_PRINT("\n");

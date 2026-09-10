@@ -29,13 +29,14 @@ namespace deluge::gui::menu_item::voice {
 class Priority final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
+	void readCurrentValue() override { this->setValue(*sound_editor_for_session().currentPriority); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<VoicePriority>();
-		*soundEditor.currentPriority = current_value;
+		*sound_editor_for_session().currentPriority = current_value;
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -48,7 +49,7 @@ public:
 		}
 		// Or, the normal case of just one sound (or audio clip)
 		else {
-			*soundEditor.currentPriority = current_value;
+			*sound_editor_for_session().currentPriority = current_value;
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

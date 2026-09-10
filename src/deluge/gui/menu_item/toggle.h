@@ -27,13 +27,14 @@ public:
 		readCurrentValue();
 		setValue(!getValue());
 		writeCurrentValue();
+		value_committed();
 	};
 
 	// handles toggling a "toggle" menu from sub-menu level
 	// or handles going back up a level after making a selection from within toggle menu
 	MenuItem* selectButtonPress() override {
 		// this is true if you open a toggle menu using grid shortcut
-		if (soundEditor.getCurrentMenuItem() == this) {
+		if (sound_editor_for_session().getCurrentMenuItem() == this) {
 			return nullptr; // go up a level
 		}
 		// you're toggling toggle menu from submenu level

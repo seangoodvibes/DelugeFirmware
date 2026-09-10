@@ -32,12 +32,12 @@
 namespace deluge::gui::menu_item {
 
 void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.numberScrollAmount = 0;
-	soundEditor.numberEditPos = getDefaultEditPos();
-	soundEditor.numberEditSize = 1;
+	sound_editor_for_session().numberScrollAmount = 0;
+	sound_editor_for_session().numberEditPos = getDefaultEditPos();
+	sound_editor_for_session().numberEditSize = 1;
 
-	for (int32_t i = 0; i < soundEditor.numberEditPos; i++) {
-		soundEditor.numberEditSize *= 10;
+	for (int32_t i = 0; i < sound_editor_for_session().numberEditPos; i++) {
+		sound_editor_for_session().numberEditSize *= 10;
 	}
 
 	readCurrentValue();
@@ -55,11 +55,12 @@ void Decimal::drawValue() {
 }
 
 int32_t Decimal::getNumberEditSize() {
-	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+	if (parent_for_session() != nullptr
+	    && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
 		// In Horizontal menus we use 1.00 step by default, and 0.01 step for fine editing
 		return Buttons::isAnyOfButtonsPressed({hid::button::SELECT_ENC, hid::button::SHIFT}) ? 1 : 100;
 	}
-	return soundEditor.numberEditSize;
+	return sound_editor_for_session().numberEditSize;
 }
 
 void Decimal::selectEncoderAction(int32_t offset) {
@@ -90,16 +91,16 @@ bool movingCursor = false; // Sorry, ugly hack.
 
 void Decimal::horizontalEncoderAction(int32_t offset) {
 	if (offset > 0) {
-		if (soundEditor.numberEditPos > 0) {
-			soundEditor.numberEditPos--;
-			soundEditor.numberEditSize /= 10;
+		if (sound_editor_for_session().numberEditPos > 0) {
+			sound_editor_for_session().numberEditPos--;
+			sound_editor_for_session().numberEditSize /= 10;
 		}
 	}
 
 	else {
-		if (soundEditor.numberEditSize * 10 <= getMaxValue()) {
-			soundEditor.numberEditPos++;
-			soundEditor.numberEditSize *= 10;
+		if (sound_editor_for_session().numberEditSize * 10 <= getMaxValue()) {
+			sound_editor_for_session().numberEditPos++;
+			sound_editor_for_session().numberEditSize *= 10;
 		}
 	}
 
@@ -119,23 +120,25 @@ void Decimal::scrollToGoodPos() {
 
 	// Negative numbers
 	if (this->getValue() < 0) {
-		soundEditor.numberScrollAmount = std::max<int32_t>(numDigits - 3, soundEditor.numberEditPos - 2);
+		sound_editor_for_session().numberScrollAmount =
+		    std::max<int32_t>(numDigits - 3, sound_editor_for_session().numberEditPos - 2);
 	}
 
 	// Positive numbers
 	else {
-		soundEditor.numberScrollAmount = std::max<int32_t>(numDigits - 4, soundEditor.numberEditPos - 3);
+		sound_editor_for_session().numberScrollAmount =
+		    std::max<int32_t>(numDigits - 4, sound_editor_for_session().numberEditPos - 3);
 	}
 
-	if (soundEditor.numberScrollAmount < 0) {
-		soundEditor.numberScrollAmount = 0;
+	if (sound_editor_for_session().numberScrollAmount < 0) {
+		sound_editor_for_session().numberScrollAmount = 0;
 	}
 
-	if (soundEditor.numberEditPos > soundEditor.numberScrollAmount + 3) {
-		soundEditor.numberScrollAmount = soundEditor.numberEditPos - 3;
+	if (sound_editor_for_session().numberEditPos > sound_editor_for_session().numberScrollAmount + 3) {
+		sound_editor_for_session().numberScrollAmount = sound_editor_for_session().numberEditPos - 3;
 	}
-	else if (soundEditor.numberEditPos < soundEditor.numberScrollAmount) {
-		soundEditor.numberScrollAmount = soundEditor.numberEditPos;
+	else if (sound_editor_for_session().numberEditPos < sound_editor_for_session().numberScrollAmount) {
+		sound_editor_for_session().numberScrollAmount = sound_editor_for_session().numberEditPos;
 	}
 }
 
@@ -145,8 +148,8 @@ void Decimal::drawPixelsForOled() {
 	intToString(this->getValue(), buffer, numDecimalPlaces + 1);
 	int32_t length = strlen(buffer);
 
-	int32_t editingChar = length - soundEditor.numberEditPos;
-	if (soundEditor.numberEditPos >= numDecimalPlaces) {
+	int32_t editingChar = length - sound_editor_for_session().numberEditPos;
+	if (sound_editor_for_session().numberEditPos >= numDecimalPlaces) {
 		editingChar--;
 	}
 
@@ -160,11 +163,11 @@ void Decimal::drawPixelsForOled() {
 	if (numDecimalPlaces) {
 		int32_t numCharsBeforeDecimalPoint = length - numDecimalPlaces;
 		// draw digits before period
-		hid::display::OLED::main.drawString(std::string_view(buffer, numCharsBeforeDecimalPoint), stringStartX, 20,
-		                                    digitWidth, kTextHugeSizeY, 0, 128, true);
+		hid::display::OLED::main_for_session().drawString(std::string_view(buffer, numCharsBeforeDecimalPoint),
+		                                                  stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128, true);
 		// draw period
-		hid::display::OLED::main.drawString(".", stringStartX + numCharsBeforeDecimalPoint * digitWidth, 20,
-		                                    periodWidth, kTextHugeSizeY, 0, 128, true);
+		hid::display::OLED::main_for_session().drawString(".", stringStartX + numCharsBeforeDecimalPoint * digitWidth,
+		                                                  20, periodWidth, kTextHugeSizeY, 0, 128, true);
 		// modify properties so that the remaining digits and the cursor get drawn correctly
 		std::memmove(buffer, buffer + numCharsBeforeDecimalPoint, sizeof(buffer) - numCharsBeforeDecimalPoint);
 		stringStartX += numCharsBeforeDecimalPoint * digitWidth + periodWidth;
@@ -172,7 +175,8 @@ void Decimal::drawPixelsForOled() {
 			ourDigitStartX -= periodWidth;
 	}
 	// draw remaining digits
-	hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128, true);
+	hid::display::OLED::main_for_session().drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128,
+	                                                  true);
 	// draw cursor
 	hid::display::OLED::setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor);
 }
@@ -180,11 +184,11 @@ void Decimal::drawPixelsForOled() {
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
 	int32_t minNumDigits = getNumDecimalPlaces() + 1;
-	minNumDigits = std::max<int32_t>(minNumDigits, soundEditor.numberEditPos + 1);
+	minNumDigits = std::max<int32_t>(minNumDigits, sound_editor_for_session().numberEditPos + 1);
 	intToString(this->getValue(), buffer, minNumDigits);
 	int32_t stringLength = strlen(buffer);
 
-	char* outputText = buffer + std::max(stringLength - 4 - soundEditor.numberScrollAmount, 0_i32);
+	char* outputText = buffer + std::max(stringLength - 4 - sound_editor_for_session().numberScrollAmount, 0_i32);
 
 	if (strlen(outputText) > 4) {
 		outputText[4] = 0;
@@ -192,7 +196,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 
 	std::vector<uint8_t> dotPositions{};
 	if (getNumDecimalPlaces()) {
-		dotPositions.push_back(soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces());
+		dotPositions.push_back(sound_editor_for_session().numberScrollAmount + 3 - getNumDecimalPlaces());
 	}
 	appendAdditionalDots(dotPositions);
 
@@ -200,7 +204,8 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 
 	uint8_t blinkMask[kNumericDisplayLength];
 	memset(&blinkMask, 255, kNumericDisplayLength);
-	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
+	blinkMask[3 + sound_editor_for_session().numberScrollAmount - sound_editor_for_session().numberEditPos] =
+	    0b10000000;
 
 	display->setTextWithMultipleDots(outputText, dotPositions,
 	                                 true, // alignRight
@@ -231,9 +236,9 @@ void Decimal::renderInHorizontalMenu(const SlotPosition& slot) {
 		valueBuf.truncate(3);
 	}
 
-	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), slot.start_x,
-	                                                   slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
-	                                                   kTextSpacingY, slot.width);
+	return hid::display::OLED::main_for_session().drawStringCentered(valueBuf.data(), slot.start_x,
+	                                                                 slot.start_y + kHorizontalMenuSlotYOffset,
+	                                                                 kTextSpacingX, kTextSpacingY, slot.width);
 }
 
 void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {
@@ -257,7 +262,8 @@ void DecimalWithoutScrolling::drawDecimal(int32_t textWidth, int32_t textHeight,
 	char buffer[12];
 	floatToString(getDisplayValue(), buffer, numDecimalPlaces, numDecimalPlaces);
 	strncat(buffer, getUnit(), 4);
-	hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+	hid::display::OLED::main_for_session().drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth,
+	                                                         textHeight);
 }
 
 void DecimalWithoutScrolling::drawPixelsForOled() {

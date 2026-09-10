@@ -26,15 +26,16 @@ class BassProbability final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->bassProbability));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->bassProbability));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->bassProbability = value;
+		sound_editor_for_session().currentArpSettings->bassProbability = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow())
-		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
+		return (sound_editor_for_session().editingCVOrMIDIClip() || sound_editor_for_session().editingMidiDrumRow())
+		       && sound_editor_for_session().currentArpSettings->mode != ArpMode::OFF;
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PERCENT; }
 };

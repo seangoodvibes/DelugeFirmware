@@ -32,7 +32,7 @@ class VoiceCount : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
 	void readCurrentValue() override {
-		uint8_t voiceCount = soundEditor.currentSound->maxVoiceCount;
+		uint8_t voiceCount = sound_editor_for_session().currentSound->maxVoiceCount;
 		if (voiceCount > getMaxValue()) {
 			voiceCount = 0;
 		}
@@ -44,7 +44,8 @@ public:
 		current_value = current_value == 0 ? 127 : current_value;
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -60,7 +61,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->maxVoiceCount = current_value;
+			sound_editor_for_session().currentSound->maxVoiceCount = current_value;
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
@@ -87,8 +88,8 @@ public:
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (getValue() == 0) {
-			return OLED::main.drawIconCentered(OLED::infinityIcon, slot.start_x, slot.width,
-			                                   slot.start_y + kHorizontalMenuSlotYOffset + 1);
+			return OLED::main_for_session().drawIconCentered(OLED::infinityIcon, slot.start_x, slot.width,
+			                                                 slot.start_y + kHorizontalMenuSlotYOffset + 1);
 		}
 		IntegerWithOff::renderInHorizontalMenu(slot);
 	}
@@ -99,13 +100,14 @@ extern VoiceCount polyphonicVoiceCountMenu;
 class PolyphonyType final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->polyphonic); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentSound->polyphonic); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<PolyphonyMode>();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -118,7 +120,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->polyphonic = current_value;
+			sound_editor_for_session().currentSound->polyphonic = current_value;
 		}
 	}
 
@@ -131,7 +133,7 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_LEGATO),
 		};
 
-		if (soundEditor.editingKit()) {
+		if (sound_editor_for_session().editingKit()) {
 			options.push_back(l10n::getView(l10n::String::STRING_FOR_CHOKE));
 		}
 		return options;

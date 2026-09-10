@@ -27,13 +27,13 @@ namespace deluge::gui::menu_item::patch_cable_strength {
 
 MenuPermission Fixed::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                     MultiRange** currentRange) {
-	soundEditor.patchingParamSelected = p;
-	source_selection::regularMenu.s = s;
+	sound_editor_for_session().patchingParamSelected = p;
+	source_selection::regularMenu.source_for_session() = s;
 	return PatchCableStrength::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
 uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
-	PatchCableSet& patchCableSet = *soundEditor.currentParamManager->getPatchCableSet();
+	PatchCableSet& patchCableSet = *sound_editor_for_session().currentParamManager->getPatchCableSet();
 
 	// If it's the source controlling the range of the source we're editing for...
 	if (patchCableSet.getPatchCableIndex(s, getLearningThing()) != 255) {
@@ -43,7 +43,7 @@ uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour)
 }
 
 MenuItem* Fixed::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
-	source_selection::rangeMenu.s = s;
+	source_selection::rangeMenu.source_for_session() = s;
 	return &patch_cable_strength::rangeMenu;
 }
 

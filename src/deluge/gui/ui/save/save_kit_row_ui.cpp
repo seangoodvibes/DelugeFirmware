@@ -40,10 +40,16 @@
 
 using namespace deluge;
 
-SaveKitRowUI saveKitRowUI{};
+namespace {
+SaveKitRowUI local_save_kit_row_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SaveKitRowUI> remote_save_kit_row_ui;
+} // namespace
+SaveKitRowUI& save_kit_row_ui_for_session() {
+	return remote_save_kit_row_ui.get(local_save_kit_row_ui);
+}
 
 SaveKitRowUI::SaveKitRowUI() {
-	outputTypeToLoad = OutputType::SYNTH;
+	output_type_to_load_for_session() = OutputType::SYNTH;
 }
 
 bool SaveKitRowUI::opened() {
@@ -58,16 +64,16 @@ doReturnFalse:
 		return false;
 	}
 
-	enteredText.set(soundDrumToSave->drumName);
-	enteredTextEditPos = enteredText.getLength();
-	currentFolderIsEmpty = false;
+	entered_text_for_session().set(soundDrumToSave->drumName);
+	entered_text_edit_pos_for_session() = entered_text_for_session().getLength();
+	current_folder_is_empty_for_session() = false;
 
-	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
+	char const* defaultDir = getInstrumentFolder(output_type_to_load_for_session());
 
-	currentDir.set(&soundDrumToSave->path);
-	if (currentDir.isEmpty()) { // Would this even be able to happen?
+	current_dir_for_session().set(&soundDrumToSave->path);
+	if (current_dir_for_session().isEmpty()) { // Would this even be able to happen?
 tryDefaultDir:
-		currentDir.set(defaultDir);
+		current_dir_for_session().set(defaultDir);
 	}
 
 	if (display->haveOLED()) {
@@ -77,7 +83,7 @@ tryDefaultDir:
 
 	filePrefix = "SYNT";
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	Error error = arrivedInNewFolder(0, entered_text_for_session().get(), defaultDir);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -96,7 +102,9 @@ bool SaveKitRowUI::performSave(bool mayOverwrite) {
 	}
 
 	// We can't save into this slot if another Instrument in this Song already uses it
-	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.get(), currentDir.get(), false)) {
+	if (currentSong->getInstrumentFromPresetSlot(output_type_to_load_for_session(), 0, 0,
+	                                             entered_text_for_session().get(), current_dir_for_session().get(),
+	                                             false)) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 		display->removeWorkingAnimation();
 		return false;
@@ -104,7 +112,8 @@ bool SaveKitRowUI::performSave(bool mayOverwrite) {
 
 	// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
 	// in memory with that slot, which we need to just delete
-	currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.get());
+	currentSong->deleteHibernatingInstrumentWithSlot(output_type_to_load_for_session(),
+	                                                 entered_text_for_session().get());
 
 	String filePath;
 	Error error = getCurrentFilePath(&filePath);
@@ -117,13 +126,13 @@ fail:
 	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
+		gui::context_menu::overwrite_file_for_session().currentSaveUI = this;
 
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
+		bool available = gui::context_menu::overwrite_file_for_session().setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
 			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::overwriteFile);
+			openUI(&gui::context_menu::overwrite_file_for_session());
 			return true;
 		}
 		else {
@@ -152,8 +161,8 @@ fail:
 	}
 
 	// Give the Instrument in memory its new slot
-	soundDrumToSave->drumName = enteredText.get();
-	soundDrumToSave->path.set(&currentDir);
+	soundDrumToSave->drumName = entered_text_for_session().get();
+	soundDrumToSave->path.set(&current_dir_for_session());
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
 	// user to select such a slot

@@ -25,7 +25,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuValue; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
+		return sound_editor_for_session().editingCVOrMIDIClip() || sound_editor_for_session().editingNonAudioDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));

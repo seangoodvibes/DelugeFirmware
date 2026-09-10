@@ -21,6 +21,7 @@
 #include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/ui_session.h"
 #include "gui/ui_timer_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -791,7 +792,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 	       * sample->numChannels); // Ensure whole number of samples (surely it already would be though?)
 
 	if (sample->tempFilePathForRecording.isEmpty()) {
-		sampleBrowser.lastFilePathLoaded.set(&sample->filePath);
+		sample_browser_for_session().lastFilePathLoaded.set(&sample->filePath);
 	}
 
 	return Error::NONE;
@@ -1276,6 +1277,8 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 	while (true) {
 
 		if (!(count & 0b11111111)) { // 10x 1's seems to work ok. So we go down to 8 to be sure
+			// Service the physical panel while preserving the recording operation's owner.
+			deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local);
 			AudioEngine::routineWithClusterLoading();
 
 			uiTimerManager.routine();

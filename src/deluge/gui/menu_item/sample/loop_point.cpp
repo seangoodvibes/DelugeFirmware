@@ -45,7 +45,7 @@ MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* mo
 	const auto sound = static_cast<Sound*>(modControllable);
 
 	MenuPermission permission =
-	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
+	    sound_editor_for_session().checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
 	if (permission == MenuPermission::YES) {
@@ -58,23 +58,23 @@ MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* mo
 }
 
 void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (getRootUI() == &keyboardScreen) {
+	if (getRootUI() == &keyboard_screen_for_session()) {
 		if (currentUIMode == UI_MODE_AUDITIONING) {
-			keyboardScreen.exitAuditionMode();
+			keyboard_screen_for_session().exitAuditionMode();
 		}
 	}
 
-	soundEditor.shouldGoUpOneLevelOnBegin = true;
-	soundEditor.setCurrentSource(sourceId_);
-	sampleMarkerEditor.markerType = markerType;
+	sound_editor_for_session().shouldGoUpOneLevelOnBegin = true;
+	sound_editor_for_session().setCurrentSource(sourceId_);
+	sample_marker_editor_for_session().markerType = markerType;
 
-	if (const bool success = openUI(&sampleMarkerEditor); !success) {
+	if (const bool success = openUI(&sample_marker_editor_for_session()); !success) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
 void LoopPoint::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace hid::display;
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	const bool is_start_marker = markerType == MarkerType::START;
 	const int32_t line_x = is_start_marker ? slot.start_x + 8 : slot.start_x + slot.width - 12;

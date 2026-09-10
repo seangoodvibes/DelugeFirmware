@@ -25,17 +25,17 @@ namespace deluge::gui::menu_item::arpeggiator {
 class NoteMode : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentArpSettings->noteMode); }
 	void writeCurrentValue() override {
-		soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
-		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
-		if (soundEditor.currentArpSettings->noteMode == ArpNoteMode::PATTERN) {
-			soundEditor.currentArpSettings->generateNewNotePattern();
+		sound_editor_for_session().currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
+		sound_editor_for_session().currentArpSettings->updatePresetFromCurrentSettings();
+		if (sound_editor_for_session().currentArpSettings->noteMode == ArpNoteMode::PATTERN) {
+			sound_editor_for_session().currentArpSettings->generateNewNotePattern();
 		}
-		soundEditor.currentArpSettings->flagForceArpRestart = true;
+		sound_editor_for_session().currentArpSettings->flagForceArpRestart = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingKitRow();
+		return !sound_editor_for_session().editingKitRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));

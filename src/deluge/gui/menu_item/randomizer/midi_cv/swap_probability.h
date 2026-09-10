@@ -25,15 +25,16 @@ class SwapProbability final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->swapProbability));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->swapProbability));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->swapProbability = value;
+		sound_editor_for_session().currentArpSettings->swapProbability = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow())
-		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
+		return (sound_editor_for_session().editingCVOrMIDIClip() || sound_editor_for_session().editingMidiDrumRow())
+		       && sound_editor_for_session().currentArpSettings->mode != ArpMode::OFF;
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PERCENT; }
 };

@@ -103,4 +103,4 @@ private:
 }; // namespace deluge::gui::ui::keyboard
 
 // TODO: should get moved into namespace once project namespacing is complete
-extern deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen;
+deluge::gui::ui::keyboard::KeyboardScreen& keyboard_screen_for_session();

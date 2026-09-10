@@ -25,14 +25,15 @@ class NoteProbability final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->noteProbability));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->noteProbability));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->noteProbability = value;
+		sound_editor_for_session().currentArpSettings->noteProbability = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
+		return sound_editor_for_session().editingCVOrMIDIClip() || sound_editor_for_session().editingNonAudioDrumRow();
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PERCENT; }
 };

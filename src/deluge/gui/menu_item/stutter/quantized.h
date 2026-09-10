@@ -29,13 +29,16 @@ namespace deluge::gui::menu_item::stutter {
 class QuantizedStutter final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.quantized); }
+	void readCurrentValue() override {
+		this->setValue(sound_editor_for_session().currentModControllable->stutterConfig.quantized);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		bool current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -43,7 +46,7 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (!soundEditor.currentModControllable->stutterConfig.useSongStutter) {
+					if (!sound_editor_for_session().currentModControllable->stutterConfig.useSongStutter) {
 						soundDrum->stutterConfig.quantized = current_value;
 					}
 				}
@@ -51,12 +54,12 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->stutterConfig.quantized = current_value;
+			sound_editor_for_session().currentModControllable->stutterConfig.quantized = current_value;
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.currentModControllable->isSong()
-		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
+		return sound_editor_for_session().currentModControllable->isSong()
+		       || !sound_editor_for_session().currentModControllable->stutterConfig.useSongStutter;
 	}
 };
 

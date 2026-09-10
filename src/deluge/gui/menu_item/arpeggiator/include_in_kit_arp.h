@@ -29,11 +29,11 @@ class IncludeInKitArp final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override {
-		if (!soundEditor.allowsNoteTails) {
+		if (!sound_editor_for_session().allowsNoteTails) {
 			this->setValue(0);
 		}
 		else {
-			this->setValue(soundEditor.currentArpSettings->includeInKitArp);
+			this->setValue(sound_editor_for_session().currentArpSettings->includeInKitArp);
 		}
 	}
 	bool usesAffectEntire() override { return true; }
@@ -41,7 +41,8 @@ public:
 		auto current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -63,8 +64,8 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			if (soundEditor.allowsNoteTails) {
-				soundEditor.currentArpSettings->includeInKitArp = current_value != 0;
+			if (sound_editor_for_session().allowsNoteTails) {
+				sound_editor_for_session().currentArpSettings->includeInKitArp = current_value != 0;
 			}
 		}
 	}
@@ -79,7 +80,7 @@ public:
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKitRow();
+		return sound_editor_for_session().editingKitRow();
 	}
 
 	void getColumnLabel(StringBuf& label) override {

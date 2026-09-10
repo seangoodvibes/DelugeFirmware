@@ -32,6 +32,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/mirror.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/sample/sample.h"
@@ -48,88 +49,27 @@ extern "C" {
 using namespace deluge;
 
 namespace PadLEDs {
-RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                      // 255 = full brightness
-uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];             // 255 = full brightness
-uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
-
-bool zoomingIn;
-int8_t zoomMagnitude;
-int32_t zoomPinSquare[kDisplayHeight];
-bool transitionTakingPlaceOnRow[kDisplayHeight];
-int8_t explodeAnimationDirection;
-UI* explodeAnimationTargetUI = nullptr;
-
-namespace horizontal {
-uint8_t areaToScroll;
-uint8_t squaresScrolled;
-int8_t scrollDirection;
-bool scrollingIntoNothing; // Means we're scrolling into a black screen
-} // namespace horizontal
-
-namespace vertical {
-uint8_t squaresScrolled;
-int8_t scrollDirection;
-bool scrollingToNothing;
-} // namespace vertical
-
-int16_t animatedRowGoingTo[kMaxNumAnimatedRows];
-int16_t animatedRowGoingFrom[kMaxNumAnimatedRows];
-uint8_t numAnimatedRows;
-
-int32_t greyProportion;
-int8_t greyoutChangeDirection;
-unsigned long greyoutChangeStartTime;
-
-bool needToSendOutMainPadColours;
-bool needToSendOutSidebarColours;
-
-uint8_t flashCursor;
-
-uint8_t slowFlashSquares[kDisplayHeight];
-uint8_t slowFlashColours[kDisplayHeight];
-
-int32_t explodeAnimationYOriginBig;
-int32_t explodeAnimationXStartBig;
-int32_t explodeAnimationXWidthBig;
-
-// We stash these here for during UI-transition animation, because if that's happening as part of an undo, the Sample
-// might not be there anymore
-int32_t sampleValueCentrePoint;
-int32_t sampleValueSpan;
-int32_t sampleMaxPeakFromZero;
-WaveformRenderData waveformRenderData;
-RGB audioClipColour;
-bool sampleReversed;
-
-// Same for InstrumentClips
-int32_t clipLength;
-RGB clipMuteSquareColour;
-// Keyboard view has no mute / section columns of its own, so its two sidebar columns morph between the keyboard
-// colours and the Session colours of the row they collapse into (or expand out of). Both destination colours are
-// needed; the mute one is clipMuteSquareColour above.
-RGB clipSectionSquareColour;
-bool morphKeyboardSidebar;
-
-bool renderingLock;
-
-uint32_t transitionLength;
-uint32_t transitionStartTime;
-
-uint32_t greyoutCols;
-uint32_t greyoutRows;
+namespace {
+PLACE_SDRAM_BSS deluge::gui::ui_session::State<PadState> states;
+bool local_output() {
+	return deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local;
+}
+} // namespace
+PadState& state() {
+	return states.active();
+}
 
 constexpr uint32_t kClipExpandCollapseRefreshMs = 25;
 
 void init() {
-	memset(slowFlashSquares, 255, sizeof(slowFlashSquares));
+	memset(slow_flash_squares_for_session(), 255, sizeof(slow_flash_squares_for_session()));
 }
 
 bool shouldNotRenderDuringTimerRoutine() {
-	return (renderingLock || currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
-	        || currentUIMode == UI_MODE_ANIMATION_FADE || currentUIMode == UI_MODE_HORIZONTAL_ZOOM
-	        || currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_INSTRUMENT_CLIP_EXPANDING
-	        || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING
+	return (rendering_lock_for_session() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	        || currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
+	        || currentUIMode == UI_MODE_HORIZONTAL_ZOOM || currentUIMode == UI_MODE_HORIZONTAL_SCROLL
+	        || currentUIMode == UI_MODE_INSTRUMENT_CLIP_EXPANDING || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING
 	        || currentUIMode == UI_MODE_NOTEROWS_EXPANDING_OR_COLLAPSING);
 }
 
@@ -137,29 +77,30 @@ void clearTickSquares(bool shouldSend) {
 
 	uint32_t colsToSend = 0;
 
-	if (flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
+	if (flash_cursor_for_session() == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 
-			if (slowFlashSquares[y] != 255) {
-				colsToSend |= (1 << (slowFlashSquares[y] >> 1));
+			if (slow_flash_squares_for_session()[y] != 255) {
+				colsToSend |= (1 << (slow_flash_squares_for_session()[y] >> 1));
 			}
 		}
 	}
 
-	memset(slowFlashSquares, 255, sizeof(slowFlashSquares));
+	memset(slow_flash_squares_for_session(), 255, sizeof(slow_flash_squares_for_session()));
 
-	if (shouldSend && flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
+	if (shouldSend && flash_cursor_for_session() == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
 		if (colsToSend) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+					if (local_output() && uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
 						break;
 					}
 
 					sortLedsForCol(x << 1);
 				}
 			}
-			PIC::flush();
+			if (local_output())
+				PIC::flush();
 		}
 	}
 }
@@ -168,10 +109,11 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 
 	uint32_t colsToSend = 0;
 
-	if (flashCursor == FLASH_CURSOR_SLOW) {
+	if (flash_cursor_for_session() == FLASH_CURSOR_SLOW) {
 		if (!shouldNotRenderDuringTimerRoutine()) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				if (squares[y] != slowFlashSquares[y] || colours[y] != slowFlashColours[y]) {
+				if (squares[y] != slow_flash_squares_for_session()[y]
+				    || colours[y] != slow_flash_colours_for_session()[y]) {
 
 					// Remember to update the new column
 					if (squares[y] != 255) {
@@ -179,16 +121,16 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 					}
 
 					// And the old column
-					if (slowFlashSquares[y] != 255) {
-						colsToSend |= (1 << (slowFlashSquares[y] >> 1));
+					if (slow_flash_squares_for_session()[y] != 255) {
+						colsToSend |= (1 << (slow_flash_squares_for_session()[y] >> 1));
 					}
 				}
 			}
 		}
 	}
-	else if (flashCursor == FLASH_CURSOR_FAST) {
+	else if (flash_cursor_for_session() == FLASH_CURSOR_FAST) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (squares[y] != slowFlashSquares[y] && squares[y] != 255) {
+			if (squares[y] != slow_flash_squares_for_session()[y] && squares[y] != 255) {
 
 				int32_t colour = 0;
 				if (colours[y] == 1) { // "Muted" colour
@@ -212,37 +154,38 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 		}
 	}
 
-	memcpy(slowFlashSquares, squares, kDisplayHeight);
-	memcpy(slowFlashColours, colours, kDisplayHeight);
+	memcpy(slow_flash_squares_for_session(), squares, kDisplayHeight);
+	memcpy(slow_flash_colours_for_session(), colours, kDisplayHeight);
 
-	if (flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
+	if (flash_cursor_for_session() == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
 		// Actually send everything, if there was a change
 		if (colsToSend) {
 			for (int32_t x = 0; x < 8; x++) {
 				if (colsToSend & (1 << x)) {
-					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
+					if (local_output() && uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
 						break;
 					}
 					sortLedsForCol(x << 1);
 				}
 			}
-			PIC::flush();
+			if (local_output())
+				PIC::flush();
 		}
 	}
 }
 
 void clearAllPadsWithoutSending() {
-	memset(image, 0, sizeof(image));
+	memset(image_for_session(), 0, sizeof(image_for_session()));
 }
 
 void clearMainPadsWithoutSending() {
-	for (auto& y : image) {
+	for (auto& y : image_for_session()) {
 		std::fill(&y[0], &y[kDisplayWidth], gui::colours::black);
 	}
 }
 
 void clearSideBar() {
-	for (auto& y : image) {
+	for (auto& y : image_for_session()) {
 		y[kDisplayWidth] = gui::colours::black;
 		y[kDisplayWidth + 1] = gui::colours::black;
 	}
@@ -251,7 +194,7 @@ void clearSideBar() {
 }
 
 void clearColumnWithoutSending(int32_t x) {
-	for (auto& y : image) {
+	for (auto& y : image_for_session()) {
 		y[x] = gui::colours::black;
 	}
 }
@@ -267,12 +210,22 @@ void sortLedsForCol(int32_t x) {
 	std::array<RGB, kDisplayHeight * 2> doubleColumn{};
 	size_t total = 0;
 	for (size_t y = 0; y < kDisplayHeight; y++) {
-		doubleColumn[total++] = prepareColour(x, y, image[y][x]);
+		doubleColumn[total++] = prepareColour(x, y, image_for_session()[y][x]);
 	}
 	for (size_t y = 0; y < kDisplayHeight; y++) {
-		doubleColumn[total++] = prepareColour(x + 1, y, image[y][x + 1]);
+		doubleColumn[total++] = prepareColour(x + 1, y, image_for_session()[y][x + 1]);
 	}
-	PIC::setColourForTwoColumns((x >> 1), doubleColumn);
+	state().frame.set_columns(x, doubleColumn);
+	if (local_output())
+		PIC::setColourForTwoColumns((x >> 1), doubleColumn);
+	else {
+		deluge::hid::mirror::panel_byte(1 + (x >> 1)); // SET_COLOUR_FOR_TWO_COLUMNS
+		for (const RGB& colour : doubleColumn) {
+			deluge::hid::mirror::panel_byte(colour.r);
+			deluge::hid::mirror::panel_byte(colour.g);
+			deluge::hid::mirror::panel_byte(colour.b);
+		}
+	}
 }
 
 const RGB flashColours[3] = {
@@ -282,28 +235,30 @@ const RGB flashColours[3] = {
 };
 
 RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
-	if (flashCursor == FLASH_CURSOR_SLOW && slowFlashSquares[y] == x && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
-		if (slowFlashColours[y] == 1) { // If it's to be the "muted" colour, get that
+	if (flash_cursor_for_session() == FLASH_CURSOR_SLOW && slow_flash_squares_for_session()[y] == x
+	    && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
+		if (slow_flash_colours_for_session()[y] == 1) { // If it's to be the "muted" colour, get that
 			colourSource = gui::menu_item::mutedColourMenu.getRGB();
 		}
 		else { // Otherwise, pull from a referenced table line
-			colourSource = flashColours[slowFlashColours[y]];
+			colourSource = flashColours[slow_flash_colours_for_session()[y]];
 		}
 	}
 
-	if ((greyoutRows || greyoutCols)
-	    && ((greyoutRows & (1 << y)) || (greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))))) {
-		return colourSource.greyOut(greyProportion);
+	if ((greyout_rows_for_session() || greyout_cols_for_session())
+	    && ((greyout_rows_for_session() & (1 << y))
+	        || (greyout_cols_for_session() & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))))) {
+		return colourSource.greyOut(grey_proportion_for_session());
 	}
 	return colourSource;
 }
 
 void set(Cartesian pad, RGB colour) {
-	image[pad.y][pad.x] = colour;
+	image_for_session()[pad.y][pad.x] = colour;
 }
 
 void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
-	image[yDisplay][sideBarX + kDisplayWidth] = RGB(red, green, blue);
+	image_for_session()[yDisplay][sideBarX + kDisplayWidth] = RGB(red, green, blue);
 }
 
 void refreshSidebarOccupancy(RGB rowImage[], uint8_t rowOccupancyMask[]) {
@@ -314,24 +269,25 @@ void refreshSidebarOccupancy(RGB rowImage[], uint8_t rowOccupancyMask[]) {
 
 void clearTransitionStoreOffScreenRows() {
 	for (int32_t storeRow : {int32_t{0}, int32_t{kDisplayHeight + 1}}) {
-		std::fill_n(imageStore[storeRow], kDisplayWidth + kSideBarWidth, gui::colours::black);
-		memset(occupancyMaskStore[storeRow], 0, kDisplayWidth + kSideBarWidth);
+		std::fill_n(image_store_for_session()[storeRow], kDisplayWidth + kSideBarWidth, gui::colours::black);
+		memset(occupancy_mask_store_for_session()[storeRow], 0, kDisplayWidth + kSideBarWidth);
 	}
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
-	clipLength = getCurrentClip()->loopLength;
-	morphKeyboardSidebar = false;
+	clip_length_for_session() = getCurrentClip()->loopLength;
+	morph_keyboard_sidebar_for_session() = false;
 
 	if (collapsingOutOfClipMinder) {
 		// This shouldn't have to be done every time
-		clipMuteSquareColour = view.getClipMuteSquareColour(getCurrentClip(), clipMuteSquareColour);
+		clip_mute_square_colour_for_session() =
+		    view_for_session().getClipMuteSquareColour(getCurrentClip(), clip_mute_square_colour_for_session());
 	}
 }
 
 void enableKeyboardSidebarMorph(RGB sessionSectionColour) {
-	morphKeyboardSidebar = true;
-	clipSectionSquareColour = sessionSectionColour;
+	morph_keyboard_sidebar_for_session() = true;
+	clip_section_square_colour_for_session() = sessionSectionColour;
 }
 
 // Smoothstep, in 16.16. Avoids harsh colour changes on the sidebar while rows are moving quickly.
@@ -345,13 +301,13 @@ uint16_t smoothProgress(uint16_t progress) {
 void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, int32_t progress) {
 	AudioEngine::logAction("MatrixDriver::renderCollapseAnimation");
 
-	memset(image, 0, sizeof(image));
-	memset(occupancyMask, 0, sizeof(occupancyMask));
+	memset(image_for_session(), 0, sizeof(image_for_session()));
+	memset(occupancy_mask_for_session(), 0, sizeof(occupancy_mask_for_session()));
 
 	if (!(isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING))) {
 		for (int32_t row = 0; row < kDisplayHeight; row++) {
-			image[row][kDisplayWidth] = gui::colours::enabled;
-			occupancyMask[row][kDisplayWidth] = 64;
+			image_for_session()[row][kDisplayWidth] = gui::colours::enabled;
+			occupancy_mask_for_session()[row][kDisplayWidth] = 64;
 		}
 	}
 
@@ -363,9 +319,11 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 	int32_t newRowPositionArray[kMaxNumAnimatedRows];
 	int8_t newRowPosition1Array[kMaxNumAnimatedRows];
 
-	for (int32_t i = 0; i < numAnimatedRows; i++) {
-		int32_t newRowPosition = (int32_t)animatedRowGoingFrom[i] * 65536
-		                         + ((int32_t)animatedRowGoingTo[i] - animatedRowGoingFrom[i]) * (65536 - progress);
+	for (int32_t i = 0; i < num_animated_rows_for_session(); i++) {
+		int32_t newRowPosition =
+		    (int32_t)animated_row_going_from_for_session()[i] * 65536
+		    + ((int32_t)animated_row_going_to_for_session()[i] - animated_row_going_from_for_session()[i])
+		          * (65536 - progress);
 		newRowPositionArray[i] = newRowPosition;
 		newRowPosition1Array[i] = newRowPosition >> 16;
 		intensity2Array[i] = newRowPosition; // & 65535;
@@ -375,7 +333,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 	// Blend amounts for the two sidebar columns. They don't vary per column, so work them out once.
 	bool expanding = isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING);
 	bool transitioning = expanding || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING);
-	bool keyboardSidebarMorphing = morphKeyboardSidebar && transitioning;
+	bool keyboardSidebarMorphing = morph_keyboard_sidebar_for_session() && transitioning;
 	uint16_t clippedProgress = std::min<int32_t>(progress, 65535);
 	uint16_t muteBlendProgress = expanding ? smoothProgress(clippedProgress) : clippedProgress;
 	// How much of the Session sidebar colour to show. `progress` already runs backwards for a collapse, so this
@@ -383,8 +341,9 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 	// expanding, and does the reverse when collapsing.
 	uint16_t keyboardSessionBlend = keyboardSidebarMorphing ? smoothProgress(65535 - clippedProgress) : 0;
 
-	int32_t greyStart =
-	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]) + 1;
+	int32_t greyStart = instrument_clip_view_for_session().getSquareFromPos(
+	                        clip_length_for_session() - 1, NULL, currentSong->x_scroll_for_session()[NAVIGATION_CLIP])
+	                    + 1;
 	int32_t xEnd = std::min(kDisplayWidth, greyStart);
 
 	int32_t greyTop, greyBottom;
@@ -395,8 +354,10 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 	}
 
 	else {
-		greyTop = animatedRowGoingTo[0] + 1 + (((kDisplayHeight - animatedRowGoingTo[0]) * progress + 32768) >> 16);
-		greyBottom = animatedRowGoingTo[0] - (((animatedRowGoingTo[0]) * progress + 32768) >> 16);
+		greyTop = animated_row_going_to_for_session()[0] + 1
+		          + (((kDisplayHeight - animated_row_going_to_for_session()[0]) * progress + 32768) >> 16);
+		greyBottom = animated_row_going_to_for_session()[0]
+		             - (((animated_row_going_to_for_session()[0]) * progress + 32768) >> 16);
 		if (greyTop > kDisplayHeight) {
 			greyTop = kDisplayHeight;
 		}
@@ -412,7 +373,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		}
 
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-			auto* begin = &image[yDisplay][xEnd];
+			auto* begin = &image_for_session()[yDisplay][xEnd];
 			std::fill(begin, begin + (kDisplayWidth - xEnd), deluge::gui::colours::grey);
 		}
 	}
@@ -425,9 +386,10 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			}
 
 			// Or if it's greyed out cos of triplets...
-			if (!instrumentClipView.isSquareDefined(col, currentSong->xScroll[NAVIGATION_CLIP])) {
+			if (!instrument_clip_view_for_session().isSquareDefined(
+			        col, currentSong->x_scroll_for_session()[NAVIGATION_CLIP])) {
 				for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-					PadLEDs::image[yDisplay][col] = gui::colours::grey;
+					PadLEDs::image_for_session()[yDisplay][col] = gui::colours::grey;
 				}
 				continue;
 			}
@@ -437,20 +399,22 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		bool keyboardSidebarColumn =
 		    keyboardSidebarMorphing && col >= kDisplayWidth && col < kDisplayWidth + kSideBarWidth;
 
-		if (expandingMuteColumn && animatedRowGoingTo[0] >= 0 && animatedRowGoingTo[0] < kDisplayHeight) {
+		if (expandingMuteColumn && animated_row_going_to_for_session()[0] >= 0
+		    && animated_row_going_to_for_session()[0] < kDisplayHeight) {
 			int32_t sessionMuteIntensity = 65535 - muteBlendProgress;
-			PadLEDs::image[animatedRowGoingTo[0]][col] =
-			    drawSquare(clipMuteSquareColour, sessionMuteIntensity, PadLEDs::image[animatedRowGoingTo[0]][col],
-			               &occupancyMask[animatedRowGoingTo[0]][col], 64);
+			PadLEDs::image_for_session()[animated_row_going_to_for_session()[0]][col] =
+			    drawSquare(clip_mute_square_colour_for_session(), sessionMuteIntensity,
+			               PadLEDs::image_for_session()[animated_row_going_to_for_session()[0]][col],
+			               &occupancy_mask_for_session()[animated_row_going_to_for_session()[0]][col], 64);
 		}
 
-		for (int32_t i = 0; i < numAnimatedRows; i++) {
-			if (!occupancyMaskStore[i][col]) {
+		for (int32_t i = 0; i < num_animated_rows_for_session(); i++) {
+			if (!occupancy_mask_store_for_session()[i][col]) {
 				continue; // Nothing to do if there was nothing in this square
 			}
 
 			// Work on a local copy so per-row colour morphs do not alter the stored source frame.
-			RGB squareColours = imageStore[i][col];
+			RGB squareColours = image_store_for_session()[i][col];
 
 			int32_t intensity1 = intensity1Array[i];
 			int32_t intensity2 = intensity2Array[i];
@@ -460,14 +424,16 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 				// Keyboard's sidebar columns morph between their keyboard colours and the Session colours of the row
 				// they collapse into / expand out of, in whichever direction we're going.
 				if (keyboardSidebarColumn) {
-					RGB sessionColour = (col == kDisplayWidth) ? clipMuteSquareColour : clipSectionSquareColour;
+					RGB sessionColour = (col == kDisplayWidth) ? clip_mute_square_colour_for_session()
+					                                           : clip_section_square_colour_for_session();
 					uint16_t sessionBlend = keyboardSessionBlend;
-					if (animatedRowGoingTo[i] >= 0 && animatedRowGoingTo[i] < kDisplayHeight) {
+					if (animated_row_going_to_for_session()[i] >= 0
+					    && animated_row_going_to_for_session()[i] < kDisplayHeight) {
 						constexpr int32_t kKeyboardColourBlendDistance = 3 * 65536;
 						// Cap the morph by how far this row still is from the Session row, so pads hold their keyboard
 						// colours until they're visually close to it rather than changing colour across the display.
 						int32_t distanceFromDestination =
-						    newRowPositionArray[i] - ((int32_t)animatedRowGoingTo[i] * 65536);
+						    newRowPositionArray[i] - ((int32_t)animated_row_going_to_for_session()[i] * 65536);
 						if (distanceFromDestination < 0) {
 							distanceFromDestination = -distanceFromDestination;
 						}
@@ -498,20 +464,22 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 						intensity1 = ((uint32_t)intensity1 * muteBlendProgress) >> 16;
 						intensity2 = ((uint32_t)intensity2 * muteBlendProgress) >> 16;
 					}
-					squareColours = RGB::blend(squareColours, clipMuteSquareColour, muteBlendProgress);
+					squareColours = RGB::blend(squareColours, clip_mute_square_colour_for_session(), muteBlendProgress);
 				}
 			}
 
 			if (newRowPosition1Array[i] >= 0 && newRowPosition1Array[i] < kDisplayHeight) {
-				PadLEDs::image[newRowPosition1Array[i]][col] =
-				    drawSquare(squareColours, intensity1, PadLEDs::image[newRowPosition1Array[i]][col],
-				               &occupancyMask[newRowPosition1Array[i]][col], occupancyMaskStore[i][col]);
+				PadLEDs::image_for_session()[newRowPosition1Array[i]][col] =
+				    drawSquare(squareColours, intensity1, PadLEDs::image_for_session()[newRowPosition1Array[i]][col],
+				               &occupancy_mask_for_session()[newRowPosition1Array[i]][col],
+				               occupancy_mask_store_for_session()[i][col]);
 			}
 
 			if (newRowPosition1Array[i] >= -1 && newRowPosition1Array[i] < kDisplayHeight - 1) {
-				PadLEDs::image[newRowPosition1Array[i] + 1][col] =
-				    drawSquare(squareColours, intensity2, PadLEDs::image[newRowPosition1Array[i] + 1][col],
-				               &occupancyMask[newRowPosition1Array[i] + 1][col], occupancyMaskStore[i][col]);
+				PadLEDs::image_for_session()[newRowPosition1Array[i] + 1][col] = drawSquare(
+				    squareColours, intensity2, PadLEDs::image_for_session()[newRowPosition1Array[i] + 1][col],
+				    &occupancy_mask_for_session()[newRowPosition1Array[i] + 1][col],
+				    occupancy_mask_store_for_session()[i][col]);
 			}
 		}
 	}
@@ -521,10 +489,10 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 }
 
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
-	clipLength = clip->loopLength;
-	audioClipColour = clip->getColour();
+	clip_length_for_session() = clip->loopLength;
+	audio_clip_colour_for_session() = clip->getColour();
 
-	sampleReversed = clip->sampleControls.isCurrentlyReversed();
+	sample_reversed_for_session() = clip->sampleControls.isCurrentlyReversed();
 
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
@@ -532,26 +500,28 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 		FREEZE_WITH_ERROR("E311");
 	}
 
-	sampleMaxPeakFromZero = sample->getMaxPeakFromZero();
-	sampleValueCentrePoint = sample->getFoundValueCentrePoint();
-	sampleValueSpan = sample->getValueSpan();
+	sample_max_peak_from_zero_for_session() = sample->getMaxPeakFromZero();
+	sample_value_centre_point_for_session() = sample->getFoundValueCentrePoint();
+	sample_value_span_for_session() = sample->getValueSpan();
 
-	waveformRenderData = clip->renderData;
+	waveform_render_data_for_session() = clip->renderData;
 }
 
 void renderAudioClipCollapseAnimation(int32_t progress) {
-	memset(image, 0, sizeof(image));
+	memset(image_for_session(), 0, sizeof(image_for_session()));
 
 	int32_t endSquareDisplay = divide_round_negative(
-	    clipLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
+	    clip_length_for_session() - currentSong->x_scroll_for_session()[NAVIGATION_CLIP] - 1,
+	    currentSong
+	        ->x_zoom_for_session()[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 	int32_t greyStart = endSquareDisplay + 1;
 	int32_t xEnd = std::min(kDisplayWidth, greyStart);
 
 	for (int32_t col = 0; col < xEnd; col++) {
-		waveformRenderer.renderOneColForCollapseAnimation(col, col, sampleMaxPeakFromZero, progress, PadLEDs::image,
-		                                                  &waveformRenderData, audioClipColour, sampleReversed,
-		                                                  sampleValueCentrePoint, sampleValueSpan);
+		waveform_renderer_for_session().renderOneColForCollapseAnimation(
+		    col, col, sample_max_peak_from_zero_for_session(), progress, PadLEDs::image_for_session(),
+		    &waveform_render_data_for_session(), audio_clip_colour_for_session(), sample_reversed_for_session(),
+		    sample_value_centre_point_for_session(), sample_value_span_for_session());
 	}
 
 	if (xEnd < kDisplayWidth) {
@@ -561,10 +531,12 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 		}
 
 		int32_t greyTop =
-		    waveformRenderer.collapseAnimationToWhichRow + 1
-		    + (((kDisplayHeight - waveformRenderer.collapseAnimationToWhichRow) * progress + 32768) >> 16);
-		int32_t greyBottom = waveformRenderer.collapseAnimationToWhichRow
-		                     - (((waveformRenderer.collapseAnimationToWhichRow) * progress + 32768) >> 16);
+		    waveform_renderer_for_session().collapseAnimationToWhichRow + 1
+		    + (((kDisplayHeight - waveform_renderer_for_session().collapseAnimationToWhichRow) * progress + 32768)
+		       >> 16);
+		int32_t greyBottom =
+		    waveform_renderer_for_session().collapseAnimationToWhichRow
+		    - (((waveform_renderer_for_session().collapseAnimationToWhichRow) * progress + 32768) >> 16);
 
 		if (greyTop > kDisplayHeight) {
 			greyTop = kDisplayHeight;
@@ -574,7 +546,7 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 		}
 
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-			auto* begin = &PadLEDs::image[yDisplay][xEnd];
+			auto* begin = &PadLEDs::image_for_session()[yDisplay][xEnd];
 			std::fill(begin, begin + (kDisplayWidth - xEnd), gui::colours::grey);
 		}
 	}
@@ -587,12 +559,12 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 // 2^16 used in place of "1" in "big" arithmetic below
 void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
-	memset(PadLEDs::image, 0, sizeof(PadLEDs::image));
-	memset(occupancyMask, 0, sizeof(occupancyMask));
+	memset(PadLEDs::image_for_session(), 0, sizeof(PadLEDs::image_for_session()));
+	memset(occupancy_mask_for_session(), 0, sizeof(occupancy_mask_for_session()));
 
-	int32_t startBigNow = (((int64_t)explodeAnimationXStartBig * (65536 - explodedness)) >> 16);
+	int32_t startBigNow = (((int64_t)explode_animation_x_start_big_for_session() * (65536 - explodedness)) >> 16);
 	int32_t widthBigWhenExploded = (kDisplayWidth << 16);
-	int32_t widthBigWhenNotExploded = explodeAnimationXWidthBig;
+	int32_t widthBigWhenNotExploded = explode_animation_x_width_big_for_session();
 	int32_t difference = widthBigWhenExploded - widthBigWhenNotExploded;
 	int32_t widthBigNow = widthBigWhenNotExploded + (((int64_t)difference * explodedness) >> 16);
 
@@ -627,9 +599,11 @@ void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 		int32_t xSourceRightEdgeLimited = std::min(xSourceRightEdge, kDisplayWidth);
 
 		int32_t xDest = xDestSquareRightEdge - 1;
-		waveformRenderer.renderOneColForCollapseAnimationZoomedOut(
-		    xSourceLeftEdgeLimited, xSourceRightEdgeLimited, xDest, sampleMaxPeakFromZero, explodedness, PadLEDs::image,
-		    &waveformRenderData, audioClipColour, sampleReversed, sampleValueCentrePoint, sampleValueSpan);
+		waveform_renderer_for_session().renderOneColForCollapseAnimationZoomedOut(
+		    xSourceLeftEdgeLimited, xSourceRightEdgeLimited, xDest, sample_max_peak_from_zero_for_session(),
+		    explodedness, PadLEDs::image_for_session(), &waveform_render_data_for_session(),
+		    audio_clip_colour_for_session(), sample_reversed_for_session(), sample_value_centre_point_for_session(),
+		    sample_value_span_for_session());
 
 		if (xSourceRightEdge >= kDisplayWidth) {
 			break; // If we got to the right edge of everything we want to draw onscreen
@@ -644,8 +618,8 @@ void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 // 2^16 used in place of "1" in "big" arithmetic below
 void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
-	memset(image, 0, sizeof(image));
-	memset(occupancyMask, 0, sizeof(occupancyMask));
+	memset(image_for_session(), 0, sizeof(image_for_session()));
+	memset(occupancy_mask_for_session(), 0, sizeof(occupancy_mask_for_session()));
 
 	// Set up some stuff for each x-pos that we don't want to be constantly re-calculating
 	int32_t xDestArray[kDisplayWidth];
@@ -656,8 +630,9 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 	for (int32_t xSource = 0; xSource < kDisplayWidth; xSource++) {
 		int32_t xSourceBig = xSource << 16;
-		int32_t xOriginBig = explodeAnimationXStartBig
-		                     + (((int64_t)explodeAnimationXWidthBig * xSourceBig) >> (kDisplayWidthMagnitude + 16));
+		int32_t xOriginBig =
+		    explode_animation_x_start_big_for_session()
+		    + (((int64_t)explode_animation_x_width_big_for_session() * xSourceBig) >> (kDisplayWidthMagnitude + 16));
 		// xOriginBig = std::min(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
 
 		xOriginBig &= ~(uint32_t)65535; // Make sure each pixel's "origin-point" is right on an exact square - rounded
@@ -685,8 +660,9 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 	for (int32_t ySource = -1; ySource < kDisplayHeight + 1; ySource++) {
 
 		int32_t ySourceBig = ySource << 16;
-		int32_t ySourceBigRelativeToOrigin = ySourceBig - explodeAnimationYOriginBig;
-		int32_t yDestBig = explodeAnimationYOriginBig + (((int64_t)ySourceBigRelativeToOrigin * explodedness) >> 16);
+		int32_t ySourceBigRelativeToOrigin = ySourceBig - explode_animation_y_origin_big_for_session();
+		int32_t yDestBig =
+		    explode_animation_y_origin_big_for_session() + (((int64_t)ySourceBigRelativeToOrigin * explodedness) >> 16);
 		int32_t yDest = yDestBig >> 16;
 
 		uint32_t yIntensity[2];
@@ -695,7 +671,8 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 		for (int32_t xSource = xStart; xSource < xEnd; xSource++) {
 
-			if (occupancyMaskStore[ySource + 1][xSource]) { // If there's actually anything in this source square...
+			if (occupancy_mask_store_for_session()[ySource + 1]
+			                                      [xSource]) { // If there's actually anything in this source square...
 
 				for (int32_t xOffset = 0; xOffset < 2; xOffset++) {
 					int32_t xNow = xDestArray[xSource] + xOffset;
@@ -716,9 +693,10 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 						}
 
 						uint32_t intensityNow = (yIntensity[yOffset] * xIntensityArray[xSource][xOffset]) >> 16;
-						PadLEDs::image[yNow][xNow] =
-						    drawSquare(imageStore[ySource + 1][xSource], intensityNow, PadLEDs::image[yNow][xNow],
-						               &occupancyMask[yNow][xNow], occupancyMaskStore[ySource + 1][xSource]);
+						PadLEDs::image_for_session()[yNow][xNow] = drawSquare(
+						    image_store_for_session()[ySource + 1][xSource], intensityNow,
+						    PadLEDs::image_for_session()[yNow][xNow], &occupancy_mask_for_session()[yNow][xNow],
+						    occupancy_mask_store_for_session()[ySource + 1][xSource]);
 					}
 				}
 			}
@@ -736,18 +714,18 @@ void reassessGreyout(bool doInstantly) {
 	auto [newCols, newRows] = getUIGreyoutColsAndRows();
 
 	// If same as before, get out
-	if (newCols == greyoutCols && newRows == greyoutRows) {
+	if (newCols == greyout_cols_for_session() && newRows == greyout_rows_for_session()) {
 		return;
 	}
 
-	bool anythingBefore = (greyoutCols || greyoutRows);
+	bool anythingBefore = (greyout_cols_for_session() || greyout_rows_for_session());
 	bool anythingNow = (newCols || newRows);
 
 	bool anythingBoth = (anythingBefore && anythingNow);
 
 	if (anythingNow) {
-		greyoutCols = newCols;
-		greyoutRows = newRows;
+		greyout_cols_for_session() = newCols;
+		greyout_rows_for_session() = newRows;
 	}
 
 	if (doInstantly || anythingBoth) {
@@ -756,36 +734,36 @@ void reassessGreyout(bool doInstantly) {
 		sendOutSidebarColoursSoon();
 	}
 	else {
-		greyoutChangeStartTime = AudioEngine::audioSampleTimer;
-		greyoutChangeDirection = anythingNow ? 1 : -1;
+		greyout_change_start_time_for_session() = AudioEngine::audioSampleTimer;
+		greyout_change_direction_for_session() = anythingNow ? 1 : -1;
 		uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 	}
 }
 
 void skipGreyoutFade() {
 
-	if (greyoutChangeDirection > 0) {
+	if (greyout_change_direction_for_session() > 0) {
 		setGreyoutAmount(1);
 	}
-	else if (greyoutChangeDirection < 0) {
+	else if (greyout_change_direction_for_session() < 0) {
 		setGreyoutAmount(0);
-		greyoutCols = 0;
-		greyoutRows = 0;
+		greyout_cols_for_session() = 0;
+		greyout_rows_for_session() = 0;
 	}
 
-	greyoutChangeDirection = 0;
+	greyout_change_direction_for_session() = 0;
 }
 
 void doGreyoutInstantly() {
-	greyoutChangeDirection = 0;
-	greyoutCols = 0xFFFFFFFF;
-	greyoutRows = 0xFFFFFFFF;
+	greyout_change_direction_for_session() = 0;
+	greyout_cols_for_session() = 0xFFFFFFFF;
+	greyout_rows_for_session() = 0xFFFFFFFF;
 
 	setGreyoutAmount(1);
 }
 
 void setGreyoutAmount(float newAmount) {
-	greyProportion = newAmount * 6500000;
+	grey_proportion_for_session() = newAmount * 6500000;
 }
 
 int32_t refreshTime = 23;
@@ -796,6 +774,7 @@ void setBrightnessLevel(uint8_t offset) {
 }
 
 void setRefreshTime(int32_t newTime) {
+	gui::ui_session::Scope hardware(gui::ui_session::Id::Local);
 	PIC::setRefreshTime(newTime);
 	refreshTime = newTime;
 }
@@ -831,6 +810,7 @@ void changeDimmerInterval(int32_t offset) {
 }
 
 void setDimmerInterval(int32_t newInterval) {
+	gui::ui_session::Scope hardware(gui::ui_session::Id::Local);
 	// Uart::print("dimmerInterval: ");
 	// Uart::println(newInterval);
 	dimmerInterval = newInterval;
@@ -850,7 +830,8 @@ void setDimmerInterval(int32_t newInterval) {
 
 void timerRoutine() {
 	// If output buffer is too full, come back in a little while instead
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) {
+	if (local_output()
+	    && uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) {
 		setTimerForSoon();
 		return;
 	}
@@ -884,61 +865,61 @@ void timerRoutine() {
 		if (progress >= 65536) { // If finished transitioning...
 
 			// If going to keyboard screen, no sidebar or anything to fade in
-			if (explodeAnimationDirection == 1 && clip->type == ClipType::INSTRUMENT
-			    && ((InstrumentClip*)clip)->onKeyboardScreen) {
+			if (explode_animation_direction_for_session() == 1 && clip->type == ClipType::INSTRUMENT
+			    && ((InstrumentClip*)clip)->on_keyboard_screen_for_session()) {
 				currentUIMode = UI_MODE_NONE;
-				changeRootUI(&keyboardScreen);
+				changeRootUI(&keyboard_screen_for_session());
 			}
 
 			// Otherwise, there's stuff we want to fade in / to
 			else {
-				int32_t explodedness = (explodeAnimationDirection == 1) ? 65536 : 0;
-				if ((clip->type == ClipType::INSTRUMENT) || (clip->onAutomationClipView)) {
+				int32_t explodedness = (explode_animation_direction_for_session() == 1) ? 65536 : 0;
+				if ((clip->type == ClipType::INSTRUMENT) || (clip->on_automation_clip_view_for_session())) {
 					renderExplodeAnimation(explodedness, false);
 				}
 				else {
 					renderAudioClipExplodeAnimation(explodedness, false);
 				}
-				memcpy(PadLEDs::imageStore, PadLEDs::image,
+				memcpy(PadLEDs::image_store_for_session(), PadLEDs::image_for_session(),
 				       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 
 				bool anyZoomingDone = false;
 				currentUIMode = UI_MODE_ANIMATION_FADE;
-				if (explodeAnimationDirection == 1) {
-					if (clip->onAutomationClipView) {
-						changeRootUI(&automationView); // We want to fade the sidebar in
-						anyZoomingDone = instrumentClipView.zoomToMax(true);
+				if (explode_animation_direction_for_session() == 1) {
+					if (clip->on_automation_clip_view_for_session()) {
+						changeRootUI(&automation_view_for_session()); // We want to fade the sidebar in
+						anyZoomingDone = instrument_clip_view_for_session().zoomToMax(true);
 						if (anyZoomingDone) {
-							uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
+							uiNeedsRendering(&automation_view_for_session(), 0, 0xFFFFFFFF);
 						}
 					}
 					else if (clip->type == ClipType::INSTRUMENT) {
-						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
-						anyZoomingDone = instrumentClipView.zoomToMax(true);
+						changeRootUI(&instrument_clip_view_for_session()); // We want to fade the sidebar in
+						anyZoomingDone = instrument_clip_view_for_session().zoomToMax(true);
 						if (anyZoomingDone) {
-							uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+							uiNeedsRendering(&instrument_clip_view_for_session(), 0, 0xFFFFFFFF);
 						}
 					}
 					else {
-						changeRootUI(&audioClipView);
+						changeRootUI(&audio_clip_view_for_session());
 						goto stopFade; // No need for fade since no sidebar, and also if we tried it'd get glitchy cos
 						               // we're not set up for it
 					}
 				}
 				else {
-					UI* nextUI = &arrangerView;
-					if (explodeAnimationTargetUI != nullptr) {
-						nextUI = explodeAnimationTargetUI;
-						explodeAnimationTargetUI = nullptr;
+					UI* nextUI = &arranger_view_for_session();
+					if (explode_animation_target_ui_for_session() != nullptr) {
+						nextUI = explode_animation_target_ui_for_session();
+						explode_animation_target_ui_for_session() = nullptr;
 					}
 
 					changeRootUI(nextUI);
 
-					if (nextUI == &arrangerView && arrangerView.doingAutoScrollNow) {
+					if (nextUI == &arranger_view_for_session() && arranger_view_for_session().doingAutoScrollNow) {
 						goto stopFade; // If we suddenly just started doing an auto-scroll, there's no time to fade
 					}
-					else if (nextUI == &sessionView) {
-						sessionView.finishedTransitioningHere();
+					else if (nextUI == &session_view_for_session()) {
+						session_view_for_session().finishedTransitioningHere();
 					}
 				}
 
@@ -956,10 +937,10 @@ void timerRoutine() {
 			}
 		}
 		else {
-			int32_t explodedness = (explodeAnimationDirection == 1) ? 0 : 65536;
-			explodedness += progress * explodeAnimationDirection;
+			int32_t explodedness = (explode_animation_direction_for_session() == 1) ? 0 : 65536;
+			explodedness += progress * explode_animation_direction_for_session();
 
-			if ((clip->type == ClipType::INSTRUMENT) || (clip->onAutomationClipView)) {
+			if ((clip->type == ClipType::INSTRUMENT) || (clip->on_automation_clip_view_for_session())) {
 				renderExplodeAnimation(explodedness);
 			}
 			else {
@@ -983,11 +964,12 @@ stopFade:
 
 	else {
 		// Progress greyout
-		if (greyoutChangeDirection != 0) {
-			float amountDone = (float)(AudioEngine::audioSampleTimer - greyoutChangeStartTime) / kGreyoutSpeed;
-			if (greyoutChangeDirection > 0) {
+		if (greyout_change_direction_for_session() != 0) {
+			float amountDone =
+			    (float)(AudioEngine::audioSampleTimer - greyout_change_start_time_for_session()) / kGreyoutSpeed;
+			if (greyout_change_direction_for_session() > 0) {
 				if (amountDone > 1) {
-					greyoutChangeDirection = 0;
+					greyout_change_direction_for_session() = 0;
 					setGreyoutAmount(1);
 				}
 				else {
@@ -998,30 +980,30 @@ stopFade:
 			else {
 				// If we've finished exiting greyout mode
 				if (amountDone > 1) {
-					greyoutChangeDirection = 0;
-					greyoutCols = 0;
-					greyoutRows = 0;
+					greyout_change_direction_for_session() = 0;
+					greyout_cols_for_session() = 0;
+					greyout_rows_for_session() = 0;
 				}
 				else {
 					setGreyoutAmount(1 - amountDone);
 					uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 				}
 			}
-			needToSendOutMainPadColours = needToSendOutSidebarColours = true;
+			need_to_send_out_main_pad_colours_for_session() = need_to_send_out_sidebar_colours_for_session() = true;
 		}
 	}
 
-	if (needToSendOutMainPadColours) {
+	if (need_to_send_out_main_pad_colours_for_session()) {
 		sendOutMainPadColours();
 	}
-	if (needToSendOutSidebarColours) {
+	if (need_to_send_out_sidebar_colours_for_session()) {
 		sendOutSidebarColours();
 	}
 }
 
 void sendOutMainPadColours() {
 	AudioEngine::logAction("sendOutMainPadColours 1");
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw) {
+	if (local_output() && uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInMainPadRedraw) {
 		sendOutMainPadColoursSoon();
 		return;
 	}
@@ -1032,34 +1014,36 @@ void sendOutMainPadColours() {
 		}
 	}
 
-	PIC::flush();
+	if (local_output())
+		PIC::flush();
 
-	needToSendOutMainPadColours = false;
+	need_to_send_out_main_pad_colours_for_session() = false;
 
 	AudioEngine::logAction("sendOutMainPadColours 2");
 }
 
 void sendOutMainPadColoursSoon() {
-	needToSendOutMainPadColours = true;
+	need_to_send_out_main_pad_colours_for_session() = true;
 	setTimerForSoon();
 }
 
 void sendOutSidebarColours() {
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInSidebarRedraw) {
+	if (local_output() && uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInSidebarRedraw) {
 		sendOutSidebarColoursSoon();
 		return;
 	}
 
 	sortLedsForCol(kDisplayWidth);
 
-	PIC::flush();
+	if (local_output())
+		PIC::flush();
 
-	needToSendOutSidebarColours = false;
+	need_to_send_out_sidebar_colours_for_session() = false;
 }
 
 void sendOutSidebarColoursSoon() {
-	needToSendOutSidebarColours = true;
+	need_to_send_out_sidebar_colours_for_session() = true;
 	setTimerForSoon();
 }
 
@@ -1075,7 +1059,7 @@ void renderAudioClipExpandOrCollapse() {
 	if (isUIModeActive(UI_MODE_AUDIO_CLIP_EXPANDING)) {
 		if (progress >= 65536) {
 			currentUIMode = UI_MODE_NONE;
-			changeRootUI(&audioClipView);
+			changeRootUI(&audio_clip_view_for_session());
 			return;
 		}
 	}
@@ -1086,11 +1070,12 @@ void renderAudioClipExpandOrCollapse() {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-			memset(imageStore, 0, sizeof(imageStore));
-			sessionView.renderRow(modelStack, waveformRenderer.collapseAnimationToWhichRow,
-			                      imageStore[waveformRenderer.collapseAnimationToWhichRow],
-			                      occupancyMaskStore[waveformRenderer.collapseAnimationToWhichRow], true);
-			sessionView.finishedTransitioningHere();
+			memset(image_store_for_session(), 0, sizeof(image_store_for_session()));
+			session_view_for_session().renderRow(
+			    modelStack, waveform_renderer_for_session().collapseAnimationToWhichRow,
+			    image_store_for_session()[waveform_renderer_for_session().collapseAnimationToWhichRow],
+			    occupancy_mask_store_for_session()[waveform_renderer_for_session().collapseAnimationToWhichRow], true);
+			session_view_for_session().finishedTransitioningHere();
 			return;
 		}
 		progress = 65536 - progress;
@@ -1109,28 +1094,29 @@ void renderClipExpandOrCollapse() {
 
 			Clip* clip = getCurrentClip();
 
-			bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
+			bool onKeyboardScreen =
+			    ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->on_keyboard_screen_for_session());
 
 			// when transitioning back to clip, if keyboard view is enabled, it takes precedent
 			// over automation and instrument clip views.
-			if (clip->onAutomationClipView && !onKeyboardScreen) {
-				changeRootUI(&automationView);
+			if (clip->on_automation_clip_view_for_session() && !onKeyboardScreen) {
+				changeRootUI(&automation_view_for_session());
 				// If we need to zoom in horizontally because the Clip's too short...
-				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+				bool anyZoomingDone = instrument_clip_view_for_session().zoomToMax(true);
 				if (anyZoomingDone) {
-					uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
+					uiNeedsRendering(&automation_view_for_session(), 0, 0xFFFFFFFF);
 				}
 			}
 			else {
 				if (onKeyboardScreen) {
-					changeRootUI(&keyboardScreen);
+					changeRootUI(&keyboard_screen_for_session());
 				}
 				else {
-					changeRootUI(&instrumentClipView);
+					changeRootUI(&instrument_clip_view_for_session());
 					// If we need to zoom in horizontally because the Clip's too short...
-					bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+					bool anyZoomingDone = instrument_clip_view_for_session().zoomToMax(true);
 					if (anyZoomingDone) {
-						uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+						uiNeedsRendering(&instrument_clip_view_for_session(), 0, 0xFFFFFFFF);
 					}
 				}
 			}
@@ -1142,8 +1128,8 @@ void renderClipExpandOrCollapse() {
 		// If collapse finished, switch to session view and do fade-in
 		if (progress >= 65536) {
 			renderInstrumentClipCollapseAnimation(0, kDisplayWidth + kSideBarWidth, 0);
-			memcpy(imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-			sessionView.finishedTransitioningHere();
+			memcpy(image_store_for_session(), PadLEDs::image_for_session(), sizeof(PadLEDs::image_for_session()));
+			session_view_for_session().finishedTransitioningHere();
 			return;
 		}
 		progress = 65536 - progress;
@@ -1159,11 +1145,11 @@ void renderNoteRowExpandOrCollapse() {
 	int32_t progress = getTransitionProgress();
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
-		if (getCurrentClip()->onAutomationClipView) {
-			uiNeedsRendering(&automationView);
+		if (getCurrentClip()->on_automation_clip_view_for_session()) {
+			uiNeedsRendering(&automation_view_for_session());
 		}
 		else {
-			uiNeedsRendering(&instrumentClipView);
+			uiNeedsRendering(&instrument_clip_view_for_session());
 		}
 		return;
 	}
@@ -1184,7 +1170,7 @@ void renderZoom() {
 		return;
 	}
 
-	if (!zoomingIn) {
+	if (!zooming_in_for_session()) {
 		transitionProgress = 65536 - transitionProgress;
 	}
 
@@ -1193,7 +1179,7 @@ void renderZoom() {
 	// The commented line is equivalent to the other lines just below
 	// int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of
 	// this variable has got a bit cryptic, it exists after much simplification
-	int32_t powersOfTwo = ((int32_t)(transitionProgress >> 7) - 512) << zoomMagnitude;
+	int32_t powersOfTwo = ((int32_t)(transitionProgress >> 7) - 512) << zoom_magnitude_for_session();
 	int32_t fine = powersOfTwo & 1023;
 	int32_t coarse = powersOfTwo >> 10;
 
@@ -1207,8 +1193,8 @@ void renderZoom() {
 	    interpolateTable(fine, 10, expTableSmall); // This could be changed to run on a bigger number of bits in input
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 
-	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &imageStore[0][0][0],
-	                       &imageStore[kDisplayHeight][0][0], 0, 0, kDisplayWidth, kDisplayWidth,
+	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &image_store_for_session()[0][0][0],
+	                       &image_store_for_session()[kDisplayHeight][0][0], 0, 0, kDisplayWidth, kDisplayWidth,
 	                       kDisplayWidth + kSideBarWidth, kDisplayWidth + kSideBarWidth);
 
 	sendOutMainPadColours();
@@ -1221,7 +1207,7 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
                             int32_t innerImageLeftEdge, int32_t outerImageLeftEdge, int32_t innerImageRightEdge,
                             int32_t outerImageRightEdge, int32_t innerImageTotalWidth, int32_t outerImageTotalWidth) {
 
-	uint32_t outImageTimesBiggerThanNative = inImageTimesBiggerThanNative << zoomMagnitude;
+	uint32_t outImageTimesBiggerThanNative = inImageTimesBiggerThanNative << zoom_magnitude_for_session();
 
 	uint32_t inImageTimesSmallerThanNative =
 	    4294967295u / inImageTimesBiggerThanNative; // How many squares of the zoomed-in image fit into each square of
@@ -1238,20 +1224,20 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 	int32_t* outputSquareStartOnOutImage = (int32_t*)&miscStringBuffer[kDisplayWidth * sizeof(int32_t) * 2];
 	int32_t* outputSquareEndOnOutImage = (int32_t*)&miscStringBuffer[kDisplayWidth * sizeof(int32_t) * 3];
 	uint16_t* inImageFadePerCol = (uint16_t*)shortStringBuffer; // 0 means show none. 65536 means show all, only
-#define zoomPinSquareInner zoomPinSquare
-#define zoomPinSquareOuter zoomPinSquare
+#define zoomPinSquareInner zoom_pin_square_for_session()
+#define zoomPinSquareOuter zoom_pin_square_for_session()
 
 	// Go through each row
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		if (transitionTakingPlaceOnRow[yDisplay]) {
+		if (transition_taking_place_on_row_for_session()[yDisplay]) {
 
 			// If this row doesn't have the same pin-square as the last, we have to calculate some stuff. Otherwise,
 			// this can be reused.
-			if (zoomPinSquare[yDisplay] != lastZoomPinSquareDone) {
-				lastZoomPinSquareDone = zoomPinSquare[yDisplay];
+			if (zoom_pin_square_for_session()[yDisplay] != lastZoomPinSquareDone) {
+				lastZoomPinSquareDone = zoom_pin_square_for_session()[yDisplay];
 
 				// Work out what square the thinner image begins at (i.e. its left-most edge)
-				int32_t inImagePos0Onscreen = zoomPinSquare[yDisplay]
+				int32_t inImagePos0Onscreen = zoom_pin_square_for_session()[yDisplay]
 				                              - (zoomPinSquareInner[yDisplay] >> 8)
 				                                    * (inImageTimesBiggerThanNative >> 8); // Beware rounding inaccuracy
 				int32_t inImageLeftEdgeOnscreen =
@@ -1278,7 +1264,7 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 					inImageFadePerCol[xDisplay] = ((uint32_t)inImageOverlap * inImageFadeAmount) >> 16;
 
 					int32_t outputSquareLeftEdgePositionRelativeToPinSquare =
-					    zoomPinSquare[yDisplay] - outputSquareLeftEdge;
+					    zoom_pin_square_for_session()[yDisplay] - outputSquareLeftEdge;
 
 					int32_t outputSquareLeftEdgePositionOnInImageRelativeToPinSquare =
 					    ((int64_t)outputSquareLeftEdgePositionRelativeToPinSquare * inImageTimesSmallerThanNative)
@@ -1325,12 +1311,12 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 				if (drawingAnything) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t result = rshift_round(outValue[colour], 16);
-						PadLEDs::image[yDisplay][xDisplay][colour] =
+						PadLEDs::image_for_session()[yDisplay][xDisplay][colour] =
 						    std::min<int32_t>(std::numeric_limits<uint8_t>::max(), result);
 					}
 				}
 				else {
-					PadLEDs::image[yDisplay][xDisplay] = gui::colours::black;
+					PadLEDs::image_for_session()[yDisplay][xDisplay] = gui::colours::black;
 				}
 			}
 		}
@@ -1338,7 +1324,10 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 		innerImage += innerImageTotalWidth * 3;
 		outerImage += outerImageTotalWidth * 3;
 	}
-	AudioEngine::routineWithClusterLoading();
+	{
+		gui::ui_session::Scope hardware(gui::ui_session::Id::Local);
+		AudioEngine::routineWithClusterLoading();
+	}
 }
 
 void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSquareEndOnSourceImage,
@@ -1378,33 +1367,44 @@ void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSq
 
 void horizontal::renderScroll() {
 
-	squaresScrolled++;
-	int32_t copyCol = (scrollDirection > 0) ? squaresScrolled - 1 : areaToScroll - squaresScrolled;
-	int32_t startSquare = (scrollDirection > 0) ? 0 : areaToScroll - 1;
-	int32_t endSquare = (scrollDirection > 0) ? areaToScroll - 1 : 0;
+	squares_scrolled_for_session()++;
+	int32_t copyCol = (scroll_direction_for_session() > 0)
+	                      ? squares_scrolled_for_session() - 1
+	                      : area_to_scroll_for_session() - squares_scrolled_for_session();
+	int32_t startSquare = (scroll_direction_for_session() > 0) ? 0 : area_to_scroll_for_session() - 1;
+	int32_t endSquare = (scroll_direction_for_session() > 0) ? area_to_scroll_for_session() - 1 : 0;
 	for (int32_t row = 0; row < kDisplayHeight; row++) {
-		if (transitionTakingPlaceOnRow[row]) {
+		if (transition_taking_place_on_row_for_session()[row]) {
 			for (int32_t colour = 0; colour < 3; colour++) {
-				for (int32_t x = startSquare; x != endSquare; x += scrollDirection) {
-					PadLEDs::image[row][x][colour] = PadLEDs::image[row][x + scrollDirection][colour];
+				for (int32_t x = startSquare; x != endSquare; x += scroll_direction_for_session()) {
+					PadLEDs::image_for_session()[row][x][colour] =
+					    PadLEDs::image_for_session()[row][x + scroll_direction_for_session()][colour];
 				}
 				// And, bring in a col from the temp image
-				if (scrollingIntoNothing) {
-					PadLEDs::image[row][endSquare][colour] = 0;
+				if (scrolling_into_nothing_for_session()) {
+					PadLEDs::image_for_session()[row][endSquare][colour] = 0;
 				}
 				else {
-					PadLEDs::image[row][endSquare][colour] = imageStore[row][copyCol][colour];
+					PadLEDs::image_for_session()[row][endSquare][colour] =
+					    image_store_for_session()[row][copyCol][colour];
 				}
 			}
 
-			PIC::sendScrollRow(row, prepareColour(endSquare, row, image[row][endSquare]));
+			if (local_output())
+				PIC::sendScrollRow(row, prepareColour(endSquare, row, image_for_session()[row][endSquare]));
 		}
 	}
 
-	PIC::doneSendingRows();
-	PIC::flush();
+	if (local_output())
+		PIC::doneSendingRows();
+	else {
+		sendOutMainPadColours();
+		sendOutSidebarColours();
+	}
+	if (local_output())
+		PIC::flush();
 
-	if (squaresScrolled >= areaToScroll) {
+	if (squares_scrolled_for_session() >= area_to_scroll_for_session()) {
 		getCurrentUI()->scrollFinished();
 	}
 	else {
@@ -1414,10 +1414,10 @@ void horizontal::renderScroll() {
 
 void horizontal::setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing,
                              int32_t numSquaresToScroll) {
-	scrollDirection = thisScrollDirection;
-	areaToScroll = thisAreaToScroll;
-	squaresScrolled = thisAreaToScroll - numSquaresToScroll;
-	scrollingIntoNothing = scrollIntoNothing;
+	scroll_direction_for_session() = thisScrollDirection;
+	area_to_scroll_for_session() = thisAreaToScroll;
+	squares_scrolled_for_session() = thisAreaToScroll - numSquaresToScroll;
+	scrolling_into_nothing_for_session() = scrollIntoNothing;
 
 	uint8_t flags = 0;
 	if (thisScrollDirection >= 0) {
@@ -1426,53 +1426,63 @@ void horizontal::setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScrol
 	if (thisAreaToScroll == kDisplayWidth + kSideBarWidth) {
 		flags |= 2;
 	}
-	PIC::setupHorizontalScroll(flags);
+	if (local_output())
+		PIC::setupHorizontalScroll(flags);
 	renderScroll();
 }
 
 void vertical::renderScroll() {
-	squaresScrolled++;
-	int32_t copyRow = (scrollDirection > 0) ? squaresScrolled - 1 : kDisplayHeight - squaresScrolled;
-	int32_t startSquare = (scrollDirection > 0) ? 0 : 1;
-	int32_t endSquare = (scrollDirection > 0) ? kDisplayHeight - 1 : 0;
+	squares_scrolled_for_session()++;
+	int32_t copyRow = (scroll_direction_for_session() > 0) ? squares_scrolled_for_session() - 1
+	                                                       : kDisplayHeight - squares_scrolled_for_session();
+	int32_t startSquare = (scroll_direction_for_session() > 0) ? 0 : 1;
+	int32_t endSquare = (scroll_direction_for_session() > 0) ? kDisplayHeight - 1 : 0;
 
 	// matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? kDisplayHeight - squaresScrolled : squaresScrolled;
 
 	// Move the scrolling region
-	memmove(image[startSquare], image[1 - startSquare],
+	memmove(image_for_session()[startSquare], image_for_session()[1 - startSquare],
 	        (kDisplayWidth + kSideBarWidth) * (kDisplayHeight - 1) * sizeof(RGB));
 
 	// And, bring in a row from the temp image (or from nowhere)
-	if (scrollingToNothing) {
-		memset(image[endSquare], 0, (kDisplayWidth + kSideBarWidth) * 3);
+	if (scrolling_to_nothing_for_session()) {
+		memset(image_for_session()[endSquare], 0, (kDisplayWidth + kSideBarWidth) * 3);
 	}
 	else {
-		memcpy(image[endSquare], imageStore[copyRow], (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
+		memcpy(image_for_session()[endSquare], image_store_for_session()[copyRow],
+		       (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
 	}
 
 	std::array<RGB, kDisplayWidth + kSideBarWidth> colours{};
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-		colours[x] = prepareColour(x, endSquare, image[endSquare][x]);
+		colours[x] = prepareColour(x, endSquare, image_for_session()[endSquare][x]);
 	}
-	PIC::doVerticalScroll(scrollDirection > 0, colours);
-	PIC::flush();
+	if (local_output())
+		PIC::doVerticalScroll(scroll_direction_for_session() > 0, colours);
+	else {
+		sendOutMainPadColours();
+		sendOutSidebarColours();
+	}
+	if (local_output())
+		PIC::flush();
 }
 
 void vertical::setupScroll(int8_t thisScrollDirection, bool scrollIntoNothing) {
-	scrollDirection = thisScrollDirection;
-	scrollingToNothing = scrollIntoNothing;
-	squaresScrolled = 0;
+	scroll_direction_for_session() = thisScrollDirection;
+	scrolling_to_nothing_for_session() = scrollIntoNothing;
+	squares_scrolled_for_session() = 0;
 }
 
 void renderFade(int32_t progress) {
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-			PadLEDs::image[y][x] = RGB::transform2(
-			    imageStore[y][x], imageStore[y + kDisplayHeight][x], [progress](auto channelA, auto channelB) {
-				    int32_t difference = (int32_t)channelB - (int32_t)channelA;
-				    uint32_t progressedDifference = rshift_round(difference * progress, 16);
-				    return channelA + progressedDifference;
-			    });
+			PadLEDs::image_for_session()[y][x] =
+			    RGB::transform2(image_store_for_session()[y][x], image_store_for_session()[y + kDisplayHeight][x],
+			                    [progress](auto channelA, auto channelB) {
+				                    int32_t difference = (int32_t)channelB - (int32_t)channelA;
+				                    uint32_t progressedDifference = rshift_round(difference * progress, 16);
+				                    return channelA + progressedDifference;
+			                    });
 		}
 	}
 	sendOutMainPadColours();
@@ -1482,12 +1492,13 @@ void renderFade(int32_t progress) {
 
 void recordTransitionBegin(uint32_t newTransitionLength) {
 	clearPendingUIRendering();
-	transitionLength = newTransitionLength * 44;
-	transitionStartTime = AudioEngine::audioSampleTimer;
+	transition_length_for_session() = newTransitionLength * 44;
+	transition_start_time_for_session() = AudioEngine::audioSampleTimer;
 }
 
 int32_t getTransitionProgress() {
-	return ((uint64_t)(AudioEngine::audioSampleTimer - transitionStartTime) * 65536) / transitionLength;
+	return ((uint64_t)(AudioEngine::audioSampleTimer - transition_start_time_for_session()) * 65536)
+	       / transition_length_for_session();
 }
 
 void copyBetweenImageStores(RGB* __restrict__ dest, RGB* __restrict__ source, int32_t destWidth, int32_t sourceWidth,
@@ -1514,3 +1525,20 @@ void moveBetweenImageStores(uint8_t* dest, uint8_t* source, int32_t destWidth, i
 }
 
 } // namespace PadLEDs
+
+void PadLEDs::flashMainPad(int32_t x, int32_t y, int32_t colour) {
+	if (x < 0 || x >= kDisplayWidth || y < 0 || y >= kDisplayHeight)
+		return;
+	state().frame.flash(x, y, colour);
+	auto idx = y + (x * kDisplayHeight);
+	if (!local_output()) {
+		if (colour > 0)
+			deluge::hid::mirror::panel_byte(10 + colour); // SET_FLASH_COLOR
+		deluge::hid::mirror::panel_byte(24 + idx);        // SET_PAD_FLASHING
+		return;
+	}
+	if (colour > 0)
+		PIC::flashMainPadWithColourIdx(idx, colour);
+	else
+		PIC::flashMainPad(idx);
+}

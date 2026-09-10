@@ -47,13 +47,26 @@ public:
 	void blinkSideColumn();
 	bool hasSideColumn();
 
-	int param = 0;
-	int upper_limit = 0;
-	int32_t displayValue = 0;
-	DxPatch* patch;
+	int& param_for_session() { return states_.active().param; }
+	const int& param_for_session() const { return states_.active().param; }
+	int& flash_row_for_session() { return states_.active().flash_row; }
+	const int& flash_row_for_session() const { return states_.active().flash_row; }
+	bool& blink_next_for_session() { return states_.active().blink_next; }
+	const bool& blink_next_for_session() const { return states_.active().blink_next; }
 
-	int flash_row = -1;
-	bool blink_next = false;
+private:
+	struct PanelState {
+		int param = 0;
+		int upper_limit = 0;
+		int32_t displayValue = 0;
+		DxPatch* patch = nullptr;
+		int flash_row = -1;
+		bool blink_next = false;
+	};
+	ui_session::State<PanelState> states_;
+	PanelState& panel_state() { return states_.active(); }
+	const PanelState& panel_state() const { return states_.active(); }
+	mutable ui_session::State<std::array<char, 25>> title_buffers_;
 };
 
 extern DxParam dxParam;

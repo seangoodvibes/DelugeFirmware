@@ -21,6 +21,7 @@
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/iterance/iterance.h"
+#include "model/note/note_row_identity.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
@@ -103,7 +104,7 @@ public:
 	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
-	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
+	Error deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = nullptr);
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
@@ -188,8 +189,8 @@ public:
 	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible);
 	Error clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
 	                uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea = false);
-	void trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
-	void trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int32_t noteRowId);
+	Error trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
+	Error trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int32_t noteRowId);
 	void recordNoteOff(uint32_t pos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity);
 	int8_t getColourOffset(InstrumentClip* clip);
 	void rememberDrumName();
@@ -210,8 +211,8 @@ public:
 	                                        ModelStackWithNoteRow* modelStackClone);
 	void silentlyResumePlayback(ModelStackWithNoteRow* modelStack);
 	void trimParamManager(ModelStackWithNoteRow* modelStack);
-	void deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId, InstrumentClip* clip);
-	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
+	Error deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId, InstrumentClip* clip);
+	Error complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
 	Error changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
 	                                  int32_t changeType, int32_t changeValue);
 	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
@@ -228,8 +229,8 @@ public:
 	Error quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount);
 	Error editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
 	                                     Action* action, uint32_t wrapEditLevel, int32_t newNumNotes);
-	void setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Action* actionToRecordTo, int32_t oldPos,
-	               bool hadIndependentPlayPosBefore);
+	Error setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Action* actionToRecordTo, int32_t oldPos,
+	                bool hadIndependentPlayPosBefore);
 	void getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues);
 	void clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t wrapEditLevel,
 	                             bool shouldJustDeleteNodes = false);
@@ -240,6 +241,8 @@ public:
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
 	bool isDroning(int32_t effectiveLength);
+	// Kept after the ordering key; array relocation preserves this identity.
+	uint64_t undo_identity = deluge::model::next_note_row_identity();
 
 private:
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,

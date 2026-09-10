@@ -36,12 +36,12 @@ ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int32_t offset)
 void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newXScroll) {
 	// Make sure we don't scroll too far right
 	if (newXScroll < getMaxLength()) {
-		if (!PadLEDs::renderingLock && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		if (!PadLEDs::rendering_lock_for_session() && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this) {
 			initiateXScroll(newXScroll);
 		}
 		else {
-			currentSong->xScroll[NAVIGATION_CLIP] = newXScroll;
+			currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = newXScroll;
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		if (!display->hasPopup()) {

@@ -16,6 +16,8 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "gui/ui/ui_session.h"
+#include "hid/mirror.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -388,6 +390,11 @@ int32_t getNumVoices() {
 }
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
+	deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local);
+	if (deluge::hid::mirror::is_client()) {
+		runRoutine();
+		return;
+	}
 	logAction("AudioDriver::routineWithClusterLoading");
 
 	routineBeenCalled = false;
@@ -693,7 +700,7 @@ void renderAudioForStemExport(size_t numSamples) {
 
 	// If we're recording final output for offline stem export with song FX
 	// Check if we have a recorder
-	SampleRecorder* recorder = audioRecorder.recorder;
+	SampleRecorder* recorder = audio_recorder_for_session().recorder;
 	if (recorder && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
 		// continue feeding audio if we're not finished recording
 		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
@@ -883,8 +890,10 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
 
-	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
-	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
+	if (getCurrentUI() == &sample_browser_for_session()
+	    || getCurrentUI() == &gui::context_menu::sample_browser::kit_for_session()
+	    || getCurrentUI() == &gui::context_menu::sample_browser::synth_for_session()
+	    || getCurrentUI() == &slicer_for_session()) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
@@ -945,8 +954,8 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 }
 void setMonitoringMode() { // Monitoring setup
 	doMonitoring = false;
-	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
-	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
+	if (audio_recorder_for_session().recordingSource == AudioInputChannel::STEREO
+	    || audio_recorder_for_session().recordingSource == AudioInputChannel::LEFT) {
 		if (inputMonitoringMode == InputMonitoringMode::SMART) {
 			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
 		}
@@ -956,18 +965,18 @@ void setMonitoringMode() { // Monitoring setup
 	}
 
 	monitoringAction = MonitoringAction::NONE;
-	if (doMonitoring && audioRecorder.recorder) { // Double-check
-		if (lineInPluggedIn) {                    // Line input
-			if (audioRecorder.recorder->inputLooksDifferential()) {
+	if (doMonitoring && audio_recorder_for_session().recorder) { // Double-check
+		if (lineInPluggedIn) {                                   // Line input
+			if (audio_recorder_for_session().recorder->inputLooksDifferential()) {
 				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
-			else if (audioRecorder.recorder->inputHasNoRightChannel()) {
+			else if (audio_recorder_for_session().recorder->inputHasNoRightChannel()) {
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}
 
 		else if (micPluggedIn) { // External mic
-			if (audioRecorder.recorder->inputHasNoRightChannel()) {
+			if (audio_recorder_for_session().recorder->inputHasNoRightChannel()) {
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}
@@ -1044,6 +1053,29 @@ void routine_task() {
 	calledFromScheduler = false;
 }
 void routine() {
+	deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local);
+	// A mirror client services the DMA clock but never renders synthesis,
+	// effects, samples or recording. Clear the circular output before leaving
+	// it running, otherwise it would endlessly repeat the last audio block.
+	static bool was_mirror_client = false;
+	if (deluge::hid::mirror::is_client()) {
+		if (!was_mirror_client)
+			clearTxBuffer();
+		was_mirror_client = true;
+		uint32_t current = reinterpret_cast<uint32_t>(getTxBufferCurrentPlace());
+		uint32_t samples =
+		    ((current - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE)) & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+		audioSampleTimer += samples;
+		i2sTXBufferPos = current;
+		i2sRXBufferPos = reinterpret_cast<uint32_t>(getRxBufferCurrentPlace());
+		renderingBufferOutputPos = renderingBufferOutputEnd;
+		return;
+	}
+	if (was_mirror_client) {
+		was_mirror_client = false;
+		i2sTXBufferPos = reinterpret_cast<uint32_t>(getTxBufferCurrentPlace());
+		i2sRXBufferPos = reinterpret_cast<uint32_t>(getRxBufferCurrentPlace());
+	}
 
 	logAction("AudioDriver::routine");
 
@@ -1086,7 +1118,7 @@ void routine() {
 				// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
 				// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
 				// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
-				SampleRecorder* recorder = audioRecorder.recorder;
+				SampleRecorder* recorder = audio_recorder_for_session().recorder;
 				if (recorder != nullptr) {
 					// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
 					// the drain finishes. The slack covers calls that return without reaching this recorder at all:
@@ -1103,7 +1135,7 @@ void routine() {
 						doRecorderCardRoutines();
 
 						// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
-						if (audioRecorder.recorder != recorder) {
+						if (audio_recorder_for_session().recorder != recorder) {
 							break;
 						}
 					}
@@ -1304,7 +1336,7 @@ void updateReverbParams() {
 	if (reverbSidechainVolume < 0) {
 
 		// Just leave everything as is if parts deleted cos loading new song
-		if (loadSongUI.isLoadingSong() && loadSongUI.deletedPartsOfOldSong) {
+		if (load_song_ui_for_session().isLoadingSong() && load_song_ui_for_session().deletedPartsOfOldSong) {
 			return;
 		}
 
@@ -1521,6 +1553,9 @@ void doRecorderCardRoutines() {
 }
 
 void slowRoutine() {
+	deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local);
+	if (deluge::hid::mirror::is_client())
+		return;
 	if (sdRoutineLock) {
 		// can happen if the SD routine is yielding
 		return;

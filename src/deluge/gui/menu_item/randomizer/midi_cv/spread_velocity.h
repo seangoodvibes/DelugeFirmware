@@ -25,14 +25,15 @@ class SpreadVelocity final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->spreadVelocity));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->spreadVelocity));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->spreadVelocity = value;
+		sound_editor_for_session().currentArpSettings->spreadVelocity = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
+		return sound_editor_for_session().editingCVOrMIDIClip() || sound_editor_for_session().editingMidiDrumRow();
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };

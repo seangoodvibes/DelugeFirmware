@@ -51,7 +51,7 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 		return;
 	}
 
-	auto* patch_cable_set = soundEditor.currentParamManager->getPatchCableSet();
+	auto* patch_cable_set = sound_editor_for_session().currentParamManager->getPatchCableSet();
 	const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
 
 	if (patch_cable_index == kNoSelection) {
@@ -74,7 +74,7 @@ void PatchCableStrength::endSession() {
 }
 
 void PatchCableStrength::renderOLED() {
-	hid::display::oled_canvas::Canvas& image = OLED::main;
+	hid::display::oled_canvas::Canvas& image = OLED::main_for_session();
 
 	constexpr int32_t extraY = 1;
 
@@ -119,9 +119,10 @@ void PatchCableStrength::renderOLED() {
 		}
 
 		// Draw the destination name
-		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam(),
-		                                                              soundEditor.currentModControllable),
-		                 leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
+		image.drawString(
+		    modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam(),
+		                                                 sound_editor_for_session().currentModControllable),
+		    leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
 	}
 
 	// Draw the polarity switcher
@@ -164,8 +165,9 @@ void PatchCableStrength::renderOLED() {
 		const int32_t nonZeroDecimals = getNumNonZeroDecimals(value);
 
 		// We hide the fractional part digit if it's zero and the cursor is not on the fractional part
-		const int32_t hiddenZeroesCount = std::clamp<int32_t>(2 - nonZeroDecimals, 0, soundEditor.numberEditPos);
-		const int32_t numberEditPos = soundEditor.numberEditPos - hiddenZeroesCount;
+		const int32_t hiddenZeroesCount =
+		    std::clamp<int32_t>(2 - nonZeroDecimals, 0, sound_editor_for_session().numberEditPos);
+		const int32_t numberEditPos = sound_editor_for_session().numberEditPos - hiddenZeroesCount;
 		const int32_t numberStr = value / std::pow(10, hiddenZeroesCount);
 
 		char numberBuf[6];
@@ -192,7 +194,7 @@ void PatchCableStrength::renderOLED() {
 }
 
 void PatchCableStrength::readCurrentValue() {
-	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+	PatchCableSet* patchCableSet = sound_editor_for_session().currentParamManager->getPatchCableSet();
 	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	if (c == 255) {
 		this->setValue(0);
@@ -219,10 +221,10 @@ void PatchCableStrength::writeCurrentValue() {
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 
-	if (getRootUI() == &automationView) {
+	if (getRootUI() == &automation_view_for_session()) {
 		int32_t p = modelStackWithParam->paramId;
 		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+		automation_view_for_session().possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
 	}
 }
 
@@ -250,7 +252,7 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllable
 	Sound* sound = static_cast<Sound*>(modControllable);
 
 	// Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
-	if (sound->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+	if (sound->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)sound_editor_for_session().currentParamManager))
 	    == PatchCableAcceptance::DISALLOWED) {
 		return MenuPermission::NO;
 	}
@@ -259,11 +261,11 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllable
 }
 
 uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
-	if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
-	    || soundEditor.patchingParamSelected == deluge::modulation::params::LOCAL_VOLUME) {
+	if (sound_editor_for_session().patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
+	    || sound_editor_for_session().patchingParamSelected == deluge::modulation::params::LOCAL_VOLUME) {
 		return deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
 	}
-	return soundEditor.patchingParamSelected;
+	return sound_editor_for_session().patchingParamSelected;
 }
 
 deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
@@ -313,7 +315,7 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 		updatePolarityUI();
 
 		if (display->haveOLED()) {
-			Buttons::selectButtonPressUsedUp = true;
+			Buttons::state().selectButtonPressUsedUp = true;
 		}
 		else {
 			display->popupText(polarityToStringShort(polarity_in_the_ui_).data());
@@ -325,7 +327,7 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 }
 
 void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
-	int8_t currentEditPos = soundEditor.numberEditPos;
+	int8_t currentEditPos = sound_editor_for_session().numberEditPos;
 	// don't adjust patch cable decimal edit pos if you're holding down the horizontal encoder
 	// reserve holding down horizontal encoder for zooming in automation view
 	if (!Buttons::isButtonPressed(hid::button::X_ENC)) {
@@ -334,17 +336,17 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 	// if editPos hasn't changed, then you reached start (far left) or end (far right) of the decimal number
 	// or you're holding down the horizontal encoder because you want to zoom in/out
 	// if this is the case, then you can potentially engage scrolling/zooming of the underlying automation view
-	if (currentEditPos == soundEditor.numberEditPos) {
+	if (currentEditPos == sound_editor_for_session().numberEditPos) {
 		if (delayHorizontalScrollUntil == 0) {
 			delayHorizontalScrollUntil = AudioEngine::audioSampleTimer + kShortPressTime;
 		}
 		else if (AudioEngine::audioSampleTimer > delayHorizontalScrollUntil) {
 			RootUI* rootUI = getRootUI();
-			if (rootUI == &automationView) {
-				automationView.horizontalEncoderAction(offset);
+			if (rootUI == &automation_view_for_session()) {
+				automation_view_for_session().horizontalEncoderAction(offset);
 			}
-			else if (rootUI == &keyboardScreen) {
-				keyboardScreen.horizontalEncoderAction(offset);
+			else if (rootUI == &keyboard_screen_for_session()) {
+				keyboard_screen_for_session().horizontalEncoderAction(offset);
 			}
 		}
 	}
@@ -354,7 +356,8 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 }
 
 bool PatchCableStrength::isInHorizontalMenu() const {
-	return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
+	return parent_for_session() != nullptr
+	       && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
 }
 
 void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
@@ -362,7 +365,7 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 		return;
 	}
 
-	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+	auto* patchCableSet = sound_editor_for_session().currentParamManager->getPatchCableSet();
 	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	    index != kNoSelection) {
 		patchCableSet->patch_cables_[index]->polarity = newPolarity;

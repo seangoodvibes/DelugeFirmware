@@ -32,7 +32,13 @@
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
 namespace deluge::gui::context_menu {
-ClearSong clearSong{};
+namespace {
+ClearSong local_clear_song{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<ClearSong> remote_clear_song;
+} // namespace
+ClearSong& clear_song_for_session() {
+	return remote_clear_song.get(local_clear_song);
+}
 
 char const* ClearSong::getTitle() {
 	using enum l10n::String;

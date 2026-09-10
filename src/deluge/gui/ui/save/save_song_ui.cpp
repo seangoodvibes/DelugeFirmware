@@ -43,7 +43,13 @@ using namespace gui;
 
 extern uint8_t currentlyAccessingCard;
 
-SaveSongUI saveSongUI{};
+namespace {
+SaveSongUI local_save_song_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SaveSongUI> remote_save_song_ui;
+} // namespace
+SaveSongUI& save_song_ui_for_session() {
+	return remote_save_song_ui.get(local_save_song_ui);
+}
 
 SaveSongUI::SaveSongUI() {
 	filePrefix = "SONG";
@@ -51,10 +57,10 @@ SaveSongUI::SaveSongUI() {
 }
 
 bool SaveSongUI::opened() {
-	outputTypeToLoad = OutputType::NONE;
+	output_type_to_load_for_session() = OutputType::NONE;
 
 	// Grab screenshot of song, for saving, before qwerty drawn
-	memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
+	memcpy(PadLEDs::image_store_for_session(), PadLEDs::image_for_session(), sizeof(PadLEDs::image_for_session()));
 
 	bool success = SaveUI::opened(); // Clears enteredText
 	if (!success) {                  // In this case, an error will have already displayed.
@@ -81,9 +87,9 @@ gotError:
 			goto doReturnFalse;
 		}
 	}
-	currentFolderIsEmpty = false;
+	current_folder_is_empty_for_session() = false;
 
-	currentDir.set(&currentSong->dirPath);
+	current_dir_for_session().set(&currentSong->dirPath);
 
 	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
 	if (error != Error::NONE) {
@@ -105,7 +111,7 @@ gotError:
 	focusRegained();
 	// do this after focus regained, otherwise the first scroll starts
 	// from the beginning instead of showing the incremented number
-	enteredTextEditPos = 0; // enteredText.getLength();
+	entered_text_edit_pos_for_session() = 0; // enteredText.getLength();
 	return true;
 }
 
@@ -139,14 +145,14 @@ gotError:
 	bool fileAlreadyExisted = StorageManager::fileExists(filePath.get());
 
 	if (!mayOverwrite && fileAlreadyExisted) {
-		context_menu::overwriteFile.currentSaveUI = this;
+		context_menu::overwrite_file_for_session().currentSaveUI = this;
 
-		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
+		bool available = context_menu::overwrite_file_for_session().setupAndCheckAvailability();
 
 		if (available) { // Always true.
 			display->removeWorkingAnimation();
 			display->setNextTransitionDirection(1);
-			openUI(&context_menu::overwriteFile);
+			openUI(&context_menu::overwrite_file_for_session());
 			return true;
 		}
 		else {
@@ -161,7 +167,8 @@ gotError:
 	// Create sample dir
 	String newSongAlternatePath;
 
-	error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), enteredText.get());
+	error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, current_dir_for_session().get(),
+	                                                    entered_text_for_session().get());
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -206,8 +213,8 @@ gotError:
 				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no
 				// need to do it again
 				if (collectingSamples && !audioFile->loadedFromAlternatePath.isEmpty()) {
-					if (currentDir.equalsCaseIrrespective(&currentSong->dirPath)) {
-						if (enteredText.equalsCaseIrrespective(&currentSong->name)) {
+					if (current_dir_for_session().equalsCaseIrrespective(&currentSong->dirPath)) {
+						if (entered_text_for_session().equalsCaseIrrespective(&currentSong->name)) {
 							return true;
 						}
 					}
@@ -502,8 +509,8 @@ cardError:
 	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
 	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
 	// Update all of these
-	currentSong->name.set(&enteredText);
-	currentSong->dirPath.set(&currentDir);
+	currentSong->name.set(&entered_text_for_session());
+	currentSong->dirPath.set(&current_dir_for_session());
 
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
 		runtimeFeatureSettings.writeSettingsToFile();

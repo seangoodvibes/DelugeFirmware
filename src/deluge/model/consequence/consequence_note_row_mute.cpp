@@ -25,11 +25,18 @@
 ConsequenceNoteRowMute::ConsequenceNoteRowMute(InstrumentClip* newClip, int32_t newNoteRowId) {
 	noteRowId = newNoteRowId;
 	clip = newClip;
+	if (clip && clip->type == ClipType::INSTRUMENT) {
+		if (auto* row = clip->getNoteRowFromId(noteRowId))
+			note_row_identity = row->undo_identity;
+	}
 }
 
 Error ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || !modelStack->song->contains_clip_for_undo(clip)
+	    || clip->type != ClipType::INSTRUMENT)
+		return Error::BUG;
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
-	if (!noteRow) {
+	if (!noteRow || !note_row_identity || noteRow->undo_identity != note_row_identity) {
 		return Error::BUG;
 	}
 

@@ -19,6 +19,6 @@ SampleControls& getCurrentSampleControls(int32_t whichThing) {
 		return audioClip->sampleControls;
 	}
 
-	Source& source = soundEditor.currentSound->sources[whichThing];
+	Source& source = sound_editor_for_session().currentSound->sources[whichThing];
 	return source.sampleControls;
 }

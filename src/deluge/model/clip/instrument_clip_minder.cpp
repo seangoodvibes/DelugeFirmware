@@ -83,7 +83,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 			if (!Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
 				newCC = instrument->changeControlNumberForModKnob(offset, editingMIDICCForWhichModKnob,
 				                                                  instrument->modKnobMode);
-				view.setKnobIndicatorLevels();
+				view_for_session().setKnobIndicatorLevels();
 			}
 			else {
 				newCC = instrument->moveAutomationToDifferentCC(offset, editingMIDICCForWhichModKnob,
@@ -101,7 +101,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 		}
 	}
 	else {
-		view.navigateThroughPresetsForInstrumentClip(offset, modelStack);
+		view_for_session().navigateThroughPresetsForInstrumentClip(offset, modelStack);
 	}
 }
 
@@ -111,7 +111,7 @@ void InstrumentClipMinder::redrawNumericDisplay() {
 	}
 	if (display->have7SEG()) {
 		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
-			view.displayOutputName(getCurrentOutput(), false);
+			view_for_session().displayOutputName(getCurrentOutput(), false);
 		}
 	}
 }
@@ -121,7 +121,7 @@ void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas&
 		stemExport.displayStemExportProgressOLED(StemExportType::DRUM);
 		return;
 	}
-	view.displayOutputName(getCurrentOutput(), false, getCurrentClip());
+	view_for_session().displayOutputName(getCurrentOutput(), false, getCurrentClip());
 }
 
 // GCC is fine with 29 or 5 for the size, but does not like that it could be either
@@ -170,14 +170,14 @@ bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is
 
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
-	error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+	error = Browser::current_dir_for_session().set(getInstrumentFolder(newOutputType));
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
 		return false;
 	}
 
-	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
+	error = load_instrument_preset_ui_for_session().getUnusedSlot(newOutputType, &newName, thingName);
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -253,7 +253,7 @@ gotError:
 	if (newOutputType == OutputType::KIT) {
 		// If we weren't a Kit already...
 		if (oldOutputType != OutputType::KIT) {
-			clip->yScroll = 0;
+			clip->y_scroll_for_session() = 0;
 		}
 
 		// Or if we were...
@@ -262,7 +262,7 @@ gotError:
 		}
 	}
 
-	view.instrumentChanged(modelStack, newInstrument);
+	view_for_session().instrumentChanged(modelStack, newInstrument);
 
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E060", "H060");
 
@@ -271,8 +271,8 @@ gotError:
 	newInstrument->name.set(&newName);
 
 	if (is_dx) {
-		soundEditor.setup(getCurrentInstrumentClip(), &dxMenu, 0);
-		openUI(&soundEditor);
+		sound_editor_for_session().setup(getCurrentInstrumentClip(), &dxMenu, 0);
+		openUI(&sound_editor_for_session());
 	}
 
 	if (display->haveOLED()) {
@@ -304,26 +304,27 @@ void InstrumentClipMinder::setLedStates() {
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
-	bool inAutomationView = ((getCurrentUI() == &automationView) && !automationView.inNoteEditor());
+	bool inAutomationView =
+	    ((getCurrentUI() == &automation_view_for_session()) && !automation_view_for_session().inNoteEditor());
 	if (!inAutomationView) {
 		// only light cross screen led up if you're in the automation view note editor or outside automation view
-		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, clip->wrapEditing);
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, clip->wrap_editing_for_session());
 	}
 
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, clip->isScaleModeClip());
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 #ifdef currentClipStatusButtonX
-	view.drawCurrentClipPad(clip);
+	view_for_session().drawCurrentClipPad(clip);
 #endif
 
-	view.setLedStates();
+	view_for_session().setLedStates();
 	playbackHandler.setLedStates();
 }
 
 void InstrumentClipMinder::focusRegained() {
-	view.focusRegained();
-	view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
+	view_for_session().focusRegained();
+	view_for_session().setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
 	MIDITranspose::exitScaleModeForMIDITransposeClips();
 	if (display->have7SEG()) {
 		redrawNumericDisplay();
@@ -343,22 +344,22 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
-			openUI(&saveMidiDeviceDefinitionUI);
+			openUI(&save_midi_device_definition_ui_for_session());
 		}
 		else if (b == X_ENC) {
 			// New Tracks have not Drum selected -> abort Drum action
 			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire()
-			    && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+			    && (getCurrentKit() == nullptr || getCurrentKit()->selected_drum_for_session() == nullptr)) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
 				return ActionResult::DEALT_WITH;
 			}
 
-			openUI(&savePatternUI);
+			openUI(&save_pattern_ui_for_session());
 		}
 		else if ((b == SYNTH && getCurrentOutputType() == OutputType::SYNTH)
 		         || (b == KIT && getCurrentOutputType() == OutputType::KIT)
 		         || (b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT)) {
-			openUI(&saveInstrumentPresetUI);
+			openUI(&save_instrument_preset_ui_for_session());
 		}
 	}
 
@@ -367,7 +368,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			currentUIMode = UI_MODE_NONE;
 			indicator_leds::setLedState(IndicatorLED::LOAD, false);
-			openUI(&loadMidiDeviceDefinitionUI);
+			openUI(&load_midi_device_definition_ui_for_session());
 		}
 		else if (b == X_ENC) {
 			currentUIMode = UI_MODE_NONE;
@@ -377,23 +378,23 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 			// New Tracks have not Drum selected -> abort Drum action
 			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire()
-			    && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+			    && (getCurrentKit() == nullptr || getCurrentKit()->selected_drum_for_session() == nullptr)) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
 				return ActionResult::DEALT_WITH;
 			}
 
-			openUI(&loadPatternUI);
+			openUI(&load_pattern_ui_for_session());
 			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
 				// Setup for gently pasting notes
-				loadPatternUI.setupLoadPatternUI(false, false);
+				load_pattern_ui_for_session().setupLoadPatternUI(false, false);
 			}
 			else if (Buttons::isButtonPressed(deluge::hid::button::SCALE_MODE)) {
 				// Setup for keeping original Scale on paste
-				loadPatternUI.setupLoadPatternUI(true, true);
+				load_pattern_ui_for_session().setupLoadPatternUI(true, true);
 			}
 			else {
 				// Default Load
-				loadPatternUI.setupLoadPatternUI();
+				load_pattern_ui_for_session().setupLoadPatternUI();
 			}
 		}
 		else if (b == SYNTH || b == KIT || b == MIDI) {
@@ -418,8 +419,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			if (!((oldOutputType != newOutputType)
 			      && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
 			      && (!clip->isEmpty() || !clip->output->isEmpty()))) {
-				loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, clip);
-				openUI(&loadInstrumentPresetUI);
+				load_instrument_preset_ui_for_session().setupLoadInstrument(newOutputType, instrument, clip);
+				openUI(&load_instrument_preset_ui_for_session());
 			}
 		}
 	}
@@ -427,14 +428,15 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
-				soundEditor.setupKitGlobalFXMenu = true;
+			if ((getCurrentOutputType() == OutputType::KIT)
+			    && (getCurrentInstrumentClip()->affect_entire_for_session())) {
+				sound_editor_for_session().setupKitGlobalFXMenu = true;
 			}
 
-			if (!soundEditor.setup(getCurrentClip())) {
+			if (!sound_editor_for_session().setup(getCurrentClip())) {
 				return ActionResult::DEALT_WITH;
 			}
-			openUI(&soundEditor);
+			openUI(&sound_editor_for_session());
 		}
 	}
 
@@ -443,8 +445,9 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (getCurrentOutputType() == OutputType::KIT) {
 
-				getCurrentInstrumentClip()->affectEntire = !getCurrentInstrumentClip()->affectEntire;
-				view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
+				getCurrentInstrumentClip()->affect_entire_for_session() =
+				    !getCurrentInstrumentClip()->affect_entire_for_session();
+				view_for_session().setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
 			}
 		}
 	}
@@ -463,13 +466,15 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 			// If you're in Automation View, only clear automation if you're not in the Note Editor
 			// or also clear Automation when default setting to only clear automation in Automation View is false
-			bool clearAutomation = ((currentUI == &automationView && !automationView.inNoteEditor())
-			                        || (currentUI != &automationView && !FlashStorage::automationClear));
+			bool clearAutomation =
+			    ((currentUI == &automation_view_for_session() && !automation_view_for_session().inNoteEditor())
+			     || (currentUI != &automation_view_for_session() && !FlashStorage::automationClear));
 
 			// If you're in Automation View, only clear Notes and MPE if you're in the Note Editor
 			// Always clear Notes and MPE when you're not in Automation View
 			bool clearSequenceAndMPE =
-			    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
+			    ((currentUI != &automation_view_for_session())
+			     || (currentUI == &automation_view_for_session() && automation_view_for_session().inNoteEditor()));
 
 			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
 
@@ -480,7 +485,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
 			// if you're in automation view but not in the note editor, you're clearing non-MPE automation
-			if (currentUI == &automationView) {
+			if (currentUI == &automation_view_for_session()) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 			}
 			// if you're not in automation view and automationClear default is on, you're only clearing Notes and MPE
@@ -534,7 +539,7 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	bool success = view.changeOutputType(newOutputType, modelStack);
+	bool success = view_for_session().changeOutputType(newOutputType, modelStack);
 
 	if (success) {
 		setLedStates(); // Might need to change the scale LED's state
@@ -558,9 +563,9 @@ void InstrumentClipMinder::calculateDefaultRootNote() {
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	// If we're in Chords mode, don't display the note name because the Chord class will display the chord name
 	InstrumentClip* clip = getCurrentInstrumentClip();
-	if (clip->onKeyboardScreen
-	    && ((clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)
-	        || (clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord))) {
+	if (clip->on_keyboard_screen_for_session()
+	    && ((clip->keyboard_state_for_session().currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)
+	        || (clip->keyboard_state_for_session().currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord))) {
 		return;
 	}
 

@@ -28,7 +28,7 @@ public:
 	using UnpatchedParam::UnpatchedParam;
 	void readCurrentValue() override {
 		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(
-		    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
+		    sound_editor_for_session().currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 	}
 	int32_t getFinalValue() override { return computeFinalValueForHalfPrecisionMenuItem(this->getValue()); }
 };

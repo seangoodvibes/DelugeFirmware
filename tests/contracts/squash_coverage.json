@@ -1,0 +1,6281 @@
+{
+  "squash": "c43f1851570e83bee6d87f74b7b4c3adf74e74a7",
+  "file_count": 475,
+  "areas": {
+    "ui": {
+      "tests": [
+        "tests/unit/ui_session_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "state behavior + source routing; native screen interaction not covered"
+    },
+    "render_input": {
+      "tests": [
+        "tests/mirror/runtime_tests.cpp",
+        "tests/mirror/indicator_tests.cpp",
+        "tests/unit/ui_session_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "runtime mirror/indicators + state behavior + source routing; physical PIC/OLED not covered"
+    },
+    "midi": {
+      "tests": [
+        "tests/unit/mirror_protocol_tests.cpp",
+        "tests/mirror/usb_queue_tests.cpp",
+        "tests/mirror/runtime_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "protocol/runtime + installation contracts; physical USB/DIN not covered"
+    },
+    "scheduler": {
+      "tests": [
+        "tests/unit/scheduler_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "scheduler behavior + ownership routing"
+    },
+    "undo": {
+      "tests": [
+        "tests/undo/consequence_tests.cpp",
+        "tests/unit/ui_session_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "consequence/prefix/state behavior + source contracts; full logger recovery not covered"
+    },
+    "model": {
+      "tests": [
+        "tests/undo/model_tests.cpp",
+        "tests/unit/ui_session_tests.cpp",
+        "tests/unit/favourites_session_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "Song membership/audio preflight methods + state behavior + source contracts; full serialization not covered"
+    },
+    "service": {
+      "tests": [
+        "tests/unit/ui_session_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "source routing + shared state; full playback/storage execution not covered"
+    },
+    "containers": {
+      "tests": [
+        "tests/unit/ui_session_tests.cpp",
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "reserved insertion/retention helpers + source contracts; full allocator not covered"
+    },
+    "localization": {
+      "tests": [
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "source consistency; on-device text layout not covered"
+    },
+    "test_infrastructure": {
+      "tests": [
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "build/CTest registration; not firmware behavior"
+    },
+    "documentation": {
+      "tests": [
+        "tests/contracts/session_contracts.py"
+      ],
+      "level": "audit inventory only; not executable code"
+    }
+  },
+  "files": [
+    {
+      "path": "docs/dev/DelugeMirroring.md",
+      "area": "documentation"
+    },
+    {
+      "path": "src/OSLikeStuff/task_scheduler/task.h",
+      "area": "scheduler",
+      "ownership": [
+        "deluge::gui::ui_session::Scope owner_scope(ui_owner)"
+      ]
+    },
+    {
+      "path": "src/OSLikeStuff/task_scheduler/task_scheduler.cpp",
+      "area": "scheduler",
+      "ownership": [
+        "deluge::gui::ui_session::Scope owner_scope(current_task->ui_owner)"
+      ]
+    },
+    {
+      "path": "src/deluge/deluge.cpp",
+      "area": "service",
+      "accessors": [
+        "arranger_view_for_session",
+        "audio_clip_view_for_session",
+        "audio_recorder_for_session",
+        "automation_view_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "load_song_ui_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "session_view_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "audioClipView",
+        "audioRecorder",
+        "automationView",
+        "instrumentClipView",
+        "keyboardScreen",
+        "lastClipInstanceEnteredStartPos",
+        "loadSongUI",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "sessionView",
+        "view"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope hardware_scope(deluge::gui::ui_session::Id::Local)"
+      ]
+    },
+    {
+      "path": "src/deluge/drivers/pic/pic.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/gui/context_menu/audio_input_selector.cpp",
+      "area": "ui",
+      "accessors": [
+        "audio_input_selector_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "audioInputSelector",
+        "sessionView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<AudioInputSelector>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/audio_input_selector.h",
+      "area": "ui",
+      "accessors": [
+        "audio_input_selector_for_session"
+      ],
+      "forbid_raw": [
+        "audioInputSelector"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clear_song.cpp",
+      "area": "ui",
+      "accessors": [
+        "clear_song_for_session"
+      ],
+      "forbid_raw": [
+        "clearSong"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<ClearSong>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clear_song.h",
+      "area": "ui",
+      "accessors": [
+        "clear_song_for_session"
+      ],
+      "forbid_raw": [
+        "clearSong"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clip_settings/clip_settings.cpp",
+      "area": "ui",
+      "accessors": [
+        "clip_settings_for_session",
+        "launch_style_for_session",
+        "rename_clip_ui_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "clipSettings",
+        "launchStyle",
+        "renameClipUI",
+        "sessionView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<ClipSettingsMenu>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clip_settings/clip_settings.h",
+      "area": "ui",
+      "accessors": [
+        "clip_settings_for_session"
+      ],
+      "forbid_raw": [
+        "clipSettings"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clip_settings/launch_style.cpp",
+      "area": "ui",
+      "accessors": [
+        "launch_style_for_session"
+      ],
+      "forbid_raw": [
+        "launchStyle"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<LaunchStyleMenu>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clip_settings/launch_style.h",
+      "area": "ui",
+      "accessors": [
+        "launch_style_for_session"
+      ],
+      "forbid_raw": [
+        "launchStyle"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clip_settings/new_clip_type.cpp",
+      "area": "ui",
+      "accessors": [
+        "new_clip_type_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "newClipType",
+        "sessionView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<NewClipType>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/clip_settings/new_clip_type.h",
+      "area": "ui",
+      "accessors": [
+        "new_clip_type_for_session"
+      ],
+      "forbid_raw": [
+        "newClipType"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/configure_song_macros.cpp",
+      "area": "ui",
+      "accessors": [
+        "configure_song_macros_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "configureSongMacros",
+        "sessionView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<ConfigureSongMacros>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/configure_song_macros.h",
+      "area": "ui",
+      "accessors": [
+        "configure_song_macros_for_session"
+      ],
+      "forbid_raw": [
+        "configureSongMacros"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/delete_file.cpp",
+      "area": "ui",
+      "accessors": [
+        "delete_file_for_session",
+        "save_song_or_instrument_for_session"
+      ],
+      "forbid_raw": [
+        "deleteFile",
+        "saveSongOrInstrument"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<DeleteFile>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/delete_file.h",
+      "area": "ui",
+      "accessors": [
+        "delete_file_for_session"
+      ],
+      "forbid_raw": [
+        "deleteFile"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/load_instrument_preset.cpp",
+      "area": "ui",
+      "accessors": [
+        "load_instrument_preset_for_session",
+        "load_instrument_preset_ui_for_session"
+      ],
+      "forbid_raw": [
+        "loadInstrumentPreset",
+        "loadInstrumentPresetUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<LoadInstrumentPreset>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/load_instrument_preset.h",
+      "area": "ui",
+      "accessors": [
+        "load_instrument_preset_for_session"
+      ],
+      "forbid_raw": [
+        "loadInstrumentPreset"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/midi_learn_mode.cpp",
+      "area": "ui",
+      "accessors": [
+        "midi_learn_mode_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "midiLearnMode",
+        "sessionView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<MidiLearnMode>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/midi_learn_mode.h",
+      "area": "ui",
+      "accessors": [
+        "midi_learn_mode_for_session"
+      ],
+      "forbid_raw": [
+        "midiLearnMode"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/overwrite_file.cpp",
+      "area": "ui",
+      "accessors": [
+        "overwrite_file_for_session"
+      ],
+      "forbid_raw": [
+        "overwriteFile"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<OverwriteFile>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/overwrite_file.h",
+      "area": "ui",
+      "accessors": [
+        "overwrite_file_for_session"
+      ],
+      "forbid_raw": [
+        "overwriteFile"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/reset_settings.cpp",
+      "area": "ui",
+      "accessors": [
+        "reset_settings_for_session"
+      ],
+      "forbid_raw": [
+        "resetSettings"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<ResetSettings>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/reset_settings.h",
+      "area": "ui",
+      "accessors": [
+        "reset_settings_for_session"
+      ],
+      "forbid_raw": [
+        "resetSettings"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/sample_browser/kit.cpp",
+      "area": "ui",
+      "accessors": [
+        "kit_for_session",
+        "sample_browser_for_session",
+        "slicer_for_session"
+      ],
+      "forbid_raw": [
+        "kit",
+        "sampleBrowser",
+        "slicer"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<Kit>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/sample_browser/kit.h",
+      "area": "ui",
+      "accessors": [
+        "kit_for_session"
+      ],
+      "forbid_raw": [
+        "kit"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/sample_browser/synth.cpp",
+      "area": "ui",
+      "accessors": [
+        "sample_browser_for_session",
+        "sound_editor_for_session",
+        "synth_for_session"
+      ],
+      "forbid_raw": [
+        "sampleBrowser",
+        "soundEditor",
+        "synth"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<Synth>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/sample_browser/synth.h",
+      "area": "ui",
+      "accessors": [
+        "synth_for_session"
+      ],
+      "forbid_raw": [
+        "synth"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/save_song_or_instrument.cpp",
+      "area": "ui",
+      "accessors": [
+        "delete_file_for_session",
+        "entered_text_for_session",
+        "save_song_or_instrument_for_session",
+        "save_song_ui_for_session"
+      ],
+      "forbid_raw": [
+        "deleteFile",
+        "enteredText",
+        "saveSongOrInstrument",
+        "saveSongUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SaveSongOrInstrument>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/save_song_or_instrument.h",
+      "area": "ui",
+      "accessors": [
+        "save_song_or_instrument_for_session"
+      ],
+      "forbid_raw": [
+        "saveSongOrInstrument"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/stem_export/cancel_stem_export.cpp",
+      "area": "ui",
+      "accessors": [
+        "cancel_stem_export_for_session"
+      ],
+      "forbid_raw": [
+        "cancelStemExport"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<CancelStemExport>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/stem_export/cancel_stem_export.h",
+      "area": "ui",
+      "accessors": [
+        "cancel_stem_export_for_session"
+      ],
+      "forbid_raw": [
+        "cancelStemExport"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/stem_export/done_stem_export.cpp",
+      "area": "ui",
+      "accessors": [
+        "done_stem_export_for_session"
+      ],
+      "forbid_raw": [
+        "doneStemExport"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<DoneStemExport>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/context_menu/stem_export/done_stem_export.h",
+      "area": "ui",
+      "accessors": [
+        "done_stem_export_for_session"
+      ],
+      "forbid_raw": [
+        "doneStemExport"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/l10n/english.json",
+      "area": "localization"
+    },
+    {
+      "path": "src/deluge/gui/l10n/g_english.cpp",
+      "area": "localization"
+    },
+    {
+      "path": "src/deluge/gui/l10n/g_seven_segment.cpp",
+      "area": "localization"
+    },
+    {
+      "path": "src/deluge/gui/l10n/seven_segment.json",
+      "area": "localization"
+    },
+    {
+      "path": "src/deluge/gui/l10n/strings.h",
+      "area": "localization"
+    },
+    {
+      "path": "src/deluge/gui/menu_item/active_scales.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_pos_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "currentPos",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/active_scales.h",
+      "area": "ui",
+      "accessors": [
+        "current_pos_for_session"
+      ],
+      "forbid_raw": [
+        "currentPos"
+      ],
+      "ownership": [
+        "ui_session::State<uint8_t>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/arp_unpatched_param.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/chord_type.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/midi_cv/arp_integer.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/midi_cv/gate.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/midi_cv/rate.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/midi_cv/rhythm.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/midi_cv/sequence_length.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/mode.h",
+      "area": "ui",
+      "accessors": [
+        "selected_drum_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "selectedDrum",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/mpe_velocity.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/note_mode.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/note_mode_for_drums.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/octave_mode.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/octaves.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/preset_mode.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "selectedDrum",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/rate.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/rhythm.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/sequence_length.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/step_repeat.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/arpeggiator/sync.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/audio_clip/audio_source_selector.h",
+      "area": "ui",
+      "accessors": [
+        "audio_input_selector_for_session"
+      ],
+      "forbid_raw": [
+        "audioInputSelector"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/audio_clip/reverse.h",
+      "area": "ui",
+      "accessors": [
+        "audio_clip_view_for_session",
+        "main_for_session",
+        "parent_for_session"
+      ],
+      "forbid_raw": [
+        "audioClipView",
+        "main",
+        "parent"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sample_marker_editor_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "sampleMarkerEditor",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h",
+      "area": "ui",
+      "accessors": [
+        "audio_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "audioClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/audio_compressor/compressor_params.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/audio_compressor/compressor_values.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/automation/automation.cpp",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "last_selected_output_type_for_session",
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "last_selected_patch_source_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "lastClipInstanceEnteredStartPos",
+        "lastSelectedOutputType",
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "lastSelectedPatchSource",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/battery/level.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/bend_range/main.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/bend_range/per_finger.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/cv/selection.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/cv/transpose.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/cv/volts.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/decimal.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "parent_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "parent",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/defaults/magnitude.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/delay/amount.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/delay/amount_unpatched.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/delay/analog.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/delay/ping_pong.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/delay/sync.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/browse.cpp",
+      "area": "ui",
+      "accessors": [
+        "dx_browser_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "dxBrowser",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/cartridge.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/engine_select.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/engine_select.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/global_params.cpp",
+      "area": "ui",
+      "accessors": [
+        "op_for_session",
+        "param_for_session"
+      ],
+      "forbid_raw": [
+        "op",
+        "param"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/global_params.h",
+      "area": "ui",
+      "ownership": [
+        "ui_session::State<PanelState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/operator_params.cpp",
+      "area": "ui",
+      "accessors": [
+        "param_for_session"
+      ],
+      "forbid_raw": [
+        "param"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/operator_params.h",
+      "area": "ui",
+      "accessors": [
+        "op_for_session"
+      ],
+      "forbid_raw": [
+        "op"
+      ],
+      "ownership": [
+        "ui_session::State<PanelState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/param.cpp",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session",
+        "keyboard_state_for_session",
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen",
+        "keyboardState",
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/dx/param.h",
+      "area": "ui",
+      "accessors": [
+        "blink_next_for_session",
+        "flash_row_for_session",
+        "param_for_session"
+      ],
+      "forbid_raw": [
+        "blink_next",
+        "flash_row",
+        "param"
+      ],
+      "ownership": [
+        "ui_session::State<PanelState>",
+        "ui_session::State<std::array<char, 25>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/edit_name.cpp",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "rename_clip_ui_for_session",
+        "rename_drum_ui_for_session",
+        "rename_output_ui_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "renameClipUI",
+        "renameDrumUI",
+        "renameOutputUI",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/enumeration.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/envelope/envelope_menu.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ],
+      "ownership": [
+        "ui_session::State<RenderState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/eq/eq_menu.h",
+      "area": "ui",
+      "accessors": [
+        "items_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ],
+      "ownership": [
+        "ui_session::State<RenderState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/file_selector.cpp",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session",
+        "main_for_session",
+        "sample_browser_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen",
+        "main",
+        "sampleBrowser",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/filter/filter_container.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/filter/info.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/filter/mode.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/filter/param.h",
+      "area": "ui",
+      "accessors": [
+        "parent_for_session"
+      ],
+      "forbid_raw": [
+        "parent"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/filter_route.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/firmware/version.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/flash/status.h",
+      "area": "ui",
+      "accessors": [
+        "flash_cursor_for_session"
+      ],
+      "forbid_raw": [
+        "flashCursor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/formatted_title.h",
+      "area": "ui",
+      "ownership": [
+        "ui_session::State<TitleState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/fx/clipping.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/gate/mode.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/gate/selection.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/horizontal_menu.cpp",
+      "area": "ui",
+      "accessors": [
+        "items_for_session",
+        "main_for_session",
+        "parent_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "items",
+        "main",
+        "parent",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/horizontal_menu.h",
+      "area": "ui",
+      "accessors": [
+        "items_for_session"
+      ],
+      "forbid_raw": [
+        "items"
+      ],
+      "ownership": [
+        "ui_session::State<HorizontalState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/horizontal_menu_group.cpp",
+      "area": "ui",
+      "accessors": [
+        "items_for_session",
+        "parent_for_session"
+      ],
+      "forbid_raw": [
+        "parent"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/horizontal_menu_group.h",
+      "area": "ui",
+      "ownership": [
+        "ui_session::State<GroupState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/integer.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/integer_range.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/key_range.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/lfo/sync.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/lfo/type.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/master_transpose.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/menu_item.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/menu_item.h",
+      "area": "ui",
+      "accessors": [
+        "parent_for_session"
+      ],
+      "forbid_raw": [
+        "parent"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<deluge::gui::menu_item::HorizontalMenu*>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/menu_item_with_cc_learning.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/command.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/default_velocity_to_level.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/device.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/device_definition/hide_unlabeled.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/device_definition/linked.h",
+      "area": "ui",
+      "accessors": [
+        "load_midi_device_definition_ui_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "loadMidiDeviceDefinitionUI",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/device_is_relative.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/device_receive_clock.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/device_send_clock.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/device_send_thru.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/devices.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/follow/follow_channel.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/preset.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/sound/channel.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/midi/sound/note_for_drum.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/mod_fx/depth_patched.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/mod_fx/depth_unpatched.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/mod_fx/feedback.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/mod_fx/offset.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/mod_fx/type.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/modulator/destination.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/modulator/transpose.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/multi_range.cpp",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session",
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen",
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note/fill.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note/iterance_divisor.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note/iterance_preset.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note/iterance_step_toggle.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note/probability.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note/selected_note.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note/velocity.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note_row/fill.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note_row/iterance_divisor.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note_row/iterance_preset.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note_row/iterance_step_toggle.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note_row/probability.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/note_row/selected_note_row.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/number.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/osc/audio_recorder.h",
+      "area": "ui",
+      "accessors": [
+        "audio_recorder_for_session",
+        "main_for_session",
+        "parent_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "audioRecorder",
+        "main",
+        "parent",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/osc/pulse_width.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/osc/retrigger_phase.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "parent_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "parent",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/osc/sync.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/osc/type.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "parent_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "parent",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/param.cpp",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session",
+        "keyboard_screen_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "keyboardScreen"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patch_cable_strength.cpp",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session",
+        "keyboard_screen_for_session",
+        "main_for_session",
+        "parent_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "keyboardScreen",
+        "main",
+        "parent",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patch_cable_strength/fixed.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patch_cable_strength/range.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patch_cable_strength/regular.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patch_cables.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ],
+      "ownership": [
+        "ui_session::State<Labels>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patch_cables.h",
+      "area": "ui",
+      "ownership": [
+        "ui_session::State<PanelState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patched_param.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patched_param/integer.cpp",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "soundEditor",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patched_param/integer.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/menu_item/patched_param/pan.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/performance_session_view/editing_mode.h",
+      "area": "ui",
+      "accessors": [
+        "performance_view_for_session"
+      ],
+      "forbid_raw": [
+        "performanceView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/bass_probability.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/chord_polyphony.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/chord_probability.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/glide_probability.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/note_probability.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/randomizer_integer.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/ratchet_amount.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/ratchet_probability.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/spread_gate.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/spread_octave.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/spread_velocity.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/midi_cv/swap_probability.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/randomizer_lock.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/range.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/reset_settings/reset.h",
+      "area": "ui",
+      "accessors": [
+        "reset_settings_for_session"
+      ],
+      "forbid_raw": [
+        "resetSettings"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/reverb/sidechain/volume.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/interpolation.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/loop_point.cpp",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session",
+        "main_for_session",
+        "sample_marker_editor_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen",
+        "main",
+        "sampleMarkerEditor",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/pitch_speed.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/repeat.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "main_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "main",
+        "selectedDrum",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/reverse.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "parent_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "parent",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/time_stretch.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/transpose.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sample/utils.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/selection.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/selection.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sequence/direction.h",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "instrument_clip_view_for_session",
+        "main_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "instrumentClipView",
+        "main",
+        "selectedDrum",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/session_menu_entries.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/menu_item/shared_value_cache.h",
+      "area": "ui",
+      "ownership": [
+        "ui_session::State<CachedValue>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/shortcuts/version.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sidechain/attack.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sidechain/release.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sidechain/send.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sidechain/sync.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sidechain/utils.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/song/configure_macros.h",
+      "area": "ui",
+      "accessors": [
+        "configure_song_macros_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "configureSongMacros",
+        "sessionView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/song/midi_learn.h",
+      "area": "ui",
+      "accessors": [
+        "midi_learn_mode_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "midiLearnMode",
+        "sessionView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/song/mirror.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/menu_item/source_selection.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/source_selection.h",
+      "area": "ui",
+      "accessors": [
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "source"
+      ],
+      "ownership": [
+        "ui_session::State<PatchSource>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/source_selection/range.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/source_selection/regular.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "source_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "source"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/stem_export/start.h",
+      "area": "ui",
+      "accessors": [
+        "arranger_view_for_session",
+        "instrument_clip_view_for_session",
+        "session_view_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "instrumentClipView",
+        "sessionView",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/stutter/direction.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/stutter/quantized.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/stutter/rate.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/submenu.cpp",
+      "area": "ui",
+      "accessors": [
+        "items_for_session",
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "items",
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/submenu.h",
+      "area": "ui",
+      "accessors": [
+        "items_for_session"
+      ],
+      "forbid_raw": [
+        "items"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/submenu/actual_source.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/submenu/arp_mpe_submenu.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/submenu/mod_fx.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/sync_level.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/synth_mode.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/toggle.cpp",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/toggle.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/unison/count.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/unison/detune.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/unison/stereoSpread.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/unpatched_param.cpp",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "soundEditor",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/unpatched_param.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/menu_item/unpatched_param/pan.cpp",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/value.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/menu_item/voice/polyphony.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "main",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/voice/portamento.h",
+      "area": "ui",
+      "accessors": [
+        "main_for_session"
+      ],
+      "forbid_raw": [
+        "main"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/menu_item/voice/priority.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/audio_recorder.cpp",
+      "area": "ui",
+      "accessors": [
+        "audio_recorder_for_session",
+        "instrument_clip_view_for_session",
+        "main_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "audioRecorder",
+        "instrumentClipView",
+        "main",
+        "soundEditor"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<AudioRecorder>",
+        "deluge::gui::ui_session::Scope owner(recording_session.owner())"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/audio_recorder.h",
+      "area": "ui",
+      "accessors": [
+        "audio_recorder_for_session"
+      ],
+      "forbid_raw": [
+        "audioRecorder"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/automation_selection_state.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui/browser/browser.cpp",
+      "area": "ui",
+      "accessors": [
+        "allow_folders_sharing_name_with_file_for_session",
+        "allowed_file_extensions_for_session",
+        "arrived_at_file_by_typing_for_session",
+        "current_dir_for_session",
+        "current_favourite_number_for_session",
+        "delete_file_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "favourite_row_for_session",
+        "file_index_selected_for_session",
+        "file_items_for_session",
+        "filename_to_start_search_at_for_session",
+        "first_file_item_remaining_for_session",
+        "last_file_item_remaining_for_session",
+        "num_chars_in_prefix_for_session",
+        "num_file_items_deleted_at_end_for_session",
+        "num_file_items_deleted_at_start_for_session",
+        "number_edit_pos_for_session",
+        "output_type_to_load_for_session",
+        "qwerty_visible_for_session",
+        "scroll_pos_horizontal_for_session",
+        "scroll_pos_vertical_for_session",
+        "scrolling_text_for_session"
+      ],
+      "forbid_raw": [
+        "allowFoldersSharingNameWithFile",
+        "allowedFileExtensions",
+        "arrivedAtFileByTyping",
+        "currentDir",
+        "currentFavouriteNumber",
+        "deleteFile",
+        "enteredTextEditPos",
+        "enteredText",
+        "favouriteRow",
+        "fileIndexSelected",
+        "fileItems",
+        "filenameToStartSearchAt",
+        "firstFileItemRemaining",
+        "lastFileItemRemaining",
+        "numCharsInPrefix",
+        "numFileItemsDeletedAtEnd",
+        "numFileItemsDeletedAtStart",
+        "numberEditPos",
+        "outputTypeToLoad",
+        "qwertyVisible",
+        "scrollPosHorizontal",
+        "scrollPosVertical",
+        "scrollingText"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<SessionState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/browser/browser.h",
+      "area": "ui",
+      "accessors": [
+        "allow_folders_sharing_name_with_file_for_session",
+        "allowed_file_extensions_for_session",
+        "arrived_at_file_by_typing_for_session",
+        "current_dir_for_session",
+        "file_index_selected_for_session",
+        "file_items_for_session",
+        "filename_to_start_search_at_for_session",
+        "first_file_item_remaining_for_session",
+        "last_file_item_remaining_for_session",
+        "num_chars_in_prefix_for_session",
+        "num_file_items_deleted_at_end_for_session",
+        "num_file_items_deleted_at_start_for_session",
+        "number_edit_pos_for_session",
+        "output_type_to_load_for_session",
+        "qwerty_visible_for_session",
+        "scroll_pos_vertical_for_session",
+        "scrolling_text_for_session"
+      ],
+      "forbid_raw": [
+        "allowFoldersSharingNameWithFile",
+        "allowedFileExtensions",
+        "arrivedAtFileByTyping",
+        "currentDir",
+        "fileIndexSelected",
+        "fileItems",
+        "filenameToStartSearchAt",
+        "firstFileItemRemaining",
+        "lastFileItemRemaining",
+        "numCharsInPrefix",
+        "numFileItemsDeletedAtEnd",
+        "numFileItemsDeletedAtStart",
+        "numberEditPos",
+        "outputTypeToLoad",
+        "qwertyVisible",
+        "scrollPosVertical",
+        "scrollingText"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/browser/dx_browser.cpp",
+      "area": "ui",
+      "accessors": [
+        "allow_folders_sharing_name_with_file_for_session",
+        "allowed_file_extensions_for_session",
+        "current_dir_for_session",
+        "dx_browser_for_session",
+        "file_index_selected_for_session",
+        "output_type_to_load_for_session",
+        "qwerty_visible_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "allowFoldersSharingNameWithFile",
+        "allowedFileExtensions",
+        "currentDir",
+        "dxBrowser",
+        "fileIndexSelected",
+        "outputTypeToLoad",
+        "qwertyVisible",
+        "soundEditor"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<DxSyxBrowser>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/browser/dx_browser.h",
+      "area": "ui",
+      "accessors": [
+        "dx_browser_for_session"
+      ],
+      "forbid_raw": [
+        "dxBrowser"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/browser/sample_browser.cpp",
+      "area": "ui",
+      "accessors": [
+        "allow_folders_sharing_name_with_file_for_session",
+        "allowed_file_extensions_for_session",
+        "audio_clip_view_for_session",
+        "audio_recorder_for_session",
+        "current_dir_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "favourite_row_for_session",
+        "file_index_selected_for_session",
+        "file_items_for_session",
+        "image_for_session",
+        "image_store_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "kit_for_session",
+        "num_chars_in_prefix_for_session",
+        "occupancy_mask_store_for_session",
+        "output_type_to_load_for_session",
+        "qwerty_visible_for_session",
+        "sample_browser_for_session",
+        "slicer_for_session",
+        "sound_editor_for_session",
+        "synth_for_session",
+        "transition_taking_place_on_row_for_session",
+        "view_for_session",
+        "waveform_basic_navigator_for_session",
+        "waveform_renderer_for_session"
+      ],
+      "forbid_raw": [
+        "allowFoldersSharingNameWithFile",
+        "allowedFileExtensions",
+        "audioClipView",
+        "audioRecorder",
+        "currentDir",
+        "enteredTextEditPos",
+        "enteredText",
+        "favouriteRow",
+        "fileIndexSelected",
+        "fileItems",
+        "imageStore",
+        "instrumentClipView",
+        "keyboardScreen",
+        "numCharsInPrefix",
+        "occupancyMaskStore",
+        "outputTypeToLoad",
+        "qwertyVisible",
+        "sampleBrowser",
+        "slicer",
+        "soundEditor",
+        "synth",
+        "transitionTakingPlaceOnRow",
+        "view",
+        "waveformBasicNavigator",
+        "waveformRenderer"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SampleBrowser>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/browser/sample_browser.h",
+      "area": "ui",
+      "accessors": [
+        "sample_browser_for_session"
+      ],
+      "forbid_raw": [
+        "sampleBrowser"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/browser/slot_browser.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "entered_text_for_session",
+        "file_index_selected_for_session",
+        "number_edit_pos_for_session",
+        "qwerty_visible_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "enteredText",
+        "fileIndexSelected",
+        "numberEditPos",
+        "qwertyVisible"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/deferred_session_command.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/column_controls/dx.cpp",
+      "area": "ui",
+      "accessors": [
+        "blink_next_for_session",
+        "flash_row_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "blink_next",
+        "flash_row",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/column_controls/scale_mode.cpp",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/column_controls/session.cpp",
+      "area": "ui",
+      "accessors": [
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/keyboard_screen.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "audio_recorder_for_session",
+        "automation_view_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "keyboard_state_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "rendering_lock_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session",
+        "view_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "audioRecorder",
+        "automationView",
+        "instrumentClipView",
+        "keyboardScreen",
+        "keyboardState",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "renderingLock",
+        "selectedDrum",
+        "soundEditor",
+        "view",
+        "yScroll"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<deluge::gui::ui::keyboard::KeyboardScreen>",
+        "deluge::gui::ui_session::State<Layouts>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/keyboard_screen.h",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/layout.h",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session",
+        "keyboard_state_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen",
+        "keyboardState"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/layout/chord_keyboard.cpp",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/layout/column_controls.cpp",
+      "area": "ui",
+      "accessors": [
+        "keyboard_screen_for_session"
+      ],
+      "forbid_raw": [
+        "keyboardScreen"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/layout/isomorphic.cpp",
+      "area": "ui",
+      "accessors": [
+        "audio_recorder_for_session",
+        "sample_browser_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "audioRecorder",
+        "sampleBrowser",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/keyboard/layout/velocity_drums.cpp",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_instrument_preset_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "allowed_file_extensions_for_session",
+        "current_dir_for_session",
+        "entered_text_for_session",
+        "file_index_selected_for_session",
+        "file_items_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "load_instrument_preset_for_session",
+        "load_instrument_preset_ui_for_session",
+        "num_file_items_deleted_at_end_for_session",
+        "num_file_items_deleted_at_start_for_session",
+        "output_type_to_load_for_session",
+        "qwerty_visible_for_session",
+        "selected_drum_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "allowedFileExtensions",
+        "currentDir",
+        "enteredText",
+        "fileIndexSelected",
+        "fileItems",
+        "instrumentClipView",
+        "keyboardScreen",
+        "loadInstrumentPreset",
+        "loadInstrumentPresetUI",
+        "numFileItemsDeletedAtEnd",
+        "numFileItemsDeletedAtStart",
+        "outputTypeToLoad",
+        "qwertyVisible",
+        "selectedDrum",
+        "view"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<LoadInstrumentPresetUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_instrument_preset_ui.h",
+      "area": "ui",
+      "accessors": [
+        "load_instrument_preset_ui_for_session",
+        "output_type_to_load_for_session"
+      ],
+      "forbid_raw": [
+        "loadInstrumentPresetUI",
+        "outputTypeToLoad"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_midi_device_definition_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "entered_text_for_session",
+        "file_index_selected_for_session",
+        "load_midi_device_definition_ui_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "enteredText",
+        "fileIndexSelected",
+        "loadMidiDeviceDefinitionUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<LoadMidiDeviceDefinitionUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_midi_device_definition_ui.h",
+      "area": "ui",
+      "accessors": [
+        "load_midi_device_definition_ui_for_session"
+      ],
+      "forbid_raw": [
+        "loadMidiDeviceDefinitionUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_pattern_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "entered_text_for_session",
+        "instrument_clip_view_for_session",
+        "load_pattern_ui_for_session",
+        "qwerty_visible_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "enteredText",
+        "instrumentClipView",
+        "loadPatternUI",
+        "qwertyVisible"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<LoadPatternUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_pattern_ui.h",
+      "area": "ui",
+      "accessors": [
+        "load_pattern_ui_for_session"
+      ],
+      "forbid_raw": [
+        "loadPatternUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_song_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "entered_text_for_session",
+        "favourite_row_for_session",
+        "file_index_selected_for_session",
+        "file_items_for_session",
+        "image_for_session",
+        "image_store_for_session",
+        "load_song_ui_for_session",
+        "occupancy_mask_store_for_session",
+        "output_type_to_load_for_session",
+        "qwerty_visible_for_session",
+        "scroll_direction_for_session",
+        "session_view_for_session",
+        "squares_scrolled_for_session",
+        "transition_taking_place_on_row_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "enteredText",
+        "favouriteRow",
+        "fileIndexSelected",
+        "fileItems",
+        "image",
+        "loadSongUI",
+        "occupancyMaskStore",
+        "outputTypeToLoad",
+        "qwertyVisible",
+        "scrollDirection",
+        "sessionView",
+        "squaresScrolled",
+        "transitionTakingPlaceOnRow"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<LoadSongUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/load/load_song_ui.h",
+      "area": "ui",
+      "accessors": [
+        "load_song_ui_for_session"
+      ],
+      "forbid_raw": [
+        "loadSongUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/menus.cpp",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui/qwerty_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_bank_for_session",
+        "current_bank_number_for_session",
+        "current_favourite_for_session",
+        "current_favourite_number_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "favourite_row_for_session",
+        "favourites_layout_selected_for_session",
+        "image_for_session",
+        "prediction_interrupted_for_session",
+        "scroll_pos_horizontal_for_session"
+      ],
+      "forbid_raw": [
+        "currentBank",
+        "currentBankNumber",
+        "currentFavourite",
+        "currentFavouriteNumber",
+        "enteredTextEditPos",
+        "enteredText",
+        "favouriteRow",
+        "favouritesLayoutSelected",
+        "image",
+        "predictionInterrupted",
+        "scrollPosHorizontal"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<SessionState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/qwerty_ui.h",
+      "area": "ui",
+      "accessors": [
+        "current_bank_for_session",
+        "current_favourite_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "favourite_row_for_session",
+        "favourites_layout_selected_for_session",
+        "prediction_interrupted_for_session",
+        "scroll_pos_horizontal_for_session"
+      ],
+      "forbid_raw": [
+        "currentBank",
+        "currentFavourite",
+        "enteredTextEditPos",
+        "enteredText",
+        "favouriteRow",
+        "favouritesLayoutSelected",
+        "predictionInterrupted",
+        "scrollPosHorizontal"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/recording_session.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_clip_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "rename_clip_ui_for_session"
+      ],
+      "forbid_raw": [
+        "renameClipUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<RenameClipUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_clip_ui.h",
+      "area": "ui",
+      "accessors": [
+        "rename_clip_ui_for_session"
+      ],
+      "forbid_raw": [
+        "renameClipUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_drum_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "rename_drum_ui_for_session",
+        "selected_drum_for_session"
+      ],
+      "forbid_raw": [
+        "renameDrumUI",
+        "selectedDrum"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<RenameDrumUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_drum_ui.h",
+      "area": "ui",
+      "accessors": [
+        "rename_drum_ui_for_session"
+      ],
+      "forbid_raw": [
+        "renameDrumUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_midi_cc_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "last_selected_param_id_for_session",
+        "rename_midi_cc_ui_for_session"
+      ],
+      "forbid_raw": [
+        "lastSelectedParamID",
+        "renameMidiCCUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<RenameMidiCCUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_midi_cc_ui.h",
+      "area": "ui",
+      "accessors": [
+        "rename_midi_cc_ui_for_session"
+      ],
+      "forbid_raw": [
+        "renameMidiCCUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_output_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "rename_output_ui_for_session"
+      ],
+      "forbid_raw": [
+        "renameOutputUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<RenameOutputUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_output_ui.h",
+      "area": "ui",
+      "accessors": [
+        "rename_output_ui_for_session"
+      ],
+      "forbid_raw": [
+        "renameOutputUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/rename/rename_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "entered_text_for_session"
+      ],
+      "forbid_raw": [
+        "enteredText"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/root_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/sample_marker_editor.cpp",
+      "area": "ui",
+      "accessors": [
+        "flash_cursor_for_session",
+        "image_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "sample_marker_editor_for_session",
+        "sound_editor_for_session",
+        "waveform_basic_navigator_for_session",
+        "waveform_renderer_for_session"
+      ],
+      "forbid_raw": [
+        "flashCursor",
+        "instrumentClipView",
+        "keyboardScreen",
+        "sampleMarkerEditor",
+        "soundEditor",
+        "waveformBasicNavigator",
+        "waveformRenderer"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SampleMarkerEditor>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/sample_marker_editor.h",
+      "area": "ui",
+      "accessors": [
+        "sample_marker_editor_for_session"
+      ],
+      "forbid_raw": [
+        "sampleMarkerEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_instrument_preset_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "current_folder_is_empty_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "output_type_to_load_for_session",
+        "overwrite_file_for_session",
+        "save_instrument_preset_ui_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "currentFolderIsEmpty",
+        "enteredTextEditPos",
+        "enteredText",
+        "outputTypeToLoad",
+        "overwriteFile",
+        "saveInstrumentPresetUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SaveInstrumentPresetUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_instrument_preset_ui.h",
+      "area": "ui",
+      "accessors": [
+        "save_instrument_preset_ui_for_session"
+      ],
+      "forbid_raw": [
+        "saveInstrumentPresetUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_kit_row_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "current_folder_is_empty_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "output_type_to_load_for_session",
+        "overwrite_file_for_session",
+        "save_kit_row_ui_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "currentFolderIsEmpty",
+        "enteredTextEditPos",
+        "enteredText",
+        "outputTypeToLoad",
+        "overwriteFile",
+        "saveKitRowUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SaveKitRowUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_kit_row_ui.h",
+      "area": "ui",
+      "accessors": [
+        "output_type_to_load_for_session",
+        "save_kit_row_ui_for_session"
+      ],
+      "forbid_raw": [
+        "outputTypeToLoad",
+        "saveKitRowUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_midi_device_definition_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "current_folder_is_empty_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "overwrite_file_for_session",
+        "save_midi_device_definition_ui_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "currentFolderIsEmpty",
+        "enteredTextEditPos",
+        "enteredText",
+        "overwriteFile",
+        "saveMidiDeviceDefinitionUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SaveMidiDeviceDefinitionUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_midi_device_definition_ui.h",
+      "area": "ui",
+      "accessors": [
+        "save_midi_device_definition_ui_for_session"
+      ],
+      "forbid_raw": [
+        "saveMidiDeviceDefinitionUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_pattern_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "current_folder_is_empty_for_session",
+        "entered_text_for_session",
+        "instrument_clip_view_for_session",
+        "output_type_to_load_for_session",
+        "overwrite_file_for_session",
+        "save_pattern_ui_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "currentFolderIsEmpty",
+        "enteredText",
+        "instrumentClipView",
+        "outputTypeToLoad",
+        "overwriteFile",
+        "savePatternUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SavePatternUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_pattern_ui.h",
+      "area": "ui",
+      "accessors": [
+        "save_pattern_ui_for_session"
+      ],
+      "forbid_raw": [
+        "savePatternUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_song_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_dir_for_session",
+        "current_folder_is_empty_for_session",
+        "entered_text_edit_pos_for_session",
+        "entered_text_for_session",
+        "image_for_session",
+        "image_store_for_session",
+        "output_type_to_load_for_session",
+        "overwrite_file_for_session",
+        "save_song_ui_for_session"
+      ],
+      "forbid_raw": [
+        "currentDir",
+        "currentFolderIsEmpty",
+        "enteredTextEditPos",
+        "enteredText",
+        "image",
+        "imageStore",
+        "outputTypeToLoad",
+        "overwriteFile",
+        "saveSongUI"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SaveSongUI>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_song_ui.h",
+      "area": "ui",
+      "accessors": [
+        "save_song_ui_for_session"
+      ],
+      "forbid_raw": [
+        "saveSongUI"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "current_folder_is_empty_for_session",
+        "entered_text_for_session",
+        "save_song_or_instrument_for_session"
+      ],
+      "forbid_raw": [
+        "currentFolderIsEmpty",
+        "enteredText",
+        "saveSongOrInstrument"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<bool>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/save/save_ui.h",
+      "area": "ui",
+      "accessors": [
+        "current_folder_is_empty_for_session"
+      ],
+      "forbid_raw": [
+        "currentFolderIsEmpty"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/shared_model_refresh.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui/slicer.cpp",
+      "area": "ui",
+      "accessors": [
+        "image_for_session",
+        "instrument_clip_view_for_session",
+        "sample_browser_for_session",
+        "slicer_for_session",
+        "sound_editor_for_session",
+        "waveform_basic_navigator_for_session",
+        "waveform_renderer_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "sampleBrowser",
+        "slicer",
+        "soundEditor",
+        "waveformBasicNavigator",
+        "waveformRenderer"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<Slicer>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/slicer.h",
+      "area": "ui",
+      "accessors": [
+        "slicer_for_session"
+      ],
+      "forbid_raw": [
+        "slicer"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/sound_editor.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "arranger_view_for_session",
+        "audio_recorder_for_session",
+        "automation_view_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "on_automation_clip_view_for_session",
+        "performance_view_for_session",
+        "rename_drum_ui_for_session",
+        "sample_browser_for_session",
+        "sample_marker_editor_for_session",
+        "save_instrument_preset_ui_for_session",
+        "selected_drum_for_session",
+        "session_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangerView",
+        "audioRecorder",
+        "automationView",
+        "instrumentClipView",
+        "keyboardScreen",
+        "lastClipInstanceEnteredStartPos",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "onAutomationClipView",
+        "performanceView",
+        "renameDrumUI",
+        "sampleBrowser",
+        "sampleMarkerEditor",
+        "saveInstrumentPresetUI",
+        "sessionView",
+        "soundEditor",
+        "view"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SoundEditor>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/sound_editor.h",
+      "area": "ui",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/ui.cpp",
+      "area": "ui",
+      "accessors": [
+        "arranger_view_for_session",
+        "image_for_session",
+        "main_for_session",
+        "occupancy_mask_for_session",
+        "session_view_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "image",
+        "main",
+        "occupancyMask",
+        "sessionView",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/ui.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui/ui_navigation_state.h",
+      "area": "ui",
+      "ownership": [
+        "request_peer_structural_refresh()"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui/ui_session.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui_timer_manager.cpp",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "session_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "instrumentClipView",
+        "keyboardScreen",
+        "sessionView",
+        "soundEditor",
+        "view"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope scope(owner)"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/ui_timer_manager.h",
+      "area": "ui"
+    },
+    {
+      "path": "src/deluge/gui/ui_timer_state.h",
+      "area": "ui",
+      "ownership": [
+        "deluge::gui::ui_session::State<Bank>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/arranger_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "arrangement_y_scroll_for_session",
+        "arranger_auto_scroll_mode_active_for_session",
+        "arranger_view_for_session",
+        "audio_clip_view_for_session",
+        "audio_input_selector_for_session",
+        "automation_view_for_session",
+        "cancel_stem_export_for_session",
+        "current_dir_for_session",
+        "explode_animation_direction_for_session",
+        "explode_animation_target_ui_for_session",
+        "explode_animation_x_start_big_for_session",
+        "explode_animation_x_width_big_for_session",
+        "explode_animation_y_origin_big_for_session",
+        "flash_cursor_for_session",
+        "image_for_session",
+        "image_store_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "load_instrument_preset_ui_for_session",
+        "occupancy_mask_for_session",
+        "occupancy_mask_store_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "performance_view_for_session",
+        "rename_output_ui_for_session",
+        "rendering_lock_for_session",
+        "selected_drum_for_session",
+        "session_layout_for_session",
+        "session_view_for_session",
+        "song_view_y_scroll_for_session",
+        "sound_editor_for_session",
+        "transition_taking_place_on_row_for_session",
+        "view_for_session",
+        "waveform_renderer_for_session",
+        "x_scroll_for_return_to_song_view_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_return_to_song_view_for_session",
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangementYScroll",
+        "arrangerAutoScrollModeActive",
+        "arrangerView",
+        "audioClipView",
+        "audioInputSelector",
+        "automationView",
+        "cancelStemExport",
+        "currentDir",
+        "explodeAnimationDirection",
+        "explodeAnimationTargetUI",
+        "explodeAnimationXStartBig",
+        "explodeAnimationXWidthBig",
+        "explodeAnimationYOriginBig",
+        "flashCursor",
+        "imageStore",
+        "instrumentClipView",
+        "keyboardScreen",
+        "lastClipInstanceEnteredStartPos",
+        "loadInstrumentPresetUI",
+        "occupancyMaskStore",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "performanceView",
+        "renameOutputUI",
+        "renderingLock",
+        "selectedDrum",
+        "sessionLayout",
+        "sessionView",
+        "songViewYScroll",
+        "soundEditor",
+        "transitionTakingPlaceOnRow",
+        "view",
+        "waveformRenderer",
+        "xScrollForReturnToSongView",
+        "xScroll",
+        "xZoomForReturnToSongView",
+        "xZoom"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<ArrangerView>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/arranger_view.h",
+      "area": "ui",
+      "accessors": [
+        "arranger_view_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/audio_clip_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "audio_clip_view_for_session",
+        "automation_view_for_session",
+        "flash_cursor_for_session",
+        "image_for_session",
+        "on_automation_clip_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session",
+        "waveform_renderer_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "audioClipView",
+        "automationView",
+        "flashCursor",
+        "onAutomationClipView",
+        "soundEditor",
+        "view",
+        "waveformRenderer",
+        "xScroll",
+        "xZoom"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<AudioClipView>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/audio_clip_view.h",
+      "area": "ui",
+      "accessors": [
+        "audio_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "audioClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/automation/editor_layout.h",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/automation/editor_layout/mod_controllable.cpp",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_patch_source_for_session",
+        "triplets_on_for_session",
+        "view_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedPatchSource",
+        "tripletsOn",
+        "view",
+        "xScroll",
+        "xZoom"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/automation/editor_layout/note.cpp",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "triplets_on_for_session",
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "tripletsOn",
+        "xZoom"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/automation/editor_layout/note/velocity.cpp",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/automation_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "arranger_auto_scroll_mode_active_for_session",
+        "arranger_view_for_session",
+        "audio_clip_view_for_session",
+        "automation_view_for_session",
+        "image_store_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "last_selected_output_type_for_session",
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "last_selected_patch_source_for_session",
+        "main_for_session",
+        "occupancy_mask_store_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "performance_view_for_session",
+        "rename_midi_cc_ui_for_session",
+        "rendering_lock_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session",
+        "view_for_session",
+        "wrap_edit_level_for_session",
+        "wrap_editing_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangerAutoScrollModeActive",
+        "arrangerView",
+        "audioClipView",
+        "automationView",
+        "imageStore",
+        "instrumentClipView",
+        "keyboardScreen",
+        "lastSelectedOutputType",
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "lastSelectedPatchSource",
+        "main",
+        "occupancyMaskStore",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "performanceView",
+        "renameMidiCCUI",
+        "renderingLock",
+        "selectedDrum",
+        "soundEditor",
+        "view",
+        "wrapEditLevel",
+        "wrapEditing",
+        "xScroll",
+        "xZoom",
+        "yScroll"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<AutomationView>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/automation_view.h",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/clip_navigation_timeline_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "rendering_lock_for_session",
+        "x_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "renderingLock",
+        "xScroll"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/clip_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "automation_view_for_session",
+        "triplets_level_for_session",
+        "view_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "tripletsLevel",
+        "view",
+        "xScroll",
+        "xZoom"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/instrument_clip_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "animated_row_going_from_for_session",
+        "animated_row_going_to_for_session",
+        "audio_recorder_for_session",
+        "automation_view_for_session",
+        "cancel_stem_export_for_session",
+        "flash_cursor_for_session",
+        "image_store_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "load_instrument_preset_ui_for_session",
+        "num_animated_rows_for_session",
+        "occupancy_mask_store_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "output_type_to_load_for_session",
+        "rename_drum_ui_for_session",
+        "rendering_lock_for_session",
+        "sample_browser_for_session",
+        "sample_marker_editor_for_session",
+        "save_kit_row_ui_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session",
+        "triplets_on_for_session",
+        "view_for_session",
+        "wrap_edit_level_for_session",
+        "wrap_editing_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "animatedRowGoingFrom",
+        "animatedRowGoingTo",
+        "audioRecorder",
+        "automationView",
+        "cancelStemExport",
+        "flashCursor",
+        "imageStore",
+        "instrumentClipView",
+        "keyboardScreen",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "loadInstrumentPresetUI",
+        "numAnimatedRows",
+        "occupancyMaskStore",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "outputTypeToLoad",
+        "renameDrumUI",
+        "renderingLock",
+        "sampleBrowser",
+        "sampleMarkerEditor",
+        "saveKitRowUI",
+        "selectedDrum",
+        "soundEditor",
+        "tripletsOn",
+        "view",
+        "wrapEditLevel",
+        "wrapEditing",
+        "xScroll",
+        "xZoom",
+        "yScroll"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<InstrumentClipView>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/instrument_clip_view.h",
+      "area": "ui",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/performance_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "arranger_view_for_session",
+        "automation_view_for_session",
+        "image_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "main_for_session",
+        "performance_view_for_session",
+        "rendering_lock_for_session",
+        "session_layout_for_session",
+        "session_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session",
+        "x_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangerView",
+        "automationView",
+        "lastClipInstanceEnteredStartPos",
+        "main",
+        "performanceView",
+        "renderingLock",
+        "sessionLayout",
+        "sessionView",
+        "soundEditor",
+        "view",
+        "xScroll"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<PerformanceView>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/performance_view.h",
+      "area": "ui",
+      "accessors": [
+        "performance_view_for_session"
+      ],
+      "forbid_raw": [
+        "performanceView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/session_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "animated_row_going_from_for_session",
+        "animated_row_going_to_for_session",
+        "arrangement_y_scroll_for_session",
+        "arranger_view_for_session",
+        "audio_clip_view_for_session",
+        "audio_input_selector_for_session",
+        "automation_view_for_session",
+        "cancel_stem_export_for_session",
+        "clip_settings_for_session",
+        "current_dir_for_session",
+        "explode_animation_direction_for_session",
+        "explode_animation_target_ui_for_session",
+        "explode_animation_x_start_big_for_session",
+        "explode_animation_x_width_big_for_session",
+        "explode_animation_y_origin_big_for_session",
+        "image_for_session",
+        "image_store_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "load_instrument_preset_ui_for_session",
+        "load_song_ui_for_session",
+        "main_for_session",
+        "midi_learn_mode_for_session",
+        "new_clip_type_for_session",
+        "num_animated_rows_for_session",
+        "occupancy_mask_for_session",
+        "occupancy_mask_store_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "performance_view_for_session",
+        "rendering_lock_for_session",
+        "session_layout_for_session",
+        "session_view_for_session",
+        "song_grid_scroll_x_for_session",
+        "song_grid_scroll_y_for_session",
+        "song_view_y_scroll_for_session",
+        "sound_editor_for_session",
+        "transition_taking_place_on_row_for_session",
+        "view_for_session",
+        "waveform_renderer_for_session",
+        "x_scroll_for_return_to_song_view_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_return_to_song_view_for_session",
+        "x_zoom_for_session",
+        "y_scroll_for_session",
+        "zoom_pin_square_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "animatedRowGoingFrom",
+        "animatedRowGoingTo",
+        "arrangementYScroll",
+        "arrangerView",
+        "audioClipView",
+        "audioInputSelector",
+        "automationView",
+        "cancelStemExport",
+        "clipSettings",
+        "currentDir",
+        "explodeAnimationDirection",
+        "explodeAnimationTargetUI",
+        "explodeAnimationXStartBig",
+        "explodeAnimationXWidthBig",
+        "explodeAnimationYOriginBig",
+        "imageStore",
+        "instrumentClipView",
+        "keyboardScreen",
+        "lastClipInstanceEnteredStartPos",
+        "loadInstrumentPresetUI",
+        "loadSongUI",
+        "main",
+        "midiLearnMode",
+        "newClipType",
+        "numAnimatedRows",
+        "occupancyMaskStore",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "performanceView",
+        "renderingLock",
+        "sessionLayout",
+        "sessionView",
+        "songGridScrollX",
+        "songGridScrollY",
+        "songViewYScroll",
+        "soundEditor",
+        "transitionTakingPlaceOnRow",
+        "view",
+        "waveformRenderer",
+        "xScrollForReturnToSongView",
+        "xScroll",
+        "xZoomForReturnToSongView",
+        "xZoom",
+        "yScroll",
+        "zoomPinSquare"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<SessionView>",
+        "deluge::gui::ui_session::State<int>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/session_view.h",
+      "area": "ui",
+      "accessors": [
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "sessionView"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/timeline_view.cpp",
+      "area": "ui",
+      "accessors": [
+        "image_for_session",
+        "image_store_for_session",
+        "load_pattern_ui_for_session",
+        "occupancy_mask_store_for_session",
+        "sound_editor_for_session",
+        "transition_taking_place_on_row_for_session",
+        "triplets_level_for_session",
+        "triplets_on_for_session",
+        "view_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session",
+        "zoom_magnitude_for_session",
+        "zoom_pin_square_for_session",
+        "zooming_in_for_session"
+      ],
+      "forbid_raw": [
+        "image",
+        "imageStore",
+        "loadPatternUI",
+        "occupancyMaskStore",
+        "soundEditor",
+        "transitionTakingPlaceOnRow",
+        "tripletsLevel",
+        "tripletsOn",
+        "view",
+        "xScroll",
+        "xZoom",
+        "zoomMagnitude",
+        "zoomPinSquare",
+        "zoomingIn"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/view.cpp",
+      "area": "ui",
+      "accessors": [
+        "affect_entire_for_session",
+        "arranger_view_for_session",
+        "automation_view_for_session",
+        "clear_song_for_session",
+        "clip_settings_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "load_instrument_preset_ui_for_session",
+        "load_song_ui_for_session",
+        "main_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "performance_view_for_session",
+        "rendering_lock_for_session",
+        "save_song_ui_for_session",
+        "selected_drum_for_session",
+        "session_layout_for_session",
+        "session_view_for_session",
+        "sound_editor_for_session",
+        "time_mod_encoder_last_turned_for_session",
+        "view_for_session",
+        "wrap_editing_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangerView",
+        "automationView",
+        "clearSong",
+        "clipSettings",
+        "instrumentClipView",
+        "keyboardScreen",
+        "loadInstrumentPresetUI",
+        "loadSongUI",
+        "main",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "performanceView",
+        "renderingLock",
+        "saveSongUI",
+        "selectedDrum",
+        "sessionLayout",
+        "sessionView",
+        "soundEditor",
+        "timeModEncoderLastTurned",
+        "view",
+        "wrapEditing"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<View>",
+        "deluge::gui::ui_session::State<PopupState>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/views/view.h",
+      "area": "ui",
+      "accessors": [
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/waveform/waveform_basic_navigator.cpp",
+      "area": "ui",
+      "accessors": [
+        "image_for_session",
+        "image_store_for_session",
+        "transition_taking_place_on_row_for_session",
+        "waveform_basic_navigator_for_session",
+        "waveform_renderer_for_session",
+        "zoom_magnitude_for_session",
+        "zoom_pin_square_for_session",
+        "zooming_in_for_session"
+      ],
+      "forbid_raw": [
+        "image",
+        "imageStore",
+        "transitionTakingPlaceOnRow",
+        "waveformBasicNavigator",
+        "waveformRenderer",
+        "zoomMagnitude",
+        "zoomPinSquare",
+        "zoomingIn"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<WaveformBasicNavigator>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/waveform/waveform_basic_navigator.h",
+      "area": "ui",
+      "accessors": [
+        "waveform_basic_navigator_for_session"
+      ],
+      "forbid_raw": [
+        "waveformBasicNavigator"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/waveform/waveform_renderer.cpp",
+      "area": "ui",
+      "accessors": [
+        "waveform_renderer_for_session"
+      ],
+      "forbid_raw": [
+        "waveformRenderer"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::RemoteInstance<WaveformRenderer>"
+      ]
+    },
+    {
+      "path": "src/deluge/gui/waveform/waveform_renderer.h",
+      "area": "ui",
+      "accessors": [
+        "waveform_renderer_for_session"
+      ],
+      "forbid_raw": [
+        "waveformRenderer"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/buttons.cpp",
+      "area": "render_input",
+      "accessors": [
+        "arranger_view_for_session",
+        "audio_recorder_for_session",
+        "load_song_ui_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "audioRecorder",
+        "loadSongUI",
+        "sessionView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<State>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/buttons.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/display/numeric_layer/numeric_layer_basic_text.cpp",
+      "area": "render_input",
+      "accessors": [
+        "blink_state_for_session"
+      ],
+      "forbid_raw": [
+        "blinkState"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/display/oled.cpp",
+      "area": "render_input",
+      "accessors": [
+        "console_for_session",
+        "main_for_session",
+        "needs_sending_for_session",
+        "oled_current_image_for_session",
+        "popup_for_session"
+      ],
+      "forbid_raw": [
+        "console",
+        "main",
+        "needsSending",
+        "oledCurrentImage",
+        "popup"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope hardware(deluge::gui::ui_session::Id::Local)",
+        "deluge::gui::ui_session::State<OLEDFrameState>",
+        "deluge::gui::ui_session::State<PanelState>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/display/oled.h",
+      "area": "render_input",
+      "accessors": [
+        "console_for_session",
+        "main_for_session",
+        "needs_sending_for_session",
+        "oled_current_image_for_session",
+        "popup_for_session"
+      ],
+      "forbid_raw": [
+        "console",
+        "main",
+        "needsSending",
+        "oledCurrentImage",
+        "popup"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/display/oled_frame_state.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/display/seven_segment.cpp",
+      "area": "render_input",
+      "ownership": [
+        "gui::ui_session::Scope hardware(gui::ui_session::Id::Local)",
+        "gui::ui_session::Scope scope(owner)"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/display/seven_segment.h",
+      "area": "render_input",
+      "ownership": [
+        "gui::ui_session::State<PanelState>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/display/seven_segment_frame.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/encoder_acceleration.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/encoder_input.cpp",
+      "area": "render_input",
+      "accessors": [
+        "automation_view_for_session",
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "instrumentClipView"
+      ],
+      "ownership": [
+        "gui::ui_session::Scope hardware(gui::ui_session::Id::Local)",
+        "gui::ui_session::State<EncoderInputBank>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/encoder_input.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/encoder_input_bank.h",
+      "area": "render_input",
+      "accessors": [
+        "reset_speed_for_session"
+      ],
+      "forbid_raw": [
+        "resetSpeed"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/encoder_input_state.h",
+      "area": "render_input",
+      "accessors": [
+        "time_mod_encoder_last_turned_for_session"
+      ],
+      "forbid_raw": [
+        "timeModEncoderLastTurned"
+      ],
+      "ownership": [
+        "gui::ui_session::State<InputState>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/encoders.cpp",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/encoders.h",
+      "area": "render_input",
+      "accessors": [
+        "reset_speed_for_session"
+      ],
+      "forbid_raw": [
+        "resetSpeed"
+      ],
+      "ownership": [
+        "gui::ui_session::State<EncoderAcceleration>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/hid_sysex.cpp",
+      "area": "render_input",
+      "ownership": [
+        "deluge::gui::ui_session::Scope hardware(deluge::gui::ui_session::Id::Local)"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/led/indicator_leds.cpp",
+      "area": "render_input",
+      "accessors": [
+        "blink_state_for_session",
+        "frame_for_session"
+      ],
+      "forbid_raw": [
+        "blinkState"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<IndicatorState>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/led/indicator_leds.h",
+      "area": "render_input",
+      "accessors": [
+        "blink_state_for_session",
+        "frame_for_session"
+      ],
+      "forbid_raw": [
+        "blinkState",
+        "frame"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/led/indicator_leds_state.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/led/pad_leds.cpp",
+      "area": "render_input",
+      "accessors": [
+        "animated_row_going_from_for_session",
+        "animated_row_going_to_for_session",
+        "area_to_scroll_for_session",
+        "arranger_view_for_session",
+        "audio_clip_colour_for_session",
+        "audio_clip_view_for_session",
+        "automation_view_for_session",
+        "clip_length_for_session",
+        "clip_mute_square_colour_for_session",
+        "clip_section_square_colour_for_session",
+        "explode_animation_direction_for_session",
+        "explode_animation_target_ui_for_session",
+        "explode_animation_x_start_big_for_session",
+        "explode_animation_x_width_big_for_session",
+        "explode_animation_y_origin_big_for_session",
+        "flash_cursor_for_session",
+        "grey_proportion_for_session",
+        "greyout_change_direction_for_session",
+        "greyout_change_start_time_for_session",
+        "greyout_cols_for_session",
+        "greyout_rows_for_session",
+        "image_for_session",
+        "image_store_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "morph_keyboard_sidebar_for_session",
+        "need_to_send_out_main_pad_colours_for_session",
+        "need_to_send_out_sidebar_colours_for_session",
+        "num_animated_rows_for_session",
+        "occupancy_mask_for_session",
+        "occupancy_mask_store_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "rendering_lock_for_session",
+        "sample_max_peak_from_zero_for_session",
+        "sample_reversed_for_session",
+        "sample_value_centre_point_for_session",
+        "sample_value_span_for_session",
+        "scroll_direction_for_session",
+        "scrolling_into_nothing_for_session",
+        "scrolling_to_nothing_for_session",
+        "session_view_for_session",
+        "slow_flash_colours_for_session",
+        "slow_flash_squares_for_session",
+        "squares_scrolled_for_session",
+        "transition_length_for_session",
+        "transition_start_time_for_session",
+        "transition_taking_place_on_row_for_session",
+        "view_for_session",
+        "waveform_render_data_for_session",
+        "waveform_renderer_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session",
+        "zoom_magnitude_for_session",
+        "zoom_pin_square_for_session",
+        "zooming_in_for_session"
+      ],
+      "forbid_raw": [
+        "animatedRowGoingFrom",
+        "animatedRowGoingTo",
+        "areaToScroll",
+        "arrangerView",
+        "audioClipColour",
+        "audioClipView",
+        "automationView",
+        "clipLength",
+        "clipMuteSquareColour",
+        "clipSectionSquareColour",
+        "explodeAnimationDirection",
+        "explodeAnimationTargetUI",
+        "explodeAnimationXStartBig",
+        "explodeAnimationXWidthBig",
+        "explodeAnimationYOriginBig",
+        "flashCursor",
+        "greyProportion",
+        "greyoutChangeDirection",
+        "greyoutChangeStartTime",
+        "greyoutCols",
+        "greyoutRows",
+        "image",
+        "imageStore",
+        "instrumentClipView",
+        "keyboardScreen",
+        "morphKeyboardSidebar",
+        "needToSendOutMainPadColours",
+        "needToSendOutSidebarColours",
+        "numAnimatedRows",
+        "occupancyMask",
+        "occupancyMaskStore",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "renderingLock",
+        "sampleMaxPeakFromZero",
+        "sampleReversed",
+        "sampleValueCentrePoint",
+        "sampleValueSpan",
+        "scrollDirection",
+        "scrollingIntoNothing",
+        "scrollingToNothing",
+        "sessionView",
+        "slowFlashColours",
+        "slowFlashSquares",
+        "squaresScrolled",
+        "transitionLength",
+        "transitionStartTime",
+        "transitionTakingPlaceOnRow",
+        "view",
+        "waveformRenderData",
+        "waveformRenderer",
+        "xScroll",
+        "xZoom",
+        "zoomMagnitude",
+        "zoomPinSquare",
+        "zoomingIn"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<PadState>",
+        "gui::ui_session::Scope hardware(gui::ui_session::Id::Local)"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/led/pad_leds.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/led/pad_leds_state.h",
+      "area": "render_input",
+      "accessors": [
+        "animated_row_going_from_for_session",
+        "animated_row_going_to_for_session",
+        "area_to_scroll_for_session",
+        "audio_clip_colour_for_session",
+        "clip_length_for_session",
+        "clip_mute_square_colour_for_session",
+        "clip_section_square_colour_for_session",
+        "explode_animation_direction_for_session",
+        "explode_animation_target_ui_for_session",
+        "explode_animation_x_start_big_for_session",
+        "explode_animation_x_width_big_for_session",
+        "explode_animation_y_origin_big_for_session",
+        "flash_cursor_for_session",
+        "frame_for_session",
+        "grey_proportion_for_session",
+        "greyout_change_direction_for_session",
+        "greyout_change_start_time_for_session",
+        "greyout_cols_for_session",
+        "greyout_rows_for_session",
+        "image_for_session",
+        "image_store_for_session",
+        "morph_keyboard_sidebar_for_session",
+        "need_to_send_out_main_pad_colours_for_session",
+        "need_to_send_out_sidebar_colours_for_session",
+        "num_animated_rows_for_session",
+        "occupancy_mask_for_session",
+        "occupancy_mask_store_for_session",
+        "rendering_lock_for_session",
+        "sample_max_peak_from_zero_for_session",
+        "sample_reversed_for_session",
+        "sample_value_centre_point_for_session",
+        "sample_value_span_for_session",
+        "scroll_direction_for_session",
+        "scrolling_into_nothing_for_session",
+        "scrolling_to_nothing_for_session",
+        "slow_flash_colours_for_session",
+        "slow_flash_squares_for_session",
+        "squares_scrolled_for_session",
+        "transition_length_for_session",
+        "transition_start_time_for_session",
+        "transition_taking_place_on_row_for_session",
+        "waveform_render_data_for_session",
+        "zoom_magnitude_for_session",
+        "zoom_pin_square_for_session",
+        "zooming_in_for_session"
+      ],
+      "forbid_raw": [
+        "areaToScroll",
+        "audioClipColour",
+        "clipLength",
+        "clipMuteSquareColour",
+        "clipSectionSquareColour",
+        "explodeAnimationDirection",
+        "explodeAnimationTargetUI",
+        "explodeAnimationXStartBig",
+        "explodeAnimationXWidthBig",
+        "explodeAnimationYOriginBig",
+        "flashCursor",
+        "frame",
+        "greyProportion",
+        "greyoutChangeDirection",
+        "greyoutChangeStartTime",
+        "greyoutCols",
+        "greyoutRows",
+        "morphKeyboardSidebar",
+        "needToSendOutMainPadColours",
+        "needToSendOutSidebarColours",
+        "numAnimatedRows",
+        "renderingLock",
+        "sampleMaxPeakFromZero",
+        "sampleReversed",
+        "sampleValueCentrePoint",
+        "sampleValueSpan",
+        "scrollDirection",
+        "scrollingIntoNothing",
+        "scrollingToNothing",
+        "squaresScrolled",
+        "transitionLength",
+        "transitionStartTime",
+        "waveformRenderData",
+        "zoomMagnitude",
+        "zoomingIn"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/matrix/matrix_driver.cpp",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/matrix/matrix_driver.h",
+      "area": "render_input",
+      "ownership": [
+        "deluge::gui::ui_session::State<State>"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/mirror.cpp",
+      "area": "render_input",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope owner(input_owner())",
+        "owner == input_owner()",
+        "return !remote && allow"
+      ]
+    },
+    {
+      "path": "src/deluge/hid/mirror.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/hid/mirror_midi_filter.h",
+      "area": "render_input",
+      "ownership": [
+        "allow_usb_packet("
+      ]
+    },
+    {
+      "path": "src/deluge/hid/mirror_protocol.h",
+      "area": "render_input"
+    },
+    {
+      "path": "src/deluge/io/midi/midi_device.cpp",
+      "area": "midi",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/io/midi/midi_device_manager.cpp",
+      "area": "midi",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ],
+      "ownership": [
+        "allow_usb_packet("
+      ]
+    },
+    {
+      "path": "src/deluge/io/midi/midi_engine.cpp",
+      "area": "midi"
+    },
+    {
+      "path": "src/deluge/io/midi/midi_follow.cpp",
+      "area": "midi",
+      "accessors": [
+        "affect_entire_for_session",
+        "arranger_view_for_session",
+        "automation_view_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "performance_view_for_session",
+        "session_view_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangerView",
+        "automationView",
+        "lastClipInstanceEnteredStartPos",
+        "performanceView",
+        "sessionView",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/io/midi/midi_transpose.cpp",
+      "area": "midi",
+      "accessors": [
+        "arranger_view_for_session",
+        "instrument_clip_view_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "instrumentClipView",
+        "sessionView"
+      ]
+    },
+    {
+      "path": "src/deluge/io/midi/sysex.cpp",
+      "area": "midi",
+      "accessors": [
+        "image_for_session"
+      ],
+      "forbid_raw": [
+        "image"
+      ]
+    },
+    {
+      "path": "src/deluge/model/action/action.cpp",
+      "area": "undo",
+      "accessors": [
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "yScroll"
+      ]
+    },
+    {
+      "path": "src/deluge/model/action/action.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/action/action_clip_state.cpp",
+      "area": "undo",
+      "accessors": [
+        "affect_entire_for_session",
+        "selected_drum_for_session",
+        "wrap_edit_level_for_session",
+        "wrap_editing_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "selectedDrum",
+        "wrapEditLevel",
+        "wrapEditing",
+        "yScroll"
+      ]
+    },
+    {
+      "path": "src/deluge/model/action/action_clip_state.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/action/action_logger.cpp",
+      "area": "undo",
+      "accessors": [
+        "affect_entire_for_session",
+        "arrangement_y_scroll_for_session",
+        "arranger_view_for_session",
+        "audio_clip_view_for_session",
+        "automation_view_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "load_pattern_ui_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "selected_drum_for_session",
+        "session_view_for_session",
+        "song_view_y_scroll_for_session",
+        "sound_editor_for_session",
+        "triplets_level_for_session",
+        "triplets_on_for_session",
+        "view_for_session",
+        "wrap_edit_level_for_session",
+        "wrap_editing_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangementYScroll",
+        "arrangerView",
+        "audioClipView",
+        "automationView",
+        "instrumentClipView",
+        "keyboardScreen",
+        "loadPatternUI",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "selectedDrum",
+        "sessionView",
+        "songViewYScroll",
+        "soundEditor",
+        "tripletsLevel",
+        "tripletsOn",
+        "wrapEditLevel",
+        "wrapEditing",
+        "xScroll",
+        "xZoom",
+        "yScroll"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope snapshot_owner(newAction->navigation_owner)",
+        "request_peer_structural_refresh()"
+      ]
+    },
+    {
+      "path": "src/deluge/model/action/action_logger.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/action/reversible_prefix.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/action/reversible_shift.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/action/reversion_guard.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/action/session_history.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/clip/audio_clip.cpp",
+      "area": "model",
+      "accessors": [
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "on_automation_clip_view_for_session",
+        "waveform_renderer_for_session"
+      ],
+      "forbid_raw": [
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "onAutomationClipView",
+        "waveformRenderer"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/audio_clip.h",
+      "area": "model",
+      "accessors": [
+        "audio_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "audioClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/clip.cpp",
+      "area": "model",
+      "accessors": [
+        "last_selected_output_type_for_session",
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "last_selected_patch_source_for_session",
+        "on_automation_clip_view_for_session",
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "lastSelectedOutputType",
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "lastSelectedPatchSource",
+        "onAutomationClipView",
+        "xZoom"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope panel(owner)"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/clip.h",
+      "area": "model",
+      "accessors": [
+        "last_selected_output_type_for_session",
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "last_selected_patch_source_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session"
+      ],
+      "forbid_raw": [
+        "lastSelectedOutputType",
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "lastSelectedPatchSource",
+        "onAutomationClipView",
+        "onKeyboardScreen"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<ClipViewState>"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/clip_instance.cpp",
+      "area": "model"
+    },
+    {
+      "path": "src/deluge/model/clip/clip_minder.cpp",
+      "area": "model",
+      "accessors": [
+        "arranger_view_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "session_view_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "lastClipInstanceEnteredStartPos",
+        "sessionView"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/clip_view_state.h",
+      "area": "model",
+      "ownership": [
+        "deluge::gui::ui_session::State<ClipViewState>"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/instrument_clip.cpp",
+      "area": "model",
+      "accessors": [
+        "affect_entire_for_session",
+        "arranger_view_for_session",
+        "current_dir_for_session",
+        "keyboard_state_for_session",
+        "last_selected_output_type_for_session",
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "last_selected_patch_source_for_session",
+        "load_instrument_preset_ui_for_session",
+        "on_automation_clip_view_for_session",
+        "on_keyboard_screen_for_session",
+        "selected_drum_for_session",
+        "session_view_for_session",
+        "triplets_on_for_session",
+        "wrap_edit_level_for_session",
+        "wrap_editing_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangerView",
+        "currentDir",
+        "keyboardState",
+        "lastSelectedOutputType",
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "lastSelectedPatchSource",
+        "loadInstrumentPresetUI",
+        "onAutomationClipView",
+        "onKeyboardScreen",
+        "sessionView",
+        "tripletsOn",
+        "wrapEditLevel",
+        "wrapEditing",
+        "yScroll"
+      ],
+      "ownership": [
+        "PeerStructuralChange structural_change",
+        "deluge::gui::ui_session::Scope panel(owner)"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/instrument_clip.h",
+      "area": "model",
+      "accessors": [
+        "affect_entire_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_state_for_session",
+        "wrap_edit_level_for_session",
+        "wrap_editing_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "instrumentClipView",
+        "keyboardState",
+        "wrapEditLevel",
+        "wrapEditing",
+        "yScroll"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<deluge::gui::ui::keyboard::KeyboardState>"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/instrument_clip_minder.cpp",
+      "area": "model",
+      "accessors": [
+        "affect_entire_for_session",
+        "automation_view_for_session",
+        "current_dir_for_session",
+        "keyboard_state_for_session",
+        "load_instrument_preset_ui_for_session",
+        "load_midi_device_definition_ui_for_session",
+        "load_pattern_ui_for_session",
+        "on_keyboard_screen_for_session",
+        "save_instrument_preset_ui_for_session",
+        "save_midi_device_definition_ui_for_session",
+        "save_pattern_ui_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session",
+        "view_for_session",
+        "wrap_editing_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "automationView",
+        "currentDir",
+        "keyboardState",
+        "loadInstrumentPresetUI",
+        "loadMidiDeviceDefinitionUI",
+        "loadPatternUI",
+        "onKeyboardScreen",
+        "saveInstrumentPresetUI",
+        "saveMidiDeviceDefinitionUI",
+        "savePatternUI",
+        "selectedDrum",
+        "soundEditor",
+        "view",
+        "wrapEditing",
+        "yScroll"
+      ]
+    },
+    {
+      "path": "src/deluge/model/clip/sample_shift.h",
+      "area": "model"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_begin_linear_record.cpp",
+      "area": "undo",
+      "ownership": [
+        "deluge::gui::ui_session::Scope panel_owner(owner)"
+      ]
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_existence.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_existence.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_horizontal_shift.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_horizontal_shift.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_instance_change.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_instance_existence.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_length.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_clip_length.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_note_array_change.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_note_array_change.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_note_row_horizontal_shift.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_note_row_horizontal_shift.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_note_row_length.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_note_row_length.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_note_row_mute.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_output_existence.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_param_change.cpp",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_param_change.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_performance_view_press.cpp",
+      "area": "undo",
+      "accessors": [
+        "performance_view_for_session"
+      ],
+      "forbid_raw": [
+        "performanceView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope panel_owner(owner)"
+      ]
+    },
+    {
+      "path": "src/deluge/model/consequence/consequence_performance_view_press.h",
+      "area": "undo"
+    },
+    {
+      "path": "src/deluge/model/drum/non_audio_drum.cpp",
+      "area": "model",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/model/favourite/favourite_manager.cpp",
+      "area": "model"
+    },
+    {
+      "path": "src/deluge/model/favourite/favourite_manager.h",
+      "area": "model",
+      "accessors": [
+        "current_bank_number_for_session",
+        "current_favourite_number_for_session"
+      ],
+      "forbid_raw": [
+        "currentBankNumber",
+        "currentFavouriteNumber"
+      ]
+    },
+    {
+      "path": "src/deluge/model/favourite/favourites_session_state.h",
+      "area": "model",
+      "ownership": [
+        "deluge::gui::ui_session::State<Selection>"
+      ]
+    },
+    {
+      "path": "src/deluge/model/global_effectable/global_effectable.cpp",
+      "area": "model",
+      "accessors": [
+        "performance_view_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "performanceView",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/model/global_effectable/global_effectable_for_clip.cpp",
+      "area": "model",
+      "accessors": [
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/model/instrument/kit.cpp",
+      "area": "model",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "selected_drum_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "selectedDrum",
+        "soundEditor"
+      ],
+      "ownership": [
+        "request_peer_structural_refresh()"
+      ]
+    },
+    {
+      "path": "src/deluge/model/instrument/kit.h",
+      "area": "model",
+      "accessors": [
+        "selected_drum_for_session"
+      ],
+      "forbid_raw": [
+        "selectedDrum"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::State<Drum*>"
+      ]
+    },
+    {
+      "path": "src/deluge/model/instrument/melodic_instrument.cpp",
+      "area": "model",
+      "accessors": [
+        "automation_view_for_session",
+        "instrument_clip_view_for_session",
+        "keyboard_screen_for_session",
+        "keyboard_state_for_session",
+        "last_selected_param_id_for_session",
+        "on_keyboard_screen_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "instrumentClipView",
+        "keyboardScreen",
+        "keyboardState",
+        "lastSelectedParamID",
+        "onKeyboardScreen",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/model/mod_controllable/mod_controllable_audio.cpp",
+      "area": "model",
+      "accessors": [
+        "automation_view_for_session",
+        "performance_view_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "performanceView",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/model/note/note_row.cpp",
+      "area": "model",
+      "accessors": [
+        "instrument_clip_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session",
+        "wrap_editing_for_session",
+        "x_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView",
+        "soundEditor",
+        "view",
+        "wrapEditing",
+        "xScroll"
+      ]
+    },
+    {
+      "path": "src/deluge/model/note/note_row_vector.cpp",
+      "area": "model",
+      "ownership": [
+        "PeerStructuralChange structural_change"
+      ]
+    },
+    {
+      "path": "src/deluge/model/output.cpp",
+      "area": "model",
+      "accessors": [
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "xZoom"
+      ]
+    },
+    {
+      "path": "src/deluge/model/sample/sample_holder.cpp",
+      "area": "model",
+      "accessors": [
+        "sample_browser_for_session"
+      ],
+      "forbid_raw": [
+        "sampleBrowser"
+      ]
+    },
+    {
+      "path": "src/deluge/model/sample/sample_recorder.cpp",
+      "area": "model",
+      "accessors": [
+        "sample_browser_for_session"
+      ],
+      "forbid_raw": [
+        "sampleBrowser"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local)"
+      ]
+    },
+    {
+      "path": "src/deluge/model/song/song.cpp",
+      "area": "model",
+      "accessors": [
+        "affect_entire_for_session",
+        "arrangement_y_scroll_for_session",
+        "arranger_auto_scroll_mode_active_for_session",
+        "arranger_view_for_session",
+        "current_dir_for_session",
+        "image_store_for_session",
+        "instrument_clip_view_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "load_instrument_preset_ui_for_session",
+        "load_song_ui_for_session",
+        "main_for_session",
+        "session_layout_for_session",
+        "session_view_for_session",
+        "song_grid_scroll_x_for_session",
+        "song_grid_scroll_y_for_session",
+        "song_view_y_scroll_for_session",
+        "triplets_level_for_session",
+        "triplets_on_for_session",
+        "view_for_session",
+        "x_scroll_for_return_to_song_view_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_return_to_song_view_for_session",
+        "x_zoom_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangementYScroll",
+        "arrangerAutoScrollModeActive",
+        "arrangerView",
+        "currentDir",
+        "imageStore",
+        "instrumentClipView",
+        "lastClipInstanceEnteredStartPos",
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "loadInstrumentPresetUI",
+        "loadSongUI",
+        "main",
+        "sessionLayout",
+        "sessionView",
+        "songGridScrollX",
+        "songGridScrollY",
+        "songViewYScroll",
+        "tripletsLevel",
+        "tripletsOn",
+        "view",
+        "xScrollForReturnToSongView",
+        "xScroll",
+        "xZoomForReturnToSongView",
+        "xZoom",
+        "yScroll"
+      ],
+      "ownership": [
+        "request_peer_structural_refresh()"
+      ]
+    },
+    {
+      "path": "src/deluge/model/song/song.h",
+      "area": "model",
+      "accessors": [
+        "affect_entire_for_session",
+        "arrangement_y_scroll_for_session",
+        "arranger_auto_scroll_mode_active_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "last_selected_param_array_position_for_session",
+        "last_selected_param_id_for_session",
+        "last_selected_param_kind_for_session",
+        "last_selected_param_shortcut_x_for_session",
+        "last_selected_param_shortcut_y_for_session",
+        "session_layout_for_session",
+        "song_grid_scroll_x_for_session",
+        "song_grid_scroll_y_for_session",
+        "song_view_y_scroll_for_session",
+        "triplets_level_for_session",
+        "triplets_on_for_session",
+        "x_scroll_for_return_to_song_view_for_session",
+        "x_scroll_for_session",
+        "x_zoom_for_return_to_song_view_for_session",
+        "x_zoom_for_session"
+      ],
+      "forbid_raw": [
+        "affectEntire",
+        "arrangementYScroll",
+        "arrangerAutoScrollModeActive",
+        "lastClipInstanceEnteredStartPos",
+        "lastSelectedParamArrayPosition",
+        "lastSelectedParamID",
+        "lastSelectedParamKind",
+        "lastSelectedParamShortcutX",
+        "lastSelectedParamShortcutY",
+        "sessionLayout",
+        "songGridScrollX",
+        "songGridScrollY",
+        "songViewYScroll",
+        "tripletsLevel",
+        "tripletsOn",
+        "xScrollForReturnToSongView",
+        "xScroll",
+        "xZoomForReturnToSongView",
+        "xZoom"
+      ],
+      "ownership": [
+        "request_peer_structural_refresh()"
+      ]
+    },
+    {
+      "path": "src/deluge/model/song/song_clip_selection.h",
+      "area": "model",
+      "ownership": [
+        "deluge::gui::ui_session::State<Panel>"
+      ]
+    },
+    {
+      "path": "src/deluge/model/song/song_navigation_state.h",
+      "area": "model",
+      "ownership": [
+        "deluge::gui::ui_session::State<SongNavigationState>"
+      ]
+    },
+    {
+      "path": "src/deluge/modulation/automation/auto_param.cpp",
+      "area": "service",
+      "accessors": [
+        "automation_view_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/modulation/automation/parameter_revision.h",
+      "area": "service"
+    },
+    {
+      "path": "src/deluge/modulation/params/param_manager.cpp",
+      "area": "service",
+      "accessors": [
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/playback/mode/arrangement.cpp",
+      "area": "service",
+      "accessors": [
+        "arranger_view_for_session",
+        "audio_recorder_for_session",
+        "session_view_for_session",
+        "view_for_session",
+        "x_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "audioRecorder",
+        "sessionView",
+        "view",
+        "xScroll"
+      ]
+    },
+    {
+      "path": "src/deluge/playback/mode/session.cpp",
+      "area": "service",
+      "accessors": [
+        "arranger_view_for_session",
+        "audio_recorder_for_session",
+        "automation_view_for_session",
+        "instrument_clip_view_for_session",
+        "load_song_ui_for_session",
+        "on_automation_clip_view_for_session",
+        "performance_view_for_session",
+        "session_layout_for_session",
+        "session_view_for_session",
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerView",
+        "audioRecorder",
+        "automationView",
+        "instrumentClipView",
+        "loadSongUI",
+        "onAutomationClipView",
+        "performanceView",
+        "sessionLayout",
+        "sessionView",
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/playback/playback_handler.cpp",
+      "area": "service",
+      "accessors": [
+        "arranger_auto_scroll_mode_active_for_session",
+        "arranger_view_for_session",
+        "audio_recorder_for_session",
+        "automation_view_for_session",
+        "last_clip_instance_entered_start_pos_for_session",
+        "load_song_ui_for_session",
+        "main_for_session",
+        "performance_view_for_session",
+        "session_view_for_session",
+        "sound_editor_for_session",
+        "view_for_session",
+        "x_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "arrangerAutoScrollModeActive",
+        "arrangerView",
+        "audioRecorder",
+        "automationView",
+        "lastClipInstanceEnteredStartPos",
+        "loadSongUI",
+        "main",
+        "performanceView",
+        "sessionView",
+        "soundEditor",
+        "view",
+        "xScroll"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local)"
+      ]
+    },
+    {
+      "path": "src/deluge/playback/playback_handler.h",
+      "area": "service"
+    },
+    {
+      "path": "src/deluge/processing/engines/audio_engine.cpp",
+      "area": "service",
+      "accessors": [
+        "audio_recorder_for_session",
+        "kit_for_session",
+        "load_song_ui_for_session",
+        "sample_browser_for_session",
+        "slicer_for_session",
+        "synth_for_session"
+      ],
+      "forbid_raw": [
+        "audioRecorder",
+        "kit",
+        "loadSongUI",
+        "sampleBrowser",
+        "slicer",
+        "synth"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local)"
+      ]
+    },
+    {
+      "path": "src/deluge/processing/sound/sound.cpp",
+      "area": "service",
+      "accessors": [
+        "view_for_session"
+      ],
+      "forbid_raw": [
+        "view"
+      ]
+    },
+    {
+      "path": "src/deluge/processing/sound/sound_drum.cpp",
+      "area": "service",
+      "accessors": [
+        "automation_view_for_session",
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "automationView",
+        "instrumentClipView"
+      ]
+    },
+    {
+      "path": "src/deluge/processing/source.cpp",
+      "area": "service",
+      "accessors": [
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/processing/stem_export/stem_export.cpp",
+      "area": "service",
+      "accessors": [
+        "arrangement_y_scroll_for_session",
+        "arranger_view_for_session",
+        "audio_recorder_for_session",
+        "done_stem_export_for_session",
+        "session_layout_for_session",
+        "session_view_for_session",
+        "song_view_y_scroll_for_session",
+        "x_scroll_for_session",
+        "y_scroll_for_session"
+      ],
+      "forbid_raw": [
+        "arrangementYScroll",
+        "arrangerView",
+        "audioRecorder",
+        "doneStemExport",
+        "sessionLayout",
+        "sessionView",
+        "songViewYScroll",
+        "xScroll",
+        "yScroll"
+      ]
+    },
+    {
+      "path": "src/deluge/storage/audio/audio_file_manager.cpp",
+      "area": "service"
+    },
+    {
+      "path": "src/deluge/storage/flash_storage.cpp",
+      "area": "service",
+      "accessors": [
+        "flash_cursor_for_session",
+        "sound_editor_for_session"
+      ],
+      "forbid_raw": [
+        "flashCursor",
+        "soundEditor"
+      ]
+    },
+    {
+      "path": "src/deluge/storage/storage_manager.cpp",
+      "area": "service",
+      "accessors": [
+        "instrument_clip_view_for_session"
+      ],
+      "forbid_raw": [
+        "instrumentClipView"
+      ],
+      "ownership": [
+        "deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local)"
+      ]
+    },
+    {
+      "path": "src/deluge/util/container/array/ordered_resizeable_array.cpp",
+      "area": "containers"
+    },
+    {
+      "path": "src/deluge/util/container/array/reserved_ring_insert.h",
+      "area": "containers"
+    },
+    {
+      "path": "src/deluge/util/container/array/resizeable_array.cpp",
+      "area": "containers"
+    },
+    {
+      "path": "src/deluge/util/container/array/resizeable_array.h",
+      "area": "containers"
+    },
+    {
+      "path": "src/deluge/util/container/retained_list.h",
+      "area": "containers"
+    },
+    {
+      "path": "src/deluge/util/functions.cpp",
+      "area": "service",
+      "accessors": [
+        "prediction_interrupted_for_session"
+      ],
+      "forbid_raw": [
+        "predictionInterrupted"
+      ]
+    },
+    {
+      "path": "tests/32bit_unit_tests/mocks/mock_defines.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/CMakeLists.txt",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/README.md",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/consequence_tests.cpp",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/model/clip/audio_clip.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/model/clip/clip.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/model/clip/instrument_clip.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/model/model_stack.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/model/note/note_row.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/model/note/note_vector.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/model/song/song.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/playback/playback_handler.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/undo/mocks/undo_model.h",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/unit/CMakeLists.txt",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/unit/favourites_session_tests.cpp",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/unit/mirror_protocol_tests.cpp",
+      "area": "test_infrastructure",
+      "ownership": [
+        "allow_usb_packet("
+      ]
+    },
+    {
+      "path": "tests/unit/scheduler_tests.cpp",
+      "area": "test_infrastructure"
+    },
+    {
+      "path": "tests/unit/ui_session_tests.cpp",
+      "area": "test_infrastructure",
+      "ownership": [
+        "PeerStructuralChange change",
+        "request_peer_structural_refresh()"
+      ]
+    }
+  ]
+}

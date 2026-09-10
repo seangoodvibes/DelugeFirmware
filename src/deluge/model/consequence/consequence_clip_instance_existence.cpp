@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance.h"
 #include "model/instrument/instrument.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 #include "util/misc.h"
 
 ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance,
@@ -32,23 +34,59 @@ ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOu
 }
 
 Error ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || !modelStack->song->owns_output_for_undo(output)) {
+		return Error::BUG;
+	}
 
 	if (time == util::to_underlying(type)) { // (Re-)delete
 		int32_t i = output->clipInstances.search(pos, GREATER_OR_EQUAL);
 		if (i < 0 || i >= output->clipInstances.getNumElements()) {
 			return Error::BUG;
 		}
+		auto* instance = output->clipInstances.getElement(i);
+		if (!instance || instance->pos != pos || instance->clip != clip) {
+			return Error::BUG;
+		}
 		output->clipInstances.deleteAtIndex(i);
 	}
 
 	else { // (Re-)create
-		int32_t i = output->clipInstances.insertAtKey(pos);
-		ClipInstance* clipInstance = output->clipInstances.getElement(i);
-		if (!clipInstance) {
+		// Copy retained metadata before reservation can service callbacks.
+		Song* const song = modelStack->song;
+		Output* const targetOutput = output;
+		Clip* const targetClip = clip;
+		const int32_t targetPos = pos, targetLength = length;
+		if (song != currentSong || !song->can_reference_clip_from_output(targetClip, targetOutput))
+			return Error::BUG;
+		auto* existing =
+		    targetOutput->clipInstances.getElement(targetOutput->clipInstances.search(targetPos, GREATER_OR_EQUAL));
+		if (existing && existing->pos == targetPos)
+			return Error::BUG;
+
+		using namespace deluge::gui::ui_session;
+		const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+		const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+		bool reserved = targetOutput->clipInstances.ensureEnoughSpaceAllocated(1);
+		if (currentSong != song || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+		    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision
+		    || !song->can_reference_clip_from_output(targetClip, targetOutput))
+			return Error::BUG;
+		if (!reserved)
 			return Error::INSUFFICIENT_RAM;
-		}
-		clipInstance->length = length;
-		clipInstance->clip = clip;
+
+		// Search again after reservation. Commit cannot allocate, even for wrapped
+		// storage, so nothing can yield between this validation and initialization.
+		int32_t i = targetOutput->clipInstances.search(targetPos, GREATER_OR_EQUAL);
+		existing = targetOutput->clipInstances.getElement(i);
+		if (existing && existing->pos == targetPos)
+			return Error::BUG;
+		Error error = targetOutput->clipInstances.insert_at_index_without_allocation(i);
+		if (error != Error::NONE)
+			return error;
+		ClipInstance* clipInstance = targetOutput->clipInstances.getElement(i);
+		clipInstance->pos = targetPos;
+		clipInstance->length = targetLength;
+		clipInstance->clip = targetClip;
 	}
 
 	return Error::NONE;

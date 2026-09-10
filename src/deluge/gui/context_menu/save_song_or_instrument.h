@@ -34,5 +34,5 @@ public:
 	char const* getTitle() override;
 };
 
-extern SaveSongOrInstrument saveSongOrInstrument;
+SaveSongOrInstrument& save_song_or_instrument_for_session();
 } // namespace deluge::gui::context_menu

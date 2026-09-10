@@ -25,7 +25,13 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
-RenameClipUI renameClipUI{"Clip Name"};
+namespace {
+RenameClipUI local_rename_clip_ui{"Clip Name"};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<RenameClipUI> remote_rename_clip_ui;
+} // namespace
+RenameClipUI& rename_clip_ui_for_session() {
+	return remote_rename_clip_ui.get(local_rename_clip_ui, "Clip Name");
+}
 
 std::string_view RenameClipUI::getCurrentName() const {
 	return clip->name.get();

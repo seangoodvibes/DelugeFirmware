@@ -37,6 +37,7 @@ public:
 	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true);
 	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded);
 	Error insertAtIndex(int32_t i, int32_t numToInsert = 1, void* thingNotToStealFrom = nullptr);
+	Error insert_at_index_without_allocation(int32_t i, int32_t numToInsert = 1);
 	void swapElements(int32_t i1, int32_t i2);
 	void repositionElement(int32_t iFrom, int32_t iTo);
 	Error beenCloned();
@@ -80,7 +81,8 @@ private:
 	                            void* thingNotToStealFrom);
 	void copyToNewMemory(void* newMemory, uint32_t destinationIndex, void* source, uint32_t numElementsToCopy,
 	                     uint32_t newMemorySize, uint32_t newMemoryStartIndex);
-	Error copyElementsFromOldMemory(void* otherMemory, int32_t otherMemorySize, int32_t otherMemoryStart);
+	Error copyElementsFromOldMemory(void* otherMemory, int32_t otherMemorySize, int32_t otherMemoryStart,
+	                                const ResizeableArray* source = nullptr);
 
 	void moveElementsRightNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 	void moveElementsLeftNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);

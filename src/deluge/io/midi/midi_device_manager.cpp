@@ -1,3 +1,4 @@
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 /*
  * Copyright © 2015-2023 Synthstrom Audible Limited
  *
@@ -15,16 +16,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "io/midi/midi_device_manager.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "hid/mirror.h"
+#include "hid/mirror_midi_filter.h"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
@@ -550,7 +553,7 @@ void readDevicesFromFile() {
 
 	recountSmallestMPEZones();
 
-	soundEditor.mpeZonesPotentiallyUpdated();
+	sound_editor_for_session().mpeZonesPotentiallyUpdated();
 
 	successfullyReadDevicesFromFile = true;
 }
@@ -672,6 +675,9 @@ checkDevice:
 } // namespace MIDIDeviceManager
 
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
+	if (!deluge::hid::mirror::allow_usb_packet(deluge::hid::mirror::is_host_client_connection(cable[0]), fullMessage)) {
+		return;
+	}
 	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
 	if (queued > 16) {
 		if (!anyUSBSendingStillHappening[0]) {
@@ -679,7 +685,7 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 		}
 		queued = ringBufWriteIdx - ringBufReadIdx;
 	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
+	if (queued >= MIDI_SEND_BUFFER_LEN_RING) {
 		// TODO: show some error message
 		return;
 	}
@@ -706,9 +712,24 @@ int ConnectedUSBMIDIDevice::sendBufferSpace() {
 // This tries to read data from the ring buffer, and
 // moves data into the smaller "dataSendingNow" buffer where
 // it is ready to be used by the hardware driver.
+void ConnectedUSBMIDIDevice::discard_queued_non_sys_ex() {
+	CriticalSectionGuard guard;
+	uint32_t retained = ringBufReadIdx;
+	const uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	for (uint32_t offset = 0; offset < queued; ++offset) {
+		uint32_t packet = sendDataRingBuf[(ringBufReadIdx + offset) & MIDI_SEND_RING_MASK];
+		if (deluge::hid::mirror::allow_usb_packet(true, packet)) {
+			sendDataRingBuf[retained & MIDI_SEND_RING_MASK] = packet;
+			++retained;
+		}
+	}
+	ringBufWriteIdx = retained;
+}
+
 bool ConnectedUSBMIDIDevice::consumeSendData() {
 	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
 	if (queued == 0) {
+		numBytesSendingNow = 0;
 		return false;
 	}
 
@@ -724,17 +745,24 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
 	}
 
-	int32_t to_send = std::min(queued, max_size);
-	for (i = 0; i < to_send; i++) {
-		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
-		ringBufReadIdx++;
+	// Filter again here: the host may have accepted a mirror request after
+	// ordinary MIDI entered the ring. Never modify an in-flight USB transfer.
+	const bool sysex_only = deluge::hid::mirror::is_host_client_connection(cable[0]);
+	uint32_t consumed = 0;
+	for (i = 0; consumed < queued && i < max_size; ++consumed) {
+		uint32_t packet = sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK];
+		++ringBufReadIdx;
+		if (!deluge::hid::mirror::allow_usb_packet(sysex_only, packet))
+			continue;
+		memcpy(dataSendingNow + (i * 4), &packet, 4);
+		++i;
 	}
-
-	numBytesSendingNow = to_send * 4;
-	return true;
+	numBytesSendingNow = i * 4;
+	return i != 0;
 }
 
 void ConnectedUSBMIDIDevice::setup() {
+	++connection_generation;
 	numBytesSendingNow = 0;
 	currentlyWaitingToReceive = false;
 	numBytesReceived = 0;
@@ -743,6 +771,7 @@ void ConnectedUSBMIDIDevice::setup() {
 	maxPortConnected = 0;
 }
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
+	connection_generation = 0;
 	currentlyWaitingToReceive = 0;
 	sq = 0;
 	canHaveMIDISent = 0;

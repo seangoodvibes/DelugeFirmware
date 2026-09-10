@@ -9,10 +9,11 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStackWithParam(void* memory
 
 // Might return a ModelStack with NULL autoParam - check for that!
 ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool allowCreation) {
-	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
+	ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(memory);
 	// Reject missing model stacks, missing managers, and non-SOUND layouts before accessing the patch-cable collection.
 	if (!modelStack || !modelStack->paramManager
-	    || !modelStack->paramManager->matches_type(soundEditor.currentModControllable->required_param_manager_type())) {
+	    || !modelStack->paramManager->matches_type(
+	        sound_editor_for_session().currentModControllable->required_param_manager_type())) {
 		return nullptr;
 	}
 	ParamCollectionSummary* paramSetSummary = modelStack->paramManager->getPatchCableSetSummary();

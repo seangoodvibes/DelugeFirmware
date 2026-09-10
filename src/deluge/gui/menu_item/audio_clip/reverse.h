@@ -60,14 +60,14 @@ public:
 				clip->resumePlayback(modelStack, true);
 			}
 
-			uiNeedsRendering(&audioClipView, 0xFFFFFFFF, 0);
+			uiNeedsRendering(&audio_clip_view_for_session(), 0xFFFFFFFF, 0);
 		}
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const bool reversed = getValue();
-		OLED::main.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width,
-		                            slot.start_y + kHorizontalMenuSlotYOffset, reversed);
+		OLED::main_for_session().drawIconCentered(OLED::directionIcon, slot.start_x, slot.width,
+		                                          slot.start_y + kHorizontalMenuSlotYOffset, reversed);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
@@ -77,7 +77,8 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		if (parent_for_session() != nullptr
+		    && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
 			// reverse direction
 			offset *= -1;
 		}

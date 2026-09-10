@@ -44,8 +44,8 @@ int32_t Pan::getFinalValue() {
 }
 
 void Pan::readCurrentValue() {
-	this->setValue(
-	    computeCurrentValueForPan(soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
+	this->setValue(computeCurrentValueForPan(
+	    sound_editor_for_session().currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 }
 
 } // namespace deluge::gui::menu_item::unpatched_param

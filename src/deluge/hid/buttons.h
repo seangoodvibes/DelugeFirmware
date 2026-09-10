@@ -44,7 +44,18 @@ void clearShiftSticky();
  */
 bool shiftHasChanged();
 
-extern bool recordButtonPressUsedUp;
-extern bool considerCrossScreenReleaseForCrossScreenMode;
-extern bool selectButtonPressUsedUp;
+struct State {
+	bool recordButtonPressUsedUp = false;
+	bool considerCrossScreenReleaseForCrossScreenMode = false;
+	bool selectButtonPressUsedUp = false;
+	uint32_t timeRecordButtonPressed = 0;
+	uint32_t timeShiftButtonPressed = 0;
+	bool shiftCurrentlyPressed = false;
+	bool shiftCurrentlyStuck = false;
+	bool shiftHasChangedSinceLastCheck = false;
+	bool considerShiftReleaseForSticky = false;
+	bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]{};
+};
+
+State& state();
 } // namespace Buttons

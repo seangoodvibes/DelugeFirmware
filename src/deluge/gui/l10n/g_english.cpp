@@ -970,6 +970,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SONG_MACRO_KIND_NONE, "Kind: None"},
         {STRING_FOR_MIDI_LEARN, "Midi Learn"},
         {STRING_FOR_ACTIONS, "Actions"},
+        {STRING_FOR_MIRROR_CONNECTED_DELUGE, "Mirror Connected Deluge"},
         {STRING_FOR_RESET_SETTINGS, "Reset Settings"},
         {STRING_FOR_RESET_FLASH, "Reset Flash"},
         {STRING_FOR_RESET_COMMUNITY_FEATURES, "Reset Community Features"},

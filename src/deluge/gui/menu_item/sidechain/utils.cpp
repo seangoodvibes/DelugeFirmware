@@ -7,5 +7,5 @@ SideChain* getSidechain(bool forReverb) {
 	if (forReverb) {
 		return &AudioEngine::reverbSidechain;
 	}
-	return &soundEditor.currentModControllable->sidechain;
+	return &sound_editor_for_session().currentModControllable->sidechain;
 }

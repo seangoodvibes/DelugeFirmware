@@ -81,7 +81,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		knobPos += kKnobPosOffset;
 
 		if (kind == params::Kind::PATCH_CABLE) {
-			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
+			knobPos = view_for_session().convertPatchCableKnobPosToIndicatorLevel(knobPos);
 		}
 	}
 	else {

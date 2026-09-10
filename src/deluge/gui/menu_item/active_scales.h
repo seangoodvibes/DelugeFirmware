@@ -13,7 +13,7 @@ namespace deluge::gui::menu_item {
 class ActiveScaleMenu : public MenuItem {
 public:
 	enum Kind { SONG, DEFAULT };
-	ActiveScaleMenu(deluge::l10n::String newName, Kind kind_) : MenuItem(newName), currentPos(0), kind(kind_) {}
+	ActiveScaleMenu(deluge::l10n::String newName, Kind kind_) : MenuItem(newName), kind(kind_) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
 	void drawPixelsForOled() final;
 	void readValueAgain() final;
@@ -25,7 +25,8 @@ private:
 	void drawSubmenuItemsForOled(std::span<uint8_t> scales, const uint8_t selected);
 	bool isDisabled(uint8_t scaleIndex);
 	void setDisabled(uint8_t scaleIndex, bool value);
-	uint8_t currentPos;
+	ui_session::State<uint8_t> positions_;
+	uint8_t& current_pos_for_session() { return positions_.active(); }
 	Kind kind;
 };
 

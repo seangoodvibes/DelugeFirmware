@@ -32,13 +32,14 @@ class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
 	bool usesAffectEntire() override { return true; }
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->transpose); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentSound->transpose); }
 	void writeCurrentValue() override {
 
 		int16_t value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -57,11 +58,12 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->transpose = value;
+			sound_editor_for_session().currentSound->transpose = value;
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
+			ModelStackWithSoundFlags* modelStack =
+			    sound_editor_for_session().getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			sound_editor_for_session().currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 		}
 	}
 	MenuItem* selectButtonPress() override { return PatchedParam::selectButtonPress(); }

@@ -30,7 +30,7 @@ void Toggle::drawValue() {
 }
 
 void Toggle::drawPixelsForOled() {
-	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 
 	int32_t yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	yPixel += OLED_MAIN_TOPMOST_PIXEL;
@@ -63,7 +63,7 @@ void Toggle::displayToggleValue() {
 
 void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	using namespace deluge::hid::display;
-	oled_canvas::Canvas& image = OLED::main;
+	oled_canvas::Canvas& image = OLED::main_for_session();
 
 	const int32_t startX = getSubmenuItemTypeRenderIconStart();
 	image.drawGraphicMultiLine(getToggleValue() ? OLED::checkedBoxIcon : OLED::uncheckedBoxIcon, startX, yPixel,
@@ -73,7 +73,7 @@ void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
 void Toggle::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace deluge::hid::display;
 	const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
-	OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
+	OLED::main_for_session().drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 }
 
 } // namespace deluge::gui::menu_item

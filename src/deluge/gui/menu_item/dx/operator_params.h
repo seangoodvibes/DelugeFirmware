@@ -38,10 +38,18 @@ public:
 	MenuItem* selectButtonPress() final;
 	void drawValue();
 
-	int op = 0;
+	int& op_for_session() { return states_.active().op; }
+	const int& op_for_session() const { return states_.active().op; }
 
-	int32_t currentValue = 0;
-	int scrollPos = 0; // Each instance needs to store this separately
+private:
+	struct PanelState {
+		int op = 0;
+		int32_t currentValue = 0;
+		int scrollPos = 0;
+	};
+	ui_session::State<PanelState> states_;
+	PanelState& panel_state() { return states_.active(); }
+	const PanelState& panel_state() const { return states_.active(); }
 };
 
 extern DxOperatorParams dxOperatorParams;

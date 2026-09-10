@@ -38,7 +38,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
 	void readCurrentValue() override {
-		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		Note* leftMostNote = instrument_clip_view_for_session().getLeftMostNotePressed();
 
 		if (leftMostNote) {
 			Iterance iterance = leftMostNote->getIterance();
@@ -53,7 +53,7 @@ public:
 	}
 	void writeCurrentValue() override {
 		int32_t val = this->getValue();
-		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		Note* leftMostNote = instrument_clip_view_for_session().getLeftMostNotePressed();
 		if (leftMostNote) {
 			Iterance iterance = leftMostNote->getIterance();
 			if (iterance == kDefaultIteranceValue) {
@@ -64,7 +64,8 @@ public:
 			int32_t mask = (1 << val) - 1; // Creates a mask where the first 'divisor' bits are 1
 			// Wipe the bits whose index is greater than the current divisor value
 			int32_t newIteranceSteps = ((iterance.toInt() & 0xFF) & mask);
-			instrumentClipView.adjustNoteIteranceWithFinalValue(Iterance{(uint8_t)val, newIteranceSteps});
+			instrument_clip_view_for_session().adjustNoteIteranceWithFinalValue(
+			    Iterance{(uint8_t)val, newIteranceSteps});
 		}
 	}
 };

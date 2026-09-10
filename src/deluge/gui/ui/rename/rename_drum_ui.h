@@ -32,4 +32,4 @@ protected:
 	bool allowEmpty() const override { return false; }
 };
 
-extern RenameDrumUI renameDrumUI;
+RenameDrumUI& rename_drum_ui_for_session();

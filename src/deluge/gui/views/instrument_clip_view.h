@@ -126,7 +126,7 @@ public:
 	void scrollVertical_potentiallySwitchOffAuditionedNotes(bool draggingNoteRow,
 	                                                        ModelStackWithTimelineCounter* modelStack,
 	                                                        InstrumentClip* clip, bool currentClipIsActive);
-	void scrollVertical_grabNotesPressed(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip);
+	bool scrollVertical_grabNotesPressed(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip);
 	void scrollVertical_dragSelectedNoteRow(InstrumentClip* clip, Output* output, bool isKit, int32_t noteRowToShiftI,
 	                                        int32_t noteRowToSwapWithI);
 	void scrollVertical_potentiallySwitchOnAuditionedNotes(bool draggingNoteRow,
@@ -319,7 +319,7 @@ public:
 	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling, bool previewOnly,
 	                         bool selectedDrumOnly);
 	void patternPreview();
-	void patternClear();
+	Error patternClear();
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -382,8 +382,8 @@ private:
 
 	// note row functions
 	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);
-	void pasteNotes(bool overwriteExisting = true, bool pasteFromFile = false, bool noScaling = false,
-	                bool previewOnly = false, bool selectedDrumOnly = false);
+	Error pasteNotes(bool overwriteExisting = true, bool pasteFromFile = false, bool noScaling = false,
+	                 bool previewOnly = false, bool selectedDrumOnly = false);
 	void deleteCopiedNoteRows();
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth{};
@@ -413,4 +413,4 @@ private:
 	int32_t getVelocityToSound(int32_t velocity);
 };
 
-extern InstrumentClipView instrumentClipView;
+InstrumentClipView& instrument_clip_view_for_session();

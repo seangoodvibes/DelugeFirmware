@@ -26,14 +26,15 @@ namespace deluge::gui::menu_item::arpeggiator {
 class Octaves final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->numOctaves); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentArpSettings->numOctaves); }
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -46,14 +47,14 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentArpSettings->numOctaves = current_value;
+			sound_editor_for_session().currentArpSettings->numOctaves = current_value;
 		}
 	}
 
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingGateDrumRow() && !soundEditor.editingKitAffectEntire();
+		return !sound_editor_for_session().editingGateDrumRow() && !sound_editor_for_session().editingKitAffectEntire();
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));

@@ -34,15 +34,15 @@ public:
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+		    clip->getNoteRowOnScreen(instrument_clip_view_for_session().lastAuditionedYDisplay,
 		                             modelStack); // don't create
 
 		bool isKit = clip->output->type == OutputType::KIT;
 
 		if (!isKit) {
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) { // if note row doesn't exist yet, create it
-				modelStackWithNoteRow =
-				    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
+				modelStackWithNoteRow = instrument_clip_view_for_session().createNoteRowForYDisplay(
+				    modelStack, instrument_clip_view_for_session().lastAuditionedYDisplay);
 			}
 		}
 
@@ -96,7 +96,8 @@ public:
 			else {
 				newIteranceSteps &= ~(1 << index);
 			}
-			instrumentClipView.setNoteRowIteranceWithFinalValue(Iterance{iterance.divisor, newIteranceSteps});
+			instrument_clip_view_for_session().setNoteRowIteranceWithFinalValue(
+			    Iterance{iterance.divisor, newIteranceSteps});
 		}
 	}
 

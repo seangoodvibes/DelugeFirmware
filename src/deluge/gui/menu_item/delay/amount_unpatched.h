@@ -33,7 +33,7 @@ public:
 
 		if (getValue() > max_value_in_horizontal_menu) {
 			// Draw exclamation mark
-			oled_canvas::Canvas& image = OLED::main;
+			oled_canvas::Canvas& image = OLED::main_for_session();
 			constexpr uint8_t excl_mark_width = 3;
 			constexpr uint8_t excl_mark_height = 11;
 			const uint8_t center_x = slot.start_x + slot.width / 2;

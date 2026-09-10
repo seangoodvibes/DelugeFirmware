@@ -27,15 +27,15 @@ void MenuItemWithCCLearning::unlearnAction() {
 
 	// If it was a reasonable-ish request...
 	if (!paramDescriptor.isNull()) {
-		if (!soundEditor.currentModControllable) {
+		if (!sound_editor_for_session().currentModControllable) {
 			return;
 		}
-		bool success = soundEditor.currentModControllable->unlearnKnobs(paramDescriptor, currentSong);
+		bool success = sound_editor_for_session().currentModControllable->unlearnKnobs(paramDescriptor, currentSong);
 
 		if (success) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
-			view.setKnobIndicatorLevels();
-			soundEditor.markInstrumentAsEdited();
+			view_for_session().setKnobIndicatorLevels();
+			sound_editor_for_session().markInstrumentAsEdited();
 		}
 	}
 }
@@ -43,16 +43,16 @@ void MenuItemWithCCLearning::unlearnAction() {
 void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	ParamDescriptor paramDescriptor = getLearningThing();
 
-	if (!soundEditor.currentModControllable) {
+	if (!sound_editor_for_session().currentModControllable) {
 		return;
 	}
 
-	bool success = soundEditor.currentModControllable->learnKnob(cable, paramDescriptor, whichKnob, modKnobMode,
-	                                                             midiChannel, currentSong);
+	bool success = sound_editor_for_session().currentModControllable->learnKnob(cable, paramDescriptor, whichKnob,
+	                                                                            modKnobMode, midiChannel, currentSong);
 
 	if (success) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
-		view.setKnobIndicatorLevels();
-		soundEditor.markInstrumentAsEdited();
+		view_for_session().setKnobIndicatorLevels();
+		sound_editor_for_session().markInstrumentAsEdited();
 	}
 }

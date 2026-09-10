@@ -4578,7 +4578,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	// Cycle through reverb presets
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_REVERB_AMOUNT)) {
 		if (on) {
-			view.cycleThroughReverbPresets();
+			view_for_session().cycleThroughReverbPresets();
 
 			// if mod button is pressed, update mod button pop up
 			if (Buttons::isButtonPressed(
@@ -4586,7 +4586,8 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				displaySidechainAndReverbSettings(on);
 			}
 			else {
-				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+				display->displayPopup(
+				    view_for_session().getReverbPresetDisplayName(view_for_session().getCurrentReverbPreset()));
 			}
 		}
 		return false;

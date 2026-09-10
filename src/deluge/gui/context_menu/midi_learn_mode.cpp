@@ -31,7 +31,13 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-MidiLearnMode midiLearnMode{};
+namespace {
+MidiLearnMode local_midi_learn_mode{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<MidiLearnMode> remote_midi_learn_mode;
+} // namespace
+MidiLearnMode& midi_learn_mode_for_session() {
+	return remote_midi_learn_mode.get(local_midi_learn_mode);
+}
 
 bool MidiLearnMode::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0x01; // Only mode (audition) column
@@ -58,12 +64,12 @@ std::span<char const*> MidiLearnMode::getOptions() {
 }
 
 bool MidiLearnMode::setupAndCheckAvailability() {
-	sessionView.enterMidiLearnMode();
+	session_view_for_session().enterMidiLearnMode();
 	return (currentUIMode == UI_MODE_MIDI_LEARN);
 }
 
 bool MidiLearnMode::acceptCurrentOption() {
-	sessionView.exitMidiLearnMode();
+	session_view_for_session().exitMidiLearnMode();
 	return false; // return false so you exit out of the context menu
 }
 
@@ -75,7 +81,7 @@ ActionResult MidiLearnMode::buttonAction(deluge::hid::Button b, bool on, bool in
 	}
 
 	if (b == BACK) {
-		sessionView.exitMidiLearnMode();
+		session_view_for_session().exitMidiLearnMode();
 	}
 
 	return ContextMenu::buttonAction(b, on, inCardRoutine);
@@ -87,11 +93,11 @@ ActionResult MidiLearnMode::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 	// don't allow user to switch modes
 	if (x <= kDisplayWidth) {
-		return sessionView.padAction(x, y, on);
+		return session_view_for_session().padAction(x, y, on);
 	}
 	// exit menu with audition pad column
 	else {
-		sessionView.exitMidiLearnMode();
+		session_view_for_session().exitMidiLearnMode();
 		return ContextMenu::padAction(x, y, on);
 	}
 }
@@ -102,11 +108,11 @@ void MidiLearnMode::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 }
 
 ActionResult MidiLearnMode::horizontalEncoderAction(int32_t offset) {
-	return sessionView.horizontalEncoderAction(offset);
+	return session_view_for_session().horizontalEncoderAction(offset);
 }
 
 ActionResult MidiLearnMode::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	return sessionView.verticalEncoderAction(offset, inCardRoutine);
+	return session_view_for_session().verticalEncoderAction(offset, inCardRoutine);
 }
 
 } // namespace deluge::gui::context_menu

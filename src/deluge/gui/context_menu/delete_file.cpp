@@ -28,11 +28,17 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-DeleteFile deleteFile{};
+namespace {
+DeleteFile local_delete_file{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<DeleteFile> remote_delete_file;
+} // namespace
+DeleteFile& delete_file_for_session() {
+	return remote_delete_file.get(local_delete_file);
+}
 
 char const* DeleteFile::getTitle() {
 	using enum l10n::String;
-	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
+	if (getUIUpOneLevel() == &context_menu::save_song_or_instrument_for_session()) {
 		return l10n::get(STRING_FOR_ARE_YOU_SURE_QMARK);
 	}
 	return l10n::get(STRING_FOR_DELETE_QMARK);
@@ -46,7 +52,7 @@ std::span<char const*> DeleteFile::getOptions() {
 		return {options, 1};
 	}
 	else {
-		if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
+		if (getUIUpOneLevel() == &context_menu::save_song_or_instrument_for_session()) {
 			static char const* options[] = {l10n::get(STRING_FOR_SURE)};
 			return {options, 1};
 		}
@@ -60,7 +66,7 @@ bool DeleteFile::acceptCurrentOption() {
 	using enum l10n::String;
 
 	UI* ui = getUIUpOneLevel();
-	if (ui == &context_menu::saveSongOrInstrument) {
+	if (ui == &context_menu::save_song_or_instrument_for_session()) {
 		ui = getUIUpOneLevel(2);
 	}
 
@@ -106,8 +112,8 @@ bool DeleteFile::acceptCurrentOption() {
 	}
 
 	close();
-	if (getCurrentUI() == &context_menu::saveSongOrInstrument) {
-		context_menu::saveSongOrInstrument.close();
+	if (getCurrentUI() == &context_menu::save_song_or_instrument_for_session()) {
+		context_menu::save_song_or_instrument_for_session().close();
 	}
 
 	return true;

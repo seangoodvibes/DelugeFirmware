@@ -47,7 +47,8 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 	int algid = patch->params[134];
 	FmAlgorithm a = FmCore::algorithms[algid];
 
-	bool is_editing = (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &dxParam);
+	bool is_editing =
+	    (getCurrentUI() == &sound_editor_for_session() && sound_editor_for_session().getCurrentMenuItem() == &dxParam);
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		int op = 8 - y - 1; // op 0-5
@@ -66,7 +67,7 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 			image[y][column] = {0, 0, 0};
 		}
 
-		if (is_editing && dxParam.flash_row == y && dxParam.blink_next) {
+		if (is_editing && dxParam.flash_row_for_session() == y && dxParam.blink_next_for_session()) {
 			image[y][column] = {255, 255, 255};
 		}
 	}

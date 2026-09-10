@@ -38,7 +38,7 @@ public:
 	bool allowsLearnMode() override { return true; }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 
 		yPixel = 20;
 
@@ -122,7 +122,7 @@ public:
 	void unlearnAction() {
 		this->setValue(MIDI_CHANNEL_NONE);
 		midiInput.clear();
-		if (soundEditor.getCurrentMenuItem() == this) {
+		if (sound_editor_for_session().getCurrentMenuItem() == this) {
 			renderDisplay();
 		}
 		else {
@@ -135,7 +135,7 @@ public:
 		midiInput.cable = &cable;
 		midiInput.channelOrZone = channel;
 
-		if (soundEditor.getCurrentMenuItem() == this) {
+		if (sound_editor_for_session().getCurrentMenuItem() == this) {
 			renderDisplay();
 		}
 		else {
@@ -150,7 +150,7 @@ public:
 		midiInput.cable = &cable;
 		midiInput.channelOrZone = channel;
 
-		if (soundEditor.getCurrentMenuItem() == this) {
+		if (sound_editor_for_session().getCurrentMenuItem() == this) {
 			renderDisplay();
 		}
 		else {

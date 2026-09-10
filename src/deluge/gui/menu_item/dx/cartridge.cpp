@@ -97,9 +97,9 @@ void DxCartridge::loadPatch() {
 		return;
 	}
 
-	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
+	DxPatch* patch = sound_editor_for_session().currentSource->ensureDxPatch();
 	pd->unpackProgram(patch->params, currentValue);
-	soundEditor.currentSound->killAllVoices();
+	sound_editor_for_session().currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
 	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
 		char name[11];
@@ -174,7 +174,7 @@ void DxCartridge::selectEncoderAction(int32_t offset) {
 }
 
 MenuItem* DxCartridge::selectButtonPress() {
-	soundEditor.exitCompletely();
+	sound_editor_for_session().exitCompletely();
 	return NO_NAVIGATION;
 }
 

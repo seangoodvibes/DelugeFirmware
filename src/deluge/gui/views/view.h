@@ -189,4 +189,5 @@ private:
 	PatchSource pendingPopupSource2 = PatchSource::NONE;
 };
 
-extern View view;
+View& view_for_session();
+const View* view_for_session_if_initialized();

@@ -32,6 +32,8 @@ enum class ActionAddition {
 	ALLOWED_ONLY_IF_NO_TIME_PASSED,
 };
 
+enum class PartialUndoResult { FAILED, PARTIAL, WHOLE_ACTION };
+
 class ActionLogger {
 public:
 	ActionLogger();
@@ -46,6 +48,7 @@ public:
 	void recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
 	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
 	void closeAction(ActionType actionType);
+	void close_recording_action();
 	void closeActionUnlessCreatedJustNow(ActionType actionType);
 	void deleteAllLogs();
 	void deleteLog(int32_t time);
@@ -53,14 +56,15 @@ public:
 	void updateAction(Action* newAction);
 	void undo();
 	void redo();
-	bool undoJustOneConsequencePerNoteRow(ModelStack* modelStack);
+	PartialUndoResult undoJustOneConsequencePerNoteRow(ModelStack* modelStack);
 	bool allowedToDoReversion();
 	void notifyClipRecordingAborted(Clip* clip);
 
 	Action* firstAction[2];
 
 private:
-	void revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time);
+	bool reversion_in_progress = false;
+	Error revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time);
 	void deleteLastActionIfEmpty();
 	void deleteLastAction();
 };

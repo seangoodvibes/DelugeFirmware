@@ -25,15 +25,16 @@ class SpreadOctave final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->spreadOctave));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->spreadOctave));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->spreadOctave = value;
+		sound_editor_for_session().currentArpSettings->spreadOctave = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow())
-		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
+		return (sound_editor_for_session().editingCVOrMIDIClip() || sound_editor_for_session().editingMidiDrumRow())
+		       && sound_editor_for_session().currentArpSettings->mode != ArpMode::OFF;
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };

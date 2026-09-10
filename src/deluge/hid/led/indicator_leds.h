@@ -76,7 +76,9 @@ struct LedBlinker {
 	uint8_t blinkingType;
 };
 
-extern bool ledBlinkState[];
+bool blink_state_for_session(uint8_t blinkingType);
+struct IndicatorFrame;
+const IndicatorFrame& frame_for_session();
 
 void setLedState(LED led, bool newState, bool allowContinuedBlinking = false);
 void blinkLed(LED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);

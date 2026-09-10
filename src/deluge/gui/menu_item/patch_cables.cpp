@@ -14,25 +14,25 @@
 namespace deluge::gui::menu_item {
 
 void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
-	currentValue = 0;
+	panel_state().currentValue = 0;
 
 	if (navigatedBackwardFrom != nullptr) {
-		currentValue = savedVal;
+		panel_state().currentValue = panel_state().savedVal;
 	}
 
 	if (display->haveOLED()) {
-		scrollPos = std::max((int32_t)0, currentValue - 1);
+		panel_state().scrollPos = std::max((int32_t)0, panel_state().currentValue - 1);
 	}
 
 	readValueAgain();
 }
 
 void PatchCables::readValueAgain() {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
-	if (currentValue >= set->numPatchCables) {
+	PatchCableSet* set = sound_editor_for_session().currentParamManager->getPatchCableSet();
+	if (panel_state().currentValue >= set->numPatchCables) {
 		// The last patch cable was deleted and it was selected, need to adjust
-		currentValue = std::max(0, set->numPatchCables - 1);
-		scrollPos = std::max((int32_t)0, currentValue - 1);
+		panel_state().currentValue = std::max(0, set->numPatchCables - 1);
+		panel_state().scrollPos = std::max((int32_t)0, panel_state().currentValue - 1);
 	}
 
 	renderOptions();
@@ -47,8 +47,8 @@ void PatchCables::readValueAgain() {
 }
 
 void PatchCables::renderOptions() {
-	options.clear();
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
+	panel_state().options.clear();
+	PatchCableSet* set = sound_editor_for_session().currentParamManager->getPatchCableSet();
 
 	for (int i = 0; i < set->numPatchCables; i++) {
 		PatchCable* cable = set->patch_cables_[i];
@@ -61,12 +61,15 @@ void PatchCables::renderOptions() {
 		int dest = desc.getJustTheParam();
 
 		const int item_max_len = 30;
-		PLACE_SDRAM_BSS static char bufs[kMaxNumPatchCables][item_max_len];
-		char* buf = bufs[i];
+		struct Labels {
+			char text[kMaxNumPatchCables][item_max_len];
+		};
+		PLACE_SDRAM_BSS static ui_session::State<Labels> labels;
+		char* buf = labels.active().text[i];
 
 		const char* src_name = sourceToStringShort(src); // exactly 4 chars
-		const char* dest_name =
-		    deluge::modulation::params::getPatchedParamShortName(dest, soundEditor.currentModControllable);
+		const char* dest_name = deluge::modulation::params::getPatchedParamShortName(
+		    dest, sound_editor_for_session().currentModControllable);
 
 		memcpy(buf, src_name, 4);
 		buf[4] = ' ';
@@ -91,39 +94,40 @@ void PatchCables::renderOptions() {
 		strncpy(buf + off + 10, dest_name, item_max_len - 10 - off);
 		buf[item_max_len - 1] = 0;
 
-		options.push_back(buf);
+		panel_state().options.push_back(buf);
 	}
 }
 
 void PatchCables::drawPixelsForOled() {
-	drawItemsForOled(options, currentValue - scrollPos, scrollPos);
+	drawItemsForOled(panel_state().options, panel_state().currentValue - panel_state().scrollPos,
+	                 panel_state().scrollPos);
 }
 
 void PatchCables::drawValue() {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
+	PatchCableSet* set = sound_editor_for_session().currentParamManager->getPatchCableSet();
 	if (set->numPatchCables == 0) {
 		display->setText("none", false, false);
 		return;
 	}
 
-	display->setScrollingText(options[currentValue].begin());
+	display->setScrollingText(panel_state().options[panel_state().currentValue].begin());
 }
 
 void PatchCables::selectEncoderAction(int32_t offset) {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
+	PatchCableSet* set = sound_editor_for_session().currentParamManager->getPatchCableSet();
 
-	int32_t newValue = std::clamp<int32_t>(currentValue + offset, 0, set->numPatchCables - 1);
+	int32_t newValue = std::clamp<int32_t>(panel_state().currentValue + offset, 0, set->numPatchCables - 1);
 
 	// if no change, just exit
-	if (newValue == currentValue) {
+	if (newValue == panel_state().currentValue) {
 		return;
 	}
 
-	currentValue = newValue;
+	panel_state().currentValue = newValue;
 
 	if (display->haveOLED()) {
 		int32_t max = std::max<int32_t>(0, set->numPatchCables - kOLEDMenuNumOptionsVisible);
-		scrollPos = std::clamp<int32_t>(newValue - 1, 0, max);
+		panel_state().scrollPos = std::clamp<int32_t>(newValue - 1, 0, max);
 	}
 
 	readValueAgain(); // redraw
@@ -141,8 +145,8 @@ ActionResult PatchCables::timerCallback() {
 }
 
 void PatchCables::blinkShortcuts() {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
-	PatchCable* cable = set->patch_cables_[currentValue];
+	PatchCableSet* set = sound_editor_for_session().currentParamManager->getPatchCableSet();
+	PatchCable* cable = set->patch_cables_[panel_state().currentValue];
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	int dest = desc.getJustTheParam();
 
@@ -153,8 +157,8 @@ void PatchCables::blinkShortcuts() {
 
 	int32_t x, y;
 	bool isSecondLayerParam;
-	if (soundEditor.findPatchedParam(dest, &x, &y, &isSecondLayerParam)) {
-		soundEditor.setupShortcutBlink(x, y, 3, isSecondLayerParam ? 0b00000011 /*yellow*/ : 0L);
+	if (sound_editor_for_session().findPatchedParam(dest, &x, &y, &isSecondLayerParam)) {
+		sound_editor_for_session().setupShortcutBlink(x, y, 3, isSecondLayerParam ? 0b00000011 /*yellow*/ : 0L);
 	}
 
 	PatchSource src = cable->from;
@@ -162,27 +166,27 @@ void PatchCables::blinkShortcuts() {
 	if (!desc.isJustAParam()) {
 		src2 = desc.getTopLevelSource();
 	}
-	blinkSrc = src;
-	blinkSrc2 = src2;
-	soundEditor.updateSourceBlinks(this);
+	panel_state().blinkSrc = src;
+	panel_state().blinkSrc2 = src2;
+	sound_editor_for_session().updateSourceBlinks(this);
 
-	soundEditor.blinkShortcut();
+	sound_editor_for_session().blinkShortcut();
 }
 
 uint8_t PatchCables::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
-	if (s == blinkSrc) {
+	if (s == panel_state().blinkSrc) {
 		*colour = 0b110;
 		return 0;
 	}
-	else if (s == blinkSrc2) {
+	else if (s == panel_state().blinkSrc2) {
 		return 3; // something #patchingoverhaul2021
 	}
 	return 255;
 }
 
 MenuItem* PatchCables::selectButtonPress() {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
-	int val = currentValue;
+	PatchCableSet* set = sound_editor_for_session().currentParamManager->getPatchCableSet();
+	int val = panel_state().currentValue;
 
 	if (val >= set->numPatchCables) {
 		// There were no items. If the user wants to create some, they need
@@ -190,20 +194,20 @@ MenuItem* PatchCables::selectButtonPress() {
 		return MenuItem::selectButtonPress();
 	}
 	PatchCable* cable = set->patch_cables_[val];
-	savedVal = val;
+	panel_state().savedVal = val;
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	int dest = desc.getJustTheParam();
-	soundEditor.patchingParamSelected = dest;
+	sound_editor_for_session().patchingParamSelected = dest;
 
-	options.clear();
+	panel_state().options.clear();
 	if (cable->destinationParamDescriptor.isJustAParam()) {
-		source_selection::regularMenu.s = cable->from;
+		source_selection::regularMenu.source_for_session() = cable->from;
 		return &patch_cable_strength::regularMenu;
 	}
 	else {
 		PatchSource src2 = desc.getTopLevelSource();
-		source_selection::regularMenu.s = src2;
-		source_selection::rangeMenu.s = cable->from;
+		source_selection::regularMenu.source_for_session() = src2;
+		source_selection::rangeMenu.source_for_session() = cable->from;
 		return &patch_cable_strength::rangeMenu;
 	}
 }

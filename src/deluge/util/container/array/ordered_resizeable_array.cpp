@@ -23,6 +23,7 @@
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
+#include <limits>
 
 OrderedResizeableArray::OrderedResizeableArray(int32_t newElementSize, int32_t keyNumBits, int32_t newKeyOffset,
                                                int32_t newMaxNumEmptySpacesToKeep, int32_t newNumExtraSpacesToAllocate)
@@ -197,7 +198,10 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 }
 
 bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int32_t endPos) {
-	if (!memory) {
+	if (wrapPoint <= 0 || endPos < 0) {
+		return false;
+	}
+	if (!memory || !numElements) {
 		return true;
 	}
 
@@ -209,9 +213,18 @@ bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int3
 	int32_t oldNum = search(wrapPoint,
 	                        GREATER_OR_EQUAL); // Do this rather than just copying numElements - this is better because
 	                                           // it ensures we ignore / chop off any elements >= wrapPoint
-	int32_t newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
+	if (!oldNum) {
+		numElements = 0;
+		return true;
+	}
+	const int64_t required_count = int64_t{oldNum} * numCompleteRepeats + iEndPosWithinFirstRepeat;
+	// Both array counts and byte-size arithmetic use signed 32-bit values.
+	if (elementSize <= 0 || required_count > std::numeric_limits<int32_t>::max() / elementSize) {
+		return false;
+	}
+	const int32_t newNum = static_cast<int32_t>(required_count);
 
-	if (!ensureEnoughSpaceAllocated(newNum - numElements)) {
+	if (newNum > numElements && !ensureEnoughSpaceAllocated(newNum - numElements)) {
 		return false;
 	}
 
@@ -534,17 +547,13 @@ OrderedResizeableArrayWith32bitKey::OrderedResizeableArrayWith32bitKey(int32_t n
 
 void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, int32_t effectiveLength) {
 
-	if (!numElements) {
+	if (!numElements || effectiveLength <= 0) {
 		return;
 	}
 
-	// Wrap the amount to the length.
-	if (shiftAmount >= effectiveLength) {
-		shiftAmount = (uint32_t)shiftAmount % (uint32_t)effectiveLength;
-	}
-	else if (shiftAmount <= -effectiveLength) {
-		shiftAmount = -((uint32_t)(-shiftAmount) % (uint32_t)effectiveLength);
-	}
+	// Signed remainder preserves the direction without negating INT32_MIN.
+	// With a positive divisor, the result and its inverse are representable.
+	shiftAmount %= effectiveLength;
 
 	if (!shiftAmount) {
 		return;

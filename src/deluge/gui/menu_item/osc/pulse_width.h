@@ -33,7 +33,7 @@ public:
 
 	void readCurrentValue() override {
 		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(
-		    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
+		    sound_editor_for_session().currentParamManager->getPatchedParamSet()->getValue(getP())));
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
@@ -53,7 +53,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const float norm = getValue() / 50.0f;
 

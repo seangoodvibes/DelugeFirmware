@@ -38,13 +38,14 @@ public:
 	bool usesAffectEntire() override { return true; }
 
 	void readCurrentValue() override {
-		const Source& source = soundEditor.currentSound->sources[source_id_];
+		const Source& source = sound_editor_for_session().currentSound->sources[source_id_];
 		setValue(source.sampleControls.reversed);
 	}
 
 	void writeCurrentValue() override {
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			const Kit* kit = getCurrentKit();
 
@@ -60,8 +61,8 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->killAllVoices();
-			Source& source = soundEditor.currentSound->sources[source_id_];
+			sound_editor_for_session().currentSound->killAllVoices();
+			Source& source = sound_editor_for_session().currentSound->sources[source_id_];
 			source.setReversed(getValue());
 		}
 	}
@@ -69,8 +70,8 @@ public:
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const bool reversed = getValue();
 		const Icon& icon = OLED::directionIcon;
-		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset,
-		                            reversed);
+		OLED::main_for_session().drawIconCentered(icon, slot.start_x, slot.width,
+		                                          slot.start_y + kHorizontalMenuSlotYOffset, reversed);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
@@ -80,7 +81,8 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		if (parent_for_session() != nullptr
+		    && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
 			// reverse direction
 			offset *= -1;
 		}

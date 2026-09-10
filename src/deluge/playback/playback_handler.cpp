@@ -20,9 +20,12 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/deferred_session_command.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_navigation_state.h"
+#include "gui/ui/ui_session.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -37,6 +40,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "hid/mirror.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -89,7 +93,7 @@ extern void songLoaded(Song* song);
 
 #define slowpassedTimePerInternalTickSlowness 8
 
-GlobalMIDICommand pendingGlobalMIDICommand = GlobalMIDICommand::NONE; // -1 means none
+static deluge::gui::ui_session::DeferredSessionCommand<GlobalMIDICommand> pendingGlobalMIDICommand;
 int32_t pendingGlobalMIDICommandNumClustersWritten;
 extern uint8_t currentlyAccessingCard;
 
@@ -123,6 +127,7 @@ extern "C" uint32_t triggerClockRisingEdgesReceived;
 extern "C" uint32_t triggerClockRisingEdgesProcessed;
 
 void PlaybackHandler::midiRoutine() {
+	deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local);
 	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
 		//  todo - should add the ability to block the task in the task manager instead but whatever
 		return;
@@ -134,10 +139,17 @@ void PlaybackHandler::midiRoutine() {
 	for (int32_t i = 0; i < 12 && midiEngine.checkIncomingSerialMidi(); i++) {
 		;
 	}
+	deluge::hid::mirror::transport_routine();
 }
 
 // This function will be called repeatedly, at all times, to see if it's time to do a tick, and such
 void PlaybackHandler::routine() {
+	deluge::gui::ui_session::Scope hardware_owner(deluge::gui::ui_session::Id::Local);
+	if (deluge::hid::mirror::is_client()) {
+		// Discard clock edges while paused instead of replaying them on exit.
+		triggerClockRisingEdgesProcessed = triggerClockRisingEdgesReceived;
+		return;
+	}
 	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
 		//  todo - should add the ability to block the task in the task manager instead but whatever
 		return;
@@ -158,15 +170,28 @@ void PlaybackHandler::routine() {
 	}
 }
 
-void PlaybackHandler::slowRoutine() {
-	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
-	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !currentlyAccessingCard) {
+void PlaybackHandler::pend_global_m_id_i_command(GlobalMIDICommand command) {
+	pendingGlobalMIDICommand.pend(command);
+}
 
+deluge::gui::ui_session::DeferredSessionCommand<GlobalMIDICommand>::Suspension
+PlaybackHandler::suspend_pending_global_m_id_i_commands() {
+	return pendingGlobalMIDICommand.suspend();
+}
+
+void PlaybackHandler::slowRoutine() {
+	if (deluge::hid::mirror::is_client())
+		return;
+	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
+	if (currentlyAccessingCard) {
+		return;
+	}
+	pendingGlobalMIDICommand.service([&](GlobalMIDICommand command) {
 		D_PRINTLN("actioning pending command -----------------------------------------");
 
 		if (actionLogger.allowedToDoReversion()) {
 
-			switch (pendingGlobalMIDICommand) {
+			switch (command) {
 			case GlobalMIDICommand::UNDO:
 				actionLogger.undo();
 				break;
@@ -185,9 +210,7 @@ void PlaybackHandler::slowRoutine() {
 				display->displayPopup(buffer);
 			}
 		}
-
-		pendingGlobalMIDICommand = GlobalMIDICommand::NONE;
-	}
+	});
 }
 
 void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
@@ -206,9 +229,11 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 		RootUI* rootUI = getRootUI();
 
-		bool isArrangerView = rootUI == &arrangerView
-		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		                      || (rootUI == &automationView && automationView.onArrangerView);
+		bool isArrangerView =
+		    rootUI == &arranger_view_for_session()
+		    || (rootUI == &performance_view_for_session()
+		        && currentSong->last_clip_instance_entered_start_pos_for_session() != -1)
+		    || (rootUI == &automation_view_for_session() && automation_view_for_session().onArrangerView);
 
 		bool isRestartShortcutPressed =
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
@@ -227,17 +252,17 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && isArrangerView) {
 				if (isArrangementPadPressed) {
-					arrangementPosToStartAtOnSwitch = arrangerView.lastInteractedArrangementPos;
+					arrangementPosToStartAtOnSwitch = arranger_view_for_session().lastInteractedArrangementPos;
 				}
 				else {
-					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+					arrangementPosToStartAtOnSwitch = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
 				}
 				session.armForSwitchToArrangement();
 				if (display->haveOLED()) {
 					renderUIsForOled();
 				}
 				else {
-					sessionView.redrawNumericDisplay();
+					session_view_for_session().redrawNumericDisplay();
 				}
 				display->cancelPopup();
 			}
@@ -281,7 +306,7 @@ void PlaybackHandler::recordButtonPressed() {
 	if (isUIModeWithinRange(recordButtonUIModes)) {
 
 		if (recording == RecordingMode::OFF) {
-			actionLogger.closeAction(ActionType::RECORD);
+			actionLogger.close_recording_action();
 		}
 
 		// Disallow recording to begin if song pre-loaded
@@ -305,7 +330,7 @@ void PlaybackHandler::recordButtonPressed() {
 					bool anyClipsRemoved = currentSong->deletePendingOverdubs(nullptr, nullptr, true);
 					if (anyClipsRemoved) {
 						// use root UI in case this is called from performance view
-						sessionView.requestRendering(getRootUI());
+						session_view_for_session().requestRendering(getRootUI());
 					}
 				}
 				else {
@@ -318,7 +343,7 @@ void PlaybackHandler::recordButtonPressed() {
 			currentSong->setParamsInAutomationMode(false);
 			currentSong->endInstancesOfActiveClips(getActualArrangementRecordPos());
 			currentSong->resumeClipsClonedForArrangementRecording();
-			view.setModLedStates(); // Set song LED back
+			view_for_session().setModLedStates(); // Set song LED back
 		}
 	}
 }
@@ -341,9 +366,11 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// if we're restarting playback from beginning, do that
 	if (!restartingPlaybackAtBeginning) {
-		bool isArrangerView = (rootUI == &arrangerView)
-		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		                      || (rootUI == &automationView && automationView.onArrangerView);
+		bool isArrangerView =
+		    (rootUI == &arranger_view_for_session())
+		    || (rootUI == &performance_view_for_session()
+		        && currentSong->last_clip_instance_entered_start_pos_for_session() != -1)
+		    || (rootUI == &automation_view_for_session() && automation_view_for_session().onArrangerView);
 
 		// second priority - if we're holding pad in arranger, play from that pad
 		isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
@@ -366,7 +393,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 				    == RuntimeFeatureStateToggle::On;
 
 				bool recordingToArranger = isArrangerView && (recording == RecordingMode::NORMAL);
-				bool inArrangerCrossScreen = isArrangerView && currentSong->arrangerAutoScrollModeActive;
+				bool inArrangerCrossScreen =
+				    isArrangerView && currentSong->arranger_auto_scroll_mode_active_for_session();
 
 				// Cross screen (arranger auto scroll) and alternativePlaybackStartBehaviour both flip the
 				// *default* direction so that plain play starts from the current screen; the restart shortcut
@@ -398,12 +426,12 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	}
 	// second priority - if you're holding an arranger pad then restart from there
 	else if (isArrangementPadPressed) {
-		newPos = arrangerView.lastInteractedArrangementPos;
+		newPos = arranger_view_for_session().lastInteractedArrangementPos;
 	}
 	// next is <> + play / cross screen + play, or recording into arranger - start from the current left edge scroll
 	// position this is good even for cross screen playback since the last cursor position isn't visible
 	else if (startFromCurrentScreen) {
-		newPos = currentSong->xScroll[navSys];
+		newPos = currentSong->x_scroll_for_session()[navSys];
 	}
 
 	// See if we're gonna do a tempoless record
@@ -486,17 +514,18 @@ void PlaybackHandler::tapTempoAutoSwitchOff() {
 
 void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	// If in arranger...
-	if (getRootUI() == &arrangerView
-	    || (!getRootUI() && currentSong && currentSong->lastClipInstanceEnteredStartPos != -1)) {
+	if (getRootUI() == &arranger_view_for_session()
+	    || (!getRootUI() && currentSong && currentSong->last_clip_instance_entered_start_pos_for_session() != -1)) {
 		goto useArranger;
 	}
 
-	if (!rootUIIsClipMinderScreen() && currentSong->lastClipInstanceEnteredStartPos != -1) {
+	if (!rootUIIsClipMinderScreen() && currentSong->last_clip_instance_entered_start_pos_for_session() != -1) {
 		goto useArranger;
 	}
 
 	if (rootUIIsClipMinderScreen()
-	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
+	    && (currentSong->last_clip_instance_entered_start_pos_for_session() != -1
+	        || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
 		currentPlaybackMode = &arrangement;
 	}
@@ -510,10 +539,10 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
                                     bool shouldShiftAccordingToClipInstance,
                                     int32_t buttonPressLatencyForTempolessRecord) {
 
-	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.close_recording_action();
 
 	if (shouldShiftAccordingToClipInstance && currentPlaybackMode == &arrangement && rootUIIsClipMinderScreen()) {
-		playFromPos += currentSong->lastClipInstanceEnteredStartPos;
+		playFromPos += currentSong->last_clip_instance_entered_start_pos_for_session();
 	}
 
 	ignoringMidiClockInput = false;
@@ -537,7 +566,8 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 
 	// make exception for note / note row editor because we want to be able to hear note changes
 	bool inNoteOrNoteRowEditor =
-	    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+	    getCurrentUI() == &sound_editor_for_session()
+	    && (sound_editor_for_session().inNoteEditor() || sound_editor_for_session().inNoteRowEditor());
 
 	if (getRootUI() && ((getCurrentUI() == getRootUI()) || inNoteOrNoteRowEditor)) {
 		getRootUI()->notifyPlaybackBegun();
@@ -545,7 +575,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 
 	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
 
-	arrangerView.reassessWhetherDoingAutoScroll(playFromPos);
+	arranger_view_for_session().reassessWhetherDoingAutoScroll(playFromPos);
 
 	setLedStates();
 
@@ -575,7 +605,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 
 	// when starting playback send updated feedback values for the current clip
 	// or active clip selected for midi follow control
-	view.sendMidiFollowFeedback();
+	view_for_session().sendMidiFollowFeedback();
 }
 
 void PlaybackHandler::endPlayback() {
@@ -613,12 +643,12 @@ void PlaybackHandler::endPlayback() {
 		// we don't want to stop active clip instances because we want to let tails ring out
 		if (stemExport.processStarted) {
 			recording = RecordingMode::OFF;
-			view.setModLedStates();
+			view_for_session().setModLedStates();
 		}
 		else if (wasRecordingArrangement) {
 			currentSong->endInstancesOfActiveClips(getActualArrangementRecordPos(), true);
 			recording = RecordingMode::OFF;
-			view.setModLedStates();
+			view_for_session().setModLedStates();
 		}
 
 		if (currentSong && getRootUI()) {
@@ -1498,7 +1528,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
-	loadSongUI.deletedPartsOfOldSong = false;
+	load_song_ui_for_session().deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
 	AudioEngine::getReverbParamsFromSong(currentSong);
@@ -1509,7 +1539,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 		// If beginning in arranger, not allowed to preserve play position (the caller never actually tries to do
 		// this anyway)
-		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		if (currentSong->last_clip_instance_entered_start_pos_for_session() != -1) {
 			preservePlayPosition = false;
 		}
 
@@ -1533,10 +1563,10 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position),
 		// do that
-		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		if (currentSong->last_clip_instance_entered_start_pos_for_session() != -1) {
 			currentPlaybackMode = &arrangement;
 			arrangement.setupPlayback();
-			arrangement.resetPlayPos(currentSong->lastClipInstanceEnteredStartPos);
+			arrangement.resetPlayPos(currentSong->last_clip_instance_entered_start_pos_for_session());
 		}
 
 		// Or if we weren't switching to the arranger, the equivalent of that would get called from
@@ -2305,7 +2335,9 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	else {
 		if (!isExternalClockActive()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView =
+			    display->haveOLED()
+			    && (currentUI == &session_view_for_session() || currentUI == &arranger_view_for_session());
 			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
@@ -2482,11 +2514,11 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if ((currentUI == &sessionView || currentUI == &arrangerView)
+		if ((currentUI == &session_view_for_session() || currentUI == &arranger_view_for_session())
 		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
-			sessionView.lastDisplayedTempo = tempoBPM;
+			session_view_for_session().lastDisplayedTempo = tempoBPM;
 			getTempoStringForOLED(tempoBPM, text);
-			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
+			session_view_for_session().displayTempoBPM(deluge::hid::display::OLED::main_for_session(), text, true);
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
@@ -2560,7 +2592,7 @@ void PlaybackHandler::setLedStates() {
 
 	indicator_leds::setLedState(IndicatorLED::PLAY, playbackState);
 
-	if (audioRecorder.recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
+	if (audio_recorder_for_session().recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
 	    && recording != RecordingMode::ARRANGEMENT) {
 		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RecordingMode::NORMAL);
 	}
@@ -2647,49 +2679,96 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 }
 
 uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action) {
+	if (!currentSong || loopLengthSamples == 0)
+		return 0;
 
+	if (action && actionLogger.firstAction[BEFORE] != action)
+		return 0;
+	const uint64_t retained_identity = action ? action->action_identity : 0;
+	if (action && !retained_identity)
+		return 0;
+	Song* const target_song = currentSong;
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	auto context_valid = [&] {
+		return currentSong == target_song && current() == owner
+		       && navigation.for_owner(Id::Local).structural_refresh.revision() == local_revision
+		       && navigation.for_owner(Id::Remote).structural_refresh.revision() == remote_revision
+		       && (!action
+		           || (actionLogger.firstAction[BEFORE] == action && action->action_identity == retained_identity
+		               && action->navigation_owner == owner && action->captured_song == target_song));
+	};
+	if (!context_valid())
+		return 0;
 	uint32_t ticksLong = 3;
 
 	float timePerTick;
 
 	uint32_t timePerTimerTick = currentSong->getTimePerTimerTickRounded();
+	if (timePerTimerTick == 0)
+		return 0;
 
 	while (true) {
 		timePerTick = (float)loopLengthSamples / ticksLong;
 		if (timePerTick < timePerTimerTick * 1.41) {
 			break;
 		}
+		if (ticksLong > kMaxSequenceLength / 2)
+			return 0;
 		ticksLong <<= 1;
 	}
-	uint64_t timePerBigBefore = currentSong->timePerTimerTickBig;
-
-	currentSong->setTempoFromNumSamples(timePerTick, false);
-
-	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this
-	// other stuff
+	const uint64_t previous_tempo = target_song->timePerTimerTickBig;
+	void* consequence_memory = nullptr;
 	if (action) {
-
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
-
-		if (consMemory) {
-			ConsequenceTempoChange* newConsequence =
-			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, currentSong->timePerTimerTickBig);
-			action->addConsequence(newConsequence);
+		consequence_memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
+		if (!context_valid() || target_song->timePerTimerTickBig != previous_tempo) {
+			if (consequence_memory)
+				delugeDealloc(consequence_memory);
+			return 0;
 		}
+		if (!consequence_memory)
+			return 0;
 	}
-
+	target_song->setTempoFromNumSamples(timePerTick, false);
+	if (!context_valid()) {
+		if (consequence_memory)
+			delugeDealloc(consequence_memory);
+		return 0;
+	}
+	const uint64_t recorded_tempo = target_song->timePerTimerTickBig;
+	if (consequence_memory) {
+		action->addConsequence(new (consequence_memory) ConsequenceTempoChange(previous_tempo, recorded_tempo));
+	}
 	commandDisplayTempo();
-
-	return ticksLong;
+	return context_valid() && target_song->timePerTimerTickBig == recorded_tempo ? ticksLong : 0;
 }
 
 void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
                                                bool shouldExitRecordMode) {
 
+	Song* const target_song = currentSong;
+	if (!target_song)
+		return;
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	auto session_valid = [&] {
+		return currentSong == target_song && current() == owner
+		       && navigation.for_owner(Id::Local).structural_refresh.revision() == local_revision
+		       && navigation.for_owner(Id::Remote).structural_refresh.revision() == remote_revision;
+	};
 	bool foundAnyYet = false;
 	uint32_t ticksLong = 3;
 
 	Action* action = nullptr;
+	auto history_valid = [&] {
+		return !action
+		       || (actionLogger.firstAction[BEFORE] == action && action->navigation_owner == owner
+		           && action->captured_song == target_song);
+	};
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2697,26 +2776,52 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 	for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
+		if (!clip)
+			return;
+		auto* const target_output = clip->output;
+		const auto target_type = clip->type;
+		auto clip_valid = [&] {
+			return session_valid() && target_song->contains_clip_for_undo(clip) && clip->output == target_output
+			       && clip->type == target_type;
+		};
 		if (clip->getCurrentlyRecordingLinearly()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-
-			Clip* nextPendingOverdub = currentSong->getPendingOverdubWithOutput(clip->output);
 
 			clip->finishLinearRecording(modelStackWithTimelineCounter, nullptr,
 			                            buttonLatencyForTempolessRecord); // nextPendingOverdub doesn't actually get
 			                                                              // used in this call, for audioClips
 
+			if (!clip_valid() || !history_valid())
+				return;
+
 			// If first one found, calculate tempo and everything
 			if (!foundAnyYet) {
+				if (target_type != ClipType::AUDIO)
+					return;
 				SampleHolder* sampleHolder = &((AudioClip*)clip)->sampleHolder;
 				if (!sampleHolder->audioFile) {
 					continue; // Could maybe happen if some error?
 				}
 				foundAnyYet = true;
-				uint64_t loopLengthSamples = sampleHolder->getDurationInSamples(true);
+				const int32_t source_length = clip->loopLength;
+				auto* const source_sample = sampleHolder->audioFile;
+				const uint64_t source_start = sampleHolder->startPos;
+				const uint64_t source_end = sampleHolder->endPos;
+				auto tempo_source_valid = [&] {
+					return clip_valid() && clip->loopLength == source_length && sampleHolder->audioFile == source_sample
+					       && sampleHolder->startPos == source_start && sampleHolder->endPos == source_end;
+				};
+				const int64_t sample_duration = sampleHolder->getDurationInSamples(true);
+				if (sample_duration <= 0)
+					return;
+				const uint64_t loopLengthSamples = static_cast<uint64_t>(sample_duration);
 				action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+				if (!tempo_source_valid() || !history_valid())
+					return;
 
 				ticksLong = setTempoFromAudioClipLength(loopLengthSamples, action);
+				if (!tempo_source_valid() || !history_valid() || ticksLong == 0 || ticksLong > kMaxSequenceLength)
+					return;
 			}
 
 			// Set length, if different
@@ -2725,14 +2830,21 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 				uint32_t oldLength = clip->loopLength;
 				clip->loopLength = ticksLong;
 
-				action->recordClipLengthChange(clip, oldLength);
+				if (action && !action->recordClipLengthChange(clip, oldLength))
+					return;
 			}
 
+			if (!clip_valid() || !history_valid() || clip->loopLength != ticksLong)
+				return;
 			clip->originalLength =
 			    ticksLong; // Reset this. After tempoless recording, actual original length is irrelevant
 
+			Clip* nextPendingOverdub = target_song->getPendingOverdubWithOutput(target_output);
 			if (nextPendingOverdub) {
 				nextPendingOverdub->copyBasicsFrom(clip); // Copy this again, in case it's changed since it was created
+				if (!clip_valid() || !history_valid() || clip->loopLength != ticksLong
+				    || clip->originalLength != ticksLong)
+					return;
 			}
 		}
 	}
@@ -2740,11 +2852,15 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 	// Used to call endPlayback() here, but it actually isn't needed
 	if (!shouldStartPlaybackAgain) {
 		endPlayback();
+		if (!session_valid() || !history_valid())
+			return;
 	}
 
 	if (shouldExitRecordMode && recording == RecordingMode::NORMAL) {
 		recording = RecordingMode::OFF;
 		setLedStates();
+		if (!session_valid() || !history_valid())
+			return;
 	}
 
 	// Unless the user just hit the play button to stop playback, we probably just want it to start again - so they
@@ -2754,12 +2870,15 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 		// And remember that this tempoless-record Action included beginning playback, so undoing / redoing it later
 		// will stop and start playback respectively
 		if (action) {
-			void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceBeginPlayback));
-
-			if (consMemory) {
-				ConsequenceBeginPlayback* newConsequence = new (consMemory) ConsequenceBeginPlayback();
-				action->addConsequence(newConsequence);
+			void* consequence_memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceBeginPlayback));
+			if (!session_valid() || !history_valid()) {
+				if (consequence_memory)
+					delugeDealloc(consequence_memory);
+				return;
 			}
+			if (!consequence_memory)
+				return;
+			action->addConsequence(new (consequence_memory) ConsequenceBeginPlayback());
 		}
 
 		setupPlaybackUsingInternalClock(0,
@@ -2798,7 +2917,7 @@ void PlaybackHandler::stopAnyRecording() {
 
 		setLedStates();
 		if (wasRecordingArrangement) {
-			view.setModLedStates();
+			view_for_session().setModLedStates();
 		}
 	}
 }
@@ -2881,7 +3000,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 					// Firstly, we don't want to do it while we may be in some card access routine - e.g. by a
 					// SampleRecorder. Secondly, reversion can take a lot of time, and may want to call the audio
 					// routine - which is locked cos we're in it!
-					pendingGlobalMIDICommand = command;
+					pend_global_m_id_i_command(command);
 					pendingGlobalMIDICommandNumClustersWritten = 0;
 				}
 				break;
@@ -2957,7 +3076,7 @@ void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, i
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (getCurrentUI()->pcReceivedForMidiLearn(cable, channel, program)) {}
 		else {
-			view.pcReceivedForMIDILearn(cable, channel, program);
+			view_for_session().pcReceivedForMIDILearn(cable, channel, program);
 		}
 	}
 	else {
@@ -3008,7 +3127,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
 
 				// use root UI in case this is called from performance view
-				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+				session_view_for_session().requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 			}
 			foundAnything = true;
 		}
@@ -3027,7 +3146,7 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 
 		if (getCurrentUI()->noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity)) {}
 		else {
-			view.noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
+			view_for_session().noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
 		}
 		return;
 	}
@@ -3091,7 +3210,7 @@ void PlaybackHandler::switchToArrangement() {
 	session.endPlayback();
 	arrangement.setupPlayback();
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
-	arrangerView.reassessWhetherDoingAutoScroll();
+	arranger_view_for_session().reassessWhetherDoingAutoScroll();
 	if (display->haveOLED()) {
 		if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
@@ -3099,10 +3218,10 @@ void PlaybackHandler::switchToArrangement() {
 		}
 	}
 	else {
-		sessionView.redrawNumericDisplay();
+		session_view_for_session().redrawNumericDisplay();
 	}
 
-	if (getCurrentUI() == &sessionView) {
+	if (getCurrentUI() == &session_view_for_session()) {
 		PadLEDs::reassessGreyout();
 	}
 }
@@ -3121,7 +3240,7 @@ void PlaybackHandler::switchToSession() {
 	session.setupPlayback();
 	stopOutputRecordingAtLoopEnd = false;
 
-	if (getCurrentUI() == &sessionView) {
+	if (getCurrentUI() == &session_view_for_session()) {
 		PadLEDs::reassessGreyout();
 	}
 }
@@ -3139,8 +3258,8 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 	}
 	else {
 		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.pitchBendReceived(cable, channel, data1, data2)) {
+		if (getCurrentUI() == &sound_editor_for_session()) {
+			if (sound_editor_for_session().pitchBendReceived(cable, channel, data1, data2)) {
 				return;
 			}
 		}
@@ -3190,12 +3309,13 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	else {
 		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
+		if (getCurrentUI() == &sound_editor_for_session()
+		    && sound_editor_for_session().midiCCReceived(cable, channelOrZone, ccNumber, value)) {
 			return;
 		}
 		// then midi learn is second priority
 		else if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			view.ccReceivedForMIDILearn(cable, channelOrZone, ccNumber, value);
+			view_for_session().ccReceivedForMIDILearn(cable, channelOrZone, ccNumber, value);
 			// we don't want this learn to immediately trigger the thing it was learnt to so just return
 			return;
 		}
@@ -3328,7 +3448,7 @@ probablyExitRecordMode:
 		// TODO: this traverses all Clips. So does further down. This could be combined
 		session.launchSchedulingMightNeedCancelling();
 		// use root UI in case this is called from performance view
-		sessionView.requestRendering(getRootUI());
+		session_view_for_session().requestRendering(getRootUI());
 
 		goto probablyExitRecordMode;
 	}
@@ -3357,10 +3477,10 @@ doCreateNextOverdub:
 			int32_t clipIndexToCreateOverdubFrom;
 
 			// If we're holding down a Clip in Session View, prioritize that
-			if (getRootUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-				clipToCreateOverdubFrom = sessionView.getClipForLayout();
-				clipIndexToCreateOverdubFrom = sessionView.getClipIndexForLayout();
-				sessionView.performActionOnPadRelease = false;
+			if (getRootUI() == &session_view_for_session() && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+				clipToCreateOverdubFrom = session_view_for_session().getClipForLayout();
+				clipIndexToCreateOverdubFrom = session_view_for_session().getClipIndexForLayout();
+				session_view_for_session().performActionOnPadRelease = false;
 			}
 
 			// Otherwise, prioritize the currentClip - so long as it's not arrangement-only

@@ -23,6 +23,7 @@
 #include "gui/waveform/waveform_render_data.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
+#include "model/clip/clip_view_state.h"
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
@@ -79,10 +80,11 @@ public:
 	                                                        ModelStackWithTimelineCounter* modelStackClone) {
 		return Error::NONE;
 	}
-	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
+	virtual bool increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                                       IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                                       bool completelyRenderOutIterationDependence = false,
 	                                       Action* action = nullptr) {
+		return true;
 	} // This is not implemented for AudioClips - because in the cases where we call this, we don't want it to happen
 	  // for AudioClips
 	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = nullptr);
@@ -144,6 +146,9 @@ public:
 	virtual bool willCloneOutputForOverdub() { return false; }
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
+	// Read-only preflight before callers create history. Execution must still
+	// validate again because history allocation can change the context.
+	virtual bool can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) { return loopLength > 0; }
 	/// Return true if successfully shifted
 	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
 	                               bool shiftSequenceAndMPE) = 0;
@@ -199,17 +204,54 @@ public:
 	bool overdubsShouldCloneOutput;
 
 	// START ~ new Automation Clip View Variables
-	bool onAutomationClipView; // new to save the view that you are currently in
-	                           //(e.g. if you leave clip and want to come back where you left off)
+	deluge::gui::ui_session::State<ClipViewState> panel_view_state;
+	bool& on_keyboard_screen_for_session() { return panel_view_state.active().onKeyboardScreen; }
+	bool on_keyboard_screen_for_session() const { return panel_view_state.active().onKeyboardScreen; }
+	bool& on_automation_clip_view_for_session() { return panel_view_state.active().onAutomationClipView; }
+	bool on_automation_clip_view_for_session() const { return panel_view_state.active().onAutomationClipView; }
+
+	//(e.g. if you leave clip and want to come back where you left off)
 
 	/// last selected Parameter to be edited in Automation Instrument Clip View
-	int32_t lastSelectedParamID;
-	deluge::modulation::params::Kind lastSelectedParamKind;
-	int32_t lastSelectedParamShortcutX;
-	int32_t lastSelectedParamShortcutY;
-	int32_t lastSelectedParamArrayPosition;
-	OutputType lastSelectedOutputType;
-	PatchSource lastSelectedPatchSource;
+	auto& last_selected_param_id_for_session() { return panel_view_state.active().automation.lastSelectedParamID; }
+	const auto& last_selected_param_id_for_session() const {
+		return panel_view_state.active().automation.lastSelectedParamID;
+	}
+	auto& last_selected_param_kind_for_session() { return panel_view_state.active().automation.lastSelectedParamKind; }
+	const auto& last_selected_param_kind_for_session() const {
+		return panel_view_state.active().automation.lastSelectedParamKind;
+	}
+	auto& last_selected_param_shortcut_x_for_session() {
+		return panel_view_state.active().automation.lastSelectedParamShortcutX;
+	}
+	const auto& last_selected_param_shortcut_x_for_session() const {
+		return panel_view_state.active().automation.lastSelectedParamShortcutX;
+	}
+	auto& last_selected_param_shortcut_y_for_session() {
+		return panel_view_state.active().automation.lastSelectedParamShortcutY;
+	}
+	const auto& last_selected_param_shortcut_y_for_session() const {
+		return panel_view_state.active().automation.lastSelectedParamShortcutY;
+	}
+	auto& last_selected_param_array_position_for_session() {
+		return panel_view_state.active().automation.lastSelectedParamArrayPosition;
+	}
+	const auto& last_selected_param_array_position_for_session() const {
+		return panel_view_state.active().automation.lastSelectedParamArrayPosition;
+	}
+	auto& last_selected_output_type_for_session() {
+		return panel_view_state.active().automation.lastSelectedOutputType;
+	}
+	const auto& last_selected_output_type_for_session() const {
+		return panel_view_state.active().automation.lastSelectedOutputType;
+	}
+	auto& last_selected_patch_source_for_session() {
+		return panel_view_state.active().automation.lastSelectedPatchSource;
+	}
+	const auto& last_selected_patch_source_for_session() const {
+		return panel_view_state.active().automation.lastSelectedPatchSource;
+	}
+
 	// END ~ new Automation Clip View Variables
 
 	virtual bool isEmpty(bool displayPopup = true) = 0;

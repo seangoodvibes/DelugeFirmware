@@ -34,27 +34,28 @@ public:
 	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		soundEditor.shouldGoUpOneLevelOnBegin = true;
-		soundEditor.setCurrentSource(source_id_);
+		sound_editor_for_session().shouldGoUpOneLevelOnBegin = true;
+		sound_editor_for_session().setCurrentSource(source_id_);
 
 		if (parentMenuHeadingTo != nullptr && menuItemHeadingTo != nullptr) {
 			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-			soundEditor.navigationDepth = 0;
-			soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = parentMenuHeadingTo;
-			soundEditor.shouldGoUpOneLevelOnBegin = false;
+			sound_editor_for_session().navigationDepth = 0;
+			sound_editor_for_session().menuItemNavigationRecord[sound_editor_for_session().navigationDepth] =
+			    parentMenuHeadingTo;
+			sound_editor_for_session().shouldGoUpOneLevelOnBegin = false;
 
 			parentMenuHeadingTo = nullptr;
 			menuItemHeadingTo = nullptr;
 		}
 
-		if (bool success = openUI(&audioRecorder); !success) {
-			if (getCurrentUI() == &soundEditor) {
-				soundEditor.goUpOneLevel();
+		if (bool success = openUI(&audio_recorder_for_session()); !success) {
+			if (getCurrentUI() == &sound_editor_for_session()) {
+				sound_editor_for_session().goUpOneLevel();
 			}
 			return uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		}
 
-		audioRecorder.process();
+		audio_recorder_for_session().process();
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
@@ -70,7 +71,8 @@ public:
 		}
 
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, currentRange);
+		return sound_editor_for_session().checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_,
+		                                                                                     currentRange);
 	}
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
@@ -80,7 +82,7 @@ public:
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace hid::display;
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		// Draw "rec" part
 		const uint8_t start_x = slot.start_x + 8;
@@ -96,7 +98,7 @@ public:
 		uint8_t source_y = slot.start_y + kHorizontalMenuSlotYOffset + 4;
 
 		const bool full_inversion = FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::FULL_INVERSION;
-		if (full_inversion || parent->getCurrentItem() == this) {
+		if (full_inversion || parent_for_session()->getCurrentItem() == this) {
 			image.drawString(buf.data(), source_x, source_y, kTextBigSpacingX, kTextBigSizeY);
 		}
 		else {

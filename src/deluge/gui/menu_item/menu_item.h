@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "gui/ui/ui_session.h"
+
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
@@ -127,6 +129,8 @@ public:
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
+	// Refresh shared values without restarting menu navigation or editing drafts.
+	virtual void refresh_shared_value() {}
 	/// Like readValueAgain, but does not redraw.
 	virtual void readCurrentValue() {}
 
@@ -319,11 +323,14 @@ public:
 
 	virtual void renderInHorizontalMenu(const SlotPosition& slot) {};
 
-	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
+	deluge::gui::menu_item::HorizontalMenu*& parent_for_session() { return parents_.active(); }
+	deluge::gui::menu_item::HorizontalMenu* parent_for_session() const { return parents_.active(); }
 
 	virtual bool selectEncoderActionIsPermitted() { return true; }
 
 	/// @}
+private:
+	deluge::gui::ui_session::State<deluge::gui::menu_item::HorizontalMenu*> parents_;
 };
 
 #define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)

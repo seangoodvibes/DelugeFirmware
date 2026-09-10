@@ -37,17 +37,17 @@ public:
 	    : Selection(name), FormattedTitle(title_format_str, source_id + 1), sourceId_{source_id} {};
 	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
 
-	bool mayUseDx() const { return !soundEditor.editingKit() && sourceId_ == 0; }
+	bool mayUseDx() const { return !sound_editor_for_session().editingKit() && sourceId_ == 0; }
 
 	void readCurrentValue() override {
-		int32_t rawVal = static_cast<int32_t>(soundEditor.currentSound->sources[sourceId_].oscType);
+		int32_t rawVal = static_cast<int32_t>(sound_editor_for_session().currentSound->sources[sourceId_].oscType);
 		if (!mayUseDx() && rawVal > static_cast<int32_t>(OscType::DX7)) {
 			rawVal -= 1;
 		}
 		setValue(rawVal);
 	}
 	void writeCurrentValue() override {
-		OscType oldValue = soundEditor.currentSound->sources[sourceId_].oscType;
+		OscType oldValue = sound_editor_for_session().currentSound->sources[sourceId_].oscType;
 		auto newValue = getValue<OscType>();
 		if (!mayUseDx() && static_cast<int32_t>(newValue) >= static_cast<int32_t>(OscType::DX7)) {
 			newValue = static_cast<OscType>(static_cast<int32_t>(newValue) + 1);
@@ -65,13 +65,13 @@ public:
 		};
 
 		if (util::one_of(oldValue, needs_unassignment) || util::one_of(newValue, needs_unassignment)) {
-			soundEditor.currentSound->killAllVoices();
+			sound_editor_for_session().currentSound->killAllVoices();
 		}
 
-		soundEditor.currentSound->sources[sourceId_].setOscType(newValue);
+		sound_editor_for_session().currentSound->sources[sourceId_].setOscType(newValue);
 
 		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
-			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
+			sound_editor_for_session().currentSound->setupPatchingForAllParamManagers(currentSong);
 		}
 	}
 
@@ -90,7 +90,7 @@ public:
 		    l10n::getView(STRING_FOR_WAVETABLE),     //<
 		};
 
-		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
+		if (sound_editor_for_session().currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return options;
 		}
 
@@ -118,7 +118,7 @@ public:
 	}
 
 	MenuItem* selectButtonPress() override {
-		if (soundEditor.currentSound->sources[sourceId_].oscType != OscType::DX7) {
+		if (sound_editor_for_session().currentSound->sources[sourceId_].oscType != OscType::DX7) {
 			return nullptr;
 		}
 		return &dxMenu;
@@ -127,9 +127,9 @@ public:
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
-		const OscType osc_type = soundEditor.currentSound->sources[sourceId_].oscType;
+		const OscType osc_type = sound_editor_for_session().currentSound->sources[sourceId_].oscType;
 		if (osc_type == OscType::DX7) {
 			const auto option = getOptions(OptType::FULL)[getValue()].data();
 			return image.drawStringCentered(option, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset + 5,
@@ -172,7 +172,8 @@ public:
 	}
 
 	bool wrapAround() override {
-		return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
+		return parent_for_session() != nullptr
+		       && parent_for_session()->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
 	}
 
 private:

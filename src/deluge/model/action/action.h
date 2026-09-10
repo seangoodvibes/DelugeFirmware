@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui_session.h"
+#include "model/action/action_identity.h"
 #include "model/scale/note_set.h"
 #include "util/container/enum_to_string_map.hpp"
 
@@ -79,29 +81,41 @@ extern EnumStringMap<ActionType, 28> actionTypeMap;
 class Action {
 public:
 	Action(ActionType newActionType);
+	Action(const Action&) = delete;
+	Action& operator=(const Action&) = delete;
 	void addConsequence(Consequence* consequence);
 	Error revert(TimeType time, ModelStack* modelStack);
 	bool containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId);
-	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
-	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
+	bool recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
+	bool recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
 	Error recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
 	                                                   bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
 	Error recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
 	                                      bool stealData);
 	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t noteRowId, bool moveToFrontIfFound = false);
-	void recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type);
+	// CREATE requires an already-inserted note; memory failure removes it if context and values still match.
+	// Callers must stop using the note on any error. Other pre-creation edits are not rolled back.
+	Error recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type,
+	                                Note** recorded_note = nullptr);
 	void recordNoteChange(InstrumentClip* clip, int32_t noteRowId, Note* note, int32_t lengthAfter,
 	                      int32_t velocityAfter, int32_t probabilityAfter);
 	void updateYScrollClipViewAfter(InstrumentClip* clip = nullptr);
-	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type);
+	bool recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type);
 	void prepareForDestruction(int32_t whichQueueActionIn, Song* song);
-	void recordClipLengthChange(Clip* clip, int32_t oldLength);
+	bool recordClipLengthChange(Clip* clip, int32_t oldLength);
 	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type);
 	void recordAudioClipSampleChange(AudioClip* clip);
-	void deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool destructing = false);
+	void deleteAllConsequences(int32_t whichQueueActionIn, Song* song);
 
 	ActionType type;
 	bool openForAdditions;
+	bool require_complete_snapshots = false;
+	Error snapshot_error = Error::NONE;
+	bool snapshot_failed() {
+		if (require_complete_snapshots)
+			snapshot_error = Error::INSUFFICIENT_RAM;
+		return false;
+	}
 
 	// A bunch of snapshot-things here store their state both before or after the action - because the action could have
 	// changed these
@@ -125,9 +139,13 @@ public:
 
 	// bool inKeyboardView;
 
+	const uint64_t action_identity = deluge::model::next_action_identity();
+	const deluge::gui::ui_session::Id navigation_owner = deluge::gui::ui_session::current();
 	UI* view;
 
-	Clip* currentClip; // Watch out - this might get set to NULL
+	Clip* currentClip;                 // Watch out - this might get set to NULL
+	Output* captured_output = nullptr; // Identity only; never dereference a retained output here.
+	Song* captured_song = nullptr;     // Identity only; song loading may invalidate the original object.
 
 	int32_t posToClearArrangementFrom;
 

@@ -175,6 +175,8 @@ private:
 	void renderViewDisplay();
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
+	bool cancel_stale_session_hold();
+	uint64_t session_hold_revision = 0;
 	void drawSectionRepeatNumber();
 	void beginEditingSectionRepeatsNum();
 	void goToArrangementEditor();
@@ -317,4 +319,4 @@ private:
 	static constexpr int32_t kBlendOffsetDim = kPulseRate;               // amount to move slider for muted clip
 };
 
-extern SessionView sessionView;
+SessionView& session_view_for_session();

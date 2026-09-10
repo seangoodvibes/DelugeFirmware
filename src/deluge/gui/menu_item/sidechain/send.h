@@ -30,7 +30,8 @@ public:
 	using Integer::Integer;
 
 	void readCurrentValue() override {
-		this->setValue(((uint64_t)soundEditor.currentSound->sideChainSendLevel * kMaxMenuValue + 1073741824) >> 31);
+		this->setValue(
+		    ((uint64_t)sound_editor_for_session().currentSound->sideChainSendLevel * kMaxMenuValue + 1073741824) >> 31);
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -43,7 +44,8 @@ public:
 		}
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -57,13 +59,13 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->sideChainSendLevel = current_value;
+			sound_editor_for_session().currentSound->sideChainSendLevel = current_value;
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKit();
+		return sound_editor_for_session().editingKit();
 	}
 };
 } // namespace deluge::gui::menu_item::sidechain

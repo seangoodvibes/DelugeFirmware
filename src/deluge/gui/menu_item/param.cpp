@@ -42,11 +42,11 @@ ActionResult Param::buttonAction(deluge::hid::Button b, bool on, bool inCardRout
 
 void Param::horizontalEncoderAction(int32_t offset) {
 	RootUI* rootUI = getRootUI();
-	if (rootUI == &automationView) {
-		automationView.horizontalEncoderAction(offset);
+	if (rootUI == &automation_view_for_session()) {
+		automation_view_for_session().horizontalEncoderAction(offset);
 	}
-	else if (rootUI == &keyboardScreen) {
-		keyboardScreen.horizontalEncoderAction(offset);
+	else if (rootUI == &keyboard_screen_for_session()) {
+		keyboard_screen_for_session().horizontalEncoderAction(offset);
 	}
 }
 

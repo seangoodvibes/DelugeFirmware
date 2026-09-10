@@ -27,9 +27,9 @@ public:
 	Reset(l10n::String name, context_menu::ResetSettingsAction action) : MenuItem(name), action_(action) {}
 
 	MenuItem* selectButtonPress() override {
-		context_menu::resetSettings.setAction(action_);
-		context_menu::resetSettings.setupAndCheckAvailability();
-		openUI(&context_menu::resetSettings);
+		context_menu::reset_settings_for_session().setAction(action_);
+		context_menu::reset_settings_for_session().setupAndCheckAvailability();
+		openUI(&context_menu::reset_settings_for_session());
 		return NO_NAVIGATION;
 	}
 

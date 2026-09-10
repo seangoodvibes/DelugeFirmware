@@ -1,3 +1,4 @@
+#include "gui/ui/ui_navigation_state.h"
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
  *
@@ -15,7 +16,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
@@ -25,6 +25,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_output_existence.h"
@@ -61,24 +62,24 @@ Clip::Clip(ClipType newType) : type(newType) {
 	fillEventAtTickCount = 0;
 
 	// initialize automation clip view variables
-	onAutomationClipView = false;
-	lastSelectedParamID = params::kNoParamID;
-	lastSelectedParamKind = params::Kind::NONE;
-	lastSelectedParamShortcutX = kNoSelection;
-	lastSelectedParamShortcutY = kNoSelection;
-	lastSelectedParamArrayPosition = 0;
-	lastSelectedOutputType = OutputType::NONE;
-	lastSelectedPatchSource = PatchSource::NONE;
+	on_automation_clip_view_for_session() = false;
+	last_selected_param_id_for_session() = params::kNoParamID;
+	last_selected_param_kind_for_session() = params::Kind::NONE;
+	last_selected_param_shortcut_x_for_session() = kNoSelection;
+	last_selected_param_shortcut_y_for_session() = kNoSelection;
+	last_selected_param_array_position_for_session() = 0;
+	last_selected_output_type_for_session() = OutputType::NONE;
+	last_selected_patch_source_for_session() = PatchSource::NONE;
 	// end initialize of automation clip view variables
 
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 }
 
 Clip::~Clip() {
-	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
-	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
-	if (currentSong && getCurrentClip() == this) {
-		currentSong->setCurrentClip(nullptr);
+	// Direct destruction must clear both panels' non-owning selection references.
+	// currentSong is null during deleteOldSongBeforeLoadingNew().
+	if (currentSong) {
+		currentSong->invalidate_clip_selection(this);
 	}
 }
 
@@ -103,7 +104,7 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	// modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
-	onAutomationClipView = otherClip->onAutomationClipView;
+	on_automation_clip_view_for_session() = otherClip->on_automation_clip_view_for_session();
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
@@ -112,7 +113,7 @@ void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDu
 	uint32_t newLength = existingClip->loopLength;
 
 	if (newOverdubNature != OverDubType::ContinuousLayering) {
-		uint32_t currentScreenLength = currentSong->xZoom[NAVIGATION_CLIP] << kDisplayWidthMagnitude;
+		uint32_t currentScreenLength = currentSong->x_zoom_for_session()[NAVIGATION_CLIP] << kDisplayWidthMagnitude;
 
 		// If new length is a multiple of screen length, just use screen length
 		if ((newLength % currentScreenLength) == 0) {
@@ -523,9 +524,18 @@ Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* model
 }
 
 bool Clip::deleteSoundsWhichWontSound(Song* song) {
-	return (output->isSkippingRendering() && !song->isClipActive(this)
-	        && this != view.activeModControllableModelStack.getTimelineCounterAllowNull()
-	        && this != song->syncScalingClip);
+	if (!output->isSkippingRendering() || song->isClipActive(this) || this == song->syncScalingClip) {
+		return false;
+	}
+	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+		deluge::gui::ui_session::Scope panel(owner);
+		const View* panel_view = view_for_session_if_initialized();
+		if (song->getCurrentClip() == this
+		    || (panel_view && this == panel_view->activeModControllableModelStack.getTimelineCounterAllowNull())) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
@@ -581,15 +591,23 @@ void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
 // MIDI / CV cases - they're dealt with there
 Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
+	if (!modelStack || !modelStack->song || modelStack->song != currentSong || !output
+	    || modelStack->getTimelineCounterAllowNull() != this)
+		return Error::BUG;
+	Song* const song = modelStack->song;
+	using namespace deluge::gui::ui_session;
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	const auto context_changed = [song, local_revision, remote_revision] {
+		return currentSong != song || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+		       || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision;
+	};
 	ModControllable* modControllable = output->toModControllable();
 
-	bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)modControllable,
-	                                                                           this, &paramManager);
+	bool success = modelStack->song->getBackedUpParamManagerForExactClip((ModControllableAudio*)modControllable, this,
+	                                                                     &paramManager);
 
-	if (!success) {
-		if (ALPHA_OR_BETA_VERSION) {
-			FREEZE_WITH_ERROR("E245");
-		}
+	if (context_changed() || !success) {
 		return Error::BUG;
 	}
 
@@ -598,7 +616,7 @@ Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) 
 
 	paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, nullptr, false);
 
-	return Error::NONE;
+	return context_changed() ? Error::BUG : Error::NONE;
 }
 
 // ----- TimelineCounter implementation -------

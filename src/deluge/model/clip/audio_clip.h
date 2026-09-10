@@ -86,6 +86,7 @@ public:
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) override;
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
+	bool can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) override;
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
 	                       bool shiftSequenceAndMPE) override;
 
@@ -116,7 +117,7 @@ public:
 
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
-		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
+		return audio_clip_view_for_session().renderSidebar(whichRows, image, occupancyMask);
 	};
 
 	ParamManagerForTimeline* getCurrentParamManager() override;

@@ -39,11 +39,11 @@ public:
 		char name[12];
 		// Index: Name
 		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-		OLED::main.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+		OLED::main_for_session().drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const auto value = this->getValue();
 		const auto pattern = std::string_view(arpRhythmPatternNames[value]);
@@ -64,7 +64,8 @@ public:
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
+		return !sound_editor_for_session().editingCVOrMIDIClip()
+		       && !sound_editor_for_session().editingNonAudioDrumRow();
 	}
 
 protected:

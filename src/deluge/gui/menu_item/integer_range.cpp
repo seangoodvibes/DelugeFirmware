@@ -27,7 +27,7 @@ void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
 	if (display->haveOLED()) {
 		if (lower != upper) {
-			soundEditor.editingRangeEdge = RangeEdit::LEFT;
+			sound_editor_for_session().editingRangeEdge = RangeEdit::LEFT;
 		}
 	}
 }
@@ -35,10 +35,10 @@ void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 void IntegerRange::selectEncoderAction(int32_t offset) {
 
 	// If editing the range
-	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
+	if (sound_editor_for_session().editingRangeEdge != RangeEdit::OFF) {
 
 		// Editing lower
-		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+		if (sound_editor_for_session().editingRangeEdge == RangeEdit::LEFT) {
 			lower = std::clamp(lower + offset, minValue, maxValue);
 			if (upper < lower) {
 				upper = lower;

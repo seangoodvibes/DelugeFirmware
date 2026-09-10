@@ -29,7 +29,7 @@ public:
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		if (soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow()) {
+		if (sound_editor_for_session().editingCVOrMIDIClip() || sound_editor_for_session().editingNonAudioDrumRow()) {
 			return false;
 		}
 
@@ -38,7 +38,7 @@ public:
 		const bool isGlobal =
 		    util::one_of(p, {UNPATCHED_SPREAD_VELOCITY, UNPATCHED_NOTE_PROBABILITY, UNPATCHED_REVERSE_PROBABILITY});
 
-		return isGlobal || soundEditor.currentArpSettings->mode != ArpMode::OFF;
+		return isGlobal || sound_editor_for_session().currentArpSettings->mode != ArpMode::OFF;
 	}
 
 	void getColumnLabel(StringBuf& label) override {
@@ -55,8 +55,9 @@ class RandomizerSoundOnlyUnpatchedParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
-		       && !soundEditor.editingNonAudioDrumRow() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
+		return !sound_editor_for_session().editingCVOrMIDIClip() && !sound_editor_for_session().editingKitAffectEntire()
+		       && !sound_editor_for_session().editingNonAudioDrumRow()
+		       && sound_editor_for_session().currentArpSettings->mode != ArpMode::OFF;
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
@@ -71,8 +72,8 @@ public:
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit()
-		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
+		return !sound_editor_for_session().editingCVOrMIDIClip() && !sound_editor_for_session().editingKit()
+		       && sound_editor_for_session().currentArpSettings->mode != ArpMode::OFF;
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));

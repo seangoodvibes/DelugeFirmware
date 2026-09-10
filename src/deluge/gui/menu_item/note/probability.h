@@ -42,7 +42,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
 	void readCurrentValue() override {
-		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		Note* leftMostNote = instrument_clip_view_for_session().getLeftMostNotePressed();
 
 		if (leftMostNote) {
 			this->setValue(leftMostNote->getProbability());
@@ -50,7 +50,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		instrumentClipView.adjustNoteProbabilityWithOffset(offset);
+		instrument_clip_view_for_session().adjustNoteProbabilityWithOffset(offset);
 		readValueAgain();
 	}
 
@@ -64,7 +64,8 @@ public:
 			strcat(buffer, " (L)");
 		}
 
-		OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
+		OLED::main_for_session().drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+		                                           kTextHugeSizeY);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
@@ -74,8 +75,8 @@ public:
 		intToString(getProbabilityValue(latching), buffer);
 		strcat(buffer, latching ? "L" : "%");
 
-		OLED::main.drawStringCentered(buffer, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
-		                              kTextSpacingY, slot.width);
+		OLED::main_for_session().drawStringCentered(buffer, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+		                                            kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
 	void drawValue() override {

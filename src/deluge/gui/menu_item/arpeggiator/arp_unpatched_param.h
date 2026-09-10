@@ -27,7 +27,8 @@ public:
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
+		return !sound_editor_for_session().editingCVOrMIDIClip()
+		       && !sound_editor_for_session().editingNonAudioDrumRow();
 	}
 
 	void getColumnLabel(StringBuf& label) override {

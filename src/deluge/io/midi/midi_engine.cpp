@@ -1,3 +1,4 @@
+#include "io/midi/usb_send_range.h"
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
  *
@@ -15,16 +16,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "io/midi/midi_engine.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
+#include "hid/mirror.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
@@ -403,6 +405,14 @@ void MidiEngine::flushUSBMIDIOutput() {
 				}
 			}
 
+			midiDeviceNumToSendTo = deluge::io::midi::first_ready_usb_device(
+			    midiDeviceNumToSendTo, newStopSendingAfter, MAX_NUM_USB_MIDI_DEVICES, [&](int32_t index) {
+				    auto& device = connectedUSBMIDIDevices[ip][index];
+				    return device.cable[0] && device.numBytesSendingNow > 0;
+			    });
+			if (midiDeviceNumToSendTo < 0)
+				goto getOut;
+
 			stopSendingAfterDeviceNum[ip] = newStopSendingAfter;
 			anyUSBSendingStillHappening[ip] = 1;
 
@@ -762,6 +772,15 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d
 bool developerSysexCodeReceived = false;
 
 void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
+	// Mirror traffic uses only the official manufacturer header. Client mode
+	// must not execute storage, debug, popup or other ordinary SysEx commands.
+	if (len >= 6 && data[0] == 0xF0 && data[1] == 0 && data[2] == 0x21 && data[3] == 0x7B && data[4] == 1
+	    && data[5] == 6) {
+		deluge::hid::mirror::received(cable, data + 5, len - 5);
+		return;
+	}
+	if (deluge::hid::mirror::is_client())
+		return;
 	if (len < 4) {
 		return;
 	}
@@ -958,6 +977,8 @@ bool lastWasNoteOn = false;
 
 void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1,
                                      uint8_t data2, uint32_t* timer) {
+	if (deluge::hid::mirror::is_client())
+		return;
 
 	bool shouldDoMidiThruNow = cable.midi_thru;
 

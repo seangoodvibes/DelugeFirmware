@@ -35,7 +35,7 @@ namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
 	this->setValue(computeCurrentValueForStandardMenuItem(
-	    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
+	    sound_editor_for_session().currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 }
 
 void UnpatchedParam::writeCurrentValue() {
@@ -46,7 +46,7 @@ void UnpatchedParam::writeCurrentValue() {
 		return;
 
 	// If affect-entire button held, do whole kit
-	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && sound_editor_for_session().editingKitRow()) {
 
 		Kit* kit = getCurrentKit();
 
@@ -71,12 +71,12 @@ void UnpatchedParam::writeCurrentValue() {
 
 	// send midi follow feedback
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
+	view_for_session().sendMidiFollowFeedback(modelStackWithParam, knobPos);
 
-	if (getRootUI() == &automationView) {
+	if (getRootUI() == &automation_view_for_session()) {
 		int32_t p = modelStackWithParam->paramId;
 		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+		automation_view_for_session().possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
 	}
 }
 
@@ -91,7 +91,7 @@ ParamDescriptor UnpatchedParam::getLearningThing() {
 }
 
 ParamSet* UnpatchedParam::getParamSet() {
-	return soundEditor.currentParamManager->getUnpatchedParamSet();
+	return sound_editor_for_session().currentParamManager->getUnpatchedParamSet();
 }
 
 deluge::modulation::params::Kind UnpatchedParam::getParamKind() {

@@ -31,13 +31,14 @@ class Count : public Integer {
 public:
 	using Integer::Integer;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->numUnison); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentSound->numUnison); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -56,9 +57,10 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			ModelStackWithSoundFlags* modelStack =
+			    sound_editor_for_session().getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			soundEditor.currentSound->setNumUnison(current_value, modelStack);
+			sound_editor_for_session().currentSound->setNumUnison(current_value, modelStack);
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
@@ -68,8 +70,9 @@ public:
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		DEF_STACK_STRING_BUF(paramValue, 2);
 		paramValue.appendInt(getValue());
-		OLED::main.drawStringCentered(paramValue, slot.start_x + 1, slot.start_y + kHorizontalMenuSlotYOffset + 3,
-		                              kTextBigSpacingX, kTextBigSizeY, slot.width);
+		OLED::main_for_session().drawStringCentered(paramValue, slot.start_x + 1,
+		                                            slot.start_y + kHorizontalMenuSlotYOffset + 3, kTextBigSpacingX,
+		                                            kTextBigSizeY, slot.width);
 	}
 };
 

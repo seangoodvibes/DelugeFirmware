@@ -57,7 +57,7 @@ public:
 	                                          Availability availabilityRequirement, bool doBlink);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
-		Browser::outputTypeToLoad = newOutputType;
+		Browser::output_type_to_load_for_session() = newOutputType;
 		instrumentToReplace = instrumentToReplace_;
 		instrumentClipToLoadFor = instrumentClipToLoadFor_;
 		loadingSynthToKitRow = false;
@@ -66,7 +66,7 @@ public:
 		noteRow = nullptr;
 	}
 	void setupLoadSynthToKit(Instrument* kit, InstrumentClip* clip, SoundDrum* drum, NoteRow* row, int32_t rowIndex) {
-		Browser::outputTypeToLoad = OutputType::SYNTH;
+		Browser::output_type_to_load_for_session() = OutputType::SYNTH;
 		instrumentToReplace = kit;
 		instrumentClipToLoadFor = clip;
 		loadingSynthToKitRow = true;
@@ -114,4 +114,4 @@ private:
 	String initialDirPath;
 };
 
-extern LoadInstrumentPresetUI loadInstrumentPresetUI;
+LoadInstrumentPresetUI& load_instrument_preset_ui_for_session();

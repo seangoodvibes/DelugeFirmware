@@ -26,14 +26,16 @@ class ChordProbability final : public RandomizerNonSoundInteger {
 public:
 	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->chordProbability));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->chordProbability));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->chordProbability = value;
+		sound_editor_for_session().currentArpSettings->chordProbability = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
+		return sound_editor_for_session().editingCVOrMIDIClip()
+		       && sound_editor_for_session().currentArpSettings->mode != ArpMode::OFF;
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PERCENT; }
 };

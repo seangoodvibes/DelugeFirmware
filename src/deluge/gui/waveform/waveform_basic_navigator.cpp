@@ -18,13 +18,20 @@
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_session.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/led/pad_leds.h"
 #include "model/sample/sample.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/misc.h"
 
-WaveformBasicNavigator waveformBasicNavigator{};
+namespace {
+WaveformBasicNavigator local_waveform_basic_navigator{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<WaveformBasicNavigator> remote_waveform_basic_navigator;
+} // namespace
+WaveformBasicNavigator& waveform_basic_navigator_for_session() {
+	return remote_waveform_basic_navigator.get(local_waveform_basic_navigator);
+}
 
 WaveformBasicNavigator::WaveformBasicNavigator() {
 }
@@ -172,14 +179,14 @@ bestYet:
 
 	potentiallyAdjustScrollPosition(shouldAllowExtraScrollRight);
 
-	memcpy(PadLEDs::imageStore[(offset > 0) ? kDisplayHeight : 0], PadLEDs::image,
+	memcpy(PadLEDs::image_store_for_session()[(offset > 0) ? kDisplayHeight : 0], PadLEDs::image_for_session(),
 	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 
 	// Calculate pin squares
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - xScroll) << 16) / (int32_t)(newXZoom - oldZoom);
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
-		PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
-		PadLEDs::transitionTakingPlaceOnRow[i] = true;
+		PadLEDs::zoom_pin_square_for_session()[i] = zoomPinSquareBig;
+		PadLEDs::transition_taking_place_on_row_for_session()[i] = true;
 	}
 
 	int32_t storeOffset = (offset > 0) ? 0 : kDisplayHeight;
@@ -188,10 +195,11 @@ bestYet:
 	                                  // where tick squares would
 	// appear when zooming into waveform in SampleBrowser
 
-	waveformRenderer.renderFullScreen(sample, xScroll, xZoom, &PadLEDs::imageStore[storeOffset], &renderData);
+	waveform_renderer_for_session().renderFullScreen(sample, xScroll, xZoom,
+	                                                 &PadLEDs::image_store_for_session()[storeOffset], &renderData);
 
-	PadLEDs::zoomingIn = (offset > 0);
-	PadLEDs::zoomMagnitude = PadLEDs::zoomingIn ? offset : -offset;
+	PadLEDs::zooming_in_for_session() = (offset > 0);
+	PadLEDs::zoom_magnitude_for_session() = PadLEDs::zooming_in_for_session() ? offset : -offset;
 
 	currentUIMode |= UI_MODE_HORIZONTAL_ZOOM;
 	PadLEDs::recordTransitionBegin(kZoomSpeed);

@@ -42,27 +42,82 @@
 #include <new>
 
 using namespace deluge;
-
-String Browser::currentDir{};
-bool Browser::qwertyVisible;
-
-CStringArray Browser::fileItems{sizeof(FileItem)};
-int32_t Browser::scrollPosVertical;
-int32_t Browser::fileIndexSelected;
-int32_t Browser::numCharsInPrefix;
-bool Browser::arrivedAtFileByTyping;
-int32_t Browser::numFileItemsDeletedAtStart;
-int32_t Browser::numFileItemsDeletedAtEnd;
-String Browser::firstFileItemRemaining{};
-String Browser::lastFileItemRemaining{};
-OutputType Browser::outputTypeToLoad;
-char const** Browser::allowedFileExtensions;
-bool Browser::allowFoldersSharingNameWithFile;
-char const* Browser::filenameToStartSearchAt;
+struct Browser::SessionState {
+	String currentDir{};
+	CStringArray fileItems{sizeof(FileItem)};
+	int32_t numFileItemsDeletedAtStart{};
+	int32_t numFileItemsDeletedAtEnd{};
+	String firstFileItemRemaining{};
+	String lastFileItemRemaining{};
+	OutputType outputTypeToLoad{};
+	char const* filenameToStartSearchAt{};
+	int32_t fileIndexSelected{};
+	int32_t scrollPosVertical{};
+	int32_t numCharsInPrefix{};
+	bool qwertyVisible = true;
+	bool arrivedAtFileByTyping{};
+	bool allowFoldersSharingNameWithFile{};
+	char const** allowedFileExtensions{};
+	int8_t numberEditPos{};
+	NumericLayerScrollingText* scrollingText{};
+};
+Browser::SessionState& Browser::session_state() {
+	static deluge::gui::ui_session::State<SessionState> states;
+	return states.active();
+}
+String& Browser::current_dir_for_session() {
+	return session_state().currentDir;
+}
+CStringArray& Browser::file_items_for_session() {
+	return session_state().fileItems;
+}
+int32_t& Browser::num_file_items_deleted_at_start_for_session() {
+	return session_state().numFileItemsDeletedAtStart;
+}
+int32_t& Browser::num_file_items_deleted_at_end_for_session() {
+	return session_state().numFileItemsDeletedAtEnd;
+}
+String& Browser::first_file_item_remaining_for_session() {
+	return session_state().firstFileItemRemaining;
+}
+String& Browser::last_file_item_remaining_for_session() {
+	return session_state().lastFileItemRemaining;
+}
+OutputType& Browser::output_type_to_load_for_session() {
+	return session_state().outputTypeToLoad;
+}
+char const*& Browser::filename_to_start_search_at_for_session() {
+	return session_state().filenameToStartSearchAt;
+}
+int32_t& Browser::file_index_selected_for_session() {
+	return session_state().fileIndexSelected;
+}
+int32_t& Browser::scroll_pos_vertical_for_session() {
+	return session_state().scrollPosVertical;
+}
+int32_t& Browser::num_chars_in_prefix_for_session() {
+	return session_state().numCharsInPrefix;
+}
+bool& Browser::qwerty_visible_for_session() {
+	return session_state().qwertyVisible;
+}
+bool& Browser::arrived_at_file_by_typing_for_session() {
+	return session_state().arrivedAtFileByTyping;
+}
+bool& Browser::allow_folders_sharing_name_with_file_for_session() {
+	return session_state().allowFoldersSharingNameWithFile;
+}
+char const**& Browser::allowed_file_extensions_for_session() {
+	return session_state().allowedFileExtensions;
+}
+int8_t& Browser::number_edit_pos_for_session() {
+	return session_state().numberEditPos;
+}
+NumericLayerScrollingText*& Browser::scrolling_text_for_session() {
+	return session_state().scrollingText;
+}
 
 // 7SEG ONLY
-int8_t Browser::numberEditPos;
-NumericLayerScrollingText* Browser::scrollingText;
 
 char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
@@ -70,23 +125,21 @@ Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;
 	fileIconPt2 = nullptr;
 	fileIconPt2Width = 0;
-	scrollingText = NULL;
 	shouldWrapFolderContents = true;
 
 	mayDefaultToBrandNewNameOnEntry = false;
 	qwertyAlwaysVisible = true;
-	qwertyVisible = true; // Because for most Browsers, it'll just always be true.
 	filePrefix = NULL;
 	shouldInterpretNoteNamesForThisBrowser = false;
 }
 
 bool Browser::opened() {
-	numCharsInPrefix = 0; // For most browsers, this just stays at 0.
-	arrivedAtFileByTyping = false;
-	allowedFileExtensions = allowedFileExtensionsXML;
-	allowFoldersSharingNameWithFile = false;
+	num_chars_in_prefix_for_session() = 0; // For most browsers, this just stays at 0.
+	arrived_at_file_by_typing_for_session() = false;
+	allowed_file_extensions_for_session() = allowedFileExtensionsXML;
+	allow_folders_sharing_name_with_file_for_session() = false;
 
-	numberEditPos = -1;
+	number_edit_pos_for_session() = -1;
 
 	return QwertyUI::opened();
 }
@@ -128,8 +181,8 @@ void Browser::emptyFileItems() {
 
 	AudioEngine::logAction("emptyFileItems");
 
-	for (int32_t i = 0; i < fileItems.getNumElements();) {
-		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
+	for (int32_t i = 0; i < file_items_for_session().getNumElements();) {
+		FileItem* item = (FileItem*)file_items_for_session().getElementAddress(i);
 		item->~FileItem();
 
 		i++;
@@ -141,7 +194,7 @@ void Browser::emptyFileItems() {
 
 	AudioEngine::logAction("emptyFileItems 2");
 
-	fileItems.empty();
+	file_items_for_session().empty();
 
 	AudioEngine::logAction("emptyFileItems 3");
 }
@@ -150,7 +203,7 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 	// Call destructors.
 	for (int32_t i = startAt; i < stopAt;) {
-		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
+		FileItem* item = (FileItem*)file_items_for_session().getElementAddress(i);
 		item->~FileItem();
 
 		i++;
@@ -159,7 +212,7 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 		}
 	}
 
-	fileItems.deleteAtIndex(startAt, stopAt - startAt);
+	file_items_for_session().deleteAtIndex(startAt, stopAt - startAt);
 }
 
 int32_t maxNumFileItemsNow;
@@ -169,14 +222,14 @@ int32_t catalogSearchDirection;
 FileItem* Browser::getNewFileItem() {
 	bool alreadyCulled = false;
 
-	if (fileItems.getNumElements() >= maxNumFileItemsNow) {
+	if (file_items_for_session().getNumElements() >= maxNumFileItemsNow) {
 doCull:
 		cullSomeFileItems();
 		alreadyCulled = true;
 	}
 
-	int32_t newIndex = fileItems.getNumElements();
-	Error error = fileItems.insertAtIndex(newIndex);
+	int32_t newIndex = file_items_for_session().getNumElements();
+	Error error = file_items_for_session().insertAtIndex(newIndex);
 	if (error != Error::NONE) {
 		if (alreadyCulled) {
 			return nullptr;
@@ -186,7 +239,7 @@ doCull:
 		}
 	}
 
-	void* newMemory = fileItems.getElementAddress(newIndex);
+	void* newMemory = file_items_for_session().getElementAddress(newIndex);
 
 	FileItem* thisItem = new (newMemory) FileItem();
 	return thisItem;
@@ -197,7 +250,8 @@ void Browser::cullSomeFileItems() {
 
 	int32_t startAt, stopAt;
 
-	int32_t numFileItemsDeletingNow = fileItems.getNumElements() - (maxNumFileItemsNow >> 1); // May get modified below.
+	int32_t numFileItemsDeletingNow =
+	    file_items_for_session().getNumElements() - (maxNumFileItemsNow >> 1); // May get modified below.
 	if (numFileItemsDeletingNow <= 0) {
 		return;
 	}
@@ -205,17 +259,19 @@ void Browser::cullSomeFileItems() {
 	// If we already know what side we want to be deleting on...
 	if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
 deleteFromLeftSide:
-		numFileItemsDeletedAtStart += numFileItemsDeletingNow;
+		num_file_items_deleted_at_start_for_session() += numFileItemsDeletingNow;
 		startAt = 0;
 		stopAt = numFileItemsDeletingNow;
-		firstFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow))->displayName);
+		first_file_item_remaining_for_session().set(
+		    ((FileItem*)file_items_for_session().getElementAddress(numFileItemsDeletingNow))->displayName);
 	}
 	else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
 deleteFromRightSide:
-		numFileItemsDeletedAtEnd += numFileItemsDeletingNow;
-		stopAt = fileItems.getNumElements();
+		num_file_items_deleted_at_end_for_session() += numFileItemsDeletingNow;
+		stopAt = file_items_for_session().getNumElements();
 		startAt = stopAt - numFileItemsDeletingNow;
-		lastFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(startAt - 1))->displayName);
+		last_file_item_remaining_for_session().set(
+		    ((FileItem*)file_items_for_session().getElementAddress(startAt - 1))->displayName);
 	}
 
 	// Or if we've been using a search term *and* searching both directions, try to tend towards keeping equal amounts
@@ -224,10 +280,10 @@ deleteFromRightSide:
 
 		shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 		octaveStartsFromA = false;
-		int32_t foundIndex = fileItems.search(filenameToStartSearchAt);
+		int32_t foundIndex = file_items_for_session().search(filename_to_start_search_at_for_session());
 
 		// If search-item is in second half, delete from start.
-		if ((foundIndex << 1) >= fileItems.getNumElements()) {
+		if ((foundIndex << 1) >= file_items_for_session().getNumElements()) {
 			int32_t newNumFilesDeleting =
 			    foundIndex >> 1; // Delete half the existing items to the left of the search-item.
 			if (newNumFilesDeleting <= 0) {
@@ -241,7 +297,7 @@ deleteFromRightSide:
 
 		// Or, vice versa.
 		else {
-			int32_t newNumFilesDeleting = (fileItems.getNumElements() - foundIndex)
+			int32_t newNumFilesDeleting = (file_items_for_session().getNumElements() - foundIndex)
 			                              >> 1; // Delete half the existing items to the right of the search-item.
 			if (newNumFilesDeleting <= 0) {
 				return;
@@ -271,16 +327,16 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		return error;
 	}
 
-	staticDIR =
-	    D_TRY_CATCH(FatFS::Directory::open(currentDir.get()), error, { return fatfsErrorToDelugeError(error); });
+	staticDIR = D_TRY_CATCH(FatFS::Directory::open(current_dir_for_session().get()), error,
+	                        { return fatfsErrorToDelugeError(error); });
 
-	numFileItemsDeletedAtStart = 0;
-	numFileItemsDeletedAtEnd = 0;
-	firstFileItemRemaining.clear();
-	lastFileItemRemaining.clear();
+	num_file_items_deleted_at_start_for_session() = 0;
+	num_file_items_deleted_at_end_for_session() = 0;
+	first_file_item_remaining_for_session().clear();
+	last_file_item_remaining_for_session().clear();
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
-	filenameToStartSearchAt = filenameToStartAt;
+	filename_to_start_search_at_for_session() = filenameToStartAt;
 
 	while (true) {
 		AudioEngine::logAction("while loop");
@@ -348,14 +404,14 @@ extensionNotSupported:
 
 void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
 	int32_t writeI = 0;
-	FileItem* nextItem = (FileItem*)fileItems.getElementAddress(0);
+	FileItem* nextItem = (FileItem*)file_items_for_session().getElementAddress(0);
 
-	for (int32_t readI = 0; readI < fileItems.getNumElements(); readI++) {
+	for (int32_t readI = 0; readI < file_items_for_session().getNumElements(); readI++) {
 		FileItem* readItem = nextItem;
 
 		// If there's a next item after "this" item, to compare it to...
-		if (readI < fileItems.getNumElements() - 1) {
-			nextItem = (FileItem*)fileItems.getElementAddress(readI + 1);
+		if (readI < file_items_for_session().getNumElements() - 1) {
+			nextItem = (FileItem*)file_items_for_session().getElementAddress(readI + 1);
 
 			// If we're a folder, and the next item is a file of the same name, delete this item.
 			if (readItem->isFolder) {
@@ -380,7 +436,7 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 						}
 						nextItem->~FileItem();
 						readI++;
-						nextItem = (FileItem*)fileItems.getElementAddress(readI + 1);
+						nextItem = (FileItem*)file_items_for_session().getElementAddress(readI + 1);
 						// That may set it to an invalid address, but in that case, it won't get read.
 					}
 				}
@@ -417,30 +473,30 @@ deleteThisItem:
 			}
 		}
 
-		void* writeAddress = fileItems.getElementAddress(writeI);
+		void* writeAddress = file_items_for_session().getElementAddress(writeI);
 		if (writeAddress != readItem) {
 			memcpy(writeAddress, readItem, sizeof(FileItem));
 		}
 		writeI++;
 	}
 
-	int32_t numToDelete = fileItems.getNumElements() - writeI;
+	int32_t numToDelete = file_items_for_session().getNumElements() - writeI;
 	if (numToDelete > 0) {
-		fileItems.deleteAtIndex(writeI, numToDelete);
+		file_items_for_session().deleteAtIndex(writeI, numToDelete);
 	}
 
 	// Our system of keeping FileItems from getting too full by deleting elements from its ends as we go could have
 	// caused bad results at the edges of the above, so delete a further one element at each end as needed.
-	if (!firstFileItemRemaining.isEmpty()) {
-		fileItems.deleteAtIndex(0);
+	if (!first_file_item_remaining_for_session().isEmpty()) {
+		file_items_for_session().deleteAtIndex(0);
 	}
-	if (!lastFileItemRemaining.isEmpty()) {
-		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
+	if (!last_file_item_remaining_for_session().isEmpty()) {
+		file_items_for_session().deleteAtIndex(file_items_for_session().getNumElements() - 1);
 	}
 }
 
 Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
-	arrivedAtFileByTyping = true;
+	arrived_at_file_by_typing_for_session() = true;
 	FilePointer tempfp;
 	bool fileExists = StorageManager::fileExists(fullPath, &tempfp);
 	if (!fileExists) {
@@ -453,10 +509,10 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	// std::string temporary that was already destroyed by the time we read it.
 	char const* slashPos = strrchr(fullPath, '/');
 	if (slashPos) {
-		currentDir.set(fullPath, (int32_t)(slashPos - fullPath));
+		current_dir_for_session().set(fullPath, (int32_t)(slashPos - fullPath));
 	}
 	else {
-		currentDir.clear();
+		current_dir_for_session().clear();
 	}
 
 	// Change to the File Folder
@@ -466,13 +522,13 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	}
 
 	//  Get the File Index
-	fileIndexSelected = fileItems.search(fileName);
-	if (fileIndexSelected > fileItems.getNumElements()) {
+	file_index_selected_for_session() = file_items_for_session().search(fileName);
+	if (file_index_selected_for_session() > file_items_for_session().getNumElements()) {
 		return Error::FILE_NOT_FOUND;
 	}
 
 	// Update the Display
-	scrollPosVertical = fileIndexSelected;
+	scroll_pos_vertical_for_session() = file_index_selected_for_session();
 	setEnteredTextFromCurrentFilename();
 	renderUIsForOled();
 
@@ -491,17 +547,17 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
 	bool triedCreatingFolder = false;
 
 tryReadingItems:
-	Error error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
-	                                     FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
+	Error error = readFileItemsForFolder(filePrefixHere, allowFolders, allowed_file_extensions_for_session(),
+	                                     filenameToStartAt, FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
 	if (error != Error::NONE) {
 
 		// If folder didn't exist, try our alternative one if there is one.
 		if (error == Error::FOLDER_DOESNT_EXIST) {
 			if (defaultDirToAlsoTry) {
 				// ... only if we haven't already tried the alternative folder.
-				if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
+				if (!current_dir_for_session().equalsCaseIrrespective(defaultDirToAlsoTry)) {
 					filenameToStartAt = NULL;
-					Error error = currentDir.set(defaultDirToAlsoTry);
+					Error error = current_dir_for_session().set(defaultDirToAlsoTry);
 					if (error != Error::NONE) {
 						return error;
 					}
@@ -536,13 +592,13 @@ tryReadingItems:
 		}
 	}
 
-	if (fileItems.getNumElements()) {
+	if (file_items_for_session().getNumElements()) {
 		sortFileItems();
 
-		if (fileItems.getNumElements()) {
+		if (file_items_for_session().getNumElements()) {
 			// Delete folders sharing name of file.
 			// And, files sharing name of in-memory Instrument.
-			if (!allowFoldersSharingNameWithFile) {
+			if (!allow_folders_sharing_name_with_file_for_session()) {
 				deleteFolderAndDuplicateItems(
 				    Availability::ANY); // I think this is right - was Availability::INSTRUMENT_UNUSED until 2023-01
 			}
@@ -558,7 +614,7 @@ class BrowserFileListView final : public deluge::gui::browser::FileListView {
 public:
 	bool contains(char const* nameWithExtension) const override {
 		bool foundExact = false;
-		Browser::fileItems.search(nameWithExtension, &foundExact);
+		Browser::file_items_for_session().search(nameWithExtension, &foundExact);
 		return foundExact;
 	}
 };
@@ -567,10 +623,10 @@ public:
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // outputTypeToLoad must be set before calling this.
 Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
-	arrivedAtFileByTyping = false;
+	arrived_at_file_by_typing_for_session() = false;
 
 	if (!qwertyAlwaysVisible) {
-		qwertyVisible = false;
+		qwerty_visible_for_session() = false;
 	}
 
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
@@ -580,7 +636,7 @@ tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int32_t newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
 	Error error =
-	    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
+	    readFileItemsFromFolderAndMemory(currentSong, output_type_to_load_for_session(), filePrefix, filenameToStartAt,
 	                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
 	if (error != Error::NONE) {
 gotErrorAfterAllocating:
@@ -588,14 +644,14 @@ gotErrorAfterAllocating:
 		return error;
 	}
 
-	enteredTextEditPos = 0;
+	entered_text_edit_pos_for_session() = 0;
 	if (display->haveOLED()) {
-		scrollPosHorizontal = 0;
+		scroll_pos_horizontal_for_session() = 0;
 	}
 
 	bool foundExact = false;
-	if (fileItems.getNumElements()) {
-		fileIndexSelected = 0;
+	if (file_items_for_session().getNumElements()) {
+		file_index_selected_for_session() = 0;
 
 		if (!doWeHaveASearchString) {
 noExactFileFound:
@@ -605,7 +661,7 @@ noExactFileFound:
 
 				// But since we're going to just use the first file, if we've deleted items at the start (meaning we had
 				// a search string), we need to go back and get them.
-				if (numFileItemsDeletedAtStart) {
+				if (num_file_items_deleted_at_start_for_session()) {
 					filenameToStartAt = NULL;
 					goto tryReadingItems;
 				}
@@ -615,7 +671,7 @@ setEnteredTextAndUseFoundFile:
 					goto gotErrorAfterAllocating;
 				}
 useFoundFile:
-				scrollPosVertical = fileIndexSelected;
+				scroll_pos_vertical_for_session() = file_index_selected_for_session();
 				// Starting in the middle or end of a short folder should still fill as many display rows as possible.
 				clampFileSelectionAndScroll();
 
@@ -630,12 +686,12 @@ useFoundFile:
 			}
 		}
 
-		int32_t i = fileItems.search(filenameToStartAt, &foundExact);
+		int32_t i = file_items_for_session().search(filenameToStartAt, &foundExact);
 		if (!foundExact) {
 			goto noExactFileFound;
 		}
 
-		fileIndexSelected = i;
+		file_index_selected_for_session() = i;
 
 		// Usually we'll just use that file.
 		if (!mayDefaultToBrandNewNameOnEntry || direction) {
@@ -651,19 +707,20 @@ useFoundFile:
 		// Come up with a new name variation. Names are display-agnostic ("SONG185", never "185"), so this is one
 		// code path for both displays - see default_name.h.
 		{
-			BrowserFileListView view;
+			BrowserFileListView file_list_view;
 			// Only songs earn letter suffixes; presets pass an empty slotPrefix and take the numeric suffix path,
 			// preserving existing preset behaviour.
 			char const* slotPrefix = (filePrefix && !memcasecmp(filePrefix, "SONG", 4)) ? filePrefix : "";
-			std::string newName = deluge::gui::browser::nextDefaultName(enteredText.get(), slotPrefix, view);
-			if (newName == enteredText.get()) {
+			std::string newName =
+			    deluge::gui::browser::nextDefaultName(entered_text_for_session().get(), slotPrefix, file_list_view);
+			if (newName == entered_text_for_session().get()) {
 				goto useFoundFile; // No free variation available - stay on the file we found.
 			}
-			error = enteredText.set(newName.c_str());
+			error = entered_text_for_session().set(newName.c_str());
 			if (error != Error::NONE) {
 				goto gotErrorAfterAllocating;
 			}
-			enteredTextEditPos = enteredText.getLength();
+			entered_text_edit_pos_for_session() = entered_text_for_session().getLength();
 		}
 	}
 
@@ -672,29 +729,30 @@ useFoundFile:
 		// Can we just pick a brand new name?
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
-			if (enteredText.isEmpty()) {
-				error = getUnusedSlot(OutputType::NONE, &enteredText, filePrefix);
+			if (entered_text_for_session().isEmpty()) {
+				error = getUnusedSlot(OutputType::NONE, &entered_text_for_session(), filePrefix);
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
 				// Note - this is only hit if we're saving the first song created on boot (because the default name
 				// won't match anything) Because that will have cleared out all the FileItems, we need to get them
 				// again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG", enteredText.get(), NULL,
-				                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
+				error = readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG",
+				                                         entered_text_for_session().get(), NULL, true,
+				                                         Availability::ANY, CATALOG_SEARCH_BOTH);
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
 			}
 		}
 		else {
-			enteredText.clear();
+			entered_text_for_session().clear();
 		}
 	}
 
-useNonExistentFileName:     // Normally this will get skipped over - if we found a file.
-	fileIndexSelected = -1; // No files.
-	scrollPosVertical = 0;
+useNonExistentFileName:                     // Normally this will get skipped over - if we found a file.
+	file_index_selected_for_session() = -1; // No files.
+	scroll_pos_vertical_for_session() = 0;
 
 everythingFinalized:
 	folderContentsReady(direction);
@@ -730,8 +788,9 @@ doReturn:
 	{
 		int32_t freeSlotNumber = 1;
 		int32_t minNumDigits = 1;
-		if (fileItems.getNumElements()) {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+		if (file_items_for_session().getNumElements()) {
+			FileItem* fileItem =
+			    (FileItem*)file_items_for_session().getElementAddress(file_items_for_session().getNumElements() - 1);
 			String filename;
 			error = fileItem->getFilenameWithoutExtension(&filename);
 			if (error != Error::NONE) {
@@ -762,7 +821,7 @@ emptyFileItemsAndReturn:
 }
 
 void Browser::selectEncoderAction(int8_t offset) {
-	arrivedAtFileByTyping = false;
+	arrived_at_file_by_typing_for_session() = false;
 
 	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
 		return; // This was from SampleBrowser. Is it still necessary?
@@ -773,12 +832,12 @@ void Browser::selectEncoderAction(int8_t offset) {
 
 	int32_t newFileIndex;
 
-	if (fileIndexSelected < 0) { // If no file selected and we were typing a new name?
-		if (!fileItems.getNumElements()) {
+	if (file_index_selected_for_session() < 0) { // If no file selected and we were typing a new name?
+		if (!file_items_for_session().getNumElements()) {
 			return;
 		}
 
-		newFileIndex = fileItems.search(enteredText.get());
+		newFileIndex = file_items_for_session().search(entered_text_for_session().get());
 		if (offset < 0) {
 			newFileIndex--;
 		}
@@ -789,13 +848,13 @@ void Browser::selectEncoderAction(int8_t offset) {
 		//
 		// Names always carry the file prefix, so there is one path here, not one per display. (The two branches this
 		// replaced were each written for the *other* display's convention, leaving both dead.)
-		int32_t numberEditPosNow = numberEditPos;
+		int32_t numberEditPosNow = number_edit_pos_for_session();
 		if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
 			numberEditPosNow = 0;
 		}
 
 		if (numberEditPosNow != -1) {
-			char const* numberPart = nameAfterPrefix(enteredText.get());
+			char const* numberPart = nameAfterPrefix(entered_text_for_session().get());
 			if (!numberPart) {
 				goto nonNumeric;
 			}
@@ -833,14 +892,14 @@ void Browser::selectEncoderAction(int8_t offset) {
 				pos++;
 				*pos = 0;
 			}
-			newFileIndex = fileItems.search(searchString);
+			newFileIndex = file_items_for_session().search(searchString);
 			if (offset < 0) {
 				newFileIndex--;
 			}
 		}
 		else {
 nonNumeric:
-			newFileIndex = fileIndexSelected + offset;
+			newFileIndex = file_index_selected_for_session() + offset;
 		}
 	}
 
@@ -849,13 +908,14 @@ nonNumeric:
 
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
-		if (numFileItemsDeletedAtStart) {
-			scrollPosVertical = 9999;
+		if (num_file_items_deleted_at_start_for_session()) {
+			scroll_pos_vertical_for_session() = 9999;
 
 tryReadingItems:
 			D_PRINTLN("reloading");
-			error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.get(), NULL,
-			                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
+			error = readFileItemsFromFolderAndMemory(currentSong, output_type_to_load_for_session(), filePrefix,
+			                                         entered_text_for_session().get(), NULL, true, Availability::ANY,
+			                                         CATALOG_SEARCH_BOTH);
 			if (error != Error::NONE) {
 gotErrorAfterAllocating:
 				D_PRINTLN("error while reloading, emptying file items");
@@ -864,7 +924,7 @@ gotErrorAfterAllocating:
 				// TODO - need to close UI or something?
 			}
 
-			newFileIndex = fileItems.search(enteredText.get()) + offset;
+			newFileIndex = file_items_for_session().search(entered_text_for_session().get()) + offset;
 			D_PRINTLN("new file Index is %d", newFileIndex);
 		}
 
@@ -873,32 +933,33 @@ gotErrorAfterAllocating:
 		}
 
 		else { // Wrap to end
-			scrollPosVertical = 0;
+			scroll_pos_vertical_for_session() = 0;
 
-			if (numFileItemsDeletedAtEnd) {
+			if (num_file_items_deleted_at_end_for_session()) {
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
 				D_PRINTLN("reloading and wrap");
-				error =
-				    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, NULL, NULL, true,
-				                                     Availability::ANY, newCatalogSearchDirection); // Load from start
+				error = readFileItemsFromFolderAndMemory(currentSong, output_type_to_load_for_session(), filePrefix,
+				                                         NULL, NULL, true, Availability::ANY,
+				                                         newCatalogSearchDirection); // Load from start
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
 
-				newFileIndex =
-				    (newCatalogSearchDirection == CATALOG_SEARCH_LEFT) ? (fileItems.getNumElements() - 1) : 0;
+				newFileIndex = (newCatalogSearchDirection == CATALOG_SEARCH_LEFT)
+				                   ? (file_items_for_session().getNumElements() - 1)
+				                   : 0;
 			}
 			else {
-				newFileIndex = fileItems.getNumElements() - 1;
+				newFileIndex = file_items_for_session().getNumElements() - 1;
 			}
 		}
 	}
 
-	else if (newFileIndex >= fileItems.getNumElements()) {
+	else if (newFileIndex >= file_items_for_session().getNumElements()) {
 		D_PRINTLN("out of file items");
-		if (numFileItemsDeletedAtEnd) {
-			scrollPosVertical = 0;
+		if (num_file_items_deleted_at_end_for_session()) {
+			scroll_pos_vertical_for_session() = 0;
 			goto tryReadingItems;
 		}
 
@@ -907,9 +968,9 @@ searchFromOneEnd:
 		}
 
 		else {
-			scrollPosVertical = 9999;
+			scroll_pos_vertical_for_session() = 9999;
 
-			if (numFileItemsDeletedAtStart) {
+			if (num_file_items_deleted_at_start_for_session()) {
 				newCatalogSearchDirection = CATALOG_SEARCH_RIGHT;
 				goto searchFromOneEnd;
 			}
@@ -920,23 +981,23 @@ searchFromOneEnd:
 	}
 
 	if (!qwertyAlwaysVisible) {
-		qwertyVisible = false;
+		qwerty_visible_for_session() = false;
 	}
 
-	fileIndexSelected = newFileIndex;
+	file_index_selected_for_session() = newFileIndex;
 	// A fast turn may be delivered as a multi-file offset; after a folder-window re-read, that offset can still
 	// overshoot.
 	clampFileSelectionAndScroll(false);
-	if (fileIndexSelected == -1) {
+	if (file_index_selected_for_session() == -1) {
 		return;
 	}
 
-	enteredTextEditPos = 0;
+	entered_text_edit_pos_for_session() = 0;
 	if (display->haveOLED()) {
-		scrollPosHorizontal = 0;
+		scroll_pos_horizontal_for_session() = 0;
 	}
 	else {
-		char const* oldCharAddress = enteredText.get();
+		char const* oldCharAddress = entered_text_for_session().get();
 		char const* newCharAddress = getCurrentFileItem()->displayName; // Will have file extension, so beware...
 		while (true) {
 			char oldChar = *oldCharAddress;
@@ -954,7 +1015,7 @@ searchFromOneEnd:
 			}
 			oldCharAddress++;
 			newCharAddress++;
-			enteredTextEditPos++;
+			entered_text_edit_pos_for_session()++;
 		}
 	}
 
@@ -971,7 +1032,7 @@ searchFromOneEnd:
 
 bool Browser::predictExtendedText() {
 	Error error;
-	arrivedAtFileByTyping = true;
+	arrived_at_file_by_typing_for_session() = true;
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
 
@@ -979,14 +1040,14 @@ bool Browser::predictExtendedText() {
 	// typing begins with a digit, treat the prefix as implicitly typed - otherwise "1" would match nothing. The typed
 	// portion of enteredText is [0, enteredTextEditPos), so the prefix has to go *into* enteredText and be counted,
 	// not merely prepended to the search key.
-	if (display->have7SEG() && filePrefix && enteredTextEditPos > 0) {
-		char const* typed = enteredText.get();
+	if (display->have7SEG() && filePrefix && entered_text_edit_pos_for_session() > 0) {
+		char const* typed = entered_text_for_session().get();
 		if (typed[0] >= '0' && typed[0] <= '9') {
 			int32_t prefixLength = strlen(filePrefix);
 			String prefixed;
 			error = prefixed.set(filePrefix);
 			if (error == Error::NONE) {
-				error = prefixed.concatenate(&enteredText);
+				error = prefixed.concatenate(&entered_text_for_session());
 			}
 			if (error != Error::NONE) {
 				// Must not advance enteredTextEditPos here: it indexes into enteredText, and a short/stale string with
@@ -994,8 +1055,8 @@ bool Browser::predictExtendedText() {
 				display->displayError(error);
 				return false;
 			}
-			enteredText.set(&prefixed); // Cannot fail - takes ownership of the already-allocated buffer.
-			enteredTextEditPos += prefixLength;
+			entered_text_for_session().set(&prefixed); // Cannot fail - takes ownership of the already-allocated buffer.
+			entered_text_edit_pos_for_session() += prefixLength;
 		}
 	}
 
@@ -1006,9 +1067,9 @@ bool Browser::predictExtendedText() {
 	}
 
 	String searchString;
-	searchString.set(&enteredText);
+	searchString.set(&entered_text_for_session());
 	bool doneNewRead = false;
-	error = searchString.shorten(enteredTextEditPos);
+	error = searchString.shorten(entered_text_edit_pos_for_session());
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -1025,17 +1086,18 @@ gotError:
 	// because 2 is the closest number to 1 that comes after 1. So now we just search for the string as is. The major
 	// impact is this now returns the first match instead of the last match.
 doSearch:
-	int32_t i = fileItems.search(searchString.get());
+	int32_t i = file_items_for_session().search(searchString.get());
 
 	// If that search takes us off the right-hand end of the list...
-	if (i >= fileItems.getNumElements()) {
+	if (i >= file_items_for_session().getNumElements()) {
 
 		// If we haven't yet done a whole new read from the SD card etc, from within this function, do that now.
 		if (!doneNewRead) {
 doNewRead:
 			doneNewRead = true;
 			error = readFileItemsFromFolderAndMemory(
-			    currentSong, outputTypeToLoad, filePrefix, searchString.get(), NULL, true, Availability::ANY,
+			    currentSong, output_type_to_load_for_session(), filePrefix, searchString.get(), NULL, true,
+			    Availability::ANY,
 			    CATALOG_SEARCH_BOTH); // This could probably actually be made to work with searching left only...
 			if (error != Error::NONE) {
 gotErrorAfterAllocating:
@@ -1049,23 +1111,23 @@ gotErrorAfterAllocating:
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
 		if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
-			if (fileIndexSelected >= 0) {
+			if (file_index_selected_for_session() >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
 			return false;
 		}
 
-		fileIndexSelected = -1;
+		file_index_selected_for_session() = -1;
 		return true;
 	}
 
 	// The search returns the index where searchString would be inserted
 	// Now check if the file at index i actually matches our prefix. Covers any shenanigans with the weird string
 	// matching
-	FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+	FileItem* fileItem = (FileItem*)file_items_for_session().getElementAddress(i);
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
-	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
+	if (memcasecmp(fileItem->displayName, entered_text_for_session().get(), entered_text_edit_pos_for_session())) {
 		// If the search landed on the first cached item, the folder cache may be missing earlier entries.
 		if (i == 0 && !doneNewRead) {
 			goto doNewRead;
@@ -1087,7 +1149,7 @@ notFound:
 		}
 	}
 
-	fileIndexSelected = i;
+	file_index_selected_for_session() = i;
 
 	// Typing/prediction can land on a cached item without needing to move the viewport unless it is offscreen.
 	clampFileSelectionAndScroll();
@@ -1117,12 +1179,12 @@ void Browser::currentFileDeleted() {
 	}
 	currentFileItem->~FileItem();
 
-	fileItems.deleteAtIndex(fileIndexSelected);
+	file_items_for_session().deleteAtIndex(file_index_selected_for_session());
 
-	if (fileIndexSelected == fileItems.getNumElements()) {
-		fileIndexSelected--; // It might go to -1 if no files left.
-		enteredText.clear();
-		enteredTextEditPos = 0;
+	if (file_index_selected_for_session() == file_items_for_session().getNumElements()) {
+		file_index_selected_for_session()--; // It might go to -1 if no files left.
+		entered_text_for_session().clear();
+		entered_text_edit_pos_for_session() = 0;
 	}
 	else {
 		setEnteredTextFromCurrentFilename();
@@ -1158,8 +1220,8 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	}
 
 	// If we're currently typing a filename which doesn't (yet?) have a file...
-	if (fileIndexSelected == -1) {
-		displayName = enteredText.get();
+	if (file_index_selected_for_session() == -1) {
+		displayName = entered_text_for_session().get();
 		o = visibleRows; // Make sure below loop doesn't keep looping.
 		goto drawAFile;
 	}
@@ -1167,16 +1229,16 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	else {
 		for (o = 0; o < visibleRows; o++) {
 			{
-				int32_t i = o + scrollPosVertical;
+				int32_t i = o + scroll_pos_vertical_for_session();
 
-				if (i >= fileItems.getNumElements()) {
+				if (i >= file_items_for_session().getNumElements()) {
 					break;
 				}
 
-				FileItem* thisFile = (FileItem*)fileItems.getElementAddress(i);
+				FileItem* thisFile = (FileItem*)file_items_for_session().getElementAddress(i);
 				isFolder = thisFile->isFolder;
 				displayName = thisFile->filename.get();
-				isSelectedIndex = (i == fileIndexSelected);
+				isSelectedIndex = (i == file_index_selected_for_session());
 			}
 drawAFile:
 			// Draw graphic
@@ -1200,8 +1262,8 @@ searchForChar:
 
 			if (isSelectedIndex) {
 				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, canvas);
-				if (!enteredTextEditPos) {
-					deluge::hid::display::OLED::setupSideScroller(0, enteredText.get(), textStartX,
+				if (!entered_text_edit_pos_for_session()) {
+					deluge::hid::display::OLED::setupSideScroller(0, entered_text_for_session().get(), textStartX,
 					                                              OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
 					                                              kTextSpacingX, kTextSpacingY, true);
 				}
@@ -1217,21 +1279,21 @@ searchForChar:
 }
 
 void Browser::clampFileSelectionAndScroll(bool allowNoFileSelection) {
-	int32_t numFileItems = fileItems.getNumElements();
+	int32_t numFileItems = file_items_for_session().getNumElements();
 	if (numFileItems <= 0) {
 		// No cached files means there is no real selection, and the viewport must reset to the top.
-		fileIndexSelected = -1;
-		scrollPosVertical = 0;
+		file_index_selected_for_session() = -1;
+		scroll_pos_vertical_for_session() = 0;
 		return;
 	}
 
-	if (fileIndexSelected >= numFileItems) {
+	if (file_index_selected_for_session() >= numFileItems) {
 		// A large encoder offset can overshoot the freshly cached window; land on the last cached item instead.
-		fileIndexSelected = numFileItems - 1;
+		file_index_selected_for_session() = numFileItems - 1;
 	}
-	else if (fileIndexSelected < 0) {
+	else if (file_index_selected_for_session() < 0) {
 		// -1 is valid only while typing a new name; encoder browsing must stay on a real cached file.
-		fileIndexSelected = allowNoFileSelection ? -1 : 0;
+		file_index_selected_for_session() = allowNoFileSelection ? -1 : 0;
 	}
 
 	// Fast encoder turns can arrive as multi-file jumps after the cached folder window has been re-read.
@@ -1247,28 +1309,28 @@ void Browser::clampFileSelectionAndScroll(bool allowNoFileSelection) {
 		lastAllowedScroll = 0;
 	}
 
-	if (fileIndexSelected == -1) {
+	if (file_index_selected_for_session() == -1) {
 		// While typing a new name, the rendered row is enteredText rather than an item from fileItems.
-		scrollPosVertical = 0;
+		scroll_pos_vertical_for_session() = 0;
 		return;
 	}
 
-	if (scrollPosVertical > fileIndexSelected) {
+	if (scroll_pos_vertical_for_session() > file_index_selected_for_session()) {
 		// The selected item is above the current viewport; move it to the first visible row.
-		scrollPosVertical = fileIndexSelected;
+		scroll_pos_vertical_for_session() = file_index_selected_for_session();
 	}
-	else if (scrollPosVertical < fileIndexSelected - visibleRows + 1) {
+	else if (scroll_pos_vertical_for_session() < file_index_selected_for_session() - visibleRows + 1) {
 		// The selected item is below the current viewport; move it to the last visible row.
-		scrollPosVertical = fileIndexSelected - visibleRows + 1;
+		scroll_pos_vertical_for_session() = file_index_selected_for_session() - visibleRows + 1;
 	}
 
-	if (scrollPosVertical > lastAllowedScroll) {
+	if (scroll_pos_vertical_for_session() > lastAllowedScroll) {
 		// Keep the viewport from starting so low that the bottom browser rows would be blank.
-		scrollPosVertical = lastAllowedScroll;
+		scroll_pos_vertical_for_session() = lastAllowedScroll;
 	}
-	if (scrollPosVertical < 0) {
+	if (scroll_pos_vertical_for_session() < 0) {
 		// Short-folder and typing cases can make the intermediate top row negative; clamp back to the start.
-		scrollPosVertical = 0;
+		scroll_pos_vertical_for_session() = 0;
 	}
 }
 
@@ -1346,56 +1408,58 @@ void Browser::displayText(bool blinkImmediately) {
 		renderUIsForOled();
 	}
 	else {
-		if (arrivedAtFileByTyping || qwertyVisible) {
-			if (!arrivedAtFileByTyping) {
+		if (arrived_at_file_by_typing_for_session() || qwerty_visible_for_session()) {
+			if (!arrived_at_file_by_typing_for_session()) {
 				// This means a key has been hit while browsing
 				// to bring up the keyboard, so set position to -1
 				// this might not be neccesary?
-				numberEditPos = -1;
+				number_edit_pos_for_session() = -1;
 			}
 			QwertyUI::displayText(blinkImmediately);
 		}
 		else {
-			if (enteredText.isEmpty() && fileIndexSelected == -1) {
+			if (entered_text_for_session().isEmpty() && file_index_selected_for_session() == -1) {
 				display->setText("----");
 			}
 			else {
 				// A name is always the full on-card name ("SONG185"). On 7SEG we render the numeric part alone
 				// ("185") so it fits the four-character display.
-				char const* numberPart = nameAfterPrefix(enteredText.get());
+				char const* numberPart = nameAfterPrefix(entered_text_for_session().get());
 				if (numberPart) {
 
 					Slot thisSlot = getSlot(numberPart);
 					if (thisSlot.slot >= 0) {
-						display->setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
-						                       numberEditPos, blinkImmediately);
+						display->setTextAsSlot(thisSlot.slot, thisSlot.subSlot,
+						                       (file_index_selected_for_session() != -1), true,
+						                       number_edit_pos_for_session(), blinkImmediately);
 						return;
 					}
 				}
-				int16_t scrollStart = enteredTextEditPos;
+				int16_t scrollStart = entered_text_edit_pos_for_session();
 				// if the first difference would be visible on
 				// screen anyway, start scroll from the beginning
-				if (enteredTextEditPos < 3) {
+				if (entered_text_edit_pos_for_session() < 3) {
 					scrollStart = 0;
 				}
 				else {
 					// provide some context in case the post-fix is long
-					scrollStart = enteredTextEditPos - 2;
+					scrollStart = entered_text_edit_pos_for_session() - 2;
 				}
 				FileItem* currentFileItem = getCurrentFileItem();
 				bool currentItemIsFolder = currentFileItem && currentFileItem->isFolder;
 				auto dotPos = currentItemIsFolder ? 3 : 255;
-				scrollingText = display->setScrollingText(enteredText.get(), scrollStart, 600, -1, dotPos);
+				scrolling_text_for_session() =
+				    display->setScrollingText(entered_text_for_session().get(), scrollStart, 600, -1, dotPos);
 			}
 		}
 	}
 }
 
 FileItem* Browser::getCurrentFileItem() {
-	if (fileIndexSelected == -1) {
+	if (file_index_selected_for_session() == -1) {
 		return nullptr;
 	}
-	return (FileItem*)fileItems.getElementAddress(fileIndexSelected);
+	return (FileItem*)file_items_for_session().getElementAddress(file_index_selected_for_session());
 }
 
 // This and its individual contents are frequently overridden by child classes.
@@ -1442,7 +1506,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 	bool inFavouriteOrBanksColumn = (x >= 0 && x < static_cast<int32_t>(kNumFavourites));
 
-	if (isFavouritesVisible() && inFavouriteOrBanksColumn && y == favouriteRow) {
+	if (isFavouritesVisible() && inFavouriteOrBanksColumn && y == favourite_row_for_session()) {
 		if (on) {
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1468,7 +1532,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 				const std::string favouritePath = favouritesManager.getFavouriteFilename(x);
 				favouritesChanged();
 				if (!favouritePath.empty()) {
-					setFileByFullPath(outputTypeToLoad, favouritePath.c_str());
+					setFileByFullPath(output_type_to_load_for_session(), favouritePath.c_str());
 				}
 				else {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
@@ -1500,8 +1564,9 @@ void Browser::favouritesChanged() {
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (isFavouritesVisible()) {
 		if (Buttons::isShiftButtonPressed()) {
-			if (favouritesManager.currentFavouriteNumber.has_value()) {
-				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
+			if (favouritesManager.current_favourite_number_for_session().has_value()) {
+				favouritesManager.changeColour(favouritesManager.current_favourite_number_for_session().value(),
+				                               offset);
 				favouritesChanged();
 			}
 		}
@@ -1557,29 +1622,29 @@ void Browser::exitAction() {
 
 void Browser::goIntoDeleteFileContextMenu() {
 	using namespace gui;
-	bool available = context_menu::deleteFile.setupAndCheckAvailability();
+	bool available = context_menu::delete_file_for_session().setupAndCheckAvailability();
 
 	if (available) {
 		display->setNextTransitionDirection(1);
-		openUI(&context_menu::deleteFile);
+		openUI(&context_menu::delete_file_for_session());
 	}
 }
 
 Error Browser::setEnteredTextFromCurrentFilename() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	Error error = enteredText.set(currentFileItem->displayName);
+	Error error = entered_text_for_session().set(currentFileItem->displayName);
 	if (error != Error::NONE) {
 		return error;
 	}
 
 	// Cut off the file extension
 	if (!currentFileItem->isFolder) {
-		char const* enteredTextChars = enteredText.get();
+		char const* enteredTextChars = entered_text_for_session().get();
 		char const* dotAddress = strrchr(enteredTextChars, '.');
 		if (dotAddress) {
 			int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)enteredTextChars;
-			error = enteredText.shorten(dotPos);
+			error = entered_text_for_session().shorten(dotPos);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -1592,20 +1657,20 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 Error Browser::goIntoFolder(char const* folderName) {
 	Error error;
 
-	if (!currentDir.isEmpty()) {
-		error = currentDir.concatenate("/");
+	if (!current_dir_for_session().isEmpty()) {
+		error = current_dir_for_session().concatenate("/");
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	error = currentDir.concatenate(folderName);
+	error = current_dir_for_session().concatenate(folderName);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	enteredText.clear();
-	enteredTextEditPos = 0;
+	entered_text_for_session().clear();
+	entered_text_edit_pos_for_session() = 0;
 
 	display->setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
@@ -1620,25 +1685,25 @@ Error Browser::goIntoFolder(char const* folderName) {
 
 Error Browser::goUpOneDirectoryLevel() {
 
-	char const* currentDirChars = currentDir.get();
+	char const* currentDirChars = current_dir_for_session().get();
 	char const* slashAddress = strrchr(currentDirChars, '/');
 	if (!slashAddress || slashAddress == currentDirChars) {
 		return Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
 	}
 
 	int32_t slashPos = (uintptr_t)slashAddress - (uintptr_t)currentDirChars;
-	Error error = enteredText.set(slashAddress + 1);
+	Error error = entered_text_for_session().set(slashAddress + 1);
 	if (error != Error::NONE) {
 		return error;
 	}
-	currentDir.shorten(slashPos);
+	current_dir_for_session().shorten(slashPos);
 	if (error != Error::NONE) {
 		return error;
 	}
-	enteredTextEditPos = 0;
+	entered_text_edit_pos_for_session() = 0;
 
 	display->setNextTransitionDirection(-1);
-	error = arrivedInNewFolder(-1, enteredText.get());
+	error = arrivedInNewFolder(-1, entered_text_for_session().get());
 	if (display->haveOLED()) {
 		if (error == Error::NONE) {
 			renderUIsForOled();
@@ -1653,7 +1718,7 @@ Error Browser::createFolder() {
 	String newDirPath;
 	Error error;
 
-	newDirPath.set(&currentDir);
+	newDirPath.set(&current_dir_for_session());
 	if (!newDirPath.isEmpty()) {
 		error = newDirPath.concatenate("/");
 		if (error != Error::NONE) {
@@ -1661,7 +1726,7 @@ Error Browser::createFolder() {
 		}
 	}
 
-	error = newDirPath.concatenate(&enteredText);
+	error = newDirPath.concatenate(&entered_text_for_session());
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1671,7 +1736,7 @@ Error Browser::createFolder() {
 		return Error::SD_CARD;
 	}
 
-	error = goIntoFolder(enteredText.get());
+	error = goIntoFolder(entered_text_for_session().get());
 
 	return error;
 }
@@ -1703,40 +1768,42 @@ void Browser::sortFileItems() {
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
 
-	fileItems.sortForStrings();
+	file_items_for_session().sortForStrings();
 
 	// If we're just wanting to look to one side or the other of a given filename, then delete everything in the other
 	// direction.
-	if (filenameToStartSearchAt && *filenameToStartSearchAt) {
+	if (filename_to_start_search_at_for_session() && *filename_to_start_search_at_for_session()) {
 
 		if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
 			bool foundExact;
-			int32_t searchIndex = fileItems.search(filenameToStartSearchAt, &foundExact);
+			int32_t searchIndex =
+			    file_items_for_session().search(filename_to_start_search_at_for_session(), &foundExact);
 			// Check for duplicates.
 			if (foundExact) {
 				int32_t prevIndex = searchIndex - 1;
 				if (prevIndex >= 0) {
-					FileItem* prevItem = (FileItem*)fileItems.getElementAddress(prevIndex);
-					if (!strcmpspecial(prevItem->displayName, filenameToStartSearchAt)) {
+					FileItem* prevItem = (FileItem*)file_items_for_session().getElementAddress(prevIndex);
+					if (!strcmpspecial(prevItem->displayName, filename_to_start_search_at_for_session())) {
 						searchIndex = prevIndex;
 					}
 				}
 			}
-			int32_t numToDelete = fileItems.getNumElements() - searchIndex;
+			int32_t numToDelete = file_items_for_session().getNumElements() - searchIndex;
 			if (numToDelete > 0) {
-				deleteSomeFileItems(searchIndex, fileItems.getNumElements());
-				numFileItemsDeletedAtEnd += numToDelete;
+				deleteSomeFileItems(searchIndex, file_items_for_session().getNumElements());
+				num_file_items_deleted_at_end_for_session() += numToDelete;
 			}
 		}
 		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
 			bool foundExact;
-			int32_t searchIndex = fileItems.search(filenameToStartSearchAt, &foundExact);
+			int32_t searchIndex =
+			    file_items_for_session().search(filename_to_start_search_at_for_session(), &foundExact);
 			// Check for duplicates.
 			if (foundExact) {
 				int32_t nextIndex = searchIndex + 1;
-				if (nextIndex < fileItems.getNumElements()) {
-					FileItem* nextItem = (FileItem*)fileItems.getElementAddress(nextIndex);
-					if (!strcmpspecial(nextItem->displayName, filenameToStartSearchAt)) {
+				if (nextIndex < file_items_for_session().getNumElements()) {
+					FileItem* nextItem = (FileItem*)file_items_for_session().getElementAddress(nextIndex);
+					if (!strcmpspecial(nextItem->displayName, filename_to_start_search_at_for_session())) {
 						searchIndex = nextIndex;
 					}
 				}
@@ -1744,38 +1811,38 @@ void Browser::sortFileItems() {
 			int32_t numToDelete = searchIndex + (int32_t)foundExact;
 			if (numToDelete > 0) {
 				deleteSomeFileItems(0, numToDelete);
-				numFileItemsDeletedAtStart += numToDelete;
+				num_file_items_deleted_at_start_for_session() += numToDelete;
 			}
 		}
 	}
 
 	// If we'd previously deleted items from either end of the list (apart from due to search direction as above),
 	// we need to now delete any items which would have fallen in that region.
-	if (!lastFileItemRemaining.isEmpty()) {
-		int32_t searchIndex = fileItems.search(lastFileItemRemaining.get());
-		int32_t itemsToDeleteAtEnd = fileItems.getNumElements() - searchIndex - 1;
+	if (!last_file_item_remaining_for_session().isEmpty()) {
+		int32_t searchIndex = file_items_for_session().search(last_file_item_remaining_for_session().get());
+		int32_t itemsToDeleteAtEnd = file_items_for_session().getNumElements() - searchIndex - 1;
 		if (itemsToDeleteAtEnd > 0) {
-			deleteSomeFileItems(searchIndex + 1, fileItems.getNumElements());
-			numFileItemsDeletedAtEnd += itemsToDeleteAtEnd;
+			deleteSomeFileItems(searchIndex + 1, file_items_for_session().getNumElements());
+			num_file_items_deleted_at_end_for_session() += itemsToDeleteAtEnd;
 		}
 	}
 
-	if (!firstFileItemRemaining.isEmpty()) {
-		int32_t itemsToDeleteAtStart = fileItems.search(firstFileItemRemaining.get());
+	if (!first_file_item_remaining_for_session().isEmpty()) {
+		int32_t itemsToDeleteAtStart = file_items_for_session().search(first_file_item_remaining_for_session().get());
 		if (itemsToDeleteAtStart) {
 			deleteSomeFileItems(0, itemsToDeleteAtStart);
-			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
+			num_file_items_deleted_at_start_for_session() += itemsToDeleteAtStart;
 		}
 	}
 }
 
 bool Browser::isFavouritesVisible() {
-	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	return (getCurrentUI()->canDisplayFavourites() && qwerty_visible_for_session()
 	        && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayout::FavouritesDefaultLayoutOff);
 }
 
 bool Browser::isBanksVisible() {
-	return (getCurrentUI()->canDisplayFavourites() && qwertyVisible
+	return (getCurrentUI()->canDisplayFavourites() && qwerty_visible_for_session()
 	        && FlashStorage::defaultFavouritesLayout
 	               == FavouritesDefaultLayout::FavouritesDefaultLayoutFavouritesAndBanks);
 }

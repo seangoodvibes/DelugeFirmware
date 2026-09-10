@@ -27,8 +27,8 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 
 	if (useMenuStack) {
-		modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(soundEditor.currentModControllable,
-		                                                                          soundEditor.currentParamManager);
+		modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
+		    sound_editor_for_session().currentModControllable, sound_editor_for_session().currentParamManager);
 	}
 	else {
 		modelStackWithThreeMainThings =
@@ -53,7 +53,8 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
                                                               bool useMenuStack) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (selectedDrum && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
+	if (selected_drum_for_session()
+	    && selected_drum_for_session()->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
 
@@ -62,7 +63,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 
 			if (useMenuStack) {
 				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
-				    soundEditor.currentModControllable, soundEditor.currentParamManager);
+				    sound_editor_for_session().currentModControllable, sound_editor_for_session().currentParamManager);
 			}
 			else {
 				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
@@ -72,7 +73,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 			// incompatible manager.
 			if (modelStackWithThreeMainThings && modelStackWithThreeMainThings->paramManager
 			    && modelStackWithThreeMainThings->paramManager->matches_type(
-			        selectedDrum->toModControllable()->required_param_manager_type())) {
+			        selected_drum_for_session()->toModControllable()->required_param_manager_type())) {
 				if (paramKind == deluge::modulation::params::Kind::PATCHED) {
 					modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 				}

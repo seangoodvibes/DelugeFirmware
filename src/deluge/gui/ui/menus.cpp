@@ -202,6 +202,7 @@
 #include "gui/menu_item/sidechain/volume_global.h"
 #include "gui/menu_item/song/configure_macros.h"
 #include "gui/menu_item/song/midi_learn.h"
+#include "gui/menu_item/song/mirror.h"
 #include "gui/menu_item/source/patched_param/modulator_feedback.h"
 #include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
@@ -1826,11 +1827,17 @@ PLACE_SDRAM_BSS Submenu songThresholdRecordingSubmenu{
 
 PLACE_SDRAM_BSS song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 PLACE_SDRAM_BSS song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
+PLACE_SDRAM_BSS song::Mirror mirror_connected_deluge_menu{STRING_FOR_MIRROR_CONNECTED_DELUGE};
+PLACE_SDRAM_BSS Submenu song_actions_menu{
+    STRING_FOR_ACTIONS,
+    {&mirror_connected_deluge_menu},
+};
 
 // Root menu for Song View
 PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
     {
+        &song_actions_menu,
         &songMasterMenu,
         &globalFiltersMenu,
         &globalFXMenu,

@@ -30,7 +30,7 @@ namespace deluge::gui::menu_item::arpeggiator {
 class ChordType : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->chordTypeIndex); }
+	void readCurrentValue() override { this->setValue(sound_editor_for_session().currentArpSettings->chordTypeIndex); }
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -40,7 +40,8 @@ public:
 		}
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -54,13 +55,13 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentArpSettings->chordTypeIndex = current_value;
-			soundEditor.currentArpSettings->flagForceArpRestart = true;
+			sound_editor_for_session().currentArpSettings->chordTypeIndex = current_value;
+			sound_editor_for_session().currentArpSettings->flagForceArpRestart = true;
 		}
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKitRow() && !soundEditor.editingGateDrumRow();
+		return sound_editor_for_session().editingKitRow() && !sound_editor_for_session().editingGateDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));

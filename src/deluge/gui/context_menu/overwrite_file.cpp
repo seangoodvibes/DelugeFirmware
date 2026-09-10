@@ -21,7 +21,13 @@
 #include "hid/display/display.h"
 
 namespace deluge::gui::context_menu {
-OverwriteFile overwriteFile{};
+namespace {
+OverwriteFile local_overwrite_file{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<OverwriteFile> remote_overwrite_file;
+} // namespace
+OverwriteFile& overwrite_file_for_session() {
+	return remote_overwrite_file.get(local_overwrite_file);
+}
 
 char const* OverwriteFile::getTitle() {
 	using enum l10n::String;

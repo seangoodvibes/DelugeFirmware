@@ -93,9 +93,18 @@ namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 
-View view{};
+namespace {
+View local_view{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<View> remote_view;
+} // namespace
 
-extern GlobalMIDICommand pendingGlobalMIDICommand;
+View& view_for_session() {
+	return remote_view.get(local_view);
+}
+
+const View* view_for_session_if_initialized() {
+	return remote_view.get_if_initialized(local_view);
+}
 
 View::View() {
 	midiLearnFlashOn = false;
@@ -231,7 +240,8 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performance_view_for_session())
+		         && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -256,7 +266,7 @@ doEndMidiLearnPressSession:
 							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
 						}
 						else {
-							openUI(&saveSongUI);
+							openUI(&save_song_ui_for_session());
 						}
 					}
 					else {
@@ -276,7 +286,8 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performance_view_for_session())
+		         && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -285,9 +296,9 @@ doEndMidiLearnPressSession:
 						if (inCardRoutine) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
-						bool available = context_menu::clearSong.setupAndCheckAvailability();
+						bool available = context_menu::clear_song_for_session().setupAndCheckAvailability();
 						if (available) {
-							openUI(&context_menu::clearSong);
+							openUI(&context_menu::clear_song_for_session());
 						}
 					}
 
@@ -308,7 +319,7 @@ doEndMidiLearnPressSession:
 					currentUIMode = UI_MODE_NONE;
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
-						bool success = openUI(&loadSongUI);
+						bool success = openUI(&load_song_ui_for_session());
 
 						// Need to redraw everything if no success, because the LoadSongUI does some drawing before even
 						// determining whether it can start successfully
@@ -334,19 +345,22 @@ doEndMidiLearnPressSession:
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
 			// If currently in the sound editor note editor / note row editor, keep this button as the global
 			// fill mode toggle rather than changing note fill values.
-			if (getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())) {
+			if (getCurrentUI() == &sound_editor_for_session()
+			    && (sound_editor_for_session().inNoteEditor() || sound_editor_for_session().inNoteRowEditor())) {
 				currentSong->changeFillMode(on);
 				return ActionResult::DEALT_WITH;
 			}
 
 			// If note(s) pressed, adjust note fill
-			if (on && (currentUIMode == UI_MODE_NOTES_PRESSED || instrumentClipView.numEditPadPresses > 0)) {
-				instrumentClipView.adjustNoteFillWithOffset(1);
+			if (on
+			    && (currentUIMode == UI_MODE_NOTES_PRESSED
+			        || instrument_clip_view_for_session().numEditPadPresses > 0)) {
+				instrument_clip_view_for_session().adjustNoteFillWithOffset(1);
 				return ActionResult::DEALT_WITH;
 			}
 			// If audition pad pressed, adjust note row fill
 			else if (on && (currentUIMode == UI_MODE_AUDITIONING)) {
-				instrumentClipView.setNoteRowFillWithOffset(1);
+				instrument_clip_view_for_session().setNoteRowFillWithOffset(1);
 				return ActionResult::DEALT_WITH;
 			}
 			// Otherwise toggle fill mode
@@ -409,8 +423,8 @@ cant:
 				// Here we'll take advantage of the pending command system which has to exist for these commands for
 				// their MIDI-triggered case anyway. In the future, maybe a lot more commands should pend in the same
 				// way?
-				pendingGlobalMIDICommand =
-				    Buttons::isShiftButtonPressed() ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO;
+				playbackHandler.pend_global_m_id_i_command(Buttons::isShiftButtonPressed() ? GlobalMIDICommand::REDO
+				                                                                           : GlobalMIDICommand::UNDO);
 				pendingGlobalMIDICommandNumClustersWritten = GlobalMIDICommand::PLAYBACK_RESTART; // Bug hunting.
 				playbackHandler.slowRoutine(); // Do it now if not reading card.
 			}
@@ -429,7 +443,7 @@ possiblyRevert:
 				// Here we'll take advantage of the pending command system which has to exist for these commands for
 				// their MIDI-triggered case anyway. In the future, maybe a lot more commands should pend in the same
 				// way?
-				pendingGlobalMIDICommand = newGlobalMidiCommand;
+				playbackHandler.pend_global_m_id_i_command(newGlobalMidiCommand);
 				pendingGlobalMIDICommandNumClustersWritten = 0;
 				playbackHandler.slowRoutine(); // Do it now if not reading card
 			}
@@ -457,8 +471,8 @@ possiblyRevert:
 			}
 
 			display->setNextTransitionDirection(1);
-			soundEditor.setup();
-			openUI(&soundEditor);
+			sound_editor_for_session().setup();
+			openUI(&sound_editor_for_session());
 		}
 	}
 	else {
@@ -867,22 +881,22 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// this checks that the param displayed on the screen in performance view
 	// is the same param currently being edited with mod encoder
 	bool editingParamInPerformanceView = false;
-	if (getRootUI() == &performanceView) {
-		editingParamInPerformanceView =
-		    performanceView.possiblyRefreshPerformanceViewDisplay(kind, modelStackWithParam->paramId, newKnobPos);
+	if (getRootUI() == &performance_view_for_session()) {
+		editingParamInPerformanceView = performance_view_for_session().possiblyRefreshPerformanceViewDisplay(
+		    kind, modelStackWithParam->paramId, newKnobPos);
 	}
 
 	// let's see if we're editing the same param in the menu, if so, don't show pop-up
 	bool editingParamInMenu = false;
-	if (getCurrentUI() == &soundEditor) {
-		if ((soundEditor.getCurrentMenuItem()->getParamKind() == kind)
-		    && (soundEditor.getCurrentMenuItem()->getParamIndex() == modelStackWithParam->paramId)) {
+	if (getCurrentUI() == &sound_editor_for_session()) {
+		if ((sound_editor_for_session().getCurrentMenuItem()->getParamKind() == kind)
+		    && (sound_editor_for_session().getCurrentMenuItem()->getParamIndex() == modelStackWithParam->paramId)) {
 			editingParamInMenu = true;
 		}
 	}
 
 	// let's see if we're browsing for a song
-	bool inSongBrowser = getCurrentUI() == &loadSongUI;
+	bool inSongBrowser = getCurrentUI() == &load_song_ui_for_session();
 
 	if (!editingParamInPerformanceView && !editingParamInMenu && !inSongBrowser) {
 		PatchSource source1 = PatchSource::NONE;
@@ -940,8 +954,9 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// if you're updating a param's value while in the sound editor menu
 	// and it's the same param displayed in the automation editor open underneath
 	// then refresh the automation editor grid
-	if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
-		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, modelStackWithParam->paramId);
+	if ((getCurrentUI() == &sound_editor_for_session()) && (getRootUI() == &automation_view_for_session())) {
+		automation_view_for_session().possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind,
+		                                                                  modelStackWithParam->paramId);
 	}
 }
 
@@ -1071,7 +1086,8 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 	if (kind == params::Kind::PATCH_CABLE) {
-		newKnobPos = view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
+		newKnobPos =
+		    view_for_session().convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
 	}
 
 	bool shouldParamIndicateMiddleValue =
@@ -1083,7 +1099,8 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 		indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar);
 
 		// Make it harder to turn that knob away from its centred position
-		deluge::hid::encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
+		deluge::hid::encoders::time_mod_encoder_last_turned_for_session()[whichModEncoder] =
+		    AudioEngine::audioSampleTimer - kSampleRate;
 	}
 	else {
 		indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
@@ -1093,21 +1110,27 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
                                        PatchSource source2) {
 
-	// Cache last displayed values to avoid unnecessary notifications
-	static params::Kind last_param_kind = params::Kind::NONE;
-	static int32_t last_param_id = -1;
-	static int32_t last_display_value = INT32_MIN;
-	static PatchSource last_source1 = PatchSource::NONE;
-	static PatchSource last_source2 = PatchSource::NONE;
+	struct PopupState {
+		// Cache last displayed values to avoid unnecessary notifications
+		params::Kind last_param_kind = params::Kind::NONE;
+		int32_t last_param_id = -1;
+		int32_t last_display_value = INT32_MIN;
+		PatchSource last_source1 = PatchSource::NONE;
+		PatchSource last_source2 = PatchSource::NONE;
 
-	// Display arbitration for multiple mod encoders ("juggling ball" system)
-	static params::Kind display_owner_kind = params::Kind::NONE;
-	static int32_t display_owner_param_id = -1;
-	static PatchSource display_owner_source1 = PatchSource::NONE;
-	static PatchSource display_owner_source2 = PatchSource::NONE;
-	static uint32_t display_ownership_start_time = 0;
-	static uint32_t last_display_update_time = 0; // Used for timeout detection in arbitration
-	static uint32_t last_actual_display_time = 0; // Used for frequency throttling
+		// Display arbitration for multiple mod encoders ("juggling ball" system)
+		params::Kind display_owner_kind = params::Kind::NONE;
+		int32_t display_owner_param_id = -1;
+		PatchSource display_owner_source1 = PatchSource::NONE;
+		PatchSource display_owner_source2 = PatchSource::NONE;
+		uint32_t display_ownership_start_time = 0;
+		uint32_t last_display_update_time = 0; // Used for timeout detection in arbitration
+		uint32_t last_actual_display_time = 0; // Used for frequency throttling
+	};
+	static deluge::gui::ui_session::State<PopupState> popup_state;
+	auto& [last_param_kind, last_param_id, last_display_value, last_source1, last_source2, display_owner_kind,
+	       display_owner_param_id, display_owner_source1, display_owner_source2, display_ownership_start_time,
+	       last_display_update_time, last_actual_display_time] = popup_state.active();
 
 	// Timing constants for display arbitration (in AudioEngine sample units)
 
@@ -1126,7 +1149,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				parameter_name.append("->");
 			}
 			parameter_name.append(modulation::params::getPatchedParamShortName(
-			    paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
+			    paramID, (ModControllableAudio*)view_for_session().activeModControllableModelStack.modControllable));
 		}
 		else if (isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
@@ -1155,7 +1178,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 		else {
 			const char* name = getParamDisplayName(
-			    kind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable);
+			    kind, paramID,
+			    (ModControllableAudio*)view_for_session().activeModControllableModelStack.modControllable);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				parameter_name.append(name);
 			}
@@ -1166,8 +1190,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	// display stutter quantization instead of knob position
 	// int32_t quantization_level = 0;
 	int32_t current_display_value = 0;
-	if (isParamQuantizedStutter(kind, paramID,
-	                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+	if (isParamQuantizedStutter(
+	        kind, paramID, (ModControllableAudio*)view_for_session().activeModControllableModelStack.modControllable)
 	    && !isUIModeActive(UI_MODE_STUTTERING)) {
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 			current_display_value = 4;
@@ -1393,8 +1417,8 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 		instrumentBeenEdited();
 	}
 	setKnobIndicatorLevels(); // These might have changed as a result
-	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->readValueAgain();
+	if (getCurrentUI() == &sound_editor_for_session()) {
+		sound_editor_for_session().getCurrentMenuItem()->readValueAgain();
 	}
 }
 
@@ -1404,8 +1428,8 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
-		automationView.displayAutomation();
+	if ((getRootUI() == &automation_view_for_session()) && automation_view_for_session().inAutomationEditor()) {
+		automation_view_for_session().displayAutomation();
 		return;
 	}
 
@@ -1436,9 +1460,9 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	RootUI* rootUI = getRootUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((rootUI == &automationView) && automationView.inAutomationEditor()) {
+	if ((rootUI == &automation_view_for_session()) && automation_view_for_session().inAutomationEditor()) {
 		// exception for arranger view and pressing mod button 0 so you can toggle VU meter
-		if (!(automationView.onArrangerView && whichButton == 0)) {
+		if (!(automation_view_for_session().onArrangerView && whichButton == 0)) {
 			return;
 		}
 	}
@@ -1447,7 +1471,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
-			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceView)) {
+			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performance_view_for_session())) {
 				// only displaying VU meter in session view, arranger view, performance view and arranger automation
 				// view
 				if (!rootUIIsClipMinderScreen()) {
@@ -1508,7 +1532,8 @@ void View::setModLedStates() {
 		// if you're in an instrument clip, get affectEntire status from clip class
 		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
 		// enabled
-		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
+		affectEntire =
+		    (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affect_entire_for_session() : true;
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
@@ -1517,7 +1542,8 @@ void View::setModLedStates() {
 	// turn off Clip LED indicator if we're in a song UI
 	// unless you're in automation arranger view, where we blink the Clip LED indicator
 	if (itsTheSong) {
-		if ((uiType == UIType::AUTOMATION) || (uiContextType == UIType::ARRANGER && automationView.onArrangerView)) {
+		if ((uiType == UIType::AUTOMATION)
+		    || (uiContextType == UIType::ARRANGER && automation_view_for_session().onArrangerView)) {
 			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
 		else {
@@ -1530,27 +1556,27 @@ void View::setModLedStates() {
 	else {
 		switch (uiType) {
 		case UIType::SESSION: {
-			Clip* clip = sessionView.getClipForLayout();
+			Clip* clip = session_view_for_session().getClipForLayout();
 
 			if (clip) {
-				if (clip->onAutomationClipView) {
+				if (clip->on_automation_clip_view_for_session()) {
 					onAutomationClipView = true;
 				}
 			}
 			break;
 		}
 		case UIType::ARRANGER: {
-			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
+			Output* output = arranger_view_for_session().outputsOnScreen[arranger_view_for_session().yPressedEffective];
 
 			if (output) {
-				if (currentSong->getClipWithOutput(output)->onAutomationClipView) {
+				if (currentSong->getClipWithOutput(output)->on_automation_clip_view_for_session()) {
 					onAutomationClipView = true;
 				}
 			}
 			break;
 		}
 		case UIType::KEYBOARD_SCREEN:
-			if (getCurrentClip()->onAutomationClipView) {
+			if (getCurrentClip()->on_automation_clip_view_for_session()) {
 				onAutomationClipView = true;
 			}
 			break;
@@ -1601,11 +1627,12 @@ void View::setModLedStates() {
 		bool on = (i == modKnobMode);
 		// if you're in a song view and volume mod button is selected and VU meter is enabled
 		// blink volume mod led
-		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
+		if (itsTheSong && on && modKnobMode == 0 && view_for_session().displayVUMeter) {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
+		else if ((getRootUI() == &automation_view_for_session())
+		         && automation_view_for_session().inAutomationEditor()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		// otherwise update mod led's to reflect current mod led selection
@@ -1628,7 +1655,8 @@ int32_t View::getModKnobMode() {
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
 	if (paramManager == activeModControllableModelStack.paramManager
-	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
+	    || (getCurrentUI() == &sound_editor_for_session()
+	        && paramManager == sound_editor_for_session().currentParamManager)) {
 
 		// If timer wasn't set yet, set it now
 		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
@@ -1680,8 +1708,8 @@ void View::displayAutomation() {
 	if (pendingParamAutomationUpdatesModLevels) {
 		setKnobIndicatorLevels();
 	}
-	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->readValueAgain();
+	if (getCurrentUI() == &sound_editor_for_session()) {
+		sound_editor_for_session().getCurrentMenuItem()->readValueAgain();
 	}
 }
 
@@ -1698,7 +1726,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	    && ((activeModControllableModelStack.modControllable
 	         && *activeModControllableModelStack.modControllable->getModKnobMode() == 0)
 	        || (isClipContext() && renderedVUMeter))) {
-		PadLEDs::renderingLock = true;
+		PadLEDs::rendering_lock_for_session() = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
 		int32_t maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
@@ -1734,7 +1762,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 			renderedVUMeter = true;
 		}
 
-		PadLEDs::renderingLock = false;
+		PadLEDs::rendering_lock_for_session() = false;
 
 		// return true so that you don't render the usual sidebar
 		return true;
@@ -1888,7 +1916,7 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 }
 
 void View::pretendModKnobsUntouchedForAWhile() {
-	encoders::timeModEncoderLastTurned[0] = encoders::timeModEncoderLastTurned[1] =
+	encoders::time_mod_encoder_last_turned_for_session()[0] = encoders::time_mod_encoder_last_turned_for_session()[1] =
 	    AudioEngine::audioSampleTimer - kSampleRate;
 }
 
@@ -1995,8 +2023,8 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			setLedState(LED::CV, false);
 		}
 
-		bool isGridView =
-		    (getCurrentUI() == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid);
+		bool isGridView = (getCurrentUI() == &session_view_for_session()
+		                   && currentSong->session_layout_for_session() == SessionLayoutType::SessionLayoutTypeGrid);
 
 		if (outputType != OutputType::AUDIO) {
 			blinkLed(led);
@@ -2007,24 +2035,24 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			clip = (InstrumentClip*)clip;
 		}
 
-		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
+		setLedState(LED::KEYBOARD, (clip && clip->on_keyboard_screen_for_session()));
 		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != OutputType::KIT));
-		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
+		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrap_editing_for_session()));
 	}
 
 	// hook to render display for OLED and 7SEG when in Automation View
-	if (getCurrentUI() == &automationView && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		if (automationView.inAutomationEditor()) {
-			automationView.displayAutomation(true, !display->have7SEG());
+	if (getCurrentUI() == &automation_view_for_session() && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+		if (automation_view_for_session().inAutomationEditor()) {
+			automation_view_for_session().displayAutomation(true, !display->have7SEG());
 		}
 		else {
-			automationView.renderDisplay();
+			automation_view_for_session().renderDisplay();
 		}
 		return;
 	}
 
 	if (display->haveOLED()) {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 		hid::display::OLED::clearMainImage();
 
 		char const* outputTypeText = getOutputTypeName(outputType, channel);
@@ -2044,7 +2072,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		if (display->haveOLED()) {
 			nameToDraw = name;
 oledDrawString:
-			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
 #else
@@ -2460,8 +2488,8 @@ gotAnInstrument:
 	// Or if we're on a Kit or Synth...
 	else {
 
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
+		PresetNavigationResult results = load_instrument_preset_ui_for_session().doPresetNavigation(
+		    offset, oldInstrument, availabilityRequirement, false);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
@@ -2535,14 +2563,14 @@ getOut:
 		// Kit-specific stuff
 		if (outputType == OutputType::KIT) {
 			clip->ensureScrollWithinKitBounds();
-			((Kit*)newInstrument)->selectedDrum = nullptr;
+			((Kit*)newInstrument)->selected_drum_for_session() = nullptr;
 		}
 
 		RootUI* rootUI = getRootUI();
-		if (rootUI == &instrumentClipView || rootUI == &automationView) {
+		if (rootUI == &instrument_clip_view_for_session() || rootUI == &automation_view_for_session()) {
 			AudioEngine::routineWithClusterLoading();
 
-			instrumentClipView.recalculateColours();
+			instrument_clip_view_for_session().recalculateColours();
 
 			uiNeedsRendering(rootUI);
 		}
@@ -2594,7 +2622,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
 
 	if (newInstrument != nullptr) {
-		keyboardScreen.checkNewInstrument(newInstrument);
+		keyboard_screen_for_session().checkNewInstrument(newInstrument);
 	}
 }
 
@@ -2673,10 +2701,10 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		view.clipStatusMidiLearnPadPressed(on, clip);
+		view_for_session().clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();
-			if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
+			if ((rootUI == &session_view_for_session()) || (rootUI == &performance_view_for_session())) {
 				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
 			}
 		}
@@ -2710,16 +2738,17 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// yet...
 		if (on && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 			clip->armedForRecording = !clip->armedForRecording;
-			sessionView.timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs doing properly -
-			                             // what if we're in a Clip view?
+			session_view_for_session().timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs
+			                                            // doing properly - what if we're in a Clip view?
 			break;
 		}
 
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
-			context_menu::clip_settings::clipSettings.clip = clip;
-			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			context_menu::clip_settings::clip_settings_for_session().clip = clip;
+			session_view_for_session().performActionOnPadRelease =
+			    false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		else {
@@ -2734,7 +2763,8 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering
 		// this is because it gets stuck in the stuttering UI mode and can't get out
 		if (on) {
-			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			session_view_for_session().performActionOnPadRelease =
+			    false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
@@ -2745,7 +2775,8 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	case UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON:
 #endif
 		if (on) {
-			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			session_view_for_session().performActionOnPadRelease =
+			    false; // Even though there's a chance we're not in session view
 			session.soloClipAction(clip, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
@@ -2755,10 +2786,10 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 }
 
 void View::flashPlayRoutine() {
-	view.clipArmFlashOn = !view.clipArmFlashOn;
+	view_for_session().clipArmFlashOn = !view_for_session().clipArmFlashOn;
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
-		sessionView.flashPlayRoutine();
+	if ((rootUI == &session_view_for_session()) || (rootUI == &performance_view_for_session())) {
+		session_view_for_session().flashPlayRoutine();
 	}
 	else {
 		// TODO: sidebar might not actually be visible, flash song button in that case?
@@ -2775,7 +2806,7 @@ void View::flashPlayDisable() {
 	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
+	if ((rootUI == &session_view_for_session()) || (rootUI == &performance_view_for_session())) {
 		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX
@@ -2795,7 +2826,7 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 	uint8_t dark = is_active ? 32 : 0;
 	uint8_t light = is_other_active ? 208 : 255;
 
-	bool armed = view.clipArmFlashOn;
+	bool armed = view_for_session().clipArmFlashOn;
 
 	SessionMacro& m = currentSong->sessionMacros[y];
 	switch (m.kind) {
@@ -2808,7 +2839,7 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 		}
 		if (m.clip->armState != ArmState::OFF) {
 			armed = true;
-			if (view.clipArmFlashOn) {
+			if (view_for_session().clipArmFlashOn) {
 				image[y][column] = {0, 0, 0};
 			}
 		}
@@ -2849,7 +2880,7 @@ void View::activateMacro(uint32_t y) {
 	case CLIP_LAUNCH:
 		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
 			if (getCurrentClip() != m.clip) {
-				sessionView.transitionToViewForClip(m.clip);
+				session_view_for_session().transitionToViewForClip(m.clip);
 			}
 		}
 		else {
