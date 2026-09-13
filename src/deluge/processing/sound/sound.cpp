@@ -5219,7 +5219,8 @@ size_t Sound::num_active_sample_voices(CPUUsageType type) {
 
 				// Double the count if it's a stereo sample
 				size_t voice_weight = (sample->numChannels == 2) ? voice_weight_stereo : voice_weight_mono;
-				voice_count += voice->filterSet.isOn() ? voice_weight * 2 : voice_weight;
+				voice_count += voice_weight;
+				// voice_count += voice->filterSet.isOn() ? voice_weight * 2 : voice_weight;
 			}
 		}
 	}
