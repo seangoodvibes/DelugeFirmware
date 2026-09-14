@@ -2806,7 +2806,9 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	}
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
-	if (numNotesBefore == 1 && notes.getElement(0)->length == oldLoopLength) {
+	// Also don't drone if iterance is not default because such notes are meant to behave differently
+	if (numNotesBefore == 1 && notes.getElement(0)->length == oldLoopLength
+	    && notes.getElement(0)->iterance == kDefaultIteranceValue) {
 		Sound* sound = nullptr;
 		ParamManagerForTimeline* paramManagerNow = nullptr;
 
