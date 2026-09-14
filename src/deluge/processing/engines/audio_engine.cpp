@@ -295,8 +295,8 @@ void killOneVoice(size_t num_samples) {
 		voice->sound.freeActiveVoice(voice);
 	}
 
-	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
-	          getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
+	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+	          getNumVoicesForCulling(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
@@ -331,8 +331,8 @@ void terminateOneVoice(size_t numSamples) {
 		voice->sound.freeActiveVoice(voice);
 	}
 
-	D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples, getNumVoices(),
-	          getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
+	D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+	          getNumVoicesForCulling(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
@@ -365,11 +365,11 @@ void forceReleaseOneVoice(size_t num_samples) {
 	auto stage = voice->envelopes[0].state;
 	if (stage < EnvelopeStage::FAST_RELEASE) {
 		D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
+		          getNumVoicesForCulling(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 	}
 	else {
 		D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
+		          getNumVoicesForCulling(), getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO));
 	}
 
 	bool still_rendering = voice->speedUpRelease();
@@ -393,6 +393,13 @@ size_t getCPUUsageForOutputType(CPUUsageType type, OutputType output_type) {
 size_t getNumVoices() {
 	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
 	                             [](auto sound) { return sound->voices().size(); });
+}
+
+size_t getNumVoicesForCulling() {
+	return std::transform_reduce(sounds.cbegin(), sounds.cend(), size_t{0}, std::plus{}, [](const Sound* sound) {
+		return std::ranges::count_if(sound->voices(),
+		                             [](const Sound::ActiveVoice& voice) { return !voice->isCullFading(); });
+	});
 }
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
@@ -525,7 +532,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			timeDirenessChanged = audioSampleTimer;
 		}
 		auto numAudio = getCPUUsageForOutputType(CPUUsageType::VOICE_RAW, OutputType::AUDIO);
-		auto numVoice = getNumVoices();
+		auto numVoice = getNumVoicesForCulling();
 		if (!bypassCulling) {
 			cullVoices(numSamples, numAudio, numVoice);
 		}

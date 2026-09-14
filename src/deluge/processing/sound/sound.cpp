@@ -5163,6 +5163,10 @@ size_t Sound::num_active_sample_voices(CPUUsageType type) {
 
 	// For each voice...
 	for (ActiveVoice& voice : voices_) {
+		if (voice->isCullFading()) {
+			continue;
+		}
+
 		// For each source...
 		for (int32_t s = 0; s < kNumSources; s++) {
 			// is this a sample based oscillator

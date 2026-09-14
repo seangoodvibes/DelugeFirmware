@@ -185,6 +185,7 @@ size_t getCPUUsageForSong(CPUUsageType type);
 size_t getCPUUsageForAllOutputs(CPUUsageType type);
 size_t getCPUUsageForOutputType(CPUUsageType type, OutputType output_type);
 size_t getNumVoices();
+size_t getNumVoicesForCulling();
 bool doSomeOutputting();
 void updateReverbParams();
 
