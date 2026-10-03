@@ -29,16 +29,15 @@ public:
 	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                       int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
 	void recordNoteEditPadAction(int32_t x, int32_t velocity);
+	void adjustNoteParameterRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+	                             SquareInfo rowSquareInfo[kDisplayWidth], int32_t offset);
 
-public:
 	// Automation View Render Functions
 	void renderNoteEditor(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
 	                      RGB image[][kDisplayWidth + kSideBarWidth],
 	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll,
 	                      uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea,
 	                      SquareInfo& squareInfo);
-
-public:
 	void renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, InstrumentClip* clip,
 	                                 OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);

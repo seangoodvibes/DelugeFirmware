@@ -40,6 +40,8 @@ private:
 	                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement);
 
 public:
+	void adjustVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+	                        SquareInfo rowSquareInfo[kDisplayWidth], int32_t offset);
 	// Automation View Render Functions
 	void renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
 	                      RGB image[][kDisplayWidth + kSideBarWidth],

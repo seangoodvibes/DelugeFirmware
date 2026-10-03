@@ -164,4 +164,11 @@ void AutomationEditorLayoutNote::recordNoteEditPadAction(int32_t x, int32_t velo
 	                                 currentSong->xZoom[NAVIGATION_CLIP]);
 }
 
+void AutomationEditorLayoutNote::adjustNoteParameterRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+                                                         SquareInfo rowSquareInfo[kDisplayWidth], int32_t offset) {
+	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
+		automationEditorLayoutNoteVelocity.adjustVelocityRamp(modelStackWithNoteRow, noteRow, rowSquareInfo, offset);
+	}
+}
+
 // }; // namespace deluge::gui::views::automation::editor_layout

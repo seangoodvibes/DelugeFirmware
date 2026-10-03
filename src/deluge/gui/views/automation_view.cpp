@@ -2297,9 +2297,24 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	else if (inNoteEditor() && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 		if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 			if (!instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-				instrumentClipView.adjustVelocity(offset);
-				renderDisplay(getCurrentInstrument()->defaultVelocity);
-				uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
+				if (multiPadPressSelected) {
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    getCurrentInstrumentClip()->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+					                                                   modelStackWithTimelineCounter); // don't create
+					int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+					if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+						NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+						SquareInfo rowSquareInfo[kDisplayWidth];
+						noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
+						automationEditorLayoutNote.adjustNoteParameterRamp(modelStackWithNoteRow, noteRow,
+						                                                   rowSquareInfo, offset);
+					}
+				}
+				else {
+					instrumentClipView.adjustVelocity(offset);
+					renderDisplay(getCurrentInstrument()->defaultVelocity);
+					uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
+				}
 			}
 		}
 		return ActionResult::DEALT_WITH;

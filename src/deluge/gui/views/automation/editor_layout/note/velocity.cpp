@@ -490,4 +490,72 @@ void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* 
 	}
 }
 
+// adjust velocity of notes between pressed squares
+void AutomationEditorLayoutNoteVelocity::adjustVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow,
+                                                            NoteRow* noteRow, SquareInfo rowSquareInfo[kDisplayWidth],
+                                                            int32_t offset) {
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	if (!action) {
+		return;
+	}
+
+	int32_t velocityValue = 0;
+	int32_t squaresProcessed = 0;
+	int32_t left_pad_selected_x = getLeftPadSelectedX();
+	int32_t right_pad_selected_x = getRightPadSelectedX();
+	int32_t left_pad_selected_velocity = 0;
+	int32_t right_pad_selected_velocity = 0;
+
+	for (int32_t i = left_pad_selected_x; i <= right_pad_selected_x; i++) {
+		if (rowSquareInfo[i].numNotes != 0) {
+			int32_t intendedPos = rowSquareInfo[i].squareStartPos;
+			int32_t intendedVelocity = std::clamp<int32_t>(rowSquareInfo[i].averageVelocity + offset, 1, 127);
+			if (i == left_pad_selected_x) {
+				left_pad_selected_velocity = intendedVelocity;
+			}
+			else if (i == right_pad_selected_x) {
+				right_pad_selected_velocity = intendedVelocity;
+			}
+
+			// Multiple notes in square
+			if (rowSquareInfo[i].numNotes > 1) {
+				int32_t intendedLength = rowSquareInfo[i].squareEndPos - intendedPos;
+
+				int32_t noteI = noteRow->notes.search(intendedPos, GREATER_OR_EQUAL);
+
+				Note* note = noteRow->notes.getElement(noteI);
+
+				while (note && note->pos - intendedPos < intendedLength) {
+					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
+					                                     CORRESPONDING_NOTES_SET_VELOCITY, intendedVelocity);
+
+					noteI++;
+
+					note = noteRow->notes.getElement(noteI);
+				}
+			}
+			// one note in square
+			else {
+				noteRow->changeNotesAcrossAllScreens(intendedPos, modelStackWithNoteRow, action,
+				                                     CORRESPONDING_NOTES_SET_VELOCITY, intendedVelocity);
+			}
+
+			// don't include note tails in note count
+			if (rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
+				squaresProcessed++;
+			}
+		}
+	}
+
+	// refresh grid and update default velocity on the display
+	uiNeedsRendering(getAutomationView(), 0xFFFFFFFF, 0);
+	if (display->haveOLED()) {
+		renderDisplay(left_pad_selected_velocity, right_pad_selected_velocity);
+	}
+	else {
+		// for 7seg, render value of last pad pressed
+		renderDisplay(left_pad_selected_velocity);
+	}
+}
+
 // }; // namespace deluge::gui::views::automation::editor_layout::note
