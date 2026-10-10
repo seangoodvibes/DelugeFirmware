@@ -17,7 +17,7 @@ int uartGetTxBufferSpace(int) {
 	return 1000;
 }
 std::function<ActionResult()> on_timer, on_exit;
-std::function<void()> on_graphics, on_input, on_automation, on_levels;
+std::function<void()> on_graphics, on_input, on_automation, on_levels, on_menu_read;
 int menu_reads = 0, automation_calls = 0;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
 int root_note_calls = 0;
@@ -52,7 +52,11 @@ struct UI {
 			on_automation();
 	}
 	UI* getCurrentMenuItem() { return menu; }
-	void readValueAgain() { ++menu_reads; }
+	void readValueAgain() {
+		++menu_reads;
+		if (on_menu_read)
+			on_menu_read();
+	}
 	void sendMidiFollowFeedback(void*, int, bool) {}
 };
 struct View : UI {
@@ -160,7 +164,7 @@ TEST_GROUP(TimerDispatch) {
 		current_uis.for_owner(session::Id::Remote) = &ui;
 		console_calls = graphics_calls = exit_calls = hardware_calls = 0;
 		on_timer = on_exit = {};
-		on_graphics = on_input = on_automation = on_levels = {};
+		on_graphics = on_input = on_automation = on_levels = on_menu_read = {};
 		view.pendingParamAutomationUpdatesModLevels = false;
 		root_uis = {};
 		menu_reads = automation_calls = 0;
@@ -172,7 +176,7 @@ TEST_GROUP(TimerDispatch) {
 	}
 	void teardown() override {
 		on_timer = on_exit = {};
-		on_graphics = on_input = on_automation = on_levels = {};
+		on_graphics = on_input = on_automation = on_levels = on_menu_read = {};
 		view.pendingParamAutomationUpdatesModLevels = false;
 		root_uis = {};
 		menu_reads = automation_calls = 0;
@@ -607,6 +611,51 @@ TEST(TimerDispatch, automation_menu_read_does_not_follow_song_replacement) {
 			LONGS_EQUAL(0, menu_reads);
 		}
 	}
+}
+TEST(TimerDispatch, fallback_direct_call_restores_owner_after_indicator_callback) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		current_uis.active() = &editor;
+		root_uis.active() = &ui;
+		view.pendingParamAutomationUpdatesModLevels = true;
+		on_levels = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		view.displayAutomation();
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, menu_reads);
+	}
+}
+TEST(TimerDispatch, fallback_menu_removed_during_indicator_update_is_not_read) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		current_uis.active() = &editor;
+		root_uis.active() = &ui;
+		editor.menu = &editor;
+		view.pendingParamAutomationUpdatesModLevels = true;
+		on_levels = [] { editor.menu = nullptr; };
+		view.displayAutomation();
+		LONGS_EQUAL(0, menu_reads);
+	}
+}
+TEST(TimerDispatch, automation_menu_callback_owner_change_defers_later_timers) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		UITimerManager timers;
+		current_uis.active() = &editor;
+		root_uis.active() = &automation;
+		automation.automation_editor = true;
+		on_menu_read = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		timers.setTimerSamples(TimerName::DISPLAY_AUTOMATION, -1);
+		timers.setTimerSamples(TimerName::OLED_CONSOLE, -1);
+		timers.routine();
+		CHECK(session::current() == owner);
+		CHECK(timers.isTimerSet(TimerName::OLED_CONSOLE));
+		LONGS_EQUAL(0, console_calls);
+	}
+	LONGS_EQUAL(2, menu_reads);
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

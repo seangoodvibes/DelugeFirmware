@@ -1361,3 +1361,13 @@ side effects are not provided by these guards.
   suites and `./dbt build relwithdebinfo` pass.
 - Song identity comparison is not lifetime retention or same-address replacement
   detection. G1/L1 remain open and independent mode stays disabled.
+
+### G1 coverage — automation callback completion boundaries (2026-10-10)
+
+- Three additional tests cover direct fallback owner restoration, menu removal
+  during indicator updates and owner changes inside menu rereads. Both owners are
+  exercised; later timers remain pending after the direct menu callback changes
+  owners. The timer test README records the real/fixture coverage boundary.
+- All 35 native suites pass. This tests/documentation-only change follows the
+  production revision validated with `./dbt build relwithdebinfo`. G1/L1 and
+  hardware acceptance remain open; independent mode remains disabled.

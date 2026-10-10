@@ -36,3 +36,14 @@ not that ordinary scoped callbacks leak ownership or that their internals are sa
 A takeover-during-input case verifies later timers remain pending, the next client
 pass services only the OLED handshake, and ordinary timers resume after client
 mode ends. The transition is injected; USB negotiation remains in MirrorRuntimeTests.
+
+Automation display cases compile both the timer's direct automation-view path and
+`View::displayAutomation`'s fallback. They check the follow-up menu read against
+owner, UI, root, menu and song changes, client takeover, missing menus and normal
+reads. Both panel owners are exercised. Additional cases call the fallback directly
+to verify owner restoration and remove a menu during indicator updates. A menu-read
+callback that changes owners leaves later timers pending in the original bank.
+
+The real view method uses fixture indicator updates, and the automation-view
+renderer itself remains a fixture. These tests do not retain or destroy real menu
+objects and do not establish safety inside the callbacks.
