@@ -207,3 +207,10 @@ TEST(kit_render_output_lifetime, pre_arp_rejects_song_change) {
 	LONGS_EQUAL(0, audio_calls);
 	LONGS_EQUAL(0, post_calls);
 }
+TEST(kit_render_output_lifetime, recorder_replacement_stops_post_arp) {
+	int replacement;
+	on_audio = [&] { kit->recorder = &replacement; };
+	render();
+	LONGS_EQUAL(1, audio_calls);
+	LONGS_EQUAL(0, post_calls);
+}

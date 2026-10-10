@@ -2520,3 +2520,13 @@ entry and no-active-clip rendering. All 36 suites and
 `./dbt build relwithdebinfo` pass. The shared effects renderer still has its own
 post-callback accesses, and backup/collection/recorder lifetime inside render
 stages remains a separate concern.
+
+The shared effects renderer now validates output/clip lifetime, parameter-manager
+ownership, collection and recorder association after delay setup, source rendering,
+FX, stutter and recording callbacks. No-active-clip backup managers are re-resolved
+before dereference. Ten production-body sanitizer regressions cover cancellation,
+heap deletion and normal rendering; the outer kit caller also tests recorder
+replacement. All 36 native suites and `./dbt build relwithdebinfo` pass. These
+checks do not establish safety inside the called helpers, same-address collection
+identity, or recorder deletion without clearing its owner association. Independent
+mode remains disabled.

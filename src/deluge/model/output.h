@@ -204,6 +204,7 @@ public:
 	                                                        bool affectEntire, bool useMenuStack) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
 	bool hasRecorder() { return recorder; }
+	SampleRecorder* get_recorder() const { return recorder; }
 	bool shouldRenderInSong() { return !(recorderIsEchoing); }
 
 	/// disable rendering to the song buffer if this clip is the input to an audio output that's monitoring

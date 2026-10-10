@@ -34,6 +34,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "util/lifetime.h"
 
 extern "C" {
 #include "drivers/ssi/ssi.h"
@@ -52,7 +53,35 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
                                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                         bool shouldLimitDelayFeedback, bool isClipActive,
                                                         OutputType outputType, SampleRecorder* recorder) {
+	if (!modelStack || !modelStack->song || !paramManagerForClip)
+		return;
+	auto* rendered_output = toOutput();
+	if (!rendered_output)
+		return;
+	auto output_lifetime = rendered_output->watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* source_song = modelStack->song;
+	auto* active_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto owners_match = [&] {
+		if (!output_lifetime.alive() || (routed_clip && !clip_lifetime.alive()) || currentSong != active_song
+		    || modelStack->song != source_song || modelStack->getTimelineCounterAllowNull() != routed_clip
+		    || rendered_output->getActiveClip() != routed_clip || rendered_output->get_recorder() != recorder
+		    || deluge::gui::ui_session::current() != source_owner)
+			return false;
+		if (routed_clip)
+			return routed_clip->output == rendered_output && &routed_clip->paramManager == paramManagerForClip;
+		return source_song->getBackedUpParamManagerPreferablyWithClip(this, nullptr) == paramManagerForClip;
+	};
+	if (!owners_match())
+		return;
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
+	const auto context_matches = [&] {
+		return owners_match() && paramManagerForClip->summaries[0].paramCollection == unpatchedParams;
+	};
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
@@ -75,6 +104,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	Delay::State delayWorkingState =
 	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
+	if (!context_matches())
+		return;
 	if (outputType == OutputType::AUDIO) {
 		delayWorkingState.analog_saturation = 5;
 	}
@@ -113,9 +144,12 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	std::span<StereoSample> global_effectable_audio{global_effectable_memory, output.size()};
 
 	// Render actual Drums / AudioClip
-	renderedLastTime = renderGlobalEffectableForClip(
+	const bool rendered = renderGlobalEffectableForClip(
 	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	if (!context_matches())
+		return;
+	renderedLastTime = rendered;
 
 	// Render saturation
 	if (clippingAmount != 0u) {
@@ -136,11 +170,17 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
 	                             renderedLastTime, reverbSendAmount);
+	if (!context_matches())
+		return;
 	processStutter(global_effectable_audio, paramManagerForClip);
+	if (!context_matches())
+		return;
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
 		recorder->feedAudio(global_effectable_audio, true, 2);
+		if (!context_matches())
+			return;
 	}
 
 	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,

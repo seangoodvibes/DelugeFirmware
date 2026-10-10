@@ -885,3 +885,12 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_render_output_lifetime
     DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_render_output_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/kit_render_output_lifetime.inc)
+
+set(global_effectable_render_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/global_effectable/global_effectable_for_clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/global_effectable_render_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${global_effectable_render_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/global_effectable_render_lifetime.inc
+        GlobalEffectableForClip::renderOutput
+    DEPENDS ${global_effectable_render_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE global_effectable_render_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/global_effectable_render_lifetime.inc)

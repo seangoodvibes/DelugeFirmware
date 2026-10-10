@@ -722,6 +722,7 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	auto* source_song = modelStack->song;
 	auto* active_song = currentSong;
 	const auto source_owner = deluge::gui::ui_session::current();
+	auto* source_recorder = recorder;
 	ParamManager* paramManager = getParamManager(source_song);
 	if (!paramManager)
 		return;
@@ -733,7 +734,7 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		       && (!routed_clip || routed_clip->output == this) && currentSong == active_song
 		       && modelStack->song == source_song && modelStackWithTimelineCounter->song == source_song
 		       && modelStackWithTimelineCounter->getTimelineCounterAllowNull() == routed_clip
-		       && deluge::gui::ui_session::current() == source_owner;
+		       && deluge::gui::ui_session::current() == source_owner && recorder == source_recorder;
 	};
 
 	// Kit arp, get arp settings, perform setup and render arp pre-output
