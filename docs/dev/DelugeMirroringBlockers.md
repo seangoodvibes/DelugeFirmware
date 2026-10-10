@@ -1599,3 +1599,13 @@ mapping kinds, preserved prior tables, unknown names, valid endpoints and recove
 after an invalid entry. All 35 native suites and `./dbt build relwithdebinfo` pass.
 The deserializer and parameter-name lookup are fixtures; this is bounds/recovery
 coverage, not filesystem or two-device acceptance.
+
+### G1 / R4 progress — restore MIDI Follow MPE upper-zone settings (2026-10-10)
+
+Channel settings loading now accepts the final serialized channel value (18),
+which represents the MPE upper zone. The new all-channels regression failed before
+this fix with an unassigned channel instead of upper zone 17. Two tests exercise
+all channels/zones for the first and last Follow target, invalid values, tag
+consumption and the explicit unassigned value. All 35 native suites and
+`./dbt build relwithdebinfo` pass. XML tokenization and device references remain
+fixtures; physical MPE routing is not established by these tests.

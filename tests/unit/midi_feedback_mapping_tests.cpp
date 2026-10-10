@@ -30,10 +30,26 @@ struct Deserializer {
 		++exits;
 	}
 };
+constexpr char MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG[] = "channel";
+constexpr char MIDI_DEFAULTS_SETTINGS_DEVICE_TAG[] = "device";
+struct cable_fixture {};
+struct channel_fixture {
+	uint8_t channelOrZone = MIDI_CHANNEL_NONE;
+	cable_fixture* cable = nullptr;
+};
+static struct {
+	std::array<channel_fixture, kNumMIDIFollowChannelTypesIncludingTracks> midiFollowChannelType;
+} midiEngine;
+namespace MIDIDeviceManager {
+static cable_fixture* readDeviceReferenceFromFile(Deserializer&) {
+	return nullptr;
+}
+} // namespace MIDIDeviceManager
 struct MidiFollow {
 	bool global_context = false;
 	std::array<uint8_t, kMaxMIDIValue + 1> ccToSoundParam, ccToGlobalParam;
 	void readDefaultMappingsFromFile(Deserializer&);
+	void readSpecificChannelSettingsFromFile(Deserializer&, MIDIFollowChannelType);
 	std::array<uint8_t, params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM> soundParamToCC;
 	std::array<uint8_t, params::UNPATCHED_GLOBAL_MAX_NUM> globalParamToCC;
 	bool isGlobalEffectableContext() { return global_context; }
@@ -45,6 +61,7 @@ using namespace midi_feedback_mapping_test;
 TEST_GROUP(MidiFeedbackMapping) {
 	MidiFollow follow;
 	void setup() override {
+		midiEngine = {};
 		follow.ccToSoundParam.fill(param_id_none);
 		follow.ccToGlobalParam.fill(param_id_none);
 		follow.soundParamToCC.fill(17);
@@ -118,4 +135,31 @@ TEST(MidiFeedbackMapping, unknown_file_mapping_does_not_change_tables) {
 	LONGS_EQUAL(1, reader.exits);
 	LONGS_EQUAL(param_id_none, follow.ccToSoundParam[7]);
 	LONGS_EQUAL(param_id_none, follow.ccToGlobalParam[7]);
+}
+
+TEST(MidiFeedbackMapping, all_saved_channels_and_mpe_zones_restore) {
+	for (auto type : {MIDIFollowChannelType::A, MIDIFollowChannelType::Track16}) {
+		auto& channel = midiEngine.midiFollowChannelType[util::to_underlying(type)].channelOrZone;
+		for (int value = 1; value <= NUM_CHANNELS; ++value) {
+			channel = MIDI_CHANNEL_NONE;
+			Deserializer reader;
+			reader.entries = {{"channel", value}};
+			follow.readSpecificChannelSettingsFromFile(reader, type);
+			LONGS_EQUAL(value - 1, channel);
+			LONGS_EQUAL(1, reader.exits);
+		}
+	}
+}
+TEST(MidiFeedbackMapping, invalid_saved_channels_preserve_previous_selection) {
+	auto& channel = midiEngine.midiFollowChannelType[0].channelOrZone;
+	channel = 7;
+	Deserializer reader;
+	reader.entries = {{"channel", -1}, {"channel", NUM_CHANNELS + 1}, {"channel", INT_MAX}};
+	follow.readSpecificChannelSettingsFromFile(reader, MIDIFollowChannelType::A);
+	LONGS_EQUAL(7, channel);
+	LONGS_EQUAL(3, reader.exits);
+	reader = {};
+	reader.entries = {{"channel", 0}};
+	follow.readSpecificChannelSettingsFromFile(reader, MIDIFollowChannelType::A);
+	LONGS_EQUAL(MIDI_CHANNEL_NONE, channel);
 }
