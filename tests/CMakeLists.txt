@@ -46,3 +46,5 @@ add_subdirectory(runtime_menu)
 add_subdirectory(display_swap)
 
 add_subdirectory(context_menu)
+
+add_subdirectory(timer_dispatch)

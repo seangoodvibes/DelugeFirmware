@@ -79,6 +79,10 @@ void UITimerManager::routine() {
 	}
 
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
+		// Remote callbacks may close navigation before later timers in this pass.
+		// Leave those timers pending for teardown or a valid subsequent service.
+		if (owner == deluge::gui::ui_session::Id::Remote && !getCurrentUI())
+			break;
 		auto name = static_cast<TimerName>(i);
 		auto& timer = bank.timers[i];
 		if (timer.active) {

@@ -610,3 +610,18 @@ side effects are not provided by these guards.
   output lifetime remain outside these fixtures. G1/L1 remain open; independent
   mode stays disabled.
 - Validation: all 34 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 / L1 progress — Remote navigation loss inside timer dispatch (2026-10-09)
+
+- Timer dispatch now checks Remote navigation before each timer in the pass. If a
+  callback closes it, later timers stay pending instead of running against a null
+  current UI before mirror service can detect the loss. Local hardware servicing
+  and the client OLED handshake retain their existing behavior.
+- Six `TimerDispatchTests` cases compile the production manager header, timer state
+  and dispatch/scheduling bodies. Two initial regressions demonstrated servicing
+  without navigation and continued dispatch after closure; further tests cover
+  the formerly unsafe exit/graphics calls, retained deadlines, resumed service,
+  replacement navigation and hardware exceptions. Internal callback lifetime and
+  whole-session timer cancellation remain separate concerns. G1/L1 stay open and
+  independent mode remains disabled.
+- Validation: all 35 native CTest suites and `./dbt build relwithdebinfo` pass.
