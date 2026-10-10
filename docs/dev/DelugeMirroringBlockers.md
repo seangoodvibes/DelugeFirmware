@@ -1351,3 +1351,13 @@ side effects are not provided by these guards.
   and physical LEDs are not exercised by these fixtures.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/G2/L1 remain open;
   independent mode stays disabled.
+
+### G1 progress — automation menu reads across song replacement (2026-10-10)
+
+- Both automation display paths now require the originating song identity before
+  follow-up menu reads, even when the UI/root/menu pointers remain unchanged.
+- One regression runs both paths on both owners and verifies song replacement is
+  preserved without rereading the menu. It failed before the fix. All 35 native
+  suites and `./dbt build relwithdebinfo` pass.
+- Song identity comparison is not lifetime retention or same-address replacement
+  detection. G1/L1 remain open and independent mode stays disabled.

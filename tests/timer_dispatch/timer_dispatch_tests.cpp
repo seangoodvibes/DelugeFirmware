@@ -4,6 +4,9 @@
 #include "gui/ui_timer_manager.h"
 #include <functional>
 namespace session = deluge::gui::ui_session;
+struct Song {};
+Song original_song, replacement_song;
+Song* currentSong = &original_song;
 enum class ActionResult { DEALT_WITH, REMIND_ME_OUTSIDE_CARD_ROUTINE };
 enum class UIType { INSTRUMENT_CLIP };
 enum class MIDIFollowFeedbackAutomationMode { DISABLED, LOW, MEDIUM, HIGH };
@@ -165,6 +168,7 @@ TEST_GROUP(TimerDispatch) {
 		editor.menu = &editor;
 		deluge::hid::mirror::client = false;
 		AudioEngine::audioSampleTimer = 1000;
+		currentSong = &original_song;
 	}
 	void teardown() override {
 		on_timer = on_exit = {};
@@ -585,6 +589,24 @@ TEST(TimerDispatch, fallback_automation_reads_valid_menu_and_skips_missing_menu)
 	due(TimerName::DISPLAY_AUTOMATION);
 	manager.routine();
 	LONGS_EQUAL(1, menu_reads);
+}
+TEST(TimerDispatch, automation_menu_read_does_not_follow_song_replacement) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (bool automation_root : {false, true}) {
+			UITimerManager timers;
+			currentSong = &original_song;
+			current_uis.active() = &editor;
+			root_uis.active() = automation_root ? &automation : &ui;
+			automation.automation_editor = true;
+			view.pendingParamAutomationUpdatesModLevels = true;
+			on_automation = on_levels = [] { currentSong = &replacement_song; };
+			timers.setTimerSamples(TimerName::DISPLAY_AUTOMATION, -1);
+			timers.routine();
+			POINTERS_EQUAL(&replacement_song, currentSong);
+			LONGS_EQUAL(0, menu_reads);
+		}
+	}
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

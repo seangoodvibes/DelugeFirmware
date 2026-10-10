@@ -1730,6 +1730,7 @@ bool View::isClipContext() {
 }
 
 void View::displayAutomation() {
+	auto* const source_song = currentSong;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_ui = getCurrentUI();
@@ -1740,7 +1741,7 @@ void View::displayAutomation() {
 		setKnobIndicatorLevels();
 	}
 	if (source_menu && !deluge::hid::mirror::is_client() && deluge::gui::ui_session::current() == source_owner
-	    && getCurrentUI() == source_ui && getRootUI() == source_root
+	    && currentSong == source_song && getCurrentUI() == source_ui && getRootUI() == source_root
 	    && sound_editor_for_session().getCurrentMenuItem() == source_menu) {
 		source_menu->readValueAgain();
 	}

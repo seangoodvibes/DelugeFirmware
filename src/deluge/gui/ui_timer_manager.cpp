@@ -203,6 +203,7 @@ void UITimerManager::routine() {
 				}
 
 				case TimerName::DISPLAY_AUTOMATION: {
+					auto* const source_song = currentSong;
 					auto* const source_ui = getCurrentUI();
 					auto* const source_root = getRootUI();
 					if ((source_ui == &automation_view_for_session() || source_root == &automation_view_for_session())
@@ -212,8 +213,8 @@ void UITimerManager::routine() {
 						                              : nullptr;
 						automation_view_for_session().displayAutomation();
 						if (source_menu && !deluge::hid::mirror::is_client()
-						    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui
-						    && getRootUI() == source_root
+						    && deluge::gui::ui_session::current() == owner && currentSong == source_song
+						    && getCurrentUI() == source_ui && getRootUI() == source_root
 						    && sound_editor_for_session().getCurrentMenuItem() == source_menu) {
 							source_menu->readValueAgain();
 						}
