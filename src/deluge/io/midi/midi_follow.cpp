@@ -405,10 +405,12 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 		if (clip) {
 			Output* output = clip->output;
 			clip = output ? output->getActiveClip() : nullptr;
+			if (clip && clip->output != output)
+				return nullptr;
 		}
 	}
 
-	return clip;
+	return clip && clip->output ? clip : nullptr;
 }
 
 /// see if you are pressing and holding a clip in arranger view, song row view, song grid view
@@ -468,7 +470,8 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song
 	    || getCurrentClip() != source_clip || source_clip->output != source_output)
 		return nullptr;
-	return source_output->getActiveClip();
+	auto* const active_clip = source_output->getActiveClip();
+	return active_clip && active_clip->output == source_output ? active_clip : nullptr;
 }
 
 /// used to forward midi messages to specific tracks

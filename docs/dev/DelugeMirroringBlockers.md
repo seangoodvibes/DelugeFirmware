@@ -1703,3 +1703,13 @@ output or playback replacement at both boundaries. All 35 native suites and
 `./dbt build relwithdebinfo` pass. Playback and output callbacks are fixtures;
 checks do not retain objects or roll back activation already applied. Lifetime
 and recovery blockers remain open, and independent mode stays disabled.
+
+### G1 / R4 progress — MIDI selector output association (2026-10-10)
+
+Selected-or-active MIDI targets now require an output even for explicit selection.
+Fallback and post-activation targets must still belong to the output being routed.
+Four regressions cover the reproduced explicit output-less target, detached active
+clips, reassigned outputs and successful restoration of a valid association.
+All 35 native suites and `./dbt build relwithdebinfo` pass. This validates current
+associations; it does not retain clips/outputs or protect against freed pointers
+and reused addresses. Independent mode remains disabled.

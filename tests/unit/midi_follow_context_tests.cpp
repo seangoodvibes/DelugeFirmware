@@ -145,6 +145,7 @@ TEST(MidiFollowContext, fallback_without_output_or_active_clip_returns_no_target
 }
 TEST(MidiFollowContext, explicit_selection_wins_over_each_panels_active_clip_fallback) {
 	Clip active_clip;
+	active_clip.output = &output;
 	output.active_clip = &active_clip;
 	current_clips.for_owner(session::Id::Local) = &instrument;
 	current_clips.for_owner(session::Id::Remote) = &instrument;
@@ -279,4 +280,42 @@ TEST(MidiFollowContext, activation_requires_targets_and_returns_normal_active_cl
 	output.active_clip = &instrument;
 	POINTERS_EQUAL(&instrument, follow.getActiveClip(&stack));
 	LONGS_EQUAL(1, activation_calls);
+}
+
+TEST(MidiFollowContext, selected_outputless_clip_is_not_a_midi_target) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		selected_clips.active() = &instrument;
+		instrument.output = nullptr;
+		POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+	}
+}
+TEST(MidiFollowContext, outputless_active_clip_is_not_a_midi_target) {
+	Clip detached;
+	current_clips.active() = &instrument;
+	output.active_clip = &detached;
+	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+	detached.output = &output;
+	POINTERS_EQUAL(&detached, follow.getSelectedOrActiveClip());
+}
+
+TEST(MidiFollowContext, fallback_rejects_clip_assigned_to_another_output) {
+	Output other_output;
+	Clip moved_clip;
+	moved_clip.output = &other_output;
+	current_clips.active() = &instrument;
+	output.active_clip = &moved_clip;
+	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+}
+TEST(MidiFollowContext, activated_output_cannot_route_to_detached_or_moved_clip) {
+	ModelStack stack;
+	Output other_output;
+	Clip moved_clip;
+	current_clips.active() = &instrument;
+	output.active_clip = &moved_clip;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	moved_clip.output = &other_output;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	moved_clip.output = &output;
+	POINTERS_EQUAL(&moved_clip, follow.getActiveClip(&stack));
 }
