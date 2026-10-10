@@ -4512,3 +4512,42 @@ TEST(parameter_lifecycle, live_clone_guard_preserves_normal_copy_behavior) {
 	check_node(*destination.param(31)->autoParam, 0, 4, 99, false);
 	CHECK(source.param(31)->autoParam != destination.param(31)->autoParam);
 }
+
+TEST(parameter_lifecycle, clone_rejects_source_collection_removal_during_allocation) {
+	fixture source, destination;
+	destination.set().setCurrentValueBasicForSetup(31, 123);
+	parameter_test::on_allocation = [&] { source.manager.destructAndForgetParamCollections(); };
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source.manager, true) == Error::BUG);
+	CHECK(source.manager.has_valid_layout());
+	LONGS_EQUAL(123, destination.set().getValue(31));
+	CHECK(destination.manager.has_valid_layout());
+}
+TEST(parameter_lifecycle, clone_rejects_replaced_source_collection_during_allocation) {
+	fixture source, destination;
+	destination.set().setCurrentValueBasicForSetup(31, 123);
+	parameter_test::on_allocation = [&] {
+		source.manager.destructAndForgetParamCollections();
+		CHECK(source.manager.setupMIDI() == Error::NONE);
+	};
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source.manager, true) == Error::BUG);
+	CHECK(source.manager.has_valid_layout());
+	CHECK(source.manager.getMIDIParamCollection() != nullptr);
+	LONGS_EQUAL(123, destination.set().getValue(31));
+}
+TEST(parameter_lifecycle, clone_rejects_expression_added_during_allocation) {
+	fixture source, destination;
+	destination.set().setCurrentValueBasicForSetup(31, 123);
+	parameter_test::on_allocation = [&] { CHECK(source.manager.ensureExpressionParamSetExists()); };
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source.manager, true, true) == Error::BUG);
+	CHECK(source.manager.getExpressionParamSet() != nullptr);
+	CHECK(destination.manager.getExpressionParamSet() == nullptr);
+	LONGS_EQUAL(123, destination.set().getValue(31));
+}
+TEST(parameter_lifecycle, ignored_expression_change_does_not_cancel_main_collection_clone) {
+	fixture source, destination;
+	source.set().setCurrentValueBasicForSetup(31, 99);
+	parameter_test::on_allocation = [&] { CHECK(source.manager.ensureExpressionParamSetExists()); };
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source.manager, true, false) == Error::NONE);
+	CHECK(destination.manager.getExpressionParamSet() == nullptr);
+	LONGS_EQUAL(99, destination.set().getValue(31));
+}

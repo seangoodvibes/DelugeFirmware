@@ -29,7 +29,7 @@ public:
 		clonedReverseLength = reverseLength;
 		return Error::NONE;
 	}
-	uint32_t objectSize = sizeof(ParamCollection);
+	int32_t objectSize = sizeof(ParamCollection);
 	bool clonedAutomation = false;
 	int32_t clonedReverseLength = 0;
 

@@ -98,6 +98,9 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	ParamCollectionSummary const* otherSummary =
 	    other->summaries; // Not __restrict__, because other might be the same as this!
 	const int32_t source_expression_offset = other->expressionParamSetOffset;
+	if (source_expression_offset < 0 || source_expression_offset >= PARAM_COLLECTIONS_STORAGE_NUM)
+		return Error::BUG;
+	auto* const source_expression = other->summaries[source_expression_offset].paramCollection;
 	ParamCollectionSummary const* otherStopAt = &other->summaries[source_expression_offset];
 
 	if (cloneExpressionParams && otherStopAt->paramCollection) {
@@ -105,14 +108,40 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	}
 
 	const int32_t collection_count = static_cast<int32_t>(otherStopAt - other->summaries);
+	if (collection_count >= PARAM_COLLECTIONS_STORAGE_NUM)
+		return Error::BUG;
+	struct collection_identity {
+		ParamCollection* collection;
+		int32_t size;
+	} source_collections[PARAM_COLLECTIONS_STORAGE_NUM]{};
+	for (int32_t index = 0; index < collection_count; ++index) {
+		auto* collection = other->summaries[index].paramCollection;
+		if (!collection || collection->objectSize <= 0)
+			return Error::BUG;
+		source_collections[index] = {collection, collection->objectSize};
+	}
+	const auto source_matches = [&] {
+		if ((source_lifetime && !source_lifetime->alive())
+		    || other->expressionParamSetOffset != source_expression_offset)
+			return false;
+		if (cloneExpressionParams && other->summaries[source_expression_offset].paramCollection != source_expression)
+			return false;
+		for (int32_t index = 0; index < collection_count; ++index) {
+			auto* collection = other->summaries[index].paramCollection;
+			if (collection != source_collections[index].collection
+			    || collection->objectSize != source_collections[index].size)
+				return false;
+		}
+		return true;
+	};
 	while (otherSummary != otherStopAt) {
 		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
-		newSummary->paramCollection =
-		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
+		newSummary->paramCollection = (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(
+		    source_collections[newSummary - newSummaries].size);
 
 		// If that failed, deallocate all the previous memories
-		const bool source_alive = !source_lifetime || source_lifetime->alive();
-		if (!newSummary->paramCollection || !source_alive) {
+		const bool source_valid = source_matches();
+		if (!newSummary->paramCollection || !source_valid) {
 			if (newSummary->paramCollection)
 				delugeDealloc(newSummary->paramCollection);
 			while (newSummary != newSummaries) {
@@ -120,7 +149,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 				delugeDealloc(newSummary->paramCollection);
 			}
 
-			if (this == other && source_alive) {
+			if (this == other && source_valid) {
 				// beenCloned() operates on a shallow copy of a NoteRow. None of these pointers,
 				// including expression, belong to the new row until cloning succeeds.
 				for (auto& summary : summaries) {
@@ -129,7 +158,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 				expressionParamSetOffset = 0;
 			}
 			// For a distinct source, leave our existing collections and expression untouched.
-			return source_alive ? Error::INSUFFICIENT_RAM : Error::BUG;
+			return source_valid ? Error::INSUFFICIENT_RAM : Error::BUG;
 		}
 
 		newSummary++;
@@ -157,8 +186,8 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		// whose automation could not be copied (e.g. a node allocation failure).
 		auto clone_error =
 		    newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength, newSummary);
-		const bool source_alive = !source_lifetime || source_lifetime->alive();
-		if (!source_alive)
+		const bool source_valid = source_matches();
+		if (!source_valid)
 			clone_error = Error::BUG;
 		if (clone_error != Error::NONE) {
 			for (int32_t index = 0; index < collection_count; ++index) {
@@ -168,7 +197,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 					allocated->paramCollection->~ParamCollection();
 				delugeDealloc(allocated->paramCollection);
 			}
-			if (this == other && source_alive) {
+			if (this == other && source_valid) {
 				for (auto& summary : summaries)
 					summary = {0};
 				expressionParamSetOffset = 0;

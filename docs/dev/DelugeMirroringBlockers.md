@@ -2250,3 +2250,12 @@ sanitizers. All 36 native suites and `./dbt build relwithdebinfo` pass. The opti
 guard protects these boundaries; source collection mutation and callbacks inside
 collection-specific cloning remain open. Unguarded callers retain their existing
 source-ownership contract.
+
+Parameter cloning now snapshots collection pointers, sizes and expression layout
+before allocation, and rejects changed layouts before copying or continuing.
+Four native lifecycle regressions cover removed/replaced collections and expression
+addition with expression copying enabled/disabled. The manager preserves existing
+destination state on cancellation. All 36 native suites and
+`./dbt build relwithdebinfo` pass. These checks do not establish collection identity
+across same-address reuse or protect borrowed automation inside collection cloning;
+those lifetime boundaries remain open.
