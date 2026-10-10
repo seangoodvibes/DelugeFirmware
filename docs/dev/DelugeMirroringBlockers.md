@@ -2537,3 +2537,10 @@ sanitizer regressions cover entry rejection, active/backup rendering and output
 destruction in the final dispatched callback. All 36 native suites and
 `./dbt build relwithdebinfo` pass. This adds caller entry protection; it does not
 extend the lifetime guarantees inside audio rendering helpers.
+
+Kit backup audio rendering now initializes its absent-row index and skips row
+parameter ticking when no active clip exists, even if the caller's activity flag
+is set. Two production-body sanitizer regressions cover backup rendering and
+preserved active-row interpolation. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Callback invalidation inside this inner renderer
+remains separate from these no-clip fixes.

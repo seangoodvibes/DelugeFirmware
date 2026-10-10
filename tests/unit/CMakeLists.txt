@@ -902,3 +902,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_render_output_lifeti
         AudioOutput::renderOutput
     DEPENDS ${audio_render_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/audio_render_output_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_inner_render.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_inner_render.inc
+        Kit::renderGlobalEffectableForClip
+    DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_inner_render_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_inner_render.inc)

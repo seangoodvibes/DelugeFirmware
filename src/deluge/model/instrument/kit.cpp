@@ -594,10 +594,10 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 
 		ParamManager* drumParamManager;
 		NoteRow* thisNoteRow = nullptr;
-		int32_t noteRowIndex;
+		int32_t note_row_index = 0;
 
 		if (activeClip) {
-			thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(thisDrum, &noteRowIndex);
+			thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(thisDrum, &note_row_index);
 
 			// If a new Clip had just launched on this Kit, but an old Drum was still sounding which isn't present in
 			// the new Clip. In a perfect world, maybe we'd instead have it check and cut the voice / Drum on switch.
@@ -614,7 +614,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		}
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
+		    modelStack->addNoteRow(note_row_index, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
 		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
 		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
@@ -623,7 +623,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 	}
 
 	// Tick ParamManagers
-	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
+	if (activeClip && playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
 
 		NoteRowVector* noteRows = &((InstrumentClip*)activeClip)->noteRows;
 
