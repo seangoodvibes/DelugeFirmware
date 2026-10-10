@@ -17,6 +17,7 @@
 
 #include "hid/display/screensaver.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui_session.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -81,6 +82,9 @@ void Screensaver::arm() {
 }
 
 void Screensaver::noteActivity() {
+	// The screensaver owns only the physical Local display.
+	if (deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Local)
+		return;
 	if (active_) {
 		active_ = false;
 		// The screensaver never writes to `main`, so this doesn't need to restore
@@ -97,6 +101,9 @@ void Screensaver::noteActivity() {
 }
 
 void Screensaver::timerEvent() {
+	// The screensaver owns only the physical Local display.
+	if (deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Local)
+		return;
 	// Qualified as ::display: inside namespace deluge::hid::display, unqualified
 	// "display" resolves to this very namespace, not the global Display pointer.
 	if (FlashStorage::screensaverMode == ScreensaverMode::OFF || !::display->haveOLED()) {
@@ -163,6 +170,8 @@ void Screensaver::timerEvent() {
 }
 
 void Screensaver::settingsChanged() {
+	// Settings are shared, even when edited from the Remote panel.
+	deluge::gui::ui_session::Scope owner(deluge::gui::ui_session::Id::Local);
 	if (active_) {
 		active_ = false;
 		OLED::markChanged();

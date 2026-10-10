@@ -472,3 +472,18 @@ side effects are not provided by these guards.
 - This complements collection allocation accounting, particularly for tests that
   delete the caller during cleanup. It does not prove callback reachability or
   lifetime safety for model objects outside these fixtures.
+
+### G1 progress — Local screensaver routing (2026-10-09)
+
+- Remote input and timer callbacks no longer wake, activate, advance or inhibit
+  the physical Local screensaver. Its existing Local-only OLED composition stays
+  unchanged; no second animation/canvas allocation is needed.
+- Screensaver settings remain shared. Changing them from either panel now wakes
+  and dirties the Local display and updates the Local timer, then restores the
+  caller's UI owner. Remote timer deadlines and display dirty state are preserved.
+- `ScreensaverRoutingTests` compiles the production event methods with real
+  `UITimerState` ownership and lightweight display/animation fixtures. Three regressions failed before the fix; all four cases
+  pass afterward, including unchanged Local wake/rearm behavior. These are routing
+  tests, not animation-pixel or hardware acceptance tests. G1 remains open and
+  independent mode remains disabled.
+- Validation: all 30 native CTest suites and `./dbt build relwithdebinfo` pass.

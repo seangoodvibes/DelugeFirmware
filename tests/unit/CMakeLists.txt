@@ -387,3 +387,16 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/note_move_action_failure.i
         InstrumentClipView::scrollVertical_placeNotesPressed InstrumentClipView::scrollVertical_grabNotesPressed
     DEPENDS ${note_selection_startup_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE note_move_action_failure_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/note_move_action_failure.inc)
+
+# Exercise screensaver routing with production event bodies and lightweight display/timer fixtures.
+set(screensaver_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/display/screensaver.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/screensaver_events.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${screensaver_source} ${CMAKE_CURRENT_BINARY_DIR}/screensaver_events.inc
+        Screensaver::arm Screensaver::noteActivity Screensaver::timerEvent Screensaver::settingsChanged
+    DEPENDS ${screensaver_source} ../support/extract_functions.py VERBATIM)
+add_executable(ScreensaverRoutingTests screensaver_routing_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/screensaver_events.inc)
+target_include_directories(ScreensaverRoutingTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ../../src/deluge)
+target_link_libraries(ScreensaverRoutingTests PRIVATE CppUTest)
+set_target_properties(ScreensaverRoutingTests PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
+add_test(NAME ScreensaverRoutingTests COMMAND ScreensaverRoutingTests)

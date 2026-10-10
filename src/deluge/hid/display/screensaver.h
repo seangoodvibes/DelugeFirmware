@@ -26,7 +26,8 @@ namespace deluge::hid::display {
 /// @brief Blanks the OLED, or replaces it with a starfield or a field of Deluge rain, after a
 ///        configurable period without physical input.
 ///
-/// OLED only: 7SEG units never activate it. All state is static -- there is exactly one screensaver.
+/// OLED only: 7SEG units never activate it. All state belongs to the physical Local panel; Remote activity and timers
+/// are ignored.
 ///
 /// @note It renders into its own canvas rather than the main one, and so never writes to `main`:
 ///       waking up is just "stop overriding and mark dirty". Other UI timers (side-scrollers, the
@@ -51,7 +52,7 @@ public:
 	static void timerEvent();
 
 	/// @brief Apply a change to the mode or timeout setting: wake if showing, then re-arm or cancel
-	///        the timer for the new settings.
+	///        the Local timer for the new shared settings, preserving the caller's UI owner.
 	static void settingsChanged();
 
 	/// @}
