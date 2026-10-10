@@ -1416,12 +1416,21 @@ bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
 
 // Caller must also set alternateAudioFileLoadPath.
 void AudioFileManager::thingBeginningLoading(ThingType newThingType) {
+	++loading_context_revision_;
 	alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
 	thingTypeBeingLoaded = newThingType;
 }
 
 void AudioFileManager::thingFinishedLoading() {
+	++loading_context_revision_;
 	alternateAudioFileLoadPath.clear();
 	alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	thingTypeBeingLoaded = ThingType::NONE;
+}
+
+bool AudioFileManager::finish_loading_if_current(uint32_t revision) {
+	if (revision != loading_context_revision_)
+		return false;
+	thingFinishedLoading();
+	return true;
 }

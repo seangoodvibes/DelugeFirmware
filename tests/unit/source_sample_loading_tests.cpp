@@ -56,7 +56,16 @@ struct Sound {
 };
 struct {
 	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+	uint32_t revision = 0;
+	uint32_t loading_context_revision() const { return revision; }
+	bool finish_loading_if_current(uint32_t expected) {
+		if (expected != revision)
+			return false;
+		thingFinishedLoading();
+		return true;
+	}
 	void thingFinishedLoading() {
+		++revision;
 		++finishes;
 		alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	}
@@ -69,6 +78,7 @@ struct SoundInstrument : Sound, Lifetime {
 	Error setupDefaultAudioFileDir() {
 		if (on_setup)
 			on_setup();
+		++audioFileManager.revision;
 		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
 		return Error::NONE;
 	}
@@ -226,4 +236,20 @@ TEST(SourceSampleLoading, invalid_caller_does_not_start_drum_loading) {
 	CHECK(drum.loadAllSamples(true, &validation) == Error::ABORTED_BY_USER);
 	LONGS_EQUAL(0, yields);
 	LONGS_EQUAL(0, loads);
+}
+
+TEST(SourceSampleLoading, newer_directory_context_survives_instrument_cancellation) {
+	on_load = [&] { ++audioFileManager.revision; };
+	CHECK(instrument.loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+	LONGS_EQUAL(0, finishes);
+	CHECK(audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST);
+}
+TEST(SourceSampleLoading, standalone_drum_rejects_newer_directory_context) {
+	SoundDrum drum;
+	drum.sources[0].ranges.entries = {&first};
+	on_load = [&] { ++audioFileManager.revision; };
+	CHECK(drum.loadAllSamples(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(0, publications);
 }

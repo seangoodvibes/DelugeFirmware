@@ -1219,3 +1219,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_sample_lo
 target_sources(ClipLifetimeTests PRIVATE source_sample_loading_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/source_sample_loading.inc ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_loading.inc
     ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_sample_loading.inc ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_sample_loading.inc)
+
+set(audio_loading_context_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/storage/audio/audio_file_manager.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_loading_context.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_loading_context_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_loading_context.inc
+        AudioFileManager::thingBeginningLoading AudioFileManager::thingFinishedLoading AudioFileManager::finish_loading_if_current
+    DEPENDS ${audio_loading_context_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE audio_loading_context_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/audio_loading_context.inc)

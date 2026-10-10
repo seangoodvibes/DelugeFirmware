@@ -270,8 +270,10 @@ Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto loading_revision = audioFileManager.loading_context_revision();
 	const auto context_valid = [&] {
-		return owner_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		return audioFileManager.loading_context_revision() == loading_revision && owner_lifetime.alive()
+		       && (!source_song || song_lifetime.alive()) && currentSong == source_song
 		       && deluge::gui::ui_session::current() == source_owner;
 	};
 	if (!context_valid())
@@ -283,10 +285,11 @@ Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 		auto error = setupDefaultAudioFileDir();
 		if (error != Error::NONE)
 			return error;
+		loading_revision = audioFileManager.loading_context_revision();
 	}
 	auto error = context_valid() ? Sound::loadAllAudioFiles(mayActuallyReadFiles, &validation) : Error::ABORTED_BY_USER;
 	if (alternate_path)
-		audioFileManager.thingFinishedLoading();
+		audioFileManager.finish_loading_if_current(loading_revision);
 	return error;
 }
 

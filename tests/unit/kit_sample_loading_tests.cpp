@@ -47,7 +47,16 @@ struct InstrumentClip : Lifetime {
 };
 struct {
 	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+	uint32_t revision = 0;
+	uint32_t loading_context_revision() const { return revision; }
+	bool finish_loading_if_current(uint32_t expected) {
+		if (expected != revision)
+			return false;
+		thingFinishedLoading();
+		return true;
+	}
 	void thingFinishedLoading() {
+		++revision;
 		++finishes;
 		alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	}
@@ -59,8 +68,10 @@ struct Kit : Lifetime {
 		++setups;
 		if (on_setup)
 			on_setup();
-		if (setup_error == Error::NONE)
+		if (setup_error == Error::NONE) {
+			++audioFileManager.revision;
 			audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		}
 		return setup_error;
 	}
 	int32_t getDrumIndex(Drum* drum) {
@@ -252,4 +263,20 @@ TEST(KitSampleLoading, changed_active_clip_cancels_inner_publication) {
 	kit.loadCrucialAudioFilesOnly();
 	LONGS_EQUAL(1, loads);
 	LONGS_EQUAL(0, publications);
+}
+
+TEST(KitSampleLoading, newer_directory_context_survives_full_load_cancellation) {
+	on_load = [&] { ++audioFileManager.revision; };
+	CHECK(kit.loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+	LONGS_EQUAL(0, finishes);
+	CHECK(audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST);
+}
+TEST(KitSampleLoading, newer_directory_context_survives_crucial_load_cancellation) {
+	on_load = [&] { ++audioFileManager.revision; };
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+	LONGS_EQUAL(0, finishes);
 }

@@ -4474,12 +4474,17 @@ int16_t Sound::getMinOscTranspose() {
 }
 
 Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation) {
-	if (validation && !validation->valid())
+	const auto loading_revision = audioFileManager.loading_context_revision();
+	const auto context_valid = [&] {
+		return (!validation || validation->valid()) && audioFileManager.loading_context_revision() == loading_revision;
+	};
+	deluge::lifetime::callback_validation source_validation(context_valid);
+	if (!context_valid())
 		return Error::ABORTED_BY_USER;
 	for (int32_t index = 0; index < kNumSources; ++index) {
 		if (sources[index].oscType == OscType::SAMPLE || sources[index].oscType == OscType::WAVETABLE) {
-			auto error = sources[index].loadAllSamples(mayActuallyReadFiles, validation);
-			if (validation && !validation->valid())
+			auto error = sources[index].loadAllSamples(mayActuallyReadFiles, &source_validation);
+			if (!context_valid())
 				return Error::ABORTED_BY_USER;
 			if (error != Error::NONE)
 				return error;

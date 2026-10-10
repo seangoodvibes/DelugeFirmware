@@ -393,8 +393,10 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto loading_revision = audioFileManager.loading_context_revision();
 	const auto context_valid = [&] {
-		return kit_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		return audioFileManager.loading_context_revision() == loading_revision && kit_lifetime.alive()
+		       && (!source_song || song_lifetime.alive()) && currentSong == source_song
 		       && deluge::gui::ui_session::current() == source_owner;
 	};
 	if (!context_valid())
@@ -405,6 +407,7 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 		auto error = setupDefaultAudioFileDir();
 		if (error != Error::NONE)
 			return error;
+		loading_revision = audioFileManager.loading_context_revision();
 	}
 	Error error = Error::NONE;
 	if (!context_valid()) {
@@ -434,7 +437,7 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 		}
 	}
 	if (doingAlternatePath)
-		audioFileManager.thingFinishedLoading();
+		audioFileManager.finish_loading_if_current(loading_revision);
 	return error;
 }
 
@@ -450,9 +453,11 @@ void Kit::loadCrucialAudioFilesOnly() {
 	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto loading_revision = audioFileManager.loading_context_revision();
 	const auto context_valid = [&] {
-		return kit_lifetime.alive() && clip_lifetime.alive() && (!source_song || song_lifetime.alive())
-		       && currentSong == source_song && activeClip == source_clip && source_clip->output == this
+		return audioFileManager.loading_context_revision() == loading_revision && kit_lifetime.alive()
+		       && clip_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		       && activeClip == source_clip && source_clip->output == this
 		       && deluge::gui::ui_session::current() == source_owner;
 	};
 	if (!context_valid())
@@ -462,6 +467,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 		auto error = setupDefaultAudioFileDir();
 		if (error != Error::NONE)
 			return;
+		loading_revision = audioFileManager.loading_context_revision();
 	}
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
 	for (int32_t index = 0; context_valid() && index < source_clip->noteRows.getNumElements(); ++index) {
@@ -486,7 +492,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 			break;
 	}
 	if (doingAlternatePath)
-		audioFileManager.thingFinishedLoading();
+		audioFileManager.finish_loading_if_current(loading_revision);
 }
 
 void Kit::addDrum(Drum* newDrum) {

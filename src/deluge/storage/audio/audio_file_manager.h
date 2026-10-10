@@ -111,6 +111,8 @@ public:
 
 	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
+	uint32_t loading_context_revision() const { return loading_context_revision_; }
+	bool finish_loading_if_current(uint32_t revision);
 
 	void setCardRead() { cardReadOnce = true; }
 	void setCardEjected() { cardEjected = true; }
@@ -133,6 +135,7 @@ public:
 	void firstCardRead();
 
 private:
+	uint32_t loading_context_revision_ = 0;
 	bool cardReadOnce{false};
 	bool cardEjected;
 	bool cardDisabled = false;

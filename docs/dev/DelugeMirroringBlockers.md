@@ -3262,3 +3262,15 @@ This closes the specific missing Kit-to-drum predicate propagation described abo
 not the broader L1/R4 blockers: same-address row/range replacement, unvalidated
 legacy entry points and nested alternate-directory ownership still need work.
 Independent mode remains disabled.
+
+AudioFileManager now changes a loading-context revision when a directory load begins
+or finishes. Kit and SoundInstrument only finish their own revision, and Sound
+propagates revision validation through Source to holder publication (including
+standalone SoundDrum loading). Seven regressions cover stale/repeated completion,
+a completed nested context, and replacement during Kit/instrument/drum callbacks;
+the four loader regressions fail against the previous implementations. All 38
+suites and RelWithDebInfo pass. This uses one counter on the shared manager, with
+no extra audio/path buffers. The broader LoadSongUI transaction still uses explicit
+unconditional completion and needs its own recovery audit; arbitrary direct writes
+to the public alternate-path fields are not a generation-tracked transaction.
+Independent mode stays disabled.
