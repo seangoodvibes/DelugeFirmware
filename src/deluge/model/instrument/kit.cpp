@@ -844,77 +844,87 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 
 void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                      ParamManager* paramManager, std::span<StereoSample> output) {
-	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings == nullptr) {
+	if (!modelStackWithTimelineCounter || !paramManager)
 		return;
-	}
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
-	arpSettings->chordPolyphony = 0;
-	arpSettings->chordProbability = 0;
-	arpSettings->spreadOctave = 0;
-
-	if (arpSettings->mode != ArpMode::OFF) {
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
-		    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-		                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))));
-
-		ArpReturnInstruction kitInstruction;
-		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
-
-		if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
-			// Glide note off
-			if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-				NoteRow* thisNoteRow =
-				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
-				if (thisNoteRow->drum != nullptr) {
-					// Reset invertReverse for drum arpeggiator (done for every noteOff)
-					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
-					// Do row note off
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStackWithTimelineCounter
-					        ->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
-					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
-				}
-			}
-		}
-		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
-			// Normal note off
-			if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-				NoteRow* thisNoteRow =
-				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
-				if (thisNoteRow->drum != nullptr) {
-					// Reset invertReverse for drum arpeggiator (done for every noteOff)
-					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
-					// Do row note off
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStackWithTimelineCounter->addNoteRow(kitInstruction.noteCodeOffPostArp[0], thisNoteRow)
-					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
-				}
-			}
-		}
-		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
-			// Note on
-			if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0]
-			    < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-				NoteRow* thisNoteRow =
-				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
-				if (thisNoteRow->drum != nullptr) {
-					// Do row note on
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStackWithTimelineCounter
-					        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
-					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-					dispatch_kit_arp_note_on(modelStackWithThreeMainThings, thisNoteRow->drum, kitInstruction,
-					                         kitInstruction.sampleSyncLengthOn, 0, 0);
-				}
-			}
-		}
-	}
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || !activeClip)
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(activeClip);
+	auto clip_lifetime = routed_clip->watch_lifetime();
+	if (!clip_lifetime.alive() || routed_clip->output != this || paramManager != &routed_clip->paramManager)
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto row_count = routed_clip->noteRows.getNumElements();
+	const auto context_matches = [&] {
+		return kit_lifetime.alive() && clip_lifetime.alive() && activeClip == routed_clip && routed_clip->output == this
+		       && currentSong == source_song && modelStackWithTimelineCounter->song == source_song
+		       && modelStackWithTimelineCounter->getTimelineCounterAllowNull() == routed_clip
+		       && deluge::gui::ui_session::current() == source_owner
+		       && routed_clip->noteRows.getNumElements() == row_count;
+	};
+	if (!context_matches())
+		return;
+	ArpeggiatorSettings* arp_settings = getArpSettings();
+	if (!arp_settings)
+		return;
+	UnpatchedParamSet* unpatched_params = paramManager->getUnpatchedParamSet();
+	if (!unpatched_params)
+		return;
+	arp_settings->updateParamsFromUnpatchedParamSet(unpatched_params);
+	// Nullify parameters unsupported by the kit arp, including changes from MIDI Follow.
+	arp_settings->chordPolyphony = 0;
+	arp_settings->chordProbability = 0;
+	arp_settings->spreadOctave = 0;
+	if (arp_settings->mode == ArpMode::OFF)
+		return;
+	uint32_t gate_threshold = (uint32_t)unpatched_params->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
+	uint32_t phase_increment = arp_settings->getPhaseIncrement(
+	    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
+	                              cableToExpParamShortcut(unpatched_params->getValue(params::UNPATCHED_ARP_RATE))));
+	ArpReturnInstruction kit_instruction;
+	arpeggiator.render(arp_settings, &kit_instruction, output.size(), gate_threshold, phase_increment);
+	if (!context_matches() || paramManager->getUnpatchedParamSet() != unpatched_params)
+		return;
+	const auto dispatch_note_off = [&](int32_t row_index) {
+		auto* row = routed_clip->find_note_row_from_id(row_index);
+		if (!row || !row->drum)
+			return true;
+		auto* drum = row->drum;
+		if (getDrumIndex(drum) < 0)
+			return false;
+		auto drum_lifetime = drum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return false;
+		const auto row_identity = row->undo_identity;
+		drum->arpeggiator.invertReversedFromKitArp = false;
+		auto* stack = modelStackWithTimelineCounter->addNoteRow(row_index, row)
+		                  ->addOtherTwoThings(drum->toModControllable(), &row->paramManager);
+		drum->noteOff(stack);
+		if (!context_matches() || !drum_lifetime.alive() || getDrumIndex(drum) < 0)
+			return false;
+		auto* current_row = routed_clip->find_note_row_from_id(row_index);
+		return current_row == row && current_row && current_row->undo_identity == row_identity
+		       && current_row->drum == drum;
+	};
+	if (kit_instruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE
+	    && !dispatch_note_off(kit_instruction.glideNoteCodeOffPostArp[0]))
+		return;
+	if (kit_instruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE
+	    && !dispatch_note_off(kit_instruction.noteCodeOffPostArp[0]))
+		return;
+	if (!kit_instruction.arpNoteOn || kit_instruction.arpNoteOn->noteCodeOnPostArp[0] == ARP_NOTE_NONE)
+		return;
+	const auto row_index = kit_instruction.arpNoteOn->noteCodeOnPostArp[0];
+	auto* row = routed_clip->find_note_row_from_id(row_index);
+	if (!row || !row->drum || getDrumIndex(row->drum) < 0)
+		return;
+	auto drum_lifetime = row->drum->watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	auto* stack = modelStackWithTimelineCounter->addNoteRow(row_index, row)
+	                  ->addOtherTwoThings(row->drum->toModControllable(), &row->paramManager);
+	dispatch_kit_arp_note_on(stack, row->drum, kit_instruction, kit_instruction.sampleSyncLengthOn, 0, 0);
 }
 
 ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {

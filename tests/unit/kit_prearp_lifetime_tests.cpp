@@ -1,10 +1,35 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/ui_session.h"
 #include "util/lifetime.h"
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <span>
+namespace deluge::modulation::params {
+constexpr int GLOBAL_ARP_RATE = 0;
+}
 namespace kit_prearp_lifetime_test {
+int song;
+int* currentSong = &song;
+int paramNeutralValues[1]{};
+int cableToExpParamShortcut(int value) {
+	return value;
+}
+int getFinalParameterValueExp(int, int value) {
+	return value;
+}
+namespace params {
+constexpr int UNPATCHED_ARP_GATE = 0, UNPATCHED_ARP_RATE = 1;
+}
+struct StereoSample {};
+struct UnpatchedParamSet {
+	int getValue(int) { return 0; }
+} unpatched;
+struct ParamManager {
+	UnpatchedParamSet* getUnpatchedParamSet() { return &unpatched; }
+} manager;
+enum class ArpMode { OFF, ON };
 constexpr int kNumExpressionDimensions = 3;
 constexpr int ARP_NOTE_NONE = -1;
 enum class DrumType { SOUND, MIDI };
@@ -16,6 +41,10 @@ struct ModelStackWithThreeMainThings {
 };
 struct ArpeggiatorSettings {
 	bool includeInKitArp = true;
+	ArpMode mode = ArpMode::ON;
+	int chordPolyphony = 0, chordProbability = 0, spreadOctave = 0;
+	void updateParamsFromUnpatchedParamSet(UnpatchedParamSet*) {}
+	int getPhaseIncrement(int value) { return value; }
 };
 struct ArpNote {
 	int noteCodeOnPostArp[1]{0};
@@ -27,12 +56,22 @@ struct ArpReturnInstruction {
 	ArpNote* arpNoteOn = nullptr;
 	bool invertReversed = false;
 	int noteCodeOffPostArp[1]{ARP_NOTE_NONE};
+	int glideNoteCodeOffPostArp[1]{ARP_NOTE_NONE};
+	int sampleSyncLengthOn = 0;
 };
 std::function<void()> on_arp, on_tails, on_note;
 int dispatched = 0;
 struct Arpeggiator {
 	bool invertReversedFromKitArp = false;
 	ArpNote note;
+	int off_index = 0, glide_index = 0;
+	void render(ArpeggiatorSettings*, ArpReturnInstruction* instruction, size_t, uint32_t, uint32_t) {
+		instruction->arpNoteOn = &note;
+		instruction->noteCodeOffPostArp[0] = off_index;
+		instruction->glideNoteCodeOffPostArp[0] = glide_index;
+		if (on_arp)
+			on_arp();
+	}
 	void noteOn(ArpeggiatorSettings*, int, uint8_t, ArpReturnInstruction* instruction, int32_t, const int16_t*) {
 		instruction->arpNoteOn = &note;
 		if (on_arp)
@@ -50,6 +89,7 @@ struct Drum {
 	ArpeggiatorSettings arpSettings;
 	Arpeggiator arpeggiator;
 	bool tails = true;
+	Drum* toModControllable() { return this; }
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	bool allowNoteTails(ModelStackWithSoundFlags*, bool) {
 		bool result = tails;
@@ -62,7 +102,7 @@ struct Drum {
 		if (on_note)
 			on_note();
 	}
-	void noteOff(ModelStackWithThreeMainThings*, int32_t) {
+	void noteOff(ModelStackWithThreeMainThings*, int32_t = 64) {
 		++dispatched;
 		if (on_note)
 			on_note();
@@ -70,6 +110,7 @@ struct Drum {
 };
 using SoundDrum = Drum;
 struct NoteRow {
+	ParamManager paramManager;
 	Drum* drum = nullptr;
 	uint64_t undo_identity = 1;
 };
@@ -78,6 +119,12 @@ struct InstrumentClip {
 	mutable deluge::lifetime::lifetime_source lifetime_source;
 	Kit* output = nullptr;
 	NoteRow* row = nullptr;
+	ParamManager paramManager;
+	struct row_view {
+		InstrumentClip* clip;
+		int getNumElements() { return clip->row ? 1 : 0; }
+	} noteRows{this};
+	NoteRow* find_note_row_from_id(int index) { return index == 0 ? row : nullptr; }
 	ArpeggiatorSettings arpSettings;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	NoteRow* getNoteRowForDrum(Drum* drum, int32_t* index = nullptr) {
@@ -85,6 +132,14 @@ struct InstrumentClip {
 			*index = row ? 0 : -1;
 		return row && row->drum == drum ? row : nullptr;
 	}
+};
+struct ModelStackWithTimelineCounter {
+	int* song = &kit_prearp_lifetime_test::song;
+	InstrumentClip* clip = nullptr;
+	ModelStackWithThreeMainThings main;
+	InstrumentClip* getTimelineCounterAllowNull() { return clip; }
+	ModelStackWithTimelineCounter* addNoteRow(int, NoteRow*) { return this; }
+	ModelStackWithThreeMainThings* addOtherTwoThings(Drum*, ParamManager*) { return &main; }
 };
 struct Kit {
 	mutable deluge::lifetime::lifetime_source lifetime_source;
@@ -97,9 +152,11 @@ struct Kit {
 	void noteOnPreKitArp(ModelStackWithThreeMainThings*, Drum*, uint8_t, int16_t const*, int32_t, uint32_t, int32_t,
 	                     uint32_t);
 	void noteOffPreKitArp(ModelStackWithThreeMainThings*, Drum*, int32_t);
+	void setupAndRenderArpPreOutput(ModelStackWithTimelineCounter*, ParamManager*, std::span<StereoSample>);
 };
 #include "kit_arp_dispatch.inc"
 #include "kit_prearp_lifetime.inc"
+#include "kit_render_prearp_lifetime.inc"
 } // namespace kit_prearp_lifetime_test
 using namespace kit_prearp_lifetime_test;
 TEST_GROUP(kit_prearp_lifetime) {
@@ -130,6 +187,12 @@ TEST_GROUP(kit_prearp_lifetime) {
 		on_arp = {};
 		on_tails = {};
 		on_note = {};
+	}
+	void render() {
+		ModelStackWithTimelineCounter render_stack;
+		render_stack.clip = clip.get();
+		StereoSample samples[1];
+		kit->setupAndRenderArpPreOutput(&render_stack, &clip->paramManager, samples);
 	}
 	void send(bool on) {
 		int16_t mpe_values[kNumExpressionDimensions]{};
@@ -282,4 +345,65 @@ TEST(kit_prearp_lifetime, no_clip_dispatches_directly) {
 	send(true);
 	send(false);
 	LONGS_EQUAL(2, dispatched);
+}
+
+TEST(kit_prearp_lifetime, render_dispatches_glide_off_note_off_and_note_on) {
+	render();
+	LONGS_EQUAL(3, dispatched);
+}
+TEST(kit_prearp_lifetime, render_generation_can_destroy_owners) {
+	on_arp = [&] {
+		row.reset();
+		drum.reset();
+		clip.reset();
+		kit.reset();
+	};
+	render();
+	LONGS_EQUAL(0, dispatched);
+}
+TEST(kit_prearp_lifetime, render_off_callbacks_can_destroy_owners) {
+	for (int stop_after : {1, 2}) {
+		reset();
+		on_note = [&] {
+			if (dispatched == stop_after) {
+				row.reset();
+				drum.reset();
+				clip.reset();
+				kit.reset();
+			}
+		};
+		render();
+		LONGS_EQUAL(stop_after, dispatched);
+	}
+}
+TEST(kit_prearp_lifetime, render_off_row_removal_stops_remaining_events) {
+	on_note = [&] {
+		clip->row = nullptr;
+		row.reset();
+	};
+	render();
+	LONGS_EQUAL(1, dispatched);
+}
+TEST(kit_prearp_lifetime, render_off_drum_deletion_stops_remaining_events) {
+	on_note = [&] {
+		row->drum = nullptr;
+		kit->member = nullptr;
+		drum.reset();
+	};
+	render();
+	LONGS_EQUAL(1, dispatched);
+}
+TEST(kit_prearp_lifetime, render_off_row_identity_change_stops_remaining_events) {
+	on_note = [&] { ++row->undo_identity; };
+	render();
+	LONGS_EQUAL(1, dispatched);
+}
+TEST(kit_prearp_lifetime, render_rejects_out_of_range_row_indices) {
+	for (int index : {-2, 1, 100}) {
+		reset();
+		kit->arpeggiator.off_index = kit->arpeggiator.glide_index = index;
+		kit->arpeggiator.note.noteCodeOnPostArp[0] = index;
+		render();
+		LONGS_EQUAL(0, dispatched);
+	}
 }

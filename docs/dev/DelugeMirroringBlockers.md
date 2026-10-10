@@ -2589,3 +2589,12 @@ additional manager regression checks forwarded layout/owner validation. All 36
 native suites and `./dbt build relwithdebinfo` pass. Notification internals,
 unguarded callers, tick-based automation and same-address collection/cable reuse
 remain separate audit work. Hardware timing remains unmeasured.
+
+The kit pre-render arp route now checks kit/clip/song/panel ownership after
+generation and note-off callbacks, and validates drum membership and row identity
+before continuing. Bounded noncreating row lookup rejects negative and excessive
+indices. Seven production-body sanitizer regressions cover the live three-event
+sequence, destruction at generation/dispatch boundaries and row/drum invalidation.
+All 36 native suites and `./dbt build relwithdebinfo` pass. Generated instruction
+storage can still change while these owners survive; event revision protection
+and generation internals remain open.
