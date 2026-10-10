@@ -2489,3 +2489,13 @@ and scalar release. The allocation implementations are separately covered by the
 real native lifecycle tests above. All 36 suites and `./dbt build relwithdebinfo`
 pass. Automation write internals and rollback of already-applied writes remain
 open; cancellation after a write preserves that prefix.
+
+Clip repeat/chop, independent-row halving and the nested row-length setter now
+watch clip/output lifetime before follow-up access. Their row validation uses the
+non-creating lookup, and row-length/halving callbacks also preserve the initiating
+panel. Six new sanitizer regressions exercise the production edit bodies across
+repeat/chop/halving variants for unregistered owner deletion, output deletion,
+address reuse, retired entry, non-creating validation and deletion during row
+resume. All 36 suites and `./dbt build relwithdebinfo` pass. Changes already applied
+before cancellation remain a prefix; parameter-repeat internals and full edit
+rollback are not established by these caller checks.

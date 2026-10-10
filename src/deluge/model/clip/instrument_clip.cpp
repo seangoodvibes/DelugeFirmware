@@ -277,6 +277,12 @@ deleteClipAndGetOut:
 bool InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
                                                IndependentNoteRowLengthIncrease independentNoteRowInstruction,
                                                bool completelyRenderOutIterationDependence, Action* action) {
+	auto clip_lifetime = watch_lifetime();
+	if (!clip_lifetime.alive())
+		return false;
+	auto output_lifetime = output ? output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (output && !output_lifetime.alive())
+		return false;
 
 	if (!modelStack || !modelStack->song || modelStack->getTimelineCounterAllowNull() != this)
 		return false;
@@ -295,8 +301,9 @@ bool InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 	const int32_t original_count = noteRows.getNumElements();
 	auto* original_output = output;
 	auto context_valid = [&] {
-		if (currentSong != active_song || deluge::gui::ui_session::current() != initiating_owner
-		    || modelStack->song != owner || revision(deluge::gui::ui_session::Id::Local) != local_revision
+		if (!clip_lifetime.alive() || (original_output && !output_lifetime.alive()) || currentSong != active_song
+		    || deluge::gui::ui_session::current() != initiating_owner || modelStack->song != owner
+		    || revision(deluge::gui::ui_session::Id::Local) != local_revision
 		    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision
 		    || modelStack->getTimelineCounterAllowNull() != this)
 			return false;
@@ -370,7 +377,7 @@ bool InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 			if (!context_valid() || modelStackWithNoteRow->song != owner
 			    || modelStackWithNoteRow->getTimelineCounterAllowNull() != this
 			    || modelStackWithNoteRow->getNoteRowAllowNull() != thisNoteRow
-			    || modelStackWithNoteRow->noteRowId != noteRowId || getNoteRowFromId(noteRowId) != thisNoteRow
+			    || modelStackWithNoteRow->noteRowId != noteRowId || find_note_row_from_id(noteRowId) != thisNoteRow
 			    || thisNoteRow->undo_identity != identity || thisNoteRow->loopLengthIfIndependent != independent_length)
 				return false;
 		}
@@ -431,6 +438,12 @@ void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, in
 // Does this individually for each NoteRow, because they might be different lengths, and some might need repeating while
 // others need chopping.
 bool InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength) {
+	auto clip_lifetime = watch_lifetime();
+	if (!clip_lifetime.alive())
+		return false;
+	auto output_lifetime = output ? output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (output && !output_lifetime.alive())
+		return false;
 	if (!modelStack || !modelStack->song || modelStack->getTimelineCounterAllowNull() != this)
 		return false;
 	Song* owner = modelStack->song;
@@ -448,8 +461,9 @@ bool InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 	const int32_t original_count = noteRows.getNumElements();
 	auto* original_output = output;
 	auto context_valid = [&](int32_t expected_length) {
-		if (currentSong != active_song || deluge::gui::ui_session::current() != initiating_owner
-		    || modelStack->song != owner || revision(deluge::gui::ui_session::Id::Local) != local_revision
+		if (!clip_lifetime.alive() || (original_output && !output_lifetime.alive()) || currentSong != active_song
+		    || deluge::gui::ui_session::current() != initiating_owner || modelStack->song != owner
+		    || revision(deluge::gui::ui_session::Id::Local) != local_revision
 		    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision
 		    || modelStack->getTimelineCounterAllowNull() != this)
 			return false;
@@ -496,7 +510,7 @@ bool InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 			if (!context_valid(originalLength) || modelStackWithNoteRow->song != owner
 			    || modelStackWithNoteRow->getTimelineCounterAllowNull() != this
 			    || modelStackWithNoteRow->getNoteRowAllowNull() != thisNoteRow
-			    || modelStackWithNoteRow->noteRowId != noteRowId || getNoteRowFromId(noteRowId) != thisNoteRow
+			    || modelStackWithNoteRow->noteRowId != noteRowId || find_note_row_from_id(noteRowId) != thisNoteRow
 			    || thisNoteRow->undo_identity != identity || thisNoteRow->loopLengthIfIndependent != independent_length)
 				return false;
 		}
@@ -540,11 +554,18 @@ bool InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 
 // This only gets called when undoing a "multiply Clip".
 Error InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter* modelStack) {
+	auto clip_lifetime = watch_lifetime();
+	if (!clip_lifetime.alive())
+		return Error::BUG;
+	auto output_lifetime = output ? output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (output && !output_lifetime.alive())
+		return Error::BUG;
 	if (!modelStack || !modelStack->song || modelStack->getTimelineCounterAllowNull() != this
 	    || !modelStack->song->contains_clip_for_undo(this))
 		return Error::BUG;
 	Song* owner = modelStack->song;
 	Song* active_song = currentSong;
+	const auto initiating_owner = deluge::gui::ui_session::current();
 	auto revision = [](deluge::gui::ui_session::Id id) {
 		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
 	};
@@ -576,7 +597,8 @@ Error InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineC
 				return error;
 			// A resume callback can release the clip. Check external state and
 			// ownership before reading this or looking up the next row.
-			if (currentSong != active_song || modelStack->song != owner
+			if (!clip_lifetime.alive() || (original_output && !output_lifetime.alive()) || currentSong != active_song
+			    || deluge::gui::ui_session::current() != initiating_owner || modelStack->song != owner
 			    || revision(deluge::gui::ui_session::Id::Local) != local_revision
 			    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision)
 				return Error::BUG;
@@ -585,7 +607,7 @@ Error InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineC
 			    || modelStackWithNoteRow->getNoteRowAllowNull() != noteRow)
 				return Error::BUG;
 			if (loopLength != parent_length || output != original_output || noteRows.getNumElements() != count
-			    || getNoteRowFromId(row_id) != noteRow || noteRow->undo_identity != identity)
+			    || find_note_row_from_id(row_id) != noteRow || noteRow->undo_identity != identity)
 				return Error::BUG;
 			const int32_t effective_length =
 			    noteRow->loopLengthIfIndependent ? noteRow->loopLengthIfIndependent : parent_length;

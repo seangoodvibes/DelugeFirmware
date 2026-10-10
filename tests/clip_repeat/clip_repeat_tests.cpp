@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_navigation_state.h"
+#include "util/lifetime.h"
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -146,6 +147,8 @@ struct Params {
 	}
 };
 struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	int length_changes = 0;
 	std::function<void()> on_notify;
 	void clipLengthChanged(InstrumentClip*, int32_t) {
@@ -157,6 +160,8 @@ struct Output {
 	void* toModControllable() { return this; }
 };
 struct Clip {
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	int32_t loopLength = 16;
 	int repeatCount = 3;
 	ClipType type = ClipType::INSTRUMENT;
@@ -178,7 +183,12 @@ struct InstrumentClip : Clip {
 	int resumed = 0;
 	Error halveNoteRowsWithIndependentLength(ModelStackWithTimelineCounter*);
 	int getNoteRowId(NoteRow*, int i) { return i; }
+	int creating_row_lookups = 0;
 	NoteRow* getNoteRowFromId(int i) {
+		++creating_row_lookups;
+		return find_note_row_from_id(i);
+	}
+	NoteRow* find_note_row_from_id(int i) {
 		return i >= 0 && i < noteRows.getNumElements() ? noteRows.getElement(i) : nullptr;
 	}
 	std::function<void()> on_resume;
@@ -1311,5 +1321,99 @@ TEST(ClipRepeat, repeat_and_chop_accept_row_stack_restored_by_callback) {
 		CHECK_TRUE(success);
 		LONGS_EQUAL(operation == 0 ? 24 : 0, target.noteRows.entries[0].loopLengthIfIndependent);
 		LONGS_EQUAL(operation == 2 ? 8 : 32, target.loopLength);
+	}
+}
+
+static bool run_repeat_operation(int operation, InstrumentClip& target, ModelStackWithTimelineCounter& stack) {
+	if (operation == 0)
+		return target.increaseLengthWithRepeats(&stack, 32, IndependentNoteRowLengthIncrease::DOUBLE, false, nullptr);
+	if (operation == 3)
+		return target.halveNoteRowsWithIndependentLength(&stack) == Error::NONE;
+	return target.repeatOrChopToExactLength(&stack, operation == 1 ? 32 : 8);
+}
+TEST(ClipRepeat, repeat_operations_reject_deleted_owners_without_registration_change) {
+	for (int operation = 0; operation < 4; ++operation) {
+		auto target = std::make_unique<InstrumentClip>();
+		target->noteRows.entries.resize(2);
+		target->noteRows.entries[0].loopLengthIfIndependent = 16;
+		stack.clip = target.get();
+		song.owns_clip = operation == 3;
+		auto remove = [&] { target.reset(); };
+		target->noteRows.entries[0].on_repeat = remove;
+		target->noteRows.entries[0].on_trim = remove;
+		CHECK_FALSE(run_repeat_operation(operation, *target, stack));
+		CHECK(target == nullptr);
+	}
+}
+TEST(ClipRepeat, repeat_operations_reject_output_deletion) {
+	for (int operation = 0; operation < 4; ++operation) {
+		InstrumentClip target;
+		target.noteRows.entries.resize(2);
+		target.noteRows.entries[0].loopLengthIfIndependent = 16;
+		auto output = std::make_unique<Output>();
+		target.output = output.get();
+		stack.clip = &target;
+		auto remove = [&] { output.reset(); };
+		target.noteRows.entries[0].on_repeat = remove;
+		target.noteRows.entries[0].on_trim = remove;
+		CHECK_FALSE(run_repeat_operation(operation, target, stack));
+		CHECK(output == nullptr);
+		LONGS_EQUAL(0, target.noteRows.entries[1].repeats);
+		LONGS_EQUAL(0, target.noteRows.entries[1].trims);
+	}
+}
+TEST(ClipRepeat, repeat_operations_reject_reused_clip_address) {
+	for (int operation = 0; operation < 3; ++operation) {
+		InstrumentClip target;
+		target.noteRows.entries.resize(2);
+		target.noteRows.entries[0].loopLengthIfIndependent = 16;
+		stack.clip = &target;
+		song.owns_clip = false;
+		auto replace = [&] {
+			std::destroy_at(&target);
+			std::construct_at(&target);
+			target.noteRows.entries.resize(2);
+		};
+		target.noteRows.entries[0].on_repeat = replace;
+		target.noteRows.entries[0].on_trim = replace;
+		CHECK_FALSE(run_repeat_operation(operation, target, stack));
+		LONGS_EQUAL(0, target.noteRows.entries[1].repeats);
+		LONGS_EQUAL(0, target.noteRows.entries[1].trims);
+	}
+}
+TEST(ClipRepeat, repeat_validation_never_uses_creating_row_lookup) {
+	for (int operation = 0; operation < 4; ++operation) {
+		InstrumentClip target;
+		target.noteRows.entries.resize(2);
+		target.noteRows.entries[0].loopLengthIfIndependent = 16;
+		stack.clip = &target;
+		CHECK_TRUE(run_repeat_operation(operation, target, stack));
+		LONGS_EQUAL(0, target.creating_row_lookups);
+	}
+}
+TEST(ClipRepeat, row_setter_rejects_detached_clip_deleted_during_resume) {
+	auto target = std::make_unique<InstrumentClip>();
+	target->noteRows.entries.resize(1);
+	stack.clip = target.get();
+	song.owns_clip = false;
+	auto* row_stack = stack.addNoteRow(0, &target->noteRows.entries[0]);
+	target->noteRows.entries[0].on_resume = [&] { target.reset(); };
+	CHECK_TRUE(target->noteRows.entries[0].setLength(row_stack, 32, nullptr, 0, true) == Error::BUG);
+	CHECK(target == nullptr);
+}
+TEST(ClipRepeat, repeat_operations_reject_retired_owners_at_entry) {
+	for (int operation = 0; operation < 4; ++operation) {
+		for (bool retire_clip : {false, true}) {
+			InstrumentClip target;
+			target.noteRows.entries.resize(2);
+			stack.clip = &target;
+			if (retire_clip)
+				target.lifetime.retire();
+			else
+				target.storage.lifetime.retire();
+			CHECK_FALSE(run_repeat_operation(operation, target, stack));
+			LONGS_EQUAL(0, target.noteRows.entries[0].repeats);
+			LONGS_EQUAL(0, target.noteRows.entries[0].trims);
+		}
 	}
 }

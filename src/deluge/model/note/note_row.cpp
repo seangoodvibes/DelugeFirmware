@@ -2826,20 +2826,29 @@ Error NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, A
 	if (!modelStack || !modelStack->song || modelStack->getNoteRowAllowNull() != this)
 		return Error::BUG;
 	Clip* clip = (Clip*)modelStack->getTimelineCounterAllowNull();
-	if (!clip || clip->type != ClipType::INSTRUMENT || clip->loopLength <= 0 || loopLengthIfIndependent < 0)
+	if (!clip)
+		return Error::BUG;
+	auto clip_lifetime = clip->watch_lifetime();
+	if (!clip_lifetime.alive() || clip->type != ClipType::INSTRUMENT || clip->loopLength <= 0
+	    || loopLengthIfIndependent < 0)
 		return Error::BUG;
 
 	Song* owner = modelStack->song;
 	Song* active_song = currentSong;
 	bool registered = owner->contains_clip_for_undo(clip);
 	auto* instrument_clip = static_cast<InstrumentClip*>(clip);
+	auto* original_output = instrument_clip->output;
+	auto output_lifetime = original_output ? original_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (original_output && !output_lifetime.alive())
+		return Error::BUG;
+	const auto initiating_owner = deluge::gui::ui_session::current();
 	const int32_t row_id = modelStack->noteRowId;
-	if (instrument_clip->getNoteRowFromId(row_id) != this)
+	if (instrument_clip->find_note_row_from_id(row_id) != this)
 		return Error::BUG;
 	const uint64_t row_identity = undo_identity;
 	const int32_t parent_length = clip->loopLength;
 	const int32_t row_length = loopLengthIfIndependent;
-	auto* original_output = instrument_clip->output;
+
 	auto revision = [](deluge::gui::ui_session::Id id) {
 		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
 	};
@@ -2847,7 +2856,8 @@ Error NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, A
 	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
 
 	auto context_valid = [&](int32_t expected_length) {
-		if (currentSong != active_song || modelStack->song != owner
+		if (!clip_lifetime.alive() || (original_output && !output_lifetime.alive()) || currentSong != active_song
+		    || deluge::gui::ui_session::current() != initiating_owner || modelStack->song != owner
 		    || revision(deluge::gui::ui_session::Id::Local) != local_revision
 		    || revision(deluge::gui::ui_session::Id::Remote) != remote_revision
 		    || modelStack->getTimelineCounterAllowNull() != clip || modelStack->getNoteRowAllowNull() != this
@@ -2857,7 +2867,8 @@ Error NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, A
 		if (registered && !currently_registered)
 			return false;
 		registered = registered || currently_registered;
-		if (clip->type != ClipType::INSTRUMENT || instrument_clip->getNoteRowFromId(row_id) != this)
+		if (clip->type != ClipType::INSTRUMENT || instrument_clip->output != original_output
+		    || instrument_clip->find_note_row_from_id(row_id) != this)
 			return false;
 		if (undo_identity != row_identity || clip->loopLength != parent_length
 		    || loopLengthIfIndependent != expected_length || instrument_clip->output != original_output)
