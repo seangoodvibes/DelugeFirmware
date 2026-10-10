@@ -665,8 +665,11 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+		return song_watch.alive() && deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
 	};
 
 	// first try to process note received through regular midi follow channels (A/B/C) against the selected / active
@@ -865,8 +868,11 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+		return song_watch.alive() && deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
 	};
 
 	// first try to process cc received through regular midi follow channels (A/B/C) against the selected / active clip
@@ -1549,8 +1555,11 @@ void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t da
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+		return song_watch.alive() && deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
 	};
 
 	// first try to process pitch bend received through regular midi follow channels (A/B/C) against the selected /
@@ -1684,8 +1693,11 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+		return song_watch.alive() && deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
 	};
 
 	// first try to process after touch received through regular midi follow channels (A/B/C) against the selected /

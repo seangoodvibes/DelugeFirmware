@@ -1,15 +1,21 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <array>
 #include <functional>
+#include <new>
 namespace midi_routing_batch_test {
 namespace session = deluge::gui::ui_session;
 struct MIDICable {};
 struct ModelStack {};
 struct Output {};
-static int song, replacement_song;
-static int* currentSong = &song;
+struct Song {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
+};
+static Song song, replacement_song;
+static Song* currentSong = &song;
 struct MidiFollow {
 	std::array<Output, 20> outputs;
 	int track_count = 3, selected_calls = 0, track_calls = 0, count_calls = 0, lookups = 0;
@@ -150,4 +156,44 @@ TEST(MidiRoutingBatch, missing_song_or_stack_prevents_dispatch) {
 		LONGS_EQUAL(0, follow.selected_calls);
 		LONGS_EQUAL(0, follow.track_calls);
 	}
+}
+
+TEST(MidiRoutingBatch, selected_delivery_same_address_song_replacement_cancels_batch) {
+	for (int event = 0; event < 4; ++event) {
+		currentSong = &song;
+		MidiFollow follow;
+		follow.on_selected = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		follow.dispatch(event, &stack);
+		LONGS_EQUAL(1, follow.selected_calls);
+		LONGS_EQUAL(0, follow.count_calls);
+		LONGS_EQUAL(0, follow.track_calls);
+	}
+}
+TEST(MidiRoutingBatch, track_delivery_song_retirement_cancels_remaining_tracks) {
+	for (int event = 0; event < 4; ++event) {
+		Song retiring_song;
+		currentSong = &retiring_song;
+		MidiFollow follow;
+		follow.on_track = [&] { retiring_song.lifetime.retire(); };
+		follow.dispatch(event, &stack);
+		LONGS_EQUAL(1, follow.track_calls);
+		LONGS_EQUAL(1, follow.lookups);
+	}
+	currentSong = &song;
+}
+TEST(MidiRoutingBatch, retired_song_rejects_selected_and_track_delivery) {
+	Song retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	for (int event = 0; event < 4; ++event) {
+		MidiFollow follow;
+		follow.dispatch(event, &stack);
+		LONGS_EQUAL(0, follow.selected_calls);
+		LONGS_EQUAL(0, follow.count_calls);
+		LONGS_EQUAL(0, follow.track_calls);
+	}
+	currentSong = &song;
 }

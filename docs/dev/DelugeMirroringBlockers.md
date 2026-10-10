@@ -2986,3 +2986,10 @@ cover live command ordering, deletion/reuse, traversal changes, learning and def
 undo scheduling. All 36 suites and `./dbt build relwithdebinfo` pass. Individual
 command internals, equal-size list reordering, recovery and hardware acceptance
 remain open; completed commands are retained and independent mode stays disabled.
+
+MIDI follow's four top-level event batches now watch song lifetime before selected
+and per-track dispatch. Three regression cases exercise all four event types and
+reject retired entry, retirement during track delivery and same-address song
+replacement during selected delivery. All 36 suites and the RelWithDebInfo firmware
+build pass. Inner selected/track routes still need their own song-lifetime checks;
+this outer guard only cancels continuation after they return. G1 remains open.
