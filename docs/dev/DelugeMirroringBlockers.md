@@ -2530,3 +2530,10 @@ replacement. All 36 native suites and `./dbt build relwithdebinfo` pass. These
 checks do not establish safety inside the called helpers, same-address collection
 identity, or recorder deletion without clearing its owner association. Independent
 mode remains disabled.
+
+Audio-output render entry now rejects missing model context, retired output/clip,
+and mismatched clip ownership before looking up parameters. Two production-body
+sanitizer regressions cover entry rejection, active/backup rendering and output
+destruction in the final dispatched callback. All 36 native suites and
+`./dbt build relwithdebinfo` pass. This adds caller entry protection; it does not
+extend the lifetime guarantees inside audio rendering helpers.

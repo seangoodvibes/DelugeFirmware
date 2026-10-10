@@ -95,7 +95,21 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
                                int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                                bool isClipActive) {
 
+	if (!modelStack || !modelStack->song) {
+		return;
+	}
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive()) {
+		return;
+	}
+	auto clip_lifetime = activeClip ? activeClip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (activeClip && (!clip_lifetime.alive() || activeClip->output != this)) {
+		return;
+	}
 	ParamManager* paramManager = getParamManager(modelStack->song);
+	if (!paramManager) {
+		return;
+	}
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 

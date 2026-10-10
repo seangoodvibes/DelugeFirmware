@@ -16,7 +16,7 @@ int getFinalParameterValueExp(int, int value) {
 	return value;
 }
 struct StereoSample {};
-enum class OutputType { KIT };
+enum class OutputType { KIT, AUDIO };
 enum class StemExportType { DRUM };
 struct {
 	bool processStarted = false, includeKitFX = true;
@@ -84,6 +84,10 @@ struct Kit : GlobalEffectableForClip {
 	}
 	void renderOutput(ModelStack*, std::span<StereoSample>, int32_t*, int32_t, int32_t, bool, bool);
 };
+struct AudioOutput : Kit {
+	void renderOutput(ModelStack*, std::span<StereoSample>, int32_t*, int32_t, int32_t, bool, bool);
+};
+#include "audio_render_output_lifetime.inc"
 #include "kit_render_output_lifetime.inc"
 } // namespace kit_render_output_lifetime_test
 using namespace kit_render_output_lifetime_test;
@@ -213,4 +217,33 @@ TEST(kit_render_output_lifetime, recorder_replacement_stops_post_arp) {
 	render();
 	LONGS_EQUAL(1, audio_calls);
 	LONGS_EQUAL(0, post_calls);
+}
+
+TEST(kit_render_output_lifetime, audio_output_validates_entry_before_dispatch) {
+	AudioOutput audio;
+	StereoSample samples[1];
+	audio.renderOutput(nullptr, samples, nullptr, 0, 0, false, true);
+	LONGS_EQUAL(0, audio_calls);
+	audio.activeClip = clip.get();
+	audio.renderOutput(&stack, samples, nullptr, 0, 0, false, true);
+	LONGS_EQUAL(0, audio_calls);
+	clip->output = &audio;
+	audio.renderOutput(&stack, samples, nullptr, 0, 0, false, true);
+	LONGS_EQUAL(1, audio_calls);
+	clip->lifetime.retire();
+	audio.renderOutput(&stack, samples, nullptr, 0, 0, false, true);
+	LONGS_EQUAL(1, audio_calls);
+	audio.activeClip = nullptr;
+	audio.renderOutput(&stack, samples, nullptr, 0, 0, false, true);
+	LONGS_EQUAL(2, audio_calls);
+	audio.lifetime.retire();
+	audio.renderOutput(&stack, samples, nullptr, 0, 0, false, true);
+	LONGS_EQUAL(2, audio_calls);
+}
+TEST(kit_render_output_lifetime, audio_output_callback_can_destroy_output) {
+	auto audio = std::make_unique<AudioOutput>();
+	StereoSample samples[1];
+	on_audio = [&] { audio.reset(); };
+	audio->renderOutput(&stack, samples, nullptr, 0, 0, false, true);
+	LONGS_EQUAL(1, audio_calls);
 }

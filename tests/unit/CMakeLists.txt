@@ -894,3 +894,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/global_effectable_render_l
     DEPENDS ${global_effectable_render_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE global_effectable_render_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/global_effectable_render_lifetime.inc)
+
+set(audio_render_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/audio_output.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_render_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_render_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_render_output_lifetime.inc
+        AudioOutput::renderOutput
+    DEPENDS ${audio_render_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/audio_render_output_lifetime.inc)
