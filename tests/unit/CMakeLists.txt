@@ -1291,3 +1291,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc
         ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc Sound::try_delete_multi_range
     DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_range_deletion_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_import.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_import.inc SampleBrowser::importFolderAsKit
+    DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_sample_import_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_import.inc)

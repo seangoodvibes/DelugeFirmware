@@ -2039,9 +2039,11 @@ getOut:
 			}
 
 			AudioFileHolder* holder = range->getAudioFileHolder();
-			holder->setAudioFile(nullptr);
+			if (!holder->setAudioFile(nullptr))
+				return false;
 			holder->filePath.set(&thisSample->filePath);
-			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
+			if (!holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true))
+				return false;
 
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 

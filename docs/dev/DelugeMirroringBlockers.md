@@ -3422,3 +3422,13 @@ exits using the production cleanup helper and finalizer. All 38 suites and
 RelWithDebInfo pass. Partially created drums, parameter-manager publication and
 callback lifetime/recovery inside the import remain R4/R5 work; this change owns
 only the temporary sample resources. Independent mode remains disabled.
+
+Kit import now honors cancellation from both sample detachment and assignment,
+stopping before naming, repeat-mode publication, further drum creation and final
+row/UI publication. Seven extracted whole-function regressions cover both
+cancellations, initial/later range failures, parameter/drum allocation failures
+and successful import. The two cancellation cases fail against the previous
+implementation; allocation cases verify the earlier scoped cleanup on actual
+import exits. All 38 suites and RelWithDebInfo pass. Dependency doubles model
+allocation and holder outcomes; these tests do not establish lifetime safety inside
+the real callbacks or rollback of already published drums/parameters.
