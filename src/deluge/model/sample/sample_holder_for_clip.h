@@ -24,8 +24,9 @@ public:
 	SampleHolderForClip();
 	~SampleHolderForClip() override;
 
-	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
-	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
+	bool setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
+	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE,
+	                  const deluge::lifetime::callback_validation* validation = nullptr) override;
 	void recalculateNeutralPhaseIncrement();
 	void beenClonedFrom(SampleHolderForClip const* other, bool reversed);
 

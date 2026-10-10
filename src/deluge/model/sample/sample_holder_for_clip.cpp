@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample.h"
+#include "util/lifetime.h"
 #include "util/lookuptables/lookuptables.h"
 
 SampleHolderForClip::SampleHolderForClip() {
@@ -27,12 +28,17 @@ SampleHolderForClip::SampleHolderForClip() {
 SampleHolderForClip::~SampleHolderForClip() {
 }
 
-void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
-                                       int32_t clusterLoadInstruction) {
+bool SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
+                                       int32_t clusterLoadInstruction,
+                                       const deluge::lifetime::callback_validation* validation) {
 
-	SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
+	if (!SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction, validation))
+		return false;
+	if (validation && !validation->valid())
+		return false;
 
 	recalculateNeutralPhaseIncrement();
+	return true;
 }
 
 void SampleHolderForClip::recalculateNeutralPhaseIncrement() {

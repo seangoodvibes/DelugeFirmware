@@ -37,11 +37,13 @@ public:
 	int64_t getEndPos(bool forTimeStretching = false);
 	int64_t getDurationInSamples(bool forTimeStretching = false);
 	void beenClonedFrom(SampleHolder const* other, bool reversed);
-	virtual void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	virtual bool claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE,
+	                                 const deluge::lifetime::callback_validation* validation = nullptr);
 	int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
 	int32_t getLoopLengthAtSystemSampleRate(bool forTimeStretching = false);
-	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
-	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
+	bool setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
+	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE,
+	                  const deluge::lifetime::callback_validation* validation = nullptr) override;
 
 	// In samples.
 	uint64_t startPos;
@@ -57,7 +59,8 @@ public:
 	uintptr_t startPlaybackAtByte{};
 
 protected:
-	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
-	                                  int32_t clusterLoadInstruction, int32_t numClustersToClaim);
+	bool claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
+	                                  int32_t clusterLoadInstruction, int32_t numClustersToClaim,
+	                                  const deluge::lifetime::callback_validation* validation = nullptr);
 	virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
 };

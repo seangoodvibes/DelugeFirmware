@@ -1165,3 +1165,25 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_clip_load.inc
     DEPENDS ${audio_clip_load_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE audio_holder_load_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/audio_holder_load.inc ${CMAKE_CURRENT_BINARY_DIR}/audio_clip_load.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_file_assignment.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_holder_load_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_file_assignment.inc AudioFileHolder::setAudioFile
+    DEPENDS ${audio_holder_load_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sample_assignment.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sample_holder_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/sample_assignment.inc
+        SampleHolder::setAudioFile SampleHolder::claimClusterReasons SampleHolder::claimClusterReasonsForMarker
+    DEPENDS ${sample_holder_clone_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_assignment.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${clip_sample_holder_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_assignment.inc SampleHolderForClip::setAudioFile
+    DEPENDS ${clip_sample_holder_clone_source} ../support/extract_functions.py VERBATIM)
+set(voice_sample_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/sample/sample_holder_for_voice.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/voice_sample_assignment.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${voice_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/voice_sample_assignment.inc SampleHolderForVoice::claimClusterReasons
+    DEPENDS ${voice_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sample_assignment_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/audio_file_assignment.inc ${CMAKE_CURRENT_BINARY_DIR}/sample_assignment.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_assignment.inc ${CMAKE_CURRENT_BINARY_DIR}/voice_sample_assignment.inc)

@@ -3214,3 +3214,16 @@ SampleHolderForClip::setAudioFile, claimClusterReasons/claimClusterReasonsForMar
 or Source/Drum loading. Legacy callers without a validator still require their
 own lifetime contract. Cached files remain owned by AudioFileManager; cancelled
 loads do not acquire a holder reason. Independent mode remains disabled.
+
+Sample assignment now propagates cancellation through clip/voice holder setup and
+marker cluster acquisition. Acquisition pins the source Sample and releases temporary
+cluster reasons before releasing that pin when a callback cancels, destroys the
+holder, or replaces its selection. Voice loop markers are validated across start
+and loop acquisition. Thirteen additional sanitizer regressions cover destruction,
+nested replacement, marker edits, successful ownership transfer, partial loading,
+and cancellation propagation into clip loading; the loop-marker regression failed
+before its fix. All 38 suites pass, the final added propagation test passes in
+ClipLifetimeTests, and the RelWithDebInfo build passes. Already-published sample/start
+clusters remain holder-owned on later cancellation; this is not transaction rollback.
+No sample buffers are duplicated. Source/Drum/Kit validator propagation and legacy
+callers without explicit lifetime contracts remain open. Independent mode stays disabled.

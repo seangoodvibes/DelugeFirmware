@@ -25,6 +25,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
+#include "util/lifetime.h"
 
 SampleHolder::SampleHolder() {
 	startPos = 0;
@@ -114,15 +115,20 @@ int32_t SampleHolder::getLoopLengthAtSystemSampleRate(bool forTimeStretching) {
 	return getCurrentClip()->loopLength;
 }
 
-void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected,
-                                int32_t clusterLoadInstruction) {
+bool SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected,
+                                int32_t clusterLoadInstruction,
+                                const deluge::lifetime::callback_validation* validation) {
 
-	AudioFileHolder::setAudioFile(newSample, reversed, manuallySelected, clusterLoadInstruction);
+	if (!AudioFileHolder::setAudioFile(newSample, reversed, manuallySelected, clusterLoadInstruction, validation))
+		return false;
 
 	if (audioFile) {
 
 		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
-			sample_browser_for_session().lastFilePathLoaded.set(&filePath);
+			auto& browser = sample_browser_for_session();
+			if ((validation && !validation->valid()) || audioFile != newSample)
+				return false;
+			browser.lastFilePathLoaded.set(&filePath);
 		}
 
 		uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;
@@ -145,6 +151,8 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 		}
 
 		sampleBeenSet(reversed, manuallySelected);
+		if ((validation && !validation->valid()) || audioFile != newSample)
+			return false;
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!audioFile) {
@@ -152,15 +160,19 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 		}
 #endif
 
-		claimClusterReasons(reversed, clusterLoadInstruction);
+		return claimClusterReasons(reversed, clusterLoadInstruction, validation);
 	}
+	return true;
 }
 
 constexpr int32_t kMarkerSamplesBeforeToClaim = 150;
 
 // Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
-void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
+bool SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction,
+                                       const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return false;
 
 	if (ALPHA_OR_BETA_VERSION && !audioFile) {
 		FREEZE_WITH_ERROR("E368");
@@ -188,62 +200,62 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 
 	startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
 
-	claimClusterReasonsForMarker(clustersForStart, startPlaybackAtByte, playDirection, clusterLoadInstruction,
-	                             kNumClustersLoadedAhead);
+	return claimClusterReasonsForMarker(clustersForStart, startPlaybackAtByte, playDirection, clusterLoadInstruction,
+	                                    kNumClustersLoadedAhead, validation);
 }
 
-void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
-                                                int32_t clusterLoadInstruction, int32_t numClustersToClaim) {
-
-	numClustersToClaim = 2;
-	int32_t clusterIndex = startPlaybackAtByte >> Cluster::size_magnitude;
-
-	uint32_t posWithinCluster = startPlaybackAtByte & (Cluster::size - 1);
-
-	// Set up new temp list
-	Cluster* newClusters[numClustersToClaim];
-	for (int32_t l = 0; l < numClustersToClaim; l++) {
-		newClusters[l] = nullptr;
-	}
-	auto max_clusters = ((Sample*)audioFile)->clusters.getNumElements();
-	// Populate new list
-	for (int32_t l = 0; l < numClustersToClaim; l++) {
-
-		/*
-		// If final one, only load it if posWithinCluster is at least a quarter of the way in
-		if (l == NUM_SAMPLE_CLUSTERS_LOADED_AHEAD - 1) {
-		    if (playDirection == 1) {
-		        if (posWithinCluster < (sampleManager.clusterSize >> 2)) break;
-		    }
-		    else {
-		        if (posWithinCluster > sampleManager.clusterSize - (sampleManager.clusterSize >> 2)) break;
-		    }
+bool SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
+                                                int32_t clusterLoadInstruction, int32_t /* numClustersToClaim */,
+                                                const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return false;
+	auto* const source_sample = static_cast<Sample*>(audioFile);
+	if (!source_sample)
+		return false;
+	const auto source_start = startPos;
+	const auto source_end = endPos;
+	// Preserve the existing two-cluster marker policy.
+	constexpr int32_t cluster_count = 2;
+	Cluster* original_clusters[cluster_count] = {clusters[0], clusters[1]};
+	const auto context_valid = [&] {
+		return (!validation || validation->valid()) && audioFile == source_sample && startPos == source_start
+		       && endPos == source_end && clusters[0] == original_clusters[0] && clusters[1] == original_clusters[1];
+	};
+	// The holder can disappear while getCluster services storage. Keep the sample
+	// alive until every temporary cluster reason has been transferred or released.
+	source_sample->addReason();
+	struct sample_reason_guard {
+		Sample* sample;
+		~sample_reason_guard() { sample->removeReason("E463"); }
+	} sample_reason{source_sample};
+	struct cluster_reason_guard {
+		Cluster* values[cluster_count]{};
+		~cluster_reason_guard() {
+			for (auto* cluster : values)
+				if (cluster)
+					audioFileManager.removeReasonFromCluster(*cluster, "E146");
 		}
-		*/
-		if (clusterIndex < ((Sample*)audioFile)->getFirstClusterIndexWithAudioData()
-		    || clusterIndex >= ((Sample*)audioFile)->getFirstClusterIndexWithNoAudioData()) {
+	} acquired;
+
+	int32_t cluster_index = startPlaybackAtByte >> Cluster::size_magnitude;
+	for (int32_t index = 0; index < cluster_count; ++index) {
+		if (cluster_index < source_sample->getFirstClusterIndexWithAudioData()
+		    || cluster_index >= source_sample->getFirstClusterIndexWithNoAudioData())
 			break;
-		}
-		SampleCluster* sampleCluster = ((Sample*)audioFile)->clusters.getElement(clusterIndex);
-
-		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
-
-		if (!newClusters[l]) {
-			// D_PRINTLN("NULL!!");
+		auto* sample_cluster = source_sample->clusters.getElement(cluster_index);
+		acquired.values[index] = sample_cluster->getCluster(source_sample, cluster_index, clusterLoadInstruction);
+		if (!context_valid())
+			return false;
+		if (!acquired.values[index])
 			break;
-		}
-		if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
-			// D_PRINTLN("not loaded!!");
-		}
-
-		clusterIndex += playDirection;
+		cluster_index += playDirection;
 	}
 
-	// Replace old list
-	for (int32_t l = 0; l < numClustersToClaim; l++) {
-		if (clusters[l] != nullptr) {
-			audioFileManager.removeReasonFromCluster(*clusters[l], "E146");
-		}
-		clusters[l] = newClusters[l];
+	for (int32_t index = 0; index < cluster_count; ++index) {
+		if (clusters[index])
+			audioFileManager.removeReasonFromCluster(*clusters[index], "E146");
+		clusters[index] = acquired.values[index];
+		acquired.values[index] = nullptr;
 	}
+	return true;
 }

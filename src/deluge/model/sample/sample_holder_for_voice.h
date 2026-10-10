@@ -29,7 +29,8 @@ public:
 	void unassignAllClusterReasons(bool beingDestructed = false) override;
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();
-	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
+	bool claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE,
+	                         const deluge::lifetime::callback_validation* validation = nullptr) override;
 	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
 	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
 	uint32_t getMSecLimit(Source* source);

@@ -34,8 +34,10 @@ class AudioFileHolder {
 public:
 	AudioFileHolder();
 	virtual ~AudioFileHolder();
-	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
-	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	// False reports cancellation; already-published resources remain holder-owned.
+	virtual bool setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
+	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE,
+	                          const deluge::lifetime::callback_validation* validation = nullptr);
 	// A yielding owner must supply validation to reject retirement/retargeting before publication.
 	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
 	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = nullptr,

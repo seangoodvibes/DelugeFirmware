@@ -23,6 +23,7 @@ struct String {
 std::function<void()> on_lookup, on_assign;
 int lookups = 0, assignments = 0, errors = 0;
 Error lookup_error = Error::NONE;
+bool assignment_valid = true;
 struct {
 	AudioFile* getAudioFileFromFilename(String& path, bool, Error* error, FilePointer*, AudioFileType, bool) {
 		++lookups;
@@ -41,11 +42,12 @@ struct AudioFileHolder {
 	AudioFileType audioFileType = AudioFileType::SAMPLE;
 	Error loadFile(bool, bool, bool, int = CLUSTER_ENQUEUE, FilePointer* = nullptr, bool = false,
 	               const deluge::lifetime::callback_validation* = nullptr);
-	void setAudioFile(AudioFile* file, bool, bool, int) {
+	bool setAudioFile(AudioFile* file, bool, bool, int, const deluge::lifetime::callback_validation*) {
 		++assignments;
 		audioFile = file;
 		if (on_assign)
 			on_assign();
+		return assignment_valid;
 	}
 };
 #include "audio_holder_load.inc"
@@ -87,6 +89,7 @@ TEST_GROUP(AudioHolderLoad) {
 		on_lookup = on_assign = {};
 		lookups = assignments = errors = 0;
 		lookup_error = Error::NONE;
+		assignment_valid = true;
 	}
 	void teardown() override {
 		on_lookup = on_assign = {};
@@ -225,4 +228,12 @@ TEST(AudioHolderLoad, existing_file_and_empty_path_skip_storage_with_legacy_defa
 	clip.sampleHolder.filePath.set("");
 	CHECK(clip.sampleHolder.loadFile(false, false, true) == Error::NONE);
 	LONGS_EQUAL(0, lookups);
+}
+
+TEST(AudioHolderLoad, cancelled_assignment_does_not_publish_clip_name_even_when_owner_survives) {
+	on_assign = [] { assignment_valid = false; };
+	clip.loadSample(true);
+	LONGS_EQUAL(1, assignments);
+	STRCMP_EQUAL("old name", clip.name.get());
+	LONGS_EQUAL(0, errors);
 }

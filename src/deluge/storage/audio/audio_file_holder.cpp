@@ -67,7 +67,8 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 
 		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
 		// the audio routine trying to sound it before it's all set up.
-		setAudioFile(maybeNewAudioFile, reversed, manuallySelected, clusterLoadInstruction);
+		if (!setAudioFile(maybeNewAudioFile, reversed, manuallySelected, clusterLoadInstruction, validation))
+			return Error::ABORTED_BY_USER;
 		if (validation && !validation->valid())
 			return Error::ABORTED_BY_USER;
 		if (audioFile != maybeNewAudioFile || audioFileType != source_type || filePath.get() != loading_path.get())
@@ -78,8 +79,11 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 }
 
 // For if we've already got a pointer to the AudioFile in memory.
-void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
-                                   int32_t clusterLoadInstruction) {
+bool AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
+                                   int32_t clusterLoadInstruction,
+                                   const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return false;
 	if (audioFile) {
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION
@@ -95,4 +99,5 @@ void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool 
 	if (audioFile) {
 		audioFile->addReason();
 	}
+	return true;
 }

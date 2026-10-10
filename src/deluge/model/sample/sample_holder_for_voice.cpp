@@ -20,6 +20,7 @@
 #include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/lifetime.h"
 #include <cmath>
 
 #include "io/debug/log.h"
@@ -67,7 +68,17 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 
 // Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
-void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
+bool SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction,
+                                               const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return false;
+	const auto source_loop_start = loopStartPos;
+	const auto source_loop_end = loopEndPos;
+	const auto loop_context_valid = [&] {
+		return (!validation || validation->valid()) && loopStartPos == source_loop_start
+		       && loopEndPos == source_loop_end;
+	};
+	deluge::lifetime::callback_validation loop_validation(loop_context_valid);
 
 #if ALPHA_OR_BETA_VERSION
 	if (!audioFile) {
@@ -75,7 +86,8 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 	}
 #endif
 
-	SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction);
+	if (!SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction, &loop_validation))
+		return false;
 
 	int32_t playDirection = reversed ? -1 : 1;
 	int32_t bytesPerSample = ((Sample*)audioFile)->numChannels * ((Sample*)audioFile)->byteDepth;
@@ -95,15 +107,15 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 		// claim the next few reasons for the sample instead since we can keep it all cached
 		uint32_t nextClusterStartByte = startPlaybackAtByte + (2 * Cluster::size);
 
-		claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection, clusterLoadInstruction,
-		                             kMaxNumClustersLoadedAhead);
+		return claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection,
+		                                    clusterLoadInstruction, kMaxNumClustersLoadedAhead, &loop_validation);
 	}
 
 	else if (loopStartPlaybackAtSample) {
 		int32_t loopStartPlaybackAtByte =
 		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
-		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
-		                             clusterLoadInstruction, kNumClustersLoadedAhead);
+		return claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
+		                                    clusterLoadInstruction, kNumClustersLoadedAhead, &loop_validation);
 	}
 
 	// Or if no loop start point now, clear out any reasons we had before
@@ -115,6 +127,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 			}
 		}
 	}
+	return true;
 }
 
 void SampleHolderForVoice::setCents(int32_t newCents) {
