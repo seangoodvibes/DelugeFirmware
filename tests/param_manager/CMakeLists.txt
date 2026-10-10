@@ -76,3 +76,12 @@ foreach(test_target IN ITEMS ParamManagerCleanupTests ParamManagerTransferTests
 	target_compile_definitions(${test_target} PRIVATE
 		ALPHA_OR_BETA_VERSION=1 EXPECTED_PARAM_MANAGER_DIAGNOSTICS=1)
 endforeach()
+
+option(song_backup_test_sanitizers "Check backup ownership with address/undefined sanitizers" ON)
+if(song_backup_test_sanitizers AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+	foreach(test_target IN ITEMS SongBackupTests SongBackupTestsNoDiagnostics)
+		target_compile_options(${test_target} PRIVATE
+			-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+		target_link_options(${test_target} PRIVATE -fsanitize=address,undefined)
+	endforeach()
+endif()

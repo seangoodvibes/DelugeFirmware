@@ -307,70 +307,9 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 	}
 }
 
-void Song::deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector) {
-	for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-		AudioEngine::routineWithClusterLoading();
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 
-		backedUp->~BackedUpParamManager();
-	}
-	if (shouldAlsoEmptyVector) {
-		backedUpParamManagers.empty();
-	}
-}
 
-void Song::deleteAllBackedUpParamManagersWithClips() {
 
-	// We'll aim to repeatedly find the longest runs possible of ones with Clips, to delete all in one go
-
-	for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-		BackedUpParamManager* firstBackedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		// If no Clip, just go onto the next
-		if (!firstBackedUp->clip) {
-			continue;
-		}
-
-		ModControllableAudio* modControllable = firstBackedUp->modControllable;
-		int32_t searchedUpToAndIncluding = i;
-
-keepSearchingForward:
-
-		// If still here, this is the first one with a Clip for this ModControllable. Find the end of this
-		// ModControllable's ones
-		int32_t endIThisModControllable =
-		    backedUpParamManagers.search((uint32_t)modControllable + 4, GREATER_OR_EQUAL,
-		                                 searchedUpToAndIncluding + 1); // Search just by first word
-
-		// But if that next one, for the next ModControllable, also has a Clip, we can just keep looking forwards
-		// til we find one with no Clip
-		if (endIThisModControllable < backedUpParamManagers.getNumElements()) {
-			BackedUpParamManager* thisNextBackedUp =
-			    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(endIThisModControllable);
-			if (thisNextBackedUp->clip) {
-				modControllable = thisNextBackedUp->modControllable;
-				searchedUpToAndIncluding = endIThisModControllable;
-				goto keepSearchingForward;
-			}
-		}
-
-		// Cool, we've found a big long run. Delete them
-		for (int32_t j = i; j < endIThisModControllable; j++) {
-			BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
-
-			AudioEngine::routineWithClusterLoading();
-
-			backedUp->~BackedUpParamManager();
-		}
-
-		int32_t numToDelete = endIThisModControllable - i;
-
-		backedUpParamManagers.deleteAtIndex(i, numToDelete);
-
-		// i will increment, which is fine, cos we've already determined that the next element (if there is one) has
-		// no Clip, so we can skip it
-	}
-}
 
 bool Song::mayDoubleTempo() {
 	return ((timePerTimerTickBig >> 33) > kMinTimePerTimerTick);

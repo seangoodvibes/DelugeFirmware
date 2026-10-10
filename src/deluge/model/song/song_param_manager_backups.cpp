@@ -3,10 +3,37 @@
 #include "processing/engines/audio_engine.h"
 #include <new>
 
+namespace {
+// Destination is an empty local or registry owner. This move cannot allocate or
+// run callbacks, and must preserve malformed tails so cleanup can reclaim them.
+void take_parameter_ownership(ParamManager& source, ParamManager& destination) {
+	for (int32_t slot = 0; slot < PARAM_COLLECTIONS_STORAGE_NUM; ++slot) {
+		destination.summaries[slot] = source.summaries[slot];
+		source.summaries[slot] = {0};
+	}
+	destination.expressionParamSetOffset = source.expressionParamSetOffset;
+	destination.resonanceBackwardsCompatibilityProcessed = source.resonanceBackwardsCompatibilityProcessed;
+	source.expressionParamSetOffset = 0;
+	source.resonanceBackwardsCompatibilityProcessed = false;
+}
+} // namespace
+
 // Returns NULL if couldn't find one.
 // Supply stealInto to have it delete the "backed up" element, putting the contents into stealInto.
 ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
                                                         ParamManager* stealInto) {
+
+	if (!modControllable)
+		return nullptr;
+	// Lookup exposes backup storage for preflight, but transfers must target a
+	// live manager outside that array: removal can move or destroy its entries.
+	if (stealInto) {
+		for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); ++i) {
+			auto* backup = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(i));
+			if (stealInto == &backup->paramManager)
+				return nullptr;
+		}
+	}
 
 	uint32_t keyWords[2];
 	keyWords[0] = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable));
@@ -25,11 +52,12 @@ ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* mo
 	}
 
 	if (stealInto) {
+		// Destination cleanup may replace or delete registry entries. Claim the
+		// selected source first and never access registry storage after yielding.
+		ParamManager retained_parameters;
+		detach_backup_at_index(iCorrectClip, retained_parameters);
 		stealInto->destructMainParamCollections();
-		stealInto->stealParamCollectionsFrom(
-		    &elementCorrectClip->paramManager,
-		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.deleteAtIndex(iCorrectClip);
+		stealInto->stealParamCollectionsFrom(&retained_parameters, true);
 		return stealInto;
 	}
 	else {
@@ -43,6 +71,8 @@ ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* mo
 ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
                                                               ParamManager* stealInto) {
 
+	if (!modControllable)
+		return nullptr;
 	int32_t i_any_clip =
 	    backedUpParamManagers.search(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable)),
 	                                 GREATER_OR_EQUAL); // Search just by first word
@@ -54,7 +84,6 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
 		return nullptr; // If nothing with even the correct modControllable at all, get out
 	}
 
-	int32_t i_correct_clip = -1;
 	BackedUpParamManager* element_correct_clip = nullptr;
 	const auto required_type = modControllable->required_param_manager_type();
 	for (int32_t i = i_any_clip; i < backedUpParamManagers.getNumElements(); ++i) {
@@ -67,7 +96,6 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
 		}
 		// Entries are sorted by clip pointer, so a null-clip fallback comes first.
 		if (!element_correct_clip || element->clip == clip) {
-			i_correct_clip = i;
 			element_correct_clip = element;
 		}
 		if (element->clip == clip) {
@@ -79,15 +107,11 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
 	}
 
 	if (stealInto) {
-		stealInto->destructMainParamCollections();
-		// Steal expression params too - if they're here (slightly rare case).
-		stealInto->stealParamCollectionsFrom(&element_correct_clip->paramManager, true);
-		backedUpParamManagers.deleteAtIndex(i_correct_clip);
-		return stealInto;
+		// Share exact lookup's destination-alias rejection and retained-source
+		// transfer after choosing the compatible exact or fallback key.
+		return getBackedUpParamManagerForExactClip(modControllable, element_correct_clip->clip, stealInto);
 	}
-	else {
-		return &element_correct_clip->paramManager;
-	}
+	return &element_correct_clip->paramManager;
 }
 
 // Steals stuff.
@@ -118,44 +142,33 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 
 	int32_t i = backedUpParamManagers.searchMultiWordExact(keyWords, &indexToInsertAt);
 
-	BackedUpParamManager* element;
-
-	// If one already existed...
 	if (i != -1) {
-		element = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		// Let's destroy it...
-		element->paramManager.destructAndForgetParamCollections();
-
-		// ...and replace it
-doStealing:
+		auto* element = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(i));
+		ParamManager retiring_parameters;
+		take_parameter_ownership(element->paramManager, retiring_parameters);
+		// Publish before retirement can yield. A nested replacement or deletion
+		// must remain authoritative; never access the entry after cleanup starts.
 		element->paramManager.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
+		return;
 	}
 
-	// Otherwise, insert one
-	else {
-		i = indexToInsertAt;
-		Error error = backedUpParamManagers.insertAtIndex(i);
-
-		// If RAM error...
-		if (error != Error::NONE) {
-
-			// Destroy paramManager
-			paramManager->destructAndForgetParamCollections();
-		}
-
-		// Or if that went fine...
-		else {
-			element = new (backedUpParamManagers.getElementAddress(i)) BackedUpParamManager();
-
-			element->modControllable = modControllable;
-			element->clip = clip;
-			goto doStealing;
-		}
+	Error error = backedUpParamManagers.insertAtIndex(indexToInsertAt);
+	if (error != Error::NONE) {
+		// Retire locally: cleanup callbacks may replace or destroy the caller.
+		// Preserve failure semantics, including discarding expression parameters.
+		ParamManager retiring_parameters;
+		take_parameter_ownership(*paramManager, retiring_parameters);
+		return;
 	}
+	auto* element = new (backedUpParamManagers.getElementAddress(indexToInsertAt)) BackedUpParamManager();
+	element->modControllable = modControllable;
+	element->clip = clip;
+	element->paramManager.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
 }
 
 void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
+	if (!clip)
+		return;
 
 	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
 
@@ -167,67 +180,37 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 		if (backedUp->clip == clip) {
 
-			AudioEngine::routineWithClusterLoading();
+			{
+				ModControllableAudio* const owner = backedUp->modControllable;
+				const int32_t first_index = backedUpParamManagers.search(
+				    static_cast<uint32_t>(reinterpret_cast<uintptr_t>(owner)), GREATER_OR_EQUAL, 0, i + 1);
+				auto* first = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(first_index));
+				ParamManager retiring_clip_parameters;
+				take_parameter_ownership(backedUp->paramManager, retiring_clip_parameters);
 
-			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have
-			// the same ModControllable
-			if (i == 0
-			    || ((BackedUpParamManager*)backedUpParamManagers.getElementAddress(i - 1))->modControllable
-			           != backedUp->modControllable) {
-				backedUp->clip = nullptr;
-				i++;
-			}
-
-			// Othwerwise...
-			else {
-
-				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
-				ModControllableAudio* modControllable = backedUp->modControllable;
-
-				// We have to delete that element...
-				// The main-only steal leaves expression behind; deleteAtIndex() does not run destructors.
-				// Song backup regression tests caught that expression leaking when this entry was removed.
-				backedUp->~BackedUpParamManager();
-				backedUpParamManagers.deleteAtIndex(i);
-
-				// ...and then go find the first one that had this ModControllable
-				int32_t j = backedUpParamManagers.search(
-				    static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable)), GREATER_OR_EQUAL, 0,
-				    i); // Search by first word only
-				BackedUpParamManager* firstElementWithModControllable =
-				    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
-
-				// If it already had a NULL Clip, we have to replace its ParamManager
-				if (!firstElementWithModControllable->clip) {
-					firstElementWithModControllable->paramManager.destructAndForgetParamCollections();
-
-					firstElementWithModControllable->paramManager.stealParamCollectionsFrom(&paramManager);
-
-					// Don't increment i, as we've deleted an element instead
+				if (first != backedUp && !first->clip) {
+					ParamManager retiring_generic_parameters;
+					take_parameter_ownership(first->paramManager, retiring_generic_parameters);
+					// Publish replacement main parameters and remove the old clip
+					// key before either retired manager destroys any collections.
+					first->paramManager.stealParamCollectionsFrom(&retiring_clip_parameters);
+					backedUp->~BackedUpParamManager();
+					backedUpParamManagers.delete_at_index_preserving_capacity(i);
 				}
-
-				// Otherwise, we insert before it
 				else {
-					Error error = backedUpParamManagers.insertAtIndex(j);
-
-					// If RAM error (surely would never happen since we just deleted an element)...
-					if (error != Error::NONE) {
-						// Don't increment i, as we've deleted an element instead
-					}
-
-					// Or if that went fine...
-					else {
-						BackedUpParamManager* newElement =
-						    new (backedUpParamManagers.getElementAddress(j)) BackedUpParamManager();
-
-						newElement->modControllable = modControllable;
-						newElement->clip = nullptr;
-						newElement->paramManager.stealParamCollectionsFrom(&paramManager);
-						i++; // We deleted an element, but inserted one too
-					}
+					// Reuse the source slot, avoiding allocation even under memory pressure.
+					backedUp->clip = nullptr;
+					backedUp->paramManager.stealParamCollectionsFrom(&retiring_clip_parameters);
+					backedUpParamManagers.repositionElement(i, first_index);
 				}
+				// Expression and superseded generic collections retire only after
+				// the registry is consistent. Callbacks may now edit it safely.
 			}
+			// Do not retain an entry pointer or scan index across callbacks. The
+			// processed entry no longer references this clip; restart to find any
+			// remaining entries after callback-driven removal or insertion.
+			AudioEngine::routineWithClusterLoading();
+			i = 0;
 		}
 		else {
 			i++;
@@ -270,23 +253,62 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 }
 
 void Song::deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable) {
-
-	int32_t iAnyClip = backedUpParamManagers.search(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable)),
-	                                                GREATER_OR_EQUAL); // Search by first word only
-
 	while (true) {
-		if (iAnyClip >= backedUpParamManagers.getNumElements()) {
+		// Destruction may edit or compact the registry. Resolve the owner again
+		// each time instead of carrying its old index across collection callbacks.
+		const int32_t index = backedUpParamManagers.search(
+		    static_cast<uint32_t>(reinterpret_cast<uintptr_t>(modControllable)), GREATER_OR_EQUAL);
+		if (index >= backedUpParamManagers.getNumElements())
 			return;
-		}
-		BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-		if (elementAnyClip->modControllable != modControllable) {
+		auto* backup = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(index));
+		if (backup->modControllable != modControllable)
 			return;
+		delete_backup_at_index(index);
+	}
+}
+
+// The destination is an empty local owner. Moving summary ownership and removing
+// the slot must finish without callbacks or allocation.
+void Song::detach_backup_at_index(int32_t index, ParamManager& detached_parameters) {
+	auto* backup = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(index));
+	take_parameter_ownership(backup->paramManager, detached_parameters);
+	backup->~BackedUpParamManager();
+	backedUpParamManagers.delete_at_index_preserving_capacity(index);
+}
+
+void Song::delete_backup_at_index(int32_t index) {
+	ParamManager retiring_parameters;
+	detach_backup_at_index(index, retiring_parameters);
+	// Destruction may service callbacks, but the registry slot is already gone.
+}
+
+void Song::deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector) {
+	while (backedUpParamManagers.getNumElements() > 0) {
+		AudioEngine::routineWithClusterLoading();
+		const int32_t index = backedUpParamManagers.getNumElements() - 1;
+		if (index < 0)
+			break;
+		delete_backup_at_index(index);
+	}
+	if (shouldAlsoEmptyVector) {
+		backedUpParamManagers.empty();
+	}
+}
+
+void Song::deleteAllBackedUpParamManagersWithClips() {
+	while (true) {
+		AudioEngine::routineWithClusterLoading();
+		// Neither a pointer nor a run boundary may survive audio servicing or
+		// collection destruction. Re-scan the live table, keeping generic backups.
+		int32_t index = backedUpParamManagers.getNumElements() - 1;
+		while (index >= 0) {
+			auto* backup = static_cast<BackedUpParamManager*>(backedUpParamManagers.getElementAddress(index));
+			if (backup->clip)
+				break;
+			--index;
 		}
-
-		// Destruct paramManager
-		elementAnyClip->~BackedUpParamManager();
-
-		// Delete from Vector
-		backedUpParamManagers.deleteAtIndex(iAnyClip);
+		if (index < 0)
+			return;
+		delete_backup_at_index(index);
 	}
 }

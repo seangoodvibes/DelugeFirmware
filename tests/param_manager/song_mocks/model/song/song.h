@@ -17,6 +17,14 @@ class BackupTable {
 public:
 	std::vector<void*> entries;
 	bool failInsertion = false;
+	int empty_calls = 0;
+	void empty() {
+		for (void* entry : entries)
+			std::free(entry);
+		entries.clear();
+		++empty_calls;
+	}
+	void delete_at_index_preserving_capacity(int index) { deleteAtIndex(index); }
 	~BackupTable() {
 		for (void* entry : entries) {
 			static_cast<BackedUpParamManager*>(entry)->~BackedUpParamManager();
@@ -64,15 +72,25 @@ public:
 		entries.insert(entries.begin() + index, memory);
 		return Error::NONE;
 	}
-	void deleteAtIndex(int index) {
-		std::free(entries.at(index));
-		entries.erase(entries.begin() + index);
+	void repositionElement(int from, int to) {
+		void* entry = entries.at(from);
+		entries.erase(entries.begin() + from);
+		entries.insert(entries.begin() + to, entry);
+	}
+	void deleteAtIndex(int index, int count = 1) {
+		for (int n = 0; n < count; ++n)
+			std::free(entries.at(index + n));
+		entries.erase(entries.begin() + index, entries.begin() + index + count);
 	}
 };
 
 class Song {
 public:
 	BackupTable backedUpParamManagers;
+	void deleteAllBackedUpParamManagersWithClips();
+	void detach_backup_at_index(int32_t index, ParamManager& detached_parameters);
+	void delete_backup_at_index(int32_t index);
+	void deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector = true);
 	void backUpParamManager(ModControllableAudio*, Clip*, ParamManagerForTimeline*, bool);
 	ParamManager* getBackedUpParamManagerForExactClip(ModControllableAudio*, Clip*, ParamManager* = nullptr);
 	ParamManager* getBackedUpParamManagerPreferablyWithClip(ModControllableAudio*, Clip*, ParamManager* = nullptr);

@@ -474,6 +474,8 @@ private:
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	Error readClipsFromFile(Deserializer& reader, ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
+	void detach_backup_at_index(int32_t index, ParamManager& detached_parameters);
+	void delete_backup_at_index(int32_t index);
 	void deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector = true);
 	void deleteAllBackedUpParamManagersWithClips();
 	void deleteAllOutputs(Output** prevPointer);
