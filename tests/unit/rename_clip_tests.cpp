@@ -2,6 +2,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
 #include "util/exceptions.h"
+#include <array>
 #include <functional>
 #include <optional>
 #include <string>
@@ -65,7 +66,23 @@ struct Kit : Output {
 	Drum* selected_drum_for_session() { return selected_drums.active(); }
 	Drum* getDrumFromName(std::string_view) { return duplicate_drum; }
 };
+struct MIDIInstrument : Output {
+	MIDIInstrument() { type = OutputType::MIDI_OUT; }
+	std::array<std::string, kNumRealCCNumbers> labels{};
+	bool editedByUser = false;
+	int writes = 0;
+	std::string_view getNameFromCC(int32_t cc) {
+		return cc >= 0 && cc < kNumRealCCNumbers ? std::string_view(labels[cc]) : std::string_view{};
+	}
+	void setNameForCC(int32_t cc, std::string_view name) {
+		++writes;
+		if (cc >= 0 && cc < kNumRealCCNumbers)
+			labels[cc] = name;
+	}
+};
 struct Clip {
+	session::State<int32_t> selected_cc;
+	int32_t last_selected_param_id_for_session() { return selected_cc.active(); }
 	Output* output = nullptr;
 	name_fixture name;
 };
@@ -88,6 +105,9 @@ struct Song {
 	bool contains_clip_for_undo(const Clip* clip);
 };
 static Song* currentSong;
+static Clip* getCurrentClip() {
+	return currentSong->getCurrentClip();
+}
 static int current_output_lookups = 0;
 static Output* getCurrentOutput() {
 	++current_output_lookups;
@@ -143,8 +163,16 @@ public:
 #define FREEZE_WITH_ERROR(...) (++freezes)
 #include "rename_drum_methods.inc"
 #undef FREEZE_WITH_ERROR
+class RenameMidiCCUI {
+public:
+	MIDIInstrument* instrument_for_rename() const;
+	bool canRename() const;
+	std::string_view getCurrentName() const;
+	bool trySetName(std::string_view);
+};
 #include "rename_clip_membership.inc"
 #include "rename_clip_methods.inc"
+#include "rename_midi_methods.inc"
 #include "rename_output_methods.inc"
 } // namespace rename_clip_test
 using namespace rename_clip_test;
@@ -557,4 +585,79 @@ TEST(RenameDrumTargets, allocation_failure_after_target_loss_does_not_report_sta
 		CHECK(display_instance.error == Error::NONE);
 		STRCMP_EQUAL("original", drum.drumName.c_str());
 	}
+}
+
+TEST_GROUP(RenameMidiTargets) {
+	Song song;
+	Clip clip;
+	MIDIInstrument instrument;
+	RenameMidiCCUI menu;
+	void setup() override {
+		session::detail::active = session::Id::Local;
+		currentSong = &song;
+		song.sessionClips.entries = {&clip};
+		song.firstOutput = &instrument;
+		clip.output = &instrument;
+		for (auto owner : {session::Id::Local, session::Id::Remote}) {
+			song.selected_clips.for_owner(owner) = &clip;
+			clip.selected_cc.for_owner(owner) = 7;
+		}
+		display_instance = {};
+	}
+	void teardown() override {
+		session::detail::active = session::Id::Local;
+		currentSong = nullptr;
+	}
+};
+TEST(RenameMidiTargets, invalid_cc_is_rejected_at_read_and_write) {
+	for (int cc : {-1, static_cast<int>(CC_EXTERNAL_MOD_WHEEL), kNumRealCCNumbers, INT32_MAX}) {
+		clip.selected_cc.active() = cc;
+		CHECK_FALSE(menu.canRename());
+		CHECK(menu.getCurrentName().empty());
+		CHECK_FALSE(menu.trySetName("changed"));
+		LONGS_EQUAL(0, instrument.writes);
+		CHECK_FALSE(instrument.editedByUser);
+	}
+}
+TEST(RenameMidiTargets, departed_clip_and_output_are_unavailable) {
+	song.sessionClips.entries.clear();
+	CHECK_FALSE(menu.canRename());
+	CHECK_FALSE(menu.trySetName("changed"));
+	song.sessionClips.entries = {&clip};
+	song.firstOutput = nullptr;
+	CHECK_FALSE(menu.canRename());
+	CHECK_FALSE(menu.trySetName("changed"));
+	LONGS_EQUAL(0, instrument.writes);
+}
+TEST(RenameMidiTargets, each_panel_renames_its_selected_cc) {
+	clip.selected_cc.for_owner(session::Id::Remote) = 10;
+	CHECK(menu.trySetName("local"));
+	{
+		session::Scope scope(session::Id::Remote);
+		CHECK(menu.trySetName("remote"));
+		CHECK(menu.getCurrentName() == "remote");
+	}
+	CHECK(menu.getCurrentName() == "local");
+	CHECK(instrument.editedByUser);
+	LONGS_EQUAL(2, instrument.writes);
+}
+
+TEST(RenameMidiTargets, missing_wrong_type_and_reattached_context_are_handled) {
+	currentSong = nullptr;
+	CHECK_FALSE(menu.canRename());
+	CHECK(menu.getCurrentName().empty());
+	CHECK_FALSE(menu.trySetName("changed"));
+	currentSong = &song;
+	song.selected_clips.active() = nullptr;
+	CHECK_FALSE(menu.canRename());
+	song.selected_clips.active() = &clip;
+	instrument.type = OutputType::SYNTH;
+	CHECK_FALSE(menu.canRename());
+	CHECK_FALSE(menu.trySetName("changed"));
+	instrument.type = OutputType::MIDI_OUT;
+	song.sessionClips.entries.clear();
+	song.arrangementOnlyClips.entries = {&clip};
+	CHECK(menu.canRename());
+	CHECK(menu.trySetName("reattached"));
+	CHECK(menu.getCurrentName() == "reattached");
 }

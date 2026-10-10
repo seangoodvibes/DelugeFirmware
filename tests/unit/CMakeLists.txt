@@ -473,3 +473,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_drum_methods.inc
         RenameDrumUI::selected_drum_for_rename RenameDrumUI::canRename RenameDrumUI::getCurrentName RenameDrumUI::trySetName
     DEPENDS ${rename_drum_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/rename_drum_methods.inc)
+
+set(rename_midi_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/rename/rename_midi_cc_ui.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_midi_methods.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${rename_midi_source} ${CMAKE_CURRENT_BINARY_DIR}/rename_midi_methods.inc
+        RenameMidiCCUI::instrument_for_rename RenameMidiCCUI::canRename RenameMidiCCUI::getCurrentName RenameMidiCCUI::trySetName
+    DEPENDS ${rename_midi_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/rename_midi_methods.inc)

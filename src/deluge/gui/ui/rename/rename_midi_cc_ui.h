@@ -22,6 +22,7 @@
 
 class Output;
 class Clip;
+class MIDIInstrument;
 
 class RenameMidiCCUI final : public RenameUI {
 public:
@@ -31,6 +32,9 @@ protected:
 	bool trySetName(std::string_view) override;
 	std::string_view getCurrentName() const override;
 	bool canRename() const override;
+
+private:
+	MIDIInstrument* instrument_for_rename() const;
 };
 
 RenameMidiCCUI& rename_midi_cc_ui_for_session();

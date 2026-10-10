@@ -1180,3 +1180,16 @@ side effects are not provided by these guards.
   writes still need callback-spanning lifetime protection; this error handling
   does not pin drums or roll back successful writes after context changes.
   G1/R4/L1 remain open; independent mode stays disabled.
+
+### G1 / L1 progress — MIDI CC rename target validation (2026-10-10)
+
+- MIDI CC rename validates current-song clip/output membership, MIDI output type
+  and the supported CC range on entry, reads and writes. Missing context and the
+  excluded modulation-wheel CC are rejected without writing or marking the
+  instrument edited. Each panel resolves its own selected CC.
+- Four extracted-production cases cover invalid CCs, departure, per-panel editing,
+  missing/wrong-type context and arrangement-only reattachment. Native fixtures use
+  the production membership method; label storage and instrument edits are mocked.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Allocation failures
+  and callback-spanning target lifetime remain separate work. G1/L1/R4 remain open;
+  independent mode stays disabled.
