@@ -67,4 +67,9 @@ public:
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override { return &arpSettings; }
 	void resetTimeEnteredState();
 	const char* getName() override { return drumName.c_str(); }
+
+private:
+	void dispatch_note(ModelStackWithThreeMainThings* model_stack, bool is_on, uint8_t velocity,
+	                   const int16_t* input_mpe, int32_t from_midi_channel, uint32_t sample_sync_length,
+	                   int32_t ticks_late, uint32_t samples_late);
 };

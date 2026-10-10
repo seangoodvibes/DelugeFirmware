@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 namespace sound_drum_choke_lifetime_test {
-constexpr int kNumExpressionDimensions = 3, kNoteForDrum = 60;
+constexpr int kNumExpressionDimensions = 3, kNoteForDrum = 60, MIDI_CHANNEL_NONE = 255;
 enum class PolyphonyMode { CHOKE, POLY };
 int song;
 int* currentSong = &song;
@@ -18,8 +18,9 @@ struct NoteRow {
 	uint64_t undo_identity = 1;
 	ParamManager paramManager;
 };
-std::function<void()> on_choke, on_start;
-int chokes = 0, starts = 0;
+std::function<void()> on_choke, on_start, on_stop;
+int chokes = 0, starts = 0, stops = 0;
+bool stop_context_valid = true;
 struct Kit {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
@@ -53,6 +54,15 @@ struct Arpeggiator {
 };
 bool expect_mpe = true;
 struct Sound {
+	void noteOff(ModelStackWithThreeMainThings*, Arpeggiator*, int,
+	             const deluge::lifetime::callback_validation* validation) {
+		CHECK(validation);
+		CHECK(validation->valid());
+		++stops;
+		if (on_stop)
+			on_stop();
+		stop_context_valid = validation->valid();
+	}
 	void noteOn(ModelStackWithThreeMainThings*, Arpeggiator*, int note, const int16_t* mpe, uint32_t sync, int32_t late,
 	            uint32_t samples_late, int32_t velocity, int32_t channel,
 	            const deluge::lifetime::callback_validation* validation) {
@@ -83,6 +93,9 @@ struct SoundDrum : Sound {
 	Kit* kit = nullptr;
 	PolyphonyMode polyphonic = PolyphonyMode::CHOKE;
 	Arpeggiator arpeggiator;
+	void dispatch_note(ModelStackWithThreeMainThings*, bool, uint8_t, const int16_t*, int32_t, uint32_t, int32_t,
+	                   uint32_t);
+	void noteOff(ModelStackWithThreeMainThings*, int32_t);
 	void noteOn(ModelStackWithThreeMainThings*, uint8_t, const int16_t*, int32_t, uint32_t, int32_t, uint32_t);
 };
 #include "sound_drum_choke_lifetime.inc"
@@ -111,8 +124,9 @@ TEST_GROUP(sound_drum_choke_lifetime) {
 		row->drum = drum.get();
 		currentSong = &song;
 		stack = {currentSong, clip.get(), row.get(), &row->paramManager, 0};
-		on_choke = on_start = {};
-		chokes = starts = 0;
+		on_choke = on_start = on_stop = {};
+		chokes = starts = stops = 0;
+		stop_context_valid = true;
 		expect_mpe = true;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 	}
@@ -120,7 +134,7 @@ TEST_GROUP(sound_drum_choke_lifetime) {
 		reset();
 	}
 	void teardown() override {
-		on_choke = on_start = {};
+		on_choke = on_start = on_stop = {};
 		currentSong = &song;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 	}
@@ -235,4 +249,34 @@ TEST(sound_drum_choke_lifetime, invalid_or_retired_context_does_not_choke) {
 	send();
 	LONGS_EQUAL(0, chokes);
 	LONGS_EQUAL(0, starts);
+}
+
+TEST(sound_drum_choke_lifetime, note_off_skips_choke_and_forwards_owner_validation) {
+	on_stop = [&] {
+		drum.reset();
+		kit.reset();
+		clip.reset();
+	};
+	drum->noteOff(&stack, 99);
+	LONGS_EQUAL(1, stops);
+	LONGS_EQUAL(0, chokes);
+	CHECK_FALSE(stop_context_valid);
+}
+TEST(sound_drum_choke_lifetime, clipless_note_off_preserves_null_parameter_manager_path) {
+	drum->kit = nullptr;
+	stack.clip = nullptr;
+	stack.row = nullptr;
+	stack.paramManager = nullptr;
+	drum->noteOff(&stack, 99);
+	LONGS_EQUAL(1, stops);
+	CHECK(stop_context_valid);
+}
+TEST(sound_drum_choke_lifetime, note_off_validator_detects_removed_row) {
+	on_stop = [&] {
+		clip->row = nullptr;
+		row.reset();
+	};
+	drum->noteOff(&stack, 99);
+	LONGS_EQUAL(1, stops);
+	CHECK_FALSE(stop_context_valid);
 }

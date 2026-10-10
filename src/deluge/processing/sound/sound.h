@@ -215,7 +215,8 @@ public:
 	            int16_t const* mpeValues, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0, int32_t velocity = 64, int32_t fromMIDIChannel = 16,
 	            const deluge::lifetime::callback_validation* owner_validation = nullptr);
-	void noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
+	             const deluge::lifetime::callback_validation* owner_validation = nullptr);
 	void allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator);
 
 	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = -32768);

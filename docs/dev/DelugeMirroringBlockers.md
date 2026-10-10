@@ -2844,3 +2844,12 @@ instructions/parameters, voice-budget deferral and sender ownership/row changes.
 All 36 suites and `./dbt build relwithdebinfo` pass. Voice-start and generator
 internals, direct note-off and raw parameter acquisition remain separate work;
 completed note starts and status publication are retained on cancellation.
+
+Direct sound note-off now validates caller ownership, model-stack/settings and arp
+revision after generation and each glide/regular release. Synth note-off forwards
+its owner guard; drum note-on/off share context validation while note-off preserves
+its clipless/null-manager path and does not choke. Eight added production-body
+sanitizer regressions cover live release, deletion/replacement/retargeting and both
+callers' validator propagation. All 36 suites and `./dbt build relwithdebinfo` pass.
+Voice release internals, all-notes-off/voice-clear cleanup and borrowed acquisition
+remain separate work; released notes are not restored on cancellation.

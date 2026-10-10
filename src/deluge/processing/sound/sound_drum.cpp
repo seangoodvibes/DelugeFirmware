@@ -61,7 +61,17 @@ void SoundDrum::resetTimeEnteredState() {
 
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                        int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
-	if (!modelStack || !modelStack->paramManager)
+	dispatch_note(modelStack, true, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate, samplesLate);
+}
+
+void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
+	dispatch_note(modelStack, false, 0, nullptr, MIDI_CHANNEL_NONE, 0, 0, 0);
+}
+
+void SoundDrum::dispatch_note(ModelStackWithThreeMainThings* model_stack, bool is_on, uint8_t velocity,
+                              int16_t const* input_mpe, int32_t from_midi_channel, uint32_t sample_sync_length,
+                              int32_t ticks_late, uint32_t samples_late) {
+	if (!model_stack || (is_on && !model_stack->paramManager))
 		return;
 	auto drum_lifetime = watch_lifetime();
 	if (!drum_lifetime.alive())
@@ -70,50 +80,49 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 	auto kit_lifetime = source_kit ? source_kit->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	if (source_kit && (!kit_lifetime.alive() || source_kit->getDrumIndex(this) < 0))
 		return;
-	auto* routed_clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounterAllowNull());
+	auto* routed_clip = static_cast<InstrumentClip*>(model_stack->getTimelineCounterAllowNull());
 	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != source_kit))
 		return;
-	auto* row = modelStack->getNoteRowAllowNull();
-	const auto row_id = row ? modelStack->noteRowId : 0;
+	auto* row = model_stack->getNoteRowAllowNull();
+	const auto row_id = row ? model_stack->noteRowId : 0;
 	if (row
 	    && (!routed_clip || routed_clip->find_note_row_from_id(row_id) != row || row->drum != this
-	        || modelStack->paramManager != &row->paramManager))
+	        || model_stack->paramManager != &row->paramManager))
 		return;
 	const auto row_identity = row ? row->undo_identity : 0;
-	auto* param_manager = modelStack->paramManager;
-	auto* stack_song = modelStack->song;
+	auto* param_manager = model_stack->paramManager;
+	auto* stack_song = model_stack->song;
 	auto* source_song = currentSong;
 	const auto source_owner = deluge::gui::ui_session::current();
 	const auto source_mode = polyphonic;
 	const auto revision = arpeggiator.instruction_revision();
 	int16_t mpe_values[kNumExpressionDimensions];
-	if (mpeValues)
-		std::copy_n(mpeValues, kNumExpressionDimensions, mpe_values);
+	if (input_mpe)
+		std::copy_n(input_mpe, kNumExpressionDimensions, mpe_values);
 	const auto context_matches = [&] {
 		if (!drum_lifetime.alive() || (source_kit && !kit_lifetime.alive()) || (routed_clip && !clip_lifetime.alive())
 		    || kit != source_kit || (source_kit && source_kit->getDrumIndex(this) < 0) || currentSong != source_song
 		    || deluge::gui::ui_session::current() != source_owner || polyphonic != source_mode
-		    || modelStack->song != stack_song || modelStack->getTimelineCounterAllowNull() != routed_clip
-		    || modelStack->getNoteRowAllowNull() != row || modelStack->paramManager != param_manager
+		    || model_stack->song != stack_song || model_stack->getTimelineCounterAllowNull() != routed_clip
+		    || model_stack->getNoteRowAllowNull() != row || model_stack->paramManager != param_manager
 		    || (routed_clip && routed_clip->output != source_kit))
 			return false;
 		return !row
-		       || (modelStack->noteRowId == row_id && routed_clip->find_note_row_from_id(row_id) == row
+		       || (model_stack->noteRowId == row_id && routed_clip->find_note_row_from_id(row_id) == row
 		           && row->undo_identity == row_identity && row->drum == this);
 	};
 	const deluge::lifetime::callback_validation validation{context_matches};
-	if (source_mode == PolyphonyMode::CHOKE && source_kit) {
+	if (is_on && source_mode == PolyphonyMode::CHOKE && source_kit) {
 		source_kit->choke();
 		if (!validation.valid() || arpeggiator.instruction_revision() != revision)
 			return;
 	}
-	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues ? mpe_values : nullptr, sampleSyncLength, ticksLate,
-	              samplesLate, velocity, fromMIDIChannel, &validation);
-}
-
-void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	Sound::noteOff(modelStack, &arpeggiator, kNoteForDrum);
+	if (is_on)
+		Sound::noteOn(model_stack, &arpeggiator, kNoteForDrum, input_mpe ? mpe_values : nullptr, sample_sync_length,
+		              ticks_late, samples_late, velocity, from_midi_channel, &validation);
+	else
+		Sound::noteOff(model_stack, &arpeggiator, kNoteForDrum, &validation);
 }
 
 extern bool expressionValueChangesMustBeDoneSmoothly;

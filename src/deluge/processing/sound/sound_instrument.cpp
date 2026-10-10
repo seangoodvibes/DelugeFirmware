@@ -476,7 +476,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 		       fromMIDIChannel, &validation);
 	}
 	else {
-		noteOff(modelStack, &arpeggiator, noteCode);
+		noteOff(modelStack, &arpeggiator, noteCode, &validation);
 	}
 }
 

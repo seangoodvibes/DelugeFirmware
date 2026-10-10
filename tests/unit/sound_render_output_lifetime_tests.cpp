@@ -99,10 +99,13 @@ struct Sound {
 			on_note();
 		note_context_valid = validation->valid();
 	}
-	void noteOff(ModelStack*, void*, int) {
+	void noteOff(ModelStack*, void*, int, const deluge::lifetime::callback_validation* validation) {
+		CHECK(validation);
+		CHECK(validation->valid());
 		++note_stops;
 		if (on_note)
 			on_note();
+		note_context_valid = validation->valid();
 	}
 	void render(ModelStack*, std::span<StereoSample>, int32_t*, int32_t, int32_t, bool, int32_t, void*,
 	            const deluge::lifetime::callback_validation* validation) {
@@ -352,4 +355,14 @@ TEST(sound_render_output_lifetime, direct_note_sender_preserves_clipless_path) {
 	instrument->sendNote(&stack, true, 60, nullptr, 2, 99, 0, 0, 0);
 	LONGS_EQUAL(1, note_starts);
 	CHECK(note_context_valid);
+}
+
+TEST(sound_render_output_lifetime, direct_note_off_sender_forwards_lifetime_validation) {
+	on_note = [&] {
+		instrument.reset();
+		clip.reset();
+	};
+	instrument->sendNote(&stack, false, 60, nullptr, 2, 99, 0, 0, 0);
+	LONGS_EQUAL(1, note_stops);
+	CHECK_FALSE(note_context_valid);
 }

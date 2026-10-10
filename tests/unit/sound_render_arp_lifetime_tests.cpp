@@ -79,6 +79,10 @@ struct Arpeggiator {
 		++generated;
 		generate(instruction);
 	}
+	void noteOff(ArpeggiatorSettings*, int, ArpReturnInstruction* instruction) {
+		++generated;
+		generate(instruction);
+	}
 	bool hasAnyInputNotesActive() { return true; }
 
 	void render(ArpeggiatorSettings*, ArpReturnInstruction* instruction, uint32_t, uint32_t, uint32_t) {
@@ -109,6 +113,8 @@ struct Sound {
 		if (on_reassess)
 			on_reassess();
 	}
+	void noteOff(ModelStackWithThreeMainThings*, ArpeggiatorBase*, int32_t,
+	             const deluge::lifetime::callback_validation*);
 	void noteOn(ModelStackWithThreeMainThings*, Arpeggiator*, int32_t, const int16_t*, uint32_t, int32_t, uint32_t,
 	            int32_t, int32_t, const deluge::lifetime::callback_validation*);
 	bool invertReversed = false;
@@ -284,4 +290,48 @@ TEST(sound_render_arp_lifetime, direct_note_budget_deferral_reassesses_rendering
 	LONGS_EQUAL(1, started);
 	LONGS_EQUAL(1, reassessments);
 	CHECK(sound->arp.note->noteStatus[1] == ArpNoteStatus::PENDING);
+}
+
+TEST(sound_render_arp_lifetime, direct_note_off_dispatches_glide_and_regular_release) {
+	ParamManagerForTimeline manager;
+	ModelStackWithThreeMainThings model_stack{&manager};
+	sound->noteOff(&model_stack, &sound->arp, 50, nullptr);
+	LONGS_EQUAL(2, stopped);
+	LONGS_EQUAL(1, reassessments);
+}
+TEST(sound_render_arp_lifetime, direct_note_off_owner_deletion_stops_generation_or_output_batch) {
+	for (int boundary = 0; boundary <= 2; ++boundary) {
+		reset();
+		ParamManagerForTimeline manager;
+		ModelStackWithThreeMainThings model_stack{&manager};
+		deluge::lifetime::lifetime_watch watch{sound->lifetime};
+		const auto valid = [&] { return watch.alive(); };
+		const deluge::lifetime::callback_validation validation{valid};
+		if (!boundary)
+			on_generation = [&] { sound.reset(); };
+		else
+			on_off = [&] {
+				if (stopped == boundary)
+					sound.reset();
+			};
+		sound->noteOff(&model_stack, &sound->arp, 50, &validation);
+		LONGS_EQUAL(boundary, stopped);
+		LONGS_EQUAL(0, reassessments);
+	}
+}
+TEST(sound_render_arp_lifetime, direct_note_off_replacement_event_stops_old_batch) {
+	ParamManagerForTimeline manager;
+	ModelStackWithThreeMainThings model_stack{&manager};
+	on_off = [&] { ++sound->arp.revision; };
+	sound->noteOff(&model_stack, &sound->arp, 50, nullptr);
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, reassessments);
+}
+TEST(sound_render_arp_lifetime, direct_note_off_stack_retargeting_stops_old_batch) {
+	ParamManagerForTimeline manager;
+	ModelStackWithThreeMainThings model_stack{&manager};
+	on_off = [&] { model_stack.paramManager = nullptr; };
+	sound->noteOff(&model_stack, &sound->arp, 50, nullptr);
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, reassessments);
 }

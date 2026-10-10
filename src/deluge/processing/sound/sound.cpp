@@ -1595,24 +1595,40 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	}
 }
 
-void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode) {
+void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
+                    const deluge::lifetime::callback_validation* owner_validation) {
+	if ((owner_validation && !owner_validation->valid()) || !modelStack)
+		return;
+	auto* param_manager = modelStack->paramManager;
+
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	ArpReturnInstruction instruction;
 	arpeggiator->noteOff(arpSettings, noteCode, &instruction);
+	const auto context_matches = [&] {
+		return (!owner_validation || owner_validation->valid()) && modelStack->paramManager == param_manager
+		       && getArp() == arpeggiator && getArpSettings() == arpSettings;
+	};
+	if (!context_matches())
+		return;
+	const auto revision = arpeggiator->instruction_revision();
 
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
 		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+		if (!context_matches() || arpeggiator->instruction_revision() != revision)
+			return;
 	}
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
 		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+		if (!context_matches() || arpeggiator->instruction_revision() != revision)
+			return;
 	}
 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
