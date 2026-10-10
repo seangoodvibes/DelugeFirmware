@@ -210,7 +210,19 @@ void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 }
 
 Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
-	return Sound::loadAllAudioFiles(mayActuallyReadFiles);
+	auto owner_lifetime = watch_lifetime();
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return owner_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return Error::ABORTED_BY_USER;
+	deluge::lifetime::callback_validation validation(context_valid);
+	return Sound::loadAllAudioFiles(mayActuallyReadFiles, &validation);
 }
 
 void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {

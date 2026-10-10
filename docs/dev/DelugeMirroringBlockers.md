@@ -3238,3 +3238,16 @@ suites and RelWithDebInfo pass. Same-address row replacement, nested alternate-p
 ownership, and cancellation inside Source/Drum loading remain separate audit work;
 these traversal checks do not establish those inner contracts. Independent mode
 stays disabled.
+
+SoundInstrument and SoundDrum now carry their lifetime, current Song and panel
+validation through Sound and Source to holder loading. Source checks range count/
+position, oscillator type and reverse setting across audio, abort and storage
+callbacks; cancellation stops later ranges/sources. Crucial Kit loading now honors
+a drum's cancellation return. Fourteen inner-chain sanitizer regressions cover
+owner destruction, context/range changes, valid cached/no-song loading and existing
+missing-file behavior; a fifteenth Kit regression reproduced continuation after
+cancellation before its fix. All 38 suites and RelWithDebInfo pass. This does not
+identify same-address range replacement or supply Kit/row association validation
+inside a surviving SoundDrum, and legacy unvalidated Source callers still require
+an owner contract. Nested alternate-directory ownership is also still open.
+Independent mode stays disabled.

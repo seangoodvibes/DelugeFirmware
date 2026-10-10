@@ -224,3 +224,10 @@ TEST(KitSampleLoading, invalid_entry_does_not_start_loading) {
 	LONGS_EQUAL(0, loads);
 	LONGS_EQUAL(0, setups);
 }
+
+TEST(KitSampleLoading, crucial_cancellation_does_not_continue_to_another_drum) {
+	load_error = Error::ABORTED_BY_USER;
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(1, finishes);
+}

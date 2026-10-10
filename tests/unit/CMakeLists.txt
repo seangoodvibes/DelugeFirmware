@@ -1195,3 +1195,27 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_loading.inc
         Kit::loadAllAudioFiles Kit::loadCrucialAudioFilesOnly
     DEPENDS ${kit_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_sample_loading_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_loading.inc)
+
+set(source_sample_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/source.cpp)
+set(sound_sample_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound.cpp)
+set(sound_drum_sample_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound_drum.cpp)
+set(sound_instrument_sample_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_sample_loading.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_sample_loading.inc Source::loadAllSamples
+    DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_loading.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_loading.inc Sound::loadAllAudioFiles
+    DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_sample_loading.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_drum_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_sample_loading.inc SoundDrum::loadAllSamples
+    DEPENDS ${sound_drum_sample_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_sample_loading.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_instrument_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_sample_loading.inc SoundInstrument::loadAllAudioFiles
+    DEPENDS ${sound_instrument_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE source_sample_loading_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/source_sample_loading.inc ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_loading.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_sample_loading.inc ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_sample_loading.inc)

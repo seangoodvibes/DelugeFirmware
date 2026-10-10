@@ -109,19 +109,33 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-Error Source::loadAllSamples(bool mayActuallyReadFiles) {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+Error Source::loadAllSamples(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return Error::ABORTED_BY_USER;
+	const auto source_type = oscType;
+	const auto reversed = sampleControls.isCurrentlyReversed();
+	const auto range_count = ranges.getNumElements();
+	for (int32_t index = 0; index < range_count; ++index) {
+		auto* range = ranges.getElement(index);
+		const auto context_valid = [&] {
+			return (!validation || validation->valid()) && oscType == source_type
+			       && sampleControls.isCurrentlyReversed() == reversed && ranges.getNumElements() == range_count
+			       && ranges.getElement(index) == range;
+		};
 		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
+		if (!(index & 3)) // Preserve audio servicing for multisampled sounds.
 			AudioEngine::routineWithClusterLoading();
-		}
-		if (mayActuallyReadFiles && shouldAbortLoading()) {
+		if (!context_valid())
 			return Error::ABORTED_BY_USER;
-		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isCurrentlyReversed(), false,
-		                                                     mayActuallyReadFiles, CLUSTER_ENQUEUE, nullptr, true);
+		const bool aborted = mayActuallyReadFiles && shouldAbortLoading();
+		if (!context_valid() || aborted)
+			return Error::ABORTED_BY_USER;
+		deluge::lifetime::callback_validation holder_validation(context_valid);
+		auto error = range->getAudioFileHolder()->loadFile(reversed, false, mayActuallyReadFiles, CLUSTER_ENQUEUE,
+		                                                   nullptr, true, &holder_validation);
+		if (!context_valid() || error == Error::ABORTED_BY_USER)
+			return Error::ABORTED_BY_USER;
 	}
-
 	return Error::NONE;
 }
 

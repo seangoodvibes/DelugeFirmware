@@ -4473,18 +4473,18 @@ int16_t Sound::getMinOscTranspose() {
 	return minRawOscTranspose + transpose;
 }
 
-// Returns true if more loading needed later
-Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
-
-	for (int32_t s = 0; s < kNumSources; s++) {
-		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
-			Error error = sources[s].loadAllSamples(mayActuallyReadFiles);
-			if (error != Error::NONE) {
+Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return Error::ABORTED_BY_USER;
+	for (int32_t index = 0; index < kNumSources; ++index) {
+		if (sources[index].oscType == OscType::SAMPLE || sources[index].oscType == OscType::WAVETABLE) {
+			auto error = sources[index].loadAllSamples(mayActuallyReadFiles, validation);
+			if (validation && !validation->valid())
+				return Error::ABORTED_BY_USER;
+			if (error != Error::NONE)
 				return error;
-			}
 		}
 	}
-
 	return Error::NONE;
 }
 

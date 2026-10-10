@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_controls.h"
 #include "storage/multi_range/multi_range_array.h"
+#include "util/lifetime.h"
 #include "util/phase_increment_fine_tuner.h"
 
 class Sound;
@@ -57,7 +58,7 @@ public:
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
-	Error loadAllSamples(bool mayActuallyReadFiles);
+	Error loadAllSamples(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation = nullptr);
 	void setReversed(bool newReversed);
 	int32_t getRangeIndex(int32_t note);
 	MultiRange* getRange(int32_t note);

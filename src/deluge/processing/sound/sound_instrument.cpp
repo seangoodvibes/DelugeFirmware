@@ -265,22 +265,28 @@ yesTickParamManagerForClip:
 }
 
 Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
-
-	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
-	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
+	auto owner_lifetime = watch_lifetime();
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return owner_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return Error::ABORTED_BY_USER;
+	deluge::lifetime::callback_validation validation(context_valid);
+	const bool alternate_path =
+	    mayActuallyReadFiles && audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET;
+	if (alternate_path) {
+		auto error = setupDefaultAudioFileDir();
+		if (error != Error::NONE)
 			return error;
-		}
 	}
-
-	Error error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
-
-	if (doingAlternatePath) {
+	auto error = context_valid() ? Sound::loadAllAudioFiles(mayActuallyReadFiles, &validation) : Error::ABORTED_BY_USER;
+	if (alternate_path)
 		audioFileManager.thingFinishedLoading();
-	}
-
 	return error;
 }
 

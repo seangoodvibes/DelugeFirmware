@@ -474,8 +474,8 @@ void Kit::loadCrucialAudioFilesOnly() {
 		if (!drum_lifetime.alive())
 			break;
 		const auto row_count = source_clip->noteRows.getNumElements();
-		drum->loadAllSamples(true);
-		if (!context_valid() || !drum_lifetime.alive() || getDrumIndex(drum) < 0
+		const auto error = drum->loadAllSamples(true);
+		if (error == Error::ABORTED_BY_USER || !context_valid() || !drum_lifetime.alive() || getDrumIndex(drum) < 0
 		    || source_clip->noteRows.getNumElements() != row_count || source_clip->noteRows.getElement(index) != row
 		    || row->drum != drum)
 			break;
