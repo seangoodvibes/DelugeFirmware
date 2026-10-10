@@ -242,22 +242,42 @@ bool openUI(UI* newUI) {
 	if (!newUI || navigation().depth < 0 || navigation().depth >= navigation().capacity) {
 		return false;
 	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto expected_hierarchy = navigation().hierarchy;
+	auto expected_depth = navigation().depth;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		       && navigation().hierarchy == expected_hierarchy;
+	};
 	newUI = newUI->getUI();
-	if (!newUI)
+	if (!newUI || !context_matches())
 		return false;
 	UI* oldUI = getCurrentUI();
 	navigation().hierarchy[navigation().depth] = newUI;
 	navigation().depth++;
+	expected_hierarchy = navigation().hierarchy;
+	expected_depth = navigation().depth;
 
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
+	if (!context_matches())
+		return false;
 	bool success = newUI->opened();
+	// A callback may have replaced the stack or opened another UI. Preserve it.
+	if (!context_matches())
+		return false;
 
 	if (!success) {
 		navigation().depth--;
+		expected_depth = navigation().depth;
 		PadLEDs::reassessGreyout();
+		if (!context_matches())
+			return false;
 		if (oldUI)
 			oldUI->focusRegained();
+		if (!context_matches())
+			return false;
 	}
 	if (display->haveOLED()) {
 		renderUIsForOled();

@@ -1067,3 +1067,19 @@ side effects are not provided by these guards.
   Navigation, callbacks and rendering are fixtures; this is not lifetime proof.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Callback-driven stack
   changes still require protection. G1/R4 remain open; independent mode is disabled.
+
+### G1 / R4 progress — UI-opening callback containment (2026-10-09)
+
+- openUI captures the initiating owner and expected hierarchy/depth, then validates
+  them after resolution, greyout, opening and rejection-focus callbacks. A changed
+  stack cancels further rollback/focus/redraw work, preserving newer navigation.
+  The caller's owner is restored by scope. The hierarchy snapshot is fixed-size
+  stack storage and requires no allocation.
+- Six added extracted-production cases cover nested opening, changed owner,
+  resolution/greyout replacement, rejection-greyout replacement and focus callback
+  owner changes. The first four failed before the fix. Existing tests retain
+  normal opening and rollback behavior. UI methods and navigation are fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Cancellation does not
+  undo callback model changes, pin UI objects, detect same-address/stack ABA, or
+  guarantee removal of a partially opened UI after context invalidation. G1/R4/L1
+  remain open; independent mode stays disabled.
