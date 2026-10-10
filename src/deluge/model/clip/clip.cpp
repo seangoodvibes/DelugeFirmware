@@ -1143,8 +1143,6 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 					int32_t oldClipInstancePos = clipInstance->pos;
 
-					clipInstance->length = repeatCount * loopLength;
-
 					// And then we'll need a new ClipInstance for this new instance that we're gonna record some
 					// automation on
 					clipInstanceI++;
@@ -1154,6 +1152,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 						return fail(error);
 					}
 
+					// Insertion can fail or relocate storage. Publish the shorter original only after success.
+					output->clipInstances.getElement(clipInstanceI - 1)->length = repeatCount * loopLength;
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
 
 					clipInstance->pos = oldClipInstancePos + repeatCount * loopLength;

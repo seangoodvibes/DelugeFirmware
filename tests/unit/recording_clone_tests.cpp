@@ -175,3 +175,34 @@ TEST(RecordingClone, missing_context_reports_error_and_legacy_call_still_works) 
 	original.arrangement_only = true;
 	CHECK_FALSE(original.possiblyCloneForArrangementRecording(&stack));
 }
+
+TEST(RecordingClone, insertion_failure_preserves_original_instance_extent) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 2;
+	output.clipInstances.values[0].pos = 11;
+	output.clipInstances.values[0].length = 256;
+	output.clipInstances.insert_error = Error::INSUFFICIENT_RAM;
+	CHECK_FALSE(attempt_clone());
+	LONGS_EQUAL(256, output.clipInstances.values[0].length);
+	LONGS_EQUAL(11, output.clipInstances.values[0].pos);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(0, original.clone_calls);
+}
+
+TEST(RecordingClone, successful_repeated_audio_clone_keeps_prior_repeats) {
+	original.type = cloned.type = ClipType::AUDIO;
+	original.repeatCount = 2;
+	output.clipInstances.values[0].pos = 11;
+	output.clipInstances.values[0].length = 256;
+	int sample;
+	original.voiceSample = &sample;
+	CHECK(attempt_clone());
+	LONGS_EQUAL(128, output.clipInstances.values[0].length);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(139, output.clipInstances.values[1].pos);
+	LONGS_EQUAL(64, output.clipInstances.values[1].length);
+	POINTERS_EQUAL(&cloned, output.clipInstances.values[1].clip);
+	POINTERS_EQUAL(&sample, cloned.voiceSample);
+	POINTERS_EQUAL(nullptr, original.voiceSample);
+	CHECK(result == Error::NONE);
+}

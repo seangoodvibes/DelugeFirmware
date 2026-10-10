@@ -1905,3 +1905,14 @@ test verifies failure stops parameter lookup/writes. All 35 native suites and
 `./dbt build relwithdebinfo` pass. Other callers still omit the error result, and
 partial instance edits before clone failure are not rolled back. R5 stays open;
 this is failure reporting and CC containment, not complete clone recovery.
+
+### R5 progress — preserve original audio instance when insertion fails (2026-10-10)
+
+Repeated-audio arrangement cloning now shortens the original instance only after
+inserting the new instance succeeds, reacquiring the original by index in case
+storage moved. The regression failed before the fix (length 256 became 128 on
+allocation failure) and now passes. A success test verifies prior repeats,
+new-instance position/length and sample handoff. All 35 native suites and
+`./dbt build relwithdebinfo` pass. Later clone/expansion/publication failures and
+callback lifetime still require recovery; this closes only pre-insertion extent
+mutation, not the entire clone transaction.
