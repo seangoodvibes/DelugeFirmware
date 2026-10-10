@@ -3598,3 +3598,12 @@ All 38 suites and RelWithDebInfo pass. The temporary table holds one new range,
 not audio buffers; an empty Source with retained capacity may now allocate fresh
 storage rather than reuse that capacity. Type-conversion allocation/destruction
 inside MultiRangeArray remains a separate lifetime/recovery blocker.
+
+Range type conversion now validates its caller and layout after detached
+allocation before reading original storage. Source forwards its lifetime/type/
+panel validator and treats cancellation separately from allocation failure, so
+cancellation cannot trigger destructive fallback cleanup. Five regressions cover
+cancelled entry, allocation cancellation, nested layout changes, actual owner
+destruction and Source fallback suppression. All 38 suites and RelWithDebInfo pass.
+Old-range destruction during conversion and allocation-failure recovery remain
+open; this change only closes the pre-copy allocation boundary.

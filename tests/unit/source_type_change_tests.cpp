@@ -6,7 +6,7 @@
 
 namespace source_type_change_test {
 namespace session = deluge::gui::ui_session;
-enum class Error { NONE, INSUFFICIENT_RAM };
+enum class Error { NONE, INSUFFICIENT_RAM, ABORTED_BY_USER };
 enum class OscType { SQUARE, SAMPLE, WAVETABLE, DX7 };
 struct MultiRange {
 } range, old_range;
@@ -18,7 +18,7 @@ struct MultiWaveTableRange {
 };
 std::function<void()> on_change, on_cleanup, on_create;
 int changes = 0, cleanups = 0, creates = 0, clears = 0, dx_creates = 0;
-bool fail_first_change = false;
+bool fail_first_change = false, cancel_change = false;
 struct Source {
 	deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
@@ -32,8 +32,10 @@ struct Source {
 			++clears;
 			count = 0;
 		}
-		Error changeType(int32_t size) {
+		Error changeType(int32_t size, const deluge::lifetime::callback_validation* validation) {
 			++changes;
+			if (!validation->valid() || cancel_change)
+				return Error::ABORTED_BY_USER;
 			const auto error = fail_first_change && changes == 1 ? Error::INSUFFICIENT_RAM : Error::NONE;
 			if (error == Error::NONE)
 				elementSize = size;
@@ -78,7 +80,7 @@ TEST_GROUP(SourceTypeChange) {
 		editors[0].currentSource = &source;
 		on_change = on_cleanup = on_create = {};
 		changes = cleanups = creates = clears = dx_creates = 0;
-		fail_first_change = false;
+		fail_first_change = cancel_change = false;
 	}
 	void teardown() override {
 		on_change = on_cleanup = on_create = {};
@@ -165,4 +167,14 @@ TEST(SourceTypeChange, same_size_and_dx_paths_keep_existing_behavior) {
 	source.setOscType(OscType::DX7);
 	CHECK(source.oscType == OscType::DX7);
 	LONGS_EQUAL(1, dx_creates);
+}
+
+TEST(SourceTypeChange, cancelled_conversion_does_not_destroy_original_ranges_or_retry) {
+	cancel_change = true;
+	source.setOscType(OscType::SAMPLE);
+	LONGS_EQUAL(1, changes);
+	LONGS_EQUAL(0, cleanups);
+	LONGS_EQUAL(0, creates);
+	LONGS_EQUAL(1, source.ranges.count);
+	CHECK(source.oscType == OscType::SQUARE);
 }

@@ -56,8 +56,10 @@ MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 	return range;
 }
 
-Error MultiRangeArray::changeType(int32_t newSize) {
-	++layout_revision_;
+Error MultiRangeArray::changeType(int32_t newSize, const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return Error::ABORTED_BY_USER;
+	const auto expected_layout = ++layout_revision_;
 
 	if (!numElements) {
 		elementSize = newSize;
@@ -67,6 +69,9 @@ Error MultiRangeArray::changeType(int32_t newSize) {
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
 	Error error = newArray.insertAtIndex(0, numElements);
+	// The detached allocation may yield and invalidate the original owner or storage.
+	if ((validation && !validation->valid()) || layout_revision_ != expected_layout)
+		return Error::ABORTED_BY_USER;
 	if (error != Error::NONE) {
 		return error;
 	}

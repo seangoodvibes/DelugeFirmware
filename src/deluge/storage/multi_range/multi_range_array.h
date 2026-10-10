@@ -18,6 +18,7 @@
 #pragma once
 
 #include "util/container/array/ordered_resizeable_array.h"
+#include "util/lifetime.h"
 
 class MultisampleRange;
 class MultiWaveTableRange;
@@ -40,7 +41,7 @@ public:
 	void swapStateWith(MultiRangeArray* other);
 	MultiRange* getElement(int32_t i);
 	MultiRange* insertMultiRange(int32_t i);
-	Error changeType(int32_t newSize);
+	Error changeType(int32_t new_size, const deluge::lifetime::callback_validation* validation = nullptr);
 
 private:
 	// Invalidate retained range identities before any structural mutation attempt.

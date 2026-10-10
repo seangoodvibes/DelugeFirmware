@@ -337,8 +337,9 @@ possiblyDeleteRanges:
 		if (ranges.element_size() != multiRangeSize) {
 
 doChangeType:
-			Error error = ranges.changeType(multiRangeSize);
-			if (!context_valid())
+			deluge::lifetime::callback_validation validation(context_valid);
+			Error error = ranges.changeType(multiRangeSize, &validation);
+			if (!context_valid() || error == Error::ABORTED_BY_USER)
 				return;
 			if (error != Error::NONE) {
 				destructAllMultiRanges();

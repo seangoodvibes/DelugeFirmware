@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "storage/multi_range/multi_range_array.h"
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <type_traits>
 
@@ -11,8 +12,9 @@ concept exposes_untracked_empty = requires(T& array) { array.empty(); };
 static_assert(!exposes_untracked_empty<MultiRangeArray>);
 
 namespace multi_range_layout_test {
-enum class Error { NONE, INSUFFICIENT_RAM };
+enum class Error { NONE, INSUFFICIENT_RAM, ABORTED_BY_USER };
 bool fail_allocation = false;
+std::function<void()> on_allocate;
 struct MultiRange {
 	int16_t topNote = 32767;
 	virtual ~MultiRange() = default;
@@ -31,6 +33,8 @@ struct OrderedResizeableArray {
 	explicit OrderedResizeableArray(int32_t size) : elementSize(size) {}
 	void* getElementAddress(int32_t index) { return memory.get() + index * elementSize; }
 	Error insertAtIndex(int32_t index, int32_t count, void*) {
+		if (on_allocate)
+			on_allocate();
 		if (fail_allocation)
 			return Error::INSUFFICIENT_RAM;
 		if (!memory)
@@ -60,7 +64,7 @@ struct MultiRangeArray : OrderedResizeableArray {
 	explicit MultiRangeArray(int32_t size = sizeof(MultisampleRange)) : OrderedResizeableArray(size) {}
 	MultiRange* getElement(int32_t);
 	MultiRange* insertMultiRange(int32_t);
-	Error changeType(int32_t);
+	Error changeType(int32_t, const deluge::lifetime::callback_validation* = nullptr);
 	Error insertAtIndex(int32_t, int32_t = 1, void* = nullptr);
 	void deleteAtIndex(int32_t, int32_t = 1, bool = true);
 	bool ensureEnoughSpaceAllocated(int32_t);
@@ -78,8 +82,10 @@ TEST_GROUP(MultiRangeLayout) {
 	layout_test::MultiRangeArray first, second;
 	void setup() override {
 		layout_test::fail_allocation = false;
+		layout_test::on_allocate = {};
 	}
 	void teardown() override {
+		layout_test::on_allocate = {};
 		first.destroy_ranges();
 		second.destroy_ranges();
 	}
@@ -164,4 +170,51 @@ TEST(MultiRangeLayout, swapping_different_range_types_moves_stride_with_storage)
 	LONGS_EQUAL(sizeof(layout_test::MultisampleRange), second_size);
 	CHECK_TRUE(first_matches);
 	CHECK_TRUE(second_matches);
+}
+
+TEST(MultiRangeLayout, conversion_rejects_cancelled_entry_without_touching_ranges) {
+	auto* original = first.insertMultiRange(0);
+	const auto revision = first.layout_revision_;
+	const auto context_valid = [] { return false; };
+	deluge::lifetime::callback_validation validation(context_valid);
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), &validation)
+	      == layout_test::Error::ABORTED_BY_USER);
+	POINTERS_EQUAL(original, first.getElement(0));
+	LONGS_EQUAL(revision, first.layout_revision_);
+}
+TEST(MultiRangeLayout, conversion_allocation_cancellation_preserves_original) {
+	auto* original = first.insertMultiRange(0);
+	bool valid = true;
+	const auto context_valid = [&] { return valid; };
+	deluge::lifetime::callback_validation validation(context_valid);
+	layout_test::on_allocate = [&] { valid = false; };
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), &validation)
+	      == layout_test::Error::ABORTED_BY_USER);
+	POINTERS_EQUAL(original, first.getElement(0));
+	LONGS_EQUAL(sizeof(layout_test::MultisampleRange), first.elementSize);
+}
+TEST(MultiRangeLayout, conversion_nested_layout_change_aborts_even_without_caller_validation) {
+	auto* original = first.insertMultiRange(0);
+	layout_test::on_allocate = [&] { ++first.layout_revision_; };
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange)) == layout_test::Error::ABORTED_BY_USER);
+	POINTERS_EQUAL(original, first.getElement(0));
+}
+TEST(MultiRangeLayout, conversion_owner_destruction_during_allocation_stops_old_storage_access) {
+	struct Owner {
+		deluge::lifetime::lifetime_source lifetime;
+		layout_test::MultiRangeArray ranges;
+		~Owner() {
+			lifetime.retire();
+			ranges.destroy_ranges();
+		}
+	};
+	auto owner = std::make_unique<Owner>();
+	owner->ranges.insertMultiRange(0);
+	deluge::lifetime::lifetime_watch owner_watch(owner->lifetime);
+	const auto context_valid = [&] { return owner_watch.alive(); };
+	deluge::lifetime::callback_validation validation(context_valid);
+	layout_test::on_allocate = [&] { owner.reset(); };
+	CHECK(owner->ranges.changeType(sizeof(layout_test::MultiWaveTableRange), &validation)
+	      == layout_test::Error::ABORTED_BY_USER);
+	CHECK_FALSE(owner_watch.alive());
 }
