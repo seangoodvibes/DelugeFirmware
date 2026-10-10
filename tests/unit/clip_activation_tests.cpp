@@ -1,7 +1,9 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <functional>
+#include <memory>
 namespace clip_activation_test {
 namespace session = deluge::gui::ui_session;
 struct Clip;
@@ -26,6 +28,8 @@ struct Output {
 	}
 };
 struct Clip {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	ClipType type = ClipType::INSTRUMENT;
 	Output* output = nullptr;
 	bool isActiveOnOutput() { return output && output->active_clip == this; }
@@ -147,4 +151,31 @@ TEST(ClipActivation, changed_selection_output_or_playback_cancels_completion) {
 			LONGS_EQUAL(during_activation ? 1 : 0, output.calls);
 		}
 	}
+}
+
+TEST(ClipActivation, availability_callback_destroying_clip_cancels_activation) {
+	auto* target = new Clip;
+	target->output = &output;
+	clips.active() = target;
+	on_available = [&] { delete target; };
+	CHECK_FALSE(InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(&stack));
+	LONGS_EQUAL(0, output.calls);
+}
+TEST(ClipActivation, activation_callback_reusing_clip_address_is_not_success) {
+	auto* target = new Clip;
+	target->output = &output;
+	clips.active() = target;
+	on_activate = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->output = &output;
+	};
+	CHECK_FALSE(InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(&stack));
+	LONGS_EQUAL(1, output.calls);
+	delete target;
+}
+TEST(ClipActivation, retiring_current_clip_is_not_activated) {
+	clip.lifetime_source.retire();
+	CHECK_FALSE(InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(&stack));
+	LONGS_EQUAL(0, output.calls);
 }

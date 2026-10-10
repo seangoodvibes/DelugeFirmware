@@ -459,7 +459,10 @@ Clip* MidiFollow::getSelectedClip() {
 /// midi modulation sources (e.g. mod wheel), and MPE through to the active clip
 Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	auto* const source_clip = getCurrentClip();
-	if (!modelStack || !source_clip || source_clip->type != ClipType::INSTRUMENT || !source_clip->output)
+	if (!modelStack || !source_clip)
+		return nullptr;
+	auto source_lifetime = source_clip->watch_lifetime();
+	if (!source_lifetime.alive() || source_clip->type != ClipType::INSTRUMENT || !source_clip->output)
 		return nullptr;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
@@ -467,11 +470,14 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	auto* const source_output = source_clip->output;
 	// Auditioning may activate this clip when its output is available.
 	InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song
+	if (!source_lifetime.alive() || deluge::gui::ui_session::current() != source_owner || currentSong != source_song
 	    || getCurrentClip() != source_clip || source_clip->output != source_output)
 		return nullptr;
 	auto* const active_clip = source_output->getActiveClip();
-	return active_clip && active_clip->output == source_output ? active_clip : nullptr;
+	if (!active_clip)
+		return nullptr;
+	auto active_lifetime = active_clip->watch_lifetime();
+	return active_lifetime.alive() && active_clip->output == source_output ? active_clip : nullptr;
 }
 
 /// used to forward midi messages to specific tracks

@@ -2070,3 +2070,13 @@ targets before parameter services. They run under ASan/UBSan in `ClipLifetimeTes
 all 36 native suites and `./dbt build relwithdebinfo` pass. These checks cover clip
 retirement after a live watch is acquired, not lifetime inside parameter services
 or independent destruction of parameter collections/outputs.
+
+### L1 / G1 progress — watched clip activation (2026-10-10)
+
+Clip activation and MIDI Follow's active-clip lookup now watch the initiating
+clip across availability/activation callbacks and reject retiring source/active
+clips. Six regressions cover destruction during availability/activation,
+same-address replacement and retiring targets. These run under ASan/UBSan;
+all 36 native suites and `./dbt build relwithdebinfo` pass. Output lifetime and
+long-lived UI selection references still need their own protection; this change
+covers clip lifetime after acquisition at these activation boundaries.

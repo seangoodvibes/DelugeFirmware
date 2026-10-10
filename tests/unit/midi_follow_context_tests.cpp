@@ -1,7 +1,9 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <functional>
+#include <memory>
 namespace midi_follow_context_test {
 namespace session = deluge::gui::ui_session;
 struct Clip;
@@ -12,6 +14,8 @@ struct Output {
 	OutputType type = OutputType::SYNTH;
 };
 struct Clip {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Output* output = nullptr;
 	ClipType type = ClipType::AUDIO;
 };
@@ -338,4 +342,35 @@ TEST(MidiFollowContext, track_enumeration_skips_detached_and_reassigned_active_c
 	instrument.output = &output;
 	LONGS_EQUAL(2, follow.getTrackCount());
 	POINTERS_EQUAL(&output, follow.getTrackFromIndex(1, 2));
+}
+
+TEST(MidiFollowContext, activation_destroying_source_clip_does_not_return_active_target) {
+	auto* target = new InstrumentClip;
+	target->output = &output;
+	current_clips.active() = target;
+	output.active_clip = target;
+	on_activation = [&] { delete target; };
+	ModelStack stack;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+}
+TEST(MidiFollowContext, activation_reusing_source_address_does_not_return_replacement) {
+	auto* target = new InstrumentClip;
+	target->output = &output;
+	current_clips.active() = target;
+	output.active_clip = target;
+	on_activation = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->output = &output;
+	};
+	ModelStack stack;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	delete target;
+}
+TEST(MidiFollowContext, retiring_active_clip_is_not_returned) {
+	current_clips.active() = &instrument;
+	output.active_clip = &audio;
+	audio.lifetime_source.retire();
+	ModelStack stack;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
 }

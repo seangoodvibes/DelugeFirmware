@@ -611,7 +611,10 @@ void InstrumentClipMinder::displayCurrentScaleName() {
 // Returns whether currentClip is now active on Output / Instrument
 bool InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack) {
 	auto* const source_clip = getCurrentClip();
-	if (!modelStack || !source_clip || source_clip->type != ClipType::INSTRUMENT || !source_clip->output)
+	if (!modelStack || !source_clip)
+		return false;
+	auto source_lifetime = source_clip->watch_lifetime();
+	if (!source_lifetime.alive() || source_clip->type != ClipType::INSTRUMENT || !source_clip->output)
 		return false;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
@@ -619,8 +622,8 @@ bool InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(ModelStac
 	auto* const source_output = source_clip->output;
 	auto* const source_playback = currentPlaybackMode;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
-		       && getCurrentClip() == source_clip && source_clip->output == source_output
+		return source_lifetime.alive() && deluge::gui::ui_session::current() == source_owner
+		       && currentSong == source_song && getCurrentClip() == source_clip && source_clip->output == source_output
 		       && currentPlaybackMode == source_playback;
 	};
 	if (source_clip->isActiveOnOutput())

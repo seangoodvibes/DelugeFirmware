@@ -670,3 +670,5 @@ target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/clip_retain
     midi_track_cc_tests.cpp midi_note_dispatch_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/midi_track_cc.inc ${CMAKE_CURRENT_BINARY_DIR}/midi_note_dispatch.inc)
 target_sources(ClipLifetimeTests PRIVATE midi_feedback_sweep_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc)
+target_sources(ClipLifetimeTests PRIVATE clip_activation_tests.cpp midi_follow_context_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/clip_activation.inc ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc)
