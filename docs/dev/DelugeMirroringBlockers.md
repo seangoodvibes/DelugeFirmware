@@ -2895,3 +2895,11 @@ settings changes, MIDI cancellation and mono/legato/one-shot behavior. All 36 su
 and `./dbt build relwithdebinfo` pass. Voice/sample release and voice-start internals
 remain separate work; completed releases are retained, and unrelated equal-size
 voice-list edits are not comprehensively detected. Independent mode stays disabled.
+
+Learned pitch-bend fanout now passes each sound drum's note-row index, matching CC
+routing and preventing parameter lookup from falling back to the clip-level
+manager. Four added production-body tests verify row indices, skipped drums,
+message-used aggregation and whole-kit clone retargeting. All 36 suites and
+`./dbt build relwithdebinfo` pass. This standalone routing correction also applies
+to ordinary single-device use; callback lifetime protection for the fanout and
+learned-parameter handler internals remains open.

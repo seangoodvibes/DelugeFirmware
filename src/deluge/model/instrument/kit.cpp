@@ -1088,7 +1088,7 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channe
 			Drum* thisDrum = thisNoteRow->drum;
 			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				if (((SoundDrum*)thisDrum)
-				        ->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack)) {
+				        ->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack, i)) {
 					messageUsed = true;
 				}
 			}

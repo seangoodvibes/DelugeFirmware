@@ -1088,3 +1088,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_voice_release_lifeti
         ${sound_render_arp_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_voice_release_lifetime.inc Sound::noteOffPostArpeggiator
     DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_voice_release_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_voice_release_lifetime.inc)
+
+set(kit_learned_midi_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/kit.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_learned_midi_routing.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_learned_midi_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_learned_midi_routing.inc Kit::offerReceivedPitchBendToLearnedParams
+    DEPENDS ${kit_learned_midi_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_learned_midi_routing_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_learned_midi_routing.inc)
