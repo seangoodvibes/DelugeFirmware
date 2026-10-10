@@ -2834,3 +2834,13 @@ polyphonic/standalone paths, null MPE/final-callback deletion and rejected entry
 All 36 suites and `./dbt build relwithdebinfo` pass. Sound note-on internals and
 borrowed parameter-manager acquisition remain separate boundaries; choking already
 performed on other drums is not rolled back.
+
+Direct sound note-on now snapshots input MPE before arp generation, publishes note
+status before voice creation and validates caller ownership, parameter/settings
+association and arp revision before continuing. Synth and drum callers supply
+clip/row/model-stack validation. Ten added production-body sanitizer regressions
+cover copied input, deletion at rewind/generation/voice boundaries, replacement
+instructions/parameters, voice-budget deferral and sender ownership/row changes.
+All 36 suites and `./dbt build relwithdebinfo` pass. Voice-start and generator
+internals, direct note-off and raw parameter acquisition remain separate work;
+completed note starts and status publication are retained on cancellation.

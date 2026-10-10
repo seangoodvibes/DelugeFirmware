@@ -20,7 +20,9 @@ struct ParamCollectionSummary {
 };
 struct ModelStack;
 using ModelStackWithThreeMainThings = ModelStack;
-std::function<void()> on_render, on_tick;
+std::function<void()> on_render, on_tick, on_note;
+int note_starts = 0, note_stops = 0;
+bool note_context_valid = true;
 int renders = 0, ticks = 0, tick_completions = 0;
 struct ParamManager {
 	ParamCollectionSummary summaries[5];
@@ -51,6 +53,12 @@ struct InstrumentClip {
 		int getNumElements() const { return entries.size(); }
 		NoteRow* getElement(int index) { return entries.at(index); }
 	} noteRows;
+	NoteRow* find_note_row_from_id(int id) {
+		for (auto* row : noteRows.entries)
+			if (row->y == id)
+				return row;
+		return nullptr;
+	}
 };
 int song;
 int* currentSong = &song;
@@ -67,7 +75,14 @@ struct ModelStack {
 		return this;
 	}
 	InstrumentClip* getTimelineCounter() { return clip; }
-	void setNoteRow(NoteRow*, int) {}
+	NoteRow* row = nullptr;
+	int noteRowId = 0;
+	NoteRow* getNoteRowAllowNull() { return row; }
+	InstrumentClip* getTimelineCounterAllowNull() { return clip; }
+	void setNoteRow(NoteRow* value, int id) {
+		row = value;
+		noteRowId = id;
+	}
 };
 struct {
 	bool clock = true;
@@ -75,6 +90,20 @@ struct {
 	bool isEitherClockActive() { return clock; }
 } playbackHandler;
 struct Sound {
+	void noteOn(ModelStack*, void*, int, const int16_t*, uint32_t, int32_t, uint32_t, int, int,
+	            const deluge::lifetime::callback_validation* validation) {
+		CHECK(validation);
+		CHECK(validation->valid());
+		++note_starts;
+		if (on_note)
+			on_note();
+		note_context_valid = validation->valid();
+	}
+	void noteOff(ModelStack*, void*, int) {
+		++note_stops;
+		if (on_note)
+			on_note();
+	}
 	void render(ModelStack*, std::span<StereoSample>, int32_t*, int32_t, int32_t, bool, int32_t, void*,
 	            const deluge::lifetime::callback_validation* validation) {
 		CHECK(validation);
@@ -89,7 +118,9 @@ struct SoundInstrument : Sound {
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	InstrumentClip* activeClip = nullptr;
 	void* recorder = nullptr;
-	bool skippingRendering = false;
+	bool skippingRendering = false, inValidState = true;
+	int arpeggiator = 0;
+	void sendNote(ModelStack*, bool, int32_t, const int16_t*, int32_t, uint8_t, uint32_t, int32_t, uint32_t);
 	struct {
 		int gainReduction = 1;
 		void reset() {}
@@ -115,10 +146,13 @@ TEST_GROUP(sound_render_output_lifetime) {
 		clip->paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
 		first->paramManager.summaries[0].whichParamsAreInterpolating[0] = 1;
 		second->paramManager.summaries[0].whichParamsAreInterpolating[0] = 1;
-		on_render = on_tick = {};
-		renders = ticks = tick_completions = 0;
+		on_render = on_tick = on_note = {};
+		renders = ticks = tick_completions = note_starts = note_stops = 0;
+		note_context_valid = true;
 		currentSong = &song;
 		stack = {};
+		stack.clip = clip.get();
+		stack.paramManager = &clip->paramManager;
 		playbackHandler.clock = true;
 		playbackHandler.ticksLeftInCountIn = 0;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
@@ -127,7 +161,7 @@ TEST_GROUP(sound_render_output_lifetime) {
 		reset();
 	}
 	void teardown() override {
-		on_render = on_tick = {};
+		on_render = on_tick = on_note = {};
 		currentSong = &song;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 	}
@@ -267,4 +301,55 @@ TEST(sound_render_output_lifetime, invalid_entry_does_not_render) {
 	instrument->lifetime.retire();
 	render();
 	LONGS_EQUAL(0, renders);
+}
+
+TEST(sound_render_output_lifetime, direct_note_sender_dispatches_on_and_off) {
+	instrument->sendNote(&stack, true, 60, nullptr, 2, 99, 0, 0, 0);
+	instrument->sendNote(&stack, false, 60, nullptr, 2, 99, 0, 0, 0);
+	LONGS_EQUAL(1, note_starts);
+	LONGS_EQUAL(1, note_stops);
+	CHECK(note_context_valid);
+}
+TEST(sound_render_output_lifetime, direct_note_validator_detects_owner_deletion) {
+	on_note = [&] {
+		instrument.reset();
+		clip.reset();
+	};
+	instrument->sendNote(&stack, true, 60, nullptr, 2, 99, 0, 0, 0);
+	LONGS_EQUAL(1, note_starts);
+	CHECK_FALSE(note_context_valid);
+}
+TEST(sound_render_output_lifetime, direct_note_validator_detects_removed_row_and_stack_retargeting) {
+	for (int mutation = 0; mutation < 3; ++mutation) {
+		reset();
+		stack.row = first.get();
+		stack.noteRowId = first->y;
+		on_note = [&] {
+			if (mutation == 0) {
+				clip->noteRows.entries.clear();
+				first.reset();
+			}
+			if (mutation == 1)
+				++first->undo_identity;
+			if (mutation == 2)
+				stack.paramManager = nullptr;
+		};
+		instrument->sendNote(&stack, true, 60, nullptr, 2, 99, 0, 0, 0);
+		CHECK_FALSE(note_context_valid);
+	}
+}
+TEST(sound_render_output_lifetime, direct_note_sender_rejects_invalid_state_and_retired_owners) {
+	instrument->inValidState = false;
+	instrument->sendNote(&stack, true, 60, nullptr, 2, 99, 0, 0, 0);
+	instrument->inValidState = true;
+	clip->lifetime.retire();
+	instrument->sendNote(&stack, true, 60, nullptr, 2, 99, 0, 0, 0);
+	LONGS_EQUAL(0, note_starts);
+}
+TEST(sound_render_output_lifetime, direct_note_sender_preserves_clipless_path) {
+	instrument->activeClip = nullptr;
+	stack.clip = nullptr;
+	instrument->sendNote(&stack, true, 60, nullptr, 2, 99, 0, 0, 0);
+	LONGS_EQUAL(1, note_starts);
+	CHECK(note_context_valid);
 }

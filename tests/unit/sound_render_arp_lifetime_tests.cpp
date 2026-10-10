@@ -16,12 +16,29 @@ int to_underlying(T value) {
 }
 } // namespace util
 namespace params {
-constexpr int UNPATCHED_ARP_GATE = 0, GLOBAL_ARP_RATE = 0, FIRST_GLOBAL = 0;
+constexpr int UNPATCHED_ARP_GATE = 0, GLOBAL_ARP_RATE = 0, FIRST_GLOBAL = 0, LOCAL_NOISE_VOLUME = 1;
 }
-struct ModelStackWithSoundFlags {};
+struct ModelStackWithSoundFlags {
+	bool checkSourceEverActive(int) { return true; }
+};
 struct UnpatchedParamSet {
 	int getValue(int) { return 0; }
 } unpatched;
+enum class SynthMode { RINGMOD, OTHER };
+struct PatchedParamSet {
+	bool containsSomething(int, int) { return true; }
+};
+struct ParamManagerForTimeline {
+	UnpatchedParamSet* unpatched_set = &unpatched;
+	PatchedParamSet patched;
+	UnpatchedParamSet* getUnpatchedParamSet() { return unpatched_set; }
+	PatchedParamSet* getPatchedParamSet() { return &patched; }
+};
+struct ModelStackWithThreeMainThings {
+	ParamManagerForTimeline* paramManager = nullptr;
+	ModelStackWithSoundFlags flags;
+	ModelStackWithSoundFlags* addSoundFlags() { return &flags; }
+};
 struct ArpeggiatorSettings {
 	ArpMode mode = ArpMode::ON;
 	void updateParamsFromUnpatchedParamSet(UnpatchedParamSet*) {}
@@ -40,7 +57,8 @@ struct ArpReturnInstruction {
 	int glideNoteCodeOffPostArp[3]{60, ARP_NOTE_NONE, ARP_NOTE_NONE};
 	int noteCodeOffPostArp[3]{64, ARP_NOTE_NONE, ARP_NOTE_NONE};
 };
-std::function<void()> on_generation, on_off, on_start;
+std::function<void()> on_generation, on_off, on_start, on_rewind, on_reassess;
+int reassessments = 0;
 int generated = 0, pending = 0, stopped = 0, started = 0, voice_budget = 3;
 namespace AudioEngine {
 bool allowedToStartVoice() {
@@ -57,6 +75,12 @@ struct Arpeggiator {
 		if (on_generation)
 			on_generation();
 	}
+	void noteOn(ArpeggiatorSettings*, int, int, ArpReturnInstruction* instruction, int, const int16_t*) {
+		++generated;
+		generate(instruction);
+	}
+	bool hasAnyInputNotesActive() { return true; }
+
 	void render(ArpeggiatorSettings*, ArpReturnInstruction* instruction, uint32_t, uint32_t, uint32_t) {
 		++generated;
 		generate(instruction);
@@ -66,6 +90,7 @@ struct Arpeggiator {
 		generate(instruction);
 	}
 };
+using ArpeggiatorBase = Arpeggiator;
 struct Sound {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	Arpeggiator arp;
@@ -74,6 +99,18 @@ struct Sound {
 	Arpeggiator* getArp() { return &arp; }
 	ArpeggiatorSettings* getArpSettings() { return selected_settings; }
 	int paramFinalValues[1]{};
+	SynthMode synthMode = SynthMode::RINGMOD;
+	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings*) {
+		if (on_rewind)
+			on_rewind();
+	}
+	void reassessRenderSkippingStatus(ModelStackWithSoundFlags*) {
+		++reassessments;
+		if (on_reassess)
+			on_reassess();
+	}
+	void noteOn(ModelStackWithThreeMainThings*, Arpeggiator*, int32_t, const int16_t*, uint32_t, int32_t, uint32_t,
+	            int32_t, int32_t, const deluge::lifetime::callback_validation*);
 	bool invertReversed = false;
 	void noteOffPostArpeggiator(ModelStackWithSoundFlags*, int) {
 		++stopped;
@@ -101,15 +138,15 @@ TEST_GROUP(sound_render_arp_lifetime) {
 	ModelStackWithSoundFlags stack;
 	void reset() {
 		sound = std::make_unique<Sound>();
-		on_generation = on_off = on_start = {};
-		generated = pending = stopped = started = 0;
+		on_generation = on_off = on_start = on_rewind = on_reassess = {};
+		generated = pending = stopped = started = reassessments = 0;
 		voice_budget = 3;
 	}
 	void setup() override {
 		reset();
 	}
 	void teardown() override {
-		on_generation = on_off = on_start = {};
+		on_generation = on_off = on_start = on_rewind = on_reassess = {};
 	}
 	bool render() {
 		deluge::lifetime::lifetime_watch watch{sound->lifetime};
@@ -178,5 +215,73 @@ TEST(sound_render_arp_lifetime, voice_budget_keeps_remaining_note_pending) {
 	voice_budget = 1;
 	CHECK(render());
 	LONGS_EQUAL(1, started);
+	CHECK(sound->arp.note->noteStatus[1] == ArpNoteStatus::PENDING);
+}
+
+TEST(sound_render_arp_lifetime, direct_note_publishes_status_and_copies_input_before_generation) {
+	ParamManagerForTimeline manager;
+	ModelStackWithThreeMainThings model_stack{&manager};
+	auto mpe = std::make_unique<int16_t[]>(3);
+	mpe[0] = 11;
+	mpe[1] = 22;
+	mpe[2] = 33;
+	on_generation = [&] { mpe.reset(); };
+	on_start = [&] { CHECK(sound->arp.note->noteStatus[started - 1] == ArpNoteStatus::PLAYING); };
+	deluge::lifetime::lifetime_watch watch{sound->lifetime};
+	const auto valid = [&] { return watch.alive(); };
+	const deluge::lifetime::callback_validation validation{valid};
+	sound->noteOn(&model_stack, &sound->arp, 50, mpe.get(), 16, 0, 0, 99, 2, &validation);
+	LONGS_EQUAL(2, started);
+}
+TEST(sound_render_arp_lifetime, direct_note_owner_deletion_cancels_at_each_boundary) {
+	for (int boundary = 0; boundary < 4; ++boundary) {
+		reset();
+		ParamManagerForTimeline manager;
+		ModelStackWithThreeMainThings model_stack{&manager};
+		int16_t mpe[3]{11, 22, 33};
+		deluge::lifetime::lifetime_watch watch{sound->lifetime};
+		const auto valid = [&] { return watch.alive(); };
+		const deluge::lifetime::callback_validation validation{valid};
+		if (boundary == 0)
+			on_rewind = [&] { sound.reset(); };
+		else if (boundary == 1)
+			on_generation = [&] { sound.reset(); };
+		else
+			on_start = [&] {
+				if (started == boundary - 1)
+					sound.reset();
+			};
+		sound->noteOn(&model_stack, &sound->arp, 50, mpe, 16, 0, 0, 99, 2, &validation);
+		LONGS_EQUAL(boundary < 2 ? 0 : boundary - 1, started);
+	}
+}
+TEST(sound_render_arp_lifetime, direct_note_stops_after_instruction_replacement) {
+	ParamManagerForTimeline manager;
+	ModelStackWithThreeMainThings model_stack{&manager};
+	int16_t mpe[3]{11, 22, 33};
+	on_start = [&] {
+		++sound->arp.revision;
+		sound->arp.note.reset();
+	};
+	sound->noteOn(&model_stack, &sound->arp, 50, mpe, 16, 0, 0, 99, 2, nullptr);
+	LONGS_EQUAL(1, started);
+}
+TEST(sound_render_arp_lifetime, direct_note_cancels_changed_parameter_association) {
+	ParamManagerForTimeline manager;
+	UnpatchedParamSet replacement;
+	ModelStackWithThreeMainThings model_stack{&manager};
+	int16_t mpe[3]{11, 22, 33};
+	on_generation = [&] { manager.unpatched_set = &replacement; };
+	sound->noteOn(&model_stack, &sound->arp, 50, mpe, 16, 0, 0, 99, 2, nullptr);
+	LONGS_EQUAL(0, started);
+}
+TEST(sound_render_arp_lifetime, direct_note_budget_deferral_reassesses_rendering) {
+	voice_budget = 1;
+	ParamManagerForTimeline manager;
+	ModelStackWithThreeMainThings model_stack{&manager};
+	int16_t mpe[3]{11, 22, 33};
+	sound->noteOn(&model_stack, &sound->arp, 50, mpe, 16, 0, 0, 99, 2, nullptr);
+	LONGS_EQUAL(1, started);
+	LONGS_EQUAL(1, reassessments);
 	CHECK(sound->arp.note->noteStatus[1] == ArpNoteStatus::PENDING);
 }

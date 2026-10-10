@@ -436,14 +436,44 @@ lookAtArpNote:
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
                                int16_t const* mpeValues, int32_t fromMIDIChannel, uint8_t velocity,
                                uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
-
-	if (!inValidState) {
+	if (!modelStack)
 		return;
-	}
-
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive() || !inValidState)
+		return;
+	auto* active_clip = activeClip;
+	auto active_clip_lifetime = active_clip ? active_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (active_clip && (!active_clip_lifetime.alive() || active_clip->output != this))
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	auto* row = modelStack->getNoteRowAllowNull();
+	const auto row_id = row ? modelStack->noteRowId : 0;
+	if (row && (!routed_clip || routed_clip->find_note_row_from_id(row_id) != row))
+		return;
+	const auto row_identity = row ? row->undo_identity : 0;
+	auto* param_manager = modelStack->paramManager;
+	auto* stack_song = modelStack->song;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		if (!output_lifetime.alive() || (active_clip && !active_clip_lifetime.alive())
+		    || (routed_clip && !clip_lifetime.alive()) || !inValidState || activeClip != active_clip
+		    || (active_clip && active_clip->output != this) || (routed_clip && routed_clip->output != this)
+		    || modelStack->getTimelineCounterAllowNull() != routed_clip || modelStack->getNoteRowAllowNull() != row
+		    || modelStack->paramManager != param_manager || modelStack->song != stack_song || currentSong != source_song
+		    || deluge::gui::ui_session::current() != source_owner)
+			return false;
+		return !row
+		       || (modelStack->noteRowId == row_id && routed_clip->find_note_row_from_id(row_id) == row
+		           && row->undo_identity == row_identity);
+	};
+	const deluge::lifetime::callback_validation validation{context_matches};
 	if (isOn) {
 		noteOn(modelStack, &arpeggiator, noteCode, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
-		       fromMIDIChannel);
+		       fromMIDIChannel, &validation);
 	}
 	else {
 		noteOff(modelStack, &arpeggiator, noteCode);

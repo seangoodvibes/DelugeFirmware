@@ -54,7 +54,10 @@ struct Arpeggiator {
 bool expect_mpe = true;
 struct Sound {
 	void noteOn(ModelStackWithThreeMainThings*, Arpeggiator*, int note, const int16_t* mpe, uint32_t sync, int32_t late,
-	            uint32_t samples_late, int32_t velocity, int32_t channel) {
+	            uint32_t samples_late, int32_t velocity, int32_t channel,
+	            const deluge::lifetime::callback_validation* validation) {
+		CHECK(validation);
+		CHECK(validation->valid());
 		++starts;
 		LONGS_EQUAL(60, note);
 		LONGS_EQUAL(16, sync);

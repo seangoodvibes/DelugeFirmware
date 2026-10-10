@@ -1505,7 +1505,15 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 
 void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCodePreArp,
                    int16_t const* mpeValues, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-                   int32_t velocity, int32_t fromMIDIChannel) {
+                   int32_t velocity, int32_t fromMIDIChannel,
+                   const deluge::lifetime::callback_validation* owner_validation) {
+	if ((owner_validation && !owner_validation->valid()) || !modelStack || !modelStack->paramManager)
+		return;
+	int16_t mpe_values[kNumExpressionDimensions];
+	if (mpeValues) {
+		std::copy_n(mpeValues, kNumExpressionDimensions, mpe_values);
+		mpeValues = mpe_values;
+	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
@@ -1525,7 +1533,14 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 	}
 
+	const auto context_matches = [&] {
+		return (!owner_validation || owner_validation->valid()) && modelStack->paramManager == paramManager
+		       && paramManager->getUnpatchedParamSet() == unpatchedParams && getArpSettings() == arpSettings
+		       && getArp() == arpeggiator;
+	};
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
+	if (!context_matches())
+		return;
 
 	ArpReturnInstruction instruction;
 	instruction.sampleSyncLengthOn = sampleSyncLength;
@@ -1535,6 +1550,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	// These will get left here even after the note has long gone (for sequenced notes anyway), but I can't actually
 	// find any negative consequence of this, or need to ever remove them en masse.
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
+	if (!context_matches())
+		return;
+	const auto revision = arpeggiator->instruction_revision();
 
 	bool atLeastOneNoteOn = false;
 	bool atLeastOneNoteLeftPending = false;
@@ -1548,11 +1566,13 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			if (AudioEngine::allowedToStartVoice()) {
 
 				invertReversed = instruction.invertReversed;
+				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
 				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
 				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
 				                      fromMIDIChannel);
-				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+				if (!context_matches() || arpeggiator->instruction_revision() != revision)
+					return;
 			}
 			else {
 				// D_PRINTLN("couldn't start note from sound::noteon");
