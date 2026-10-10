@@ -235,7 +235,32 @@ static struct {
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 } midiEngine;
 constexpr int kNoSelection = -1;
+constexpr int kDisplayHeight = 8, kDisplayWidth = 16, kSideBarWidth = 2;
+struct RGB {
+	int value = 0;
+};
+namespace colours {
+static const RGB black{};
+}
+namespace PadLEDs {
+static session::State<bool> rendering_locks;
+static bool& rendering_lock_for_session() {
+	return rendering_locks.active();
+}
+} // namespace PadLEDs
+namespace AudioEngine {
+static struct {
+	float l = 0, r = 0;
+} approxRMSLevel;
+} // namespace AudioEngine
 struct View {
+	bool clip_context = false;
+	int cachedMaxYDisplayForVUMeterL = 255, cachedMaxYDisplayForVUMeterR = 255;
+	int vu_renders = 0;
+	bool isClipContext() { return clip_context; }
+	int getMaxYDisplayForVUMeter(float) { return 1; }
+	void renderVUMeter(int, int, RGB[][kDisplayWidth + kSideBarWidth]) { ++vu_renders; }
+	bool potentiallyRenderVUMeter(RGB[][kDisplayWidth + kSideBarWidth]);
 	int feedback_calls = 0;
 	int edits = 0;
 	void instrumentBeenEdited() {
@@ -1041,4 +1066,34 @@ TEST(KnobIndicator, mod_mode_lookup_preserves_normal_and_missing_modes) {
 	LONGS_EQUAL(-1, view.getModKnobMode());
 	view.activeModControllableModelStack.modControllable = nullptr;
 	LONGS_EQUAL(-1, view.getModKnobMode());
+}
+
+TEST(KnobIndicator, vu_meter_missing_mode_leaves_sidebar_available) {
+	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& view = view_for_session();
+		view.displayVUMeter = true;
+		controllable.missing_mode = true;
+		CHECK_FALSE(view.potentiallyRenderVUMeter(image));
+		CHECK_FALSE(view.renderedVUMeter);
+		LONGS_EQUAL(0, view.vu_renders);
+		CHECK_FALSE(PadLEDs::rendering_lock_for_session());
+	}
+}
+TEST(KnobIndicator, vu_meter_preserves_selected_clip_and_volume_mode_rendering) {
+	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+	auto& view = view_for_session();
+	view.displayVUMeter = true;
+	CHECK(view.potentiallyRenderVUMeter(image));
+	LONGS_EQUAL(2, view.vu_renders);
+	CHECK(view.renderedVUMeter);
+	CHECK_FALSE(PadLEDs::rendering_lock_for_session());
+	controllable.missing_mode = true;
+	view.clip_context = true;
+	CHECK(view.potentiallyRenderVUMeter(image));
+	LONGS_EQUAL(2, view.vu_renders);
+	view.displayVUMeter = false;
+	CHECK_FALSE(view.potentiallyRenderVUMeter(image));
+	CHECK_FALSE(view.renderedVUMeter);
 }

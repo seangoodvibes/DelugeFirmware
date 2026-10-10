@@ -1527,3 +1527,13 @@ extracted-production tests cover controller replacement (failed before the fix),
 owner/song changes on both panels, and normal/missing mode storage. All 35 native
 suites and `./dbt build relwithdebinfo` pass. Pointer identity checks do not retain
 objects or detect address reuse; lifetime protection remains open.
+
+### G1 / R4 progress — VU meter without controller mode storage (2026-10-10)
+
+VU rendering now uses the guarded view mode getter instead of directly
+dereferencing controller mode storage. Two extracted-production tests cover
+missing mode storage on both panels, normal volume-mode rendering, cached-meter
+preservation when a clip is selected, disabling the meter and render-lock cleanup.
+All 35 native suites and `./dbt build relwithdebinfo` pass. Meter level calculation
+and pixel rendering are fixtures here; this coverage establishes selection and
+control flow, not hardware output or general callback lifetime safety.
