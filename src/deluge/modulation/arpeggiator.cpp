@@ -82,6 +82,7 @@ Arpeggiator::Arpeggiator()
 }
 
 void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex) {
+	invalidate_instructions();
 	int32_t n = notes.search(drumIndex, GREATER_OR_EQUAL);
 	int32_t numNotes = notes.getNumElements();
 	if (n < numNotes) {
@@ -120,6 +121,7 @@ void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_
 // until the next render picks it up, and a PENDING note surviving a reset would keep the Sound out of render-skipping
 // forever (FREEZE E322 in Sound::wontBeRenderedForAWhile), and could be started spuriously later
 void Arpeggiator::reset() {
+	invalidate_instructions();
 	notes.empty();
 	notesAsPlayed.empty();
 	notesByPattern.empty();
@@ -130,6 +132,7 @@ void Arpeggiator::reset() {
 
 // Surely this shouldn't be quite necessary?
 void ArpeggiatorForDrum::reset() {
+	invalidate_instructions();
 	active_note.resetPostArpArrays();
 	active_note.velocity = 0;
 }
@@ -156,6 +159,7 @@ void ArpeggiatorBase::resetBase() {
 
 void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t originalVelocity,
                                 ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
+	invalidate_instructions();
 	lastVelocity = originalVelocity;
 	noteForDrum = noteCode;
 
@@ -224,6 +228,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
                                  ArpReturnInstruction* instruction) {
+	invalidate_instructions();
 
 	// If no arpeggiation...
 	if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
@@ -263,6 +268,7 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 // that provided here.
 void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t originalVelocity,
                          ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
+	invalidate_instructions();
 	lastVelocity = originalVelocity;
 
 	bool note_exists = false;
@@ -386,6 +392,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 }
 
 void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) {
+	invalidate_instructions();
 	int32_t notesKey = notes.search(noteCodePreArp, GREATER_OR_EQUAL);
 	if (notesKey < notes.getNumElements()) {
 
@@ -484,6 +491,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 	}
 }
 bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+	invalidate_instructions();
 	if (arpIsOff(settings)) {
 		// if off make sure there aren't any notes waiting to start
 		if (anyPending) {
@@ -1463,6 +1471,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 }
 
 bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+	invalidate_instructions();
 	if (active_note.isPending()) {
 		instruction->arpNoteOn = &active_note;
 		return true;
@@ -1478,6 +1487,7 @@ bool ArpeggiatorBase::hasPendingNotes(ArpeggiatorSettings* settings) {
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
                              uint32_t gateThreshold, uint32_t phaseIncrement) {
+	invalidate_instructions();
 	if (handlePendingNotes(settings, instruction)) {
 		return;
 	}
@@ -1548,6 +1558,7 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 // May switch notes on and/or off.
 int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
                                        uint32_t clipCurrentPos, bool currentlyPlayingReversed) {
+	invalidate_instructions();
 	if (clipCurrentPos == 0) {
 		notesPlayedFromLockedRandomizer = 0;
 	}

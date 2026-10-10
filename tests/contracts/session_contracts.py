@@ -80,6 +80,29 @@ def violations(text, entry):
 
 
 class SessionRoutingContracts(unittest.TestCase):
+    def test_arp_instruction_mutators_invalidate_before_accessing_state(self):
+        source = code_only((ROOT / "src/deluge/modulation/arpeggiator.cpp").read_text())
+        for name in [
+            "ArpeggiatorForKit::removeDrumIndex",
+            "Arpeggiator::reset",
+            "ArpeggiatorForDrum::reset",
+            "ArpeggiatorForDrum::noteOn",
+            "ArpeggiatorForDrum::noteOff",
+            "Arpeggiator::noteOn",
+            "Arpeggiator::noteOff",
+            "Arpeggiator::handlePendingNotes",
+            "ArpeggiatorBase::handlePendingNotes",
+            "ArpeggiatorBase::render",
+            "ArpeggiatorBase::doTickForward",
+        ]:
+            with self.subTest(name=name):
+                match = re.search(
+                    re.escape(name)
+                    + r"\([^;{}]*\)\s*\{\s*invalidate_instructions\(\);",
+                    source,
+                )
+                self.assertIsNotNone(match, name)
+
     def test_kit_arp_dispatch_uses_shared_publication_boundary(self):
         source = code_only((ROOT / "src/deluge/model/instrument/kit.cpp").read_text())
         for name, next_name in [

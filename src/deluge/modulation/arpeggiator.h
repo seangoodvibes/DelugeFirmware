@@ -220,6 +220,8 @@ public:
 class ArpeggiatorBase {
 public:
 	virtual ~ArpeggiatorBase() = default;
+	// A caller retaining generated instructions must also establish owner lifetime.
+	uint64_t instruction_revision() const { return instruction_revision_; }
 	ArpeggiatorBase() {
 		glideNoteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
 		outputMIDIChannelForGlideNoteCurrentlyOnPostArp.fill(0);
@@ -254,7 +256,11 @@ public:
 	uint32_t gatePos = 0;
 	uint8_t lastVelocity = 0;
 
+private:
+	uint64_t instruction_revision_ = 0;
+
 protected:
+	void invalidate_instructions() { ++instruction_revision_; }
 	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
 	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
 	void resetBase();

@@ -62,11 +62,14 @@ struct ArpReturnInstruction {
 std::function<void()> on_arp, on_tails, on_note;
 int dispatched = 0;
 struct Arpeggiator {
+	uint64_t revision = 0;
+	uint64_t instruction_revision() const { return revision; }
+	std::unique_ptr<ArpNote> pending_note;
 	bool invertReversedFromKitArp = false;
 	ArpNote note;
 	int off_index = 0, glide_index = 0;
 	void render(ArpeggiatorSettings*, ArpReturnInstruction* instruction, size_t, uint32_t, uint32_t) {
-		instruction->arpNoteOn = &note;
+		instruction->arpNoteOn = pending_note ? pending_note.get() : &note;
 		instruction->noteCodeOffPostArp[0] = off_index;
 		instruction->glideNoteCodeOffPostArp[0] = glide_index;
 		if (on_arp)
@@ -405,5 +408,20 @@ TEST(kit_prearp_lifetime, render_rejects_out_of_range_row_indices) {
 		kit->arpeggiator.note.noteCodeOnPostArp[0] = index;
 		render();
 		LONGS_EQUAL(0, dispatched);
+	}
+}
+
+TEST(kit_prearp_lifetime, nested_arp_reset_cancels_remaining_render_instruction) {
+	for (int stop_after : {1, 2}) {
+		reset();
+		kit->arpeggiator.pending_note = std::make_unique<ArpNote>();
+		on_note = [&] {
+			if (dispatched == stop_after) {
+				++kit->arpeggiator.revision;
+				kit->arpeggiator.pending_note.reset();
+			}
+		};
+		render();
+		LONGS_EQUAL(stop_after, dispatched);
 	}
 }

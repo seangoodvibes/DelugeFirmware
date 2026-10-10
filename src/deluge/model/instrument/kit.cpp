@@ -886,6 +886,7 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 	arpeggiator.render(arp_settings, &kit_instruction, output.size(), gate_threshold, phase_increment);
 	if (!context_matches() || paramManager->getUnpatchedParamSet() != unpatched_params)
 		return;
+	const auto instruction_revision = arpeggiator.instruction_revision();
 	const auto dispatch_note_off = [&](int32_t row_index) {
 		auto* row = routed_clip->find_note_row_from_id(row_index);
 		if (!row || !row->drum)
@@ -901,7 +902,8 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 		auto* stack = modelStackWithTimelineCounter->addNoteRow(row_index, row)
 		                  ->addOtherTwoThings(drum->toModControllable(), &row->paramManager);
 		drum->noteOff(stack);
-		if (!context_matches() || !drum_lifetime.alive() || getDrumIndex(drum) < 0)
+		if (!context_matches() || arpeggiator.instruction_revision() != instruction_revision || !drum_lifetime.alive()
+		    || getDrumIndex(drum) < 0)
 			return false;
 		auto* current_row = routed_clip->find_note_row_from_id(row_index);
 		return current_row == row && current_row && current_row->undo_identity == row_identity

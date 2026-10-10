@@ -2598,3 +2598,13 @@ sequence, destruction at generation/dispatch boundaries and row/drum invalidatio
 All 36 native suites and `./dbt build relwithdebinfo` pass. Generated instruction
 storage can still change while these owners survive; event revision protection
 and generation internals remain open.
+
+Arpeggiators now expose an instruction revision, invalidated at the eleven known
+public generation/reset/note/removal entry points. Kit pre-render note-off dispatch
+checks it before reusing the remaining instruction. A sanitizer regression frees
+the pending note while kit/clip/drum owners survive; production-header/pending-
+method tests check revision behavior, with source contracts for all entry points.
+All 36 suites and `./dbt build relwithdebinfo` pass. This does not protect mutation
+inside generation, direct state writes outside those entry points, or other
+instruction consumers until they adopt the check. Revisions require a live owner;
+they do not replace lifetime watches. Hardware timing remains unverified.
