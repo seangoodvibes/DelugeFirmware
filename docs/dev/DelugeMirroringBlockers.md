@@ -3560,3 +3560,9 @@ Cancellation releases temporary samples without clearing a newer UI animation.
 Five regressions cover clip changes, Kit/Drum retirement, range replacement and
 detached entry. All 38 suites and RelWithDebInfo pass. The callbacks after folder
 loading still require separate continuation and partial-publication protection.
+
+Kit import now revalidates its first Drum and range after voice cleanup, type
+conversion and parameter updates, rejecting remaining active voices before sample
+replacement. Four regressions cover retirement, nested voices and range changes.
+All 38 suites and RelWithDebInfo pass. Later Drum construction, holder assignment
+and final publication callbacks remain separate protection work.

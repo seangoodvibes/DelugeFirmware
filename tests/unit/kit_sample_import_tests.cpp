@@ -23,7 +23,7 @@ int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
 bool replace_ranges_on_type_change = false;
 constexpr int CLUSTER_ENQUEUE = 0;
-std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load;
+std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load, on_parameter;
 int audio_calls = 0, directory_closes = 0;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
@@ -163,7 +163,10 @@ struct Source : Lifetime {
 };
 struct ParamSet {
 	bool isAutomated(int32_t) { return false; }
-	void set_current_value(void*, int32_t, int32_t) {}
+	void set_current_value(void*, int32_t, int32_t) {
+		if (on_parameter)
+			on_parameter();
+	}
 };
 struct ParamCollectionSummary {
 	void* paramCollection;
@@ -369,7 +372,7 @@ TEST_GROUP(KitSampleImport) {
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
 		replace_ranges_on_type_change = false;
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
@@ -387,7 +390,7 @@ TEST_GROUP(KitSampleImport) {
 		editor.currentSource = &first_drum.sources[0];
 	}
 	void teardown() override {
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
@@ -792,4 +795,33 @@ TEST(KitSampleImport, detached_first_drum_rejects_import_entry) {
 	CHECK_FALSE(browser.importFolderAsKit());
 	CHECK(sample_table == nullptr);
 	LONGS_EQUAL(0, assignment_calls);
+}
+
+TEST(KitSampleImport, kit_voice_cleanup_retirement_cancels_before_type_conversion) {
+	first_drum.sources[0].oscType = OscType::OTHER;
+	on_kill = [&] { first_drum.lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	CHECK(first_drum.sources[0].oscType == OscType::OTHER);
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, samples[0].numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, kit_nested_voices_prevent_sample_replacement) {
+	on_kill = [&] { first_drum.active_voices = true; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+}
+TEST(KitSampleImport, kit_parameter_callback_retirement_stops_voice_cleanup) {
+	int kill_calls = 0;
+	on_parameter = [&] { first_drum.lifetime.retire(); };
+	on_kill = [&] { ++kill_calls; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, kill_calls);
+	LONGS_EQUAL(0, assignment_calls);
+}
+TEST(KitSampleImport, kit_parameter_callback_range_change_cancels_assignment) {
+	on_parameter = [&] { first_drum.sources[0].ranges.insertMultiRange(1); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, samples[0].numReasonsToBeLoaded);
 }

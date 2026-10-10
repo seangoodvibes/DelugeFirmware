@@ -2077,8 +2077,12 @@ doReturnFalse:
 		if (!loading_context_valid())
 			return false;
 		ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(modelStackMemory);
+		if (!loading_context_valid())
+			return false;
 
 		for (int32_t s = 0; s < numSamples; s++) {
+			if (!context_valid())
+				return false;
 
 			Sample* thisSample = sortArea[s];
 
@@ -2092,6 +2096,8 @@ doReturnFalse:
 				drum = firstDrum;
 				source = &drum->sources[0];
 				range = source->getOrCreateFirstRange();
+				if (!context_valid())
+					return false;
 				if (!range) {
 getOut:
 					if (context_valid())
@@ -2101,14 +2107,25 @@ getOut:
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
 				if (sound_editor_for_session().currentSource->oscType != OscType::SAMPLE) {
-					sound_editor_for_session().currentSound->killAllVoices();
-					sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
+					drum->killAllVoices();
+					if (!context_valid() || drum->hasActiveVoices())
+						return false;
+					source->setOscType(OscType::SAMPLE);
+					if (!context_valid() || source->oscType != OscType::SAMPLE)
+						return false;
 					// Type conversion may replace the range storage.
 					range = source->getOrCreateFirstRange();
+					if (!context_valid())
+						return false;
 					if (!range)
 						goto getOut;
 				}
 
+				const auto range_layout = source->ranges.layout_revision();
+				const auto range_valid = [&] {
+					return context_valid() && source->ranges.layout_revision() == range_layout
+					       && source->oscType == OscType::SAMPLE;
+				};
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 				int32_t paramId = params::LOCAL_OSC_A_VOLUME + sound_editor_for_session().currentSourceIndex;
@@ -2122,7 +2139,11 @@ getOut:
 					// getCurrentClip(), false);
 				}
 
+				if (!range_valid())
+					return false;
 				drum->killAllVoices();
+				if (!range_valid() || drum->hasActiveVoices())
+					return false;
 			}
 
 			// Or, for subsequent samples...
