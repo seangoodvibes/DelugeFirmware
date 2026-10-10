@@ -424,6 +424,20 @@ void renderingNeededRegardlessOfUI(uint32_t whichMainRows, uint32_t whichSideRow
 }
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
+	if (!ui || navigation().depth <= 0 || navigation().depth > navigation().capacity)
+		return;
+	for (int32_t level = 0; level < navigation().depth; ++level) {
+		if (!navigation().hierarchy[level])
+			return;
+	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto expected_depth = navigation().depth;
+	const auto expected_hierarchy = navigation().hierarchy;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		       && navigation().hierarchy == expected_hierarchy;
+	};
 
 	// We might be in the middle of an audio routine or something, so just see whether the selected bit of the UI is
 	// visible
@@ -439,9 +453,14 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 		if (whichMainRows && thisUI->renderMainPads()) {
 			whichMainRows = 0;
 		}
+		if (!context_matches())
+			return;
 		if (whichSideRows && thisUI->renderSidebar()) {
 			whichSideRows = 0;
 		}
+
+		if (!context_matches())
+			return;
 
 		if (!whichMainRows && !whichSideRows) {
 			break;

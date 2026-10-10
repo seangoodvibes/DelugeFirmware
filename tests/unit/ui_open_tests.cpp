@@ -47,6 +47,7 @@ struct navigation_fixture {
 	std::array<UI*, capacity> hierarchy{};
 	int depth = 0;
 	uint32_t mode = 0;
+	uint32_t main_rows_dirty = 0, side_rows_dirty = 0;
 };
 static session::State<navigation_fixture> navigation_states;
 static navigation_fixture& navigation() {
@@ -509,4 +510,53 @@ TEST(UIOpen, low_level_greyout_owner_change_restores_caller) {
 	CHECK(session::current() == session::Id::Local);
 	POINTERS_EQUAL(&menu, getCurrentUI());
 	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Remote).hierarchy[0]);
+}
+
+TEST(UIOpen, rendering_request_stays_with_initiating_panel) {
+	navigation().hierarchy[1] = &menu;
+	navigation().depth = 2;
+	menu.on_main = [] { session::detail::active = session::Id::Remote; };
+	uiNeedsRendering(&root, 1, 2);
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(0, navigation_states.for_owner(session::Id::Remote).main_rows_dirty);
+	LONGS_EQUAL(1, menu.renders);
+}
+TEST(UIOpen, rendering_request_stops_when_visibility_callback_changes_stack) {
+	navigation().hierarchy[1] = &menu;
+	navigation().depth = 2;
+	menu.on_main = [&] { navigation().hierarchy[0] = &replacement; };
+	uiNeedsRendering(&root, 1, 2);
+	LONGS_EQUAL(1, menu.renders);
+	LONGS_EQUAL(0, navigation().main_rows_dirty);
+}
+TEST(UIOpen, rendering_request_marks_only_visible_regions) {
+	navigation().hierarchy[1] = &menu;
+	navigation().depth = 2;
+	menu.main_needed = true;
+	uiNeedsRendering(&root, 1, 2);
+	LONGS_EQUAL(0, navigation().main_rows_dirty);
+	LONGS_EQUAL(2, navigation().side_rows_dirty);
+}
+
+TEST(UIOpen, rendering_request_rejects_invalid_targets_and_stacks) {
+	uiNeedsRendering(nullptr, 1, 2);
+	LONGS_EQUAL(0, root.renders);
+	for (int depth : {-1, 0, navigation_fixture::capacity + 1}) {
+		navigation().depth = depth;
+		uiNeedsRendering(&root, 1, 2);
+		LONGS_EQUAL(0, navigation().main_rows_dirty);
+	}
+	navigation().depth = 2;
+	navigation().hierarchy[1] = nullptr;
+	uiNeedsRendering(&root, 1, 2);
+	LONGS_EQUAL(0, root.renders);
+}
+TEST(UIOpen, sidebar_visibility_change_stops_render_request) {
+	navigation().hierarchy[1] = &menu;
+	navigation().depth = 2;
+	menu.on_side = [] { session::detail::active = session::Id::Remote; };
+	uiNeedsRendering(&root, 1, 2);
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(0, navigation_states.for_owner(session::Id::Remote).side_rows_dirty);
+	LONGS_EQUAL(0, navigation().side_rows_dirty);
 }

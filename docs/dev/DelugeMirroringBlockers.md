@@ -1226,3 +1226,14 @@ side effects are not provided by these guards.
   All 35 native suites and `./dbt build relwithdebinfo` pass. This does not add
   allocation-spanning object retention; G1/L1/R4 remain open and independent mode
   stays disabled.
+
+### G1 progress — redraw visibility callback containment (2026-10-10)
+
+- Redraw requests validate the active stack and stop after visibility callbacks
+  change owner or hierarchy. The initiating owner is restored on return.
+- Five extracted-production tests cover owner changes, hierarchy changes, sidebar
+  callbacks, invalid stacks and normal region occlusion. Two callback regressions
+  failed before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
+- This contains requests at callback boundaries; it does not pin UI objects or
+  detect transient stack changes restored before return. G1/L1 remain open and
+  independent mode remains disabled.
