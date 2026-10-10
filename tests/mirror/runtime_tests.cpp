@@ -17,6 +17,8 @@ TEST_GROUP(MirrorRuntime) {
 		session::detail::active = session::Id::Local;
 		m::state = m::State::Idle;
 		m::last_remote_render = 0;
+		Buttons::shift_feedback_owners.clear();
+		Buttons::on_shift_feedback = {};
 		m::remote_initialization_pending = false;
 		PadLEDs::rendering_locks = {};
 		PadLEDs::transition_resets = {};
@@ -3982,4 +3984,69 @@ TEST(MirrorRuntime, startup_display_change_during_audition_cleanup_aborts_before
 	CHECK_FALSE(m::requested);
 	CHECK_FALSE(m::startup_discovery);
 	CHECK(m::discovery_peer == nullptr);
+}
+
+TEST(MirrorRuntime, independent_service_updates_shift_feedback_under_remote_owner_before_render) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	on_remote_render = [] {
+		LONGS_EQUAL(1, Buttons::shift_feedback_owners.size());
+		CHECK(Buttons::shift_feedback_owners[0] == session::Id::Remote);
+	};
+	m::service_remote_ui();
+	LONGS_EQUAL(1, Buttons::shift_feedback_owners.size());
+	CHECK(session::current() == session::Id::Local);
+}
+TEST(MirrorRuntime, independent_snapshot_updates_shift_feedback_before_initial_render) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	on_remote_render = [] {
+		LONGS_EQUAL(1, Buttons::shift_feedback_owners.size());
+		CHECK(Buttons::shift_feedback_owners[0] == session::Id::Remote);
+	};
+	CHECK(m::prepare_remote_snapshot());
+	CHECK(session::current() == session::Id::Local);
+}
+TEST(MirrorRuntime, remote_shift_feedback_waits_for_storage_and_audio_locks) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	for (bool storage : {false, true}) {
+		sdRoutineLock = storage;
+		AudioEngine::audioRoutineLocked = !storage;
+		m::service_remote_ui();
+		CHECK_FALSE(m::prepare_remote_snapshot());
+		CHECK(Buttons::shift_feedback_owners.empty());
+	}
+	sdRoutineLock = false;
+	AudioEngine::audioRoutineLocked = false;
+	m::service_remote_ui();
+	LONGS_EQUAL(1, Buttons::shift_feedback_owners.size());
+}
+
+TEST(MirrorRuntime, shift_feedback_queue_failure_stops_remote_render) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	int renders = 0;
+	on_remote_render = [&] { ++renders; };
+	Buttons::on_shift_feedback = [] {
+		uint8_t command = 188;
+		m::queue_panel(&command, 1);
+	};
+	for (bool snapshot : {false, true}) {
+		m::failed = false;
+		m::last_remote_render = 0;
+		m::panel_read = 0;
+		m::panel_write = m::panel_queue.size();
+		if (snapshot)
+			CHECK_FALSE(m::prepare_remote_snapshot());
+		else
+			m::service_remote_ui();
+		CHECK(m::failed);
+		LONGS_EQUAL(0, renders);
+		CHECK(session::current() == session::Id::Local);
+	}
 }

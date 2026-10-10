@@ -733,3 +733,19 @@ side effects are not provided by these guards.
   arbitrary external writes or establish end-to-end rendering.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
   open and independent mode stays disabled.
+
+### G1 progress — Remote Shift LED feedback (2026-10-09)
+
+- Physical input and Remote UI service now share an owner-aware Shift feedback
+  helper. Remote service flushes its change flag into its own indicator state;
+  initial Remote snapshot preparation does the same before rendering. The Local
+  pending flag remains available for physical input service. Storage/audio locks
+  defer Remote feedback, and a failed output enqueue stops subsequent rendering.
+- Two unit cases compile the production feedback and modifier-state bodies with
+  a fixture LED sink, checking panel isolation, change consumption, repeated calls
+  and the disabled setting. Four mirror runtime cases exercise service/snapshot
+  placement, owner restoration, lock deferral and real queue-overflow containment.
+  Missing service/snapshot calls and continued rendering after enqueue failure
+  were reproduced before their fixes. Physical LED acceptance remains in G2.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
+  open and independent mode stays disabled.

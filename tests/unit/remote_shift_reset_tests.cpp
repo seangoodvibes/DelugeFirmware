@@ -158,3 +158,67 @@ TEST(RemoteShiftReset, enabling_shared_sticky_setting_keeps_panel_holds_and_enab
 		local = remote = {};
 	}
 }
+
+namespace shift_feedback_test {
+namespace session = deluge::gui::ui_session;
+using sticky_setting_test::runtimeFeatureSettings;
+using sticky_setting_test::RuntimeFeatureSettingType;
+namespace RuntimeFeatureStateToggle = sticky_setting_test::RuntimeFeatureStateToggle;
+namespace indicator_leds {
+enum class LED { SHIFT };
+static session::State<int> writes;
+static session::State<bool> lit;
+void setLedState(LED, bool value) {
+	++writes.active();
+	lit.active() = value;
+}
+} // namespace indicator_leds
+namespace Buttons {
+using ::Buttons::isShiftButtonPressed;
+using ::Buttons::shiftHasChanged;
+#include "shift_led_feedback.inc"
+} // namespace Buttons
+} // namespace shift_feedback_test
+TEST(RemoteShiftReset, shift_feedback_consumes_only_active_panel_change_and_emits_its_value) {
+	namespace feedback = shift_feedback_test;
+	namespace session = deluge::gui::ui_session;
+	auto& local = Buttons::button_states.for_owner(session::Id::Local);
+	auto& remote = Buttons::button_states.for_owner(session::Id::Remote);
+	local = remote = {};
+	local.shiftCurrentlyPressed = true;
+	local.shiftHasChangedSinceLastCheck = remote.shiftHasChangedSinceLastCheck = true;
+	feedback::runtimeFeatureSettings.light = 1;
+	feedback::indicator_leds::writes = {};
+	feedback::indicator_leds::lit = {};
+	{
+		session::Scope scope(session::Id::Remote);
+		feedback::Buttons::update_shift_led();
+		feedback::Buttons::update_shift_led();
+		LONGS_EQUAL(1, feedback::indicator_leds::writes.active());
+		CHECK_FALSE(feedback::indicator_leds::lit.active());
+	}
+	CHECK_TRUE(local.shiftHasChangedSinceLastCheck);
+	CHECK_FALSE(remote.shiftHasChangedSinceLastCheck);
+	LONGS_EQUAL(0, feedback::indicator_leds::writes.active());
+	feedback::Buttons::update_shift_led();
+	LONGS_EQUAL(1, feedback::indicator_leds::writes.active());
+	CHECK_TRUE(feedback::indicator_leds::lit.active());
+	CHECK_FALSE(local.shiftHasChangedSinceLastCheck);
+	local = remote = {};
+}
+TEST(RemoteShiftReset, disabled_shift_feedback_does_not_write_either_panel_led) {
+	namespace feedback = shift_feedback_test;
+	namespace session = deluge::gui::ui_session;
+	feedback::runtimeFeatureSettings.light = 0;
+	feedback::indicator_leds::writes = {};
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		Buttons::state() = {};
+		Buttons::state().shiftCurrentlyPressed = true;
+		Buttons::state().shiftHasChangedSinceLastCheck = true;
+		feedback::Buttons::update_shift_led();
+		LONGS_EQUAL(0, feedback::indicator_leds::writes.active());
+		CHECK_FALSE(Buttons::state().shiftHasChangedSinceLastCheck);
+		Buttons::state() = {};
+	}
+}

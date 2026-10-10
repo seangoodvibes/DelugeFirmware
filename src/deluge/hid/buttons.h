@@ -44,6 +44,8 @@ void reset_for_session_startup();
  * This implicitly clears the "shiftHasChangedSinceLastCheck" flag, so only the main loop should call this function.
  */
 bool shiftHasChanged();
+// Flush modifier feedback for the active panel after input/storage callbacks finish.
+void update_shift_led();
 
 struct State {
 	bool recordButtonPressUsedUp = false;

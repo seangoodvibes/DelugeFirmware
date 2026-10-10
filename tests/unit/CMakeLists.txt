@@ -156,7 +156,7 @@ target_sources(UnitTests PRIVATE session_startup_reset_tests.cpp ${CMAKE_CURRENT
 set(button_reset_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/buttons.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${button_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc clearShiftSticky reset_for_session_startup "bool isButtonPressed"
+        ${button_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc clearShiftSticky reset_for_session_startup "bool isButtonPressed" "bool shiftHasChanged" "bool isShiftButtonPressed"
     DEPENDS ${button_reset_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE remote_shift_reset_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc)
 
@@ -407,3 +407,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sticky_setting_write.inc
         ${sticky_setting_source} ${CMAKE_CURRENT_BINARY_DIR}/sticky_setting_write.inc ShiftIsSticky::writeCurrentValue
     DEPENDS ${sticky_setting_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/sticky_setting_write.inc ../../src/deluge/hid/button.cpp)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shift_led_feedback.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${button_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/shift_led_feedback.inc update_shift_led
+    DEPENDS ${button_reset_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/shift_led_feedback.inc)

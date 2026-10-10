@@ -1090,6 +1090,9 @@ void service_remote_ui() {
 	    || now - last_remote_render < 0.01)
 		return;
 	last_remote_render = now;
+	Buttons::update_shift_led();
+	if (failed)
+		return;
 	doAnyPendingUIRendering();
 	if (failed || state != State::Host || active_session_mode != protocol::session_mode::independent || !session_live()
 	    || currentSong != source_song || deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Remote
@@ -1186,6 +1189,9 @@ bool prepare_remote_snapshot() {
 	}
 	if (sdRoutineLock || AudioEngine::audioRoutineLocked || navigation.rendering
 	    || PadLEDs::rendering_lock_for_session())
+		return false;
+	Buttons::update_shift_led();
+	if (failed)
 		return false;
 	navigation.main_rows_dirty = 0xFFFFFFFF;
 	navigation.side_rows_dirty = 0xFFFFFFFF;

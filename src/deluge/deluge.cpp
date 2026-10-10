@@ -334,9 +334,8 @@ bool readButtonsAndPads() {
 		}
 	}
 
-	if (!hid::mirror::is_client() && !sdRoutineLock && Buttons::shiftHasChanged()
-	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
-		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
+	if (!hid::mirror::is_client() && !sdRoutineLock) {
+		Buttons::update_shift_led();
 	}
 
 	return anything;

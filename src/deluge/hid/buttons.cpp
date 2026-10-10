@@ -25,6 +25,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/led/indicator_leds.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/playback_mode.h"
@@ -296,6 +297,13 @@ bool shiftHasChanged() {
 	bool toReturn = state().shiftHasChangedSinceLastCheck;
 	state().shiftHasChangedSinceLastCheck = false;
 	return toReturn;
+}
+
+void update_shift_led() {
+	if (shiftHasChanged()
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
+		indicator_leds::setLedState(indicator_leds::LED::SHIFT, isShiftButtonPressed());
+	}
 }
 
 // Correct any misunderstandings

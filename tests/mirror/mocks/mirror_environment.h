@@ -209,6 +209,13 @@ inline struct {
 	void flushMIDI() { ++fixture::flushes; }
 } midiEngine;
 namespace Buttons {
+inline std::vector<deluge::gui::ui_session::Id> shift_feedback_owners;
+inline std::function<void()> on_shift_feedback;
+inline void update_shift_led() {
+	shift_feedback_owners.push_back(deluge::gui::ui_session::current());
+	if (on_shift_feedback)
+		on_shift_feedback();
+}
 inline deluge::gui::ui_session::State<bool> sticky_shift;
 inline deluge::gui::ui_session::State<bool> retained_button_hold;
 inline void reset_for_session_startup() {
