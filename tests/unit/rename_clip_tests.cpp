@@ -1,7 +1,9 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "util/exceptions.h"
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -36,9 +38,24 @@ struct Output {
 		return duplicate;
 	}
 };
+static std::optional<::deluge::exception> drum_exception;
+static std::function<void()> on_drum_name_set;
+struct drum_name_fixture {
+	std::string value = "original";
+	operator std::string_view() const { return value; }
+	const char* c_str() const { return value.c_str(); }
+	drum_name_fixture& operator=(std::string_view name) {
+		if (on_drum_name_set)
+			on_drum_name_set();
+		if (drum_exception)
+			throw *drum_exception;
+		value = name;
+		return *this;
+	}
+};
 struct Drum {
 	Drum* next = nullptr;
-	std::string drumName = "original";
+	drum_name_fixture drumName;
 };
 struct Kit : Output {
 	Kit() { type = OutputType::KIT; }
@@ -81,6 +98,9 @@ static Kit* getCurrentKit() {
 }
 static int freezes = 0;
 
+namespace deluge {
+using exception = ::deluge::exception;
+}
 namespace deluge::gui {
 namespace ui_session = ::deluge::gui::ui_session;
 }
@@ -405,9 +425,13 @@ TEST_GROUP(RenameDrumTargets) {
 			kit.selected_drums.for_owner(owner) = &drum;
 		}
 		freezes = current_output_lookups = 0;
+		drum_exception.reset();
+		on_drum_name_set = {};
 		display_instance = {};
 	}
 	void teardown() override {
+		on_drum_name_set = {};
+		drum_exception.reset();
 		session::detail::active = session::Id::Local;
 		currentSong = nullptr;
 	}
@@ -471,4 +495,66 @@ TEST(RenameDrumTargets, arrangement_clip_and_reattached_drum_allow_rename) {
 	CHECK(menu.canRename());
 	CHECK(menu.trySetName("reattached"));
 	STRCMP_EQUAL("reattached", drum.drumName.c_str());
+}
+
+TEST(RenameDrumTargets, allocation_failure_reports_error_and_preserves_name_for_retry) {
+	drum_exception = ::deluge::exception::BAD_ALLOC;
+	bool result = true, threw = false;
+	try {
+		result = menu.trySetName("replacement");
+	} catch (::deluge::exception) {
+		threw = true;
+	}
+	CHECK_FALSE(threw);
+	CHECK_FALSE(result);
+	STRCMP_EQUAL("original", drum.drumName.c_str());
+	CHECK(display_instance.error == Error::INSUFFICIENT_RAM);
+	drum_exception.reset();
+	CHECK(menu.trySetName("retry"));
+	STRCMP_EQUAL("retry", drum.drumName.c_str());
+}
+TEST(RenameDrumTargets, allocation_failure_after_owner_change_does_not_report_to_peer) {
+	drum_exception = ::deluge::exception::BAD_ALLOC;
+	on_drum_name_set = [] { session::detail::active = session::Id::Remote; };
+	bool result = true, threw = false;
+	try {
+		result = menu.trySetName("replacement");
+	} catch (::deluge::exception) {
+		threw = true;
+	}
+	CHECK_FALSE(threw);
+	CHECK_FALSE(result);
+	CHECK(display_instance.error == Error::NONE);
+	STRCMP_EQUAL("original", drum.drumName.c_str());
+}
+TEST(RenameDrumTargets, non_allocation_exception_is_not_swallowed) {
+	drum_exception = ::deluge::exception::BAD_RELEASE;
+	bool caught = false;
+	try {
+		menu.trySetName("replacement");
+	} catch (::deluge::exception error) {
+		caught = error == ::deluge::exception::BAD_RELEASE;
+	}
+	CHECK(caught);
+	CHECK(display_instance.error == Error::NONE);
+}
+TEST(RenameDrumTargets, allocation_failure_after_target_loss_does_not_report_stale_error) {
+	Song replacement;
+	drum_exception = ::deluge::exception::BAD_ALLOC;
+	for (int scenario = 0; scenario < 3; ++scenario) {
+		currentSong = &song;
+		kit.firstDrum = &drum;
+		kit.selected_drums.active() = &drum;
+		on_drum_name_set = [&] {
+			if (scenario == 0)
+				currentSong = &replacement;
+			if (scenario == 1)
+				kit.selected_drums.active() = &other;
+			if (scenario == 2)
+				kit.firstDrum = &other;
+		};
+		CHECK_FALSE(menu.trySetName("replacement"));
+		CHECK(display_instance.error == Error::NONE);
+		STRCMP_EQUAL("original", drum.drumName.c_str());
+	}
 }

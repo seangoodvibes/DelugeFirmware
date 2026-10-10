@@ -26,6 +26,7 @@
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
+#include "util/exceptions.h"
 
 namespace {
 RenameDrumUI local_rename_drum_ui{"Drum Name"};
@@ -75,6 +76,20 @@ bool RenameDrumUI::trySetName(std::string_view name) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	drum->drumName = name;
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	try {
+		drum->drumName = name;
+	} catch (deluge::exception error) {
+		if (error != deluge::exception::BAD_ALLOC)
+			throw;
+		// std::string preserves its old value on allocation failure. Report only
+		// while this panel still targets the same live drum after allocation.
+		if (deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		    && selected_drum_for_rename() == drum) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+		}
+		return false;
+	}
 	return true;
 }

@@ -1165,3 +1165,18 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. std::string name writes
   still require allocation/lifetime review; these entry guards do not establish
   callback-spanning drum retention. G1/L1/R4 remain open; independent mode is disabled.
+
+### R4 / G1 progress — drum rename allocation errors (2026-10-10)
+
+- Drum rename catches the firmware allocator's BAD_ALLOC exception, keeps rename
+  open and reports insufficient memory only while the same song/panel/drum remains
+  selected. Other exception kinds propagate. std::string's failure guarantee
+  preserves the old name without allocating a second staging string.
+- Four fixture-backed cases cover failure/retry, changed owner, target loss and
+  propagation of a non-allocation exception. Fault injection exposed an uncaught
+  allocation exception before the fix; the tests now capture unexpected exceptions
+  explicitly. Actual firmware allocator pressure remains untested.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Successful allocating
+  writes still need callback-spanning lifetime protection; this error handling
+  does not pin drums or roll back successful writes after context changes.
+  G1/R4/L1 remain open; independent mode stays disabled.
