@@ -2000,29 +2000,82 @@ skipOctaveCorrection:
 }
 
 bool SampleBrowser::importFolderAsKit() {
+	auto* source_song = currentSong;
+	if (!source_song)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return false;
+	auto* source_clip = source_song->getCurrentClip();
+	if (!source_clip)
+		return false;
+	auto clip_lifetime = source_clip->watch_lifetime();
+	if (!clip_lifetime.alive() || !source_clip->output)
+		return false;
+	auto* kit = getCurrentKit();
+	if (!kit)
+		return false;
+	auto kit_lifetime = kit->watch_lifetime();
+	auto* firstDrum = static_cast<SoundDrum*>(sound_editor_for_session().currentSound);
+	if (!kit_lifetime.alive() || !firstDrum || kit->getDrumIndex(firstDrum) < 0)
+		return false;
+	auto drum_lifetime = firstDrum->watch_lifetime();
+	if (!drum_lifetime.alive())
+		return false;
+	auto* first_source = &firstDrum->sources[0];
+	auto source_lifetime = first_source->watch_lifetime();
+	if (!source_lifetime.alive())
+		return false;
+	auto* source_ui = getCurrentUI();
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return song_lifetime.alive() && clip_lifetime.alive() && kit_lifetime.alive() && drum_lifetime.alive()
+		       && source_lifetime.alive() && currentSong == source_song && source_song->getCurrentClip() == source_clip
+		       && source_clip->output == kit && deluge::gui::ui_session::current() == source_owner
+		       && getCurrentUI() == source_ui && sound_editor_for_session().currentSound == firstDrum
+		       && sound_editor_for_session().currentSource == first_source
+		       && sound_editor_for_session().currentSourceIndex == 0 && firstDrum->kit == kit
+		       && kit->getDrumIndex(firstDrum) >= 0;
+	};
+	if (!context_valid())
+		return false;
+	const auto source_layout = first_source->ranges.layout_revision();
+	const auto source_type = first_source->oscType;
+	const auto source_reversed = first_source->sampleControls.isCurrentlyReversed();
+	const auto loading_context_valid = [&] {
+		return context_valid() && first_source->ranges.layout_revision() == source_layout
+		       && first_source->oscType == source_type
+		       && first_source->sampleControls.isCurrentlyReversed() == source_reversed;
+	};
+	deluge::lifetime::callback_validation validation(loading_context_valid);
 
 	AudioEngine::stopAnyPreviewing();
+	if (!loading_context_valid())
+		return false;
 
 	display->displayLoadingAnimationText("Working");
+	if (!loading_context_valid())
+		return false;
 
 	int32_t numSamples;
 	Sample** sortArea;
 
 	int32_t prefixAndDirLength;
-	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, nullptr, &prefixAndDirLength);
+	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, nullptr, &prefixAndDirLength, &validation);
 
 	if (!success) {
 doReturnFalse:
-		display->removeWorkingAnimation();
+		if (context_valid())
+			display->removeWorkingAnimation();
 		return false;
 	}
-
-	Kit* kit = getCurrentKit();
-	SoundDrum* firstDrum = (SoundDrum*)sound_editor_for_session().currentSound;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
 		auto sample_cleanup = release_multisample_import_samples_on_exit(sortArea, numSamples);
+		if (!loading_context_valid())
+			return false;
 		ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(modelStackMemory);
 
 		for (int32_t s = 0; s < numSamples; s++) {
@@ -2041,7 +2094,8 @@ doReturnFalse:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 getOut:
-					display->displayError(Error::INSUFFICIENT_RAM);
+					if (context_valid())
+						display->displayError(Error::INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}
 

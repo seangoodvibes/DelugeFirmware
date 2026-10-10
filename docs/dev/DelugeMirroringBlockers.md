@@ -3553,3 +3553,10 @@ reclamation in the dependency double and failure to retrieve the converted range
 All 38 suites and RelWithDebInfo pass. This fixes the retained range address across
 normal conversion; lifetime protection inside conversion and the surrounding Kit
 callbacks remain separate work.
+
+Kit folder loading now binds validation to the initiating Song, Clip, Kit, first
+Drum, Source and panel, including source layout/type/reversal during loading.
+Cancellation releases temporary samples without clearing a newer UI animation.
+Five regressions cover clip changes, Kit/Drum retirement, range replacement and
+detached entry. All 38 suites and RelWithDebInfo pass. The callbacks after folder
+loading still require separate continuation and partial-publication protection.

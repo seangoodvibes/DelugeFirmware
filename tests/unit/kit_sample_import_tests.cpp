@@ -191,15 +191,36 @@ struct Sound : Lifetime {
 	}
 	static void initParams(ParamManagerForTimeline*) {}
 };
+struct Kit;
 struct SoundDrum : Sound {
+	Kit* kit = nullptr;
 	bool nameIsDiscardable = false;
 	int noteRowAssignedTemp = 0;
 	std::string drumName;
 	void setupAsSample(ParamManagerForTimeline*) {}
 };
-struct Kit {
+struct Instrument : Lifetime {
+	int own_edits = 0;
+	void beenEdited() {
+		++edits;
+		++own_edits;
+	}
+} instrument;
+struct Kit : Instrument {
+	SoundDrum* first_drum = nullptr;
 	std::vector<SoundDrum*> drums;
-	void addDrum(SoundDrum* drum) { drums.push_back(drum); }
+	void addDrum(SoundDrum* drum) {
+		drum->kit = this;
+		drums.push_back(drum);
+	}
+	int32_t getDrumIndex(SoundDrum* drum) {
+		if (drum == first_drum)
+			return 0;
+		for (size_t index = 0; index < drums.size(); ++index)
+			if (drums[index] == drum)
+				return index + 1;
+		return -1;
+	}
 	bool getDrumFromName(const char*) { return false; }
 	Error makeDrumNameUnique(String*, int) { return Error::NONE; }
 	void resetDrumTempValues() {}
@@ -276,13 +297,7 @@ struct Clip : Lifetime {
 	Instrument* output = nullptr;
 	void assignDrumsToNoteRows(ModelStackWithTimelineCounter*) { ++row_assignments; }
 } clip;
-struct Instrument : Lifetime {
-	int own_edits = 0;
-	void beenEdited() {
-		++edits;
-		++own_edits;
-	}
-} instrument;
+
 Clip* getCurrentInstrumentClip() {
 	return &clip;
 }
@@ -364,7 +379,9 @@ TEST_GROUP(KitSampleImport) {
 		loaded_samples = {&samples[0], &samples[1], &samples[2]};
 		active_kit = &kit;
 		current_clip = &clip;
-		clip.output = &instrument;
+		clip.output = &kit;
+		kit.first_drum = &first_drum;
+		first_drum.kit = &kit;
 		instrument.own_edits = 0;
 		editor.currentSound = &first_drum;
 		editor.currentSource = &first_drum.sources[0];
@@ -612,7 +629,7 @@ TEST(KitSampleImport, completed_multisample_replacement_releases_original_sample
 
 TEST(KitSampleImport, multisample_clip_change_during_assignment_cancels_commit) {
 	Clip replacement;
-	replacement.output = &instrument;
+	replacement.output = &kit;
 	on_assignment = [&] { current_clip = &replacement; };
 	CHECK_FALSE(browser.importFolderAsMultisamples());
 	LONGS_EQUAL(0, audio_publications);
@@ -634,7 +651,7 @@ TEST(KitSampleImport, multisample_navigation_does_not_mark_newly_selected_instru
 	replacement_clip.output = &replacement_instrument;
 	on_exit = [&] { current_clip = &replacement_clip; };
 	CHECK_TRUE(browser.importFolderAsMultisamples());
-	LONGS_EQUAL(1, instrument.own_edits);
+	LONGS_EQUAL(1, kit.own_edits);
 	LONGS_EQUAL(0, replacement_instrument.own_edits);
 	LONGS_EQUAL(1, display_instance.removals);
 }
@@ -702,7 +719,7 @@ TEST(KitSampleImport, failed_kit_import_does_not_close_an_unrelated_directory) {
 
 TEST(KitSampleImport, cancelled_folder_load_does_not_clear_a_new_contexts_working_animation) {
 	Clip replacement;
-	replacement.output = &instrument;
+	replacement.output = &kit;
 	on_folder_load = [&] { current_clip = &replacement; };
 	CHECK_FALSE(browser.importFolderAsMultisamples());
 	LONGS_EQUAL(0, display_instance.removals);
@@ -733,4 +750,46 @@ TEST(KitSampleImport, unavailable_range_after_type_conversion_cancels_import_and
 	LONGS_EQUAL(1, table_frees);
 	for (auto& sample : samples)
 		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+
+TEST(KitSampleImport, kit_clip_change_during_folder_loading_cancels_import_without_clearing_new_ui) {
+	Clip replacement;
+	replacement.output = &kit;
+	on_folder_load = [&] { current_clip = &replacement; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, display_instance.removals);
+	LONGS_EQUAL(0, kit.drums.size());
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, kit_retirement_during_folder_loading_cancels_import) {
+	on_folder_load = [&] { kit.lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, first_drum_retirement_during_folder_loading_cancels_import) {
+	on_folder_load = [&] { first_drum.lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, range_layout_change_during_kit_folder_loading_cancels_import) {
+	on_folder_load = [&] { ++first_drum.sources[0].ranges.revision; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, detached_first_drum_rejects_import_entry) {
+	first_drum.kit = nullptr;
+	CHECK_FALSE(browser.importFolderAsKit());
+	CHECK(sample_table == nullptr);
+	LONGS_EQUAL(0, assignment_calls);
 }
