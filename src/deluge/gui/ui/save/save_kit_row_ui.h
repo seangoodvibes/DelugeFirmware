@@ -27,7 +27,7 @@ public:
 	void setup(SoundDrum* drum, ParamManagerForTimeline* paramManager) {
 		soundDrumToSave = drum;
 		paramManagerToSave = paramManager;
-		outputTypeToLoad = OutputType::SYNTH;
+		output_type_to_load_for_session() = OutputType::SYNTH;
 	}
 	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
@@ -49,4 +49,4 @@ protected:
 	// int32_t arrivedInNewFolder(int32_t direction);
 };
 
-extern SaveKitRowUI saveKitRowUI;
+SaveKitRowUI& save_kit_row_ui_for_session();

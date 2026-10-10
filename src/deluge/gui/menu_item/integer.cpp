@@ -52,8 +52,8 @@ void IntegerWithOff::drawValue() {
 }
 void IntegerWithOff::drawPixelsForOled() {
 	if (this->getValue() == 0) {
-		deluge::hid::display::OLED::main.drawStringCentred("OFF", 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-		                                                   kTextHugeSizeY);
+		deluge::hid::display::OLED::main_for_session().drawStringCentred("OFF", 18 + OLED_MAIN_TOPMOST_PIXEL,
+		                                                                 kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
 	else {
@@ -65,7 +65,8 @@ void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel)
 	char buffer[12];
 	intToString(getDisplayValue(), buffer, 1);
 	strncat(buffer, getUnit(), 4);
-	deluge::hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+	deluge::hid::display::OLED::main_for_session().drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL,
+	                                                                 textWidth, textHeight);
 }
 
 void Integer::drawPixelsForOled() {

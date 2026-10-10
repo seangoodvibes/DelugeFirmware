@@ -89,7 +89,14 @@ extern uint8_t currentlyAccessingCard;
 using namespace deluge;
 using namespace gui;
 
-PLACE_SDRAM_BSS ArrangerView arrangerView{};
+namespace {
+PLACE_SDRAM_BSS ArrangerView local_arranger_view{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<ArrangerView> remote_arranger_view;
+} // namespace
+
+ArrangerView& arranger_view_for_session() {
+	return remote_arranger_view.get(local_arranger_view);
+}
 
 ArrangerView::ArrangerView() {
 	doingAutoScrollNow = false;
@@ -113,10 +120,10 @@ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas)
 	}
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 		Output* output = outputsOnScreen[yPressedEffective];
-		view.displayOutputName(output);
+		view_for_session().displayOutputName(output);
 	}
 	else {
-		sessionView.renderOLED(canvas);
+		session_view_for_session().renderOLED(canvas);
 	}
 }
 
@@ -135,20 +142,21 @@ void ArrangerView::moveClipToSession() {
 		// Clip already exists in session - just go to it
 		if (!clip->isArrangementOnlyClip()) {
 			int32_t index = currentSong->sessionClips.getIndexForClip(clip);
-			currentSong->songViewYScroll = index - yPressedEffective;
+			currentSong->song_view_y_scroll_for_session() = index - yPressedEffective;
 		}
 
 		// Or, arrangement-only Clip needs moving to session
 		else {
-			int32_t intendedIndex = currentSong->songViewYScroll + yPressedEffective;
+			int32_t intendedIndex = currentSong->song_view_y_scroll_for_session() + yPressedEffective;
 
 			if (intendedIndex < 0) {
-				currentSong->songViewYScroll -= intendedIndex;
+				currentSong->song_view_y_scroll_for_session() -= intendedIndex;
 				intendedIndex = 0;
 			}
 
 			else if (intendedIndex > currentSong->sessionClips.getNumElements()) {
-				currentSong->songViewYScroll -= intendedIndex - currentSong->sessionClips.getNumElements();
+				currentSong->song_view_y_scroll_for_session() -=
+				    intendedIndex - currentSong->sessionClips.getNumElements();
 				intendedIndex = currentSong->sessionClips.getNumElements();
 			}
 
@@ -158,6 +166,7 @@ void ArrangerView::moveClipToSession() {
 				display->displayError(error);
 				return;
 			}
+			currentSong->notify_peer_clip_inserted(intendedIndex);
 			actionLogger.deleteAllLogs();
 
 			int32_t oldIndex = currentSong->arrangementOnlyClips.getIndexForClip(clip);
@@ -168,25 +177,25 @@ void ArrangerView::moveClipToSession() {
 
 		goToSongView();
 
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		if (currentSong->session_layout_for_session() == SessionLayoutType::SessionLayoutTypeRows) {
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-			sessionView.selectedClipYDisplay = yPressedEffective;
-			sessionView.selectedClipPressYDisplay = yPressedActual;
-			sessionView.selectedClipPressXDisplay = xPressed;
+			session_view_for_session().selectedClipYDisplay = yPressedEffective;
+			session_view_for_session().selectedClipPressYDisplay = yPressedActual;
+			session_view_for_session().selectedClipPressXDisplay = xPressed;
 		}
 		else {
 			currentUIMode = UI_MODE_NONE;
 		}
 
-		sessionView.performActionOnPadRelease = false;
-		view.setActiveModControllableTimelineCounter(clip);
+		session_view_for_session().performActionOnPadRelease = false;
+		view_for_session().setActiveModControllableTimelineCounter(clip);
 	}
 }
 
 void ArrangerView::goToSongView() {
-	currentSong->xScroll[NAVIGATION_CLIP] = currentSong->xScrollForReturnToSongView;
-	currentSong->xZoom[NAVIGATION_CLIP] = currentSong->xZoomForReturnToSongView;
-	changeRootUI(&sessionView);
+	currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = currentSong->x_scroll_for_return_to_song_view_for_session();
+	currentSong->x_zoom_for_session()[NAVIGATION_CLIP] = currentSong->x_zoom_for_return_to_song_view_for_session();
+	changeRootUI(&session_view_for_session());
 }
 
 ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -222,8 +231,8 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (currentUIMode == UI_MODE_NONE) {
-				automationView.onArrangerView = true;
-				changeRootUI(&automationView);
+				automation_view_for_session().onArrangerView = true;
+				changeRootUI(&automation_view_for_session());
 			}
 		}
 	}
@@ -234,9 +243,9 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			currentSong->affectEntire = !currentSong->affectEntire;
+			currentSong->affect_entire_for_session() = !currentSong->affect_entire_for_session();
 			// setLedStates();
-			view.setActiveModControllableTimelineCounter(currentSong);
+			view_for_session().setActiveModControllableTimelineCounter(currentSong);
 		}
 	}
 
@@ -244,11 +253,13 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	else if (b == CROSS_SCREEN_EDIT) {
 		if (!on && currentUIMode == UI_MODE_NONE) {
 			// if another button wasn't pressed while cross screen was held
-			if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
-				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+			if (Buttons::state().considerCrossScreenReleaseForCrossScreenMode) {
+				currentSong->arranger_auto_scroll_mode_active_for_session() =
+				    !currentSong->arranger_auto_scroll_mode_active_for_session();
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT,
+				                            currentSong->arranger_auto_scroll_mode_active_for_session());
 
-				if (currentSong->arrangerAutoScrollModeActive) {
+				if (currentSong->arranger_auto_scroll_mode_active_for_session()) {
 					reassessWhetherDoingAutoScroll();
 				}
 				else {
@@ -298,11 +309,11 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// cancel stem export process
 	else if (b == BACK && isUIModeActive(UI_MODE_STEM_EXPORT)) {
 		if (on) {
-			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
+			bool available = context_menu::cancel_stem_export_for_session().setupAndCheckAvailability();
 
 			if (available) {
 				display->setNextTransitionDirection(1);
-				openUI(&context_menu::cancelStemExport);
+				openUI(&context_menu::cancel_stem_export_for_session());
 			}
 		}
 	}
@@ -330,8 +341,8 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
 			display->setNextTransitionDirection(1);
-			soundEditor.setup();
-			openUI(&soundEditor);
+			sound_editor_for_session().setup();
+			openUI(&sound_editor_for_session());
 		}
 	}
 
@@ -379,8 +390,9 @@ doChangeOutputType:
 					currentUIMode = UI_MODE_NONE;
 					endAudition(output);
 
-					loadInstrumentPresetUI.setupLoadInstrument(newOutputType, (Instrument*)output, nullptr);
-					openUI(&loadInstrumentPresetUI);
+					load_instrument_preset_ui_for_session().setupLoadInstrument(newOutputType, (Instrument*)output,
+					                                                            nullptr);
+					openUI(&load_instrument_preset_ui_for_session());
 				}
 
 				// Otherwise, just change the instrument type
@@ -419,15 +431,17 @@ doActualSimpleChange:
 
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			performanceView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
-			changeRootUI(&performanceView);
+			performance_view_for_session().timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
+			changeRootUI(&performance_view_for_session());
 		}
 	}
 
 	else if (b == Y_ENC) {
 		if (on && !Buttons::isShiftButtonPressed()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView =
+			    display->haveOLED()
+			    && (currentUI == &session_view_for_session() || currentUI == &arranger_view_for_session());
 			// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 			if (!isOLEDSessionView) {
 				currentSong->displayCurrentRootNoteAndScaleName();
@@ -501,7 +515,8 @@ void ArrangerView::clearArrangement() {
 	// instant in time, or else it'll look at those to pick the new activeClip, which might not exist anymore.
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
 		for (int32_t i = output->clipInstances.getNumElements() - 1; i >= 0; i--) {
-			deleteClipInstance(output, i, output->clipInstances.getElement(i), action, false);
+			if (!delete_clip_instance(output, i, output->clipInstances.getElement(i), action, false))
+				return;
 		}
 	}
 
@@ -509,7 +524,7 @@ void ArrangerView::clearArrangement() {
 }
 
 bool ArrangerView::opened() {
-	automationView.onArrangerView = false;
+	automation_view_for_session().onArrangerView = false;
 
 	mustRedrawTickSquares = true;
 
@@ -517,8 +532,10 @@ bool ArrangerView::opened() {
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 	if (renderingToStore) {
-		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight]);
-		renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight]);
+		renderMainPads(0xFFFFFFFF, &PadLEDs::image_store_for_session()[kDisplayHeight],
+		               &PadLEDs::occupancy_mask_store_for_session()[kDisplayHeight]);
+		renderSidebar(0xFFFFFFFF, &PadLEDs::image_store_for_session()[kDisplayHeight],
+		              &PadLEDs::occupancy_mask_store_for_session()[kDisplayHeight]);
 	}
 	else {
 		uiNeedsRendering(this);
@@ -534,21 +551,22 @@ void ArrangerView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT,
+	                            currentSong->arranger_auto_scroll_mode_active_for_session());
 
 #ifdef currentClipStatusButtonX
-	view.switchOffCurrentClipPad();
+	view_for_session().switchOffCurrentClipPad();
 #endif
 }
 
 void ArrangerView::focusRegained() {
-	view.focusRegained();
+	view_for_session().focusRegained();
 
 	repopulateOutputsOnScreen(false);
 
 	renderDisplay();
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-		view.setActiveModControllableTimelineCounter(currentSong);
+		view_for_session().setActiveModControllableTimelineCounter(currentSong);
 	}
 
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
@@ -558,7 +576,7 @@ void ArrangerView::focusRegained() {
 
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
-	currentSong->lastClipInstanceEnteredStartPos = 0;
+	currentSong->last_clip_instance_entered_start_pos_for_session() = 0;
 
 	if (!doingAutoScrollNow) {
 		reassessWhetherDoingAutoScroll(); // Can start, but can't stop
@@ -570,7 +588,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	memset(outputsOnScreen, 0, sizeof(outputsOnScreen));
 
 	Output* output = currentSong->firstOutput;
-	int32_t row = 0 - currentSong->arrangementYScroll;
+	int32_t row = 0 - currentSong->arrangement_y_scroll_for_session();
 	while (output) {
 		if (row >= kDisplayHeight) {
 			break;
@@ -596,7 +614,7 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return true;
 	}
 
-	if (view.potentiallyRenderVUMeter(image)) {
+	if (view_for_session().potentiallyRenderVUMeter(image)) {
 		return true;
 	}
 
@@ -658,7 +676,7 @@ void ArrangerView::drawMuteSquare(int32_t yDisplay, RGB thisImage[]) {
 void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 	RGB& thisColour = thisImage[kDisplayWidth + 1];
 
-	if (view.midiLearnFlashOn) {
+	if (view_for_session().midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
 
 		if (!output || output->type == OutputType::AUDIO) {
@@ -673,8 +691,8 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 		}
 
 		// Or if not assigned but we're holding it down...
-		else if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
-		         && view.learnedThing == &melodicInstrument->midiInput) {
+		else if (view_for_session().thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
+		         && view_for_session().learnedThing == &melodicInstrument->midiInput) {
 			thisColour = colours::red.dim();
 		}
 		else {
@@ -704,9 +722,9 @@ ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStac
 		InstrumentClip* instrumentClip = (InstrumentClip*)kit->getActiveClip();
 		modelStackWithNoteRow = instrumentClip->getNoteRowForDrumName(modelStackWithTimelineCounter, "SNAR");
 		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-			if (kit->selectedDrum) {
+			if (kit->selected_drum_for_session()) {
 				modelStackWithNoteRow =
-				    instrumentClip->getNoteRowForDrum(modelStackWithTimelineCounter, kit->selectedDrum);
+				    instrumentClip->getNoteRowForDrum(modelStackWithTimelineCounter, kit->selected_drum_for_session());
 			}
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 				modelStackWithNoteRow =
@@ -724,7 +742,7 @@ ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStac
 Drum* ArrangerView::getDrumForAudition(Kit* kit) {
 	Drum* drum = kit->getDrumFromName("SNAR");
 	if (!drum) {
-		drum = kit->selectedDrum;
+		drum = kit->selected_drum_for_session();
 		if (!drum) {
 			drum = kit->firstDrum;
 		}
@@ -820,18 +838,19 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
 // Loads from file, etc - doesn't truly "create"
 Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
-	Error error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+	Error error = Browser::current_dir_for_session().set(getInstrumentFolder(newOutputType));
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return nullptr;
 	}
 
-	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-	                                     currentSong, newOutputType, Availability::INSTRUMENT_UNUSED),
-	                                 error, {
-		                                 display->displayError(error);
-		                                 return nullptr;
-	                                 });
+	FileItem* fileItem =
+	    D_TRY_CATCH(load_instrument_preset_ui_for_session().findAnUnlaunchedPresetIncludingWithinSubfolders(
+	                    currentSong, newOutputType, Availability::INSTRUMENT_UNUSED),
+	                error, {
+		                display->displayError(error);
+		                return nullptr;
+	                });
 
 	Instrument* newInstrument = fileItem->instrument;
 	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
@@ -841,7 +860,8 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 		String newPresetName;
 		fileItem->getFilenameWithoutExtension(&newPresetName);
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
-		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
+		                                               &fileItem->filePointer, &newPresetName,
+		                                               &Browser::current_dir_for_session());
 	}
 
 	Browser::emptyFileItems();
@@ -896,8 +916,8 @@ doNewPress:
 			// If nothing on this row yet, we'll add a brand new Instrument
 			if (!output) {
 
-				int32_t minY = -currentSong->arrangementYScroll - 1;
-				int32_t maxY = -currentSong->arrangementYScroll + currentSong->getNumOutputs();
+				int32_t minY = -currentSong->arrangement_y_scroll_for_session() - 1;
+				int32_t maxY = -currentSong->arrangement_y_scroll_for_session() + currentSong->getNumOutputs();
 
 				yPressedEffective = std::max((int32_t)yPressedEffective, minY);
 				yPressedEffective = std::min((int32_t)yPressedEffective, maxY);
@@ -912,7 +932,8 @@ doNewPress:
 				if (!instrumentAlreadyInSong) {
 					currentSong->addOutput(
 					    output,
-					    (yPressedEffective == -currentSong->arrangementYScroll - 1)); // This should always be triggered
+					    (yPressedEffective
+					     == -currentSong->arrangement_y_scroll_for_session() - 1)); // This should always be triggered
 				}
 
 				outputsOnScreen[yPressedEffective] = output;
@@ -920,16 +941,16 @@ doNewPress:
 
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 
-			view.displayOutputName(output);
+			view_for_session().displayOutputName(output);
 
 			beginAudition(output);
 
 			if (output->getActiveClip()) {
-				view.setActiveModControllableTimelineCounter(output->getActiveClip());
+				view_for_session().setActiveModControllableTimelineCounter(output->getActiveClip());
 			}
 			else {
-				view.setActiveModControllableWithoutTimelineCounter(output->toModControllable(),
-				                                                    output->getParamManager(currentSong));
+				view_for_session().setActiveModControllableWithoutTimelineCounter(output->toModControllable(),
+				                                                                  output->getParamManager(currentSong));
 			}
 
 			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
@@ -948,19 +969,19 @@ void ArrangerView::auditionEnded() {
 	setNoSubMode();
 	setLedStates();
 
-	if (getRootUI() == &automationView) {
-		if (automationView.inAutomationEditor()) {
-			automationView.displayAutomation(true, !display->have7SEG());
+	if (getRootUI() == &automation_view_for_session()) {
+		if (automation_view_for_session().inAutomationEditor()) {
+			automation_view_for_session().displayAutomation(true, !display->have7SEG());
 		}
 		else {
-			automationView.renderDisplay();
+			automation_view_for_session().renderDisplay();
 		}
 	}
 	else {
 		renderDisplay();
 	}
 
-	view.setActiveModControllableTimelineCounter(currentSong);
+	view_for_session().setActiveModControllableTimelineCounter(currentSong);
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
@@ -970,7 +991,7 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
-	if (x >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
+	if (x >= kDisplayWidth && view_for_session().displayVUMeter && (view_for_session().getModKnobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -1001,8 +1022,8 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 				if (output && output->type != OutputType::CV) {
 					endAudition(output);
 					currentUIMode = UI_MODE_NONE;
-					renameOutputUI.output = output;
-					openUI(&renameOutputUI);
+					rename_output_ui_for_session().output = output;
+					openUI(&rename_output_ui_for_session());
 					uiNeedsRendering(this, 0, 0xFFFFFFFF); // Stop audition pad being illuminated
 				}
 			}
@@ -1156,14 +1177,14 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 		if (output) {
 			if (output->type == OutputType::AUDIO) {
 				if (velocity != 0) {
-					view.endMIDILearn();
-					context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
-					context_menu::audioInputSelector.setupAndCheckAvailability();
-					openUI(&context_menu::audioInputSelector);
+					view_for_session().endMIDILearn();
+					context_menu::audio_input_selector_for_session().audioOutput = (AudioOutput*)output;
+					context_menu::audio_input_selector_for_session().setupAndCheckAvailability();
+					openUI(&context_menu::audio_input_selector_for_session());
 				}
 			}
 			else {
-				view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+				view_for_session().instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
 			}
 		}
 		break;
@@ -1208,20 +1229,39 @@ void ArrangerView::outputDeactivated(Output* output) {
 }
 
 // For now, we're always supplying clearingWholeArrangement as false, even when we are doing that
-void ArrangerView::deleteClipInstance(Output* output, int32_t clipInstanceIndex, ClipInstance* clipInstance,
-                                      Action* action, bool clearingWholeArrangement) {
-
-	if (action) {
-		action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::DELETE);
-	}
-	Clip* clip = clipInstance->clip;
-
-	// Delete the ClipInstance
-	if (!clearingWholeArrangement) {
-		output->clipInstances.deleteAtIndex(clipInstanceIndex);
-	}
-
-	currentSong->deletingClipInstanceForClip(output, clip, action, !clearingWholeArrangement);
+bool ArrangerView::delete_clip_instance(Output* output, int32_t instance_index, ClipInstance* instance, Action* action,
+                                        bool clearing_whole_arrangement) {
+	if (!currentSong || !output || !instance || output->clipInstances.getElement(instance_index) != instance)
+		return false;
+	Song* const song = currentSong;
+	const auto retained_identity = action ? action->action_identity : 0;
+	const bool retained_in_history = action && actionLogger.firstAction[BEFORE] == action;
+	auto* const history_boundary = action ? action->firstConsequence : nullptr;
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	if (action && !action->recordClipInstanceExistenceChange(output, instance, ExistenceChangeType::DELETE))
+		return false;
+	// Recording validates the retained instance across its allocation. Reject a
+	// changed index as well before deleting anything.
+	if (output->clipInstances.getElement(instance_index) != instance)
+		return false;
+	Clip* const clip = instance->clip;
+	auto* const deletion_head = action ? action->firstConsequence : nullptr;
+	if (!clearing_whole_arrangement)
+		output->clipInstances.delete_at_index_preserving_capacity(instance_index);
+	if (song->deletingClipInstanceForClip(output, clip, action, !clearing_whole_arrangement, true) == Error::NONE)
+		return true;
+	// Cleanup failure must not destroy history or an otherwise live clip. Restore
+	// the removed slot only if the complete retained context and history still match.
+	if (!clearing_whole_arrangement && action && currentSong == song && current() == owner
+	    && navigation.for_owner(Id::Local).structural_refresh.revision() == local_revision
+	    && navigation.for_owner(Id::Remote).structural_refresh.revision() == remote_revision
+	    && (!retained_in_history || actionLogger.firstAction[BEFORE] == action)
+	    && action->action_identity == retained_identity && action->firstConsequence == deletion_head)
+		action->rollback_instance_batch(song, history_boundary, 1, 0, true);
+	return false;
 }
 
 void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, ClipInstance* clipInstance) {
@@ -1240,16 +1280,16 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 
 	rememberInteractionWithClipInstance(yDisplay, clipInstance);
 
-	view.displayOutputName(output, true, clip);
+	view_for_session().displayOutputName(output, true, clip);
 
 	// this needs to be called after the current clip is set and after
 	// the interaction with clip instance is remembered in order to ensure that
 	// if midi follow feedback is enabled, it sends feedback for the right clip instance
-	view.setActiveModControllableTimelineCounter(clip);
+	view_for_session().setActiveModControllableTimelineCounter(clip);
 }
 
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
-	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
+	lastInteractedOutputIndex = yDisplay + currentSong->arrangement_y_scroll_for_session();
 	lastInteractedPos = clipInstance->pos;
 	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section : 255;
 	lastInteractedClipInstance = clipInstance;
@@ -1257,7 +1297,7 @@ void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipIns
 
 void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 	Output* output = outputsOnScreen[y];
-	uint32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	uint32_t xScroll = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
 
 	// Shift button pressed - clone ClipInstance to white / unique
 	if (Buttons::isShiftButtonPressed() && (currentUIMode == UI_MODE_NONE)) {
@@ -1299,8 +1339,9 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 
 				// If also stuttering, stop that
 				if (isUIModeActive(UI_MODE_STUTTERING)) {
-					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-					    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+					((ModControllableAudio*)view_for_session().activeModControllableModelStack.modControllable)
+					    ->endStutter(
+					        (ParamManagerForTimeline*)view_for_session().activeModControllableModelStack.paramManager);
 				}
 
 				if (x == xPressed && y == yPressedEffective) {
@@ -1592,7 +1633,8 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 			arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
 			                      clipInstance->pos + clipInstance->length, clipInstance->clip, nullptr);
 		}
-		clipInstance->change(action, output, clipInstance->pos, lengthTilNewSquareStart, clipInstance->clip);
+		if (!clipInstance->change(action, output, clipInstance->pos, lengthTilNewSquareStart, clipInstance->clip))
+			return;
 	}
 
 	// Lengthen
@@ -1620,7 +1662,8 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 
 			Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
-			clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
+			if (!clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip))
+				return;
 			arrangement.rowEdited(output, clipInstance->pos + oldLength, clipInstance->pos + clipInstance->length,
 			                      nullptr, clipInstance);
 		}
@@ -1637,13 +1680,14 @@ void ArrangerView::deleteClipInstance(Output* output, ClipInstance* clipInstance
 	// set lastInteractedClipInstance to null so you don't send midi follow feedback for a
 	// deleted clip
 	lastInteractedClipInstance = nullptr;
-	view.setActiveModControllableTimelineCounter(currentSong);
+	view_for_session().setActiveModControllableTimelineCounter(currentSong);
 
 	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
 	                      nullptr);
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
-	deleteClipInstance(output, pressedClipInstanceIndex, clipInstance, action);
+	if (!delete_clip_instance(output, pressedClipInstanceIndex, clipInstance, action))
+		return;
 
 	deluge::hid::display::OLED::clearMainImage();
 	return exitSubModeWithoutAction();
@@ -1716,7 +1760,8 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 		                                  ExistenceChangeType::CREATE);
 	}
 
-	clipInstance->change(action, output, clipInstance->pos, clipInstance->length, newClip);
+	if (!clipInstance->change(action, output, clipInstance->pos, clipInstance->length, newClip))
+		return;
 
 	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr, clipInstance);
 }
@@ -1748,8 +1793,8 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 	// First, stop any stuttering. This may then put us back in one of the subModes dealt with below
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
-		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-		    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+		((ModControllableAudio*)view_for_session().activeModControllableModelStack.modControllable)
+		    ->endStutter((ParamManagerForTimeline*)view_for_session().activeModControllableModelStack.paramManager);
 	}
 
 	// --------------
@@ -1767,7 +1812,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 		// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
 		// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 		setNoSubMode();
-		view.setActiveModControllableTimelineCounter(currentSong);
+		view_for_session().setActiveModControllableTimelineCounter(currentSong);
 		uint32_t whichRowsNeedReRendering;
 		if (outputsOnScreen[yPressedEffective] == pressedClipInstanceOutput) {
 			whichRowsNeedReRendering = (1 << yPressedEffective);
@@ -1782,7 +1827,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 	}
 
 	if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
-		view.endMIDILearn();
+		view_for_session().endMIDILearn();
 	}
 }
 
@@ -1792,7 +1837,7 @@ void ArrangerView::renderDisplay() {
 		renderUIsForOled();
 	}
 	else {
-		sessionView.redrawNumericDisplay();
+		session_view_for_session().redrawNumericDisplay();
 	}
 }
 
@@ -1803,22 +1848,22 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	// it should already be this clip, but if it ever isn't it would be a disaster
 	currentSong->setCurrentClip(clip);
 
-	currentSong->lastClipInstanceEnteredStartPos = clipInstance->pos;
+	currentSong->last_clip_instance_entered_start_pos_for_session() = clipInstance->pos;
 
-	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	uint32_t xZoom = currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 	while ((xZoom >> 1) * kDisplayWidth >= clip->loopLength) {
 		xZoom >>= 1;
 	}
-	currentSong->xZoom[NAVIGATION_CLIP] = xZoom;
+	currentSong->x_zoom_for_session()[NAVIGATION_CLIP] = xZoom;
 
 	// If can see whole Clip at zoom level, set scroll to 0
 	if (xZoom * kDisplayWidth >= clip->loopLength) {
-		currentSong->xScroll[NAVIGATION_CLIP] = 0;
+		currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = 0;
 	}
 
 	// Otherwise...
 	else {
-		int32_t newScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] - clipInstance->pos;
+		int32_t newScroll = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] - clipInstance->pos;
 		if (newScroll < 0) {
 			newScroll = 0;
 		}
@@ -1827,84 +1872,90 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			newScroll = (uint32_t)newScroll / (xZoom * kDisplayWidth) * (xZoom * kDisplayWidth);
 		}
 
-		currentSong->xScroll[NAVIGATION_CLIP] = newScroll;
+		currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = newScroll;
 	}
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
+	bool onKeyboardScreen =
+	    ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->on_keyboard_screen_for_session());
 
 	// when transitioning back to clip, if keyboard view is enabled, it takes precedent
 	// over automation and instrument clip views.
-	if (clip->onAutomationClipView && !onKeyboardScreen) {
-		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
+	if (clip->on_automation_clip_view_for_session() && !onKeyboardScreen) {
+		PadLEDs::explode_animation_y_origin_big_for_session() = yPressedEffective << 16;
 
 		// Transition pre-render can happen before AutomationView::opened(). Force clip context so we don't
 		// accidentally render stale arranger automation state into the animation store.
-		automationView.onArrangerView = false;
-		automationView.navSysId = automationView.getNavSysId();
-		automationView.setAutomationParamType();
+		automation_view_for_session().onArrangerView = false;
+		automation_view_for_session().navSysId = automation_view_for_session().getNavSysId();
+		automation_view_for_session().setAutomationParamType();
 
 		if (clip->type == ClipType::INSTRUMENT) {
-			instrumentClipView.recalculateColours();
+			instrument_clip_view_for_session().recalculateColours();
 			// Automation view reuses instrument clip offscreen rows during explode animations.
-			instrumentClipView.fillOffScreenImageStores();
+			instrument_clip_view_for_session().fillOffScreenImageStores();
 		}
 		else {
 			PadLEDs::clearTransitionStoreOffScreenRows();
 		}
 
-		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+		automation_view_for_session().renderMainPads(0xFFFFFFFF, &PadLEDs::image_store_for_session()[1],
+		                                             &PadLEDs::occupancy_mask_store_for_session()[1], false);
 	}
 	else if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
 		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
 			currentUIMode = UI_MODE_NONE;
-			changeRootUI(&audioClipView);
+			changeRootUI(&audio_clip_view_for_session());
 
 			return;
 		}
 		else {
-			waveformRenderer.collapseAnimationToWhichRow = yPressedEffective;
+			waveform_renderer_for_session().collapseAnimationToWhichRow = yPressedEffective;
 
 			int64_t xScrollSamples;
 			int64_t xZoomSamples;
 
 			((AudioClip*)clip)
-			    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-			                                &xScrollSamples, &xZoomSamples);
+			    ->getScrollAndZoomInSamples(currentSong->x_scroll_for_session()[NAVIGATION_CLIP],
+			                                currentSong->x_zoom_for_session()[NAVIGATION_CLIP], &xScrollSamples,
+			                                &xZoomSamples);
 
-			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-			                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+			waveform_renderer_for_session().findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile,
+			                                                xScrollSamples, xZoomSamples,
+			                                                &((AudioClip*)clip)->renderData);
 
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}
 	}
 	else {
-		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
+		PadLEDs::explode_animation_y_origin_big_for_session() = yPressedEffective << 16;
 
 		// If going to KeyboardView...
 		if (onKeyboardScreen) {
-			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
-			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
+			keyboard_screen_for_session().renderMainPads(0xFFFFFFFF, &PadLEDs::image_store_for_session()[1],
+			                                             &PadLEDs::occupancy_mask_store_for_session()[1]);
+			memset(PadLEDs::occupancy_mask_store_for_session()[0], 0, kDisplayWidth + kSideBarWidth);
+			memset(PadLEDs::occupancy_mask_store_for_session()[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
 		// Or if just regular old InstrumentClipView
 		else {
-			instrumentClipView.recalculateColours();
-			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-			                                  false);
-			instrumentClipView.fillOffScreenImageStores();
+			instrument_clip_view_for_session().recalculateColours();
+			instrument_clip_view_for_session().renderMainPads(0xFFFFFFFF, &PadLEDs::image_store_for_session()[1],
+			                                                  &PadLEDs::occupancy_mask_store_for_session()[1], false);
+			instrument_clip_view_for_session().fillOffScreenImageStores();
 		}
 	}
 
-	int32_t start = instrumentClipView.getPosFromSquare(0);
-	int32_t end = instrumentClipView.getPosFromSquare(kDisplayWidth);
+	int32_t start = instrument_clip_view_for_session().getPosFromSquare(0);
+	int32_t end = instrument_clip_view_for_session().getPosFromSquare(kDisplayWidth);
 
 	int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
-	int64_t clipLengthBig = ((uint64_t)clip->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int64_t clipLengthBig =
+	    ((uint64_t)clip->loopLength << 16) / currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 
 	if (clipLengthBig) {
 		while (true) {
@@ -1916,12 +1967,13 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 		}
 	}
 
-	PadLEDs::explodeAnimationXStartBig = xStartBig;
-	PadLEDs::explodeAnimationXWidthBig = ((uint32_t)(end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
+	PadLEDs::explode_animation_x_start_big_for_session() = xStartBig;
+	PadLEDs::explode_animation_x_width_big_for_session() =
+	    ((uint32_t)(end - start) / currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT]) << 16;
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-	PadLEDs::explodeAnimationDirection = 1;
-	if ((clip->type == ClipType::AUDIO) && !clip->onAutomationClipView) {
+	PadLEDs::explode_animation_direction_for_session() = 1;
+	if ((clip->type == ClipType::AUDIO) && !clip->on_automation_clip_view_for_session()) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
 	else {
@@ -1938,56 +1990,61 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automation_view_for_session()) {
 
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
-			changeRootUI(&arrangerView);
+			changeRootUI(&arranger_view_for_session());
 			return true;
 		}
 	}
 
 	Output* output = getCurrentOutput();
-	int32_t i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
+	int32_t i =
+	    output->clipInstances.search(currentSong->last_clip_instance_entered_start_pos_for_session(), GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	if (!clipInstance || clipInstance->clip != getCurrentClip()) {
 		return false;
 	}
 
-	int32_t start = instrumentClipView.getPosFromSquare(0);
-	int32_t end = instrumentClipView.getPosFromSquare(kDisplayWidth);
+	int32_t start = instrument_clip_view_for_session().getPosFromSquare(0);
+	int32_t end = instrument_clip_view_for_session().getPosFromSquare(kDisplayWidth);
 
 	currentUIMode = UI_MODE_IMPLODE_ANIMATION;
 
-	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
-	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
+	memcpy(PadLEDs::image_store_for_session()[1], PadLEDs::image_for_session(),
+	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
+	memcpy(PadLEDs::occupancy_mask_store_for_session()[1], PadLEDs::occupancy_mask_for_session(),
+	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
 	// Both instrument and automation views need the offscreen instrument rows for a complete collapse into Arranger.
 	if (getCurrentClip()->type == ClipType::INSTRUMENT
-	    && (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView)) {
-		instrumentClipView.fillOffScreenImageStores();
+	    && (getCurrentUI() == &instrument_clip_view_for_session()
+	        || getCurrentUI() == &automation_view_for_session())) {
+		instrument_clip_view_for_session().fillOffScreenImageStores();
 	}
 
 	int32_t outputIndex = currentSong->getOutputIndex(output);
-	int32_t yDisplay = outputIndex - currentSong->arrangementYScroll;
+	int32_t yDisplay = outputIndex - currentSong->arrangement_y_scroll_for_session();
 	if (yDisplay < 0) {
-		currentSong->arrangementYScroll += yDisplay;
+		currentSong->arrangement_y_scroll_for_session() += yDisplay;
 		yDisplay = 0;
 	}
 	else if (yDisplay >= kDisplayHeight) {
-		currentSong->arrangementYScroll += (yDisplay - kDisplayHeight + 1);
+		currentSong->arrangement_y_scroll_for_session() += (yDisplay - kDisplayHeight + 1);
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
-		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automation_view_for_session()) {
+		waveform_renderer_for_session().collapseAnimationToWhichRow = yDisplay;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
 	}
 	else {
-		PadLEDs::explodeAnimationYOriginBig = yDisplay << 16;
+		PadLEDs::explode_animation_y_origin_big_for_session() = yDisplay << 16;
 	}
 
-	int64_t clipLengthBig = ((uint64_t)getCurrentClip()->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int64_t clipLengthBig =
+	    ((uint64_t)getCurrentClip()->loopLength << 16) / currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 	int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
 	int64_t potentialMidClip = xStartBig + (clipLengthBig >> 1);
@@ -2019,18 +2076,19 @@ bool ArrangerView::transitionToArrangementEditor() {
 		midClipDistanceFromMidDisplay = newMidClipDistanceFromMidDisplay;
 	}
 
-	PadLEDs::explodeAnimationXStartBig = xStartBig;
-	PadLEDs::explodeAnimationXWidthBig = ((end - start) / currentSong->xZoom[NAVIGATION_ARRANGEMENT]) << 16;
+	PadLEDs::explode_animation_x_start_big_for_session() = xStartBig;
+	PadLEDs::explode_animation_x_width_big_for_session() =
+	    ((end - start) / currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT]) << 16;
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-	PadLEDs::explodeAnimationDirection = -1;
+	PadLEDs::explode_animation_direction_for_session() = -1;
 
 	// clear sidebar for instrumentClipView, automationClipView, and keyboardScreen
-	if (getCurrentUI() != &audioClipView) {
+	if (getCurrentUI() != &audio_clip_view_for_session()) {
 		PadLEDs::clearSideBar();
 	}
 
-	PadLEDs::explodeAnimationTargetUI = this;
+	PadLEDs::explode_animation_target_ui_for_session() = this;
 	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 
 	doingAutoScrollNow = false; // May get changed back at new scroll pos soon
@@ -2045,7 +2103,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 // Seems to return whether it managed to put it in a new, valid position.
 bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragInto) {
 
-	uint32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	uint32_t xScroll = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
 	int32_t xMovement = xScroll - pressedClipInstanceXScrollWhenLastInValidPosition;
 
 	ClipInstance* clipInstance = pressedClipInstanceOutput->clipInstances.getElement(pressedClipInstanceIndex);
@@ -2131,7 +2189,8 @@ itsInvalid:
 	// If order of elements hasn't changed and Output hasn't either...
 	if (newOutputToDragInto == pressedClipInstanceOutput
 	    && (prevClipInstance == clipInstance || nextClipInstance == clipInstance)) {
-		clipInstance->change(action, newOutputToDragInto, newStartPos, clipInstance->length, clipInstance->clip);
+		if (!clipInstance->change(action, newOutputToDragInto, newStartPos, clipInstance->length, clipInstance->clip))
+			return false;
 	}
 
 	// Or if it has...
@@ -2160,7 +2219,7 @@ itsInvalid:
 
 			pressedClipInstanceOutput->pickAnActiveClipIfPossible(modelStack, true);
 
-			view.setActiveModControllableTimelineCounter(clip);
+			view_for_session().setActiveModControllableTimelineCounter(clip);
 		}
 
 		pressedClipInstanceOutput = newOutputToDragInto;
@@ -2213,14 +2272,16 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 		return true;
 	}
 
-	PadLEDs::renderingLock = true;
+	PadLEDs::rendering_lock_for_session() = true;
 
 	uint32_t whichRowsCouldntBeRendered =
-	    doActualRender(currentSong->xScroll[NAVIGATION_ARRANGEMENT], currentSong->xZoom[NAVIGATION_ARRANGEMENT],
-	                   whichRows, &image[0][0], occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
+	    doActualRender(currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT],
+	                   currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT], whichRows, &image[0][0],
+	                   occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
 
 	// Add negative region indicator when dragging clip instances left to the start
-	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)
+	    && currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] < 0) {
 
 		// Light up all columns that represent negative time positions with standard dim grey
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -2230,9 +2291,9 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 		}
 	}
 
-	PadLEDs::renderingLock = false;
+	PadLEDs::rendering_lock_for_session() = false;
 
-	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
+	if (whichRowsCouldntBeRendered && image == PadLEDs::image_for_session()) {
 		uiNeedsRendering(this, whichRowsCouldntBeRendered, 0);
 	}
 
@@ -2277,8 +2338,8 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 
 	if (drawGhostClipInstanceHere) {
 
-		int32_t xMovement =
-		    currentSong->xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
+		int32_t xMovement = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT]
+		                    - pressedClipInstanceXScrollWhenLastInValidPosition;
 		ClipInstance* clipInstance = pressedClipInstanceOutput->clipInstances.getElement(pressedClipInstanceIndex);
 		int32_t newStartPos = clipInstance->pos + xMovement;
 		int32_t newEndPos = newStartPos + clipInstance->length;
@@ -2551,7 +2612,8 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		}
 		// log action
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
-		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
+		if (!clipInstance->change(action, output, clipInstance->pos, newLength, newClip))
+			return;
 		// notify the arrangement that this clip instance will be added
 		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr,
 		                      clipInstance);
@@ -2570,7 +2632,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		if (playbackHandler.playbackState) {
 			if (currentPlaybackMode == &session) {
 				if (session.launchEventAtSwungTickCount && session.switchToArrangementAtLaunchEvent) {
-					sessionView.editNumRepeatsTilLaunch(offset);
+					session_view_for_session().editNumRepeatsTilLaunch(offset);
 				}
 			}
 
@@ -2603,7 +2665,7 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	outputsOnScreen[yPressedEffective] = output;
 
-	view.setActiveModControllableTimelineCounter(output->getActiveClip());
+	view_for_session().setActiveModControllableTimelineCounter(output->getActiveClip());
 
 	AudioEngine::routineWithClusterLoading();
 
@@ -2635,8 +2697,8 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
-	view.displayOutputName(newInstrument);
-	view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
+	view_for_session().displayOutputName(newInstrument);
+	view_for_session().setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 
 	beginAudition(newInstrument);
 }
@@ -2690,7 +2752,7 @@ cant:
 		}
 
 		newOutput = (AudioOutput*)newClip->output;
-		currentSong->arrangementYScroll--;
+		currentSong->arrangement_y_scroll_for_session()--;
 	}
 
 	// Or if no old Clip, we just simply make a new Output here and don't worry about Clips
@@ -2715,8 +2777,8 @@ cant:
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
-	view.displayOutputName(newOutput);
-	view.setActiveModControllableTimelineCounter(newClip);
+	view_for_session().displayOutputName(newOutput);
+	view_for_session().setActiveModControllableTimelineCounter(newClip);
 }
 
 static const uint32_t horizontalEncoderScrollUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW, 0};
@@ -2728,7 +2790,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 		if (!Buttons::isShiftButtonPressed()) {
 
-			int32_t oldXZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+			int32_t oldXZoom = currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 
 			int32_t zoomMagnitude = -offset;
 
@@ -2737,19 +2799,19 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 				if (oldXZoom <= 3) {
 					return ActionResult::DEALT_WITH;
 				}
-				currentSong->xZoom[NAVIGATION_ARRANGEMENT] >>= 1;
+				currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT] >>= 1;
 			}
 			else {
 				if (oldXZoom >= getMaxZoom()) {
 					return ActionResult::DEALT_WITH;
 				}
-				currentSong->xZoom[NAVIGATION_ARRANGEMENT] <<= 1;
+				currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT] <<= 1;
 			}
 
-			int32_t oldScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+			int32_t oldScroll = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
 
 			int32_t newScroll;
-			uint32_t newZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+			uint32_t newZoom = currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 
 			if (arrangement.hasPlaybackActive() && doingAutoScrollNow) {
 				int32_t actualCurrentPos = arrangement.getLivePos();
@@ -2786,7 +2848,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 			}
 			else {
 
-				int32_t scroll_amount = offset * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+				int32_t scroll_amount = offset * currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 
 				// If expanding, make sure we don't exceed length limit
 				if (offset >= 0 && static_cast<int32_t>(getMaxLength()) > kMaxSequenceLength - scroll_amount) {
@@ -2799,14 +2861,14 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 				Action* action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 
 				if (action
-				    && (action->xScrollArranger[BEFORE] != currentSong->xScroll[NAVIGATION_ARRANGEMENT]
-				        || action->xZoomArranger[BEFORE] != currentSong->xZoom[NAVIGATION_ARRANGEMENT])) {
+				    && (action->xScrollArranger[BEFORE] != currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT]
+				        || action->xZoomArranger[BEFORE]
+				               != currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT])) {
 					action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 				}
 
-				shiftAutomationHorizontally(offset, scroll_amount, action);
-
-				shiftClipsHorizontally(offset, scroll_amount, action);
+				if (!shift_arrangement_time(offset, scroll_amount, action))
+					return ActionResult::DEALT_WITH;
 
 				lastInteractedPos += scroll_amount;
 
@@ -2828,13 +2890,13 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 			ClipInstance* pressed_instance =
 			    (ClipInstance*)pressedClipInstanceOutput->clipInstances.getElement(pressedClipInstanceIndex);
-			int32_t xMovement =
-			    currentSong->xScroll[NAVIGATION_ARRANGEMENT] - pressedClipInstanceXScrollWhenLastInValidPosition;
+			int32_t xMovement = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT]
+			                    - pressedClipInstanceXScrollWhenLastInValidPosition;
 			int32_t dragged_clip_position = pressed_instance->pos + xMovement;
 			can_drag_clip_instance = (dragged_clip_position > 0);
 		}
 
-		if (can_drag_clip_instance || currentSong->xScroll[NAVIGATION_ARRANGEMENT] > 0 || offset > 0) {
+		if (can_drag_clip_instance || currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] > 0 || offset > 0) {
 			// Allow movement left if we are above zero when either dragging or scrolling.
 			// This will always stop scrolling at zero, but dragging might let the clip instance go one
 			// square below zero if it is for example at a half step offset. But it will blink and then snap back to
@@ -2849,82 +2911,239 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 }
 
 // This function will shift automation horizontally at a specific point in time by inserting / deleting time
-void ArrangerView::shiftAutomationHorizontally(int32_t offset, int32_t scroll_amount, Action* action) {
-	ParamCollectionSummary* unpatchedParamsSummary = currentSong->paramManager.getUnpatchedParamSetSummary();
-	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
+bool ArrangerView::shift_automation_horizontally(int32_t offset, int32_t scroll_amount, Action* action) {
+	// Record expansion before retaining any model pointers across allocation.
+	if (!currentSong)
+		return false;
+	if (offset >= 0
+	    && (!action
+	        || !action->record_arranger_time_inserted(currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT],
+	                                                  scroll_amount)))
+		return false;
+	ParamCollectionSummary* unpatched_params_summary = currentSong->paramManager.getUnpatchedParamSetSummary();
+	UnpatchedParamSet* unpatched_params = (UnpatchedParamSet*)unpatched_params_summary->paramCollection;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithParamCollection* modelStackWithUnpatchedParams =
-	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory)
-	        ->addParamCollection(unpatchedParams, unpatchedParamsSummary);
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithParamCollection* model_stack_with_unpatched_params =
+	    currentSong->setupModelStackWithSongAsTimelineCounter(model_stack_memory)
+	        ->addParamCollection(unpatched_params, unpatched_params_summary);
 
 	if (offset >= 0) {
-		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceArrangerParamsTimeInserted));
-		if (consMemory) {
-			ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
-			    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT], scroll_amount);
-			action->addConsequence(consequence);
-		}
-		unpatchedParams->insertTime(modelStackWithUnpatchedParams, currentSong->xScroll[NAVIGATION_ARRANGEMENT],
-		                            scroll_amount);
+		unpatched_params->insertTime(model_stack_with_unpatched_params,
+		                             currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT], scroll_amount);
 	}
 	else {
-		if (action) {
-			unpatchedParams->backUpAllAutomatedParamsToAction(action, modelStackWithUnpatchedParams);
-		}
-		unpatchedParams->deleteTime(modelStackWithUnpatchedParams, currentSong->xScroll[NAVIGATION_ARRANGEMENT],
-		                            -scroll_amount);
+		const int32_t target_pos = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
+		// Contraction snapshots were prepared before shifting instances.
+		unpatched_params->deleteTime(model_stack_with_unpatched_params, target_pos, -scroll_amount);
 	}
+	return true;
+}
+
+bool ArrangerView::prepare_automation_contraction(Action* action) {
+	if (!currentSong || !action)
+		return false;
+	auto* summary = currentSong->paramManager.getUnpatchedParamSetSummary();
+	auto* params = static_cast<UnpatchedParamSet*>(summary->paramCollection);
+	char stack_memory[MODEL_STACK_MAX_SIZE];
+	auto* stack =
+	    currentSong->setupModelStackWithSongAsTimelineCounter(stack_memory)->addParamCollection(params, summary);
+	return params->backup_all_automated_params_to_action(action, stack);
+}
+
+bool ArrangerView::shift_arrangement_time(int32_t offset, int32_t scroll_amount, Action* action) {
+	if (offset < 0) {
+		if (!currentSong || !action)
+			return false;
+		Song* const song = currentSong;
+		const auto retained_identity = action->action_identity;
+		const bool retained_in_history = actionLogger.firstAction[BEFORE] == action;
+		using namespace deluge::gui::ui_session;
+		const auto owner = current();
+		const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+		const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+		const int32_t target_pos = song->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
+		auto context_valid = [&] {
+			return currentSong == song && current() == owner
+			       && navigation.for_owner(Id::Local).structural_refresh.revision() == local_revision
+			       && navigation.for_owner(Id::Remote).structural_refresh.revision() == remote_revision
+			       && (!retained_in_history || actionLogger.firstAction[BEFORE] == action)
+			       && action->action_identity == retained_identity
+			       && song->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] == target_pos;
+		};
+		// Prepare undo first, but leave automation untouched until all instance edits
+		// succeed. The final node deletion neither allocates nor services callbacks.
+		if (!prepare_automation_contraction(action) || !context_valid())
+			return false;
+		if (!shift_clips_horizontally(offset, scroll_amount, action) || !context_valid())
+			return false;
+		return shift_automation_horizontally(offset, scroll_amount, action);
+	}
+	if (!shift_automation_horizontally(offset, scroll_amount, action))
+		return false;
+	auto* const automation_head = offset >= 0 && action ? action->firstConsequence : nullptr;
+	bool recovered = false;
+	if (shift_clips_horizontally(offset, scroll_amount, action, &recovered))
+		return true;
+	// A recovered instance batch guarantees that action/song identity and history
+	// are still valid. No callbacks occur between that validation and this inverse.
+	if (offset >= 0 && recovered && !action->rollback_arranger_time_inserted(currentSong, automation_head))
+		action->snapshot_error = Error::BUG;
+	return false;
 }
 
 // This function will shift clips horizontally at a specific point in time by inserting / deleting time
-void ArrangerView::shiftClipsHorizontally(int32_t offset, int32_t scroll_amount, Action* action) {
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		int32_t i = thisOutput->clipInstances.search(currentSong->xScroll[NAVIGATION_ARRANGEMENT], GREATER_OR_EQUAL);
+bool ArrangerView::shift_clips_horizontally(int32_t offset, int32_t scroll_amount, Action* action, bool* recovered) {
+	if (recovered)
+		*recovered = false;
+	if (!currentSong)
+		return false;
+	Song* const batch_song = currentSong;
+	const int32_t batch_cursor = batch_song->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	const auto action_identity = action ? action->action_identity : 0;
+	const bool retained_in_history = action && actionLogger.firstAction[BEFORE] == action;
+	const auto initial_error = action ? action->snapshot_error : Error::NONE;
+	auto* const history_boundary = action ? action->firstConsequence : nullptr;
+	auto* expected_head = history_boundary;
+	int32_t completed_changes = 0;
+	bool isolated_history = true;
+	auto recover_shifts = [&] {
+		if (action && isolated_history && currentSong == batch_song && current() == owner
+		    && navigation.for_owner(Id::Local).structural_refresh.revision() == local_revision
+		    && navigation.for_owner(Id::Remote).structural_refresh.revision() == remote_revision
+		    && (!retained_in_history || actionLogger.firstAction[BEFORE] == action)
+		    && action->action_identity == action_identity && action->firstConsequence == expected_head
+		    && batch_song->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] == batch_cursor
+		    && initial_error == Error::NONE && action->snapshot_error == Error::INSUFFICIENT_RAM
+		    && action->rollback_instance_batch(batch_song, history_boundary, completed_changes, scroll_amount)) {
+			action->snapshot_error = initial_error;
+			if (recovered)
+				*recovered = true;
+		}
+	};
+	auto track_change = [&](Output* output) {
+		if (currentSong != batch_song || current() != owner
+		    || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+		    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision
+		    || (retained_in_history && actionLogger.firstAction[BEFORE] != action)
+		    || (action && action->action_identity != action_identity) || !batch_song->owns_output_for_undo(output)
+		    || batch_song->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] != batch_cursor)
+			return false;
+		if (action) {
+			auto* new_head = action->firstConsequence;
+			isolated_history &= new_head && new_head != expected_head && new_head->next == expected_head;
+			expected_head = new_head;
+			++completed_changes;
+		}
+		return true;
+	};
+	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		int32_t i =
+		    output->clipInstances.search(currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT], GREATER_OR_EQUAL);
 
-		bool movedOneYet = false;
+		// Move rightmost instances first when expanding. Every intermediate
+		// state stays sorted, including when a later snapshot fails.
+		if (offset >= 0 && scroll_amount > 0) {
+			for (int32_t index = output->clipInstances.getNumElements() - 1; index >= i; --index) {
+				auto* instance = output->clipInstances.getElement(index);
+				if (!instance->change(action, output, instance->pos + scroll_amount, instance->length,
+				                      instance->clip)) {
+					recover_shifts();
+					return false;
+				}
+				if (!track_change(output))
+					return false;
+			}
+			continue;
+		}
+
+		bool moved_one_yet = false;
 
 		// And move the successive ones.
-		while (i < thisOutput->clipInstances.getNumElements()) {
-			ClipInstance* instance = thisOutput->clipInstances.getElement(i);
+		while (i < output->clipInstances.getNumElements()) {
+			ClipInstance* instance = output->clipInstances.getElement(i);
 
 			// If contracting time and this bit has to be deleted...
-			if (offset < 0 && instance->pos + scroll_amount < currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
-				deleteClipInstance(thisOutput, i, instance, action);
+			if (offset < 0
+			    && instance->pos + scroll_amount < currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT]) {
+				const bool empty_deletion = !instance->clip;
+				// Clip-bearing deletions still require separate ownership recovery.
+				if (!empty_deletion)
+					isolated_history = false;
+				if (!delete_clip_instance(output, i, instance, action)) {
+					recover_shifts();
+					return false;
+				}
+				if (!empty_deletion
+				    && (currentSong != batch_song || current() != owner || !batch_song->owns_output_for_undo(output)
+				        || (retained_in_history && actionLogger.firstAction[BEFORE] != action)
+				        || (action && action->action_identity != action_identity)
+				        || batch_song->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] != batch_cursor))
+					return false;
+				if (empty_deletion && !track_change(output))
+					return false;
 				// Don't increment i, because we deleted an element
 			}
 
 			// Otherwise, just move it
 			else {
 
-				int32_t new_pos = instance->pos + scroll_amount;
+				const int32_t source_pos = instance->pos;
+				const int32_t source_length = instance->length;
+				Clip* const source_clip = instance->clip;
+				Song* const source_song = currentSong;
+				const bool registered_source = source_clip && source_song->contains_clip_for_undo(source_clip);
+				int32_t new_pos = source_pos + scroll_amount;
 
 				// If contracting time, shorten the previous ClipInstance only if the ClipInstances we're
 				// moving will eat into its tail. Otherwise, leave the tail there. Perhaps it'd make more
 				// sense to cut the tail off regardless, but possibly just due to me not thinking about it,
 				// this was not done in pre-V4 firmware, and actually having it this way probably helps
 				// users.
-				if (!movedOneYet && offset < 0 && i > 0) {
-					movedOneYet = true;
-					ClipInstance* prevInstance = (ClipInstance*)thisOutput->clipInstances.getElement(i - 1);
-					int32_t maxLength = new_pos - prevInstance->pos;
-					if (prevInstance->length > maxLength) {
-						prevInstance->change(action, thisOutput, prevInstance->pos, maxLength, prevInstance->clip);
+				if (!moved_one_yet && offset < 0 && i > 0) {
+					moved_one_yet = true;
+					ClipInstance* previous_instance = (ClipInstance*)output->clipInstances.getElement(i - 1);
+					int32_t max_length = new_pos - previous_instance->pos;
+					if (previous_instance->length > max_length) {
+						if (!previous_instance->change(action, output, previous_instance->pos, max_length,
+						                               previous_instance->clip)) {
+							recover_shifts();
+							return false;
+						}
+						if (!track_change(output))
+							return false;
+						// The predecessor's allocation can change a different instance
+						// while leaving the predecessor itself valid.
+						auto* live_instance = output->clipInstances.getElement(i);
+						if (!live_instance || live_instance != instance || live_instance->pos != source_pos
+						    || live_instance->length != source_length || live_instance->clip != source_clip
+						    || (registered_source && !source_song->contains_clip_for_undo(source_clip)))
+							return false;
 					}
 				}
 
-				instance->change(action, thisOutput, new_pos, instance->length, instance->clip);
+				if (!instance->change(action, output, new_pos, instance->length, instance->clip)) {
+					recover_shifts();
+					return false;
+				}
+				if (!track_change(output))
+					return false;
 
 				i++;
 			}
 		}
 	}
+	return true;
 }
 
 ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	actionOnDepress = false;
 
-	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	uint32_t xZoom = currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 
 	int32_t scroll_amount = direction * static_cast<int32_t>(xZoom);
 
@@ -2933,7 +3152,7 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	// Only apply normal scroll constraints when not dragging to allow temporary negative
 	// window position so that clip instances can be dragged all the way to the start
 	if (!dragging_clip_instance) {
-		scroll_amount = std::max(scroll_amount, -currentSong->xScroll[NAVIGATION_ARRANGEMENT]);
+		scroll_amount = std::max(scroll_amount, -currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT]);
 	}
 
 	// Calculate max scroll bounds
@@ -2941,20 +3160,20 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	int32_t screen_width = static_cast<int32_t>(xZoom) << kDisplayWidthMagnitude;
 	max_scroll = std::clamp(max_scroll, int32_t{0}, kMaxSequenceLength - screen_width);
 
-	int32_t new_x_scroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] + scroll_amount;
+	int32_t new_x_scroll = currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] + scroll_amount;
 
 	// Apply maximum scroll limit
 	if (new_x_scroll > max_scroll) {
 		new_x_scroll = (max_scroll / static_cast<int32_t>(xZoom)) * static_cast<int32_t>(xZoom);
 	}
 
-	if (new_x_scroll != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
+	if (new_x_scroll != currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT]) {
 
 		if (dragging_clip_instance && sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = new_x_scroll;
+		currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] = new_x_scroll;
 
 		if (dragging_clip_instance) {
 			// might have to get shifted left or right to a valid position
@@ -2966,7 +3185,7 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	}
 
 	// Display scroll position, but handle potential negative scroll values during dragging
-	if (dragging_clip_instance && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+	if (dragging_clip_instance && currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] < 0) {
 		// It can't handle negative values, so just display the 0 position (1:1:1)
 		displayNumberOfBarsAndBeats(0, kDisplayWidth, true, "");
 	}
@@ -2982,7 +3201,7 @@ void ArrangerView::reassessWhetherDoingAutoScroll(int32_t pos) {
 
 	doingAutoScrollNow = false;
 
-	if (!currentSong->arrangerAutoScrollModeActive || !arrangement.hasPlaybackActive()) {
+	if (!currentSong->arranger_auto_scroll_mode_active_for_session() || !arrangement.hasPlaybackActive()) {
 		return;
 	}
 
@@ -2998,12 +3217,12 @@ void ArrangerView::reassessWhetherDoingAutoScroll(int32_t pos) {
 
 ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 	if (direction >= 0) { // Up
-		if (currentSong->arrangementYScroll >= currentSong->getNumOutputs() - 1) {
+		if (currentSong->arrangement_y_scroll_for_session() >= currentSong->getNumOutputs() - 1) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
 	else { // Down
-		if (currentSong->arrangementYScroll <= 1 - kDisplayHeight) {
+		if (currentSong->arrangement_y_scroll_for_session() <= 1 - kDisplayHeight) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -3041,7 +3260,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 
 		actionLogger.deleteAllLogs();
 
-		currentSong->arrangementYScroll += direction;
+		currentSong->arrangement_y_scroll_for_session() += direction;
 
 		// Drag selected output against the scroll
 		// Shift Output up
@@ -3069,7 +3288,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 		}
 	}
 	else {
-		currentSong->arrangementYScroll += direction;
+		currentSong->arrangement_y_scroll_for_session() += direction;
 	}
 
 	repopulateOutputsOnScreen();
@@ -3104,8 +3323,9 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 
 void ArrangerView::setNoSubMode() {
 	// If we were dragging a clip instance left and have a negative scroll position, snap back to 0
-	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+	    && currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] < 0) {
+		currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] = 0;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 
@@ -3123,17 +3343,17 @@ static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_
 void ArrangerView::graphicsRoutine() {
 	UI* ui = getCurrentUI();
 
-	sessionView.potentiallyUpdateCompressorLEDs();
+	session_view_for_session().potentiallyUpdateCompressorLEDs();
 
-	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
+	if (view_for_session().potentiallyRenderVUMeter(PadLEDs::image_for_session())) {
 		PadLEDs::sendOutSidebarColours();
 	}
 
 	if (display->haveOLED()) {
-		sessionView.displayPotentialTempoChange(this);
+		session_view_for_session().displayPotentialTempoChange(this);
 	}
 
-	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
+	if (PadLEDs::flash_cursor_for_session() != FLASH_CURSOR_OFF) {
 
 		int32_t newTickSquare;
 
@@ -3147,23 +3367,23 @@ void ArrangerView::graphicsRoutine() {
 			// If doing auto scroll...
 			if (doingAutoScrollNow && isUIModeWithinRange(autoScrollUIModes)) {
 
-				int32_t newScrollPos =
-				    (actualCurrentPos / currentSong->xZoom[NAVIGATION_ARRANGEMENT] - autoScrollNumSquaresBehind)
-				    * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+				int32_t newScrollPos = (actualCurrentPos / currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT]
+				                        - autoScrollNumSquaresBehind)
+				                       * currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 
 				// If now is the time to scroll to a different position (usually one square)...
-				if (newScrollPos != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
+				if (newScrollPos != currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT]) {
 					bool wasLessThanZero = (newScrollPos < 0);
 					if (wasLessThanZero) {
 						newScrollPos = 0;
 					}
 
-					currentSong->xScroll[NAVIGATION_ARRANGEMENT] = newScrollPos;
+					currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] = newScrollPos;
 					if (wasLessThanZero) {
 						autoScrollNumSquaresBehind = getSquareFromPos(actualCurrentPos);
 					}
 
-					if (PadLEDs::flashCursor == FLASH_CURSOR_FAST) {
+					if (PadLEDs::flash_cursor_for_session() == FLASH_CURSOR_FAST) {
 						PadLEDs::clearTickSquares();  // Make sure new fast flashes get sent out
 						mustRedrawTickSquares = true; // Make sure this gets sent below here
 					}
@@ -3216,7 +3436,7 @@ void ArrangerView::graphicsRoutine() {
 
 void ArrangerView::notifyActiveClipChangedOnOutput(Output* output) {
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && outputsOnScreen[yPressedEffective] == output) {
-		view.setActiveModControllableTimelineCounter(output->getActiveClip());
+		view_for_session().setActiveModControllableTimelineCounter(output->getActiveClip());
 	}
 }
 
@@ -3229,7 +3449,7 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 	    && !Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		// Don't do it if they're instantly restarting playback again
 
-		uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+		uint32_t xZoom = currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 		int32_t newScrollPos =
 		    ((uint32_t)(arrangement.playbackStartedAtPos + (xZoom >> 1)) / xZoom - autoScrollNumSquaresBehind) * xZoom;
 
@@ -3248,12 +3468,12 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 			newScrollPos = xScrollWhenPlaybackStarted;
 		}
 
-		int32_t scrollDifference = newScrollPos - currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t scrollDifference = newScrollPos - currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
 
 		if (scrollDifference) {
 
 			// If allowed to do a nice scrolling animation...
-			if (currentUIMode == UI_MODE_NONE && getCurrentUI() == this && !PadLEDs::renderingLock) {
+			if (currentUIMode == UI_MODE_NONE && getCurrentUI() == this && !PadLEDs::rendering_lock_for_session()) {
 				bool worthDoingAnimation = initiateXScroll(newScrollPos);
 				if (!worthDoingAnimation) {
 					goto sharpJump;
@@ -3263,7 +3483,7 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 			// Otherwise, just jump sharply
 			else {
 sharpJump:
-				currentSong->xScroll[NAVIGATION_ARRANGEMENT] = newScrollPos;
+				currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT] = newScrollPos;
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
 		}
@@ -3272,11 +3492,11 @@ sharpJump:
 
 // Returns false if too few squares to bother with animation
 bool ArrangerView::initiateXScroll(int32_t newScrollPos) {
-	int32_t distanceToScroll = newScrollPos - currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	int32_t distanceToScroll = newScrollPos - currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
 	if (distanceToScroll < 0) {
 		distanceToScroll = -distanceToScroll;
 	}
-	int32_t squaresToScroll = distanceToScroll / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int32_t squaresToScroll = distanceToScroll / currentSong->x_zoom_for_session()[NAVIGATION_ARRANGEMENT];
 	if (squaresToScroll <= 1) {
 		return false;
 	}
@@ -3334,7 +3554,7 @@ uint32_t ArrangerView::getMaxZoom() {
 
 void ArrangerView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		PadLEDs::transitionTakingPlaceOnRow[yDisplay] =
+		PadLEDs::transition_taking_place_on_row_for_session()[yDisplay] =
 		    (outputsOnScreen[yDisplay] && outputsOnScreen[yDisplay]->clipInstances.getNumElements());
 	}
 }
@@ -3383,7 +3603,7 @@ void ArrangerView::playbackEnded() {
 		autoScrollOnPlaybackEnd();
 	}
 
-	if (getCurrentUI() == &arrangerView) { // Why do we need to check this?
+	if (getCurrentUI() == &arranger_view_for_session()) { // Why do we need to check this?
 		renderDisplay();
 	}
 }
@@ -3414,11 +3634,11 @@ Clip* ArrangerView::getClipForSelection() {
 }
 
 void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
-	if (ui == &performanceView) {
+	if (ui == &performance_view_for_session()) {
 		// don't re-render main pads in performance view
 		uiNeedsRendering(ui, 0, whichSideRows);
 	}
-	else if (ui == &arrangerView) {
+	else if (ui == &arranger_view_for_session()) {
 		uiNeedsRendering(ui, whichMainRows, whichSideRows);
 	}
 }

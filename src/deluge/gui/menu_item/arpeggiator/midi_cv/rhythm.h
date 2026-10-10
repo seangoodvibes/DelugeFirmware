@@ -31,24 +31,24 @@ class Rhythm final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->rhythm));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->rhythm));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->rhythm = value;
+		sound_editor_for_session().currentArpSettings->rhythm = value;
 	}
 
 	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		oled_canvas::Canvas& canvas = OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main_for_session();
 
 		canvas.drawStringCentred(arpRhythmPatternNames[this->getValue()], yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth,
 		                         textHeight);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const auto value = this->getValue();
 		const auto pattern = std::string_view(arpRhythmPatternNames[value]);

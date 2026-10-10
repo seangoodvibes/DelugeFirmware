@@ -31,4 +31,4 @@ protected:
 	std::string_view getCurrentName() const override;
 };
 
-extern RenameClipUI renameClipUI;
+RenameClipUI& rename_clip_ui_for_session();

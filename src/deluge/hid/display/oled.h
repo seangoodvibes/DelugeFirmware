@@ -18,10 +18,13 @@
 #pragma once
 
 #include "gui/l10n/language.h"
+#include "gui/ui/ui_session.h"
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
 #include "oled_canvas/canvas.h"
+#include <optional>
+#include <span>
 #include <sys/types.h>
 #include <vector>
 
@@ -54,6 +57,7 @@ public:
 	///
 	/// Marks the OLED as dirty, so you don't need to do that later yourself.
 	static void clearMainImage();
+	void reset_layers_for_session() override;
 
 	static void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately);
 	static void stopBlink();
@@ -85,24 +89,31 @@ public:
 	/// via \ref sendMainImage.
 	static void markChanged() {
 #if OLED_LOG_TIMING
-		if (!needsSending) {
+		if (!needs_sending_for_session()) {
 			D_PRINTLN("Fresh dirty mark");
 		}
 #endif
-		needsSending = true;
+		needs_sending_for_session() = true;
 	}
 
 	void consoleTimerEvent();
+	static void clear_console_for_session();
 	static void scrollingAndBlinkingTimerEvent();
 
 	static void renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display);
 
-	static oled_canvas::Canvas main;
-	static oled_canvas::Canvas popup;
-	static oled_canvas::Canvas console;
+	static oled_canvas::Canvas& main_for_session();
+	static oled_canvas::Canvas& popup_for_session();
+	static oled_canvas::Canvas& console_for_session();
 
 	// pointer to one of the three above (the one currently displayed)
-	static uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS];
+	using ImagePointer = uint8_t (*)[OLED_MAIN_WIDTH_PIXELS];
+	static ImagePointer& oled_current_image_for_session();
+	static ImagePointer local_image();
+	static uint32_t remote_frame_revision();
+	static void invalidate_remote_frame();
+	// Copies only the completed Remote image; leaves active UI ownership intact.
+	static std::optional<uint32_t> copy_remote_frame(std::span<uint8_t> destination);
 
 	static const uint8_t folderIcon[];
 	static const uint8_t waveIcon[];
@@ -190,7 +201,7 @@ public:
 	void displayNotification(std::string_view param_title, std::optional<std::string_view> param_value) override;
 
 private:
-	static bool needsSending;
+	static bool& needs_sending_for_session();
 };
 
 } // namespace deluge::hid::display

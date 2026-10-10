@@ -21,27 +21,33 @@
 #include "hid/led/pad_leds.h"
 #include "model/song/song.h"
 
-int32_t ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
+int32_t& ClipNavigationTimelineView::recording_scroll_for_session() {
+	struct SavedScroll {
+		int32_t position = -1;
+	};
+	static deluge::gui::ui_session::State<SavedScroll> saved_scroll;
+	return saved_scroll.active().position;
+}
 
 void ClipNavigationTimelineView::focusRegained() {
-	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+	recording_scroll_for_session() = -1;
 }
 
 ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int32_t offset) {
 
-	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+	recording_scroll_for_session() = -1;
 	return TimelineView::horizontalEncoderAction(offset); // Let parent to scrolling / zooming
 }
 
 void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newXScroll) {
 	// Make sure we don't scroll too far right
 	if (newXScroll < getMaxLength()) {
-		if (!PadLEDs::renderingLock && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		if (!PadLEDs::rendering_lock_for_session() && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this) {
 			initiateXScroll(newXScroll);
 		}
 		else {
-			currentSong->xScroll[NAVIGATION_CLIP] = newXScroll;
+			currentSong->x_scroll_for_session()[NAVIGATION_CLIP] = newXScroll;
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 		if (!display->hasPopup()) {

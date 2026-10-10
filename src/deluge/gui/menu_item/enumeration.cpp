@@ -49,7 +49,7 @@ void Enumeration::getShortOption(StringBuf& opt) {
 }
 
 void Enumeration::renderInHorizontalMenu(const SlotPosition& slot) {
-	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main_for_session();
 
 	// Render current value
 	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);

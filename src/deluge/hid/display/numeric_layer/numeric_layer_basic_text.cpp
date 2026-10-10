@@ -33,7 +33,7 @@ void NumericLayerBasicText::isNowOnTop() {
 
 		if (blinkSpeed == 1 && uiTimerManager.isTimerSet(TimerName::LED_BLINK)) {
 			uiTimerManager.setTimerByOtherTimer(TimerName::DISPLAY, TimerName::LED_BLINK);
-			if (!indicator_leds::ledBlinkState[0]) {
+			if (!indicator_leds::blink_state_for_session(0)) {
 				currentlyBlanked = !currentlyBlanked; // Cheating
 			}
 		}

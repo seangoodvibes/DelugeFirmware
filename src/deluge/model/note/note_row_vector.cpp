@@ -16,6 +16,7 @@
  */
 
 #include "model/note/note_row_vector.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "model/note/note_row.h"
 #include "processing/engines/audio_engine.h"
 #include <new>
@@ -24,6 +25,7 @@ NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 
 }
 
 NoteRowVector::~NoteRowVector() {
+	deluge::gui::ui_session::PeerStructuralChange structural_change(numElements > 0);
 	for (int32_t i = 0; i < numElements; i++) {
 		AudioEngine::routineWithClusterLoading();
 
@@ -32,16 +34,21 @@ NoteRowVector::~NoteRowVector() {
 }
 
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
+	// Allocation can yield, and inserting may relocate existing row objects.
+	deluge::gui::ui_session::PeerStructuralChange structural_change;
 	Error error = insertAtIndex(index);
 	if (error != Error::NONE) {
 		return nullptr;
 	}
 	void* memory = getElementAddress(index);
 
-	return new (memory) NoteRow();
+	NoteRow* row = new (memory) NoteRow();
+	return row;
 }
 
 void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
+	// Row destruction can invalidate editor targets even when its drum survives.
+	deluge::gui::ui_session::PeerStructuralChange structural_change(numToDelete > 0);
 	for (int32_t i = startIndex; i < startIndex + numToDelete; i++) {
 		getElement(i)->~NoteRow();
 	}

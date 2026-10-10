@@ -21,6 +21,8 @@
 
 namespace deluge::gui::menu_item {
 
+bool& moving_cursor_for_session();
+
 class Decimal : public Number {
 public:
 	using Number::Number;

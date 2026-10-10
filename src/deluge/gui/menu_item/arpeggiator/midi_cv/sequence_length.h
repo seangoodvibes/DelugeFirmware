@@ -26,11 +26,12 @@ class SequenceLength final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->sequenceLength));
+		this->setValue(
+		    computeCurrentValueForUnsignedMenuItem(sound_editor_for_session().currentArpSettings->sequenceLength));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->sequenceLength = value;
+		sound_editor_for_session().currentArpSettings->sequenceLength = value;
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
@@ -38,8 +39,9 @@ public:
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (getValue() == 0) {
 			const auto off_string = l10n::get(l10n::String::STRING_FOR_OFF);
-			return OLED::main.drawStringCentered(off_string, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
-			                                     kTextSpacingX, kTextSpacingY, slot.width);
+			return OLED::main_for_session().drawStringCentered(off_string, slot.start_x,
+			                                                   slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			                                                   kTextSpacingY, slot.width);
 		}
 		ArpNonSoundInteger::renderInHorizontalMenu(slot);
 	}

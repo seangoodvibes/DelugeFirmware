@@ -1,7 +1,9 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/views/automation/editor_layout/mod_controllable/parameter_edit.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
 #include "model/consequence/consequence_param_change.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/timeline_counter.h"
@@ -1301,8 +1303,184 @@ TEST(parameter_lifecycle, failed_node_capture_preserves_source_and_allows_retry)
 	}
 }
 
-TEST(parameter_lifecycle, partial_node_insertion_reports_failure_and_retries_without_consuming_record) {
-	bool reached_success = false, saw_partial = false, saw_failure = false;
+TEST(parameter_lifecycle, move_node_copy_preserves_source_on_failure_and_success) {
+	for (bool wrapping : {false, true}) {
+		fixture f;
+		f.set().setCurrentValueBasicForSetup(32, 17);
+		f.add_node(32, 2, 200, true);
+		f.add_node(32, 28, 2800, false);
+		auto* parameter = f.param(32)->autoParam;
+		stolen_nodes copied;
+		const int32_t pos = wrapping ? 24 : 0;
+		const int32_t region_length = wrapping ? 12 : 32;
+		{
+			fail_allocations failure;
+			CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, &copied.record) == Error::INSUFFICIENT_RAM);
+		}
+		LONGS_EQUAL(0, copied.record.num);
+		POINTERS_EQUAL(nullptr, copied.record.nodes);
+		check_node(*parameter, 0, 2, 200, true);
+		check_node(*parameter, 1, 28, 2800, false);
+		CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, &copied.record) == Error::NONE);
+		LONGS_EQUAL(2, copied.record.num);
+		LONGS_EQUAL(wrapping ? 4 : 2, copied.record.nodes[0].pos);
+		LONGS_EQUAL(wrapping ? 10 : 28, copied.record.nodes[1].pos);
+		LONGS_EQUAL(wrapping ? 2800 : 200, copied.record.nodes[0].value);
+		LONGS_EQUAL(wrapping ? 200 : 2800, copied.record.nodes[1].value);
+		check_node(*parameter, 0, 2, 200, true);
+		check_node(*parameter, 1, 28, 2800, false);
+		check_flag(f.summary(), 32, true);
+		LONGS_EQUAL(17, f.set().getValue(32));
+		auto* owned_nodes = copied.record.nodes;
+		CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, &copied.record) == Error::BUG);
+		POINTERS_EQUAL(owned_nodes, copied.record.nodes);
+		CHECK(parameter->copy_nodes_for_move(pos, region_length, 32, nullptr) == Error::BUG);
+	}
+}
+TEST(parameter_lifecycle, node_capture_rejects_source_changes_during_allocation) {
+	for (bool remove_source : {false, true}) {
+		for (bool fail_allocation : {false, true}) {
+			fixture f;
+			f.add_node(32, 2, 200);
+			f.add_node(32, 28, 2800);
+			auto* context = f.param(32);
+			stolen_nodes copied;
+			parameter_test::on_allocation = [&] {
+				context->autoParam->nodes.empty();
+				if (fail_allocation)
+					parameter_test::allocations_before_failure = 0;
+			};
+			Error result = remove_source ? context->autoParam->stealNodes(context, 24, 12, 32, nullptr, &copied.record)
+			                             : context->autoParam->copy_nodes_for_move(24, 12, 32, &copied.record);
+			parameter_test::allocations_before_failure = -1;
+			CHECK(result == Error::BUG);
+			LONGS_EQUAL(0, copied.record.num);
+			POINTERS_EQUAL(nullptr, copied.record.nodes);
+			LONGS_EQUAL(0, context->autoParam->nodes.getNumElements());
+		}
+	}
+}
+TEST(parameter_lifecycle, node_capture_rejects_in_place_changes_to_region_boundaries) {
+	for (bool remove_source : {false, true}) {
+		for (int boundary = 0; boundary < 3; ++boundary) {
+			fixture f;
+			f.add_node(32, 2, 200);
+			f.add_node(32, 12, 1200);
+			f.add_node(32, 28, 2800);
+			auto* context = f.param(32);
+			stolen_nodes copied;
+			const int32_t position = boundary == 2 ? 24 : 8;
+			const int32_t length = boundary == 2 ? 12 : 16;
+			const int32_t changed_index = boundary == 2 ? 0 : 1;
+			const int32_t changed_position = boundary == 0 ? 6 : boundary == 1 ? 26 : 6;
+			void* first_node = context->autoParam->nodes.getElementAddress(0);
+			parameter_test::on_allocation = [&] {
+				context->autoParam->nodes.getElement(changed_index)->pos = changed_position;
+			};
+			Error result = remove_source
+			                   ? context->autoParam->stealNodes(context, position, length, 32, nullptr, &copied.record)
+			                   : context->autoParam->copy_nodes_for_move(position, length, 32, &copied.record);
+			CHECK(result == Error::BUG);
+			LONGS_EQUAL(0, copied.record.num);
+			POINTERS_EQUAL(nullptr, copied.record.nodes);
+			POINTERS_EQUAL(first_node, context->autoParam->nodes.getElementAddress(0));
+			LONGS_EQUAL(3, context->autoParam->nodes.getNumElements());
+			LONGS_EQUAL(changed_position, context->autoParam->nodes.getElement(changed_index)->pos);
+			check_ordered_nodes(*context->autoParam, 32);
+		}
+	}
+}
+TEST(parameter_lifecycle, node_capture_uses_current_values_when_selection_remains_valid) {
+	fixture f;
+	f.add_node(32, 12, 1200);
+	auto* parameter = f.param(32)->autoParam;
+	stolen_nodes copied;
+	parameter_test::on_allocation = [&] {
+		parameter->nodes.getElement(0)->pos = 14;
+		parameter->nodes.getElement(0)->value = 1400;
+	};
+	CHECK(parameter->copy_nodes_for_move(8, 16, 32, &copied.record) == Error::NONE);
+	LONGS_EQUAL(1, copied.record.num);
+	LONGS_EQUAL(6, copied.record.nodes[0].pos);
+	LONGS_EQUAL(1400, copied.record.nodes[0].value);
+	check_node(*parameter, 0, 14, 1400, false);
+}
+
+TEST(parameter_lifecycle, destructive_capture_rejects_an_already_owned_record) {
+	fixture f;
+	f.add_node(32, 2, 200);
+	auto* context = f.param(32);
+	stolen_nodes copied;
+	CHECK(context->autoParam->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::NONE);
+	auto* original_record = copied.record.nodes;
+	const auto allocations = parameter_test::outstanding_allocations();
+	CHECK(context->autoParam->stealNodes(context, 0, 16, 32, nullptr, &copied.record) == Error::BUG);
+	POINTERS_EQUAL(original_record, copied.record.nodes);
+	LONGS_EQUAL(1, copied.record.num);
+	LONGS_EQUAL(allocations, parameter_test::outstanding_allocations());
+	check_node(*context->autoParam, 0, 2, 200, false);
+}
+
+TEST(parameter_lifecycle, node_capture_preserves_nested_output_record) {
+	fixture f;
+	f.add_node(32, 2, 200);
+	auto* parameter = f.param(32)->autoParam;
+	stolen_nodes copied;
+	parameter_test::on_allocation = [&] {
+		CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::NONE);
+	};
+	CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::BUG);
+	LONGS_EQUAL(1, copied.record.num);
+	LONGS_EQUAL(2, copied.record.nodes[0].pos);
+	LONGS_EQUAL(200, copied.record.nodes[0].value);
+	check_node(*parameter, 0, 2, 200, false);
+}
+TEST(parameter_lifecycle, node_capture_rejects_structural_refresh_during_allocation) {
+	using namespace deluge::gui::ui_session;
+	for (auto owner : {Id::Local, Id::Remote}) {
+		fixture f;
+		f.add_node(32, 2, 200);
+		auto* parameter = f.param(32)->autoParam;
+		stolen_nodes copied;
+		parameter_test::on_allocation = [=] { navigation.for_owner(owner).structural_refresh.request(); };
+		CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::BUG);
+		LONGS_EQUAL(0, copied.record.num);
+		check_node(*parameter, 0, 2, 200, false);
+	}
+}
+
+TEST(parameter_lifecycle, node_capture_checks_structural_revision_before_accessing_released_parameter) {
+	fixture f;
+	f.add_node(32, 2, 200);
+	auto* parameter = f.param(32)->autoParam;
+	stolen_nodes copied;
+	parameter_test::on_allocation = [&] {
+		deluge::gui::ui_session::navigation.for_owner(deluge::gui::ui_session::Id::Remote).structural_refresh.request();
+		parameter->nodes.empty();
+		f.set().paramHasNoAutomationNow(f.stack(), 32);
+		auto_param_pool::get().clear_unused();
+	};
+	CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::BUG);
+	LONGS_EQUAL(0, copied.record.num);
+	POINTERS_EQUAL(nullptr, copied.record.nodes);
+	CHECK_FALSE(f.set().isAutomated(32));
+}
+
+TEST(parameter_lifecycle, empty_move_node_copy_does_not_allocate_or_change_source) {
+	fixture f;
+	f.add_node(32, 20, 2000);
+	stolen_nodes copied;
+	auto* parameter = f.param(32)->autoParam;
+	fail_allocations failure;
+	CHECK(parameter->copy_nodes_for_move(0, 16, 32, &copied.record) == Error::NONE);
+	LONGS_EQUAL(0, copied.record.num);
+	POINTERS_EQUAL(nullptr, copied.record.nodes);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	check_node(*parameter, 0, 20, 2000, false);
+}
+
+TEST(parameter_lifecycle, failed_node_replacement_preserves_destination_and_retries_without_consuming_record) {
+	bool reached_success = false, saw_failure = false;
 	for (int budget = 0; budget < 16 && !reached_success; ++budget) {
 		fixture f;
 		f.set().setCurrentValueBasicForSetup(32, 17);
@@ -1326,8 +1504,12 @@ TEST(parameter_lifecycle, partial_node_insertion_reports_failure_and_retries_wit
 		reached_success = result == Error::NONE;
 		CHECK(reached_success || result == Error::INSUFFICIENT_RAM);
 		saw_failure |= !reached_success;
-		const int count = f.param(32)->autoParam->nodes.getNumElements();
-		saw_partial |= !reached_success && count > 1 && count < 33;
+		if (!reached_success) {
+			LONGS_EQUAL(3, f.param(32)->autoParam->nodes.getNumElements());
+			check_node(*f.param(32)->autoParam, 0, 8, -800, false);
+			check_node(*f.param(32)->autoParam, 1, 96, 9600, false);
+			check_node(*f.param(32)->autoParam, 2, 116, -11600, false);
+		}
 		check_ordered_nodes(*f.param(32)->autoParam, 128);
 		check_flag(f.summary(), 32, f.set().isAutomated(32));
 		LONGS_EQUAL(17, f.set().getValue(32));
@@ -1353,10 +1535,48 @@ TEST(parameter_lifecycle, partial_node_insertion_reports_failure_and_retries_wit
 	}
 	CHECK(reached_success);
 	CHECK(saw_failure);
-	CHECK(saw_partial);
 }
 
-TEST(parameter_lifecycle, failed_first_replacement_node_clears_flags_and_keeps_record_for_retry) {
+TEST(parameter_lifecycle, stolen_node_reservation_preserves_values_and_prepares_allocation_free_transfer) {
+	bool saw_failure = false;
+	bool saw_success = false;
+	for (int allocation_budget = 0; allocation_budget < 8 && !saw_success; ++allocation_budget) {
+		fixture f;
+		f.add_node(32, 8, 800, true);
+		f.add_node(32, 96, 9600);
+		auto* context = f.param(32);
+		std::array<ParamNode, 32> source{};
+		for (int index = 0; index < 32; ++index) {
+			source[index].pos = index * 3;
+			source[index].value = index + 100;
+		}
+		StolenParamNodes record{32, source.data()};
+		{
+			fail_allocations failure(allocation_budget);
+			saw_success = context->autoParam->reserve_stolen_nodes(112, 96, 128, &record);
+		}
+		saw_failure |= !saw_success;
+		LONGS_EQUAL(2, context->autoParam->nodes.getNumElements());
+		check_node(*context->autoParam, 0, 8, 800, true);
+		check_node(*context->autoParam, 1, 96, 9600, false);
+		check_flag(f.summary(), 32, true);
+		LONGS_EQUAL(32, record.num);
+		if (saw_success) {
+			fail_allocations failure;
+			CHECK(context->autoParam->insertStolenNodes(context, 112, 96, 128, nullptr, &record) == Error::NONE);
+			LONGS_EQUAL(33, context->autoParam->nodes.getNumElements());
+			check_ordered_nodes(*context->autoParam, 128);
+		}
+		for (int index = 0; index < 32; ++index) {
+			LONGS_EQUAL(index * 3, source[index].pos);
+			LONGS_EQUAL(index + 100, source[index].value);
+		}
+	}
+	CHECK(saw_failure);
+	CHECK(saw_success);
+}
+
+TEST(parameter_lifecycle, full_region_node_replacement_reuses_capacity_when_allocations_fail) {
 	fixture f;
 	f.set().setCurrentValueBasicForSetup(32, 17);
 	f.add_node(32, 4, 400, true);
@@ -1365,20 +1585,107 @@ TEST(parameter_lifecycle, failed_first_replacement_node_clears_flags_and_keeps_r
 	ParamNode node;
 	node.pos = 8;
 	node.value = 800;
+	node.interpolated = false;
 	StolenParamNodes record{1, &node};
 	{
 		fail_allocations failure;
 		auto* context = f.param(32);
-		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::INSUFFICIENT_RAM);
+		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
 	}
 	LONGS_EQUAL(17, f.set().getValue(32));
-	check_flag(f.summary(), 32, false);
-	CHECK_FALSE(f.set().isAutomated(32));
-	LONGS_EQUAL(1, record.num);
-	auto* context = f.param(32);
-	CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
+	check_flag(f.summary(), 32, true, true);
 	check_node(*f.param(32)->autoParam, 0, 8, 800, false);
-	check_flag(f.summary(), 32, true);
+	LONGS_EQUAL(16, f.param(32)->autoParam->valueIncrementPerHalfTick);
+	LONGS_EQUAL(1, record.num);
+	LONGS_EQUAL(8, record.nodes[0].pos);
+}
+
+TEST(parameter_lifecycle, node_replacement_reuses_reserved_capacity_for_wrapped_growth_shrink_and_clear) {
+	fixture f;
+	f.add_node(32, 12, 1200);
+	auto* context = f.param(32);
+	CHECK(context->autoParam->nodes.ensureEnoughSpaceAllocated(8));
+	std::array<ParamNode, 4> source{};
+	for (int32_t index = 0; index < 4; ++index) {
+		source[index].pos = index * 4;
+		source[index].value = index + 100;
+	}
+	StolenParamNodes record{4, source.data()};
+	{
+		fail_allocations failure;
+		CHECK(context->autoParam->insertStolenNodes(context, 24, 16, 32, nullptr, &record) == Error::NONE);
+		LONGS_EQUAL(5, context->autoParam->nodes.getNumElements());
+		check_node(*context->autoParam, 0, 0, 102, false);
+		check_node(*context->autoParam, 1, 4, 103, false);
+		check_node(*context->autoParam, 2, 12, 1200, false);
+		check_node(*context->autoParam, 3, 24, 100, false);
+		check_node(*context->autoParam, 4, 28, 101, false);
+		record.num = 1;
+		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
+		LONGS_EQUAL(1, context->autoParam->nodes.getNumElements());
+		check_node(*context->autoParam, 0, 0, 100, false);
+		record.num = 0;
+		CHECK(context->autoParam->insertStolenNodes(context, 0, 32, 32, nullptr, &record) == Error::NONE);
+	}
+	check_flag(f.summary(), 32, false);
+	for (int32_t index = 0; index < 4; ++index) {
+		LONGS_EQUAL(index * 4, source[index].pos);
+		LONGS_EQUAL(index + 100, source[index].value);
+	}
+}
+
+TEST(parameter_lifecycle, capacity_preserving_deletion_rejects_invalid_ranges_without_mutation) {
+	ResizeableArray array(sizeof(int32_t));
+	CHECK(array.insertAtIndex(0, 2) == Error::NONE);
+	*static_cast<int32_t*>(array.getElementAddress(0)) = 42;
+	*static_cast<int32_t*>(array.getElementAddress(1)) = 43;
+	fail_allocations failure;
+	array.delete_at_index_preserving_capacity(-1);
+	array.delete_at_index_preserving_capacity(0, 0);
+	array.delete_at_index_preserving_capacity(0, -1);
+	array.delete_at_index_preserving_capacity(0, INT32_MAX);
+	array.delete_at_index_preserving_capacity(2);
+	array.delete_at_index_preserving_capacity(INT32_MAX);
+	LONGS_EQUAL(2, array.getNumElements());
+	LONGS_EQUAL(42, *static_cast<int32_t*>(array.getElementAddress(0)));
+	LONGS_EQUAL(43, *static_cast<int32_t*>(array.getElementAddress(1)));
+	array.delete_at_index_preserving_capacity(0, 2);
+	CHECK(array.insert_at_index_without_allocation(0, 2) == Error::NONE);
+}
+
+TEST(parameter_lifecycle, capacity_preserving_deletion_handles_every_ring_range_and_reuses_all_storage) {
+	struct test_ring : ResizeableArray {
+		test_ring() : ResizeableArray(sizeof(int32_t)) {}
+		void set_start(int32_t start) { memoryStart = start; }
+	};
+	for (int32_t capacity = 1; capacity <= 8; ++capacity) {
+		for (int32_t start = 0; start < capacity; ++start) {
+			for (int32_t size = 1; size <= capacity; ++size) {
+				for (int32_t index = 0; index < size; ++index) {
+					for (int32_t count = 1; count <= size - index; ++count) {
+						std::array<int32_t, 8> storage{};
+						test_ring ring;
+						ring.setStaticMemory(storage.data(), capacity * sizeof(int32_t));
+						ring.set_start(start);
+						CHECK(ring.insert_at_index_without_allocation(0, size) == Error::NONE);
+						for (int32_t element = 0; element < size; ++element) {
+							*static_cast<int32_t*>(ring.getElementAddress(element)) = element + 10;
+						}
+						fail_allocations failure;
+						ring.delete_at_index_preserving_capacity(index, count);
+						LONGS_EQUAL(size - count, ring.getNumElements());
+						for (int32_t element = 0; element < size - count; ++element) {
+							LONGS_EQUAL(element + 10 + (element >= index ? count : 0),
+							            *static_cast<int32_t*>(ring.getElementAddress(element)));
+						}
+						CHECK(ring.insert_at_index_without_allocation(size - count, capacity - size + count)
+						      == Error::NONE);
+						LONGS_EQUAL(capacity, ring.getNumElements());
+					}
+				}
+			}
+		}
+	}
 }
 
 TEST(parameter_lifecycle, deterministic_edit_delete_clone_and_undo_sequence_preserves_ownership) {
@@ -1929,8 +2236,8 @@ TEST(parameter_lifecycle, json_pool_failure_after_parsing_frees_nodes_and_preser
 TEST(parameter_lifecycle, scalar_knob_indicator_uses_noncreating_lookup_and_correct_bipolar_display) {
 	fixture f;
 	knob_lookup controls(f);
-	view.activeModControllableModelStack.modControllable = &controls;
-	view.modPos = 0;
+	view_for_session().activeModControllableModelStack.modControllable = &controls;
+	view_for_session().modPos = 0;
 	for (int32_t id :
 	     {int32_t(deluge::modulation::params::UNPATCHED_PAN), int32_t(deluge::modulation::params::UNPATCHED_VOLUME)}) {
 		controls.param_id = id;
@@ -1938,7 +2245,7 @@ TEST(parameter_lifecycle, scalar_knob_indicator_uses_noncreating_lookup_and_corr
 			f.set().setCurrentValueBasicForSetup(id, value);
 			fail_allocations failure;
 			const auto calls = parameter_test::indicator_calls;
-			view.setKnobIndicatorLevel(1);
+			view_for_session().setKnobIndicatorLevel(1);
 			LONGS_EQUAL(calls + 1, parameter_test::indicator_calls);
 			LONGS_EQUAL(1, parameter_test::indicator_knob);
 			LONGS_EQUAL(value == INT32_MIN ? 0 : value == 0 ? 64 : 128, parameter_test::indicator_level);
@@ -1950,7 +2257,7 @@ TEST(parameter_lifecycle, scalar_knob_indicator_uses_noncreating_lookup_and_corr
 		}
 	}
 	LONGS_EQUAL(6, controls.lookups);
-	view.activeModControllableModelStack.modControllable = nullptr;
+	view_for_session().activeModControllableModelStack.modControllable = nullptr;
 }
 
 TEST(parameter_lifecycle, clearing_full_idle_cache_preserves_active_automation_and_allows_more_acquisitions) {
@@ -3943,26 +4250,60 @@ TEST(parameter_lifecycle, reserved_capacity_query_tracks_no_allocation_removal_a
 	CHECK(array.insert_at_index_without_allocation(0, 3) == Error::NONE);
 }
 
-
-TEST(parameter_lifecycle, lazy_node_reserved_storage_survives_empty_replacement_without_allocation) {
-	LazyParamNodeVector nodes;
-	parameter_test::allocations_before_failure = 0;
-	CHECK(nodes.insert_at_index_without_allocation(0) == Error::INSUFFICIENT_RAM);
-	nodes.delete_at_index_preserving_capacity(0);
-	LONGS_EQUAL(0, parameter_test::allocation_failures);
-	parameter_test::allocations_before_failure = -1;
-	CHECK(nodes.ensureEnoughSpaceAllocated(2));
-	auto* reserved_vector = nodes.get();
-	parameter_test::allocations_before_failure = 0;
-	CHECK(nodes.insert_at_index_without_allocation(0, 2) == Error::NONE);
-	nodes.delete_at_index_preserving_capacity(0, 2);
-	LONGS_EQUAL(0, nodes.getNumElements());
-	POINTERS_EQUAL(reserved_vector, nodes.get());
-	CHECK(nodes.insert_at_index_without_allocation(0, 2) == Error::NONE);
-	LONGS_EQUAL(2, nodes.getNumElements());
-	LONGS_EQUAL(0, parameter_test::allocation_failures);
-	nodes.empty();
-	POINTERS_EQUAL(nullptr, nodes.get());
+TEST(parameter_lifecycle, arrangement_backup_visits_only_automated_params) {
+	fixture f;
+	Action action(ActionType::ARRANGEMENT_TIME_CONTRACT);
+	f.add_node(1, 8, 123);
+	f.add_node(3, 16, 456);
+	std::vector<int32_t> recorded;
+	parameter_test::on_record_param = [&](ModelStackWithAutoParam const* context) {
+		recorded.push_back(context->paramId);
+		CHECK(context->autoParam);
+		return true;
+	};
+	CHECK(f.set().backup_all_automated_params_to_action(&action, f.stack()));
+	LONGS_EQUAL(2, recorded.size());
+	LONGS_EQUAL(3, recorded[0]);
+	LONGS_EQUAL(1, recorded[1]);
+	check_node(*f.param(1)->autoParam, 0, 8, 123, false);
+	check_node(*f.param(3)->autoParam, 0, 16, 456, false);
+}
+TEST(parameter_lifecycle, arrangement_backup_stops_at_each_failed_snapshot) {
+	for (int failed_attempt = 1; failed_attempt <= 3; ++failed_attempt) {
+		fixture f;
+		Action action(ActionType::ARRANGEMENT_TIME_CONTRACT);
+		for (int32_t id : {1, 2, 3})
+			f.add_node(id, 8, id * 100);
+		int attempts = 0;
+		parameter_test::on_record_param = [&](ModelStackWithAutoParam const*) { return ++attempts != failed_attempt; };
+		CHECK_FALSE(f.set().backup_all_automated_params_to_action(&action, f.stack()));
+		LONGS_EQUAL(failed_attempt, attempts);
+		for (int32_t id : {1, 2, 3})
+			check_node(*f.param(id)->autoParam, 0, 8, id * 100, false);
+	}
+}
+TEST(parameter_lifecycle, arrangement_backup_failure_can_destroy_collection_and_action) {
+	auto f = std::make_unique<fixture>();
+	auto action = std::make_unique<Action>(ActionType::ARRANGEMENT_TIME_CONTRACT);
+	f->add_node(1, 8, 123);
+	f->add_node(3, 16, 456);
+	int attempts = 0;
+	parameter_test::on_record_param = [&](ModelStackWithAutoParam const*) {
+		++attempts;
+		f.reset();
+		action.reset();
+		return false;
+	};
+	auto* set = &f->set();
+	auto* stack = f->stack();
+	CHECK_FALSE(set->backup_all_automated_params_to_action(action.get(), stack));
+	LONGS_EQUAL(1, attempts);
+}
+TEST(parameter_lifecycle, arrangement_backup_requires_action_even_without_automation) {
+	fixture f;
+	CHECK_FALSE(f.set().backup_all_automated_params_to_action(nullptr, f.stack()));
+	Action action(ActionType::ARRANGEMENT_TIME_CONTRACT);
+	CHECK(f.set().backup_all_automated_params_to_action(&action, f.stack()));
 }
 
 TEST(parameter_lifecycle, inserted_time_inverse_preserves_single_node_without_allocation) {
@@ -4088,3 +4429,23 @@ TEST(parameter_lifecycle, contraction_retains_capacity_after_large_node_deletion
 	check_node(*param, 7, 14, 3900, false);
 }
 
+TEST(parameter_lifecycle, lazy_node_reserved_storage_survives_empty_replacement_without_allocation) {
+	LazyParamNodeVector nodes;
+	parameter_test::allocations_before_failure = 0;
+	CHECK(nodes.insert_at_index_without_allocation(0) == Error::INSUFFICIENT_RAM);
+	nodes.delete_at_index_preserving_capacity(0);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	parameter_test::allocations_before_failure = -1;
+	CHECK(nodes.ensureEnoughSpaceAllocated(2));
+	auto* reserved_vector = nodes.get();
+	parameter_test::allocations_before_failure = 0;
+	CHECK(nodes.insert_at_index_without_allocation(0, 2) == Error::NONE);
+	nodes.delete_at_index_preserving_capacity(0, 2);
+	LONGS_EQUAL(0, nodes.getNumElements());
+	POINTERS_EQUAL(reserved_vector, nodes.get());
+	CHECK(nodes.insert_at_index_without_allocation(0, 2) == Error::NONE);
+	LONGS_EQUAL(2, nodes.getNumElements());
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	nodes.empty();
+	POINTERS_EQUAL(nullptr, nodes.get());
+}

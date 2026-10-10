@@ -117,7 +117,7 @@ public:
 
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
-		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
+		return audio_clip_view_for_session().renderSidebar(whichRows, image, occupancyMask);
 	};
 
 	ParamManagerForTimeline* getCurrentParamManager() override;

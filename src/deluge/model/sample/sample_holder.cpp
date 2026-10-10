@@ -117,7 +117,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 	if (audioFile) {
 
 		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
-			sampleBrowser.lastFilePathLoaded.set(&filePath);
+			sample_browser_for_session().lastFilePathLoaded.set(&filePath);
 		}
 
 		uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;

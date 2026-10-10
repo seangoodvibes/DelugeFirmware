@@ -19,14 +19,14 @@
 #pragma once
 
 #include "dsp/dx/dx7note.h"
-#include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/value.h"
 
 namespace deluge::gui::menu_item {
 
-class DxEngineSelect final : public MenuItem {
+class DxEngineSelect final : public Value<int32_t> {
 public:
-	using MenuItem::MenuItem;
-	DxEngineSelect(l10n::String newName) : MenuItem(newName) {}
+	using Value::Value;
+	DxEngineSelect(l10n::String newName) : Value(newName) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	bool tryLoad(const char* path);
@@ -36,8 +36,10 @@ public:
 	MenuItem* selectButtonPress() final;
 	void drawValue();
 
-	int32_t currentValue = 0;
-	DxPatch* patch;
+	void readCurrentValue() override;
+
+protected:
+	void writeCurrentValue() override;
 };
 
 extern DxEngineSelect dxEngineSelect;

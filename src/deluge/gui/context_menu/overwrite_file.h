@@ -34,5 +34,5 @@ public:
 	SaveUI* currentSaveUI = nullptr;
 };
 
-extern OverwriteFile overwriteFile;
+OverwriteFile& overwrite_file_for_session();
 } // namespace deluge::gui::context_menu

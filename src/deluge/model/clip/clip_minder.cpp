@@ -27,13 +27,14 @@ ActionResult ClipMinder::buttonAction(deluge::hid::Button b, bool on) {
 /// Called by button action of active clip view when b == SESSION_VIEW
 void ClipMinder::transitionToArrangerOrSession() {
 	// should we transition to Arranger View?
-	if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
+	if (currentSong->last_clip_instance_entered_start_pos_for_session() != -1
+	    || getCurrentClip()->isArrangementOnlyClip()) {
 		// try to transition to Arranger View
-		if (arrangerView.transitionToArrangementEditor()) {
+		if (arranger_view_for_session().transitionToArrangementEditor()) {
 			// successfully transitioned
 			return;
 		}
 	}
 	// if we didn't transition to arranger, then transition to Session View
-	sessionView.transitionToSessionView();
+	session_view_for_session().transitionToSessionView();
 }

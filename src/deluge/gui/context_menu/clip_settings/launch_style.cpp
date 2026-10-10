@@ -12,7 +12,13 @@ namespace deluge::gui::context_menu::clip_settings {
 
 constexpr size_t kNumValues = 3;
 
-LaunchStyleMenu launchStyle{};
+namespace {
+LaunchStyleMenu local_launch_style{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<LaunchStyleMenu> remote_launch_style;
+} // namespace
+LaunchStyleMenu& launch_style_for_session() {
+	return remote_launch_style.get(local_launch_style);
+}
 
 char const* LaunchStyleMenu::getTitle() {
 	static char const* title = "Clip Mode";

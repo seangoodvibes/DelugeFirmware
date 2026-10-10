@@ -44,4 +44,4 @@ private:
 	std::string defaultDir;
 };
 
-extern SavePatternUI savePatternUI;
+SavePatternUI& save_pattern_ui_for_session();

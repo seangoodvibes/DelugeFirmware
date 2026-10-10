@@ -72,4 +72,4 @@ private:
 	                                                   std::optional<RGB> rgb);
 };
 
-extern WaveformRenderer waveformRenderer;
+WaveformRenderer& waveform_renderer_for_session();

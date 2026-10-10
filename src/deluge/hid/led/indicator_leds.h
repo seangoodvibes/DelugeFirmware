@@ -24,6 +24,8 @@ constexpr size_t numLedBlinkers = 6;
 
 namespace indicator_leds {
 
+void reset_blinking_for_session();
+
 constexpr uint8_t fromCartesian(Cartesian c) {
 	return c.x + c.y * NUM_LED_COLS;
 }
@@ -76,7 +78,9 @@ struct LedBlinker {
 	uint8_t blinkingType;
 };
 
-extern bool ledBlinkState[];
+bool blink_state_for_session(uint8_t blinkingType);
+struct IndicatorFrame;
+const IndicatorFrame& frame_for_session();
 
 void setLedState(LED led, bool newState, bool allowContinuedBlinking = false);
 void blinkLed(LED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool initialState = true);

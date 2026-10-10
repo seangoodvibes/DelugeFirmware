@@ -84,6 +84,10 @@ namespace deluge::gui::menu_item {
 
 DxCartridge dxCartridge{l10n::String::STRING_FOR_DX_CARTRIDGE};
 
+DxCartridge::session_state& DxCartridge::state_for_session() {
+	return session_states.active();
+}
+
 void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
 	loadPatch();
 	readValueAgain();
@@ -93,17 +97,17 @@ void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
 // Only call this when the selected patch actually changes - NOT from a plain redraw, otherwise an
 // audition note gets cut every time the menu refreshes (e.g. mod-encoder press, display change).
 void DxCartridge::loadPatch() {
-	if (pd == nullptr) {
+	if (state_for_session().cartridge == nullptr) {
 		return;
 	}
 
-	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
-	pd->unpackProgram(patch->params, currentValue);
-	soundEditor.currentSound->killAllVoices();
+	DxPatch* patch = sound_editor_for_session().currentSource->ensureDxPatch();
+	state_for_session().cartridge->unpackProgram(patch->params, state_for_session().current_value);
+	sound_editor_for_session().currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
 	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
 		char name[11];
-		pd->getProgramName(currentValue, name);
+		state_for_session().cartridge->getProgramName(state_for_session().current_value, name);
 		if (name[0] != 0) {
 			instrument->name.set(name);
 		}
@@ -111,7 +115,7 @@ void DxCartridge::loadPatch() {
 }
 
 void DxCartridge::readValueAgain() {
-	if (pd == nullptr) {
+	if (state_for_session().cartridge == nullptr) {
 		return;
 	}
 	if (display->haveOLED()) {
@@ -123,50 +127,58 @@ void DxCartridge::readValueAgain() {
 }
 
 void DxCartridge::drawPixelsForOled() {
-	if (pd == nullptr) {
+	if (state_for_session().cartridge == nullptr) {
 		return;
 	}
 	char names[32][11];
-	pd->getProgramNames(names);
+	state_for_session().cartridge->getProgramNames(names);
 
 	etl::vector<std::string_view, 32> itemNames = {};
-	for (int i = 0; i < pd->numPatches(); i++) {
+	for (int i = 0; i < state_for_session().cartridge->numPatches(); i++) {
 		itemNames.push_back(names[i]);
 	}
-	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
+	drawItemsForOled(itemNames, state_for_session().current_value - state_for_session().scroll_position,
+	                 state_for_session().scroll_position);
 }
 
 void DxCartridge::drawValue() {
 	char names[32][11];
-	pd->getProgramNames(names);
+	state_for_session().cartridge->getProgramNames(names);
 
-	display->setScrollingText(names[currentValue]);
+	display->setScrollingText(names[state_for_session().current_value]);
 }
 
 bool DxCartridge::tryLoad(std::string_view path) {
-	if (pd == nullptr) {
-		pd = new DX7Cartridge();
+	if (state_for_session().cartridge == nullptr) {
+		state_for_session().cartridge = new DX7Cartridge();
 	}
-	currentValue = 0;
-	scrollPos = 0;
+	state_for_session().current_value = 0;
+	state_for_session().scroll_position = 0;
 
-	return openFile(path, pd);
+	return openFile(path, state_for_session().cartridge);
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {
-	int32_t numValues = pd->numPatches();
-
-	int32_t newValue = std::clamp<int32_t>(currentValue + offset, 0, numValues - 1);
-
-	// if no change, just exit
-	if (newValue == currentValue) {
+	if (!state_for_session().cartridge) {
+		return;
+	}
+	int32_t numValues = state_for_session().cartridge->numPatches();
+	if (numValues <= 0) {
 		return;
 	}
 
-	currentValue = newValue;
+	int32_t newValue = std::clamp<int32_t>(state_for_session().current_value + offset, 0, numValues - 1);
+
+	// if no change, just exit
+	if (newValue == state_for_session().current_value) {
+		return;
+	}
+
+	state_for_session().current_value = newValue;
 
 	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
+		state_for_session().scroll_position =
+		    std::clamp<int>(newValue - 1, 0, std::max<int>(0, numValues - kOLEDMenuNumOptionsVisible));
 	}
 
 	loadPatch();
@@ -174,7 +186,7 @@ void DxCartridge::selectEncoderAction(int32_t offset) {
 }
 
 MenuItem* DxCartridge::selectButtonPress() {
-	soundEditor.exitCompletely();
+	sound_editor_for_session().exitCompletely();
 	return NO_NAVIGATION;
 }
 

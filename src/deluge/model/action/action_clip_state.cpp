@@ -20,35 +20,27 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 
-ActionClipState::ActionClipState() {
-}
-
-ActionClipState::~ActionClipState() {
-}
-
 void ActionClipState::grabFromClip(Clip* thisClip) {
+	clip_identity = thisClip;
+	output_identity = thisClip->output;
+	selected_drum_identity = nullptr;
 	// modKnobMode = thisClip->modKnobMode;
 
 	if (thisClip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)thisClip;
-		yScrollSessionView[BEFORE] = instrumentClip->yScroll;
-		affectEntire = instrumentClip->affectEntire;
-		wrapEditing = instrumentClip->wrapEditing;
-		wrapEditLevel = instrumentClip->wrapEditLevel;
+		yScrollSessionView[BEFORE] = instrumentClip->y_scroll_for_session();
+		affectEntire = instrumentClip->affect_entire_for_session();
+		wrapEditing = instrumentClip->wrap_editing_for_session();
+		wrapEditLevel = instrumentClip->wrap_edit_level_for_session();
 
-		if (thisClip->output->type != OutputType::KIT) {
-			selectedDrumIndex = -1;
-		}
-		else {
-			Kit* kit = (Kit*)thisClip->output;
-			if (!kit->selectedDrum) {
-				selectedDrumIndex = -1;
+		if (thisClip->output->type == OutputType::KIT) {
+			Kit* kit = static_cast<Kit*>(thisClip->output);
+			Drum* selected = kit->selected_drum_for_session();
+			if (selected && kit->getDrumIndex(selected) >= 0) {
+				selected_drum_identity = selected;
 			}
 			else {
-				selectedDrumIndex = kit->getDrumIndex(kit->selectedDrum);
-				if (selectedDrumIndex == -1) {
-					kit->selectedDrum = nullptr;
-				}
+				kit->selected_drum_for_session() = nullptr;
 			}
 		}
 	}

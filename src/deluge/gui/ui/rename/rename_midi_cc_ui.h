@@ -33,4 +33,4 @@ protected:
 	bool canRename() const override;
 };
 
-extern RenameMidiCCUI renameMidiCCUI;
+RenameMidiCCUI& rename_midi_cc_ui_for_session();

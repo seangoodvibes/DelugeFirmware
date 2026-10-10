@@ -46,12 +46,15 @@ public:
 		};
 	}
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
+	void readCurrentValue() override {
+		this->setValue(sound_editor_for_session().currentSound->lfoConfig[lfoId_].waveType);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<LFOType>();
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -68,21 +71,21 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->lfoConfig[lfoId_].waveType = current_value;
+			sound_editor_for_session().currentSound->lfoConfig[lfoId_].waveType = current_value;
 			// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 			// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 			// would be enough?
-			soundEditor.currentSound->resyncGlobalLFOs();
+			sound_editor_for_session().currentSound->resyncGlobalLFOs();
 		}
 	}
 
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const Icon& icon = [&] {
-			switch (soundEditor.currentSound->lfoConfig[lfoId_].waveType) {
+			switch (sound_editor_for_session().currentSound->lfoConfig[lfoId_].waveType) {
 			case LFOType::SINE:
 				return OLED::sineIcon;
 			case LFOType::TRIANGLE:

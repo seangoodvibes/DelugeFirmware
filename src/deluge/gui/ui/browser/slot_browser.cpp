@@ -64,8 +64,8 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	if (display->have7SEG()) {
 		FileItem* currentFileItem = getCurrentFileItem();
 		if (currentFileItem) {
-			// See if it's numeric. enteredText carries the prefix ("SONG185"), so step past it first.
-			char const* numberPart = nameAfterPrefix(enteredText.get());
+			// See if it's numeric. entered_text_for_session() carries the prefix ("SONG185"), so step past it first.
+			char const* numberPart = nameAfterPrefix(entered_text_for_session().get());
 			if (!numberPart) {
 				goto nonNumeric;
 			}
@@ -75,29 +75,29 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 				goto nonNumeric;
 			}
 
-			numberEditPos -= offset;
-			if (numberEditPos > 2) {
-				numberEditPos = 2;
+			number_edit_pos_for_session() -= offset;
+			if (number_edit_pos_for_session() > 2) {
+				number_edit_pos_for_session() = 2;
 			}
-			else if (numberEditPos < -1) {
-				numberEditPos = -1;
+			else if (number_edit_pos_for_session() < -1) {
+				number_edit_pos_for_session() = -1;
 			}
 
-			displayText(numberEditPos >= 0);
+			displayText(number_edit_pos_for_session() >= 0);
 			return ActionResult::DEALT_WITH;
 		}
 	}
 	{
 nonNumeric:
 		if (display->haveOLED()) { // Maintain consistency with before - don't do this on numeric
-			qwertyVisible = true;
+			qwerty_visible_for_session() = true;
 		}
-		else if (showsTextCursorOn7Seg() && !arrivedAtFileByTyping) {
+		else if (showsTextCursorOn7Seg() && !arrived_at_file_by_typing_for_session()) {
 			// Until the text view is up, 7SEG shows the name without a cursor, so turning would walk an invisible
 			// cursor through the name (including its hidden prefix) and it would only appear once it hit the far end.
 			// Bring the text view up instead, with the cursor at the end, so the turn has visible feedback.
-			arrivedAtFileByTyping = true;
-			enteredTextEditPos = enteredText.getLength();
+			arrived_at_file_by_typing_for_session() = true;
+			entered_text_edit_pos_for_session() = entered_text_for_session().getLength();
 			displayText();
 			return ActionResult::DEALT_WITH;
 		}
@@ -108,22 +108,22 @@ nonNumeric:
 void SlotBrowser::processBackspace() {
 	Browser::processBackspace();
 	if (display->haveOLED()) {
-		if (fileIndexSelected == -1) {
+		if (file_index_selected_for_session() == -1) {
 			predictExtendedText();
 		}
 	}
 }
 
 Error SlotBrowser::getCurrentFilePath(String* path) {
-	path->set(&currentDir);
+	path->set(&current_dir_for_session());
 
 	Error error = path->concatenate("/");
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	// enteredText is the real on-card name now, so it needs no reassembling.
-	error = path->concatenate(&enteredText);
+	// entered_text_for_session() is the real on-card name now, so it needs no reassembling.
+	error = path->concatenate(&entered_text_for_session());
 	if (error != Error::NONE) {
 		return error;
 	}

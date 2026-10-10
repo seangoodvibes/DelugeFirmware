@@ -78,7 +78,7 @@ public:
 			treble_y2 = std::lerp(treble_y2, target_y, morph);
 		}
 
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 		image.drawLine(bass_x0, bass_y1, bass_x1, bass_y1);
 		image.drawLine(bass_x1, bass_y1, bass_x2, bass_y2);
 		image.drawLine(bass_x2, bass_y2, treble_x2, treble_y2);
@@ -106,7 +106,7 @@ public:
 		}
 
 		// Draw control indicators
-		selected_x_ = -1, selected_y_ = -1;
+		render_states_.active().x = -1, render_states_.active().y = -1;
 		drawControlIndicator(center_between(bass_x0, bass_x1), bass_y1, currentItem == items[0]);
 		drawControlIndicator(bass_x2, bass_y2, currentItem == items[1]);
 		drawControlIndicator(treble_x2, treble_y2, currentItem == items[2]);
@@ -114,7 +114,11 @@ public:
 	}
 
 private:
-	int32_t selected_x_, selected_y_;
+	struct RenderState {
+		int32_t x = -1;
+		int32_t y = -1;
+	};
+	ui_session::State<RenderState> render_states_;
 
 	struct EqualizerValues {
 		float bass{0.f};
@@ -127,11 +131,11 @@ private:
 	EqualizerValues ensureCorrectItemsOrderAndGetValues() {
 		using namespace deluge::modulation;
 
-		const uint8_t current_item_pos = std::distance(items.begin(), current_item_);
+		const uint8_t current_item_pos = std::distance(items_for_session().begin(), current_item_iterator());
 		UnpatchedParam* desired_order_items[4] = {nullptr, nullptr, nullptr, nullptr};
 		EqualizerValues result{};
 
-		for (auto* i : items) {
+		for (auto* i : items_for_session()) {
 			switch (const auto as_unpatched = static_cast<UnpatchedParam*>(i); as_unpatched->getP()) {
 			case params::UNPATCHED_BASS:
 				desired_order_items[0] = as_unpatched;
@@ -155,28 +159,28 @@ private:
 			}
 		}
 
-		for (int idx = 0; idx < items.size(); ++idx) {
-			if (items[idx] != desired_order_items[idx] && desired_order_items[idx]) {
-				items[idx] = desired_order_items[idx];
+		for (int idx = 0; idx < items_for_session().size(); ++idx) {
+			if (items_for_session()[idx] != desired_order_items[idx] && desired_order_items[idx]) {
+				items_for_session()[idx] = desired_order_items[idx];
 				result.order_changed = true;
 			}
 		}
 
 		if (result.order_changed) {
-			current_item_ = items.begin() + current_item_pos;
-			lastSelectedItemPosition = kNoSelection;
+			current_item_iterator() = items_for_session().begin() + current_item_pos;
+			horizontal_state().lastSelectedItemPosition = kNoSelection;
 		}
 
 		return result;
 	}
 
 	void drawControlIndicator(const float center_x, const float center_y, const bool is_selected) {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const int32_t ix = static_cast<int32_t>(center_x);
 		const int32_t iy = static_cast<int32_t>(center_y);
 
-		if (!is_selected && ix == selected_x_ && iy == selected_y_) {
+		if (!is_selected && ix == render_states_.active().x && iy == render_states_.active().y) {
 			// Overlap occurred, skip drawing
 			return;
 		}
@@ -192,7 +196,7 @@ private:
 
 		if (is_selected) {
 			// Invert region inside to highlight selection
-			selected_x_ = ix, selected_y_ = iy;
+			render_states_.active().x = ix, render_states_.active().y = iy;
 			image.invertArea(ix - innerSquareSize, square_size * 2 - 1, iy - innerSquareSize, iy + innerSquareSize);
 		}
 

@@ -54,23 +54,23 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		int32_t newValue = instrumentClipView.setNoteRowFillWithOffset(offset);
+		int32_t newValue = instrument_clip_view_for_session().setNoteRowFillWithOffset(offset);
 		if (newValue != -1) {
 			this->setValue(newValue);
 			updateDisplay();
 			if (currentSong->isFillModeActive()) {
-				uiNeedsRendering(&instrumentClipView);
+				uiNeedsRendering(&instrument_clip_view_for_session());
 			}
 		}
 	}
 
 	void drawPixelsForOled() override {
-		OLED::main.drawStringCentred(instrumentClipView.getFillString(this->getValue()), 18 + OLED_MAIN_TOPMOST_PIXEL,
-		                             kTextHugeSpacingX, kTextHugeSizeY);
+		OLED::main_for_session().drawStringCentred(instrument_clip_view_for_session().getFillString(this->getValue()),
+		                                           18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
+		oled_canvas::Canvas& image = OLED::main_for_session();
 
 		const uint8_t value = getValue();
 		const std::string str = value == OFF ? "OFF" : "FILL";
@@ -90,10 +90,10 @@ public:
 	}
 
 	void getNotificationValue(StringBuf& valueBuf) override {
-		valueBuf.append(instrumentClipView.getFillString(this->getValue()));
+		valueBuf.append(instrument_clip_view_for_session().getFillString(this->getValue()));
 	}
 
-	void drawValue() override { display->setText(instrumentClipView.getFillString(this->getValue())); }
+	void drawValue() override { display->setText(instrument_clip_view_for_session().getFillString(this->getValue())); }
 
 	void writeCurrentValue() override { ; }
 };

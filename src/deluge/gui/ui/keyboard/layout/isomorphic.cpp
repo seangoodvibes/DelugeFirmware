@@ -142,9 +142,10 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 
 			// TODO: In a future revision it would be nice to add this to the API
 			//  Dim note pad if a browser is open with the note highlighted
-			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
-			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
-				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
+			if (getCurrentUI() == &sample_browser_for_session() || getCurrentUI() == &audio_recorder_for_session()
+			    || (getCurrentUI() == &sound_editor_for_session()
+			        && sound_editor_for_session().getCurrentMenuItem()->isRangeDependent())) {
+				if (sound_editor_for_session().isUntransposedNoteWithinRange(noteCode)) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t value = (int32_t)image[y][x][colour] + 35;
 						image[y][x][colour] = std::min<int32_t>(value, std::numeric_limits<uint8_t>::max());

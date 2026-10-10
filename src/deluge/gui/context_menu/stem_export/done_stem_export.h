@@ -31,5 +31,5 @@ public:
 	char const* getTitle() override;
 };
 
-extern DoneStemExport doneStemExport;
+DoneStemExport& done_stem_export_for_session();
 } // namespace deluge::gui::context_menu

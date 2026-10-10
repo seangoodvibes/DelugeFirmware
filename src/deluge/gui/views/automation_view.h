@@ -149,7 +149,9 @@ public:
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;
-	UI* previousUI; // previous UI so you can swap back UI after exiting menu
+	void reset_navigation_for_session_startup();
+	void reset_gestures_for_session_startup();
+	UI* previousUI = nullptr; // previous UI so you can swap back UI after exiting menu
 	int32_t getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
 	                                      int32_t knobPosRight);
@@ -259,4 +261,4 @@ private:
 	uint32_t timeSelectKnobLastReleased;
 };
 
-extern AutomationView automationView;
+AutomationView& automation_view_for_session();

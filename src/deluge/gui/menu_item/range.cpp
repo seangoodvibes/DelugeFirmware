@@ -29,7 +29,7 @@ namespace deluge::gui::menu_item {
 
 void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
-	soundEditor.editingRangeEdge = RangeEdit::OFF;
+	sound_editor_for_session().editingRangeEdge = RangeEdit::OFF;
 
 	if (display->have7SEG()) {
 		drawValue(0, false);
@@ -45,14 +45,14 @@ void Range::horizontalEncoderAction(int32_t offset) {
 	// Turn left
 	if (offset < 0) {
 
-		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+		if (sound_editor_for_session().editingRangeEdge == RangeEdit::LEFT) {
 switchOff:
-			soundEditor.editingRangeEdge = RangeEdit::OFF;
+			sound_editor_for_session().editingRangeEdge = RangeEdit::OFF;
 			if (display->haveOLED()) {
 				goto justDrawValueForEditingRange;
 			}
 			else {
-				int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
+				int32_t startPos = (sound_editor_for_session().editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
 				drawValue(startPos);
 			}
 		}
@@ -60,7 +60,7 @@ switchOff:
 		else {
 
 			if (mayEditRangeEdge(RangeEdit::LEFT)) {
-				soundEditor.editingRangeEdge = RangeEdit::LEFT;
+				sound_editor_for_session().editingRangeEdge = RangeEdit::LEFT;
 justDrawValueForEditingRange:
 				if (display->haveOLED()) {
 					renderUIsForOled();
@@ -70,7 +70,7 @@ justDrawValueForEditingRange:
 				}
 			}
 			else {
-				if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
+				if (sound_editor_for_session().editingRangeEdge == RangeEdit::RIGHT) {
 					goto switchOff;
 				}
 			}
@@ -79,18 +79,18 @@ justDrawValueForEditingRange:
 
 	// Turn right
 	else {
-		if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
+		if (sound_editor_for_session().editingRangeEdge == RangeEdit::RIGHT) {
 			goto switchOff;
 		}
 
 		else {
 
 			if (mayEditRangeEdge(RangeEdit::RIGHT)) {
-				soundEditor.editingRangeEdge = RangeEdit::RIGHT;
+				sound_editor_for_session().editingRangeEdge = RangeEdit::RIGHT;
 				goto justDrawValueForEditingRange;
 			}
 			else {
-				if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+				if (sound_editor_for_session().editingRangeEdge == RangeEdit::LEFT) {
 					goto switchOff;
 				}
 			}
@@ -100,12 +100,12 @@ justDrawValueForEditingRange:
 
 // Returns whether there was anything to cancel
 bool Range::cancelEditingIfItsOn() {
-	if (soundEditor.editingRangeEdge == RangeEdit::OFF) {
+	if (sound_editor_for_session().editingRangeEdge == RangeEdit::OFF) {
 		return false;
 	}
 
-	int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
-	soundEditor.editingRangeEdge = RangeEdit::OFF;
+	int32_t startPos = (sound_editor_for_session().editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
+	sound_editor_for_session().editingRangeEdge = RangeEdit::OFF;
 	drawValue(startPos);
 	return true;
 }
@@ -142,7 +142,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	int32_t textLength = leftLength + rightLength + 1;
 
 	uint8_t blinkMask[kNumericDisplayLength];
-	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+	if (sound_editor_for_session().editingRangeEdge == RangeEdit::LEFT) {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 			if (i < leftLength + kNumericDisplayLength - std::min(4_i32, textLength))
 				blinkMask[i] = 0;
@@ -160,22 +160,23 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 		}
 	}
 
-	bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < kNumericDisplayLength);
+	bool alignRight =
+	    (sound_editor_for_session().editingRangeEdge == RangeEdit::RIGHT) || (textLength < kNumericDisplayLength);
 
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
 
 	display->setText(buffer, alignRight, 255, true, blinkMask);
 
-	soundEditor.possibleChangeToCurrentRangeDisplay();
+	sound_editor_for_session().possibleChangeToCurrentRangeDisplay();
 }
 
 void Range::drawPixelsForOled() {
-	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
+	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main_for_session();
 	int32_t leftLength, rightLength;
 	char* buffer = shortStringBuffer;
 
-	getText(buffer, &leftLength, &rightLength, soundEditor.editingRangeEdge == RangeEdit::OFF);
+	getText(buffer, &leftLength, &rightLength, sound_editor_for_session().editingRangeEdge == RangeEdit::OFF);
 
 	int32_t textLength = leftLength + rightLength + (bool)rightLength;
 
@@ -190,7 +191,7 @@ void Range::drawPixelsForOled() {
 
 	int32_t highlightStartX, highlightWidth;
 
-	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+	if (sound_editor_for_session().editingRangeEdge == RangeEdit::LEFT) {
 		highlightStartX = stringStartX;
 		highlightWidth = digitWidth * leftLength;
 doHighlightJustOneEdge:
@@ -198,7 +199,7 @@ doHighlightJustOneEdge:
 		baseY += OLED_MAIN_TOPMOST_PIXEL - 1;
 		canvas.invertArea(highlightStartX, highlightWidth, baseY, baseY + digitHeight + 1);
 	}
-	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
+	else if (sound_editor_for_session().editingRangeEdge == RangeEdit::RIGHT) {
 		int32_t stringEndX = (OLED_MAIN_WIDTH_PIXELS + stringWidth) >> 1;
 		highlightWidth = digitWidth * rightLength;
 		highlightStartX = stringEndX - highlightWidth;

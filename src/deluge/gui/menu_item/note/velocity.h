@@ -42,17 +42,17 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
 	void readCurrentValue() override {
-		int32_t xDisplay = instrumentClipView.lastSelectedNoteXDisplay;
-		int32_t yDisplay = instrumentClipView.lastSelectedNoteYDisplay;
+		int32_t xDisplay = instrument_clip_view_for_session().lastSelectedNoteXDisplay;
+		int32_t yDisplay = instrument_clip_view_for_session().lastSelectedNoteYDisplay;
 		if (xDisplay != kNoSelection && yDisplay != kNoSelection) {
-			if (instrumentClipView.gridSquareInfo[yDisplay][xDisplay].isValid) {
-				this->setValue(instrumentClipView.gridSquareInfo[yDisplay][xDisplay].averageVelocity);
+			if (instrument_clip_view_for_session().gridSquareInfo[yDisplay][xDisplay].isValid) {
+				this->setValue(instrument_clip_view_for_session().gridSquareInfo[yDisplay][xDisplay].averageVelocity);
 			}
 		}
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustVelocity(offset);
+		instrument_clip_view_for_session().adjustVelocity(offset);
 		readValueAgain();
 	}
 

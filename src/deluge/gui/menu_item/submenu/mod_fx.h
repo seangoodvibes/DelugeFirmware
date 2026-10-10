@@ -30,13 +30,13 @@ public:
 			return Submenu::getTitle();
 		}
 
-		if (paging.visiblePageNumber == 0) {
+		if (horizontal_state().paging.visiblePageNumber == 0) {
 			// On the first page we show the mod fx type selector, so we display a regular MOD-FX title
 			return deluge::l10n::getView(title);
 		}
 
 		// On other pages user can tweak params related to the selected mod fx type, so we show the type name
-		const ModFXType modFxType = soundEditor.currentModControllable->modFXType_;
+		const ModFXType modFxType = sound_editor_for_session().currentModControllable->modFXType_;
 		return modfx::getModNames()[static_cast<uint8_t>(modFxType)];
 	}
 };

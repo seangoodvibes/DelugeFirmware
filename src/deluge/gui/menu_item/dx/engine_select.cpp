@@ -34,17 +34,21 @@ void DxEngineSelect::beginSession(MenuItem* navigatedBackwardFrom) {
 	readValueAgain();
 }
 
+void DxEngineSelect::readCurrentValue() {
+	setValue(sound_editor_for_session().currentSource->ensureDxPatch()->engineMode);
+}
+void DxEngineSelect::writeCurrentValue() {
+	sound_editor_for_session().currentSource->ensureDxPatch()->setEngineMode(getValue());
+}
 void DxEngineSelect::readValueAgain() {
-	patch = soundEditor.currentSource->ensureDxPatch();
-	currentValue = patch->engineMode;
-	drawValue();
+	Value::readValueAgain();
 }
 
 constexpr int numValues = 3;
 
 void DxEngineSelect::drawPixelsForOled() {
 	etl::vector<std::string_view, numValues> itemNames = {"auto", "modern", "vintage"};
-	drawItemsForOled(itemNames, currentValue, 0);
+	drawItemsForOled(itemNames, getValue(), 0);
 }
 
 void DxEngineSelect::drawValue() {
@@ -53,12 +57,12 @@ void DxEngineSelect::drawValue() {
 	}
 	else {
 		static const char* items[] = {"AUTO", "MODR", "VINT"};
-		display->setScrollingText(items[currentValue]);
+		display->setScrollingText(items[getValue()]);
 	}
 }
 
 void DxEngineSelect::selectEncoderAction(int32_t offset) {
-	int32_t newValue = currentValue + offset;
+	int32_t newValue = getValue() + offset;
 
 	if (display->haveOLED()) {
 		if (newValue >= numValues || newValue < 0) {
@@ -74,9 +78,8 @@ void DxEngineSelect::selectEncoderAction(int32_t offset) {
 		}
 	}
 
-	patch->setEngineMode(newValue);
-	currentValue = newValue;
-	drawValue();
+	setValue(newValue);
+	Value::selectEncoderAction(offset);
 }
 
 MenuItem* DxEngineSelect::selectButtonPress() {

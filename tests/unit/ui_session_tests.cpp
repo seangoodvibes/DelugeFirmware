@@ -12,6 +12,7 @@
 #include "hid/encoder_input_state.h"
 #include "hid/led/indicator_leds_state.h"
 #include "hid/led/pad_leds_state.h"
+#include "model/action/action_clip_state.h"
 #include "model/action/reversible_shift.h"
 #include "model/action/reversion_guard.h"
 #include "model/action/session_history.h"
@@ -1274,7 +1275,32 @@ TEST(UISession, history_lookup_skips_peers_but_stops_at_newest_owned_action) {
 	POINTERS_EQUAL(&newest, peer.nextAction);
 }
 
+TEST(UISession, clip_snapshot_defaults_are_safe_for_non_instrument_clips) {
+	static_assert(std::is_trivially_destructible_v<ActionClipState>);
+	static_assert(!std::is_polymorphic_v<ActionClipState>);
+	ActionClipState state{};
+	POINTERS_EQUAL(nullptr, state.clip_identity);
+	POINTERS_EQUAL(nullptr, state.selected_drum_identity);
+	LONGS_EQUAL(0, state.yScrollSessionView[0]);
+	LONGS_EQUAL(0, state.yScrollSessionView[1]);
+	CHECK_FALSE(state.affectEntire);
+	CHECK_FALSE(state.wrapEditing);
+	LONGS_EQUAL(0, state.wrapEditLevel);
+}
 
+TEST(UISession, clip_snapshot_rejects_replaced_output_without_dereferencing_saved_identities) {
+	int clip_token, other_clip_token, output_token, other_output_token;
+	auto* clip = reinterpret_cast<Clip*>(&clip_token);
+	auto* output = reinterpret_cast<Output*>(&output_token);
+	ActionClipState state{};
+	POINTERS_EQUAL(nullptr, state.output_identity);
+	state.clip_identity = clip;
+	state.output_identity = output;
+	CHECK(state.matches(clip, output));
+	CHECK_FALSE(state.matches(clip, reinterpret_cast<Output*>(&other_output_token)));
+	CHECK_FALSE(state.matches(reinterpret_cast<Clip*>(&other_clip_token), output));
+	CHECK_FALSE(state.matches(nullptr, nullptr));
+}
 
 TEST(UISession, structural_change_exit_invalidates_the_captured_peer) {
 	const auto local_before = navigation.for_owner(Id::Local).structural_refresh.revision();

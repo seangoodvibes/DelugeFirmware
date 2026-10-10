@@ -34,7 +34,7 @@ void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Command::drawPixelsForOled() {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main_for_session();
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
 	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
@@ -114,7 +114,7 @@ void Command::selectEncoderAction(int32_t offset) {
 
 void Command::unlearnAction() {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
-	if (soundEditor.getCurrentMenuItem() == this) {
+	if (sound_editor_for_session().getCurrentMenuItem() == this) {
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
@@ -140,7 +140,7 @@ bool Command::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].cable = &cable;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].channelOrZone = channel;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].noteOrCC = noteCode;
-	if (soundEditor.getCurrentMenuItem() == this) {
+	if (sound_editor_for_session().getCurrentMenuItem() == this) {
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}

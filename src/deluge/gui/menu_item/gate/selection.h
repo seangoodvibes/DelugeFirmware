@@ -35,7 +35,7 @@ public:
 			this->setValue(0);
 		}
 		else {
-			this->setValue(soundEditor.currentSourceIndex);
+			this->setValue(sound_editor_for_session().currentSourceIndex);
 		}
 		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
@@ -44,7 +44,7 @@ public:
 		if (this->getValue() == NUM_GATE_CHANNELS) {
 			return &gateOffTimeMenu;
 		}
-		soundEditor.currentSourceIndex = this->getValue();
+		sound_editor_for_session().currentSourceIndex = this->getValue();
 
 		// Value of 0 is the first gate output, so we need to add 1 to get the correct physical gate output number label
 		if (display->haveOLED()) {

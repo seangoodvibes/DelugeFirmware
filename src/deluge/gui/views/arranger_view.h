@@ -58,8 +58,10 @@ public:
 	               uint8_t thisOccupancyMask[], int32_t renderWidth);
 	void editPadAction(int32_t x, int32_t y, bool on);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	void shiftAutomationHorizontally(int32_t offset, int32_t scroll_amount, Action* action);
-	void shiftClipsHorizontally(int32_t offset, int32_t scroll_amount, Action* action);
+	bool shift_automation_horizontally(int32_t offset, int32_t scroll_amount, Action* action);
+	bool prepare_automation_contraction(Action* action);
+	bool shift_arrangement_time(int32_t offset, int32_t scroll_amount, Action* action);
+	bool shift_clips_horizontally(int32_t offset, int32_t scroll_amount, Action* action, bool* recovered = nullptr);
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 	void graphicsRoutine() override;
@@ -141,8 +143,8 @@ private:
 	void outputActivated(Output* output);
 	void outputDeactivated(Output* output);
 	void transitionToClipView(ClipInstance* clipInstance);
-	void deleteClipInstance(Output* output, int32_t clipInstanceIndex, ClipInstance* clipInstance, Action* action,
-	                        bool clearingWholeArrangement = false);
+	bool delete_clip_instance(Output* output, int32_t instance_index, ClipInstance* instance, Action* action,
+	                          bool clearing_whole_arrangement = false);
 	void clearArrangement();
 	void interactWithClipInstance(Output* output, int32_t yDisplay, ClipInstance* clipInstance);
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
@@ -171,4 +173,4 @@ private:
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
 };
 
-extern ArrangerView arrangerView;
+ArrangerView& arranger_view_for_session();

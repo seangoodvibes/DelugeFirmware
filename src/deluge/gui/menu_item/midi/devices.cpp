@@ -35,11 +35,15 @@ namespace deluge::gui::menu_item::midi {
 
 static constexpr int32_t lowestDeviceNum = -3;
 
+int32_t& Devices::scroll_for_session() {
+	return scroll_positions.active();
+}
+
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool found = false;
 	if (navigatedBackwardFrom != nullptr) {
 		for (int32_t idx = lowestDeviceNum; idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); idx++) {
-			if (getCable(idx) == soundEditor.currentMIDICable) {
+			if (getCable(idx) == sound_editor_for_session().currentMIDICable) {
 				found = true;
 				this->setValue(idx);
 				break;
@@ -51,9 +55,9 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 		this->setValue(lowestDeviceNum); // Start on "DIN". That's the only one that'll always be there.
 	}
 
-	soundEditor.currentMIDICable = getCable(this->getValue());
+	sound_editor_for_session().currentMIDICable = getCable(this->getValue());
 	if (display->haveOLED()) {
-		current_scroll_ = computeScrollForSelected(this->getValue());
+		scroll_for_session() = computeScrollForSelected(this->getValue());
 	}
 	else {
 		drawValue();
@@ -93,7 +97,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (display->haveOLED()) {
 				this->setValue(startValue);
-				soundEditor.currentMIDICable = getCable(startValue);
+				sound_editor_for_session().currentMIDICable = getCable(startValue);
 				return;
 			}
 			newValue = lowestDeviceNum;
@@ -101,7 +105,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 		else if (newValue < lowestDeviceNum) {
 			if (display->haveOLED()) {
 				this->setValue(startValue);
-				soundEditor.currentMIDICable = getCable(startValue);
+				sound_editor_for_session().currentMIDICable = getCable(startValue);
 				return;
 			}
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
@@ -109,20 +113,20 @@ void Devices::selectEncoderAction(int32_t offset) {
 
 		this->setValue(newValue);
 
-		soundEditor.currentMIDICable = getCable(this->getValue());
+		sound_editor_for_session().currentMIDICable = getCable(this->getValue());
 
-	} while (!soundEditor.currentMIDICable->connectionFlags);
+	} while (!sound_editor_for_session().currentMIDICable->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 	if (display->haveOLED()) {
-		current_scroll_ = std::min(this->getValue(), current_scroll_);
+		scroll_for_session() = std::min(this->getValue(), scroll_for_session());
 		//
 		if (offset >= 0) {
 			int32_t d = this->getValue();
 			int32_t numSeen = 1;
 			while (d > lowestDeviceNum) {
 				d--;
-				if (d == current_scroll_) {
+				if (d == scroll_for_session()) {
 					break;
 				}
 				auto device = getCable(d);
@@ -131,7 +135,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 				}
 				numSeen++;
 				if (numSeen >= kOLEDMenuNumOptionsVisible) {
-					current_scroll_ = d;
+					scroll_for_session() = d;
 					break;
 				}
 			}
@@ -167,7 +171,7 @@ void Devices::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		char const* displayName = soundEditor.currentMIDICable->getDisplayName();
+		char const* displayName = sound_editor_for_session().currentMIDICable->getDisplayName();
 		display->setScrollingText(displayName);
 	}
 }
@@ -181,7 +185,7 @@ void Devices::drawPixelsForOled() {
 
 	int32_t selectedRow = -1;
 
-	int32_t device_idx = current_scroll_;
+	int32_t device_idx = scroll_for_session();
 	size_t row = 0;
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDICable* cable = getCable(device_idx);

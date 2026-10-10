@@ -113,13 +113,13 @@ void HIDSysex::sendOLEDData(MIDICable& cable, bool rle) {
 		if (rle) {
 			packed =
 			    //				pack_8to7_rle(reply + 6, max_packed_size,
-			    // deluge::hid::display::OLED::oledCurrentImage[0], data_size);
-			    pack_8to7_rle(reply + 9, max_packed_size, deluge::hid::display::OLED::oledCurrentImage[0], data_size);
+			    // deluge::hid::display::OLED::local_image()[0], data_size);
+			    pack_8to7_rle(reply + 9, max_packed_size, deluge::hid::display::OLED::local_image()[0], data_size);
 		}
 		else {
 			//			packed = pack_8bit_to_7bit(reply + 6, max_packed_size,
-			// deluge::hid::display::OLED::oledCurrentImage[0], 			                           data_size);
-			packed = pack_8bit_to_7bit(reply + 9, max_packed_size, deluge::hid::display::OLED::oledCurrentImage[0],
+			// deluge::hid::display::OLED::local_image()[0], 			                           data_size);
+			packed = pack_8bit_to_7bit(reply + 9, max_packed_size, deluge::hid::display::OLED::local_image()[0],
 			                           data_size); //
 		}
 		if (packed < 0) {
@@ -139,6 +139,7 @@ void HIDSysex::request7SegDisplay(MIDICable& cable, uint8_t* data, int32_t len) 
 }
 
 void HIDSysex::send7SegData(MIDICable& cable) {
+	deluge::gui::ui_session::Scope hardware(deluge::gui::ui_session::Id::Local);
 	if (display->have7SEG()) {
 		// aschually 8 segments if you count the dot
 		auto data = display->getLast();
@@ -159,7 +160,7 @@ void HIDSysex::sendOLEDDataDelta(MIDICable& cable, bool force) {
 	const int32_t data_size = 768;
 	const int32_t max_packed_size = 922;
 
-	uint8_t* current = deluge::hid::display::OLED::oledCurrentImage[0];
+	uint8_t* current = deluge::hid::display::OLED::local_image()[0];
 
 	int32_t first_change = 9000;
 	int32_t last_change = 0;
@@ -223,8 +224,8 @@ void HIDSysex::readBlock(MIDICable& cable) {
 	int32_t packed;
 
 	//			packed = pack_8bit_to_7bit(reply + 6, max_packed_size,
-	// deluge::hid::display::OLED::oledCurrentImage[0],
-	uint8_t* srcBlock = (uint8_t*)smDeserializer.fileClusterBuffer; //  deluge::hid::display::OLED::oledCurrentImage[0];
+	// deluge::hid::display::OLED::local_image()[0],
+	uint8_t* srcBlock = (uint8_t*)smDeserializer.fileClusterBuffer; //  deluge::hid::display::OLED::local_image()[0];
 
 	packed = pack_8bit_to_7bit(reply + 9, max_packed_size, srcBlock,
 	                           data_size); //

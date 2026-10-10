@@ -38,13 +38,14 @@ public:
 	}
 
 	void readCurrentValue() override {
-		const Source& source = soundEditor.currentSound->sources[source_id_];
+		const Source& source = sound_editor_for_session().currentSound->sources[source_id_];
 		setValue(source.timeStretchAmount);
 	}
 
 	void writeCurrentValue() override {
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			const Kit* kit = getCurrentKit();
 
@@ -58,7 +59,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			Source& source = soundEditor.currentSound->sources[source_id_];
+			Source& source = sound_editor_for_session().currentSound->sources[source_id_];
 			source.timeStretchAmount = getValue();
 		}
 	}

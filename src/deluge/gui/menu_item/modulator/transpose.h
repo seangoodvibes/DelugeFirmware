@@ -33,8 +33,9 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForTranspose(soundEditor.currentSound->modulatorTranspose[source_id_],
-		                                               soundEditor.currentSound->modulatorCents[source_id_]));
+		this->setValue(
+		    computeCurrentValueForTranspose(sound_editor_for_session().currentSound->modulatorTranspose[source_id_],
+		                                    sound_editor_for_session().currentSound->modulatorCents[source_id_]));
 	}
 
 	bool usesAffectEntire() override { return true; }
@@ -43,7 +44,8 @@ public:
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -66,10 +68,11 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			ModelStackWithSoundFlags* modelStack =
+			    sound_editor_for_session().getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			soundEditor.currentSound->setModulatorTranspose(source_id_, transpose, modelStack);
-			soundEditor.currentSound->setModulatorCents(source_id_, cents, modelStack);
+			sound_editor_for_session().currentSound->setModulatorTranspose(source_id_, transpose, modelStack);
+			sound_editor_for_session().currentSound->setModulatorCents(source_id_, cents, modelStack);
 		}
 	}
 

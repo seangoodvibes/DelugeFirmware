@@ -28,7 +28,10 @@
 
 using namespace deluge;
 
-bool SaveUI::currentFolderIsEmpty;
+bool& SaveUI::current_folder_is_empty_for_session() {
+	static deluge::gui::ui_session::State<bool> states;
+	return states.active();
+}
 
 SaveUI::SaveUI() {
 	mayDefaultToBrandNewNameOnEntry = true;
@@ -44,7 +47,7 @@ bool SaveUI::opened() {
 	// qwertyVisible is shared by every browser and starts out true, and nothing here resets it (qwertyAlwaysVisible is
 	// true for save UIs). Left alone, 7SEG would open in the text view ("SONG...") until a browser that does reset it,
 	// like song load, had been visited, and in the slot view ever after. Always start in the slot view.
-	qwertyVisible = false;
+	qwerty_visible_for_session() = false;
 
 	PadLEDs::clearSideBar();
 	return true;
@@ -60,7 +63,7 @@ void SaveUI::focusRegained() {
 // Check the very similar variations in LoadSongUI and LoadInstrumentPresetUI
 void SaveUI::displayText(bool blinkImmediately) {
 
-    if (enteredText.isEmpty() && !currentFolderIsEmpty) {
+    if (enteredText.isEmpty() && !current_folder_is_empty_for_session()) {
         display->setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
         indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
     }
@@ -87,7 +90,7 @@ void SaveUI::enterKeyPress() {
 		}
 	}
 
-	else if (enteredText.isEmpty()) {} // Previously had &&currentFolderIsEmpty ... why?
+	else if (entered_text_for_session().isEmpty()) {} // Previously had &&current_folder_is_empty_for_session() ... why?
 
 	else {
 		bool dealtWith = performSave(false);
@@ -121,12 +124,12 @@ ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 ActionResult SaveUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 
-		bool available = gui::context_menu::saveSongOrInstrument.setupAndCheckAvailability();
+		bool available = gui::context_menu::save_song_or_instrument_for_session().setupAndCheckAvailability();
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
 			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::saveSongOrInstrument);
+			openUI(&gui::context_menu::save_song_or_instrument_for_session());
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);

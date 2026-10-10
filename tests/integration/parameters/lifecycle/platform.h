@@ -6,6 +6,7 @@
 #include <vector>
 
 class ConsequenceParamChange;
+class ModelStackWithAutoParam;
 
 namespace parameter_test {
 extern bool allow_midi_params;
@@ -22,6 +23,7 @@ extern std::function<void()> on_allocation;
 extern size_t allocation_failures;
 extern uint32_t last_failed_allocation_size;
 extern bool allow_no_action;
+extern std::function<bool(ModelStackWithAutoParam const*)> on_record_param;
 extern int32_t loop_length;
 extern int32_t play_pos;
 extern bool reversed;

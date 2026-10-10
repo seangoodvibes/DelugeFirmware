@@ -76,6 +76,8 @@ public:
 	virtual void setNextTransitionDirection(int8_t thisDirection) {};
 
 	virtual void cancelPopup() = 0;
+	// Drop retained numeric layers without resuming their animation callbacks.
+	virtual void reset_layers_for_session() {}
 	virtual void freezeWithError(char const* text) = 0;
 	virtual bool isLayerCurrentlyOnTop(NumericLayer* layer) = 0;
 	virtual void displayError(Error error) = 0;

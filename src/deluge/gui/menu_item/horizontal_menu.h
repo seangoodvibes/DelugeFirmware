@@ -42,12 +42,12 @@ public:
 	using Submenu::Submenu;
 
 	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), paging{}, layout(layout) {}
+	    : Submenu(newName, newItems), layout(layout) {}
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), paging{}, layout(layout) {}
+	    : Submenu(newName, newItems), layout(layout) {}
 	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> newItems,
 	               Layout layout)
-	    : Submenu(newName, newTitle, newItems), paging{}, layout(layout) {}
+	    : Submenu(newName, newTitle, newItems), layout(layout) {}
 
 	RenderingStyle renderingStyle() const override;
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
@@ -58,14 +58,20 @@ public:
 	bool focusChild(const MenuItem* child) override;
 
 	virtual bool hasItem(const MenuItem* item);
-	decltype(items)& getItems() { return items; }
-	MenuItem* getCurrentItem() const { return *current_item_; }
+	Items& getItems() { return items_for_session(); }
+	MenuItem* getCurrentItem() const { return *current_item_iterator(); }
 	bool selectEncoderActionEditsInstrument() override;
 
 protected:
-	Paging paging;
+	struct HorizontalState {
+		std::vector<MenuItem*> visible_items;
+		Paging paging{};
+		int32_t lastSelectedItemPosition = kNoSelection;
+	};
+	ui_session::State<HorizontalState> horizontal_states_;
+	HorizontalState& horizontal_state() { return horizontal_states_.active(); }
+	const HorizontalState& horizontal_state() const { return horizontal_states_.active(); }
 	Layout layout{DYNAMIC};
-	int32_t lastSelectedItemPosition{kNoSelection};
 
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
 	virtual Paging& preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem);

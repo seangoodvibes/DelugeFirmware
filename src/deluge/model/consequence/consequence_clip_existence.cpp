@@ -17,6 +17,7 @@
 
 #include "model/consequence/consequence_clip_existence.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui_navigation_state.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -40,7 +41,14 @@ ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* new
 }
 
 void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
-	if (whichQueueActionIn != util::to_underlying(type)) {
+	if (owns_detached_clip) {
+		// Membership is authoritative even when a failed callback path did not
+		// reconcile the consequence's cached ownership before cleanup.
+		if (song && song->contains_clip_for_undo(clip)) {
+			owns_detached_clip = false;
+			return;
+		}
+		owns_detached_clip = false;
 		song->deleteBackedUpParamManagersForClip(clip);
 
 #if ALPHA_OR_BETA_VERSION
@@ -56,21 +64,144 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 	}
 }
 
+bool ConsequenceClipExistence::can_recreate(Song* song) {
+	if (!song || !owns_detached_clip || !clip)
+		return false;
+	if (song->contains_clip_for_undo(clip)) {
+		// The song owns this clip again. Failure cleanup must not destroy it.
+		owns_detached_clip = false;
+		return false;
+	}
+	if (clipArray != &song->sessionClips && clipArray != &song->arrangementOnlyClips)
+		return false;
+	return clipIndex >= 0 && clipIndex <= clipArray->getNumElements();
+}
+
+Error ConsequenceClipExistence::reserve_for_recreation(Song* song) {
+	if (song != currentSong || !can_recreate(song) || !clip->output)
+		return Error::BUG;
+	Clip* const target = clip;
+	Output* const target_output = clip->output;
+	const bool registered_output = song->owns_output_for_undo(target_output);
+	ClipArray* const array = clipArray;
+	const int32_t index = clipIndex;
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	bool reserved = array->ensureEnoughSpaceAllocated(1);
+	// Reconcile ownership before returning an allocation failure: a callback
+	// may have returned the clip to the song even when reservation failed.
+	if (currentSong != song || !can_recreate(song) || current() != owner || clip != target || clipArray != array
+	    || clipIndex != index || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+	    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision
+	    || (registered_output && !song->owns_output_for_undo(target_output)) || target->output != target_output)
+		return Error::BUG;
+	return reserved ? Error::NONE : Error::INSUFFICIENT_RAM;
+}
+
+Error ConsequenceClipExistence::reattach_for_recreation(ModelStackWithTimelineCounter* modelStack) {
+	if (!modelStack || modelStack->song != currentSong || !can_recreate(modelStack->song)
+	    || modelStack->getTimelineCounterAllowNull() != clip || !clip->output)
+		return Error::BUG;
+	Song* const song = modelStack->song;
+	Clip* const target = clip;
+	Output* const target_output = clip->output;
+	const bool registered_output = song->owns_output_for_undo(target_output);
+	ClipArray* const array = clipArray;
+	const int32_t index = clipIndex;
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	Error error = target->undoDetachmentFromOutput(modelStack);
+	// Reconcile ownership even on failure before history cleanup can destroy a
+	// clip returned to the song by reattachment callbacks.
+	if (currentSong != song || !can_recreate(song) || current() != owner || clip != target || clipArray != array
+	    || clipIndex != index || modelStack->song != song || modelStack->getTimelineCounterAllowNull() != target
+	    || navigation.for_owner(Id::Local).structural_refresh.revision() != local_revision
+	    || navigation.for_owner(Id::Remote).structural_refresh.revision() != remote_revision
+	    || (registered_output && !song->owns_output_for_undo(target_output)) || target->output != target_output)
+		return Error::BUG;
+	return error;
+}
+
+Error ConsequenceClipExistence::commit_recreation(Song* song) {
+	if (song != currentSong || !can_recreate(song) || !clip->output)
+		return Error::BUG;
+	// Reservation happened before parameter reattachment. If that work consumed
+	// the capacity, fail without allocating or relinquishing detached ownership.
+	Error error = clipArray->insert_at_index_without_allocation(clipIndex);
+	if (error != Error::NONE)
+		return error;
+	clipArray->setPointerAtIndex(clip, clipIndex);
+	owns_detached_clip = false;
+	return Error::NONE;
+}
+
+Error ConsequenceClipExistence::prepare_for_deletion(ModelStackWithTimelineCounter* model_stack) {
+	if (!model_stack || !model_stack->song || model_stack->song != currentSong || !clip
+	    || model_stack->getTimelineCounterAllowNull() != clip
+	    || model_stack->song->get_clip_index_for_undo(clipArray, clip) < 0 || !clip->output)
+		return Error::BUG;
+	Song* const song = model_stack->song;
+	Clip* const target = clip;
+	ClipArray* const array = clipArray;
+	Output* const target_output = target->output;
+	const bool registered_output = song->owns_output_for_undo(target_output);
+	using namespace deluge::gui::ui_session;
+	const auto owner = current();
+	const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+	const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+	const auto context_valid = [&] {
+		return currentSong == song && current() == owner
+		       && navigation.for_owner(Id::Local).structural_refresh.revision() == local_revision
+		       && navigation.for_owner(Id::Remote).structural_refresh.revision() == remote_revision
+		       && model_stack->song == song && model_stack->getTimelineCounterAllowNull() == target
+		       && song->get_clip_index_for_undo(array, target) >= 0
+		       && (!registered_output || song->owns_output_for_undo(target_output)) && clip == target
+		       && clipArray == array && target->output == target_output;
+	};
+	song->invalidate_clip_selection(target);
+	if (!context_valid())
+		return Error::BUG;
+	target->stopAllNotesPlaying(song);
+	if (!context_valid())
+		return Error::BUG;
+	const bool was_active = session.deletingClipWhichCouldBeAbandonedOverdub(target);
+	if (!context_valid())
+		return Error::BUG;
+	shouldBeActiveWhileExistent = was_active;
+	target->abortRecording();
+	if (!context_valid())
+		return Error::BUG;
+	target->armState = ArmState::OFF;
+	if (array == &song->sessionClips && target->soloingInSessionMode) {
+		session.unsoloClip(target);
+		if (!context_valid())
+			return Error::BUG;
+	}
+	// Callbacks may reorder the array. Resolve the index immediately before removal.
+	clipIndex = song->get_clip_index_for_undo(array, target);
+	return clipIndex >= 0 ? Error::NONE : Error::BUG;
+}
+
 Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
+	if (!modelStack || !modelStack->song || modelStack->song != currentSong || !clip
+	    || (clipArray != &modelStack->song->sessionClips && clipArray != &modelStack->song->arrangementOnlyClips))
+		return Error::BUG;
+	if (time == util::to_underlying(type) && modelStack->song->get_clip_index_for_undo(clipArray, clip) < 0)
+		return Error::BUG;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	if (time != util::to_underlying(type)) { // (Re-)create
+		Error error = reserve_for_recreation(modelStack->song);
+		if (error != Error::NONE)
+			return error;
 
-		if (!clipArray->ensureEnoughSpaceAllocated(1)) {
-			return Error::INSUFFICIENT_RAM;
-		}
-
-		Error error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
+		error = reattach_for_recreation(modelStackWithTimelineCounter);
 		if (error != Error::NONE) { // This shouldn't actually happen, but if it does...
-#if ALPHA_OR_BETA_VERSION
-			FREEZE_WITH_ERROR("E046");
-#endif
-			return error; // Run away. This and the Clip(?) will get destructed, and everything should be ok!
+			return error;           // Run away. This and the Clip(?) will get destructed, and everything should be ok!
 		}
 
 #if ALPHA_OR_BETA_VERSION
@@ -79,13 +210,42 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 		}
 #endif
 
-		clipArray->insertClipAtIndex(clip, clipIndex);
+		error = commit_recreation(modelStack->song);
+		if (error != Error::NONE)
+			return error;
+		if (clipArray == &modelStackWithTimelineCounter->song->sessionClips) {
+			modelStackWithTimelineCounter->song->notify_peer_clip_inserted(clipIndex);
+		}
+
+		Song* const song = modelStack->song;
+		Clip* const target = clip;
+		ClipArray* const array = clipArray;
+		Output* const target_output = target->output;
+		const bool registered_output = song->owns_output_for_undo(target_output);
+		using namespace deluge::gui::ui_session;
+		const auto owner = current();
+		// Insertion above intentionally refreshes the peer. Capture the resulting
+		// revisions before invoking activation callbacks.
+		const auto local_revision = navigation.for_owner(Id::Local).structural_refresh.revision();
+		const auto remote_revision = navigation.for_owner(Id::Remote).structural_refresh.revision();
+		const auto activation_context_valid = [&] {
+			return currentSong == song && current() == owner
+			       && navigation.for_owner(Id::Local).structural_refresh.revision() == local_revision
+			       && navigation.for_owner(Id::Remote).structural_refresh.revision() == remote_revision
+			       && modelStack->song == song && modelStackWithTimelineCounter->song == song
+			       && modelStackWithTimelineCounter->getTimelineCounterAllowNull() == target
+			       && song->get_clip_index_for_undo(array, target) >= 0
+			       && (!registered_output || song->owns_output_for_undo(target_output)) && clip == target
+			       && clipArray == array && target->output == target_output;
+		};
 
 		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
 		clip->armState = ArmState::OFF; // In case was left on before
 
 		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
+			if (!activation_context_valid())
+				return Error::BUG;
 			if (!clip->activeIfNoSolo) {
 				D_PRINTLN("still not active!");
 			}
@@ -95,44 +255,27 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 			clip->output->setActiveClip(
 			    modelStackWithTimelineCounter); // Must do this to avoid E170 error. If Instrument has no
 			                                    // backedUpParamManager, it must have an activeClip
+			if (!activation_context_valid())
+				return Error::BUG;
 		}
 	}
 
 	else { // (Re-)delete
 
-		// Make sure the currentClip isn't left pointing to this Clip. Most of the time, ActionLogger::revertAction()
-		// reverts currentClip so we don't have to worry about it - but not if action->currentClip is NULL!
-		if (modelStackWithTimelineCounter->song->getCurrentClip() == clip) {
-			modelStackWithTimelineCounter->song->setCurrentClip(nullptr);
-		}
-
-		clip->stopAllNotesPlaying(
-		    modelStackWithTimelineCounter->song); // Stops any MIDI-controlled auditioning / stuck notes
-
-		shouldBeActiveWhileExistent = session.deletingClipWhichCouldBeAbandonedOverdub(
-		    clip); // But should we really be calling this without checking the Clip is a session one?
-
-		clip->abortRecording();
-		clip->armState = ArmState::OFF; // Not 100% sure if necessary... probably.
-
-		clipIndex = clipArray->getIndexForClip(clip);
-		if (clipIndex == -1) {
-			FREEZE_WITH_ERROR("E244");
-		}
+		Error error = prepare_for_deletion(modelStackWithTimelineCounter);
+		if (error != Error::NONE)
+			return error;
 
 		if (clipArray == &modelStackWithTimelineCounter->song->sessionClips) {
 
-			// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip - and
-			// also so overall soloing may be cancelled if no others soloing
-			if (clip->soloingInSessionMode) {
-				session.unsoloClip(clip);
-			}
-
 			modelStackWithTimelineCounter->song->removeSessionClipLowLevel(clip, clipIndex);
+			modelStackWithTimelineCounter->song->notify_peer_clip_removed(clipIndex);
 		}
 		else {
 			clipArray->deleteAtIndex(clipIndex); // Deletes the array's pointer to the Clip - not the Clip itself.
 		}
+
+		owns_detached_clip = true;
 
 		// This next call will back up all ParamManagers, including for Drums.
 		// But it will (unusually) leave clip->output pointing to the Output, and the same for any NoteRows' Drums. So

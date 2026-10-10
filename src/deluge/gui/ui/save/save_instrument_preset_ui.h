@@ -43,4 +43,4 @@ protected:
 	// int32_t arrivedInNewFolder(int32_t direction);
 };
 
-extern SaveInstrumentPresetUI saveInstrumentPresetUI;
+SaveInstrumentPresetUI& save_instrument_preset_ui_for_session();

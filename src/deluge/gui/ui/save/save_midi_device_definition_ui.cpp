@@ -34,7 +34,14 @@ using namespace deluge;
 
 #define MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER "MIDI_DEVICES/DEFINITION"
 
-SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
+namespace {
+SaveMidiDeviceDefinitionUI local_save_midi_device_definition_ui{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<SaveMidiDeviceDefinitionUI>
+    remote_save_midi_device_definition_ui;
+} // namespace
+SaveMidiDeviceDefinitionUI& save_midi_device_definition_ui_for_session() {
+	return remote_save_midi_device_definition_ui.get(local_save_midi_device_definition_ui);
+}
 
 SaveMidiDeviceDefinitionUI::SaveMidiDeviceDefinitionUI() {
 	filePrefix = "MidiDevice";
@@ -63,23 +70,23 @@ doReturnFalse:
 
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 
-	enteredText.set(&midiInstrument->deviceDefinitionFileName);
-	enteredTextEditPos = enteredText.getLength();
-	currentFolderIsEmpty = false;
+	entered_text_for_session().set(&midiInstrument->deviceDefinitionFileName);
+	entered_text_edit_pos_for_session() = entered_text_for_session().getLength();
+	current_folder_is_empty_for_session() = false;
 
 	// is empty we just start with nothing. currentSlot etc remain set to "zero" from before
-	if (enteredText.isEmpty()) {
-		currentDir.set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	if (entered_text_for_session().isEmpty()) {
+		current_dir_for_session().set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 	}
 	else {
-		char const* fullPath = enteredText.get();
+		char const* fullPath = entered_text_for_session().get();
 
 		// locate last occurence of "/" in string
 		char const* slash = strrchr(fullPath, '/');
 
 		if (!slash) {
 			// No directory in stored string -> use default folder, and keep the text as-is
-			currentDir.set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+			current_dir_for_session().set(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 		}
 		else {
 			// Directory = everything before last slash
@@ -90,23 +97,23 @@ doReturnFalse:
 			memcpy(dir, fullPath, dirLen);
 			dir[dirLen] = 0;
 
-			currentDir.set(dir);
+			current_dir_for_session().set(dir);
 
 			// Filename = everything after last slash
-			enteredText.set(slash + 1);
+			entered_text_for_session().set(slash + 1);
 		}
 
 		// Strip ".xml" from enteredText if SaveUI appends it
-		char const* name = enteredText.get();
+		char const* name = entered_text_for_session().get();
 		size_t nameLen = strlen(name);
 		if (nameLen > 4 && !strcmp(name + nameLen - 4, ".XML")) {
 			char base[nameLen - 4 + 1];
 			memcpy(base, name, nameLen - 4);
 			base[nameLen - 4] = 0;
-			enteredText.set(base);
+			entered_text_for_session().set(base);
 		}
 
-		enteredTextEditPos = enteredText.getLength();
+		entered_text_edit_pos_for_session() = entered_text_for_session().getLength();
 	}
 
 	title = "Save midi device";
@@ -114,7 +121,7 @@ doReturnFalse:
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 1;
 
-	error = arrivedInNewFolder(0, enteredText.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
+	error = arrivedInNewFolder(0, entered_text_for_session().get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -145,13 +152,13 @@ fail:
 	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
+		gui::context_menu::overwrite_file_for_session().currentSaveUI = this;
 
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
+		bool available = gui::context_menu::overwrite_file_for_session().setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
 			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::overwriteFile);
+			openUI(&gui::context_menu::overwrite_file_for_session());
 			return true;
 		}
 		else {
@@ -198,7 +205,7 @@ ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
+			if (!strcmp(current_dir_for_session().get(), MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER)) {
 				close();
 				return ActionResult::DEALT_WITH;
 			}

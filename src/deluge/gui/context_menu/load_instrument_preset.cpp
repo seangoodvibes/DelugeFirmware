@@ -22,7 +22,13 @@
 #include "hid/display/display.h"
 
 namespace deluge::gui::context_menu {
-LoadInstrumentPreset loadInstrumentPreset{};
+namespace {
+LoadInstrumentPreset local_load_instrument_preset{};
+PLACE_SDRAM_BSS deluge::gui::ui_session::RemoteInstance<LoadInstrumentPreset> remote_load_instrument_preset;
+} // namespace
+LoadInstrumentPreset& load_instrument_preset_for_session() {
+	return remote_load_instrument_preset.get(local_load_instrument_preset);
+}
 
 char const* LoadInstrumentPreset::getTitle() {
 	using enum l10n::String;
@@ -44,12 +50,12 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		return true;
 		*/
 	default: // Clone
-		error = loadInstrumentPresetUI.performLoad(true);
+		error = load_instrument_preset_ui_for_session().performLoad(true);
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return true;
 		}
-		loadInstrumentPresetUI.close();
+		load_instrument_preset_ui_for_session().close();
 		return true;
 	}
 }

@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -95,13 +96,13 @@ bool Arrangement::endPlayback() {
 	// session view
 
 	// use root UI in case this is called from performance view
-	sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+	session_view_for_session().requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 
 	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,
 	// but we need it before reassessing sessionView's greyout.
 	playbackHandler.playbackState = 0;
 
-	if (getCurrentUI() == &sessionView) {
+	if (getCurrentUI() == &session_view_for_session()) {
 		PadLEDs::reassessGreyout();
 	}
 
@@ -272,7 +273,7 @@ notRecording:
 								// the play cursor has selected a new active clip for the current output
 								// send updated feedback so that midi controller has the latest values for
 								// the current clip selected for midi follow control
-								view.sendMidiFollowFeedback();
+								view_for_session().sendMidiFollowFeedback();
 							}
 						}
 
@@ -282,8 +283,8 @@ notRecording:
 							anyChangeToSessionClipsPlaying = true;
 						}
 
-						if (getCurrentUI() == &arrangerView) {
-							arrangerView.notifyActiveClipChangedOnOutput(output);
+						if (getCurrentUI() == &arranger_view_for_session()) {
+							arranger_view_for_session().notifyActiveClipChangedOnOutput(output);
 						}
 
 						// Make sure we come back here when the clipInstance ends
@@ -315,7 +316,7 @@ justDoArp:
 
 	if (anyChangeToSessionClipsPlaying) {
 		// use root UI in case this is called from performance view
-		sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+		session_view_for_session().requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 	}
 
 	// If nothing further in the arrangement, we usually just stop playing
@@ -323,10 +324,10 @@ justDoArp:
 	    && playbackHandler.isInternalClockActive()
 	    // Only do this if not recording MIDI - but override that and do do it if we're "resampling"
 	    && (playbackHandler.recording == RecordingMode::OFF
-	        || audioRecorder.recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) {
+	        || audio_recorder_for_session().recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) {
 
-		if (playbackHandler.stopOutputRecordingAtLoopEnd && audioRecorder.isCurrentlyResampling()) {
-			audioRecorder.endRecordingSoon();
+		if (playbackHandler.stopOutputRecordingAtLoopEnd && audio_recorder_for_session().isCurrentlyResampling()) {
+			audio_recorder_for_session().endRecordingSoon();
 		}
 
 		playbackHandler.endPlayback();
@@ -350,11 +351,12 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 
 	playbackStartedAtPos = newPos;
 	lastProcessedPos = newPos;
-	arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	arranger_view_for_session().xScrollWhenPlaybackStarted =
+	    currentSong->x_scroll_for_session()[NAVIGATION_ARRANGEMENT];
 	// if you were holding a clip pad and doing a reset,
 	// it can be easy to accidentally delete or enter the clip
 	// setting this to false prevents that
-	arrangerView.actionOnDepress = false;
+	arranger_view_for_session().actionOnDepress = false;
 
 	if (currentSong->paramManager.mightContainAutomation()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -509,44 +511,145 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 
 // First, be sure the clipInstance has a Clip
 Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
-	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-		return Error::INSUFFICIENT_RAM;
-	}
+	if (!currentSong || !clipInstance || !clipInstance->clip)
+		return Error::BUG;
+	// Notification ranges use signed positions. Validate both the existing
+	// instance and its requested replacement before any allocating callbacks.
+	if (clipInstance->pos < 0 || clipInstance->length <= 0 || (newLength != -1 && newLength <= 0))
+		return Error::BUG;
+	const int64_t source_end = int64_t{clipInstance->pos} + clipInstance->length;
+	const int64_t target_end = int64_t{clipInstance->pos} + (newLength == -1 ? clipInstance->length : newLength);
+	if (source_end > INT32_MAX || target_end > INT32_MAX)
+		return Error::BUG;
+	Song* source_song = currentSong;
 	Clip* oldClip = clipInstance->clip;
+	auto* source_output = oldClip->output;
+	const int32_t sourcePos = clipInstance->pos;
+	const int32_t source_length = clipInstance->length;
+	auto source_revision = [](deluge::gui::ui_session::Id id) {
+		return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
+	};
+	const auto source_local_revision = source_revision(deluge::gui::ui_session::Id::Local);
+	const auto source_remote_revision = source_revision(deluge::gui::ui_session::Id::Remote);
+	auto source_valid = [&] {
+		if (currentSong != source_song || source_revision(deluge::gui::ui_session::Id::Local) != source_local_revision
+		    || source_revision(deluge::gui::ui_session::Id::Remote) != source_remote_revision)
+			return false;
+		return clipInstance->clip == oldClip && clipInstance->pos == sourcePos && clipInstance->length == source_length
+		       && oldClip->output == source_output;
+	};
+	bool reserved = source_song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1);
+	if (!source_valid())
+		return Error::BUG;
+	if (!reserved)
+		return Error::INSUFFICIENT_RAM;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
 	Error error = oldClip->clone(modelStack, true);
+	if (!source_valid() || modelStack->song != source_song)
+		return Error::BUG;
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
+	Clip* newClip = (Clip*)modelStack->getTimelineCounterAllowNull();
+	// A successful clone must return a distinct, unpublished object. Do not
+	// mutate or destroy an unexpected result whose ownership is unknown.
+	if (!newClip || newClip == oldClip || source_song->contains_clip_for_undo(newClip))
+		return Error::BUG;
+	auto* clone_output = newClip->output;
 
 	newClip->section = 255;
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
 	if (shouldCloneRepeats && newLength != -1) {
 		if (newClip->type == ClipType::INSTRUMENT) {
-			((InstrumentClip*)newClip)->repeatOrChopToExactLength(modelStack, newLength);
+			Song* owner = currentSong;
+			auto revision = [](deluge::gui::ui_session::Id id) {
+				return deluge::gui::ui_session::navigation.for_owner(id).structural_refresh.revision();
+			};
+			const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+			const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+			bool repeated = ((InstrumentClip*)newClip)->repeatOrChopToExactLength(modelStack, newLength);
+			if (!repeated || !source_valid() || modelStack->song != owner
+			    || modelStack->getTimelineCounterAllowNull() != newClip || owner->contains_clip_for_undo(newClip)
+			    || newClip->output != clone_output) {
+				// An unpublished clone is ours to destroy only while its context
+				// remains intact. Invalidating callbacks may already have freed it.
+				if (currentSong == owner && modelStack->song == owner
+				    && revision(deluge::gui::ui_session::Id::Local) == local_revision
+				    && revision(deluge::gui::ui_session::Id::Remote) == remote_revision
+				    && modelStack->getTimelineCounterAllowNull() == newClip && !owner->contains_clip_for_undo(newClip)
+				    && newClip->output == clone_output && clipInstance->clip != newClip
+				    && (!newClip->output || !newClip->output->clipHasInstance(newClip))) {
+					owner->deleteClipObject(newClip, false, InstrumentRemoval::NONE);
+				}
+				return Error::BUG;
+			}
 		}
 	}
 
 	// Add to Song
-	currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
+	Error insert_error = currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
+	if (insert_error != Error::NONE) {
+		if (currentSong == source_song && modelStack->song == source_song
+		    && source_revision(deluge::gui::ui_session::Id::Local) == source_local_revision
+		    && source_revision(deluge::gui::ui_session::Id::Remote) == source_remote_revision
+		    && modelStack->getTimelineCounterAllowNull() == newClip && !source_song->contains_clip_for_undo(newClip)
+		    && newClip->output == clone_output && clipInstance->clip != newClip
+		    && (!newClip->output || !newClip->output->clipHasInstance(newClip))) {
+			source_song->deleteClipObject(newClip, false, InstrumentRemoval::NONE);
+		}
+		return insert_error;
+	}
+	auto discard_unused_clone = [&] {
+		if (currentSong != source_song || modelStack->song != source_song
+		    || source_revision(deluge::gui::ui_session::Id::Local) != source_local_revision
+		    || source_revision(deluge::gui::ui_session::Id::Remote) != source_remote_revision
+		    || modelStack->getTimelineCounterAllowNull() != newClip)
+			return;
+		int32_t clone_index = source_song->arrangementOnlyClips.getIndexForClip(newClip);
+		if (clone_index < 0 || clipInstance->clip == newClip || source_song->sessionClips.getIndexForClip(newClip) >= 0)
+			return;
+		if (newClip->output != clone_output || (newClip->output && newClip->output->clipHasInstance(newClip)))
+			return;
+		// Only discard our published clone if no callback has adopted it.
+		source_song->arrangementOnlyClips.deleteAtIndex(clone_index);
+		source_song->deleteClipObject(newClip, false, InstrumentRemoval::NONE);
+	};
+	if (!source_valid() || modelStack->song != source_song || !source_song->contains_clip_for_undo(newClip)
+	    || newClip->output != clone_output) {
+		discard_unused_clone();
+		return Error::BUG;
+	}
 
-	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
-	          nullptr);
+	rowEdited(source_output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip, nullptr);
+	if (!source_valid() || modelStack->song != source_song || !source_song->contains_clip_for_undo(newClip)
+	    || newClip->output != clone_output) {
+		discard_unused_clone();
+		return Error::BUG;
+	}
 
 	clipInstance->clip = newClip;
 	if (newLength != -1) {
 		clipInstance->length = newLength;
 	}
 
-	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr, clipInstance);
+	rowEdited(source_output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr, clipInstance);
 
+	// The final notification can resume playback and invalidate the instance.
+	// Check external state before reading the installed instance again.
+	if (currentSong != source_song || modelStack->song != source_song
+	    || source_revision(deluge::gui::ui_session::Id::Local) != source_local_revision
+	    || source_revision(deluge::gui::ui_session::Id::Remote) != source_remote_revision)
+		return Error::BUG;
+	const int32_t installed_length = newLength == -1 ? source_length : newLength;
+	if (!source_song->contains_clip_for_undo(newClip) || newClip->output != clone_output
+	    || clipInstance->clip != newClip || clipInstance->pos != sourcePos || clipInstance->length != installed_length)
+		return Error::BUG;
 	return Error::NONE;
 }
 
@@ -560,7 +663,7 @@ void Arrangement::stopOutputRecordingAtLoopEnd() {
 		renderUIsForOled();
 	}
 	else {
-		sessionView.redrawNumericDisplay();
+		session_view_for_session().redrawNumericDisplay();
 	}
 }
 
@@ -666,7 +769,7 @@ void Arrangement::endAnyLinearRecording() {
 		output->endAnyArrangementRecording(currentSong, actualPos, timeRemainder);
 	}
 
-	arrangerView.mustRedrawTickSquares = true; // Tick square shouldn't be red anymore
+	arranger_view_for_session().mustRedrawTickSquares = true; // Tick square shouldn't be red anymore
 
-	uiNeedsRendering(&arrangerView, 0xFFFFFFFF, 0);
+	uiNeedsRendering(&arranger_view_for_session(), 0xFFFFFFFF, 0);
 }

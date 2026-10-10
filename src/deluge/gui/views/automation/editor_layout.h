@@ -29,65 +29,69 @@ public:
 	// get automationView class info
 protected:
 	// get AutomationView UI
-	inline RootUI* getAutomationView() { return &automationView; }
-	inline AutomationParamType& getAutomationParamType() { return automationView.automationParamType; }
-	inline bool& getOnArrangerView() { return automationView.onArrangerView; }
-	inline int32_t& getNavSysId() { return automationView.navSysId; }
+	inline RootUI* getAutomationView() { return &automation_view_for_session(); }
+	inline AutomationParamType& getAutomationParamType() { return automation_view_for_session().automationParamType; }
+	inline bool& getOnArrangerView() { return automation_view_for_session().onArrangerView; }
+	inline int32_t& getNavSysId() { return automation_view_for_session().navSysId; }
 
 	// display / LED indicators / pad rendering
 	inline void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                          bool modEncoderAction = false) {
-		automationView.renderDisplay(knobPosLeft, knobPosRight, modEncoderAction);
+		automation_view_for_session().renderDisplay(knobPosLeft, knobPosRight, modEncoderAction);
 	}
 	inline void displayAutomation(bool padSelected = false, bool updateDisplay = true) {
-		automationView.displayAutomation(padSelected, updateDisplay);
+		automation_view_for_session().displayAutomation(padSelected, updateDisplay);
 	}
 	inline void renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
 	                                RGB image[][kDisplayWidth + kSideBarWidth],
 	                                uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
 	                                TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay) {
-		automationView.renderUndefinedArea(xScroll, xZoom, lengthToDisplay, image, occupancyMask, imageWidth,
-		                                   timelineView, tripletsOnHere, xDisplay);
+		automation_view_for_session().renderUndefinedArea(xScroll, xZoom, lengthToDisplay, image, occupancyMask,
+		                                                  imageWidth, timelineView, tripletsOnHere, xDisplay);
 	}
 
 	// interpolation
-	inline void initInterpolation() { automationView.initInterpolation(); }
-	inline void resetInterpolationShortcutBlinking() { automationView.resetInterpolationShortcutBlinking(); }
-	inline void blinkInterpolationShortcut() { automationView.blinkInterpolationShortcut(); }
-	inline bool& getInterpolation() { return automationView.interpolation; }
-	inline bool& getInterpolationBefore() { return automationView.interpolationBefore; }
-	inline bool& getInterpolationAfter() { return automationView.interpolationAfter; }
+	inline void initInterpolation() { automation_view_for_session().initInterpolation(); }
+	inline void resetInterpolationShortcutBlinking() {
+		automation_view_for_session().resetInterpolationShortcutBlinking();
+	}
+	inline void blinkInterpolationShortcut() { automation_view_for_session().blinkInterpolationShortcut(); }
+	inline bool& getInterpolation() { return automation_view_for_session().interpolation; }
+	inline bool& getInterpolationBefore() { return automation_view_for_session().interpolationBefore; }
+	inline bool& getInterpolationAfter() { return automation_view_for_session().interpolationAfter; }
 
 	// pad selection mode
-	inline bool& getPadSelectionOn() { return automationView.padSelectionOn; }
-	inline void initPadSelection() { automationView.initPadSelection(); }
-	inline void blinkPadSelectionShortcut() { automationView.blinkPadSelectionShortcut(); }
+	inline bool& getPadSelectionOn() { return automation_view_for_session().padSelectionOn; }
+	inline void initPadSelection() { automation_view_for_session().initPadSelection(); }
+	inline void blinkPadSelectionShortcut() { automation_view_for_session().blinkPadSelectionShortcut(); }
 
 	// pad press
 	inline int32_t getPosFromSquare(int32_t square, int32_t localScroll = -1) const {
-		return automationView.getPosFromSquare(square, localScroll);
+		return automation_view_for_session().getPosFromSquare(square, localScroll);
 	}
 	inline int32_t getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const {
-		return automationView.getPosFromSquare(square, xScroll, xZoom);
+		return automation_view_for_session().getPosFromSquare(square, xScroll, xZoom);
 	}
-	inline bool& getMultiPadPressActive() { return automationView.multiPadPressActive; }
-	inline bool& getMultiPadPressSelected() { return automationView.multiPadPressSelected; }
-	inline bool& getMiddlePadPressSelected() { return automationView.middlePadPressSelected; }
-	inline int32_t& getLeftPadSelectedX() { return automationView.leftPadSelectedX; }
-	inline int32_t& getLeftPadSelectedY() { return automationView.leftPadSelectedY; }
-	inline int32_t& getRightPadSelectedX() { return automationView.rightPadSelectedX; }
-	inline int32_t& getRightPadSelectedY() { return automationView.rightPadSelectedY; }
-	inline int32_t& getLastPadSelectedKnobPos() { return automationView.lastPadSelectedKnobPos; }
+	inline bool& getMultiPadPressActive() { return automation_view_for_session().multiPadPressActive; }
+	inline bool& getMultiPadPressSelected() { return automation_view_for_session().multiPadPressSelected; }
+	inline bool& getMiddlePadPressSelected() { return automation_view_for_session().middlePadPressSelected; }
+	inline int32_t& getLeftPadSelectedX() { return automation_view_for_session().leftPadSelectedX; }
+	inline int32_t& getLeftPadSelectedY() { return automation_view_for_session().leftPadSelectedY; }
+	inline int32_t& getRightPadSelectedX() { return automation_view_for_session().rightPadSelectedX; }
+	inline int32_t& getRightPadSelectedY() { return automation_view_for_session().rightPadSelectedY; }
+	inline int32_t& getLastPadSelectedKnobPos() { return automation_view_for_session().lastPadSelectedKnobPos; }
 
 	// mod encoder
-	inline CopiedParamAutomation* getCopiedParamAutomation() { return &automationView.copiedParamAutomation; }
+	inline CopiedParamAutomation* getCopiedParamAutomation() {
+		return &automation_view_for_session().copiedParamAutomation;
+	}
 
 	// model stack
 	inline ModelStackWithAutoParam*
 	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                              int32_t paramID = deluge::modulation::params::kNoParamID,
 	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE) {
-		return automationView.getModelStackWithParamForClip(modelStack, clip, paramID, paramKind);
+		return automation_view_for_session().getModelStackWithParamForClip(modelStack, clip, paramID, paramKind);
 	}
 };
 

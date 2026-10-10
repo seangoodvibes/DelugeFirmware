@@ -43,7 +43,8 @@ public:
 
 	void writeCurrentValue() override {
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && sound_editor_for_session().editingKitRow()) {
 
 			const Kit* kit = getCurrentKit();
 
@@ -69,7 +70,7 @@ public:
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const Icon& icon = getValue() ? OLED::crossedOutKeyboardIcon : OLED::keyboardIcon;
-		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
+		OLED::main_for_session().drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 
 	void getColumnLabel(StringBuf& label) override {

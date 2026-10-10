@@ -30,7 +30,7 @@ class ClipInstance : public Positionable {
 public:
 	ClipInstance();
 	RGB getColour();
-	void change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip);
+	bool change(Action* action, Output* output, int32_t new_pos, int32_t new_length, Clip* new_clip);
 
 	int32_t length;
 	Clip* clip;

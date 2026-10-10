@@ -28,7 +28,7 @@ namespace deluge::gui::menu_item {
 class DxCartridge final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
-	DxCartridge(l10n::String newName) : MenuItem(newName), pd(nullptr) {}
+	DxCartridge(l10n::String newName) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	bool tryLoad(std::string_view path);
 	void drawPixelsForOled() override;
@@ -38,11 +38,15 @@ public:
 	MenuItem* selectButtonPress() final;
 	void drawValue();
 
-	// this thing is big. allocate external mem on demand
-	DX7Cartridge* pd;
-
-	int32_t currentValue = 0;
-	int scrollPos = 0; // Each instance needs to store this separately
+private:
+	struct session_state {
+		// Allocate each session's cartridge on demand.
+		DX7Cartridge* cartridge = nullptr;
+		int32_t current_value = 0;
+		int scroll_position = 0;
+	};
+	ui_session::State<session_state> session_states;
+	session_state& state_for_session();
 };
 
 extern DxCartridge dxCartridge;
