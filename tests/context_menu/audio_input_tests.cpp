@@ -9,6 +9,7 @@ TEST_GROUP(AudioInputMenu) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		sdRoutineLock = false;
+		root_available = true;
 		session::navigation = {};
 		modes = {};
 		redraws = {};
@@ -17,6 +18,8 @@ TEST_GROUP(AudioInputMenu) {
 		currentSong = &song;
 		song.firstOutput = &first;
 		first.next = &second;
+		second.next = &output;
+		output.next = &other_output;
 		first.name.value = "first";
 		second.name.value = "second";
 		display_instance.oled = true;
@@ -28,6 +31,7 @@ TEST_GROUP(AudioInputMenu) {
 	void teardown() override {
 		session::detail::active = session::Id::Local;
 		sdRoutineLock = false;
+		root_available = true;
 	}
 };
 TEST(AudioInputMenu, edits_start_from_shared_channel_before_peer_refresh) {
@@ -115,9 +119,10 @@ TEST(AudioInputMenu, track_entry_preserves_valid_source_and_repairs_removed_sour
 	local_menu.selectEncoderAction(1);
 	POINTERS_EQUAL(&first, output.source);
 	currentSong = nullptr;
+	text.active() = "unchanged";
 	deluge::hid::display::oled_canvas::Canvas canvas;
 	local_menu.renderOLED(canvas);
-	STRCMP_EQUAL("No track", text.active().c_str());
+	STRCMP_EQUAL("unchanged", text.active().c_str());
 }
 TEST(AudioInputMenu, mode_lock_and_missing_target_do_not_edit_or_redraw) {
 	currentUIMode = 123;
@@ -178,4 +183,50 @@ TEST(AudioInputMenu, storage_locked_pad_selection_defers_without_mutation_and_re
 		LONGS_EQUAL(1, output.assignments);
 		CHECK(session::navigation.for_owner(peer).shared_model_refresh.consume(0));
 	}
+}
+
+TEST(AudioInputMenu, departed_target_is_rejected_before_reads_edits_or_greyout) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& menu = owner == session::Id::Local ? local_menu : remote_menu;
+		output.inputChannel = AudioInputChannel::NONE;
+		output.assignments = 0;
+		second.next = nullptr;
+		CHECK_FALSE(menu.setupAndCheckAvailability());
+		menu.selectEncoderAction(1);
+		session_view_for_session().target = &first;
+		menu.padAction(0, 0, 1);
+		CHECK(output.inputChannel == AudioInputChannel::NONE);
+		LONGS_EQUAL(0, output.assignments);
+		menu.refresh_shared_model();
+		text.active() = "unchanged";
+		deluge::hid::display::oled_canvas::Canvas canvas;
+		menu.renderOLED(canvas);
+		STRCMP_EQUAL("unchanged", text.active().c_str());
+		uint32_t cols = 123, rows = 456;
+		CHECK_FALSE(menu.getGreyoutColsAndRows(&cols, &rows));
+		LONGS_EQUAL(456, rows);
+		second.next = &output;
+		CHECK(menu.setupAndCheckAvailability());
+		menu.selectEncoderAction(1);
+		CHECK(output.inputChannel == AudioInputChannel::LEFT);
+	}
+}
+TEST(AudioInputMenu, missing_song_and_wrong_output_type_are_not_available) {
+	currentSong = nullptr;
+	CHECK_FALSE(local_menu.setupAndCheckAvailability());
+	local_menu.selectEncoderAction(1);
+	CHECK(output.inputChannel == AudioInputChannel::NONE);
+	currentSong = &song;
+	output.type = OutputType::SYNTH;
+	CHECK_FALSE(local_menu.setupAndCheckAvailability());
+	local_menu.selectEncoderAction(1);
+	CHECK(output.inputChannel == AudioInputChannel::NONE);
+}
+TEST(AudioInputMenu, greyout_without_root_does_not_write_masks) {
+	root_available = false;
+	uint32_t cols = 123, rows = 456;
+	CHECK_FALSE(local_menu.getGreyoutColsAndRows(&cols, &rows));
+	LONGS_EQUAL(123, cols);
+	LONGS_EQUAL(456, rows);
 }

@@ -17,6 +17,7 @@ struct Output {
 	} name;
 };
 struct AudioOutput : Output {
+	AudioOutput() { type = OutputType::AUDIO; }
 	AudioInputChannel inputChannel = AudioInputChannel::NONE;
 	Output* source = nullptr;
 	int assignments = 0;
@@ -119,8 +120,9 @@ inline session::State<session_view_fixture> session_views;
 inline session_view_fixture& session_view_for_session() {
 	return session_views.active();
 }
+inline bool root_available = true;
 inline session_view_fixture* getRootUI() {
-	return &session_view_for_session();
+	return root_available ? &session_view_for_session() : nullptr;
 }
 inline session_view_fixture* getUIUpOneLevel() {
 	return &session_view_for_session();

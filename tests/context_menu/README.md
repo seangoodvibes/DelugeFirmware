@@ -17,3 +17,8 @@ not validated by this target.
 Storage-lock coverage verifies audio-source pad presses defer without changing
 model or UI state on either panel, releases remain handled, and retry resolves a
 changed pad target after unlock. This does not prove retained output lifetime.
+
+Target-membership cases cover departure and reattachment on both panels, missing
+songs, wrong output types and absent roots during greyout. Edited audio outputs
+are registered in the fixture song list. These checks do not establish lifetime
+across rendering/monitoring callbacks or detect same-address object replacement.

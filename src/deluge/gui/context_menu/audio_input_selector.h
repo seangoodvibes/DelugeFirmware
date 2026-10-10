@@ -43,6 +43,7 @@ public:
 	std::span<const char*> getOptions() override;
 
 private:
+	bool has_current_output() const;
 	bool read_input_selection();
 };
 

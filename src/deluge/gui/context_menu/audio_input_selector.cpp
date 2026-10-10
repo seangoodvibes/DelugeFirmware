@@ -115,8 +115,20 @@ void AudioInputSelector::refresh_shared_model() {
 		drawCurrentOption();
 }
 
+bool AudioInputSelector::has_current_output() const {
+	if (!currentSong || !audioOutput)
+		return false;
+	// Check membership before reading a retained target. It may have left the
+	// song while the other panel was editing, deleting or restoring clips.
+	for (auto* output = currentSong->firstOutput; output; output = output->next) {
+		if (output == audioOutput)
+			return output->type == OutputType::AUDIO;
+	}
+	return false;
+}
+
 bool AudioInputSelector::read_input_selection() {
-	if (!audioOutput)
+	if (!has_current_output())
 		return false;
 	Value valueOption = Value::OFF;
 
@@ -161,7 +173,10 @@ bool AudioInputSelector::read_input_selection() {
 }
 
 bool AudioInputSelector::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	*rows = getRootUI()->getGreyedOutRowsNotRepresentingOutput(audioOutput);
+	auto* const root_ui = getRootUI();
+	if (!root_ui || !has_current_output())
+		return false;
+	*rows = root_ui->getGreyedOutRowsNotRepresentingOutput(audioOutput);
 	return true;
 }
 
@@ -239,7 +254,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && sdRoutineLock)
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	if (on && audioOutput && getUIUpOneLevel() == &session_view_for_session()) {
+	if (on && has_current_output() && getUIUpOneLevel() == &session_view_for_session()) {
 		auto track = (&session_view_for_session())->getOutputFromPad(x, y);
 		if (audioOutput->canRecordFrom(track)) {
 			const bool changed = audioOutput->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT

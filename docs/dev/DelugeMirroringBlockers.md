@@ -803,3 +803,18 @@ side effects are not provided by these guards.
   are fixtures; this does not pin the menu's retained output pointer.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4/L1
   remain open and independent mode stays disabled.
+
+### G1 / L1 progress — departed audio-input menu targets (2026-10-09)
+
+- Audio-input menu entry points now confirm the retained target belongs to the
+  current song and has audio-output type before reading or editing it. Missing
+  songs and departed targets are unavailable; reattachment permits normal use
+  again. Greyout also rejects a missing root UI without writing output masks.
+- Three added production-selector cases cover departure/reattachment on both
+  panels, edits and rendering, missing songs, wrong output types and absent roots.
+  Departure remained available before the fix. Fixtures now place their edited
+  audio outputs in the song list, matching production membership requirements.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. This is
+  entry-point membership validation, not a pin across callbacks or a generation
+  check against same-address replacement. G1/L1 remain open; independent mode is
+  disabled.
