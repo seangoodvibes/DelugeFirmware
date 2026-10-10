@@ -41,6 +41,9 @@ public:
 	std::span<const char*> getOptions() override;
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
+
+private:
+	bool has_current_clip() const;
 };
 
 ClipSettingsMenu& clip_settings_for_session();

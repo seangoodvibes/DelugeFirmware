@@ -24,6 +24,7 @@
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
+#include "model/song/song.h"
 #include <cstddef>
 
 namespace deluge::gui::context_menu::clip_settings {
@@ -41,7 +42,13 @@ char const* ClipSettingsMenu::getTitle() {
 	return title;
 }
 
+bool ClipSettingsMenu::has_current_clip() const {
+	return currentSong && currentSong->contains_clip_for_undo(clip);
+}
+
 std::span<char const*> ClipSettingsMenu::getOptions() {
+	if (!has_current_clip())
+		return {};
 	using enum l10n::String;
 	if (clip->type == ClipType::AUDIO) {
 		static const char* optionsls[] = {
@@ -61,15 +68,21 @@ std::span<char const*> ClipSettingsMenu::getOptions() {
 }
 
 bool ClipSettingsMenu::setupAndCheckAvailability() {
+	if (!has_current_clip())
+		return false;
 	this->currentOption = scrollPos = 0; // start at the top
 	return true;
 }
 
 void ClipSettingsMenu::selectEncoderAction(int8_t offset) {
+	if (!has_current_clip())
+		return;
 	ContextMenu::selectEncoderAction(offset);
 }
 
 bool ClipSettingsMenu::acceptCurrentOption() {
+	if (!has_current_clip())
+		return false;
 	if (clip->type == ClipType::INSTRUMENT && this->currentOption == 0) {
 		session_view_for_session().replaceInstrumentClipWithAudioClip(clip);
 		return false; // exit UI
@@ -81,8 +94,8 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 		}
 		if (option == 0) {
 			launch_style_for_session().clip = clip;
-			launch_style_for_session().setupAndCheckAvailability();
-			openUI(&launch_style_for_session());
+			if (launch_style_for_session().setupAndCheckAvailability())
+				openUI(&launch_style_for_session());
 		}
 		else {
 			currentUIMode = UI_MODE_NONE;

@@ -44,3 +44,8 @@ Audio-source entry tests compile the production menu-item header and input
 selector together. They verify independent owner routing and reject missing or
 departed clips/outputs and wrong output types before UI opening. Output lookup
 and UI opening are instrumented fixtures, not a full UI-stack integration test.
+
+Clip Settings tests compile the production implementation and exercise departed
+clip rejection for setup, option reads, encoder input and action dispatch. Valid
+instrument/audio options, both owners and arrangement-only membership are covered.
+Conversion and rename are dispatch fixtures; their internal recovery is not tested.

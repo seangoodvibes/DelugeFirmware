@@ -7,6 +7,7 @@
 #include <vector>
 #define PLACE_SDRAM_BSS
 namespace session = deluge::gui::ui_session;
+enum class ClipType { AUDIO, INSTRUMENT };
 enum class LaunchStyle { DEFAULT, FILL, ONCE };
 enum class AudioInputChannel { NONE, LEFT, RIGHT, STEREO, BALANCED, MIX, OUTPUT, SPECIFIC_OUTPUT };
 enum class OutputType { AUDIO, SYNTH, MIDI_OUT, CV };
@@ -57,6 +58,7 @@ struct Canvas {
 } // namespace deluge::hid::display::oled_canvas
 constexpr int OLED_MAIN_HEIGHT_PIXELS = 64, OLED_MAIN_WIDTH_PIXELS = 128, kTextSpacingX = 6, kTextSpacingY = 8;
 struct Clip {
+	ClipType type = ClipType::INSTRUMENT;
 	LaunchStyle launchStyle = LaunchStyle::DEFAULT;
 };
 constexpr int UI_MODE_NONE = 0;
@@ -98,11 +100,14 @@ enum class String {
 	STRING_FOR_BALANCED_INPUT,
 	STRING_FOR_MIX_PRE_FX,
 	STRING_FOR_MIX_POST_FX,
-	STRING_FOR_TRACK
+	STRING_FOR_TRACK,
+	STRING_FOR_CLIP_MODE,
+	STRING_FOR_CLIP_NAME,
+	STRING_FOR_CONVERT_TO_AUDIO
 };
 inline const char* get(String value) {
-	static const char* names[] = {"Default", "Fill",   "Once",     "Audio source", "Off",    "Left",
-	                              "Right",   "Stereo", "Balanced", "Master",       "Output", "Track"};
+	static const char* names[] = {"Default",  "Fill",   "Once",   "Audio source", "Off",  "Left", "Right",  "Stereo",
+	                              "Balanced", "Master", "Output", "Track",        "Mode", "Name", "Convert"};
 	return names[static_cast<int>(value)];
 }
 } // namespace deluge::l10n
@@ -112,6 +117,7 @@ public:
 	virtual ~ContextMenu() = default;
 	virtual void selectEncoderAction(int8_t);
 	virtual bool setupAndCheckAvailability() { return true; }
+	virtual bool acceptCurrentOption() { return true; }
 	virtual bool canSeeViewUnderneath() { return true; }
 	virtual const char* getTitle() = 0;
 	virtual std::span<const char*> getOptions() = 0;
@@ -129,6 +135,9 @@ inline void deluge::hid::display::oled_canvas::Canvas::drawString(const char* va
 	text.active() = value;
 }
 struct session_view_fixture {
+	Clip* converted_clip = nullptr;
+	void replaceInstrumentClipWithAudioClip(Clip* clip) { converted_clip = clip; }
+	ActionResult padAction(int32_t, int32_t, int32_t) { return ActionResult::DEALT_WITH; }
 	Output* target = nullptr;
 	Output* getOutputFromPad(int32_t, int32_t) { return target; }
 	uint32_t getGreyedOutRowsNotRepresentingOutput(AudioOutput*) { return 0; }

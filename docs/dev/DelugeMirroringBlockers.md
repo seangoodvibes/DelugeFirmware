@@ -903,3 +903,17 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime and
   same-address replacement remain outside these entry guards; G1/L1 remain open
   and independent mode stays disabled.
+
+### G1 / L1 progress — Clip Settings retained targets (2026-10-09)
+
+- Clip Settings validates current-song clip membership before setup, option reads,
+  encoder input and action dispatch. Departed targets cannot trigger conversion,
+  launch-style entry or rename. Launch-style opening respects failed setup.
+- Five new cases compile the production Clip Settings implementation: departed
+  targets on both owners, rejected setup/options/encoder, valid owner routing,
+  missing song/null clip and arrangement-only audio options. Two cases failed
+  before the fix. Conversion and rename are dispatch fixtures, not full model
+  conversion or rename implementations.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime,
+  reclamation and same-address reuse remain unproven; G1/L1 stay open and
+  independent mode remains disabled.
