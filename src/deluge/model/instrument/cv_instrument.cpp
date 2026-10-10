@@ -156,33 +156,39 @@ bool CVInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 }
 
 bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
-	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
-
-	if (clipChanged) {
-		if (modelStack) {
-
-			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-			if (expressionParams) {
-				monophonicPitchBendValue = expressionParams->getValue(0);
-
-				cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
-				cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
-			}
-			else {
-				monophonicPitchBendValue = 0;
-			}
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return false;
+	auto* new_clip = modelStack ? static_cast<Clip*>(modelStack->getTimelineCounter()) : nullptr;
+	if (modelStack && !new_clip)
+		return false;
+	auto clip_lifetime = new_clip ? new_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (new_clip && (!clip_lifetime.alive() || new_clip->output != this))
+		return false;
+	auto* source_song = currentSong;
+	auto* stack_song = modelStack ? modelStack->song : nullptr;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto source_channel = getChannel();
+	const auto first_mode = cvmode[0];
+	const auto second_mode = cvmode[1];
+	const bool clip_changed = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
+	if (!output_lifetime.alive() || (new_clip && !clip_lifetime.alive()) || activeClip != new_clip
+	    || (new_clip && new_clip->output != this) || currentSong != source_song
+	    || deluge::gui::ui_session::current() != source_owner || getChannel() != source_channel
+	    || cvmode[0] != first_mode || cvmode[1] != second_mode
+	    || (modelStack && (modelStack->song != stack_song || modelStack->getTimelineCounter() != new_clip)))
+		return clip_changed;
+	if (clip_changed) {
+		auto* expression_params = new_clip ? new_clip->paramManager.getExpressionParamSet() : nullptr;
+		monophonicPitchBendValue = expression_params ? expression_params->getValue(0) : 0;
+		if (expression_params) {
+			cachedBendRanges[BEND_RANGE_MAIN] = expression_params->bendRanges[BEND_RANGE_MAIN];
+			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expression_params->bendRanges[BEND_RANGE_FINGER_LEVEL];
 		}
-		else {
-			monophonicPitchBendValue = 0;
-		}
-		// Don't change the CV output voltage right now (we could, but this Clip-change might come with a
-		// note that's going to sound "now" anyway...)
-		// - but make it so the next note which sounds will have our new correct bend value / range.
+		// Cache the bend for the next note without changing the current output voltage.
 		updatePitchBendOutput(false);
 	}
-
-	return clipChanged;
+	return clip_changed;
 }
 
 void CVInstrument::setupWithoutActiveClip(ModelStack* modelStack) {

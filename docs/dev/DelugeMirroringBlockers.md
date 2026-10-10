@@ -2727,3 +2727,11 @@ All 36 suites and `./dbt build relwithdebinfo` pass. The return value still desc
 the base clip change, not transactional success; completed changes are retained.
 Base/helper internals, bend-range arithmetic and other activation routes remain
 separate review work.
+
+CV clip activation now validates target/output lifetime and clip/model-stack,
+song/panel, channel and CV modes after base activation before reading expression
+parameters. Six production-body sanitizer regressions cover caching, deactivation,
+missing parameters, base/final callback deletion, eight retargeting cases and
+invalid targets. All 36 suites and `./dbt build relwithdebinfo` pass. Current voltage
+remains unchanged during activation; the base change result is preserved on
+cancellation. Base activation and pitch-helper internals remain separate work.
