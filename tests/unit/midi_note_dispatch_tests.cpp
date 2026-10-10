@@ -379,3 +379,40 @@ TEST(MidiNoteDispatch, retired_song_rejects_selected_and_track_notes) {
 	LONGS_EQUAL(0, sends);
 	currentSong = &song;
 }
+
+TEST(MidiNoteDispatch, note_delivery_song_reuse_does_not_return_target) {
+	on_note = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	POINTERS_EQUAL(nullptr, send(false));
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, note_delivery_deleted_clip_does_not_return_target) {
+	auto target = std::make_unique<Clip>();
+	target->output = &output;
+	on_note = [&] { target.reset(); };
+	POINTERS_EQUAL(nullptr, follow.sendNoteToClip(cable, target.get(), MIDIMatchType::CHANNEL, false, 0, 60, 0, &thru,
+	                                              false, &stack, false));
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, note_delivery_reused_output_does_not_return_target) {
+	auto target = std::make_unique<MelodicInstrument>();
+	clip.output = target.get();
+	on_note = [&] {
+		target->~MelodicInstrument();
+		new (target.get()) MelodicInstrument;
+	};
+	POINTERS_EQUAL(nullptr, send(false));
+	LONGS_EQUAL(1, sends);
+	clip.output = &output;
+}
+TEST(MidiNoteDispatch, retired_song_rejects_direct_note_delivery) {
+	song_fixture retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	POINTERS_EQUAL(nullptr, send(true));
+	LONGS_EQUAL(0, sends);
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
+	currentSong = &song;
+}

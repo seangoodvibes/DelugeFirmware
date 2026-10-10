@@ -819,6 +819,11 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
                                    ModelStack* modelStack, bool updateClipForLastNoteReceived) {
 	if (!clip || !modelStack || !currentSong || note < 0 || note > kMaxMIDIValue)
 		return nullptr;
+	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return nullptr;
+	const auto source_owner = deluge::gui::ui_session::current();
 	auto clip_lifetime = clip->watch_lifetime();
 	if (!clip_lifetime.alive() || !clip->output)
 		return nullptr;
@@ -865,6 +870,9 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
 			}
 		}
 	}
+	if (!song_watch.alive() || currentSong != source_song || deluge::gui::ui_session::current() != source_owner
+	    || !clip_lifetime.alive() || !output_lifetime.alive() || (selected_track && clip->output != selected_track))
+		return nullptr;
 	return selected_track;
 }
 

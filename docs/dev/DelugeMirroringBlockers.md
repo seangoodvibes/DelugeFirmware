@@ -3032,3 +3032,10 @@ and registration removal during cloning, lookup and writing; existing live clone
 tests pass with explicit registration. All 36 suites and the RelWithDebInfo build
 pass. This depends on registry unlink-before-destruction and does not close other
 acquisition paths or partial-write recovery. Independent mode remains disabled.
+
+MIDI-follow note delivery now rejects retired songs at entry and validates song,
+session, clip and output before returning the cached routed output after instrument
+callbacks. Four regressions cover song reuse, clip deletion, output reuse and retired
+entry. All 36 suites and the RelWithDebInfo build pass. Note-retention cleanup still
+relies on the existing deletion notifications; completed note events are retained.
+Nested routing cancellation propagation and lower instrument internals remain open.
