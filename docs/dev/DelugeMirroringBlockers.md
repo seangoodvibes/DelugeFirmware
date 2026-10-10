@@ -2006,3 +2006,17 @@ published membership, checking that later work stops. All 35 native suites and
 `./dbt build relwithdebinfo` pass. A prefix may already be published or stopped;
 these checks are cancellation, not rollback, and do not retain objects or handle
 unnotified destruction/address reuse. Those remain L1/R5 blockers.
+
+### R5 progress — initialized audio split and early-failure rollback (2026-10-10)
+
+The temporary repeated-audio instance now references the original clip with a
+valid length before cloning can yield. On clone/publication failure, an unchanged
+split is removed without allocation and its original extent restored. Rollback
+checks context, count and both instance fingerprints; callback edits are
+preserved. Unrelated source instances are rejected. Three regressions failed
+before the fix (uninitialized target and extra instances after both failures);
+five added cases now pass, along with all 35 native suites and
+`./dbt build relwithdebinfo`. Original clips are never disposed by this rollback.
+The tests use instance/cleanup fixtures; the capacity-preserving deletion primitive
+has existing native lifecycle coverage. Lost-context rollback, later playback
+prefix recovery, unnotified mutation and general object retention remain open.

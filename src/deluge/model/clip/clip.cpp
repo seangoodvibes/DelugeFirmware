@@ -1151,6 +1151,30 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
+			if (!clipInstance || clipInstance->clip != this)
+				return fail(Error::BUG);
+			auto* const source_output = output;
+			const ClipInstance original_instance = *clipInstance;
+			const int32_t original_index = clipInstanceI;
+			const int32_t original_count = source_output->clipInstances.getNumElements();
+			bool audio_split = false;
+			int32_t split_length = 0;
+			int32_t split_tail_length = 0;
+			const auto rollback_audio_split = [&] {
+				if (!audio_split || !context_matches()
+				    || source_output->clipInstances.getNumElements() != original_count + 1)
+					return;
+				auto* head = source_output->clipInstances.getElement(original_index);
+				auto* tail = source_output->clipInstances.getElement(original_index + 1);
+				if (!head || !tail || head->clip != this || tail->clip != this || head->pos != original_instance.pos
+				    || head->length != split_length || tail->pos != original_instance.pos + split_length
+				    || tail->length != split_tail_length)
+					return;
+				// Roll back only our unchanged split, without allocation or releasing the original clip.
+				source_output->clipInstances.delete_at_index_preserving_capacity(original_index + 1);
+				source_output->clipInstances.getElement(original_index)->length = original_instance.length;
+				audio_split = false;
+			};
 
 			if (type == ClipType::AUDIO) {
 
@@ -1177,6 +1201,11 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
 
 					clipInstance->pos = oldClipInstancePos + repeatCount * loopLength;
+					clipInstance->length = loopLength;
+					clipInstance->clip = this;
+					split_length = repeatCount * loopLength;
+					split_tail_length = loopLength;
+					audio_split = true;
 				}
 			}
 
@@ -1184,13 +1213,16 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			if (!context_matches())
 				return fail(Error::BUG);
 			if (error != Error::NONE) {
+				rollback_audio_split();
 				return fail(error);
 			}
 
 			Clip* newClip = (Clip*)modelStack->getTimelineCounterAllowNull();
 			// Cloning must return a distinct, unpublished object. Never repurpose the source or another owned clip.
-			if (!newClip || newClip == this || source_song->contains_clip_for_undo(newClip))
+			if (!newClip || newClip == this || source_song->contains_clip_for_undo(newClip)) {
+				rollback_audio_split();
 				return fail(Error::BUG);
+			}
 
 			auto* const clone_output = newClip->output;
 			const auto clone_context_matches = [&] {
@@ -1227,6 +1259,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			// Add to Song
 			const Error insert_error = source_song->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
 			if (insert_error != Error::NONE) {
+				rollback_audio_split();
 				discard_unpublished_clone();
 				return fail(insert_error);
 			}

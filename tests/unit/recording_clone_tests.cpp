@@ -18,11 +18,21 @@ struct instances_fixture {
 	int search_result = 0;
 	Error insert_error = Error::NONE;
 	int inserts = 0;
+	int count = 1, removals = 0;
+	int getNumElements() { return count; }
+	void delete_at_index_preserving_capacity(int index, int amount = 1) {
+		++removals;
+		for (int i = index; i + amount < count; ++i)
+			values[i] = values[i + amount];
+		count -= amount;
+	}
 	std::function<void()> on_insert;
 	int search(int, int) { return search_result; }
 	ClipInstance* getElement(int index) { return &values[index]; }
 	Error insertAtIndex(int) {
 		++inserts;
+		if (insert_error == Error::NONE)
+			++count;
 		if (on_insert)
 			on_insert();
 		return insert_error;
@@ -425,4 +435,58 @@ TEST(RecordingClone, removed_published_clone_stops_before_later_access) {
 	LONGS_EQUAL(-1, cloned.new_position);
 	LONGS_EQUAL(0, cloned.resume_calls);
 	LONGS_EQUAL(0, song.deletions);
+}
+
+TEST(RecordingClone, audio_split_is_initialized_before_cloning_yields) {
+	original.type = cloned.type = ClipType::AUDIO;
+	original.repeatCount = 2;
+	original.on_clone = [&](ModelStackWithTimelineCounter*) {
+		POINTERS_EQUAL(&original, output.clipInstances.values[1].clip);
+		LONGS_EQUAL(64, output.clipInstances.values[1].length);
+		LONGS_EQUAL(128, output.clipInstances.values[1].pos);
+	};
+	CHECK(attempt_clone());
+}
+TEST(RecordingClone, audio_split_rolls_back_after_clone_allocation_failure) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 2;
+	original.clone_error = Error::INSUFFICIENT_RAM;
+	output.clipInstances.values[0].length = 256;
+	CHECK_FALSE(attempt_clone());
+	LONGS_EQUAL(1, output.clipInstances.count);
+	LONGS_EQUAL(256, output.clipInstances.values[0].length);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(0, song.deletions);
+}
+TEST(RecordingClone, audio_split_rolls_back_after_publication_failure) {
+	original.type = cloned.type = ClipType::AUDIO;
+	original.repeatCount = 2;
+	output.clipInstances.values[0].length = 256;
+	song.arrangementOnlyClips.insert_error = Error::INSUFFICIENT_RAM;
+	CHECK_FALSE(attempt_clone());
+	LONGS_EQUAL(1, output.clipInstances.count);
+	LONGS_EQUAL(256, output.clipInstances.values[0].length);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	POINTERS_EQUAL(&original, stack.clip);
+	LONGS_EQUAL(1, song.deletions);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+}
+
+TEST(RecordingClone, audio_split_rollback_preserves_callback_edits) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 2;
+	original.clone_error = Error::INSUFFICIENT_RAM;
+	original.on_clone = [&](ModelStackWithTimelineCounter*) { output.clipInstances.values[1].length = 99; };
+	CHECK_FALSE(attempt_clone());
+	LONGS_EQUAL(2, output.clipInstances.count);
+	LONGS_EQUAL(99, output.clipInstances.values[1].length);
+	LONGS_EQUAL(0, output.clipInstances.removals);
+	LONGS_EQUAL(0, song.deletions);
+}
+TEST(RecordingClone, unrelated_arrangement_instance_is_never_replaced) {
+	output.clipInstances.values[0].clip = &cloned;
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, original.clone_calls);
+	POINTERS_EQUAL(&cloned, output.clipInstances.values[0].clip);
 }
