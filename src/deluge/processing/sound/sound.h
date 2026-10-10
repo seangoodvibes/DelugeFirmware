@@ -324,7 +324,8 @@ public:
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
 	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
-	                           ArpReturnInstruction instruction);
+	                           ArpReturnInstruction instruction,
+	                           const deluge::lifetime::callback_validation* owner_validation = nullptr);
 
 	virtual const char* getName() { return nullptr; }
 	ParamManagerType required_param_manager_type() const override { return ParamManagerType::SOUND; }

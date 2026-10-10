@@ -1459,7 +1459,9 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					if (!instruction_matches())
 						return 2147483647;
 				}
-				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction);
+				const deluge::lifetime::callback_validation instruction_validation{instruction_matches};
+				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction,
+				                                 &instruction_validation);
 				if (!instruction_matches())
 					return 2147483647;
 			}

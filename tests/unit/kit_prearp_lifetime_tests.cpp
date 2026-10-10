@@ -110,7 +110,8 @@ struct Drum {
 		if (on_note)
 			on_note();
 	}
-	void process_postarp_notes(ModelStackWithSoundFlags*, ArpeggiatorSettings*, ArpReturnInstruction&) {
+	void process_postarp_notes(ModelStackWithSoundFlags*, ArpeggiatorSettings*, ArpReturnInstruction&,
+	                           const deluge::lifetime::callback_validation* = nullptr) {
 		++dispatched;
 		if (on_note)
 			on_note();

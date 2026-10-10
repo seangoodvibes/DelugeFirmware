@@ -2634,3 +2634,12 @@ invalid entry and bounded row indices. All 36 suites and
 returns the existing no-next-event sentinel; hardware rescheduling behavior still
 needs verification. Sound voice-start internals, generation internals and broader
 render callers remain separate work.
+
+Sound post-arp note starting accepts caller validation, supplied by kit tick
+routing. It publishes note status before voice creation, copies the three MPE
+values into local storage and validates after each start before touching another
+instruction. Six production-body sanitizer tests cover owner/note deletion,
+nested reset, voice-budget deferral, live chords, retired entry and already-playing
+notes. All 36 native suites and `./dbt build relwithdebinfo` pass. Voice-start
+internals and unguarded sound-render/instrument callers remain separate work;
+this does not make the entire sound renderer lifetime-safe.

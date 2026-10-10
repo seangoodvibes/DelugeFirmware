@@ -60,6 +60,7 @@
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
+#include "util/lifetime.h"
 #include "util/misc.h"
 #include <algorithm>
 #include <array>
@@ -2348,7 +2349,10 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 }
 
 void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
-                                  ArpReturnInstruction instruction) {
+                                  ArpReturnInstruction instruction,
+                                  const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return;
 	if (instruction.arpNoteOn) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// do we have a note to start? if no, exit early
@@ -2363,15 +2367,19 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 			if (!AudioEngine::allowedToStartVoice()) {
 				break; // Leave the remaining notes pending for the next render.
 			}
+			int16_t mpe_values[kNumExpressionDimensions];
+			std::copy_n(instruction.arpNoteOn->mpeValues, kNumExpressionDimensions, mpe_values);
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			invertReversed = instruction.invertReversed;
 
 			noteOnPostArpeggiator(
 			    modelStackWithSoundFlags,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity, mpe_values,
+			    instruction.sampleSyncLengthOn, 0, 0,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+			if (owner_validation && !owner_validation->valid())
+				return;
 		}
 	}
 }
