@@ -52,10 +52,14 @@ bool allowedToStartVoice() {
 struct Sound {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	bool invertReversed = false;
-	void noteOffPostArpeggiator(ModelStackWithSoundFlags*, int) {
+	bool release_result = true;
+	bool noteOffPostArpeggiator(ModelStackWithSoundFlags*, int,
+	                            const deluge::lifetime::callback_validation* validation) {
+		const bool result = release_result;
 		++stopped;
 		if (on_off)
 			on_off();
+		return result && (!validation || validation->valid());
 	}
 	void noteOnPostArpeggiator(ModelStackWithSoundFlags*, int input_note, int, int velocity, const int16_t* mpe,
 	                           int length, int, int, int channel) {
@@ -278,6 +282,13 @@ TEST(sound_instrument_tick_lifetime, retargeted_clip_cancels_remaining_events) {
 TEST(sound_instrument_tick_lifetime, parameter_collection_replacement_cancels_remaining_events) {
 	UnpatchedParamSet replacement;
 	on_off = [&] { clip->paramManager.unpatched_set = &replacement; };
+	LONGS_EQUAL(2147483647, tick());
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, started);
+}
+
+TEST(sound_instrument_tick_lifetime, rejected_inner_release_cancels_tick_batch) {
+	instrument->release_result = false;
 	LONGS_EQUAL(2147483647, tick());
 	LONGS_EQUAL(1, stopped);
 	LONGS_EQUAL(0, started);

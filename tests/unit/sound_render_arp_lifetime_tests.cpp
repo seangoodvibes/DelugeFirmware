@@ -124,10 +124,14 @@ struct Sound {
 	            int32_t, int32_t, const deluge::lifetime::callback_validation*);
 	bool allNotesOff(ModelStackWithThreeMainThings*, ArpeggiatorBase*, const deluge::lifetime::callback_validation*);
 	bool invertReversed = false;
-	void noteOffPostArpeggiator(ModelStackWithSoundFlags*, int) {
+	bool release_result = true;
+	bool noteOffPostArpeggiator(ModelStackWithSoundFlags*, int,
+	                            const deluge::lifetime::callback_validation* validation) {
+		const bool result = release_result;
 		++stopped;
 		if (on_off)
 			on_off();
+		return result && (!validation || validation->valid());
 	}
 	void noteOnPostArpeggiator(ModelStackWithSoundFlags*, int, int, int, const int16_t* mpe, int, int, int, int) {
 		++started;
@@ -374,4 +378,25 @@ TEST(sound_render_arp_lifetime, all_notes_off_rejected_entry_does_not_release_or
 	CHECK_FALSE(sound->allNotesOff(&model_stack, nullptr, nullptr));
 	LONGS_EQUAL(0, stopped);
 	LONGS_EQUAL(0, resets);
+}
+
+TEST(sound_render_arp_lifetime, rejected_inner_release_cancels_render_batch) {
+	sound->release_result = false;
+	CHECK_FALSE(render());
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, started);
+}
+TEST(sound_render_arp_lifetime, rejected_inner_release_prevents_all_notes_reset) {
+	ModelStackWithThreeMainThings model_stack;
+	sound->release_result = false;
+	CHECK_FALSE(sound->allNotesOff(&model_stack, &sound->arp, nullptr));
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, resets);
+}
+TEST(sound_render_arp_lifetime, rejected_inner_release_cancels_direct_note_off) {
+	ModelStackWithThreeMainThings model_stack;
+	sound->release_result = false;
+	sound->noteOff(&model_stack, &sound->arp, 50, nullptr);
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, reassessments);
 }

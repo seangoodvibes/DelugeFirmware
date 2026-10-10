@@ -1613,12 +1613,18 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	if (!context_matches())
 		return;
 	const auto revision = arpeggiator->instruction_revision();
+	const auto instruction_matches = [&] {
+		return context_matches() && arpeggiator->instruction_revision() == revision;
+	};
+	const deluge::lifetime::callback_validation instruction_validation{instruction_matches};
 
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+		if (!noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n],
+		                            &instruction_validation))
+			return;
 		if (!context_matches() || arpeggiator->instruction_revision() != revision)
 			return;
 	}
@@ -1626,7 +1632,9 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+		if (!noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n],
+		                            &instruction_validation))
+			return;
 		if (!context_matches() || arpeggiator->instruction_revision() != revision)
 			return;
 	}
@@ -1796,7 +1804,8 @@ bool Sound::allNotesOff(ModelStackWithThreeMainThings* model_stack, ArpeggiatorB
 	}
 	const auto revision = arpeggiator->instruction_revision();
 	invertReversed = false;
-	noteOffPostArpeggiator(model_stack->addSoundFlags(), ALL_NOTES_OFF);
+	if (!noteOffPostArpeggiator(model_stack->addSoundFlags(), ALL_NOTES_OFF, owner_validation))
+		return false;
 	if ((owner_validation && !owner_validation->valid()) || arpeggiator->instruction_revision() != revision) {
 		return false;
 	}
@@ -1804,97 +1813,70 @@ bool Sound::allNotesOff(ModelStackWithThreeMainThings* model_stack, ArpeggiatorB
 	return true;
 }
 
-// noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
-void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
-	// Send midi note offs out for specific notes,
-	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
-	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
-		if (noteCode == ALL_NOTES_OFF) {
-			// We must send note offs for all active notes
-			// so we will search for the current notes on postArp phase, if any
-
-			// First any glide notes
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (getArp()->glideNoteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
-					break;
-				}
-				int32_t outputNoteCode = getArp()->glideNoteCodeCurrentlyOnPostArp[n];
-				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
-					// If note for drums is set then this is a SoundDrum and we must use the relative note code
-					// (relative to kNoteForDrum)
-					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
-					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
-					// Correct if out of bounds
-					if (outputNoteCode < 0) {
-						outputNoteCode = 0;
-					}
-					else if (outputNoteCode > 127) {
-						outputNoteCode = 127;
-					}
-				}
-				midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
-
-				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
-				// we don't send two note offs if a normal noteOff or playback stop is received later
-				getArp()->glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+bool Sound::send_note_off_midi(ModelStackWithSoundFlags* model_stack, int32_t note_code,
+                               const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return false;
+	const auto output_channel = outputMidiChannel;
+	const auto drum_note = outputMidiNoteForDrum;
+	auto* arpeggiator = getArp();
+	const auto revision = arpeggiator->instruction_revision();
+	const auto valid = [&] {
+		return (!owner_validation || owner_validation->valid()) && outputMidiChannel == output_channel
+		       && outputMidiNoteForDrum == drum_note && getArp() == arpeggiator
+		       && arpeggiator->instruction_revision() == revision;
+	};
+	if (output_channel == MIDI_CHANNEL_NONE)
+		return true;
+	const bool allow_tails = allowNoteTails(model_stack, true);
+	if (!valid())
+		return false;
+	const auto send = [&](int32_t source_note) {
+		const auto output_note = drum_note == MIDI_NOTE_NONE
+		                             ? source_note
+		                             : std::clamp<int32_t>(source_note - kNoteForDrum + drum_note, 0, 127);
+		midiEngine.sendNote(this, false, output_note, kDefaultNoteOffVelocity, output_channel, 0);
+		return valid();
+	};
+	if (allow_tails) {
+		if (note_code == ALL_NOTES_OFF) {
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; ++n) {
+				const auto source_note = arpeggiator->glideNoteCodeCurrentlyOnPostArp[n];
+				if (source_note == ARP_NOTE_NONE)
+					continue;
+				// Publish completion before MIDI output can reenter with a replacement event.
+				arpeggiator->glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				if (!send(source_note))
+					return false;
 			}
-
-			// Then any normal notes
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (getArp()->active_note.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-					break;
-				}
-				int32_t outputNoteCode = getArp()->active_note.noteCodeOnPostArp[n];
-				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
-					// If note for drums is set then this is a SoundDrum and we must use the relative note code
-					// (relative to kNoteForDrum)
-					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
-					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
-					// Correct if out of bounds
-					if (outputNoteCode < 0) {
-						outputNoteCode = 0;
-					}
-					else if (outputNoteCode > 127) {
-						outputNoteCode = 127;
-					}
-				}
-				midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
-
-				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
-				// we don't send two note offs if a normal noteOff or playback stop is received later
-				getArp()->active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
-				getArp()->active_note.noteStatus[n] = ArpNoteStatus::OFF;
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; ++n) {
+				const auto source_note = arpeggiator->active_note.noteCodeOnPostArp[n];
+				if (source_note == ARP_NOTE_NONE)
+					continue;
+				arpeggiator->active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				arpeggiator->active_note.noteStatus[n] = ArpNoteStatus::OFF;
+				if (!send(source_note))
+					return false;
 			}
 		}
-		else {
-			// We have an specific note code, so we'll directly use that.
-			// This method has been called from the arp's noteOff so the handling of "noteCodeCurrentlyOnPostArp" has
-			// already been done there
-			int32_t outputNoteCode = noteCode;
-			if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
-				// If note for drums is set then this is a SoundDrum and we must use the relative note code
-				// (relative to kNoteForDrum)
-				int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
-				outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
-				// Correct if out of bounds
-				if (outputNoteCode < 0) {
-					outputNoteCode = 0;
-				}
-				else if (outputNoteCode > 127) {
-					outputNoteCode = 127;
-				}
-			}
-			midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
-		}
+		else if (!send(note_code))
+			return false;
 	}
-	if (outputMidiChannel != MIDI_CHANNEL_NONE && noteCode == ALL_NOTES_OFF) {
-		// Besides all the previous specific note offs already sent, send also this special MIDI message,
-		// just in case some other note is still playing and we didn't have track of it
-		midiEngine.sendAllNotesOff(this, outputMidiChannel, kMIDIOutputFilterNoMPE);
+	if (note_code == ALL_NOTES_OFF) {
+		midiEngine.sendAllNotesOff(this, output_channel, kMIDIOutputFilterNoMPE);
+		return valid();
 	}
+	return true;
+}
+
+// ALL_NOTES_OFF means stop any voice, regardless of its note code.
+bool Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode,
+                                   const deluge::lifetime::callback_validation* owner_validation) {
+	if (!send_note_off_midi(modelStack, noteCode, owner_validation))
+		return false;
 
 	if (voices_.empty()) {
-		return;
+		return true;
 	}
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
@@ -1936,7 +1918,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 						    arpNote->mpeValues, // ... We take the MPE values from the "keypress" associated with the
 						                        // new note we'll sound, though.
 						    0, 0, 0, arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-						return;
+						return true;
 					}
 				}
 				else {
@@ -1950,6 +1932,7 @@ justSwitchOff:
 			}
 		}
 	}
+	return true;
 }
 
 bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop) {
@@ -2452,7 +2435,8 @@ bool Sound::process_render_arp(ModelStackWithSoundFlags* model_stack, UnpatchedP
 			break;
 		}
 		at_least_one_off = true;
-		noteOffPostArpeggiator(model_stack, instruction.glideNoteCodeOffPostArp[n]);
+		if (!noteOffPostArpeggiator(model_stack, instruction.glideNoteCodeOffPostArp[n], &instruction_validation))
+			return false;
 		if (!instruction_validation.valid())
 			return false;
 	}
@@ -2461,7 +2445,8 @@ bool Sound::process_render_arp(ModelStackWithSoundFlags* model_stack, UnpatchedP
 			break;
 		}
 		at_least_one_off = true;
-		noteOffPostArpeggiator(model_stack, instruction.noteCodeOffPostArp[n]);
+		if (!noteOffPostArpeggiator(model_stack, instruction.noteCodeOffPostArp[n], &instruction_validation))
+			return false;
 		if (!instruction_validation.valid())
 			return false;
 	}

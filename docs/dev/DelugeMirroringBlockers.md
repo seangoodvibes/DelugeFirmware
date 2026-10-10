@@ -2873,3 +2873,15 @@ shared implementation and check both menu callers. All 36 suites and
 `./dbt build relwithdebinfo` pass. Inner MIDI/voice-release callbacks and propagation
 of partial cancellation from void kit/drum/MIDI stop APIs remain open; completed
 note releases are not rolled back. Independent mode remains disabled.
+
+Sound post-arp MIDI note-off now checks caller lifetime, MIDI routing and arp revision
+between sends, publishes cleared slots before callbacks and preserves replacement
+events on cancellation. All-notes-off can resume across holes left by a completed
+prefix. Cancellation propagates through direct note-off, render, synth/kit tick and
+all-notes-off reset callers. Fifteen added production-body sanitizer regressions
+exercise MIDI boundaries, drum mapping, sparse retry and caller cancellation;
+a routing contract checks MIDI validation precedes voice access. The full 36-suite
+run passed except a new kit fixture count corrected to include its three preceding
+kit events; both affected suites pass on rerun. `./dbt build relwithdebinfo` passes.
+Voice-release traversal/internals and raw arp mutations bypassing revision remain
+open; MIDI already sent is not rolled back. Independent mode remains disabled.

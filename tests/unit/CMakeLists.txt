@@ -1076,3 +1076,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/arp_mode_change_lifetime.i
         ${arp_mode_change_source} ${CMAKE_CURRENT_BINARY_DIR}/arp_mode_change_lifetime.inc apply_mode_change
     DEPENDS ${arp_mode_change_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE arp_mode_change_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/arp_mode_change_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_note_off_midi.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_render_arp_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_note_off_midi.inc Sound::send_note_off_midi
+    DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sound_note_off_midi_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_note_off_midi.inc)

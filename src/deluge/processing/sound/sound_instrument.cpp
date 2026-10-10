@@ -571,6 +571,7 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	const auto instruction_matches = [&] {
 		return context_matches() && arpeggiator.instruction_revision() == instruction_revision;
 	};
+	const deluge::lifetime::callback_validation instruction_validation{instruction_matches};
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithThreeMainThings->addSoundFlags();
 
@@ -580,7 +581,9 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 			break;
 		}
 		atLeastOneOff = true;
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+		if (!noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n],
+		                            &instruction_validation))
+			return 2147483647;
 		if (!instruction_matches())
 			return 2147483647;
 	}
@@ -589,14 +592,16 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 			break;
 		}
 		atLeastOneOff = true;
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+		if (!noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n],
+		                            &instruction_validation))
+			return 2147483647;
 		if (!instruction_matches())
 			return 2147483647;
 	}
 	if (atLeastOneOff) {
 		invertReversed = false;
 	}
-	const deluge::lifetime::callback_validation instruction_validation{instruction_matches};
+
 	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction, &instruction_validation);
 	if (!instruction_matches())
 		return 2147483647;

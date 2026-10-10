@@ -105,10 +105,14 @@ struct Drum {
 	ArpeggiatorSettings arpSettings;
 	Arpeggiator arpeggiator;
 	bool tails = true;
-	void noteOffPostArpeggiator(ModelStackWithSoundFlags*, int) {
+	bool release_result = true;
+	bool noteOffPostArpeggiator(ModelStackWithSoundFlags*, int,
+	                            const deluge::lifetime::callback_validation* validation) {
+		const bool result = release_result;
 		++dispatched;
 		if (on_note)
 			on_note();
+		return result && (!validation || validation->valid());
 	}
 	void process_postarp_notes(ModelStackWithSoundFlags*, ArpeggiatorSettings*, ArpReturnInstruction&,
 	                           const deluge::lifetime::callback_validation* = nullptr) {
@@ -608,4 +612,11 @@ TEST(kit_prearp_lifetime, tick_out_of_range_kit_indices_leave_per_drum_tick_inta
 		LONGS_EQUAL(7, tick());
 		LONGS_EQUAL(3, dispatched);
 	}
+}
+
+TEST(kit_prearp_lifetime, rejected_sound_release_cancels_tick_batch) {
+	drum->release_result = false;
+	LONGS_EQUAL(2147483647, tick());
+	// Three kit events precede the first sound-level release.
+	LONGS_EQUAL(4, dispatched);
 }

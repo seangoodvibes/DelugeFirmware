@@ -86,6 +86,21 @@ def violations(text, entry):
 
 
 class SessionRoutingContracts(unittest.TestCase):
+    def test_sound_note_release_checks_midi_cancellation_before_voices(self):
+        source = code_only((ROOT / "src/deluge/processing/sound/sound.cpp").read_text())
+        body = source.split("bool Sound::noteOffPostArpeggiator(", 1)[1].split(
+            "bool Sound::allowNoteTails", 1
+        )[0]
+        normalized = re.sub(r"\s+", " ", body)
+        self.assertIn(
+            "if (!send_note_off_midi(modelStack, noteCode, owner_validation)) return false;",
+            normalized,
+        )
+        self.assertLess(
+            body.index("send_note_off_midi("), body.index("voices_.empty()")
+        )
+        self.assertNotIn("midiEngine.", body)
+
     def test_arp_menus_use_guarded_mode_change(self):
         for filename in ("mode.h", "preset_mode.h"):
             source = code_only(

@@ -1444,6 +1444,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			const auto instruction_matches = [&] {
 				return row_matches() && drum->arpeggiator.instruction_revision() == drum_revision;
 			};
+			const deluge::lifetime::callback_validation instruction_validation{instruction_matches};
 
 			if (thisNoteRow->drum->type == DrumType::SOUND) {
 				SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
@@ -1455,7 +1456,9 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
-					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+					if (!soundDrum->noteOffPostArpeggiator(
+					        modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n], &instruction_validation))
+						return 2147483647;
 					if (!instruction_matches())
 						return 2147483647;
 				}
@@ -1463,11 +1466,13 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
-					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+					if (!soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n],
+					                                       &instruction_validation))
+						return 2147483647;
 					if (!instruction_matches())
 						return 2147483647;
 				}
-				const deluge::lifetime::callback_validation instruction_validation{instruction_matches};
+
 				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction,
 				                                 &instruction_validation);
 				if (!instruction_matches())
