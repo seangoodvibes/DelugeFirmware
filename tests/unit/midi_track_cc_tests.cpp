@@ -30,11 +30,27 @@ static Clip* getCurrentClip() {
 static int instrument_calls = 0;
 struct Kit : Output {
 	template <class... Args>
+	void receivedPitchBendForKit(Args&&...) {
+		++instrument_calls;
+	}
+	template <class... Args>
+	void receivedAftertouchForKit(Args&&...) {
+		++instrument_calls;
+	}
+	template <class... Args>
 	void receivedCCForKit(Args&&...) {
 		++instrument_calls;
 	}
 };
 struct MelodicInstrument : Output {
+	template <class... Args>
+	void receivedPitchBend(Args&&...) {
+		++instrument_calls;
+	}
+	template <class... Args>
+	void receivedAftertouch(Args&&...) {
+		++instrument_calls;
+	}
 	template <class... Args>
 	void receivedCC(Args&&...) {
 		++instrument_calls;
@@ -68,6 +84,11 @@ static struct {
 	bool midiFollowFeedbackFilter = false;
 } midiEngine;
 struct MidiFollow {
+	void pitchBendReceivedForSpecificTrack(MIDICable&, uint8_t, uint8_t, uint8_t, bool*, ModelStack*, Output*, int32_t);
+	void aftertouchReceivedForSpecificTrack(MIDICable&, int32_t, int32_t, int32_t, bool*, ModelStack*, Output*,
+	                                        int32_t);
+	Output* pitchBendReceivedForSelectedOrActiveClip(MIDICable&, uint8_t, uint8_t, uint8_t, bool*, ModelStack*);
+	Output* aftertouchReceivedForSelectedOrActiveClip(MIDICable&, int32_t, int32_t, int32_t, bool*, ModelStack*);
 	int parameter_calls = 0;
 	int activation_calls = 0;
 	Clip* selected_clip = nullptr;
@@ -110,6 +131,16 @@ TEST_GROUP(MidiTrackCC) {
 	}
 	Output* send_selected(int cc = 7, int value = 100) {
 		return follow.midiCCReceivedForSelectedOrActiveClip(cable, 0, cc, value, &thru, &stack);
+	}
+	void send_expression(bool selected, ModelStack* target_stack, Output* target_output) {
+		if (selected) {
+			follow.pitchBendReceivedForSelectedOrActiveClip(cable, 0, 0, 64, &thru, target_stack);
+			follow.aftertouchReceivedForSelectedOrActiveClip(cable, 0, 64, -1, &thru, target_stack);
+		}
+		else {
+			follow.pitchBendReceivedForSpecificTrack(cable, 0, 0, 64, &thru, target_stack, target_output, 0);
+			follow.aftertouchReceivedForSpecificTrack(cable, 0, 64, -1, &thru, target_stack, target_output, 0);
+		}
 	}
 	void setup() override {
 		panels::detail::active = panels::Id::Local;
@@ -270,4 +301,51 @@ TEST(MidiTrackCC, selected_invalid_input_does_not_activate) {
 	send_selected();
 	LONGS_EQUAL(0, follow.parameter_calls);
 	LONGS_EQUAL(0, follow.activation_calls);
+}
+
+TEST(MidiTrackCC, expression_routes_only_supported_instrument_outputs) {
+	for (bool selected : {false, true}) {
+		instrument_calls = 0;
+		for (auto type : {OutputType::SYNTH, OutputType::MIDI_OUT, OutputType::CV}) {
+			output.type = type;
+			send_expression(selected, &stack, &output);
+		}
+		LONGS_EQUAL(6, instrument_calls);
+		output.type = OutputType::AUDIO;
+		send_expression(selected, &stack, &output);
+		LONGS_EQUAL(6, instrument_calls);
+	}
+}
+TEST(MidiTrackCC, expression_missing_context_does_not_dispatch) {
+	for (bool selected : {false, true}) {
+		send_expression(selected, nullptr, &output);
+		currentSong = nullptr;
+		send_expression(selected, &stack, &output);
+		currentSong = &song;
+	}
+	send_expression(false, &stack, nullptr);
+	LONGS_EQUAL(0, instrument_calls);
+	LONGS_EQUAL(0, follow.activation_calls);
+}
+TEST(MidiTrackCC, expression_missing_and_mismatched_clip_outputs_are_rejected) {
+	clip.output = nullptr;
+	send_expression(false, &stack, &output);
+	send_expression(true, &stack, &output);
+	MelodicInstrument other_output;
+	clip.output = &other_output;
+	send_expression(false, &stack, &output);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, expression_kit_delivery_and_audio_clip_exclusion) {
+	Kit kit;
+	kit.type = OutputType::KIT;
+	kit.active_clip = &clip;
+	clip.output = &kit;
+	for (bool selected : {false, true})
+		send_expression(selected, &stack, &kit);
+	LONGS_EQUAL(4, instrument_calls);
+	clip.type = ClipType::AUDIO;
+	for (bool selected : {false, true})
+		send_expression(selected, &stack, &kit);
+	LONGS_EQUAL(4, instrument_calls);
 }

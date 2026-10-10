@@ -1435,13 +1435,16 @@ void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t da
 Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t data1,
                                                              uint8_t data2, bool* doingMidiThru,
                                                              ModelStack* modelStack) {
+	if (!currentSong || !modelStack)
+		return nullptr;
+
 	Output* selected_track = nullptr;
 
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (clip) {
+		if (clip && clip->output) {
 			selected_track = clip->output;
 
 			// ensure output is a kit or melodic instrument
@@ -1458,7 +1461,8 @@ Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, u
 					kit->receivedPitchBendForKit(modelStackWithTimelineCounter, cable, match, channel, data1, data2,
 					                             doingMidiThru);
 				}
-				else {
+				else if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
+				         || clip->output->type == OutputType::CV) {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 					melodicInstrument->receivedPitchBend(modelStackWithTimelineCounter, cable, match, channel, data1,
 					                                     data2, doingMidiThru);
@@ -1474,11 +1478,14 @@ Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, u
 void MidiFollow::pitchBendReceivedForSpecificTrack(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
                                                    bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
                                                    int32_t specific_track_index) {
+	if (!currentSong || !modelStack || !specific_track)
+		return;
+
 	MIDIMatchType match = checkMidiFollowMatchForSpecificTrack(cable, channel, specific_track_index);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
-		if (clip && clip->type == ClipType::INSTRUMENT) {
+		if (clip && clip->output == specific_track && clip->type == ClipType::INSTRUMENT) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -1487,7 +1494,8 @@ void MidiFollow::pitchBendReceivedForSpecificTrack(MIDICable& cable, uint8_t cha
 					kit->receivedPitchBendForKit(modelStackWithTimelineCounter, cable, match, channel, data1, data2,
 					                             doingMidiThru);
 				}
-				else {
+				else if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
+				         || clip->output->type == OutputType::CV) {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 					melodicInstrument->receivedPitchBend(modelStackWithTimelineCounter, cable, match, channel, data1,
 					                                     data2, doingMidiThru);
@@ -1548,13 +1556,16 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, int32_t channel, int32_t value,
                                                               int32_t noteCode, bool* doingMidiThru,
                                                               ModelStack* modelStack) {
+	if (!currentSong || !modelStack)
+		return nullptr;
+
 	Output* selected_track = nullptr;
 
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (clip) {
+		if (clip && clip->output) {
 			selected_track = clip->output;
 
 			// ensure output is a kit or melodic instrument
@@ -1571,7 +1582,8 @@ Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, 
 					kit->receivedAftertouchForKit(modelStackWithTimelineCounter, cable, match, channel, value, noteCode,
 					                              doingMidiThru);
 				}
-				else {
+				else if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
+				         || clip->output->type == OutputType::CV) {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 					melodicInstrument->receivedAftertouch(modelStackWithTimelineCounter, cable, match, channel, value,
 					                                      noteCode, doingMidiThru);
@@ -1587,11 +1599,14 @@ Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, 
 void MidiFollow::aftertouchReceivedForSpecificTrack(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
                                                     bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
                                                     int32_t specific_track_index) {
+	if (!currentSong || !modelStack || !specific_track)
+		return;
+
 	MIDIMatchType match = checkMidiFollowMatchForSpecificTrack(cable, channel, specific_track_index);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
-		if (clip && clip->type == ClipType::INSTRUMENT) {
+		if (clip && clip->output == specific_track && clip->type == ClipType::INSTRUMENT) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -1600,7 +1615,8 @@ void MidiFollow::aftertouchReceivedForSpecificTrack(MIDICable& cable, int32_t ch
 					kit->receivedAftertouchForKit(modelStackWithTimelineCounter, cable, match, channel, value, noteCode,
 					                              doingMidiThru);
 				}
-				else {
+				else if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
+				         || clip->output->type == OutputType::CV) {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 					melodicInstrument->receivedAftertouch(modelStackWithTimelineCounter, cable, match, channel, value,
 					                                      noteCode, doingMidiThru);

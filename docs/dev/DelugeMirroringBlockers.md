@@ -1839,3 +1839,13 @@ regressions cover parameter/activation context changes, distinct selected and
 active clips, and invalid inputs. All 35 native suites and
 `./dbt build relwithdebinfo` pass. Identity checks do not protect against address
 reuse or destruction inside callbacks; those remain L1 work.
+
+### G1 progress — pitch bend and aftertouch target validation (2026-10-10)
+
+Selected and track-specific expression delivery now rejects absent song/model
+stacks and limits melodic casts to synth/MIDI/CV outputs. Track delivery requires
+the active clip to belong to that output; selected delivery rejects missing
+outputs. Four production-body tests exercise both message types, supported
+instruments including kits, audio exclusion, missing context and mismatched
+associations. All 35 native suites and `./dbt build relwithdebinfo` pass.
+This validates dispatch entry conditions, not callback lifetime or address reuse.
