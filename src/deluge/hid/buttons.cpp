@@ -287,7 +287,8 @@ void reset_for_session_startup() {
 
 void clearShiftSticky() {
 	state().shiftCurrentlyStuck = false;
-	state().shiftCurrentlyPressed = false;
+	// Clearing a latch must not release a Shift button still held on this panel.
+	state().shiftCurrentlyPressed = isButtonPressed(deluge::hid::button::SHIFT);
 	state().shiftHasChangedSinceLastCheck = true;
 }
 

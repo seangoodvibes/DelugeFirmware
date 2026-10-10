@@ -156,7 +156,7 @@ target_sources(UnitTests PRIVATE session_startup_reset_tests.cpp ${CMAKE_CURRENT
 set(button_reset_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/buttons.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${button_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc clearShiftSticky reset_for_session_startup
+        ${button_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc clearShiftSticky reset_for_session_startup "bool isButtonPressed"
     DEPENDS ${button_reset_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE remote_shift_reset_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/clear_shift_sticky.inc)
 
@@ -400,3 +400,10 @@ target_include_directories(ScreensaverRoutingTests PRIVATE ${CMAKE_CURRENT_BINAR
 target_link_libraries(ScreensaverRoutingTests PRIVATE CppUTest)
 set_target_properties(ScreensaverRoutingTests PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
 add_test(NAME ScreensaverRoutingTests COMMAND ScreensaverRoutingTests)
+
+set(sticky_setting_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/menu_item/runtime_feature/shift_is_sticky.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sticky_setting_write.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sticky_setting_source} ${CMAKE_CURRENT_BINARY_DIR}/sticky_setting_write.inc ShiftIsSticky::writeCurrentValue
+    DEPENDS ${sticky_setting_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/sticky_setting_write.inc ../../src/deluge/hid/button.cpp)

@@ -14,6 +14,7 @@
  */
 
 #include "shift_is_sticky.h"
+#include "gui/ui/ui_session.h"
 #include "hid/buttons.h"
 #include "model/settings/runtime_feature_settings.h"
 
@@ -23,7 +24,11 @@ void ShiftIsSticky::writeCurrentValue() {
 	Setting::writeCurrentValue();
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky) == RuntimeFeatureStateToggle::Off) {
-		Buttons::clearShiftSticky();
+		// The setting is shared, while each panel retains its own Shift latch.
+		for (auto owner : {ui_session::Id::Local, ui_session::Id::Remote}) {
+			ui_session::Scope scope(owner);
+			Buttons::clearShiftSticky();
+		}
 	}
 	else {
 		// Enable shift LED lighting when sticky keys gets enabled, so people can actually tell that their shift key is

@@ -80,3 +80,81 @@ TEST(RemoteShiftReset, startup_clears_all_remote_button_holds_and_release_action
 	local = {};
 	remote = {};
 }
+
+namespace sticky_setting_test {
+namespace ui_session = deluge::gui::ui_session;
+enum class RuntimeFeatureSettingType { ShiftIsSticky, LightShiftLed };
+namespace RuntimeFeatureStateToggle {
+constexpr int Off = 0, On = 1;
+}
+struct settings_fixture {
+	int sticky = 1;
+	int light = 0;
+	int get(RuntimeFeatureSettingType type) {
+		return type == RuntimeFeatureSettingType::ShiftIsSticky ? sticky : light;
+	}
+	void set(RuntimeFeatureSettingType type, int value) {
+		(type == RuntimeFeatureSettingType::ShiftIsSticky ? sticky : light) = value;
+	}
+};
+static settings_fixture runtimeFeatureSettings;
+struct Setting {
+	int value = 0;
+	void writeCurrentValue() { runtimeFeatureSettings.sticky = value; }
+};
+struct ShiftIsSticky : Setting {
+	void writeCurrentValue();
+};
+#include "sticky_setting_write.inc"
+} // namespace sticky_setting_test
+TEST(RemoteShiftReset, disabling_shared_sticky_setting_clears_both_panels_but_preserves_physical_hold) {
+	namespace session = deluge::gui::ui_session;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& local = Buttons::button_states.for_owner(session::Id::Local);
+		auto& remote = Buttons::button_states.for_owner(session::Id::Remote);
+		local = remote = {};
+		local.shiftCurrentlyStuck = local.shiftCurrentlyPressed = true;
+		remote.shiftCurrentlyStuck = remote.shiftCurrentlyPressed = true;
+		const auto shift = deluge::hid::button::toXY(deluge::hid::button::SHIFT);
+		remote.buttonStates[shift.x][shift.y] = true;
+		sticky_setting_test::runtimeFeatureSettings = {};
+		sticky_setting_test::ShiftIsSticky menu;
+		menu.value = 0;
+		menu.writeCurrentValue();
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, sticky_setting_test::runtimeFeatureSettings.sticky);
+		CHECK_FALSE(local.shiftCurrentlyStuck);
+		CHECK_FALSE(remote.shiftCurrentlyStuck);
+		CHECK_FALSE(local.shiftCurrentlyPressed);
+		CHECK_TRUE(remote.shiftCurrentlyPressed);
+		CHECK_TRUE(local.shiftHasChangedSinceLastCheck);
+		CHECK_TRUE(remote.shiftHasChangedSinceLastCheck);
+		CHECK_TRUE(remote.buttonStates[shift.x][shift.y]);
+		local = remote = {};
+	}
+}
+TEST(RemoteShiftReset, enabling_shared_sticky_setting_keeps_panel_holds_and_enables_led_setting) {
+	namespace session = deluge::gui::ui_session;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& local = Buttons::button_states.for_owner(session::Id::Local);
+		auto& remote = Buttons::button_states.for_owner(session::Id::Remote);
+		local = remote = {};
+		local.shiftCurrentlyPressed = true;
+		remote.shiftCurrentlyPressed = remote.shiftCurrentlyStuck = true;
+		sticky_setting_test::runtimeFeatureSettings = {};
+		sticky_setting_test::ShiftIsSticky menu;
+		menu.value = 1;
+		menu.writeCurrentValue();
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(1, sticky_setting_test::runtimeFeatureSettings.sticky);
+		LONGS_EQUAL(1, sticky_setting_test::runtimeFeatureSettings.light);
+		CHECK_TRUE(local.shiftCurrentlyPressed);
+		CHECK_TRUE(remote.shiftCurrentlyPressed);
+		CHECK_TRUE(remote.shiftCurrentlyStuck);
+		CHECK_FALSE(local.shiftHasChangedSinceLastCheck);
+		CHECK_FALSE(remote.shiftHasChangedSinceLastCheck);
+		local = remote = {};
+	}
+}

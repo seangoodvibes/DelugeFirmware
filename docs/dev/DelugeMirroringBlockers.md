@@ -703,3 +703,16 @@ side effects are not provided by these guards.
   and resumption. This fixture injects the transition rather than USB negotiation.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
   open and independent mode stays disabled.
+
+### G1 progress — shared sticky Shift setting across panels (2026-10-09)
+
+- Disabling sticky Shift now clears the latch in both panel states and restores
+  the initiating owner. Clearing a latch preserves the panel's physically held
+  Shift button, so a setting change on the peer cannot synthesize its release.
+- Two added native cases compile the production setting-write body, button-reset
+  bodies and button-coordinate implementation. They cover both initiating panels,
+  peer latch clearing, held Shift preservation, notifications and the unchanged
+  enable/LED-setting behavior. The peer-latch test failed before the fix. Settings
+  storage is a fixture; physical LED/input acceptance remains in G2.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
+  open; independent mode stays disabled.
