@@ -46,4 +46,7 @@ public:
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
+
+private:
+	bool stop_arp_notes();
 };

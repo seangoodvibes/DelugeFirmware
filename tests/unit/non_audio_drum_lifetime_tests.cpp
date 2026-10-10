@@ -66,11 +66,13 @@ struct MIDIDrum : drum_base {
 	void noteOn(ModelStackWithThreeMainThings*, uint8_t, const int16_t*, int32_t, uint32_t, int32_t, uint32_t);
 	void noteOff(ModelStackWithThreeMainThings*, int32_t = 64);
 	void killAllVoices();
+	bool stop_arp_notes();
 };
 struct GateDrum : drum_base {
 	void noteOn(ModelStackWithThreeMainThings*, uint8_t, const int16_t*, int32_t, uint32_t, int32_t, uint32_t);
 	void noteOff(ModelStackWithThreeMainThings*, int32_t = 64);
 	void killAllVoices();
+	bool stop_arp_notes();
 };
 #include "gate_drum_note_lifetime.inc"
 #include "midi_drum_note_lifetime.inc"
@@ -230,4 +232,25 @@ TEST(non_audio_drum_lifetime, midi_replaced_instruction_cancels_old_batch) {
 }
 TEST(non_audio_drum_lifetime, gate_replaced_instruction_cancels_old_batch) {
 	check_replaced_instruction<GateDrum>();
+}
+
+template <class T>
+void check_kill_preserves_replacement() {
+	T drum;
+	calls = resets = 0;
+	on_dispatch = [&](ArpNote*, int) {
+		drum.arpeggiator.reset();
+		drum.arpeggiator.active_note.noteCodeOnPostArp[0] = 90;
+	};
+	drum.killAllVoices();
+	LONGS_EQUAL(1, calls);
+	LONGS_EQUAL(1, resets);
+	LONGS_EQUAL(90, drum.arpeggiator.active_note.noteCodeOnPostArp[0]);
+	on_dispatch = {};
+}
+TEST(non_audio_drum_lifetime, midi_kill_does_not_reset_replacement_event) {
+	check_kill_preserves_replacement<MIDIDrum>();
+}
+TEST(non_audio_drum_lifetime, gate_kill_does_not_reset_replacement_event) {
+	check_kill_preserves_replacement<GateDrum>();
 }

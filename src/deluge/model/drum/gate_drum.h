@@ -40,4 +40,7 @@ public:
 	std::string getDrumName() override;
 	int32_t getNumChannels() override;
 	void killAllVoices() override;
+
+private:
+	bool stop_arp_notes();
 };

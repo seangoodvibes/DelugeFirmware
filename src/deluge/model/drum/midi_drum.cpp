@@ -61,15 +61,19 @@ void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 }
 
 void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
+	stop_arp_notes();
+}
+
+bool MIDIDrum::stop_arp_notes() {
 	auto drum_lifetime = watch_lifetime();
 	if (!drum_lifetime.alive())
-		return;
+		return false;
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, note, &instruction);
 	if (!drum_lifetime.alive())
-		return;
+		return false;
 	const auto instruction_revision = arpeggiator.instruction_revision();
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
@@ -77,7 +81,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 		}
 		noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
 		if (!drum_lifetime.alive() || arpeggiator.instruction_revision() != instruction_revision)
-			return;
+			return false;
 	}
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
@@ -85,8 +89,10 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 		}
 		noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 		if (!drum_lifetime.alive() || arpeggiator.instruction_revision() != instruction_revision)
-			return;
+			return false;
 	}
+
+	return true;
 }
 
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
@@ -105,8 +111,7 @@ void MIDIDrum::killAllVoices() {
 	if (!drum_lifetime.alive())
 		return;
 	if (hasActiveVoices()) {
-		noteOff(nullptr);
-		if (!drum_lifetime.alive())
+		if (!stop_arp_notes() || !drum_lifetime.alive())
 			return;
 	}
 	arpeggiator.reset();

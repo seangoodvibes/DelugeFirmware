@@ -2616,3 +2616,10 @@ boundaries while replacing the event without deleting its owners. All 36 suites
 and `./dbt build relwithdebinfo` pass. Kit tick routing and kill-voices cleanup
 still need instruction-aware cancellation; generator internals and other direct
 state mutation remain outside this batch check.
+
+MIDI/gate kill-voices cleanup now uses a stop helper that reports callback
+cancellation. It does not reset a replacement arp event after an interrupted
+note-off batch. Two regressions retain the drum while replacing its event and
+assert that cleanup performs no additional reset; existing live/retired/destruction
+cases remain covered. All 36 native suites and `./dbt build relwithdebinfo` pass.
+Output events already sent remain a prefix; this is not note-output rollback.
