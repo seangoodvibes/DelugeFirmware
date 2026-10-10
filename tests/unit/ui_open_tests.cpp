@@ -108,7 +108,7 @@ struct timer_fixture {
 static timer_fixture uiTimerManager;
 namespace PadLEDs {
 static session::State<int> main_sends, side_sends;
-static std::function<void()> on_main_send;
+static std::function<void()> on_main_send, on_side_send;
 static void* image_for_session() {
 	return nullptr;
 }
@@ -122,6 +122,8 @@ static void sendOutMainPadColours() {
 }
 static void sendOutSidebarColours() {
 	++side_sends.active();
+	if (on_side_send)
+		on_side_send();
 }
 static std::function<void()> on_greyout;
 static void reassessGreyout() {
@@ -131,14 +133,21 @@ static void reassessGreyout() {
 } // namespace PadLEDs
 namespace OLED {
 static session::State<int> sends, clears, stops, canvases;
+static std::function<void()> on_clear, on_stop, on_send;
 static void clearMainImage() {
 	++clears.active();
+	if (on_clear)
+		on_clear();
 }
 static void stopScrollingAnimation() {
 	++stops.active();
+	if (on_stop)
+		on_stop();
 }
 static void sendMainImage() {
 	++sends.active();
+	if (on_send)
+		on_send();
 }
 static int& main_for_session() {
 	return canvases.active();
@@ -233,6 +242,10 @@ TEST_GROUP(UIOpen) {
 		timer_unsets = {};
 		PadLEDs::on_greyout = {};
 		PadLEDs::on_main_send = {};
+		PadLEDs::on_side_send = {};
+		OLED::on_clear = {};
+		OLED::on_stop = {};
+		OLED::on_send = {};
 		PadLEDs::main_sends = {};
 		PadLEDs::side_sends = {};
 		for (auto owner : {session::Id::Local, session::Id::Remote}) {
@@ -243,6 +256,10 @@ TEST_GROUP(UIOpen) {
 	void teardown() override {
 		PadLEDs::on_greyout = {};
 		PadLEDs::on_main_send = {};
+		PadLEDs::on_side_send = {};
+		OLED::on_clear = {};
+		OLED::on_stop = {};
+		OLED::on_send = {};
 		PadLEDs::main_sends = {};
 		PadLEDs::side_sends = {};
 		session::detail::active = session::Id::Local;
@@ -1001,4 +1018,86 @@ TEST(UIOpen, greyout_query_uses_highest_covering_ui_and_handles_empty_stack) {
 	greyout_effects::reassessGreyout(false);
 	LONGS_EQUAL(-1, greyout_effects::direction.active());
 	LONGS_EQUAL(2, greyout_effects::timer_sets.active());
+}
+
+TEST(UIOpen, oled_setup_callbacks_cancel_on_either_panel_without_peer_output) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		const auto peer = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		for (int phase = 0; phase < 2; ++phase) {
+			session::Scope scope(owner);
+			navigation().oled_dirty = true;
+			OLED::on_clear = {};
+			OLED::on_stop = {};
+			auto change_owner = [peer] { session::detail::active = peer; };
+			if (phase == 0)
+				OLED::on_clear = change_owner;
+			else
+				OLED::on_stop = change_owner;
+			doAnyPendingOLEDRendering();
+			CHECK(session::current() == owner);
+			CHECK(navigation().oled_dirty);
+			LONGS_EQUAL(0, root.oled_renders);
+			LONGS_EQUAL(0, OLED::sends.for_owner(peer));
+		}
+	}
+}
+TEST(UIOpen, oled_send_restores_owner_and_render_pass_flag) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		const auto peer = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		session::Scope scope(owner);
+		OLED::on_send = [peer] { session::detail::active = peer; };
+		doAnyPendingUIRendering();
+		CHECK(session::current() == owner);
+		CHECK_FALSE(navigation().rendering);
+		LONGS_EQUAL(1, OLED::sends.for_owner(owner));
+	}
+}
+TEST(UIOpen, sidebar_send_change_requeues_only_on_initiating_panel) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		const auto peer = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		session::Scope scope(owner);
+		navigation_states.for_owner(peer).side_rows_dirty = 8;
+		navigation().side_rows_dirty = 2;
+		root.side_needed = true;
+		PadLEDs::on_side_send = [peer] { session::detail::active = peer; };
+		doAnyPendingGridRendering();
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(2, navigation().side_rows_dirty);
+		LONGS_EQUAL(8, navigation_states.for_owner(peer).side_rows_dirty);
+		LONGS_EQUAL(1, PadLEDs::side_sends.for_owner(owner));
+	}
+}
+TEST(UIOpen, greyout_cancel_preserves_existing_masks_and_pending_fade) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		const auto peer = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		session::Scope scope(owner);
+		greyout_effects::cols.active() = 9;
+		greyout_effects::rows.active() = 10;
+		greyout_effects::direction.active() = -1;
+		root.greyout_used = true;
+		root.on_greyout_query = [peer] { session::detail::active = peer; };
+		greyout_effects::reassessGreyout(true);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(9, greyout_effects::cols.active());
+		LONGS_EQUAL(10, greyout_effects::rows.active());
+		LONGS_EQUAL(-1, greyout_effects::direction.active());
+		LONGS_EQUAL(0, greyout_effects::main_requests.active());
+		LONGS_EQUAL(0, greyout_effects::side_requests.active());
+	}
+}
+TEST(UIOpen, layered_grid_render_keeps_occluded_regions_separate) {
+	session::Scope scope(session::Id::Remote);
+	navigation().depth = 2;
+	navigation().hierarchy[1] = &menu;
+	navigation().main_rows_dirty = 1;
+	navigation().side_rows_dirty = 2;
+	menu.main_needed = true;
+	root.side_needed = true;
+	doAnyPendingGridRendering();
+	LONGS_EQUAL(2, menu.renders);
+	LONGS_EQUAL(1, root.renders);
+	LONGS_EQUAL(1, PadLEDs::main_sends.active());
+	LONGS_EQUAL(1, PadLEDs::side_sends.active());
+	LONGS_EQUAL(0, PadLEDs::main_sends.for_owner(session::Id::Local));
+	LONGS_EQUAL(0, PadLEDs::side_sends.for_owner(session::Id::Local));
 }

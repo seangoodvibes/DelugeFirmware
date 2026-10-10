@@ -1303,3 +1303,16 @@ side effects are not provided by these guards.
 - This closes the greyout query/caller subcase noted above. Hardware acceptance,
   callback-internal lifetime and transient stack changes remain outside this
   coverage. G1/L1 remain open and independent mode remains disabled.
+
+### G1 coverage — both owners and rendering output boundaries (2026-10-10)
+
+- Five additional extracted-production cases exercise OLED setup/send callbacks,
+  sidebar-send cancellation, existing greyout fade preservation and layered grid
+  occlusion. Owner-change cases run in both directions and check pending work,
+  reentrancy cleanup and peer output counters.
+- All 35 native suites pass. This commit changes only tests/documentation; the
+  preceding production revision passed `./dbt build relwithdebinfo`. Physical
+  device acceptance and callback-internal object lifetime remain unproven.
+- Session/arranger overview constructors were inspected and currently only
+  initialize state; no additional yielding-constructor fix was justified there.
+  G1/L1 remain open; advertised support remains `supported_session_modes = 1`.
