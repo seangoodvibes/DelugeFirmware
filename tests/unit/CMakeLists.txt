@@ -273,7 +273,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multi_range_routing.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${multi_range_routing_source} ${CMAKE_CURRENT_BINARY_DIR}/multi_range_routing.inc
         MultiRange::destination_for_session MultiRange::scroll_for_session MultiRange::beginSession
-        MultiRange::selectButtonPress MultiRange::noteOnToChangeRange
+        MultiRange::selectButtonPress MultiRange::noteOnToChangeRange MultiRange::deletePress
     DEPENDS ${multi_range_routing_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE multi_range_routing_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/multi_range_routing.inc)
 
@@ -1288,6 +1288,6 @@ target_sources(ClipLifetimeTests PRIVATE multisample_import_cleanup_tests.cpp ${
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc Sound::deleteMultiRange
+        ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc Sound::try_delete_multi_range
     DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_range_deletion_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc)

@@ -290,7 +290,8 @@ public:
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
-	void deleteMultiRange(int32_t s, int32_t r);
+	bool try_delete_multi_range(int32_t source_index, int32_t range_index,
+	                            const deluge::lifetime::callback_validation* validation = nullptr);
 	void wontBeRenderedForAWhile() override;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;

@@ -4949,15 +4949,41 @@ bool Sound::detachSourcesFromAudioFiles(const deluge::lifetime::callback_validat
 	return true;
 }
 
-void Sound::deleteMultiRange(int32_t s, int32_t r) {
-	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
-	// during memory allocation
+bool Sound::try_delete_multi_range(int32_t source_index, int32_t range_index,
+                                   const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return false;
+	auto sound_lifetime = watch_sound_lifetime();
+	if (!sound_lifetime.alive() || source_index < 0 || source_index >= kNumSources)
+		return false;
+	auto& source = sources[source_index];
+	auto source_lifetime = source.watch_lifetime();
+	if (!source_lifetime.alive() || range_index < 0 || range_index >= source.ranges.getNumElements())
+		return false;
+	const auto layout_revision = source.ranges.layout_revision();
+	const auto source_type = source.oscType;
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return sound_lifetime.alive() && source_lifetime.alive() && (!validation || validation->valid())
+		       && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && source.oscType == source_type
+		       && source.ranges.layout_revision() == layout_revision;
+	};
+	if (!context_valid())
+		return false;
+	// Voice cleanup may yield. Do not reclaim a replacement range or an owner which disappeared.
 	killAllVoices();
+	if (!context_valid() || hasActiveVoices())
+		return false;
 	const bool was_audio_routine_locked = AudioEngine::audioRoutineLocked;
 	AudioEngine::audioRoutineLocked = true;
-	sources[s].ranges.getElement(r)->~MultiRange();
-	sources[s].ranges.deleteAtIndex(r);
+	source.ranges.getElement(range_index)->~MultiRange();
+	source.ranges.deleteAtIndex(range_index);
 	AudioEngine::audioRoutineLocked = was_audio_routine_locked;
+	return true;
 }
 
 // This function has to give the same outcome as Source::renderInStereo()

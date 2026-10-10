@@ -3391,3 +3391,16 @@ destruction and array deletion; the pre-held case fails against the previous cod
 All 38 suites and RelWithDebInfo pass. This addresses the lock invariant only;
 owner/range invalidation during voice cleanup and caller cancellation remain open.
 Independent mode remains disabled.
+
+Range deletion now uses `try_delete_multi_range` and reports cancellation to both
+callers. Before reclaiming storage it revalidates Sound/Source lifetime, layout
+revision, source type, song, panel and caller selection after voice cleanup; active
+voices also cancel deletion. The menu rejects out-of-bounds selections and stops
+selection changes, boundary edits and success display on cancellation. Multisample
+import stops its deletion loop and releases the temporary sample table/reasons.
+Twelve added lifetime regressions and six extracted menu regressions cover owner
+destruction, changed context/layout/selection, retired entry, bounds, nested voices,
+caller failure and successful menu publication. All 38 suites and RelWithDebInfo
+pass. Previously deleted import ranges are not restored, cancellation does not yet
+resolve ownership of a working animation, and earlier import callbacks/stale UI
+references remain L1/R4/R5 work. Independent mode remains disabled.

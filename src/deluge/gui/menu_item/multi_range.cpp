@@ -313,11 +313,24 @@ void MultiRange::deletePress() {
 		return;
 	}
 
-	::MultiRange* oldRange = sound_editor_for_session().currentSource->ranges.getElement(this->getValue());
+	const auto range_index = getValue();
+	if (range_index < 0 || range_index >= oldNum)
+		return;
+	::MultiRange* oldRange = sound_editor_for_session().currentSource->ranges.getElement(range_index);
 	int32_t oldTopNote = oldRange->topNote;
 
-	sound_editor_for_session().currentSound->deleteMultiRange(sound_editor_for_session().currentSourceIndex,
-	                                                          this->getValue()); // Unassigns all Voices
+	auto* selected_sound = sound_editor_for_session().currentSound;
+	auto* selected_source = sound_editor_for_session().currentSource;
+	const auto source_index = sound_editor_for_session().currentSourceIndex;
+	auto* source_ui = getCurrentUI();
+	const auto selection_valid = [&] {
+		return getCurrentUI() == source_ui && sound_editor_for_session().currentSound == selected_sound
+		       && sound_editor_for_session().currentSource == selected_source
+		       && sound_editor_for_session().currentSourceIndex == source_index && getValue() == range_index;
+	};
+	deluge::lifetime::callback_validation validation(selection_valid);
+	if (!selected_sound->try_delete_multi_range(source_index, range_index, &validation))
+		return;
 
 	// If bottom one, nothing to do
 	if (this->getValue() == 0) {

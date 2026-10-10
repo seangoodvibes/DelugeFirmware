@@ -1704,10 +1704,23 @@ doReturnFalse:
 
 	AudioEngine::routineWithClusterLoading();
 
-	// Delete all but first pre-existing range
-	int32_t oldNumRanges = sound_editor_for_session().currentSource->ranges.getNumElements();
+	// Delete all but first pre-existing range. Stop if voice cleanup changes the editor's target.
+	auto* selected_sound = sound_editor_for_session().currentSound;
+	auto* selected_source = sound_editor_for_session().currentSource;
+	const auto source_index = sound_editor_for_session().currentSourceIndex;
+	auto* source_ui = getCurrentUI();
+	const auto selection_valid = [&] {
+		return getCurrentUI() == source_ui && sound_editor_for_session().currentSound == selected_sound
+		       && sound_editor_for_session().currentSource == selected_source
+		       && sound_editor_for_session().currentSourceIndex == source_index;
+	};
+	deluge::lifetime::callback_validation validation(selection_valid);
+	int32_t oldNumRanges = selected_source->ranges.getNumElements();
 	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
-		sound_editor_for_session().currentSound->deleteMultiRange(sound_editor_for_session().currentSourceIndex, i);
+		if (!selected_sound->try_delete_multi_range(source_index, i, &validation)) {
+			release_multisample_import_samples(sortArea, numSamples);
+			return false;
+		}
 	}
 
 	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory
