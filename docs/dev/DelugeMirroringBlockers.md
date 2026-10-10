@@ -1871,3 +1871,14 @@ unlearned/invalid input, context changes and mismatched/missing context. All 35
 native suites and `./dbt build relwithdebinfo` pass. The clone service is a fixture;
 its existing boolean result still conflates unnecessary cloning with failure, so
 this change does not claim clone-failure recovery or original-state rollback.
+
+### G1 / L1 progress — learned CC display after parameter mutation (2026-10-10)
+
+Learned CC handling rejects incomplete parameter stacks and checks context after
+lookup, parameter mutation and automation/performance refresh. Display identifiers
+are captured before mutation, so later UI feedback does not reread the parameter
+stack after a callback can invalidate it. Four regressions cover cleared stacks,
+lookup/write context changes and refresh cancellation. All 35 native suites and
+`./dbt build relwithdebinfo` pass. The tests use callback fixtures, not real
+parameter destruction; clip retention during refresh and callback-internal
+lifetime remain open under L1.

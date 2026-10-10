@@ -24,13 +24,19 @@ struct TimelineCounter {
 };
 struct RootUI {};
 static RootUI root_ui;
+static RootUI* current_root = &root_ui;
 static RootUI* getRootUI() {
-	return &root_ui;
+	return current_root;
 }
 
 struct Clip : TimelineCounter {};
+static std::function<void()> on_refresh;
 struct automation_fixture : RootUI {
-	bool possiblyRefreshAutomationEditorGrid(Clip*, params::Kind, int) { return false; }
+	bool possiblyRefreshAutomationEditorGrid(Clip*, params::Kind, int) {
+		if (on_refresh)
+			on_refresh();
+		return false;
+	}
 };
 struct performance_fixture : RootUI {
 	bool possiblyRefreshPerformanceViewDisplay(params::Kind, int, int) { return false; }
@@ -77,7 +83,12 @@ static ModelStack* setupModelStackWithSong(char*, int*) {
 	return &stack;
 }
 struct view_fixture {
-	void displayModEncoderValuePopup(params::Kind, int, int) {}
+	int popup_calls = 0;
+	int popup_id = -1;
+	void displayModEncoderValuePopup(params::Kind, int id, int) {
+		++popup_calls;
+		popup_id = id;
+	}
 	int modLength = 0;
 	int modPos = 0;
 	ModelStackWithTimelineCounter activeModControllableModelStack;
@@ -89,7 +100,12 @@ static view_fixture& view_for_session() {
 struct ModelStackWithAutoParam;
 struct param_fixture {
 	int writes = 0;
-	void setValuePossiblyForRegion(int, ModelStackWithAutoParam*, int, int) { ++writes; }
+	std::function<void()> on_write;
+	void setValuePossiblyForRegion(int, ModelStackWithAutoParam*, int, int) {
+		++writes;
+		if (on_write)
+			on_write();
+	}
 	bool automated = false;
 	int position_reads = 0;
 	int last_position = -1;
@@ -157,6 +173,9 @@ TEST_GROUP(MidiFeedbackSweep) {
 	void setup() override {
 		panels::detail::active = panels::Id::Local;
 		views = {};
+		current_root = &root_ui;
+		on_refresh = {};
+		midiEngine = {};
 		on_clone = {};
 		clone_calls = 0;
 		clone_result = false;
@@ -294,4 +313,53 @@ TEST(MidiFeedbackSweep, incoming_cc_rejects_mismatched_timeline_and_missing_song
 	receive();
 	LONGS_EQUAL(0, clone_calls);
 	LONGS_EQUAL(0, follow.lookups);
+}
+
+TEST(MidiFeedbackSweep, incoming_cc_incomplete_stack_or_changed_lookup_does_not_write) {
+	follow.parameter_stack.paramCollection = nullptr;
+	receive();
+	LONGS_EQUAL(0, follow.parameter.writes);
+	follow.parameter_stack.paramCollection = &follow.collection;
+	follow.on_lookup = [&] { currentSong = nullptr; };
+	receive();
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, incoming_cc_caches_display_identity_before_parameter_write) {
+	midiEngine.midiFollowDisplayParam = true;
+	follow.parameter_stack.paramId = 42;
+	follow.parameter.on_write = [&] {
+		follow.parameter_stack.paramCollection = nullptr;
+		follow.parameter_stack.autoParam = nullptr;
+		follow.parameter_stack.paramId = 99;
+	};
+	receive();
+	LONGS_EQUAL(1, follow.parameter.writes);
+	LONGS_EQUAL(1, view_for_session().popup_calls);
+	LONGS_EQUAL(42, view_for_session().popup_id);
+}
+TEST(MidiFeedbackSweep, incoming_cc_changed_write_context_suppresses_display) {
+	midiEngine.midiFollowDisplayParam = true;
+	for (int change = 0; change < 3; ++change) {
+		currentSong = &song;
+		current_clip = &clip;
+		follow.parameter.on_write = [&] {
+			if (change == 0)
+				currentSong = nullptr;
+			if (change == 1)
+				current_clip = nullptr;
+			if (change == 2)
+				panels::detail::active = panels::Id::Remote;
+		};
+		receive();
+		LONGS_EQUAL(0, view_for_session().popup_calls);
+		CHECK(panels::current() == panels::Id::Local);
+	}
+}
+TEST(MidiFeedbackSweep, incoming_cc_changed_refresh_context_suppresses_popup) {
+	midiEngine.midiFollowDisplayParam = true;
+	current_root = &automation;
+	on_refresh = [&] { currentSong = nullptr; };
+	receive();
+	LONGS_EQUAL(1, follow.parameter.writes);
+	LONGS_EQUAL(0, view_for_session().popup_calls);
 }

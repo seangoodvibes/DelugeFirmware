@@ -1086,8 +1086,10 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(
 	    &modelStackWithTimelineCounter, clip, soundParamId, globalParamId, midiEngine.midiFollowDisplayParam);
+	if (!context_matches())
+		return;
 	// check if model stack is valid
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+	if (modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->paramCollection) {
 		int32_t currentValue;
 
 		// get current value
@@ -1111,8 +1113,13 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
+			const int32_t param_id = modelStackWithParam->paramId;
+			const params::Kind param_kind = modelStackWithParam->paramCollection->getParamKind();
+
 			// Set the new Parameter Value for the MIDI Learned Parameter
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+			if (!context_matches())
+				return;
 
 			// check if you're currently editing the same learned param in automation view or
 			// performance view if so, you will need to refresh the automation editor grid or the
@@ -1120,27 +1127,27 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			bool editingParamInAutomationOrPerformanceView = false;
 			RootUI* rootUI = getRootUI();
 			if (rootUI == &automation_view_for_session() || rootUI == &performance_view_for_session()) {
-				int32_t id = modelStackWithParam->paramId;
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-
 				if (rootUI == &automation_view_for_session()) {
 					// pass the current clip because you want to check that you're editing the param
 					// for the same clip active in automation view
 					editingParamInAutomationOrPerformanceView =
-					    automation_view_for_session().possiblyRefreshAutomationEditorGrid(clip, kind, id);
+					    automation_view_for_session().possiblyRefreshAutomationEditorGrid(clip, param_kind, param_id);
 				}
 				else {
 					editingParamInAutomationOrPerformanceView =
-					    performance_view_for_session().possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+					    performance_view_for_session().possiblyRefreshPerformanceViewDisplay(param_kind, param_id,
+					                                                                         newKnobPos);
 				}
 			}
+
+			if (!context_matches())
+				return;
 
 			// check if you should display name of the parameter that was changed and the value that
 			// has been set if you're in the automation view editor or performance view non-editing
 			// mode don't display popup if you're currently editing the same param
 			if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				view_for_session().displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				view_for_session().displayModEncoderValuePopup(param_kind, param_id, newKnobPos);
 			}
 		}
 	}
