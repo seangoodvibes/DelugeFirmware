@@ -35,7 +35,8 @@ struct Song {
 };
 inline Song* currentSong = nullptr;
 inline AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::NONE;
-enum class ActionResult { DEALT_WITH };
+enum class ActionResult { DEALT_WITH, REMIND_ME_OUTSIDE_CARD_ROUTINE };
+inline bool sdRoutineLock = false;
 namespace deluge::hid::display::oled_canvas {
 struct Canvas {
 	void drawString(const char*, int, int, int, int, int, int);

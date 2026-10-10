@@ -790,3 +790,16 @@ side effects are not provided by these guards.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. This covers
   post-reset UI effects, not reset filesystem failure recovery or all setting side
   effects. G1 remains open and independent mode stays disabled.
+
+### G1 / R4 progress — audio-source pad edits during storage (2026-10-09)
+
+- Audio-input selection now defers pad presses while the SD routine is locked,
+  before resolving a target or changing the recording source. Releases retain
+  their normal handling. Retried presses resolve the current pad target after
+  unlock rather than retaining the target from the blocked attempt.
+- A production-selector regression failed before the fix and now covers both
+  panel owners, unchanged channel/source/selection, absent redraw and peer refresh,
+  release handling and a changed target on retry. Monitoring claims and storage
+  are fixtures; this does not pin the menu's retained output pointer.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4/L1
+  remain open and independent mode stays disabled.

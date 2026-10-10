@@ -17,6 +17,7 @@
 
 #include "gui/context_menu/audio_input_selector.h"
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui_navigation_state.h"
@@ -236,6 +237,8 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
+	if (on && sdRoutineLock)
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	if (on && audioOutput && getUIUpOneLevel() == &session_view_for_session()) {
 		auto track = (&session_view_for_session())->getOutputFromPad(x, y);
 		if (audioOutput->canRecordFrom(track)) {

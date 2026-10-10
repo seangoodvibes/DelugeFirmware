@@ -8,6 +8,7 @@ TEST_GROUP(AudioInputMenu) {
 	AudioInputSelector local_menu, remote_menu;
 	void setup() override {
 		session::detail::active = session::Id::Local;
+		sdRoutineLock = false;
 		session::navigation = {};
 		modes = {};
 		redraws = {};
@@ -26,6 +27,7 @@ TEST_GROUP(AudioInputMenu) {
 	}
 	void teardown() override {
 		session::detail::active = session::Id::Local;
+		sdRoutineLock = false;
 	}
 };
 TEST(AudioInputMenu, edits_start_from_shared_channel_before_peer_refresh) {
@@ -142,4 +144,38 @@ TEST(AudioInputMenu, rejected_pad_sources_and_unchanged_boundaries_do_not_notify
 	CHECK(output.inputChannel == AudioInputChannel::NONE);
 	local_menu.selectEncoderAction(-1);
 	CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
+}
+
+TEST(AudioInputMenu, storage_locked_pad_selection_defers_without_mutation_and_retries_live_target) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& menu = owner == session::Id::Local ? local_menu : remote_menu;
+		output.inputChannel = AudioInputChannel::NONE;
+		output.source = nullptr;
+		output.assignments = 0;
+		session::navigation = {};
+		redraws = {};
+		text = {};
+		menu.setupAndCheckAvailability();
+		session_view_for_session().target = &first;
+		sdRoutineLock = true;
+		CHECK(menu.padAction(0, 0, 1) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE);
+		CHECK(output.inputChannel == AudioInputChannel::NONE);
+		POINTERS_EQUAL(nullptr, output.source);
+		LONGS_EQUAL(0, output.assignments);
+		LONGS_EQUAL(0, menu.currentOption);
+		LONGS_EQUAL(0, redraws.active());
+		CHECK(text.active().empty());
+		const auto peer = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		CHECK_FALSE(session::navigation.for_owner(peer).shared_model_refresh.consume(0));
+		CHECK(menu.padAction(0, 0, 0) == ActionResult::DEALT_WITH);
+		LONGS_EQUAL(0, output.assignments);
+		session_view_for_session().target = &second;
+		sdRoutineLock = false;
+		CHECK(menu.padAction(0, 0, 1) == ActionResult::DEALT_WITH);
+		CHECK(output.inputChannel == AudioInputChannel::SPECIFIC_OUTPUT);
+		POINTERS_EQUAL(&second, output.source);
+		LONGS_EQUAL(1, output.assignments);
+		CHECK(session::navigation.for_owner(peer).shared_model_refresh.consume(0));
+	}
 }

@@ -13,3 +13,7 @@ The audio-input group also compiles the production AudioInputSelector. Tests cov
 live channel reads, pad/encoder peer notifications, Track-source refresh, source
 repair, mode locks and rejected inputs. Audio monitoring claims are mocked and
 not validated by this target.
+
+Storage-lock coverage verifies audio-source pad presses defer without changing
+model or UI state on either panel, releases remain handled, and retry resolves a
+changed pad target after unlock. This does not prove retained output lifetime.
