@@ -1817,3 +1817,14 @@ that remove/delete the fixture output or clear/delete the fixture clip after the
 first delivery. All 35 native suites and `./dbt build relwithdebinfo` pass.
 The tests perform real deletion of fixture objects, not firmware destructors;
 address reuse and destruction without registry/active-clip updates remain L1 gaps.
+
+### G1 / L1 progress — track CC parameter-to-instrument boundary (2026-10-10)
+
+Track CC delivery now validates input ranges, song output membership and active
+clip association, then revalidates after parameter processing before instrument
+delivery. Unsupported output types no longer take the melodic cast. Eight tests
+cover fixture clip/output deletion, output/song removal, both panels, valid
+internal/MIDI/CV routing, mute/solo, unavailable targets and feedback filtering.
+All 35 native suites and `./dbt build relwithdebinfo` pass. Real deletion is limited
+to fixture objects; firmware destructor behavior, address reuse and lifetime
+inside parameter/instrument callbacks remain open.

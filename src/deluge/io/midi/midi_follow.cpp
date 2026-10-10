@@ -926,10 +926,29 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
                                                 bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
                                                 int32_t specific_track_index) {
+	if (!currentSong || !modelStack || !specific_track || ccNumber > kMaxMIDIValue || ccValue > kMaxMIDIValue)
+		return;
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto track_is_current = [&] {
+		if (currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
+			return false;
+		for (auto* output = source_song->firstOutput; output; output = output->next) {
+			if (output == specific_track)
+				return true;
+		}
+		return false;
+	};
+	if (!track_is_current())
+		return;
+
 	MIDIMatchType match = checkMidiFollowMatchForSpecificTrack(cable, channel, specific_track_index);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
+		if (!clip || clip->output != specific_track)
+			return;
 
 		bool isMIDIClip = false;
 		bool isCVClip = false;
@@ -978,6 +997,8 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 					}
 				}
 			}
+			if (!track_is_current() || specific_track->getActiveClip() != clip || clip->output != specific_track)
+				return;
 			if (clip->type == ClipType::INSTRUMENT) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 				if (modelStackWithTimelineCounter) {
@@ -986,7 +1007,8 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 						kit->receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, ccValue,
 						                      doingMidiThru, clip);
 					}
-					else {
+					else if (specific_track->type == OutputType::SYNTH || specific_track->type == OutputType::MIDI_OUT
+					         || specific_track->type == OutputType::CV) {
 						MelodicInstrument* melodicInstrument = (MelodicInstrument*)specific_track;
 						melodicInstrument->receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber,
 						                              ccValue, doingMidiThru);
