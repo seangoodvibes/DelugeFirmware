@@ -15,6 +15,7 @@ struct ModControllable {
 };
 struct Drum : ModControllable {
 	mutable deluge::lifetime::lifetime_source lifetime_source;
+	Drum* next = nullptr;
 	DrumType type = DrumType::MIDI;
 	bool auditioned = false, earlyNoteStillActive = false;
 	int lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE;
@@ -40,6 +41,18 @@ struct ModelStackWithNoteRow {
 	int getLoopLength() { return 96; }
 	ModelStackWithThreeMainThings* addOtherTwoThings(ModControllable*, ParamManager*) { return &target; }
 };
+struct InstrumentClip;
+struct ModelStackWithTimelineCounter {
+	ModelStackWithNoteRow row_stack;
+	ModelStackWithNoteRow* addNoteRow(int, NoteRow* row) {
+		row_stack.row = row;
+		return &row_stack;
+	}
+};
+struct ModelStack {
+	ModelStackWithTimelineCounter timeline;
+	ModelStackWithTimelineCounter* addTimelineCounter(InstrumentClip*) { return &timeline; }
+};
 std::function<void()> on_tails;
 struct Kit;
 struct InstrumentClip {
@@ -55,6 +68,10 @@ struct InstrumentClip {
 		return result;
 	}
 	void expectEvent() { ++events; }
+	NoteRow row;
+	ModelStackWithNoteRow* getNoteRowForDrum(ModelStackWithTimelineCounter* stack, Drum*) {
+		return stack->addNoteRow(0, &row);
+	}
 };
 std::function<void()> on_note;
 int notes = 0;
@@ -62,8 +79,17 @@ struct Kit {
 	mutable deluge::lifetime::lifetime_source lifetime_source;
 	InstrumentClip* activeClip = nullptr;
 	Drum* member = nullptr;
+	Drum* firstDrum = nullptr;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
-	int getDrumIndex(Drum* drum) { return drum == member ? 0 : -1; }
+	int getDrumIndex(Drum* drum) {
+		if (!firstDrum)
+			return drum == member ? 0 : -1;
+		int index = 0;
+		for (auto* current = firstDrum; current; current = current->next, ++index)
+			if (current == drum)
+				return index;
+		return -1;
+	}
 	void noteOnPreKitArp(ModelStackWithThreeMainThings*, Drum*, int32_t, int16_t const*, int32_t) {
 		++notes;
 		if (on_note)
@@ -74,6 +100,7 @@ struct Kit {
 		if (on_note)
 			on_note();
 	}
+	void stopAnyAuditioning(ModelStack*);
 	void beginAuditioningforDrum(ModelStackWithNoteRow*, Drum*, int32_t, int16_t const*, int32_t);
 	void endAuditioningForDrum(ModelStackWithNoteRow*, Drum*, int32_t = 64);
 };
@@ -213,4 +240,83 @@ TEST(kit_audition_lifetime, note_off_rejects_changed_output) {
 	on_note = [&] { clip->output = &replacement; };
 	end();
 	LONGS_EQUAL(0, clip->events);
+}
+
+TEST(kit_audition_lifetime, stop_all_stops_after_current_drum_destruction) {
+	ModelStack all{{{&song}}};
+	kit->firstDrum = &*drum;
+	drum->auditioned = true;
+	on_note = [&] { drum.reset(); };
+	kit->stopAnyAuditioning(&all);
+	LONGS_EQUAL(1, notes);
+}
+TEST(kit_audition_lifetime, stop_all_stops_after_kit_destruction) {
+	ModelStack all{{{&song}}};
+	kit->firstDrum = &*drum;
+	drum->auditioned = true;
+	on_note = [&] { kit.reset(); };
+	kit->stopAnyAuditioning(&all);
+	LONGS_EQUAL(1, notes);
+}
+TEST(kit_audition_lifetime, stop_all_stops_after_clip_destruction) {
+	ModelStack all{{{&song}}};
+	kit->firstDrum = &*drum;
+	drum->auditioned = true;
+	on_note = [&] { clip.reset(); };
+	kit->stopAnyAuditioning(&all);
+	LONGS_EQUAL(1, notes);
+}
+TEST(kit_audition_lifetime, stop_all_preserves_callback_retarget) {
+	ModelStack all{{{&song}}};
+	InstrumentClip replacement;
+	kit->firstDrum = &*drum;
+	drum->auditioned = true;
+	on_note = [&] { kit->activeClip = &replacement; };
+	kit->stopAnyAuditioning(&all);
+	POINTERS_EQUAL(&replacement, kit->activeClip);
+	LONGS_EQUAL(0, replacement.events);
+}
+TEST(kit_audition_lifetime, stop_all_handles_live_list_and_skips_idle_drums) {
+	ModelStack all{{{&song}}};
+	Drum second, idle;
+	kit->firstDrum = &*drum;
+	drum->next = &second;
+	second.next = &idle;
+	drum->auditioned = second.auditioned = true;
+	kit->stopAnyAuditioning(&all);
+	LONGS_EQUAL(2, notes);
+	CHECK_FALSE(second.auditioned);
+	CHECK_FALSE(drum->auditioned);
+}
+TEST(kit_audition_lifetime, stop_all_stops_after_live_drum_detachment) {
+	ModelStack all{{{&song}}};
+	Drum second;
+	kit->firstDrum = &*drum;
+	drum->next = &second;
+	drum->auditioned = second.auditioned = true;
+	on_note = [&] { kit->firstDrum = &second; };
+	kit->stopAnyAuditioning(&all);
+	LONGS_EQUAL(1, notes);
+	CHECK(second.auditioned);
+}
+TEST(kit_audition_lifetime, stop_all_rejects_reused_drum_address) {
+	ModelStack all{{{&song}}};
+	kit->firstDrum = &*drum;
+	drum->auditioned = true;
+	on_note = [&] {
+		drum.reset();
+		drum.emplace();
+		drum->next = &*drum;
+	};
+	kit->stopAnyAuditioning(&all);
+	LONGS_EQUAL(1, notes);
+}
+TEST(kit_audition_lifetime, stop_all_without_active_clip) {
+	ModelStack all{{{&song}}};
+	kit->activeClip = nullptr;
+	kit->firstDrum = &*drum;
+	drum->auditioned = true;
+	kit->stopAnyAuditioning(&all);
+	LONGS_EQUAL(1, notes);
+	CHECK_FALSE(drum->auditioned);
 }

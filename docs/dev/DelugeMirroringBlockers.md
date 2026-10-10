@@ -2376,3 +2376,11 @@ covering deletion, address reuse, retargeting, tail-query cancellation and norma
 one-shot/drone behavior. All 36 native suites and `./dbt build relwithdebinfo`
 pass. This does not establish the safety of arpeggiator internals or the outer
 stop-all loop, nor protect row/parameter removal while their owners survive.
+
+The stop-all-auditions loop now watches its kit, original active clip and each
+current drum, stopping before list traversal after retirement, detachment or clip
+replacement. Eight additional sanitizer regressions execute the real loop and
+note-off body for owner deletion, same-address drum reuse, live detachment,
+retargeting, multiple drums and no-clip audition. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Arpeggiator instruction storage and its nested
+callback paths remain open; cancellation does not roll back notes already stopped.

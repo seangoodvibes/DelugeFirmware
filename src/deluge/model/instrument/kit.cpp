@@ -2105,16 +2105,33 @@ bool Kit::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {
 }
 
 void Kit::stopAnyAuditioning(ModelStack* modelStack) {
-
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	if (!modelStack)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* audition_clip = activeClip;
+	auto clip_lifetime = audition_clip ? audition_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (audition_clip && (!clip_lifetime.alive() || audition_clip->output != this))
+		return;
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(audition_clip);
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
 		if (thisDrum->auditioned) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    activeClip ? ((InstrumentClip*)activeClip)->getNoteRowForDrum(modelStackWithTimelineCounter, thisDrum)
-			               : modelStackWithTimelineCounter->addNoteRow(0, nullptr);
+			    audition_clip
+			        ? ((InstrumentClip*)audition_clip)->getNoteRowForDrum(modelStackWithTimelineCounter, thisDrum)
+			        : modelStackWithTimelineCounter->addNoteRow(0, nullptr);
 
 			endAuditioningForDrum(modelStackWithNoteRow, thisDrum);
+			// A note-off can remove the current list node or replace the active clip.
+			if (!kit_lifetime.alive() || !drum_lifetime.alive() || (audition_clip && !clip_lifetime.alive())
+			    || activeClip != audition_clip || (audition_clip && audition_clip->output != this)
+			    || getDrumIndex(thisDrum) < 0)
+				return;
 		}
 	}
 }
