@@ -56,6 +56,7 @@ struct channel_fixture {
 	uint8_t channelOrZone = MIDI_CHANNEL_NONE;
 	cable_fixture* cable = nullptr;
 };
+using LearnedMIDI = channel_fixture;
 static struct {
 	std::array<channel_fixture, kNumMIDIFollowChannelTypesIncludingTracks> midiFollowChannelType;
 } midiEngine;
@@ -65,6 +66,8 @@ static cable_fixture* readDeviceReferenceFromFile(Deserializer&) {
 }
 } // namespace MIDIDeviceManager
 struct MidiFollow {
+	using FeedbackChannelTypes = std::array<MIDIFollowChannelType, 2>;
+	bool addChannelTypeForFeedback(FeedbackChannelTypes&, size_t&, MIDIFollowChannelType);
 	bool global_context = false;
 	void writeDefaultMappingsToFile(Serializer&);
 	char const* getNameFromChannelType(MIDIFollowChannelType) { return "a"; }
@@ -281,4 +284,42 @@ TEST(MidiFeedbackMapping, repeated_identical_entries_and_invalid_replacement_pre
 	LONGS_EQUAL(127, follow.globalParamToCC[2]);
 	LONGS_EQUAL(params::UNPATCHED_START + 2, follow.ccToSoundParam[127]);
 	LONGS_EQUAL(2, follow.ccToGlobalParam[127]);
+}
+
+TEST(MidiFeedbackMapping, full_or_invalid_feedback_lists_remain_unchanged) {
+	MidiFollow::FeedbackChannelTypes targets{MIDIFollowChannelType::NONE, MIDIFollowChannelType::NONE};
+	midiEngine.midiFollowChannelType[0].channelOrZone = 0;
+	for (size_t count : {size_t{2}, size_t{3}, SIZE_MAX}) {
+		size_t original_count = count;
+		CHECK_FALSE(follow.addChannelTypeForFeedback(targets, count, MIDIFollowChannelType::A));
+		CHECK(count == original_count);
+		CHECK(targets[0] == MIDIFollowChannelType::NONE);
+	}
+	size_t count = 1;
+	CHECK_FALSE(follow.addChannelTypeForFeedback(targets, count, MIDIFollowChannelType::A));
+	LONGS_EQUAL(1, count);
+}
+TEST(MidiFeedbackMapping, feedback_targets_validate_channel_and_target_ranges) {
+	MidiFollow::FeedbackChannelTypes targets{};
+	size_t count = 0;
+	for (int channel : {NUM_CHANNELS, 254, MIDI_CHANNEL_NONE}) {
+		midiEngine.midiFollowChannelType[0].channelOrZone = channel;
+		CHECK_FALSE(follow.addChannelTypeForFeedback(targets, count, MIDIFollowChannelType::A));
+	}
+	for (auto type : {MIDIFollowChannelType::NONE, MIDIFollowChannelType::INVALID})
+		CHECK_FALSE(follow.addChannelTypeForFeedback(targets, count, type));
+	LONGS_EQUAL(0, count);
+}
+TEST(MidiFeedbackMapping, valid_feedback_targets_deduplicate_and_keep_mpe_zones) {
+	MidiFollow::FeedbackChannelTypes targets{};
+	size_t count = 0;
+	midiEngine.midiFollowChannelType[0].channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
+	midiEngine.midiFollowChannelType[1].channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
+	midiEngine.midiFollowChannelType[2].channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
+	CHECK(follow.addChannelTypeForFeedback(targets, count, MIDIFollowChannelType::A));
+	CHECK_FALSE(follow.addChannelTypeForFeedback(targets, count, MIDIFollowChannelType::B));
+	CHECK(follow.addChannelTypeForFeedback(targets, count, MIDIFollowChannelType::C));
+	LONGS_EQUAL(2, count);
+	CHECK(targets[0] == MIDIFollowChannelType::A);
+	CHECK(targets[1] == MIDIFollowChannelType::C);
 }

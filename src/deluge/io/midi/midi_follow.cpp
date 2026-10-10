@@ -1069,6 +1069,10 @@ MIDIFollowChannelType MidiFollow::getChannelTypeForTrackFeedback() {
 /// or would exceed the fixed feedback target list.
 bool MidiFollow::addChannelTypeForFeedback(FeedbackChannelTypes& feedbackChannelTypes, size_t& numChannelTypes,
                                            MIDIFollowChannelType feedbackChannelType) {
+	// Reject invalid/full lists before reading their contents.
+	if (numChannelTypes >= feedbackChannelTypes.size()) {
+		return false;
+	}
 	// Track feedback returns NONE when the selected clip does not belong to a configured track channel.
 	if (feedbackChannelType == MIDIFollowChannelType::NONE) {
 		return false;
@@ -1082,21 +1086,19 @@ bool MidiFollow::addChannelTypeForFeedback(FeedbackChannelTypes& feedbackChannel
 
 	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[channelTypeIndex];
 	// A channel type with no learned MIDI channel cannot receive feedback.
-	if (midiInput.channelOrZone == MIDI_CHANNEL_NONE) {
+	if (midiInput.channelOrZone >= NUM_CHANNELS) {
 		return false;
 	}
 
 	// Combined feedback modes can resolve to the same MIDI channel through Track and A/B/C; send once.
 	for (size_t i = 0; i < numChannelTypes; i++) {
-		LearnedMIDI& existingMidiInput = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelTypes[i])];
+		const auto existing_index = util::to_underlying(feedbackChannelTypes[i]);
+		if (existing_index >= kNumMIDIFollowChannelTypesIncludingTracks)
+			return false;
+		LearnedMIDI& existingMidiInput = midiEngine.midiFollowChannelType[existing_index];
 		if (existingMidiInput.channelOrZone == midiInput.channelOrZone) {
 			return false;
 		}
-	}
-
-	// Keep writes inside the fixed-size feedback target buffer.
-	if (numChannelTypes >= feedbackChannelTypes.size()) {
-		return false;
 	}
 
 	feedbackChannelTypes[numChannelTypes] = feedbackChannelType;

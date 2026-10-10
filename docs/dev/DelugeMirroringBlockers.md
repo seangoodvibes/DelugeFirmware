@@ -1723,3 +1723,13 @@ and recovery after restoring the association. The normal reverse-order fixture
 now gives each clip its actual output. All 35 native suites and
 `./dbt build relwithdebinfo` pass. This assumes referenced clips remain alive;
 lifetime protection and physical MIDI acceptance remain open.
+
+### G1 / R4 progress — feedback target-list validation (2026-10-10)
+
+Feedback target collection now rejects full/oversized lists before scanning them,
+validates existing target indices and rejects channel values outside normal/MPE
+ranges. Three extracted-production tests cover unchanged invalid lists, invalid
+channels/types, valid MPE zones and duplicate suppression. All 35 native suites
+and `./dbt build relwithdebinfo` pass. This is defensive validation of the collector;
+it does not show that normal callers produce invalid lists, nor prove device
+filtering or callback lifetime safety. Independent mode remains disabled.
