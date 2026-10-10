@@ -75,6 +75,13 @@ struct song_fixture {
 	deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	Output* firstOutput = nullptr;
+	bool owns_output_for_undo(const Output* target, bool) const {
+		for (auto* output = firstOutput; output; output = output->next) {
+			if (output == target)
+				return true;
+		}
+		return false;
+	}
 };
 static song_fixture song;
 static song_fixture* currentSong = &song;
@@ -356,6 +363,7 @@ TEST(MidiTrackCC, expression_missing_and_mismatched_clip_outputs_are_rejected) {
 }
 TEST(MidiTrackCC, expression_kit_delivery_and_audio_clip_exclusion) {
 	Kit kit;
+	song.firstOutput = &kit;
 	kit.type = OutputType::KIT;
 	kit.active_clip = &clip;
 	clip.output = &kit;
@@ -568,4 +576,25 @@ TEST(MidiTrackCC, selected_expression_reused_output_is_not_returned) {
 	}
 	clip.output = &output;
 	LONGS_EQUAL(2, instrument_calls);
+}
+
+TEST(MidiTrackCC, detached_track_does_not_receive_expression) {
+	song.firstOutput = nullptr;
+	send_expression(false, &stack, &output);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, freed_track_is_rejected_before_lifetime_watch) {
+	auto* target = new MelodicInstrument;
+	delete target;
+	send_expression(false, &stack, target);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, retired_song_does_not_receive_track_expression) {
+	song_fixture retiring_song;
+	retiring_song.firstOutput = &output;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	send_expression(false, &stack, &output);
+	LONGS_EQUAL(0, instrument_calls);
+	currentSong = &song;
 }

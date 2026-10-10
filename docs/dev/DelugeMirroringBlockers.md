@@ -3016,3 +3016,10 @@ delivery before returning a target. Seven regressions cover retirement, same-add
 replacement, session changes and deletion during delivery. All 36 suites and the
 RelWithDebInfo build pass. Specific-track expression acquisition and lower activation
 services remain open; these checks do not undo an already delivered expression.
+
+Specific-track pitch-bend/aftertouch now reject retired songs and require main
+output-list membership before acquiring the target output watch. Three regressions
+cover detached targets, freed unregistered pointers and retired song entry; the
+live kit fixture now explicitly registers its output. All 36 suites and the
+RelWithDebInfo build pass. Registry unlink-before-destruction remains a prerequisite;
+this does not close general raw-pointer acquisition or lower expression internals.

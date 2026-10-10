@@ -1688,6 +1688,10 @@ void MidiFollow::pitchBendReceivedForSpecificTrack(MIDICable& cable, uint8_t cha
 	if (!currentSong || !modelStack || !specific_track)
 		return;
 
+	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive() || !source_song->owns_output_for_undo(specific_track, false))
+		return;
 	auto output_lifetime = specific_track->watch_lifetime();
 	if (!output_lifetime.alive())
 		return;
@@ -1838,6 +1842,10 @@ void MidiFollow::aftertouchReceivedForSpecificTrack(MIDICable& cable, int32_t ch
 	if (!currentSong || !modelStack || !specific_track)
 		return;
 
+	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive() || !source_song->owns_output_for_undo(specific_track, false))
+		return;
 	auto output_lifetime = specific_track->watch_lifetime();
 	if (!output_lifetime.alive())
 		return;
