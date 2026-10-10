@@ -47,16 +47,29 @@ std::vector<InstrumentClip*> clips_received;
 int whole_calls;
 bool whole_used, row_used;
 struct ModControllableAudio {
-	bool offerReceivedPitchBendToLearnedParams(MIDICable&, uint8_t, uint8_t, uint8_t, ModelStackWithTimelineCounter*) {
+	bool offerReceivedPitchBendToLearnedParams(MIDICable&, uint8_t, uint8_t, uint8_t, ModelStackWithTimelineCounter*,
+	                                           int = -1,
+	                                           const deluge::lifetime::callback_validation* validation = nullptr) {
+		CHECK(validation);
+		CHECK(validation->valid());
 		++whole_calls;
 		if (on_whole)
 			on_whole();
 		return whole_used;
 	}
+	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value,
+	                                           ModelStackWithTimelineCounter* stack, int row,
+	                                           const deluge::lifetime::callback_validation* validation) {
+		return offerReceivedPitchBendToLearnedParams(cable, channel, cc, value, stack, row, validation);
+	}
 };
+
 struct SoundDrum : Drum {
 	bool offerReceivedPitchBendToLearnedParams(MIDICable&, uint8_t channel, uint8_t low, uint8_t high,
-	                                           ModelStackWithTimelineCounter* stack, int row = -1) {
+	                                           ModelStackWithTimelineCounter* stack, int row = -1,
+	                                           const deluge::lifetime::callback_validation* validation = nullptr) {
+		CHECK(validation);
+		CHECK(validation->valid());
 		LONGS_EQUAL(2, channel);
 		LONGS_EQUAL(3, low);
 		LONGS_EQUAL(64, high);
@@ -67,8 +80,9 @@ struct SoundDrum : Drum {
 		return row_used;
 	}
 	void offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value,
-	                                           ModelStackWithTimelineCounter* stack, int row) {
-		offerReceivedPitchBendToLearnedParams(cable, channel, cc, value, stack, row);
+	                                           ModelStackWithTimelineCounter* stack, int row,
+	                                           const deluge::lifetime::callback_validation* validation) {
+		offerReceivedPitchBendToLearnedParams(cable, channel, cc, value, stack, row, validation);
 	}
 };
 struct Kit : Owner, ModControllableAudio {

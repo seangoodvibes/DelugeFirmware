@@ -2915,3 +2915,15 @@ affected suite. Learned-parameter handler internals remain open, including the
 contract that a retargeted model stack returns a live clip; unrelated equal-size
 row edits and partial parameter-write recovery are not comprehensively protected.
 Independent mode remains disabled.
+
+Clip learned-CC/pitch-bend handlers now validate caller ownership, source clip/output,
+knob storage/binding and returned clip/row/model-stack context around cloning and
+parameter lookup. Kit forwards its whole-kit and drum-row predicates into these
+handlers. CC display metadata is copied before parameter notifications; cancellation
+stops display work and later knobs. Eighteen added production-body sanitizer tests
+cover deletion, rebinding, clone failure/retargeting, retired targets and notification
+boundaries; existing parameter-input tests retain their value/step-edit assertions.
+All 36 suites passed; after moving retired-target validation ahead of row lookup,
+all three affected suites and `./dbt build relwithdebinfo` pass. Borrowed target
+acquisition, parameter lookup/write internals, clipless owner protection and song-level
+learned handlers remain open. Applied parameter writes are not rolled back.

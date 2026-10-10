@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <array>
 namespace midi_parameter_input_test {
 struct ModelStackWithTimelineCounter;
@@ -20,6 +21,7 @@ struct collection_fixture {
 	params::Kind getParamKind() { return params::Kind::PATCHED; }
 };
 struct MIDIKnob {
+	int paramDescriptor = 7;
 	struct {
 		bool matches = true;
 		bool equalsNoteOrCC(MIDICable*, int, int) { return matches; }
@@ -32,7 +34,22 @@ static int calculateKnobPos(MIDICable&, int, int value, MIDIKnob*, bool, int, bo
 	return value;
 }
 } // namespace MidiTakeover
-struct Clip : TimelineCounter {};
+struct Owner {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch{lifetime}; }
+};
+struct Output : Owner {};
+struct NoteRow {
+	uint64_t undo_identity = 1;
+};
+struct Clip : TimelineCounter, Owner {
+	Output* output = nullptr;
+	ClipType type = ClipType::INSTRUMENT;
+	NoteRow* find_note_row_from_id(int) { return nullptr; }
+};
+using InstrumentClip = Clip;
+void* currentSong = nullptr;
+
 static Clip* getCurrentClip() {
 	return nullptr;
 }
@@ -67,7 +84,12 @@ struct ModelStackWithAutoParam {
 	collection_fixture* paramCollection = nullptr;
 	int paramId = 0;
 };
-struct ModelStackWithThreeMainThings {};
+struct ModelStackWithThreeMainThings {
+	int manager;
+	void* paramManager = &manager;
+	int noteRowId = 0;
+	NoteRow* getNoteRowAllowNull() { return nullptr; }
+};
 struct ModelStackWithNoteRow {
 	ModelStackWithThreeMainThings things;
 	ModelStackWithThreeMainThings* addOtherTwoThings(void*, void*) { return &things; }
@@ -127,9 +149,9 @@ struct ModControllableAudio : MelodicInstrument {
 		return lookup_available ? &parameter_stack : nullptr;
 	}
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable&, uint8_t, uint8_t, uint8_t, ModelStackWithTimelineCounter*,
-	                                           int32_t);
+	                                           int32_t, const deluge::lifetime::callback_validation* = nullptr);
 	bool offerReceivedPitchBendToLearnedParams(MIDICable&, uint8_t, uint8_t, uint8_t, ModelStackWithTimelineCounter*,
-	                                           int32_t);
+	                                           int32_t, const deluge::lifetime::callback_validation* = nullptr);
 };
 #include "learned_parameter_input.inc"
 #include "midi_parameter_input.inc"
@@ -143,7 +165,7 @@ TEST_GROUP(MidiParameterInput) {
 		return pitch ? learned.offerReceivedPitchBendToLearnedParams(cable, 0, 0, 64, target, -1)
 		             : learned.offerReceivedCCToLearnedParamsForClip(cable, 0, 7, 42, target, -1);
 	}
-	TimelineCounter original, cloned;
+	Clip original, cloned;
 	ModelStackWithTimelineCounter stack;
 	void setup() override {
 		views = {};

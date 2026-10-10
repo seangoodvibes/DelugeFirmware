@@ -1074,15 +1074,17 @@ bool Kit::dispatch_learned_midi(MIDICable& cable, uint8_t channel, uint8_t data1
 	};
 	if (!context_matches())
 		return false;
+	const deluge::lifetime::callback_validation owner_validation{context_matches};
 	bool message_used = false;
 	// Arrangement recording may legitimately replace the stack's clip here or
 	// during a drum handler. Reacquire its rows after each successful callback.
 	if (pitch_bend) {
-		message_used =
-		    ModControllableAudio::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, model_stack);
+		message_used = ModControllableAudio::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2,
+		                                                                           model_stack, -1, &owner_validation);
 	}
 	else
-		offerReceivedCCToModControllable(cable, channel, data1, data2, model_stack);
+		ModControllableAudio::offerReceivedCCToLearnedParamsForClip(cable, channel, data1, data2, model_stack, -1,
+		                                                            &owner_validation);
 	if (!context_matches())
 		return message_used;
 	int32_t row_count = -1;
@@ -1112,19 +1114,24 @@ bool Kit::dispatch_learned_midi(MIDICable& cable, uint8_t channel, uint8_t data1
 			continue;
 		const auto row_identity = row->undo_identity;
 		auto* sound_drum = static_cast<SoundDrum*>(drum);
+		const auto row_matches = [&] {
+			if (!context_matches() || !clip_lifetime.alive() || !drum_lifetime.alive() || clip->output != this
+			    || clip->noteRows.getNumElements() != row_count || getDrumIndex(drum) < 0)
+				return false;
+			auto* current_row = clip->find_note_row_from_id(index);
+			return current_row == row && current_row && current_row->undo_identity == row_identity
+			       && current_row->drum == drum;
+		};
+		const deluge::lifetime::callback_validation row_validation{row_matches};
 		if (pitch_bend) {
-			message_used =
-			    sound_drum->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, model_stack, index)
-			    || message_used;
+			message_used = sound_drum->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, model_stack,
+			                                                                 index, &row_validation)
+			               || message_used;
 		}
 		else
-			sound_drum->offerReceivedCCToLearnedParamsForClip(cable, channel, data1, data2, model_stack, index);
-		if (!context_matches() || !clip_lifetime.alive() || !drum_lifetime.alive() || clip->output != this
-		    || clip->noteRows.getNumElements() != row_count || getDrumIndex(drum) < 0)
-			return message_used;
-		auto* current_row = clip->find_note_row_from_id(index);
-		if (current_row != row || !current_row || current_row->undo_identity != row_identity
-		    || current_row->drum != drum)
+			sound_drum->offerReceivedCCToLearnedParamsForClip(cable, channel, data1, data2, model_stack, index,
+			                                                  &row_validation);
+		if (!row_matches())
 			return message_used;
 	}
 }

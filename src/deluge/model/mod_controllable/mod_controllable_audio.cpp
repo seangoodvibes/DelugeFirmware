@@ -23,6 +23,7 @@
 #include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_session.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -41,6 +42,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "util/lifetime.h"
 #include <algorithm>
 
 namespace params = deluge::modulation::params;
@@ -1051,17 +1053,43 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 	return modelStackWithThreeMainThings;
 }
 
-bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber,
-                                                                 uint8_t value,
-                                                                 ModelStackWithTimelineCounter* modelStack,
-                                                                 int32_t noteRowIndex) {
-	if (!modelStack)
+bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(
+    MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value, ModelStackWithTimelineCounter* modelStack,
+    int32_t noteRowIndex, const deluge::lifetime::callback_validation* owner_validation) {
+	if ((owner_validation && !owner_validation->valid()) || !modelStack)
 		return false;
 
+	auto* source_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+	auto source_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_clip && !source_lifetime.alive())
+		return false;
+	auto* source_output = source_clip ? source_clip->output : nullptr;
+	auto output_lifetime = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_output && !output_lifetime.alive())
+		return false;
 	bool messageUsed = false;
+	const auto* knob_storage = midi_knobs.data();
+	const auto knob_count = midi_knobs.size();
+	const auto source_owner = deluge::gui::ui_session::current();
+	auto* source_song = modelStack->song;
+	const auto context_matches = [&] {
+		return (!owner_validation || owner_validation->valid()) && (!source_clip || source_lifetime.alive())
+		       && (!source_output || output_lifetime.alive()) && (!source_clip || source_clip->output == source_output)
+		       && deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && modelStack->song == source_song && midi_knobs.data() == knob_storage
+		       && midi_knobs.size() == knob_count;
+	};
+	if (!context_matches())
+		return false;
 
 	// For each MIDI knob...
-	for (MIDIKnob& knob : midi_knobs) {
+	for (size_t knob_index = 0; knob_index < knob_count; ++knob_index) {
+		MIDIKnob& knob = midi_knobs[knob_index];
+		const auto descriptor = knob.paramDescriptor;
+		const auto knob_matches = [&] {
+			return context_matches() && midi_knobs[knob_index].paramDescriptor == descriptor
+			       && midi_knobs[knob_index].midiInput.equalsNoteOrCC(&cable, channel, ccNumber);
+		};
 
 		// If this is the knob...
 		if (knob.midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
@@ -1092,16 +1120,45 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 				Error clone_error = Error::NONE;
 				timelineCounter->possiblyCloneForArrangementRecording(modelStack, &clone_error);
-				if (clone_error != Error::NONE)
+				if (!knob_matches() || clone_error != Error::NONE)
 					return messageUsed;
 			}
 
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
 			// scratch now from that.
+			auto* target_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+			auto target_lifetime = target_clip ? target_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+			if (target_clip && (!target_lifetime.alive() || target_clip->output != source_output))
+				return messageUsed;
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
+			if (!knob_matches() || !modelStackWithThreeMainThings || !modelStackWithThreeMainThings->paramManager)
+				return messageUsed;
 
+			auto* target_row = modelStackWithThreeMainThings->getNoteRowAllowNull();
+			const auto row_id = target_row ? modelStackWithThreeMainThings->noteRowId : 0;
+			auto* target_manager = modelStackWithThreeMainThings->paramManager;
+			const auto row_identity = target_row ? target_row->undo_identity : 0;
+			const auto target_matches = [&] {
+				if (!knob_matches() || (target_clip && !target_lifetime.alive())
+				    || modelStack->getTimelineCounterAllowNull() != target_clip
+				    || modelStackWithThreeMainThings->getNoteRowAllowNull() != target_row
+				    || (target_row && modelStackWithThreeMainThings->noteRowId != row_id)
+				    || modelStackWithThreeMainThings->paramManager != target_manager
+				    || (target_clip && target_clip->output != source_output))
+					return false;
+				if (!target_row)
+					return true;
+				if (!target_clip || target_clip->type != ClipType::INSTRUMENT)
+					return false;
+				auto* current_row = static_cast<InstrumentClip*>(target_clip)->find_note_row_from_id(row_id);
+				return current_row == target_row && current_row && current_row->undo_identity == row_identity;
+			};
+			if (!target_matches())
+				return messageUsed;
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+			if (!target_matches())
+				return messageUsed;
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
@@ -1132,9 +1189,13 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 				int32_t newValue =
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
+				const auto display_param_id = modelStackWithParam->paramId;
+				const auto display_param_kind = modelStackWithParam->paramCollection->getParamKind();
 				// Set the new Parameter Value for the MIDI Learned Parameter
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
+				if (!target_matches())
+					return messageUsed;
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
@@ -1145,9 +1206,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 					if (clip == getCurrentClip()) {
 						// pass the current clip because you want to check that you're editing the param
 						// for the same clip active in automation view
-						int32_t id = modelStackWithParam->paramId;
-						params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						automation_view_for_session().possiblyRefreshAutomationEditorGrid(clip, kind, id);
+						automation_view_for_session().possiblyRefreshAutomationEditorGrid(clip, display_param_kind,
+						                                                                  display_param_id);
+						if (!target_matches())
+							return messageUsed;
 					}
 				}
 			}
@@ -1249,17 +1311,43 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 }
 
 // Returns true if the message was used by something
-bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1,
-                                                                 uint8_t data2,
-                                                                 ModelStackWithTimelineCounter* modelStack,
-                                                                 int32_t noteRowIndex) {
-	if (!modelStack)
+bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(
+    MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack,
+    int32_t noteRowIndex, const deluge::lifetime::callback_validation* owner_validation) {
+	if ((owner_validation && !owner_validation->valid()) || !modelStack)
 		return false;
 
+	auto* source_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+	auto source_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_clip && !source_lifetime.alive())
+		return false;
+	auto* source_output = source_clip ? source_clip->output : nullptr;
+	auto output_lifetime = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_output && !output_lifetime.alive())
+		return false;
 	bool messageUsed = false;
+	const auto* knob_storage = midi_knobs.data();
+	const auto knob_count = midi_knobs.size();
+	const auto source_owner = deluge::gui::ui_session::current();
+	auto* source_song = modelStack->song;
+	const auto context_matches = [&] {
+		return (!owner_validation || owner_validation->valid()) && (!source_clip || source_lifetime.alive())
+		       && (!source_output || output_lifetime.alive()) && (!source_clip || source_clip->output == source_output)
+		       && deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && modelStack->song == source_song && midi_knobs.data() == knob_storage
+		       && midi_knobs.size() == knob_count;
+	};
+	if (!context_matches())
+		return false;
 
 	// For each MIDI knob...
-	for (MIDIKnob& knob : midi_knobs) {
+	for (size_t knob_index = 0; knob_index < knob_count; ++knob_index) {
+		MIDIKnob& knob = midi_knobs[knob_index];
+		const auto descriptor = knob.paramDescriptor;
+		const auto knob_matches = [&] {
+			return context_matches() && midi_knobs[knob_index].paramDescriptor == descriptor
+			       && midi_knobs[knob_index].midiInput.equalsNoteOrCC(&cable, channel, 128);
+		};
 
 		// If this is the knob...
 		if (knob.midiInput.equalsNoteOrCC(&cable, channel,
@@ -1283,16 +1371,45 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 				Error clone_error = Error::NONE;
 				timelineCounter->possiblyCloneForArrangementRecording(modelStack, &clone_error);
-				if (clone_error != Error::NONE)
+				if (!knob_matches() || clone_error != Error::NONE)
 					return messageUsed;
 			}
 
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
 			// scratch now from that.
+			auto* target_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+			auto target_lifetime = target_clip ? target_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+			if (target_clip && (!target_lifetime.alive() || target_clip->output != source_output))
+				return messageUsed;
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
+			if (!knob_matches() || !modelStackWithThreeMainThings || !modelStackWithThreeMainThings->paramManager)
+				return messageUsed;
 
+			auto* target_row = modelStackWithThreeMainThings->getNoteRowAllowNull();
+			const auto row_id = target_row ? modelStackWithThreeMainThings->noteRowId : 0;
+			auto* target_manager = modelStackWithThreeMainThings->paramManager;
+			const auto row_identity = target_row ? target_row->undo_identity : 0;
+			const auto target_matches = [&] {
+				if (!knob_matches() || (target_clip && !target_lifetime.alive())
+				    || modelStack->getTimelineCounterAllowNull() != target_clip
+				    || modelStackWithThreeMainThings->getNoteRowAllowNull() != target_row
+				    || (target_row && modelStackWithThreeMainThings->noteRowId != row_id)
+				    || modelStackWithThreeMainThings->paramManager != target_manager
+				    || (target_clip && target_clip->output != source_output))
+					return false;
+				if (!target_row)
+					return true;
+				if (!target_clip || target_clip->type != ClipType::INSTRUMENT)
+					return false;
+				auto* current_row = static_cast<InstrumentClip*>(target_clip)->find_note_row_from_id(row_id);
+				return current_row == target_row && current_row && current_row->undo_identity == row_identity;
+			};
+			if (!target_matches())
+				return messageUsed;
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+			if (!target_matches())
+				return messageUsed;
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 

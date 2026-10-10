@@ -34,6 +34,10 @@
 #include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
 
+namespace deluge::lifetime {
+class callback_validation;
+}
+
 class Clip;
 class Knob;
 class MIDICable;
@@ -72,11 +76,13 @@ public:
 	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
+	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1,
+	                                           const deluge::lifetime::callback_validation* owner_validation = nullptr);
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
 	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
+	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1,
+	                                           const deluge::lifetime::callback_validation* owner_validation = nullptr);
 	/// Learna knob to a particular parameter.
 	///
 	/// @param cable The source MIDI cable, or null if learning a mod knob
