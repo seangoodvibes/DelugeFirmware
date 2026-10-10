@@ -1211,18 +1211,26 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					split_length = static_cast<int32_t>(repeated_length);
 					split_tail_length = loopLength;
 
-					// And then we'll need a new ClipInstance for this new instance that we're gonna record some
-					// automation on
-					clipInstanceI++;
-
-					Error error = output->clipInstances.insertAtIndex(clipInstanceI);
-					if (!context_matches())
+					const int32_t split_repeat_count = repeatCount;
+					const bool split_reserved = source_output->clipInstances.ensureEnoughSpaceAllocated(1);
+					if (!context_matches() || repeatCount != split_repeat_count || loopLength != split_tail_length
+					    || source_output->clipInstances.getNumElements() != original_count)
 						return fail(Error::BUG);
-					if (error != Error::NONE) {
-						return fail(error);
-					}
+					auto* source_instance = source_output->clipInstances.getElement(original_index);
+					if (!source_instance || source_instance->clip != original_instance.clip
+					    || source_instance->pos != original_instance.pos
+					    || source_instance->length != original_instance.length)
+						return fail(Error::BUG);
+					if (!split_reserved)
+						return fail(Error::INSUFFICIENT_RAM);
 
-					// Insertion can fail or relocate storage. Publish the shorter original only after success.
+					// Reservation may yield; inserting and initializing the split must not allocate.
+					clipInstanceI++;
+					const Error error = source_output->clipInstances.insert_at_index_without_allocation(clipInstanceI);
+					if (error != Error::NONE)
+						return fail(error);
+
+					// Publish the shorter original only after insertion succeeds.
 					output->clipInstances.getElement(clipInstanceI - 1)->length = split_length;
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
 

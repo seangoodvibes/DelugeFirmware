@@ -2185,3 +2185,13 @@ stop and callback edits to position, length or count. Unpublished copies are
 cleaned up when safe; callback edits are preserved. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Cancellation after publication still has the
 previously documented recovery-prefix limitation.
+
+Audio recording splits now reserve instance capacity before publication, validate
+source count/fields and repeat state after reservation, and use the existing
+allocation-free insertion primitive to initialize the split without a callback
+window. Six additional sanitizer tests cover allocation failure, real relocation,
+source edits/removal, output destruction and changed repeat count; prior callback
+tests now inject at reservation. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Allocation-free insertion itself retains the
+existing native ring-array test coverage; ownership changes inside reservation
+remain subject to the broader array/object lifetime contract.

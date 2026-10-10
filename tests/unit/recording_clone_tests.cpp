@@ -33,15 +33,21 @@ struct instances_fixture {
 			values[i] = values[i + amount];
 		count -= amount;
 	}
-	std::function<void()> on_insert;
+	bool reserve_ok = true;
+	std::function<void()> on_reserve;
+	bool ensureEnoughSpaceAllocated(int) {
+		const bool result = reserve_ok;
+		auto callback = on_reserve;
+		if (callback)
+			callback();
+		return result;
+	}
 	int search(int, int) { return search_result; }
 	ClipInstance* getElement(int index) { return &values[index]; }
-	Error insertAtIndex(int) {
+	Error insert_at_index_without_allocation(int) {
 		++inserts;
 		if (insert_error == Error::NONE)
 			++count;
-		if (on_insert)
-			on_insert();
 		return insert_error;
 	}
 };
@@ -401,11 +407,11 @@ TEST(RecordingClone, allocation_callback_invalidation_stops_before_clone) {
 	LONGS_EQUAL(0, original.clone_calls);
 	LONGS_EQUAL(0, original.stop_calls);
 }
-TEST(RecordingClone, audio_insertion_callback_invalidation_prevents_followup) {
+TEST(RecordingClone, audio_reservation_callback_invalidation_prevents_insertion) {
 	original.type = ClipType::AUDIO;
 	original.repeatCount = 2;
 	output.clipInstances.values[0].length = 256;
-	output.clipInstances.on_insert = [&] { currentSong = nullptr; };
+	output.clipInstances.on_reserve = [&] { currentSong = nullptr; };
 	CHECK_FALSE(attempt_clone());
 	CHECK(result == Error::BUG);
 	LONGS_EQUAL(256, output.clipInstances.values[0].length);
@@ -733,10 +739,10 @@ TEST(RecordingClone, invalid_loop_lengths_do_not_reach_clone_implementations) {
 	LONGS_EQUAL(0, song.deletions);
 	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
 }
-TEST(RecordingClone, invalid_loop_length_after_split_insertion_rolls_back_split) {
+TEST(RecordingClone, invalid_loop_length_during_split_reservation_prevents_insertion) {
 	original.type = ClipType::AUDIO;
 	original.repeatCount = 1;
-	output.clipInstances.on_insert = [&] { original.loopLength = 0; };
+	output.clipInstances.on_reserve = [&] { original.loopLength = 0; };
 	CHECK_FALSE(attempt_clone());
 	CHECK(result == Error::BUG);
 	LONGS_EQUAL(0, original.clone_calls);
@@ -799,4 +805,66 @@ TEST(RecordingClone, changed_instance_count_during_clone_prevents_publication) {
 	LONGS_EQUAL(0, output.clipInstances.count);
 	POINTERS_EQUAL(&cloned, song.deleted_clip);
 	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}
+
+TEST(RecordingClone, failed_audio_split_reservation_does_not_insert_or_shorten_source) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.reserve_ok = false;
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	LONGS_EQUAL(64, output.clipInstances.values[0].length);
+	LONGS_EQUAL(0, original.clone_calls);
+}
+TEST(RecordingClone, relocated_audio_split_reservation_reacquires_source_instance) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.on_reserve = [&] { output.clipInstances.relocate(); };
+	CHECK(attempt_clone());
+	CHECK(result == Error::NONE);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	POINTERS_EQUAL(&cloned, output.clipInstances.values[1].clip);
+}
+TEST(RecordingClone, changed_source_instance_during_reservation_is_preserved) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.on_reserve = [&] { output.clipInstances.values[0].length = 99; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	LONGS_EQUAL(99, output.clipInstances.values[0].length);
+	LONGS_EQUAL(0, original.clone_calls);
+}
+TEST(RecordingClone, removed_source_instance_during_reservation_prevents_insertion) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.on_reserve = [&] { output.clipInstances.count = 0; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	LONGS_EQUAL(0, original.clone_calls);
+}
+TEST(RecordingClone, destroyed_output_during_split_reservation_cancels) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	auto* target = new Output;
+	target->active = &original;
+	target->clipInstances.values[0].clip = &original;
+	original.output = cloned.output = target;
+	target->clipInstances.on_reserve = [&] { delete target; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}
+TEST(RecordingClone, changed_repeat_count_during_reservation_prevents_stale_split) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.on_reserve = [&] { original.repeatCount = 2; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	LONGS_EQUAL(64, output.clipInstances.values[0].length);
+	LONGS_EQUAL(2, original.repeatCount);
 }
