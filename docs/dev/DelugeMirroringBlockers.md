@@ -3483,3 +3483,12 @@ regressions cover matching/different notes, tolerance, octave minimization and
 invalid pitch; the matching-note case fails before the type fix. All 38 suites
 and RelWithDebInfo pass. This is an upstream-relevant tuning correction, separate
 from import lifetime/recovery and shared pitch-metadata handling.
+
+Import octave correction no longer rewrites shared Sample MIDI-note metadata. A
+per-entry correction adjusts detached range boundaries and holder tuning; other
+holders and cancelled imports retain the sample's original cached pitch. Seven
+regressions cover both octave directions, ambiguous intervals, invalid pitch,
+holder tuning and failure after correction. The failure regression reproduces a
+48-to-60 shared metadata change against the previous import function. All 38
+suites and RelWithDebInfo pass. Earlier pitch detection/re-detection within folder
+loading still updates shared caches and remains a separate audit/recovery area.

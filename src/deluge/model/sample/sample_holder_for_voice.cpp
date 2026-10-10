@@ -154,11 +154,12 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 }
 
 void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle,
-                                                              bool rangeCoversJustOneNote, int32_t that_one_note) {
+                                                              bool rangeCoversJustOneNote, int32_t that_one_note,
+                                                              int32_t pitch_correction) {
 	((Sample*)audioFile)->workOutMIDINote(doingSingleCycle);
 	float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != -1000) {
-		float semitones = (float)60 - midiNote;
+		float semitones = (float)60 - midiNote - pitch_correction;
 		int32_t semitonesInt = roundf(semitones);
 		int32_t cents = roundf((semitones - semitonesInt) * 100);
 

@@ -72,7 +72,11 @@ struct AudioFileHolder {
 	String filePath;
 	Sample* sample = nullptr;
 	int32_t loopEndPos = 0;
-	void setTransposeAccordingToSamplePitch(bool, bool, bool, int32_t) { ++transpose_calls; }
+	int32_t applied_correction = 0;
+	void setTransposeAccordingToSamplePitch(bool, bool, bool, int32_t, int32_t correction = 0) {
+		++transpose_calls;
+		applied_correction = correction;
+	}
 	~AudioFileHolder() {
 		if (sample)
 			sample->removeReason("fixture");
@@ -625,4 +629,48 @@ TEST(KitSampleImport, multisample_missing_clip_rejects_entry_without_loading_sam
 	CHECK_FALSE(browser.importFolderAsMultisamples());
 	CHECK(sample_table == nullptr);
 	LONGS_EQUAL(0, assignment_calls);
+}
+
+TEST(KitSampleImport, octave_correction_preserves_shared_pitch_when_assignment_fails) {
+	samples[0].midiNote = 48;
+	samples[1].midiNote = 61;
+	samples[2].midiNote = 62;
+	fail_assignment = 2;
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	DOUBLES_EQUAL(48, samples[0].midiNote, 0.001);
+	DOUBLES_EQUAL(61, samples[1].midiNote, 0.001);
+	DOUBLES_EQUAL(62, samples[2].midiNote, 0.001);
+}
+TEST(KitSampleImport, lower_octave_correction_changes_only_imported_ranges) {
+	samples[0].midiNote = 48;
+	samples[1].midiNote = 61;
+	samples[2].midiNote = 62;
+	CHECK_TRUE(browser.importFolderAsMultisamples());
+	auto& ranges = first_drum.sources[0].ranges;
+	LONGS_EQUAL(60, ranges.getElement(0)->topNote);
+	LONGS_EQUAL(61, ranges.getElement(1)->topNote);
+	LONGS_EQUAL(12, ranges.getElement(0)->sampleHolder.applied_correction);
+	LONGS_EQUAL(0, ranges.getElement(1)->sampleHolder.applied_correction);
+	DOUBLES_EQUAL(48, samples[0].midiNote, 0.001);
+}
+TEST(KitSampleImport, upper_octave_correction_changes_only_imported_ranges) {
+	samples[0].midiNote = 60;
+	samples[1].midiNote = 61;
+	samples[2].midiNote = 74;
+	CHECK_TRUE(browser.importFolderAsMultisamples());
+	auto& ranges = first_drum.sources[0].ranges;
+	LONGS_EQUAL(60, ranges.getElement(0)->topNote);
+	LONGS_EQUAL(61, ranges.getElement(1)->topNote);
+	LONGS_EQUAL(-12, ranges.getElement(2)->sampleHolder.applied_correction);
+	DOUBLES_EQUAL(74, samples[2].midiNote, 0.001);
+}
+TEST(KitSampleImport, ambiguous_intervals_cancel_octave_correction) {
+	samples[0].midiNote = 48;
+	samples[1].midiNote = 61;
+	samples[2].midiNote = 65;
+	CHECK_TRUE(browser.importFolderAsMultisamples());
+	auto& ranges = first_drum.sources[0].ranges;
+	for (int32_t index = 0; index < 3; ++index)
+		LONGS_EQUAL(0, ranges.getElement(index)->sampleHolder.applied_correction);
+	DOUBLES_EQUAL(48, samples[0].midiNote, 0.001);
 }

@@ -1787,6 +1787,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 
 	// If we've ended up with some samples a whole octave higher than the others, this may be in error
 	int32_t whichSampleIsAnOctaveUp = 0;
+	bool apply_octave_correction = false;
 
 	if (numSamples) {
 		float prevNote = sortArea[0]->midiNote;
@@ -1814,25 +1815,17 @@ bool SampleBrowser::importFolderAsMultisamples() {
 			prevNote = noteHere;
 		}
 
-		if (whichSampleIsAnOctaveUp) {
-			D_PRINTLN("correcting octaves");
-			// Correct earlier ones?
-			if (whichSampleIsAnOctaveUp * 2 < numSamples) {
-				for (int32_t s = 0; s < whichSampleIsAnOctaveUp; s++) {
-					sortArea[s]->midiNote += 12;
-				}
-			}
-
-			// Or correct later ones?
-			else {
-				for (int32_t s = whichSampleIsAnOctaveUp; s < numSamples; s++) {
-					sortArea[s]->midiNote -= 12;
-				}
-			}
-		}
+		apply_octave_correction = whichSampleIsAnOctaveUp != 0;
 	}
 
 skipOctaveCorrection:
+	const auto pitch_correction = [&](int32_t sample_index) -> int32_t {
+		if (!apply_octave_correction)
+			return 0;
+		if (whichSampleIsAnOctaveUp * 2 < numSamples)
+			return sample_index < whichSampleIsAnOctaveUp ? 12 : 0;
+		return sample_index >= whichSampleIsAnOctaveUp ? -12 : 0;
+	};
 
 	int32_t rangeIndex = 0; // Keep this different to the sample index, just in case we need to skip a sample because it
 	                        // has the same pitch as a previous one. Skipping a range would leave our rangeArray with
@@ -1867,7 +1860,8 @@ skipOctaveCorrection:
 		if (s < numSamples - 1) {
 			Sample* nextSample = sortArea[s + 1];
 
-			float midPoint = (thisSample->midiNote + nextSample->midiNote) * 0.5;
+			float midPoint =
+			    (thisSample->midiNote + pitch_correction(s) + nextSample->midiNote + pitch_correction(s + 1)) * 0.5;
 			topNote = midPoint; // Round down
 			if (topNote <= lastTopNote) {
 				D_PRINTLN("skipping sample cos %d <= %d", topNote, lastTopNote);
@@ -1889,8 +1883,8 @@ skipOctaveCorrection:
 		    || !context_valid())
 			return false;
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
-		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
-		                                                       topNote);
+		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote, topNote,
+		                                                       pitch_correction(s));
 
 		totalMSec += thisSample->getLengthInMSec();
 		if (thisSample->fileLoopEndSamples) {

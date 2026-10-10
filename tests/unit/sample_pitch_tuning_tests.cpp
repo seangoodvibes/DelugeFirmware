@@ -12,7 +12,7 @@ struct SampleHolderForVoice {
 	Sample* audioFile = nullptr;
 	int32_t transpose = 0, cents = 0;
 	void setCents(int32_t value) { cents = value; }
-	void setTransposeAccordingToSamplePitch(bool, bool, bool, int32_t);
+	void setTransposeAccordingToSamplePitch(bool, bool, bool, int32_t, int32_t = 0);
 };
 #include "sample_pitch_tuning.inc"
 } // namespace sample_pitch_tuning_test
@@ -55,4 +55,24 @@ TEST(SamplePitchTuning, invalid_pitch_preserves_existing_holder_tuning) {
 	holder.setTransposeAccordingToSamplePitch(false, false, true, 72);
 	LONGS_EQUAL(5, holder.transpose);
 	LONGS_EQUAL(17, holder.cents);
+}
+
+TEST(SamplePitchTuning, positive_octave_correction_changes_holder_tuning_without_changing_sample_pitch) {
+	sample.midiNote = 48.03f;
+	holder.setTransposeAccordingToSamplePitch(false, false, true, 60, 12);
+	LONGS_EQUAL(0, holder.transpose);
+	LONGS_EQUAL(0, holder.cents);
+	DOUBLES_EQUAL(48.03f, sample.midiNote, 0.0001);
+}
+TEST(SamplePitchTuning, negative_octave_correction_changes_holder_tuning_without_changing_sample_pitch) {
+	sample.midiNote = 74;
+	holder.setTransposeAccordingToSamplePitch(false, false, false, 0, -12);
+	LONGS_EQUAL(-2, holder.transpose);
+	DOUBLES_EQUAL(74, sample.midiNote, 0.0001);
+}
+TEST(SamplePitchTuning, octave_correction_does_not_turn_invalid_pitch_into_a_valid_note) {
+	sample.midiNote = -1000;
+	holder.transpose = 5;
+	holder.setTransposeAccordingToSamplePitch(false, false, false, 0, 12);
+	LONGS_EQUAL(5, holder.transpose);
 }
