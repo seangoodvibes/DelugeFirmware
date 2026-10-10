@@ -31,3 +31,7 @@ Injected seven-segment callbacks exercise launch-style removal during refresh or
 encoder feedback, menu retargeting, and song/owner changes. Pending edits cancel
 before subsequent model access; these tests do not prove allocator reachability
 or protection against same-address reuse.
+
+Audio encoder callback cases cover departed outputs on both panels, retargeting
+to another live output, and changed song/owner context. Rejected attempts preserve
+the channel, recording source and global default without publishing peer refresh.

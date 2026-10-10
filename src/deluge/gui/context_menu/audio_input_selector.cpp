@@ -185,9 +185,17 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		return;
 	}
 
+	auto* const source_song = currentSong;
+	auto* const source_output = audioOutput;
+	const auto source_owner = ui_session::current();
 	const auto previous_channel = audioOutput->inputChannel;
 	auto* const previous_source = audioOutput->getOutputRecordingFrom();
 	ContextMenu::selectEncoderAction(offset);
+	// Seven-segment feedback can service callbacks before the routing write.
+	if (ui_session::current() != source_owner || currentSong != source_song || audioOutput != source_output
+	    || !has_current_output()) {
+		return;
+	}
 
 	auto valueOption = static_cast<Value>(currentOption);
 	if (display->haveOLED() && valueOption == Value::TRACK) {

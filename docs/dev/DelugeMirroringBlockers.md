@@ -842,3 +842,15 @@ side effects are not provided by these guards.
   The display callback is injected; this is not an object pin or ABA protection.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/L1/R4 remain open;
   independent mode remains disabled.
+
+### G1 / L1 / R4 progress — audio-input encoder callback containment (2026-10-09)
+
+- Audio-input encoder edits revalidate the initiating song, output, panel owner
+  and live output membership after seven-segment feedback. Invalidated attempts
+  stop before changing channel, recording source, global default or peer refresh.
+- Three production-selector tests failed before the fix and now cover removal on
+  both panels, retargeting to another live output, and song/owner replacement.
+  Monitoring and callback delivery are fixtures; no object pin or generation
+  protection is implied.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/L1/R4 remain open
+  and independent mode remains disabled.

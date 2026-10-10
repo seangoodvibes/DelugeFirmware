@@ -232,3 +232,48 @@ TEST(AudioInputMenu, greyout_without_root_does_not_write_masks) {
 	LONGS_EQUAL(123, cols);
 	LONGS_EQUAL(456, rows);
 }
+TEST(AudioInputMenu, feedback_removing_output_cancels_channel_and_source_edit) {
+	display_instance.oled = false;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& menu = owner == session::Id::Local ? local_menu : remote_menu;
+		second.next = &output;
+		output.inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		output.source = &first;
+		defaultAudioOutputInputChannel = AudioInputChannel::RIGHT;
+		on_text = [&] { second.next = &other_output; };
+		menu.selectEncoderAction(-1);
+		CHECK(output.inputChannel == AudioInputChannel::SPECIFIC_OUTPUT);
+		POINTERS_EQUAL(&first, output.source);
+		LONGS_EQUAL(0, output.assignments);
+		CHECK(defaultAudioOutputInputChannel == AudioInputChannel::RIGHT);
+		CHECK_FALSE(session::navigation.for_owner(session::Id::Local).shared_model_refresh.consume(0));
+		CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
+	}
+}
+TEST(AudioInputMenu, feedback_retargeting_menu_does_not_edit_either_output) {
+	display_instance.oled = false;
+	other_output.inputChannel = AudioInputChannel::BALANCED;
+	on_text = [&] { local_menu.audioOutput = &other_output; };
+	local_menu.selectEncoderAction(1);
+	CHECK(output.inputChannel == AudioInputChannel::NONE);
+	CHECK(other_output.inputChannel == AudioInputChannel::BALANCED);
+	CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
+}
+TEST(AudioInputMenu, feedback_changing_song_or_owner_cancels_edit) {
+	display_instance.oled = false;
+	Song replacement;
+	replacement.firstOutput = &output;
+	for (bool replace_song : {false, true}) {
+		currentSong = &song;
+		on_text = [&] {
+			if (replace_song)
+				currentSong = &replacement;
+			else
+				session::detail::active = session::Id::Remote;
+		};
+		local_menu.selectEncoderAction(1);
+		session::detail::active = session::Id::Local;
+		CHECK(output.inputChannel == AudioInputChannel::NONE);
+	}
+}
