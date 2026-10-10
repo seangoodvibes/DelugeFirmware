@@ -3951,21 +3951,42 @@ void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* mode
 }
 
 void InstrumentClip::sendMIDIPGM() {
-	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
-
-	int32_t outputFilter = midiInstrument->getChannel();
-	int32_t masterChannel = midiInstrument->getOutputMasterChannel();
-
-	// Send MIDI PGM if there is one...
-	if (midiBank != 128) {
-		midiEngine.sendBank(midiInstrument, masterChannel, midiBank, outputFilter);
+	auto clip_lifetime = watch_lifetime();
+	if (!clip_lifetime.alive() || !output)
+		return;
+	auto* routed_output = output;
+	auto output_lifetime = routed_output->watch_lifetime();
+	if (!output_lifetime.alive() || routed_output->type != OutputType::MIDI_OUT)
+		return;
+	auto* midi_instrument = static_cast<MIDIInstrument*>(routed_output);
+	const auto output_filter = midi_instrument->getChannel();
+	const auto master_channel = midi_instrument->getOutputMasterChannel();
+	auto* routed_clip = midi_instrument->getActiveClip();
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto bank = midiBank;
+	const auto sub_bank = midiSub;
+	const auto program = midiPGM;
+	const auto context_matches = [&] {
+		return clip_lifetime.alive() && output_lifetime.alive() && output == routed_output
+		       && routed_output->type == OutputType::MIDI_OUT && midi_instrument->getActiveClip() == routed_clip
+		       && midi_instrument->getChannel() == output_filter
+		       && midi_instrument->getOutputMasterChannel() == master_channel && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && midiBank == bank && midiSub == sub_bank
+		       && midiPGM == program;
+	};
+	if (bank != 128) {
+		midiEngine.sendBank(midi_instrument, master_channel, bank, output_filter);
+		if (!context_matches())
+			return;
 	}
-	if (midiSub != 128) {
-		midiEngine.sendSubBank(midiInstrument, masterChannel, midiSub, outputFilter);
+	if (sub_bank != 128) {
+		midiEngine.sendSubBank(midi_instrument, master_channel, sub_bank, output_filter);
+		if (!context_matches())
+			return;
 	}
-	if (midiPGM != 128) {
-		midiEngine.sendPGMChange(midiInstrument, masterChannel, midiPGM, outputFilter);
-	}
+	if (program != 128)
+		midiEngine.sendPGMChange(midi_instrument, master_channel, program, output_filter);
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,

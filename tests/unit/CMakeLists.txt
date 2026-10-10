@@ -981,3 +981,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_mpe_output_lifetime.i
         MIDIInstrument::outputAllMPEValuesOnMemberChannel MIDIInstrument::noteOnPostArp MIDIInstrument::noteOffPostArp MIDIInstrument::allNotesOff MIDIInstrument::polyphonicExpressionEventPostArpeggiator
     DEPENDS ${midi_mpe_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE midi_mpe_output_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_mpe_output_lifetime.inc)
+
+set(midi_program_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/instrument_clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_program_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_program_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_program_lifetime.inc
+        InstrumentClip::sendMIDIPGM
+    DEPENDS ${midi_program_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE midi_program_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_program_lifetime.inc)

@@ -2708,3 +2708,11 @@ unchanged-value suppression, all three output dimensions, final-callback deletio
 and mono/internal behavior. All 36 suites and `./dbt build relwithdebinfo` pass.
 Borrowed note acquisition and direct same-address replacement remain unproven;
 this entry validation does not make upstream raw pointers safe to acquire.
+
+Clip MIDI bank/sub-bank/program output now watches clip/output lifetime, validates
+MIDI output type and rechecks routing, song/panel and selected program fields
+between sends. Six production-body sanitizer regressions cover ordering, all
+unset-field combinations, deletion at every boundary, routing/program changes,
+retired/missing/wrong-type outputs and sending from an inactive clip. All 36 suites
+and `./dbt build relwithdebinfo` pass. The sequence may emit a prefix on cancellation;
+clip activation callers and transport delivery remain separate boundaries.
