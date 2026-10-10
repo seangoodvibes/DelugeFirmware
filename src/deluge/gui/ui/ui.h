@@ -28,6 +28,7 @@ class RootUI;
 class TimelineView;
 
 #include "gui/ui/ui_navigation_state.h"
+#include <optional>
 
 // Preserve the existing lvalue API while moving mode ownership into the UI session.
 #define currentUIMode (::deluge::gui::ui_session::navigation.active().mode)
@@ -202,7 +203,7 @@ void swapOutRootUILowLevel(UI* newUI);
 void nullifyUIs();
 bool currentUIIsClipMinderScreen();
 bool rootUIIsClipMinderScreen();
-std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows();
+std::optional<std::pair<uint32_t, uint32_t>> getUIGreyoutColsAndRows();
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);

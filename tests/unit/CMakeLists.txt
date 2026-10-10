@@ -462,7 +462,7 @@ target_sources(UnitTests PRIVATE rename_dialog_tests.cpp ${CMAKE_CURRENT_BINARY_
 set(ui_open_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/ui.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${ui_open_source} ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc "bool openUI" "void closeUI" "bool changeUIAtLevel" "bool changeUISideways" "void changeRootUI" "void setRootUILowLevel" "void swapOutRootUILowLevel" "void uiNeedsRendering" "void clearPendingUIRendering" "void doAnyPendingGridRendering" "void doAnyPendingOLEDRendering" "void doAnyPendingUIRendering"
+        ${ui_open_source} ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc "bool openUI" "void closeUI" "bool changeUIAtLevel" "bool changeUISideways" "void changeRootUI" "void setRootUILowLevel" "void swapOutRootUILowLevel" "void uiNeedsRendering" "void clearPendingUIRendering" "void doAnyPendingGridRendering" "void doAnyPendingOLEDRendering" "void doAnyPendingUIRendering" getUIGreyoutColsAndRows
     DEPENDS ${ui_open_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ui_open_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc)
 
@@ -489,3 +489,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_cc_names.inc
         MIDIInstrument::setNameForCC MIDIInstrument::getNameFromCC
     DEPENDS ${midi_cc_name_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_cc_name_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_cc_names.inc)
+
+set(greyout_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/led/pad_leds.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/greyout_reassess.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${greyout_source} ${CMAKE_CURRENT_BINARY_DIR}/greyout_reassess.inc "void reassessGreyout"
+    DEPENDS ${greyout_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/greyout_reassess.inc)

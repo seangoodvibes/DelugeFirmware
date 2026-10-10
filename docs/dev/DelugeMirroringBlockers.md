@@ -1,6 +1,6 @@
 # Independent Deluge mode: remaining blockers
 
-Last reviewed: 2026-10-09. This is the current completion checklist; the
+Last reviewed: 2026-10-10. This is the current completion checklist; the
 [incremental implementation notes](DelugeMirroring.md) remain the change history.
 
 Independent mode remains disabled. `supported_session_modes = 1` in
@@ -1289,3 +1289,17 @@ side effects are not provided by these guards.
   independent mode stays disabled. Greyout visibility traversal and its caller's
   post-query updates still need equivalent callback containment; stack equality
   checks throughout this work do not detect transient ABA changes or pin objects.
+
+### G1 progress — cancellable greyout visibility queries (2026-10-10)
+
+- Greyout queries now return no result when owner/hierarchy changes during a UI
+  callback or the stack is invalid. The caller skips mask/fade/timer updates for
+  cancelled queries; valid empty stacks still request fade-out.
+- Five extracted-production tests cover owner/stack invalidation, normal fades,
+  immediate updates, unchanged masks and empty/invalid stacks. Both the query and
+  pad reassessment bodies are exercised; timers/output are fixtures. Two
+  regressions failed before the fix. All 35 native suites and
+  `./dbt build relwithdebinfo` pass.
+- This closes the greyout query/caller subcase noted above. Hardware acceptance,
+  callback-internal lifetime and transient stack changes remain outside this
+  coverage. G1/L1 remain open and independent mode remains disabled.

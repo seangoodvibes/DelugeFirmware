@@ -74,13 +74,26 @@ void UI::close() {
 /**
  * @brief Get the greyout rows and columns for the current UI
  *
- * @return std::pair<uint32_t, uint32_t> a pair with [rows, columns]
+ * @return Column and row masks, or no result if callbacks invalidate the query.
  */
-std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows() {
+std::optional<std::pair<uint32_t, uint32_t>> getUIGreyoutColsAndRows() {
+	if (navigation().depth < 0 || navigation().depth > navigation().capacity)
+		return std::nullopt;
+	for (int32_t level = 0; level < navigation().depth; ++level) {
+		if (!navigation().hierarchy[level])
+			return std::nullopt;
+	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto expected_depth = navigation().depth;
+	const auto expected_hierarchy = navigation().hierarchy;
 	uint32_t cols = 0;
 	uint32_t rows = 0;
 	for (int32_t u = navigation().depth - 1; u >= 0; u--) {
 		bool useThis = navigation().hierarchy[u]->getGreyoutColsAndRows(&cols, &rows);
+		if (deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
+		    || navigation().hierarchy != expected_hierarchy)
+			return std::nullopt;
 		if (useThis) {
 			return std::make_pair(cols, rows);
 		}

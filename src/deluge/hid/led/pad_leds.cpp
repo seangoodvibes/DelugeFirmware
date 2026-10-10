@@ -735,7 +735,10 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 }
 
 void reassessGreyout(bool doInstantly) {
-	auto [newCols, newRows] = getUIGreyoutColsAndRows();
+	const auto masks = getUIGreyoutColsAndRows();
+	if (!masks)
+		return;
+	auto [newCols, newRows] = *masks;
 
 	// If same as before, get out
 	if (newCols == greyout_cols_for_session() && newRows == greyout_rows_for_session()) {

@@ -26,6 +26,15 @@ struct UI {
 		if (on_refresh)
 			on_refresh();
 	}
+	bool greyout_used = false;
+	std::function<void()> on_greyout_query;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+		*cols = 3;
+		*rows = 4;
+		if (on_greyout_query)
+			on_greyout_query();
+		return greyout_used;
+	}
 	UI* redirected = this;
 	bool success = true, main_needed = false, side_needed = false;
 	std::function<void()> on_main, on_side;
@@ -162,6 +171,41 @@ static UI& arranger_view_for_session() {
 }
 void uiNeedsRendering(UI*, uint32_t = 0xffffffff, uint32_t = 0xffffffff);
 #include "ui_open.inc"
+namespace greyout_effects {
+static session::State<uint32_t> cols, rows, start_time;
+static session::State<int> direction, main_requests, side_requests, timer_sets, amounts;
+static uint32_t& greyout_cols_for_session() {
+	return cols.active();
+}
+static uint32_t& greyout_rows_for_session() {
+	return rows.active();
+}
+static uint32_t& greyout_change_start_time_for_session() {
+	return start_time.active();
+}
+static int& greyout_change_direction_for_session() {
+	return direction.active();
+}
+static void setGreyoutAmount(int value) {
+	amounts.active() = value;
+}
+static void sendOutMainPadColoursSoon() {
+	++main_requests.active();
+}
+static void sendOutSidebarColoursSoon() {
+	++side_requests.active();
+}
+namespace AudioEngine {
+constexpr uint32_t audioSampleTimer = 99;
+}
+enum class TimerName { MATRIX_DRIVER };
+constexpr int UI_MS_PER_REFRESH = 15;
+struct timer_fixture {
+	void setTimer(TimerName, int) { ++timer_sets.active(); }
+};
+static timer_fixture uiTimerManager;
+#include "greyout_reassess.inc"
+} // namespace greyout_effects
 } // namespace ui_open_test
 using namespace ui_open_test;
 TEST_GROUP(UIOpen) {
@@ -169,6 +213,13 @@ TEST_GROUP(UIOpen) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		navigation_states = {};
+		greyout_effects::cols = {};
+		greyout_effects::rows = {};
+		greyout_effects::direction = {};
+		greyout_effects::main_requests = {};
+		greyout_effects::side_requests = {};
+		greyout_effects::timer_sets = {};
+		greyout_effects::amounts = {};
 		sdRoutineLock = currentlyAccessingCard = client_mode = false;
 		uart_space = 1000;
 		uart_queries = 0;
@@ -899,4 +950,55 @@ TEST(UIOpen, render_pass_skips_oled_after_grid_changes_stack) {
 	doAnyPendingUIRendering();
 	LONGS_EQUAL(0, replacement.oled_renders);
 	CHECK_FALSE(navigation().rendering);
+}
+
+TEST(UIOpen, greyout_query_cannot_update_peer_after_owner_change) {
+	root.greyout_used = true;
+	root.on_greyout_query = [] { session::detail::active = session::Id::Remote; };
+	greyout_effects::reassessGreyout(false);
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(0, greyout_effects::cols.for_owner(session::Id::Remote));
+	LONGS_EQUAL(0, greyout_effects::timer_sets.for_owner(session::Id::Remote));
+	LONGS_EQUAL(0, greyout_effects::cols.active());
+}
+TEST(UIOpen, greyout_query_cannot_apply_results_from_replaced_stack) {
+	root.greyout_used = true;
+	root.on_greyout_query = [&] { navigation().hierarchy[0] = &replacement; };
+	greyout_effects::reassessGreyout(false);
+	LONGS_EQUAL(0, greyout_effects::cols.active());
+	LONGS_EQUAL(0, greyout_effects::timer_sets.active());
+}
+TEST(UIOpen, greyout_query_normal_fade_and_instant_updates) {
+	root.greyout_used = true;
+	greyout_effects::reassessGreyout(false);
+	LONGS_EQUAL(3, greyout_effects::cols.active());
+	LONGS_EQUAL(4, greyout_effects::rows.active());
+	LONGS_EQUAL(1, greyout_effects::timer_sets.active());
+	LONGS_EQUAL(1, greyout_effects::direction.active());
+	greyout_effects::cols.active() = 1;
+	greyout_effects::reassessGreyout(true);
+	LONGS_EQUAL(1, greyout_effects::main_requests.active());
+	LONGS_EQUAL(1, greyout_effects::side_requests.active());
+}
+
+TEST(UIOpen, greyout_query_defers_invalid_stacks) {
+	for (int depth : {-1, navigation_fixture::capacity + 1, 2}) {
+		navigation().depth = depth;
+		greyout_effects::reassessGreyout(false);
+		LONGS_EQUAL(0, greyout_effects::timer_sets.active());
+	}
+}
+TEST(UIOpen, greyout_query_uses_highest_covering_ui_and_handles_empty_stack) {
+	navigation().depth = 2;
+	navigation().hierarchy[1] = &menu;
+	root.greyout_used = true;
+	greyout_effects::reassessGreyout(false);
+	LONGS_EQUAL(3, greyout_effects::cols.active());
+	LONGS_EQUAL(1, greyout_effects::timer_sets.active());
+	greyout_effects::reassessGreyout(false);
+	LONGS_EQUAL(1, greyout_effects::timer_sets.active());
+	navigation().depth = 0;
+	greyout_effects::reassessGreyout(false);
+	LONGS_EQUAL(-1, greyout_effects::direction.active());
+	LONGS_EQUAL(2, greyout_effects::timer_sets.active());
 }
