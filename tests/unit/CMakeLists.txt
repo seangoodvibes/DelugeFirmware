@@ -428,3 +428,17 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/new_clip_type_input.inc
         NewClipType::acceptCurrentOption NewClipType::padAction NewClipType::buttonAction
     DEPENDS ${new_clip_type_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE new_clip_type_input_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/new_clip_type_input.inc)
+
+set(rename_clip_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/rename/rename_clip_ui.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_methods.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${rename_clip_source} ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_methods.inc
+        RenameClipUI::canRename RenameClipUI::getCurrentName RenameClipUI::trySetName
+    DEPENDS ${rename_clip_source} ../support/extract_functions.py VERBATIM)
+set(rename_song_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/song/song.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_membership.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${rename_song_source} ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_membership.inc Song::contains_clip_for_undo
+    DEPENDS ${rename_song_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE rename_clip_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_methods.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_membership.inc)

@@ -33,11 +33,25 @@ RenameClipUI& rename_clip_ui_for_session() {
 	return remote_rename_clip_ui.get(local_rename_clip_ui, "Clip Name");
 }
 
+bool RenameClipUI::canRename() const {
+	if (!currentSong || !currentSong->contains_clip_for_undo(clip))
+		return false;
+	for (auto* output = currentSong->firstOutput; output; output = output->next) {
+		if (output == clip->output)
+			return true;
+	}
+	return false;
+}
+
 std::string_view RenameClipUI::getCurrentName() const {
+	if (!canRename())
+		return {};
 	return clip->name.get();
 }
 
 bool RenameClipUI::trySetName(std::string_view name) {
+	if (!canRename())
+		return false;
 	// Don't allow duplicate names on clips of a single output.
 	Clip* other = clip->output->getClipFromName(name);
 	if (other != nullptr && other != clip) {

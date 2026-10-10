@@ -965,3 +965,16 @@ side effects are not provided by these guards.
   protection is implied, and these guards do not restore a changed owner.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 remain open and
   independent mode remains disabled.
+
+### G1 / L1 progress — retained clip rename targets (2026-10-09)
+
+- Clip rename validates current-song clip and output membership before allowing
+  entry, reading the name or checking duplicates/writing a name. Its retained clip
+  starts null. Departed targets are unavailable; arrangement-only clips remain valid.
+- Four extracted-production cases cover departure on both owners, departed output
+  lookup rejection, valid/duplicate names, missing context and arrangement-only
+  reattachment. Two cases failed before the fix. Clip membership uses the real
+  song method; names, duplicate lookup and display are fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. These entry checks
+  do not establish allocator-callback lifetime or allocation-failure recovery.
+  G1/L1 remain open and independent mode remains disabled.

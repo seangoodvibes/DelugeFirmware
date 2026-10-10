@@ -24,9 +24,10 @@
 class RenameClipUI final : public RenameUI {
 public:
 	RenameClipUI(const char* title_) : RenameUI(title_) {};
-	Clip* clip;
+	Clip* clip = nullptr;
 
 protected:
+	bool canRename() const override;
 	bool trySetName(std::string_view) override;
 	std::string_view getCurrentName() const override;
 };
