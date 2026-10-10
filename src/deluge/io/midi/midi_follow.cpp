@@ -481,7 +481,8 @@ const size_t MidiFollow::getTrackCount() const {
 	size_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		if (currentTrack->getActiveClip() != nullptr) {
+		auto* const active_clip = currentTrack->getActiveClip();
+		if (active_clip && active_clip->output == currentTrack) {
 			++count;
 		}
 		currentTrack = currentTrack->next;
@@ -497,7 +498,8 @@ Output* MidiFollow::getTrackFromIndex(uint32_t track_index, uint32_t maxTrack) {
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		if (currentTrack->getActiveClip() != nullptr) {
+		auto* const active_clip = currentTrack->getActiveClip();
+		if (active_clip && active_clip->output == currentTrack) {
 			if (((maxTrack - 1) - count) == track_index) {
 				return currentTrack;
 			}

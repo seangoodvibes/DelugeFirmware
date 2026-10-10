@@ -222,6 +222,7 @@ TEST(MidiFollowContext, track_lookup_reverses_active_outputs_and_skips_inactive_
 	middle.next = &last;
 	output.active_clip = &instrument;
 	last.active_clip = &audio;
+	audio.output = &last;
 	LONGS_EQUAL(2, follow.getTrackCount());
 	POINTERS_EQUAL(&last, follow.getTrackFromIndex(0, 2));
 	POINTERS_EQUAL(&output, follow.getTrackFromIndex(1, 2));
@@ -318,4 +319,23 @@ TEST(MidiFollowContext, activated_output_cannot_route_to_detached_or_moved_clip)
 	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
 	moved_clip.output = &output;
 	POINTERS_EQUAL(&moved_clip, follow.getActiveClip(&stack));
+}
+
+TEST(MidiFollowContext, track_enumeration_skips_detached_and_reassigned_active_clips) {
+	Output valid_output, other_output;
+	Clip valid_clip;
+	valid_clip.output = &valid_output;
+	valid_output.active_clip = &valid_clip;
+	song.firstOutput = &output;
+	output.next = &valid_output;
+	output.active_clip = &instrument;
+	for (auto* association : {static_cast<Output*>(nullptr), &other_output}) {
+		instrument.output = association;
+		LONGS_EQUAL(1, follow.getTrackCount());
+		POINTERS_EQUAL(&valid_output, follow.getTrackFromIndex(0, 1));
+		POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(1, 1));
+	}
+	instrument.output = &output;
+	LONGS_EQUAL(2, follow.getTrackCount());
+	POINTERS_EQUAL(&output, follow.getTrackFromIndex(1, 2));
 }

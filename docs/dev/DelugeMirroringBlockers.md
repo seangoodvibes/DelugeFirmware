@@ -1713,3 +1713,13 @@ clips, reassigned outputs and successful restoration of a valid association.
 All 35 native suites and `./dbt build relwithdebinfo` pass. This validates current
 associations; it does not retain clips/outputs or protect against freed pointers
 and reused addresses. Independent mode remains disabled.
+
+### G1 / R4 progress — track enumeration output association (2026-10-10)
+
+Track counting and indexed lookup now use the same eligibility rule: the active
+clip must still belong to that output. A new regression reproduces the prior
+incorrect count and checks skipping output-less/reassigned clips, correct lookup,
+and recovery after restoring the association. The normal reverse-order fixture
+now gives each clip its actual output. All 35 native suites and
+`./dbt build relwithdebinfo` pass. This assumes referenced clips remain alive;
+lifetime protection and physical MIDI acceptance remain open.
