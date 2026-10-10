@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
 #include <array>
 #include <cstdint>
@@ -7,7 +8,6 @@ namespace session = ::deluge::gui::ui_session;
 namespace params {
 enum class Kind { NORMAL };
 }
-constexpr int MIDI_CC_NONE = -1;
 struct ParamCollection {
 	params::Kind getParamKind() { return params::Kind::NORMAL; }
 };

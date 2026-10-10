@@ -1577,3 +1577,15 @@ All 35 native suites pass. This closes the prior pixel-renderer stub gap for the
 cases, not G1: RGB storage, audio input and mode/context selection are fixtures,
 and device acceptance remains outstanding. No production code changed; the
 preceding successful RelWithDebInfo build remains applicable.
+
+### G1 / R4 progress — MIDI feedback mapping bounds (2026-10-10)
+
+Feedback CC lookup now rejects negative and out-of-range parameter IDs before
+indexing global or sound mapping tables, including checking unpatched IDs before
+adding their offset. Three extracted-production tests use the firmware parameter
+constants and cover invalid IDs, table boundaries, context mismatches, valid
+mappings and unlearned entries. The view-feedback fixture now also imports the
+actual `MIDI_CC_NONE` constant (255), replacing its incorrect local -1 sentinel.
+All 35 native suites and `./dbt build relwithdebinfo` pass. Context resolution is
+still a fixture here; this does not close lifetime protection or two-device
+acceptance. Independent mode remains disabled.

@@ -544,18 +544,20 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 /// for the current midi follow controllable context
 /// if no cc is found, then MIDI_CC_NONE (255) is returned
 int32_t MidiFollow::getCCFromParam(params::Kind paramKind, int32_t paramID) {
+	if (paramID < 0)
+		return MIDI_CC_NONE;
 	// audio clip or kit with affect entire enabled
 	if (isGlobalEffectableContext()) {
-		if (paramKind == params::Kind::UNPATCHED_GLOBAL) {
+		if (paramKind == params::Kind::UNPATCHED_GLOBAL && paramID < params::UNPATCHED_GLOBAL_MAX_NUM) {
 			return globalParamToCC[paramID];
 		}
 	}
 	// synth clip or kit row
 	else {
-		if (paramKind == params::Kind::PATCHED) {
+		if (paramKind == params::Kind::PATCHED && paramID < params::UNPATCHED_START) {
 			return soundParamToCC[paramID];
 		}
-		else if (paramKind == params::Kind::UNPATCHED_SOUND) {
+		else if (paramKind == params::Kind::UNPATCHED_SOUND && paramID < params::UNPATCHED_SOUND_MAX_NUM) {
 			return soundParamToCC[params::UNPATCHED_START + paramID];
 		}
 	}
