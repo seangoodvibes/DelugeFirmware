@@ -3501,3 +3501,12 @@ rename case reproduces incorrect prefix calculation before the fix. All 38 suite
 and RelWithDebInfo pass. This protects the retained basename only; shared directory
 cursor/file-info state, global per-folder sample marks and nested loading ownership
 remain L1/R4/R5 audit/recovery work.
+
+Folder loading now owns a local directory cursor and local file-info buffer, so
+nested browser work cannot redirect enumeration or replace filenames during path
+allocation. Kit import failure no longer closes the unrelated shared browser
+cursor after loading has finished. Three regressions cover cursor replacement,
+filename-buffer replacement and unrelated-directory cleanup; both loader cases
+fail against the previous function. All 38 suites and RelWithDebInfo pass. Shared
+Sample per-folder ownership marks and directory-read failure handling remain
+separate recovery work; this does not establish nested import safety.

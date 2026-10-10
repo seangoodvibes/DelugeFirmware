@@ -23,7 +23,7 @@ int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
 constexpr int CLUSTER_ENQUEUE = 0;
 std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit;
-int audio_calls = 0;
+int audio_calls = 0, directory_closes = 0;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
@@ -242,7 +242,7 @@ struct Display {
 } display_instance;
 auto* display = &display_instance;
 struct {
-	void close() {}
+	void close() { ++directory_closes; }
 } staticDIR;
 struct GeneralMemoryAllocator {
 	static GeneralMemoryAllocator& get() {
@@ -336,7 +336,7 @@ TEST_GROUP(KitSampleImport) {
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
 		on_assignment = on_reserve = on_kill = on_audio = on_exit = {};
-		audio_calls = 0;
+		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
 		for (int32_t index = 0; index < 3; ++index)
@@ -352,7 +352,7 @@ TEST_GROUP(KitSampleImport) {
 	}
 	void teardown() override {
 		on_assignment = on_reserve = on_kill = on_audio = on_exit = {};
-		audio_calls = 0;
+		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
 			drum->~SoundDrum();
@@ -673,4 +673,10 @@ TEST(KitSampleImport, ambiguous_intervals_cancel_octave_correction) {
 	for (int32_t index = 0; index < 3; ++index)
 		LONGS_EQUAL(0, ranges.getElement(index)->sampleHolder.applied_correction);
 	DOUBLES_EQUAL(48, samples[0].midiNote, 0.001);
+}
+
+TEST(KitSampleImport, failed_kit_import_does_not_close_an_unrelated_directory) {
+	fail_parameter = 1;
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, directory_closes);
 }

@@ -1258,7 +1258,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 		previously_viewed_filename.set(&currentFileItem->filename);
 	}
 
-	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
+	auto folder_directory = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
 		display->displayError(Error::SD_CARD);
 		return false;
 	});
@@ -1310,22 +1310,23 @@ removeReasonsFromSamplesAndGetOut:
 	while (true) {
 		audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
+		FatFS::FileInfo file_info;
 
 		/* Read a directory item */
-		std::tie(staticFNO, thisFilePointer) = D_TRY_CATCH(staticDIR.read_and_get_filepointer(), error, {
+		std::tie(file_info, thisFilePointer) = D_TRY_CATCH(folder_directory.read_and_get_filepointer(), error, {
 			break; // break on error
 		});
 
-		if (staticFNO.fname[0] == 0) {
+		if (file_info.fname[0] == 0) {
 			break; // Break on end of dir
 		}
-		if (staticFNO.fname[0] == '.') {
+		if (file_info.fname[0] == '.') {
 			continue; // Ignore dot entry
 		}
-		if (staticFNO.fattrib & AM_DIR) {
+		if (file_info.fattrib & AM_DIR) {
 			continue; // Ignore folders
 		}
-		if (!isAudioFilename(staticFNO.fname)) {
+		if (!isAudioFilename(file_info.fname)) {
 			continue; // Ignore anything that's not an audio file
 		}
 
@@ -1337,21 +1338,21 @@ removeReasonsFromSamplesAndGetOut:
 		if (numSamples > 0) {
 
 			for (int32_t i = 0; i < numCharsInPrefixForFolderLoad; i++) {
-				if (!staticFNO.fname[i] || staticFNO.fname[i] != previously_viewed_filename.get()[i]) {
+				if (!file_info.fname[i] || file_info.fname[i] != previously_viewed_filename.get()[i]) {
 					numCharsInPrefixForFolderLoad = i;
 					break;
 				}
 			}
 		}
 
-		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
+		filePath.concatenateAtPos(file_info.fname, dirWithSlashLength);
 
 		// We really want to be able to pass a file pointer in here
 		auto* newSample = static_cast<Sample*>(
 		    audioFileManager.getAudioFileFromFilename(filePath, true, &error, &thisFilePointer, AudioFileType::SAMPLE));
 		if (error != Error::NONE || newSample == nullptr) {
 			// Clean up any samples we loaded in this folder load attempt
-			staticDIR.close();
+			folder_directory.close();
 			goto removeReasonsFromSamplesAndGetOut;
 		}
 
@@ -1372,7 +1373,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		numSamples++;
 	}
-	staticDIR.close();
+	folder_directory.close();
 
 	if (getPrefixAndDirLength) {
 		// If just one file, there's no prefix.
@@ -2016,7 +2017,6 @@ doReturnFalse:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 getOut:
-					staticDIR.close();
 					display->displayError(Error::INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}

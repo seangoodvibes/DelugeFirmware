@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "util/try.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -12,12 +13,12 @@
 #define ALPHA_OR_BETA_VERSION 1
 #define D_PRINT(...)
 #define D_PRINTLN(...)
-#define D_TRY_CATCH(expression, error, failure) (expression)
 namespace folder_sample_loading_test {
 enum class Error { NONE, SD_CARD, INSUFFICIENT_RAM };
 enum class AudioFileType { SAMPLE };
 constexpr int MIDI_NOTE_ERROR = -1000, AM_DIR = 16;
-std::function<void()> on_audio;
+std::function<void()> on_audio, on_append;
+std::vector<std::string> requested_paths;
 struct String {
 	std::string value;
 	void set(const String* other) { value = other->value; }
@@ -25,6 +26,8 @@ struct String {
 	int32_t getLength() const { return value.size(); }
 	void concatenateAtPos(const char* text, int32_t position) {
 		value.resize(position);
+		if (on_append)
+			on_append();
 		value += text;
 	}
 };
@@ -43,17 +46,31 @@ struct FileInfo {
 	int fattrib = 0;
 } staticFNO;
 std::vector<std::string> directory_entries;
+template <typename T>
+struct Result {
+	T payload;
+	bool valid = true;
+	bool has_value() const { return valid; }
+	T& value() {
+		CHECK_TRUE(valid);
+		return payload;
+	}
+	Error error() const { return Error::SD_CARD; }
+};
 namespace FatFS {
+using FileInfo = ::folder_sample_loading_test::FileInfo;
 struct Directory {
 	size_t position = 0;
-	static Directory open(const char*) { return {}; }
-	std::pair<FileInfo, FilePointer> read_and_get_filepointer() {
+	bool closed = false;
+	std::vector<std::string> entries;
+	static Result<Directory> open(const char*) { return {Directory{0, false, directory_entries}}; }
+	Result<std::pair<FileInfo, FilePointer>> read_and_get_filepointer() {
 		FileInfo info;
-		if (position < directory_entries.size())
-			std::strncpy(info.fname, directory_entries[position++].c_str(), sizeof(info.fname) - 1);
-		return {info, {}};
+		if (!closed && position < entries.size())
+			std::strncpy(info.fname, entries[position++].c_str(), sizeof(info.fname) - 1);
+		return {{info, {}}};
 	}
-	void close() {}
+	void close() { closed = true; }
 };
 } // namespace FatFS
 FatFS::Directory staticDIR;
@@ -77,7 +94,8 @@ struct AudioFileManager {
 	} audioFiles;
 	size_t next_sample = 0;
 	void loadAnyEnqueuedClusters() {}
-	AudioFile* getAudioFileFromFilename(String&, bool, Error* error, FilePointer*, AudioFileType) {
+	AudioFile* getAudioFileFromFilename(String& path, bool, Error* error, FilePointer*, AudioFileType) {
+		requested_paths.push_back(path.get());
 		*error = Error::NONE;
 		return loaded_samples.at(next_sample++);
 	}
@@ -138,13 +156,15 @@ TEST_GROUP(FolderSampleLoading) {
 		directory_entries = {"orig-kick.wav", "orig-snare.wav"};
 		loaded_samples = {&first, &second};
 		audioFileManager.next_sample = 0;
-		on_audio = {};
+		on_audio = on_append = {};
+		requested_paths.clear();
 	}
 	void teardown() override {
 		std::free(table);
 		loaded_samples.clear();
 		selected_file.reset();
-		on_audio = {};
+		on_audio = on_append = {};
+		requested_paths.clear();
 	}
 };
 TEST(FolderSampleLoading, changed_selection_filename_does_not_change_original_prefix_calculation) {
@@ -190,4 +210,28 @@ TEST(FolderSampleLoading, folder_selection_keeps_the_existing_empty_basename_beh
 	CHECK_TRUE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
 	LONGS_EQUAL(9, prefix);
 	LONGS_EQUAL(2, count);
+}
+
+TEST(FolderSampleLoading, nested_browser_directory_does_not_replace_loader_cursor) {
+	on_audio = [] {
+		directory_entries = {"unrelated.wav"};
+		staticDIR = FatFS::Directory::open("/other").value();
+	};
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_TRUE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	LONGS_EQUAL(2, count);
+	LONGS_EQUAL(0, staticDIR.position);
+	CHECK_FALSE(staticDIR.closed);
+	STRCMP_EQUAL("/samples/orig-kick.wav", requested_paths[0].c_str());
+	STRCMP_EQUAL("/samples/orig-snare.wav", requested_paths[1].c_str());
+}
+TEST(FolderSampleLoading, nested_filename_buffer_changes_do_not_replace_current_directory_entry) {
+	on_append = [] { std::strcpy(staticFNO.fname, "unrelated.wav"); };
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_TRUE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	LONGS_EQUAL(2, count);
+	STRCMP_EQUAL("/samples/orig-kick.wav", requested_paths[0].c_str());
+	STRCMP_EQUAL("/samples/orig-snare.wav", requested_paths[1].c_str());
 }
