@@ -1936,3 +1936,13 @@ both message types, failures, valid delivery, missing targets and unmatched
 mappings. All 35 native suites and `./dbt build relwithdebinfo` pass. Remaining
 clone callers include encoder lookup, note recording and expression recording;
 learned-mapping callback lifetime and container mutation remain separate gaps.
+
+### G1 / R5 progress — encoder lookup clone failure (2026-10-10)
+
+Encoder parameter lookup now returns no target when arrangement cloning reports
+failure, rather than continuing with the original timeline's parameter. Four
+real-method fixture tests cover failure, successful clone/context refresh,
+unnecessary cloning, absent timelines and absent controllables. All 35 native
+suites and `./dbt build relwithdebinfo` pass. This does not establish lifetime
+safety across note-tail/clone/refresh callbacks; expression and note-recording
+clone callers still need failure handling.

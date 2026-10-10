@@ -1028,9 +1028,12 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 			noteTailsAllowedBefore =
 			    activeModControllableModelStack.modControllable->allowNoteTails(tempModelStack->addSoundFlags());
 
+			Error clone_error = Error::NONE;
 			bool timelineCounterChanged =
 			    activeModControllableModelStack.getTimelineCounter()->possiblyCloneForArrangementRecording(
-			        (ModelStackWithTimelineCounter*)&activeModControllableModelStack);
+			        (ModelStackWithTimelineCounter*)&activeModControllableModelStack, &clone_error);
+			if (clone_error != Error::NONE)
+				return nullptr;
 
 			if (timelineCounterChanged) {
 

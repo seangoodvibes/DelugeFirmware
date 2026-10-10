@@ -602,3 +602,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/learned_parameter_input.in
         ${learned_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/learned_parameter_input.inc ModControllableAudio::offerReceivedCCToLearnedParamsForClip ModControllableAudio::offerReceivedPitchBendToLearnedParams
     DEPENDS ${learned_parameter_input_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/learned_parameter_input.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mod_encoder_lookup.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/mod_encoder_lookup.inc View::getModelStackWithParam
+    DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE mod_encoder_lookup_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/mod_encoder_lookup.inc)
