@@ -168,11 +168,16 @@ ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
 ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	if (!on)
+		return ActionResult::DEALT_WITH;
+
 	if (b == SELECT_ENC) {
 		acceptCurrentOption();
 	}
 	else {
-		session_view_for_session().clipCreationButtonPressed(b, on, inCardRoutine); // let the grid handle this
+		const auto result = session_view_for_session().clipCreationButtonPressed(b, on, inCardRoutine);
+		if (result == ActionResult::NOT_DEALT_WITH || result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+			return result;
 	}
 
 	display->setNextTransitionDirection(-1);

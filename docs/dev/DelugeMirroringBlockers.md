@@ -928,3 +928,16 @@ side effects are not provided by these guards.
   result delivery and UI closure are fixtures, not hardware replay validation.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 remain open and
   independent mode remains disabled.
+
+### G1 progress — new-clip button routing (2026-10-09)
+
+- New Clip Type ignores button releases instead of treating them as selections.
+  Unhandled or deferred button presses return their dispatch result without
+  closing the menu or scheduling its exit transition. Handled presses retain
+  existing dispatch and closure behavior.
+- Three added extracted-production tests cover release handling on both owners,
+  unhandled/deferred results and handled Remote dispatch without Local closure.
+  Two cases failed before the fix. Session View results and UI transitions are
+  fixtures; this does not establish full hardware or session-creation coverage.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains open and
+  independent mode remains disabled.
