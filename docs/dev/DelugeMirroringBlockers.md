@@ -1033,3 +1033,15 @@ side effects are not provided by these guards.
   and display fixtures; allocator lifetime, UI-stack recovery and same-address
   replacement remain outside this change. G1/R4 remain open; independent mode is
   disabled.
+
+### G1 / R4 progress — rename edit-buffer initialization failure (2026-10-09)
+
+- The shared rename dialog rejects opening when copying the existing name into
+  its edit buffer fails, reports the allocation error and skips text/key drawing.
+  It no longer accepts a failed copy as a successfully initialized empty editor.
+- Two extracted-production cases cover failure/retry on both owners and rejected
+  base opening/unavailable targets. The allocation case failed before the fix.
+  Text allocation, Qwerty opening and rendering are fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime and
+  full UI-stack recovery remain outside this change; G1/R4 remain open and
+  independent mode stays disabled.

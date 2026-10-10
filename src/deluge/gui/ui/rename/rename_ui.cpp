@@ -33,7 +33,11 @@ bool RenameUI::opened() {
 		return false;
 	}
 
-	entered_text_for_session().set(getCurrentName());
+	const auto error = entered_text_for_session().set(getCurrentName());
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
 
 	displayText();
 	drawKeys();
