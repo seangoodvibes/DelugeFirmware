@@ -181,8 +181,8 @@ Dependencies express safety requirements, not a requirement to postpone useful
 audits or test infrastructure.
 
 Current baseline: native coverage includes undo, kit restoration, song cleanup,
-parameter lifecycle, clone and mirror runtime suites. Recent changes passed all
-29 CTest suites and `./dbt build relwithdebinfo`. These results cover tested paths;
+parameter lifecycle, clone and mirror runtime suites. Changes validated on 2026-10-10 passed all
+35 CTest suites and `./dbt build relwithdebinfo`. These results cover tested paths;
 they do not close the open items above or replace hardware validation.
 
 For each closure, append: **ID; implementation commit/PR; test names and results;
@@ -1557,3 +1557,12 @@ managers, timer coalescing, promotion of pending level refreshes and resetting t
 flag when a new display timer is scheduled. All 35 native suites and
 `./dbt build relwithdebinfo` pass. Timers are fixtures in this suite; notification
 broadcast between panels and real transport are not established by these tests.
+
+### G1 coverage — mode lookup target changes and VU deselection (2026-10-10)
+
+Two additional extracted-production tests cover manager/timeline replacement
+during mode lookup on both panels, plus VU deselection and missing controllers.
+They check rejected mode values, panel restoration, no meter rendering and the
+sidebar fallback. All 35 native suites pass. No production code changed since the
+preceding successful RelWithDebInfo build. The baseline suite count above is now
+updated to the current 35; all top-level blockers remain open.

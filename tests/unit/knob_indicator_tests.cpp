@@ -1097,3 +1097,41 @@ TEST(KnobIndicator, vu_meter_preserves_selected_clip_and_volume_mode_rendering) 
 	CHECK_FALSE(view.potentiallyRenderVUMeter(image));
 	CHECK_FALSE(view.renderedVUMeter);
 }
+
+TEST(KnobIndicator, mod_mode_lookup_rejects_changed_manager_or_timeline_on_both_panels) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& view = view_for_session();
+		for (bool change_manager : {false, true}) {
+			view.activeModControllableModelStack.paramManager = nullptr;
+			view.activeModControllableModelStack.timeline = nullptr;
+			controllable.mode = 3;
+			controllable.on_mode = [&] {
+				if (change_manager)
+					view.activeModControllableModelStack.paramManager = &manager;
+				else
+					view.activeModControllableModelStack.timeline = &song;
+			};
+			LONGS_EQUAL(-1, view.getModKnobMode());
+			CHECK(session::current() == owner);
+		}
+		controllable.on_mode = {};
+	}
+}
+
+TEST(KnobIndicator, vu_meter_without_volume_selection_returns_sidebar_to_caller) {
+	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& view = view_for_session();
+		view.displayVUMeter = true;
+		view.renderedVUMeter = true;
+		controllable.mode = 1;
+		CHECK_FALSE(view.potentiallyRenderVUMeter(image));
+		CHECK_FALSE(view.renderedVUMeter);
+		view.activeModControllableModelStack.modControllable = nullptr;
+		CHECK_FALSE(view.potentiallyRenderVUMeter(image));
+		LONGS_EQUAL(0, view.vu_renders);
+		CHECK_FALSE(PadLEDs::rendering_lock_for_session());
+	}
+}
