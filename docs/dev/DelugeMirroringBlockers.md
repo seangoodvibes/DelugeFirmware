@@ -2459,3 +2459,12 @@ never invokes the creating lookup. All 36 native suites and
 `./dbt build relwithdebinfo` pass. This changes validation only; callers that
 intentionally create rows retain `getNoteRowFromId`. Detached owner lifetime still
 needs explicit watches in the edit context.
+
+Note-row edit contexts now hold clip and output lifetime watches. Validation stops
+before song/row lookup after owner retirement or destruction, including unpublished
+clips and same-address replacement; output reassignment is rejected before lookup.
+Six new sanitizer regressions exercise the production context with watched model
+doubles for detached deletion, clip/output address reuse, output deletion and
+retired entry. Existing bulk-edit/undo collaborator tests also pass. All 36 suites
+and `./dbt build relwithdebinfo` pass. These watches do not retain owners or protect
+song identity reuse and callbacks inside individual edit operations.

@@ -5,6 +5,7 @@
 #include "model/note/note_row_identity.h"
 #include "util/container/array/resizeable_array.h"
 #include "util/container/retained_list.h"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <functional>
 #include <utility>
@@ -247,6 +248,10 @@ struct ClipInstance {
 	Clip* clip = nullptr;
 };
 struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
+	void retire_lifetime() { lifetime.retire(); }
+	~Output() { retire_lifetime(); }
 	struct instance_array {
 		bool has_capacity_for(int32_t count) const {
 			return count >= 0 && static_cast<size_t>(count) <= entries.capacity() - entries.size();
@@ -292,8 +297,13 @@ struct Sample {
 
 class Clip {
 public:
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	bool retiring = false;
-	void retire_lifetime() { retiring = true; }
+	void retire_lifetime() {
+		retiring = true;
+		lifetime.retire();
+	}
 	int expected_events = 0;
 	std::function<void()> on_expect_event;
 	void expectEvent() {
@@ -302,7 +312,7 @@ public:
 		if (callback)
 			callback();
 	}
-	virtual ~Clip() = default;
+	virtual ~Clip() { retire_lifetime(); }
 	std::function<Error()> on_reattach;
 	virtual Error undoDetachmentFromOutput(ModelStackWithTimelineCounter*);
 	ParamManager paramManager;

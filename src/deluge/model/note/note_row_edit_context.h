@@ -4,6 +4,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "util/lifetime.h"
 #include <array>
 #include <type_traits>
 
@@ -14,11 +15,14 @@ namespace deluge::model {
 class NoteRowEditContext {
 public:
 	NoteRowEditContext(InstrumentClip* clip, int32_t row_id, NoteRow* row)
-	    : song_(currentSong), clip_(clip), row_(row), row_id_(row_id),
+	    : clip_lifetime_(clip ? clip->watch_lifetime() : deluge::lifetime::lifetime_watch{}),
+	      output_lifetime_(clip_lifetime_.alive() && clip->output ? clip->output->watch_lifetime()
+	                                                              : deluge::lifetime::lifetime_watch{}),
+	      song_(currentSong), clip_(clip), row_(row), row_id_(row_id),
 	      local_revision_(revision(gui::ui_session::Id::Local)),
 	      remote_revision_(revision(gui::ui_session::Id::Remote)) {
-		if (!song_ || !clip_ || !row_ || clip_->type != ClipType::INSTRUMENT
-		    || clip_->find_note_row_from_id(row_id_) != row_)
+		if (!clip_lifetime_.alive() || !song_ || !row_ || (clip_->output && !output_lifetime_.alive())
+		    || clip_->type != ClipType::INSTRUMENT || clip_->find_note_row_from_id(row_id_) != row_)
 			return;
 		clip_registered_ = song_->contains_clip_for_undo(clip_);
 		identity_ = row_->undo_identity;
@@ -48,12 +52,13 @@ public:
 	// For operations that deliberately resize the note vector, retain ownership
 	// checks without requiring its old count/address.
 	bool target_valid() const {
-		if (!snapshot_valid_ || !song_ || currentSong != song_ || gui::ui_session::current() != initiating_owner_
+		if (!clip_lifetime_.alive() || (output_ && !output_lifetime_.alive()) || !snapshot_valid_ || !song_
+		    || currentSong != song_ || gui::ui_session::current() != initiating_owner_
 		    || revision(gui::ui_session::Id::Local) != local_revision_
 		    || revision(gui::ui_session::Id::Remote) != remote_revision_)
 			return invalidate();
 		// Registered clips must remain owned before any clip or row storage is read.
-		// Unpublished clones still rely on structural invalidation for lifetime changes.
+		// Lifetime watches also cover unpublished clones and reused addresses.
 		const bool currently_registered = song_->contains_clip_for_undo(clip_);
 		if (clip_registered_ && !currently_registered) {
 			return invalidate();
@@ -61,7 +66,8 @@ public:
 		// Publication observed at any validation makes ownership mandatory thereafter.
 		clip_registered_ = clip_registered_ || currently_registered;
 		// Compare the looked-up address before touching potentially released row storage.
-		if (clip_->type != ClipType::INSTRUMENT || clip_->find_note_row_from_id(row_id_) != row_)
+		if (clip_->type != ClipType::INSTRUMENT || clip_->output != output_
+		    || clip_->find_note_row_from_id(row_id_) != row_)
 			return invalidate();
 		if (!identity_ || row_->undo_identity != identity_ || clip_->loopLength != clip_length_
 		    || row_->loopLengthIfIndependent != row_length_ || clip_->output != output_
@@ -83,6 +89,8 @@ private:
 	static uint64_t revision(gui::ui_session::Id owner) {
 		return gui::ui_session::navigation.for_owner(owner).structural_refresh.revision();
 	}
+	deluge::lifetime::lifetime_watch clip_lifetime_;
+	deluge::lifetime::lifetime_watch output_lifetime_;
 	const gui::ui_session::Id initiating_owner_ = gui::ui_session::current();
 	Song* song_;
 	InstrumentClip* clip_;

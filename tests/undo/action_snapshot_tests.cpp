@@ -5402,3 +5402,70 @@ TEST(NoteSnapshotRecording, row_edit_context_uses_noncreating_lookup_for_missing
 	LONGS_EQUAL(0, clip.creating_row_lookups);
 	POINTERS_EQUAL(nullptr, clip.row);
 }
+
+TEST(NoteSnapshotRecording, row_edit_context_rejects_destroyed_unpublished_clip_without_refresh) {
+	auto* target = new InstrumentClip;
+	target->row = &row;
+	deluge::model::NoteRowEditContext context(target, 7, &row);
+	CHECK_TRUE(context.valid());
+	delete target;
+	CHECK_FALSE(context.target_valid());
+	CHECK_FALSE(context.valid());
+	POINTERS_EQUAL(&song, currentSong);
+}
+TEST(NoteSnapshotRecording, row_edit_context_rejects_reused_unpublished_clip_address) {
+	InstrumentClip target;
+	target.row = &row;
+	deluge::model::NoteRowEditContext context(&target, 7, &row);
+	CHECK_TRUE(context.valid());
+	std::destroy_at(&target);
+	std::construct_at(&target);
+	target.row = &row;
+	CHECK_FALSE(context.target_valid());
+	CHECK_FALSE(context.valid());
+	LONGS_EQUAL(0, target.row_lookups);
+}
+TEST(NoteSnapshotRecording, row_edit_context_rejects_deleted_output_before_row_lookup) {
+	auto* output = new Output;
+	clip.output = output;
+	deluge::model::NoteRowEditContext context(&clip, 7, &row);
+	CHECK_TRUE(context.valid());
+	const auto lookups = clip.row_lookups;
+	delete output;
+	CHECK_FALSE(context.target_valid());
+	CHECK_FALSE(context.valid());
+	LONGS_EQUAL(lookups, clip.row_lookups);
+	clip.output = nullptr;
+}
+TEST(NoteSnapshotRecording, row_edit_context_rejects_reused_output_address) {
+	Output output;
+	clip.output = &output;
+	deluge::model::NoteRowEditContext context(&clip, 7, &row);
+	CHECK_TRUE(context.valid());
+	const auto lookups = clip.row_lookups;
+	std::destroy_at(&output);
+	std::construct_at(&output);
+	CHECK_FALSE(context.target_valid());
+	CHECK_FALSE(context.valid());
+	LONGS_EQUAL(lookups, clip.row_lookups);
+	clip.output = nullptr;
+}
+TEST(NoteSnapshotRecording, row_edit_context_rejects_retired_clip_at_entry) {
+	clip.retire_lifetime();
+	const auto lookups = clip.row_lookups;
+	deluge::model::NoteRowEditContext context(&clip, 7, &row);
+	CHECK_FALSE(context.target_valid());
+	CHECK_FALSE(context.valid());
+	LONGS_EQUAL(lookups, clip.row_lookups);
+}
+TEST(NoteSnapshotRecording, row_edit_context_rejects_retired_output_at_entry) {
+	Output output;
+	clip.output = &output;
+	output.retire_lifetime();
+	const auto lookups = clip.row_lookups;
+	deluge::model::NoteRowEditContext context(&clip, 7, &row);
+	CHECK_FALSE(context.target_valid());
+	CHECK_FALSE(context.valid());
+	LONGS_EQUAL(lookups, clip.row_lookups);
+	clip.output = nullptr;
+}
