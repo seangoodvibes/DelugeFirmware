@@ -76,7 +76,8 @@ TEST(SourceMenu, output_reordering_does_not_change_source_shown_or_next_selectio
 }
 TEST(SourceMenu, appended_output_is_selectable_without_reopening) {
 	first.next = &second;
-	second.next = nullptr;
+	second.next = &local_output;
+	local_output.next = nullptr;
 	local_output.source = &second;
 	menu.beginSession(nullptr);
 	second.next = &third;
@@ -164,6 +165,36 @@ TEST(SourceMenu, source_changes_queue_peer_refresh_without_drawing_the_other_pan
 	menu.selectEncoderAction(0);
 	CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
 	LONGS_EQUAL(2, local_output.writes);
+}
+TEST(SourceMenu, departed_editor_output_is_unavailable_until_reattached) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& output = owner == session::Id::Local ? local_output : remote_output;
+		auto* original_source = output.source;
+		third.next = nullptr;
+		CHECK_FALSE(menu.isRelevant(nullptr, 0));
+		menu.selectEncoderAction(1);
+		menu.beginSession(nullptr);
+		POINTERS_EQUAL(original_source, output.source);
+		LONGS_EQUAL(0, output.writes);
+		menu.drawFor7seg();
+		STRCMP_EQUAL("No track", drawn_text.active().c_str());
+		menu.drawPixelsForOled();
+		STRCMP_EQUAL("No track", drawn_text.active().c_str());
+		third.next = &local_output;
+		CHECK(menu.isRelevant(nullptr, 0));
+		menu.selectEncoderAction(1);
+		LONGS_EQUAL(1, output.writes);
+	}
+}
+TEST(SourceMenu, departed_editor_does_not_repair_its_recording_source) {
+	Output departed_source;
+	local_output.source = &departed_source;
+	third.next = nullptr;
+	menu.beginSession(nullptr);
+	POINTERS_EQUAL(&departed_source, local_output.source);
+	LONGS_EQUAL(0, local_output.writes);
+	CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

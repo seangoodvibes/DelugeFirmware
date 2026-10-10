@@ -128,8 +128,13 @@ private:
 	AudioOutput* edited_output_for_session() const {
 		if (!currentSong || !currentSong->getCurrentClip())
 			return nullptr;
-		auto* output = getCurrentOutput();
-		return output && output->type == OutputType::AUDIO ? static_cast<AudioOutput*>(output) : nullptr;
+		auto* const selected_output = getCurrentOutput();
+		// The other panel may have removed the editor's retained output.
+		for (auto* output = currentSong->firstOutput; output; output = output->next) {
+			if (output == selected_output)
+				return output->type == OutputType::AUDIO ? static_cast<AudioOutput*>(output) : nullptr;
+		}
+		return nullptr;
 	}
 
 	int32_t recordable_output_index(Output* output) const {

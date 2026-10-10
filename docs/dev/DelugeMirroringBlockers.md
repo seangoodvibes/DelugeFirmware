@@ -866,3 +866,15 @@ side effects are not provided by these guards.
   These comparisons do not detect value ABA or substitute for object generations.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 and the broader
   lifetime/recovery blockers remain open; independent mode stays disabled.
+
+### G1 / L1 progress — recording-source submenu output membership (2026-10-09)
+
+- The specific recording-source submenu confirms its edited output belongs to the
+  current song before reading its type, repairing its source, editing or rendering.
+  Departed outputs are unavailable and reattachment permits editing again.
+- Two production-header regressions failed before the fix, covering both owners
+  and preventing automatic source repair/peer refresh on a departed output. The
+  list-growth fixture now keeps the edited output registered in the song.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. This validates output
+  membership, not the retained current clip or same-address reuse. G1/L1 remain
+  open and independent mode remains disabled.
