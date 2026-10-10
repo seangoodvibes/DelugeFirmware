@@ -1339,3 +1339,15 @@ side effects are not provided by these guards.
   `./dbt build relwithdebinfo` pass.
 - Callback internals and menu lifetime still require L1 work; independent mode
   remains disabled and G1 remains open.
+
+### G1 progress — output-name clip indicator state (2026-10-10)
+
+- Output-name rendering no longer shadows its supplied clip with an always-null
+  local. Keyboard/cross-screen LEDs use the owning panel's instrument-clip state;
+  scale mode uses shared clip state and remains off for kits or missing outputs.
+  Audio/missing clips clear these three indicators.
+- Four extracted-helper tests cover both owners, independent navigation, shared
+  scale, kit/missing output and absent/audio clips. The enclosing display renderer
+  and physical LEDs are not exercised by these fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/G2/L1 remain open;
+  independent mode stays disabled.

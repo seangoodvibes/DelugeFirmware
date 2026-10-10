@@ -2020,6 +2020,16 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	deluge::hid::display::OLED::markChanged();
 }
 
+// Output-name rendering receives either an instrument clip, an audio clip, or no clip.
+static void set_output_clip_led_states(Clip* clip) {
+	auto* instrument_clip = clip && clip->type == ClipType::INSTRUMENT ? static_cast<InstrumentClip*>(clip) : nullptr;
+	using namespace indicator_leds;
+	setLedState(LED::KEYBOARD, instrument_clip && instrument_clip->on_keyboard_screen_for_session());
+	setLedState(LED::SCALE_MODE, instrument_clip && instrument_clip->inScaleMode && instrument_clip->output
+	                                 && instrument_clip->output->type != OutputType::KIT);
+	setLedState(LED::CROSS_SCREEN_EDIT, instrument_clip && instrument_clip->wrap_editing_for_session());
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
 void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix, char const* name,
@@ -2063,14 +2073,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			blinkLed(led);
 		}
 
-		InstrumentClip* clip = nullptr;
-		if (clip && clip->type == ClipType::INSTRUMENT) {
-			clip = (InstrumentClip*)clip;
-		}
-
-		setLedState(LED::KEYBOARD, (clip && clip->on_keyboard_screen_for_session()));
-		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != OutputType::KIT));
-		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrap_editing_for_session()));
+		set_output_clip_led_states(clip);
 	}
 
 	// hook to render display for OLED and 7SEG when in Automation View

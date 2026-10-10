@@ -496,3 +496,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/greyout_reassess.inc
         ${greyout_source} ${CMAKE_CURRENT_BINARY_DIR}/greyout_reassess.inc "void reassessGreyout"
     DEPENDS ${greyout_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/greyout_reassess.inc)
+
+set(output_clip_led_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/views/view.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/output_clip_leds.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${output_clip_led_source} ${CMAKE_CURRENT_BINARY_DIR}/output_clip_leds.inc "static void set_output_clip_led_states"
+    DEPENDS ${output_clip_led_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE output_clip_led_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/output_clip_leds.inc)
