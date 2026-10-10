@@ -476,10 +476,10 @@ void begin() {
 		return;
 	Song* const song = currentSong;
 	const auto owner = deluge::gui::ui_session::current();
-	const auto can_continue = [song, candidate, owner, candidate_connection] {
+	const auto can_continue = [song, candidate, owner, candidate_connection, negotiated_oled = capabilities.oled] {
 		return currentSong == song && connection_identity(candidate) == candidate_connection
-		       && deluge::gui::ui_session::current() == owner && !playbackHandler.playbackState
-		       && !AudioEngine::firstRecorder && !stemExport.processStarted;
+		       && ::display->haveOLED() == negotiated_oled && deluge::gui::ui_session::current() == owner
+		       && !playbackHandler.playbackState && !AudioEngine::firstRecorder && !stemExport.processStarted;
 	};
 	// Complete the local UI operation before freezing its tasks.
 	sound_editor_for_session().exitCompletely();

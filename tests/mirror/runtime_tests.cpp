@@ -3952,3 +3952,34 @@ TEST(MirrorRuntime, display_change_while_waiting_rejects_acceptance) {
 	CHECK(m::failed);
 	CHECK(m::state == m::State::Waiting);
 }
+
+TEST(MirrorRuntime, startup_display_change_during_menu_exit_aborts_before_takeover) {
+	fixture::on_exit_editor = [] { physical_display.oled = false; };
+	CHECK(m::start());
+	m::routine();
+	CHECK(m::state == m::State::Idle);
+	CHECK_FALSE(uiTimerManager.paused);
+	CHECK(sent(p::Op::Request).empty());
+	LONGS_EQUAL(0, fixture::note_stops);
+	CHECK_FALSE(m::requested);
+	CHECK_FALSE(m::startup_discovery);
+	CHECK(m::discovery_peer == nullptr);
+	fixture::on_exit_editor = {};
+	physical_display.oled = true;
+	CHECK(m::start());
+	m::routine();
+	CHECK(m::state == m::State::Waiting);
+	LONGS_EQUAL(1, sent(p::Op::Request).size());
+}
+TEST(MirrorRuntime, startup_display_change_during_audition_cleanup_aborts_before_note_stop) {
+	fixture::on_stop_audition = [] { physical_display.oled = false; };
+	CHECK(m::start());
+	m::routine();
+	CHECK(m::state == m::State::Idle);
+	CHECK_FALSE(uiTimerManager.paused);
+	CHECK(sent(p::Op::Request).empty());
+	LONGS_EQUAL(0, fixture::note_stops);
+	CHECK_FALSE(m::requested);
+	CHECK_FALSE(m::startup_discovery);
+	CHECK(m::discovery_peer == nullptr);
+}

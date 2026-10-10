@@ -568,3 +568,15 @@ side effects are not provided by these guards.
   and absent navigation. Real display allocation/destructor callback lifetime is
   not established by these fixtures. G1/L1 remain open; independent mode is disabled.
 - Validation: all 33 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — startup display compatibility across cleanup (2026-10-09)
+
+- Client startup now retains discovery's display format in its continuation check.
+  Cleanup callbacks that change the local format abort before later cleanup,
+  timer suspension and Request emission instead of negotiating from stale evidence.
+- Two production-runtime regressions failed before the fix and now pass: display
+  changes during menu exit and audition cleanup. They verify no note-stop, no
+  takeover/request, cleared discovery state and a successful subsequent compatible
+  retry. All 243 mirror runtime cases pass. G1 remains open; independent mode is
+  still disabled.
+- Validation: all 33 native CTest suites and `./dbt build relwithdebinfo` pass.
