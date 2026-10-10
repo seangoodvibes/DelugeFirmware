@@ -2204,8 +2204,8 @@ real source/output destruction, address reuse, errors, caller retargeting, a
 separate recording timeline and a song timeline. The implementation uses the
 existing Song/Clip timeline distinction rather than RTTI, which firmware disables.
 All 36 native suites and `./dbt build relwithdebinfo` pass. Source lifetime inside
-parameter/sample copying and sample-path allocation-error propagation remain
-open; outer checks alone do not prove those internals safe.
+parameter/sample copying remains open; outer checks alone do not prove those
+internals safe. The String-to-String path copy shares storage and cannot fail.
 
 Audio arrangement rollover now watches current/source/copy/output lifetimes,
 revalidates after base/reservation/clone callbacks, and delays shortening the
@@ -2218,3 +2218,13 @@ real deletion, adoption and callback edits. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Cancellation after activation preserves the
 published prefix; full recovery and callback-internal parameter ownership remain
 open. No original clip is deleted on clone/publication failure.
+
+Sample-holder cloning now captures the four scalar range/view settings before
+sample assignment, so source deletion or address reuse during cluster servicing
+does not cause later source reads or mix replacement metadata into the copy.
+Five sanitizer regressions execute both sample-holder clone bodies with shared
+path/sample-assignment doubles. No sample data or audio buffers are copied.
+All 36 native suites and `./dbt build relwithdebinfo` pass. Inspection also corrected
+the prior path-error hypothesis: String::set(String const*) shares reference-counted
+storage and cannot fail. Destination lifetime and callbacks inside sample/parameter
+services remain covered by their separate ownership requirements.

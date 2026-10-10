@@ -54,14 +54,19 @@ SampleHolder::~SampleHolder() {
 
 void SampleHolder::beenClonedFrom(SampleHolder const* other, bool reversed) {
 	filePath.set(&other->filePath);
+	// Sample assignment can service callbacks. Keep the source settings without retaining its storage.
+	const auto start_pos = other->startPos;
+	const auto end_pos = other->endPos;
+	const auto waveform_scroll = other->waveformViewScroll;
+	const auto waveform_zoom = other->waveformViewZoom;
 	if (other->audioFile) {
 		setAudioFile(other->audioFile, reversed);
 	}
 
-	startPos = other->startPos;
-	endPos = other->endPos;
-	waveformViewScroll = other->waveformViewScroll;
-	waveformViewZoom = other->waveformViewZoom;
+	startPos = start_pos;
+	endPos = end_pos;
+	waveformViewScroll = waveform_scroll;
+	waveformViewZoom = waveform_zoom;
 }
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {

@@ -746,3 +746,18 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_recording_rollover.i
         ${audio_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_recording_rollover.inc AudioClip::posReachedEnd
     DEPENDS ${audio_destruction_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE audio_recording_rollover_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/audio_recording_rollover.inc)
+
+set(sample_holder_clone_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/sample/sample_holder.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sample_holder_clone.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sample_holder_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/sample_holder_clone.inc SampleHolder::beenClonedFrom
+    DEPENDS ${sample_holder_clone_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/sample_holder_clone.inc)
+
+set(clip_sample_holder_clone_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/sample/sample_holder_for_clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_holder_clone.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${clip_sample_holder_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_holder_clone.inc SampleHolderForClip::beenClonedFrom
+    DEPENDS ${clip_sample_holder_clone_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_holder_clone.inc)
+target_sources(ClipLifetimeTests PRIVATE sample_holder_clone_tests.cpp)
