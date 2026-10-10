@@ -2763,3 +2763,15 @@ each tick, routing/layout changes, row removal/replacement, playback gating,
 interpolation flags and invalid entry. All 36 suites and
 `./dbt build relwithdebinfo` pass. The actual sound renderer, voice traversal and
 same-address collection replacement remain separate inner boundaries.
+
+Sound render arp generation/dispatch now runs through a guarded helper, checking
+caller ownership after generation and arp/settings identity plus instruction
+revision after each note callback. Synth and kit render callers supply lifetime,
+model-stack and parameter-layout validation; kit validation also re-resolves its
+row/backup manager. Seven production-body sanitizer regressions exercise live and
+pending modes, generation/output deletion, freed replacement instructions, settings
+changes, rejected owners and voice-budget deferral. Two kit regressions cover
+collection and model-stack replacement; a source contract verifies render uses the
+guarded helper. All 36 suites and `./dbt build relwithdebinfo` pass. Sound LFO/
+patching, delay, voice and effects internals remain separate audit work, along with
+same-address raw replacement and hardware timing/stack validation.

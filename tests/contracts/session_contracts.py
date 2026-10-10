@@ -80,6 +80,17 @@ def violations(text, entry):
 
 
 class SessionRoutingContracts(unittest.TestCase):
+    def test_sound_render_uses_guarded_arp_dispatch(self):
+        source = code_only((ROOT / "src/deluge/processing/sound/sound.cpp").read_text())
+        body = source.split("void Sound::render(", 1)[1].split("\nvoid Sound::", 1)[0]
+        normalized = re.sub(r"\s+", " ", body)
+        self.assertIn(
+            "if (!process_render_arp(modelStackWithSoundFlags, paramManager->getUnpatchedParamSet(), "
+            "output.size(), owner_validation)) return;",
+            normalized,
+        )
+        self.assertNotIn("process_postarp_notes(", body)
+
     def test_arp_instruction_mutators_invalidate_before_accessing_state(self):
         source = code_only((ROOT / "src/deluge/modulation/arpeggiator.cpp").read_text())
         for name in [

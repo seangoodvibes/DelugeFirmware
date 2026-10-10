@@ -2384,9 +2384,69 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 	}
 }
 
+bool Sound::process_render_arp(ModelStackWithSoundFlags* model_stack, UnpatchedParamSet* unpatched_params,
+                               uint32_t num_samples, const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return false;
+	ArpeggiatorSettings* arp_settings = getArpSettings();
+	if (arp_settings != nullptr) {
+		arp_settings->updateParamsFromUnpatchedParamSet(unpatched_params);
+	}
+	auto* arpeggiator = getArp();
+	ArpReturnInstruction instruction;
+
+	if (arp_settings != nullptr && arp_settings->mode != ArpMode::OFF) {
+		uint32_t gate_threshold = (uint32_t)unpatched_params->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
+		uint32_t phase_increment =
+		    arp_settings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+
+		arpeggiator->render(arp_settings, &instruction, num_samples, gate_threshold, phase_increment);
+	}
+	else {
+		arpeggiator->handlePendingNotes(arp_settings, &instruction);
+	}
+	if (owner_validation && !owner_validation->valid())
+		return false;
+	if (getArp() != arpeggiator || getArpSettings() != arp_settings)
+		return false;
+	const auto revision = arpeggiator->instruction_revision();
+	const auto context_matches = [&] {
+		return (!owner_validation || owner_validation->valid()) && getArp() == arpeggiator
+		       && getArpSettings() == arp_settings && arpeggiator->instruction_revision() == revision;
+	};
+	const deluge::lifetime::callback_validation instruction_validation{context_matches};
+	bool at_least_one_off = false;
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		at_least_one_off = true;
+		noteOffPostArpeggiator(model_stack, instruction.glideNoteCodeOffPostArp[n]);
+		if (!instruction_validation.valid())
+			return false;
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		at_least_one_off = true;
+		noteOffPostArpeggiator(model_stack, instruction.noteCodeOffPostArp[n]);
+		if (!instruction_validation.valid())
+			return false;
+	}
+	if (at_least_one_off) {
+		invertReversed = false;
+	}
+	process_postarp_notes(model_stack, arp_settings, instruction, &instruction_validation);
+	return instruction_validation.valid();
+}
+
 void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                    int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
-                   int32_t pitchAdjust, SampleRecorder* recorder) {
+                   int32_t pitchAdjust, SampleRecorder* recorder,
+                   const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return;
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -2457,45 +2517,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-	// Arpeggiator
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings != nullptr) {
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-	}
-	ArpReturnInstruction instruction;
-
-	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement =
-		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
-
-		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
-	}
-	else {
-		getArp()->handlePendingNotes(arpSettings, &instruction);
-	}
-	bool atLeastOneOff = false;
-	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
-			break;
-		}
-		atLeastOneOff = true;
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
-	}
-	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
-			break;
-		}
-		atLeastOneOff = true;
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-	}
-	if (atLeastOneOff) {
-		invertReversed = false;
-	}
-	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
+	if (!process_render_arp(modelStackWithSoundFlags, paramManager->getUnpatchedParamSet(), output.size(),
+	                        owner_validation))
+		return;
 
 	// Setup delay
 	Delay::State delayWorkingState{};

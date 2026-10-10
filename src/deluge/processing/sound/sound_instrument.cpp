@@ -137,7 +137,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 	}
 	else {
 		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
-		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+		              shouldLimitDelayFeedback, kMaxSampleValue, recorder, &clip_validation);
 	}
 
 	if (!clip_validation.valid())

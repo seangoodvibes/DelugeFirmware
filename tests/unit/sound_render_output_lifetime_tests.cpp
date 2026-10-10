@@ -75,7 +75,10 @@ struct {
 	bool isEitherClockActive() { return clock; }
 } playbackHandler;
 struct Sound {
-	void render(ModelStack*, std::span<StereoSample>, int32_t*, int32_t, int32_t, bool, int32_t, void*) {
+	void render(ModelStack*, std::span<StereoSample>, int32_t*, int32_t, int32_t, bool, int32_t, void*,
+	            const deluge::lifetime::callback_validation* validation) {
+		CHECK(validation);
+		CHECK(validation->valid());
 		++renders;
 		if (on_render)
 			on_render();

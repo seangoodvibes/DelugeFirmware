@@ -175,7 +175,8 @@ public:
 	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
 	            int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
 	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
-	            SampleRecorder* recorder = nullptr);
+	            SampleRecorder* recorder = nullptr,
+	            const deluge::lifetime::callback_validation* owner_validation = nullptr);
 
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithThreeMainThings* modelStack);
@@ -323,6 +324,8 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
+	bool process_render_arp(ModelStackWithSoundFlags* model_stack, UnpatchedParamSet* unpatched_params,
+	                        uint32_t num_samples, const deluge::lifetime::callback_validation* owner_validation);
 	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
 	                           ArpReturnInstruction instruction,
 	                           const deluge::lifetime::callback_validation* owner_validation = nullptr);

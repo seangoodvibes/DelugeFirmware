@@ -657,23 +657,31 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(note_row_index, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
-		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
-		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
-		                  nullptr); // According to our volume, we tell Drums to send less reverb
-		rendered = true;
-		if (!traversal_matches()) {
-			return rendered;
-		}
-		if (routed_clip) {
-			auto* current_row = static_cast<InstrumentClip*>(routed_clip)->find_note_row_from_id(note_row_index);
-			if (current_row != thisNoteRow || !current_row || current_row->undo_identity != row_identity
-			    || current_row->drum != thisDrum) {
-				return rendered;
+		ParamCollection* collections[PARAM_COLLECTIONS_STORAGE_NUM];
+		for (int32_t i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i)
+			collections[i] = drumParamManager->summaries[i].paramCollection;
+		const auto render_context_matches = [&] {
+			if (!traversal_matches() || modelStackWithThreeMainThings->paramManager != drumParamManager)
+				return false;
+			if (routed_clip) {
+				auto* current_row = static_cast<InstrumentClip*>(routed_clip)->find_note_row_from_id(note_row_index);
+				if (current_row != thisNoteRow || !current_row || current_row->undo_identity != row_identity
+				    || current_row->drum != thisDrum)
+					return false;
 			}
-		}
-		else if (source_song->getBackedUpParamManagerPreferablyWithClip(soundDrum, nullptr) != drumParamManager) {
+			else if (source_song->getBackedUpParamManagerPreferablyWithClip(soundDrum, nullptr) != drumParamManager)
+				return false;
+			for (int32_t i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i)
+				if (drumParamManager->summaries[i].paramCollection != collections[i])
+					return false;
+			return true;
+		};
+		const deluge::lifetime::callback_validation render_validation{render_context_matches};
+		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
+		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust, nullptr, &render_validation);
+		rendered = true;
+		if (!render_validation.valid())
 			return rendered;
-		}
 	}
 
 	// Tick ParamManagers

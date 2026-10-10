@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <tuple>
 #include <vector>
 namespace deluge::modulation::params {
 constexpr int kNumParams = 90;
@@ -22,14 +23,20 @@ struct Drum {
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	DrumType type = DrumType::SOUND;
 };
-struct ModelStackWithThreeMainThings {};
+struct ParamManager;
+struct ModelStackWithThreeMainThings {
+	ParamManager* paramManager = nullptr;
+};
+constexpr int PARAM_COLLECTIONS_STORAGE_NUM = 5;
+struct ParamCollection {};
 struct ParamCollectionSummary {
+	ParamCollection* paramCollection = nullptr;
 	int whichParamsAreInterpolating[3] = {};
 };
 std::function<void()> on_render, on_kill, on_tick;
 int tick_calls = 0, render_calls = 0, row_index = -1;
 struct ParamManager {
-	ParamCollectionSummary summaries[4];
+	ParamCollectionSummary summaries[5];
 	void tickSamples(size_t, ModelStackWithThreeMainThings*, const deluge::lifetime::callback_validation* = nullptr) {
 		++tick_calls;
 		if (on_tick)
@@ -72,7 +79,10 @@ struct SoundDrum : Drum {
 			on_kill();
 	}
 	template <class... Args>
-	void render(Args&&...) {
+	void render(Args&&... args) {
+		auto* validation = std::get<sizeof...(args) - 1>(std::forward_as_tuple(args...));
+		CHECK(validation);
+		CHECK(validation->valid());
 		++render_calls;
 		if (on_render)
 			on_render();
@@ -92,7 +102,10 @@ struct ModelStackWithTimelineCounter {
 		row_index = index;
 		return this;
 	}
-	ModelStackWithThreeMainThings* addOtherTwoThings(SoundDrum*, ParamManager*) { return &main; }
+	ModelStackWithThreeMainThings* addOtherTwoThings(SoundDrum*, ParamManager* manager) {
+		main.paramManager = manager;
+		return &main;
+	}
 };
 struct {
 	bool isEitherClockActive() { return true; }
@@ -361,4 +374,28 @@ TEST(kit_inner_render, row_drum_reassignment_stops_parameter_ticks) {
 	StereoSample samples[1];
 	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
 	LONGS_EQUAL(1, tick_calls);
+}
+TEST(kit_inner_render, render_collection_replacement_cancels_remaining_drum_traversal) {
+	Kit kit;
+	SoundDrum first, last;
+	kit.drumsWithRenderingActive.drums = {&first, &last};
+	ParamManager manager;
+	ParamCollection replacement;
+	song.backup_manager = &manager;
+	on_render = [&] { manager.summaries[0].paramCollection = &replacement; };
+	ModelStackWithTimelineCounter stack;
+	StereoSample samples[1];
+	CHECK(kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, false, 0, 0, 0));
+	LONGS_EQUAL(1, render_calls);
+}
+
+TEST(kit_inner_render, render_stack_retargeting_cancels_remaining_drums) {
+	Kit kit;
+	SoundDrum first, last;
+	kit.drumsWithRenderingActive.drums = {&first, &last};
+	ModelStackWithTimelineCounter stack;
+	on_render = [&] { stack.main.paramManager = nullptr; };
+	StereoSample samples[1];
+	CHECK(kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, false, 0, 0, 0));
+	LONGS_EQUAL(1, render_calls);
 }
