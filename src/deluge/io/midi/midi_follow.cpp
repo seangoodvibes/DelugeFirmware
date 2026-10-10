@@ -714,6 +714,8 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
 Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel,
                                    int32_t note, int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
                                    ModelStack* modelStack, bool updateClipForLastNoteReceived) {
+	if (!clip || !clip->output || !modelStack || !currentSong || note < 0 || note > kMaxMIDIValue)
+		return nullptr;
 	Output* selected_track = nullptr;
 
 	// Only send if not muted - but let note-offs through always, for safety

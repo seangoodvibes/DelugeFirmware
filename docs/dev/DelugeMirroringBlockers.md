@@ -1754,3 +1754,13 @@ match preservation and regular-channel first-match priority. All 35 native suite
 and `./dbt build relwithdebinfo` pass. Learned-device matching is a fixture; these
 tests establish dispatch/index behavior, not physical input acceptance or lifetime
 safety. Independent mode remains disabled.
+
+### G1 / R4 progress — MIDI note-dispatch input availability (2026-10-10)
+
+Note dispatch now checks clip/output, model stack, song and note range before
+routing or indexing retained-note state. Four extracted-production tests cover
+invalid notes and missing inputs, muted note-off delivery without recording,
+muted note-on suppression, kit translation, track-specific dispatch and audio-clip
+exclusion. All 35 native suites and `./dbt build relwithdebinfo` pass. Instrument
+callbacks are fixtures; this does not address retained-note lifetime after
+callbacks, rollback, or physical note delivery. Independent mode stays disabled.
