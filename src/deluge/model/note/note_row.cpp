@@ -4821,22 +4821,59 @@ needToDoIt:
 bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack, int32_t newValueBig,
                                               int32_t expressionDimension, bool forDrum) {
 
+	if (!modelStack || expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions
+	    || modelStack->getNoteRowAllowNull() != this)
+		return false;
+	auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounterAllowNull());
+	if (!clip)
+		return false;
+	auto clip_lifetime = clip->watch_lifetime();
+	if (!clip_lifetime.alive() || clip->type != ClipType::INSTRUMENT || !clip->output)
+		return false;
+	auto* output = clip->output;
+	auto output_lifetime = output->watch_lifetime();
+	if (!output_lifetime.alive())
+		return false;
+	const auto row_id = modelStack->noteRowId;
+	const auto identity = undo_identity;
+	auto* source_song = currentSong;
+	auto* stack_song = modelStack->song;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto row_matches = [&] {
+		return clip_lifetime.alive() && output_lifetime.alive() && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && modelStack->song == stack_song
+		       && modelStack->getTimelineCounterAllowNull() == clip && modelStack->getNoteRowAllowNull() == this
+		       && modelStack->noteRowId == row_id && clip->type == ClipType::INSTRUMENT && clip->output == output
+		       && clip->find_note_row_from_id(row_id) == this && undo_identity == identity;
+	};
+	if (!row_matches())
+		return false;
+	deluge::lifetime::callback_validation row_validation{row_matches};
 	uint32_t livePos = modelStack->getLivePos();
 	if (livePos < ignoreNoteOnsBefore_) {
 		return false;
 	}
 
-	paramManager.ensureExpressionParamSetExists(forDrum);
+	if (!paramManager.ensureExpressionParamSetExists(forDrum, &row_validation))
+		return false;
 	ParamCollectionSummary* mpeParamsSummary = paramManager.getExpressionParamSetSummary();
 	ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
 	if (!mpeParams) {
 		return false;
 	}
 
-	AutoParam* param = mpeParams->getParam(expressionDimension);
+	const auto collection_matches = [&] {
+		return row_matches() && paramManager.getExpressionParamSetSummary() == mpeParamsSummary
+		       && paramManager.getExpressionParamSet() == mpeParams;
+	};
+	deluge::lifetime::callback_validation collection_validation{collection_matches};
+	AutoParam* param = mpeParams->getParam(expressionDimension, true, &collection_validation);
 
-	if (!param)
+	if (!param || !collection_matches())
 		return false;
+	const auto parameter_matches = [&] {
+		return collection_matches() && mpeParams->getParam(expressionDimension, false) == param;
+	};
 
 	ModelStackWithAutoParam* modelStackWithAutoParam =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParam(mpeParams, mpeParamsSummary,
@@ -4851,6 +4888,8 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		// As well as just setting values now, InstrumentClipView keeps a record, for in case the user then
 		// releases the note, in which case we'll want the values from when they pressed hardest etc.
 		instrument_clip_view_for_session().reportMPEValueForNoteEditing(expressionDimension, newValueBig);
+		if (!parameter_matches())
+			return false;
 
 		// And also, set the values now, for in case they're instead gonna stop editing the note before
 		// releasing this MIDI note.
@@ -4870,7 +4909,8 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		    doMPEMode); // Don't allow deletion of nodes in linear run. See comments above that function
 	}
 
-	return true;
+	// A scalar write may legitimately release its unautomated AutoParam slot.
+	return collection_matches();
 }
 
 void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode) {

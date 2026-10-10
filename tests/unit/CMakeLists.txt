@@ -860,3 +860,12 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/note_row_lookup.inc
     DEPENDS ${note_row_lookup_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE note_row_lookup_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/note_row_lookup.inc)
+
+set(note_row_expression_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/note/note_row.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/note_row_expression_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${note_row_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/note_row_expression_lifetime.inc
+        NoteRow::recordPolyphonicExpressionEvent
+    DEPENDS ${note_row_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE note_row_expression_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/note_row_expression_lifetime.inc)

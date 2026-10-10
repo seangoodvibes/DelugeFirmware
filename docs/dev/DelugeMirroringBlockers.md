@@ -2477,3 +2477,15 @@ parameter/pool regressions cover owner deletion, nested slot creation, expired
 entry, nested scalar edits, allocation failure and existing-slot reuse. All 36
 suites and `./dbt build relwithdebinfo` pass. Unguarded callers still require owner
 lifetime; adopting this guard at recording/UI allocation sites remains work.
+
+Polyphonic expression recording now supplies row/collection validators to both
+expression-set and AutoParam creation. It watches clip/output lifetime, validates
+row identity and model-stack/song/panel association, and rechecks the parameter
+slot after note-edit UI callbacks. Final validation permits legitimate scalar-slot
+release after a successful write. Sixteen sanitizer regressions execute the real
+recording body with model/parameter doubles, covering deletion at allocation/UI/
+write boundaries, replacement, invalid dimensions, retargeting, normal recording
+and scalar release. The allocation implementations are separately covered by the
+real native lifecycle tests above. All 36 suites and `./dbt build relwithdebinfo`
+pass. Automation write internals and rollback of already-applied writes remain
+open; cancellation after a write preserves that prefix.
