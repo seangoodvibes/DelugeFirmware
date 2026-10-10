@@ -331,3 +331,97 @@ TEST(UIOpen, close_sidebar_render_change_stops_before_pad_transmission) {
 	LONGS_EQUAL(0, PadLEDs::main_sends.active());
 	LONGS_EQUAL(0, PadLEDs::side_sends.active());
 }
+
+TEST(UIOpen, replacement_rejection_restores_existing_stack) {
+	navigation().hierarchy[1] = &menu;
+	navigation().depth = 2;
+	replacement.success = false;
+	CHECK_FALSE(changeUIAtLevel(&replacement, 0));
+	LONGS_EQUAL(2, navigation().depth);
+	POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+	POINTERS_EQUAL(&menu, getCurrentUI());
+	LONGS_EQUAL(1, menu.focuses);
+}
+TEST(UIOpen, replacement_callback_stack_change_is_not_rolled_back) {
+	navigation().hierarchy[1] = &menu;
+	navigation().depth = 2;
+	replacement.success = false;
+	replacement.on_open = [&] { CHECK(openUI(&menu)); };
+	CHECK_FALSE(changeUIAtLevel(&replacement, 0));
+	POINTERS_EQUAL(&replacement, navigation().hierarchy[0]);
+	POINTERS_EQUAL(&menu, getCurrentUI());
+	LONGS_EQUAL(0, menu.focuses);
+}
+TEST(UIOpen, replacement_owner_change_does_not_restore_into_peer_stack) {
+	session::Scope scope(session::Id::Remote);
+	replacement.success = false;
+	replacement.on_open = [] { session::detail::active = session::Id::Local; };
+	CHECK_FALSE(changeUIAtLevel(&replacement, 0));
+	CHECK(session::current() == session::Id::Remote);
+	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Local).hierarchy[0]);
+	LONGS_EQUAL(0, root.focuses);
+}
+TEST(UIOpen, sideways_resolution_change_prevents_replacement_and_redraw) {
+	menu.on_resolve = [&] { navigation().hierarchy[0] = &replacement; };
+	CHECK_FALSE(changeUISideways(&menu));
+	POINTERS_EQUAL(&replacement, getCurrentUI());
+	LONGS_EQUAL(0, menu.opens);
+	LONGS_EQUAL(0, redraws.active());
+}
+TEST(UIOpen, sideways_nested_open_is_not_redrawn_by_outer_operation) {
+	menu.on_open = [&] { CHECK(openUI(&replacement)); };
+	CHECK_FALSE(changeUISideways(&menu));
+	POINTERS_EQUAL(&replacement, getCurrentUI());
+	LONGS_EQUAL(1, redraws.active());
+}
+
+TEST(UIOpen, invalid_replacement_targets_and_levels_leave_stack_untouched) {
+	CHECK_FALSE(changeUIAtLevel(nullptr, 0));
+	CHECK_FALSE(changeUISideways(nullptr));
+	for (int level : {-1, 1, navigation_fixture::capacity})
+		CHECK_FALSE(changeUIAtLevel(&menu, level));
+	menu.redirected = nullptr;
+	CHECK_FALSE(changeUISideways(&menu));
+	POINTERS_EQUAL(&root, getCurrentUI());
+	LONGS_EQUAL(0, menu.opens);
+	LONGS_EQUAL(0, redraws.active());
+}
+TEST(UIOpen, sideways_success_and_rejection_preserve_other_panel) {
+	session::Scope scope(session::Id::Remote);
+	CHECK(changeUISideways(&menu));
+	POINTERS_EQUAL(&menu, getCurrentUI());
+	replacement.success = false;
+	CHECK_FALSE(changeUISideways(&replacement));
+	POINTERS_EQUAL(&menu, getCurrentUI());
+	LONGS_EQUAL(1, menu.focuses);
+	LONGS_EQUAL(2, redraws.active());
+	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Local).hierarchy[0]);
+	LONGS_EQUAL(0, redraws.for_owner(session::Id::Local));
+}
+TEST(UIOpen, malformed_replacement_stack_is_rejected_without_redraw) {
+	for (int depth : {-1, 0, navigation_fixture::capacity + 1, 2}) {
+		navigation().depth = depth;
+		CHECK_FALSE(changeUIAtLevel(&menu, 0));
+		CHECK_FALSE(changeUISideways(&menu));
+		LONGS_EQUAL(depth, navigation().depth);
+		LONGS_EQUAL(0, menu.opens);
+		LONGS_EQUAL(0, redraws.active());
+	}
+}
+TEST(UIOpen, replacement_greyout_changes_stop_opening_and_rollback_focus) {
+	for (int phase : {1, 2}) {
+		navigation().depth = 1;
+		navigation().hierarchy[0] = &root;
+		menu.opens = 0;
+		menu.success = false;
+		int calls = 0;
+		PadLEDs::on_greyout = [&] {
+			if (++calls == phase)
+				navigation().hierarchy[0] = &replacement;
+		};
+		CHECK_FALSE(changeUIAtLevel(&menu, 0));
+		POINTERS_EQUAL(&replacement, getCurrentUI());
+		LONGS_EQUAL(phase == 1 ? 0 : 1, menu.opens);
+		LONGS_EQUAL(0, root.focuses);
+	}
+}

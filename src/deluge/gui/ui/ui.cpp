@@ -89,21 +89,46 @@ std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows() {
 }
 
 bool changeUIAtLevel(UI* newUI, int32_t level) {
+	if (!newUI || navigation().depth <= 0 || navigation().depth > navigation().capacity || level < 0
+	    || level >= navigation().depth)
+		return false;
+	for (int32_t index = 0; index < navigation().depth; ++index) {
+		if (!navigation().hierarchy[index])
+			return false;
+	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	UI* oldUI = getCurrentUI();
 	UI* oldRootUI = navigation().hierarchy[level];
 	int32_t oldNumUIs = navigation().depth;
 	navigation().hierarchy[level] = newUI;
 	navigation().depth = level + 1;
+	auto expected_hierarchy = navigation().hierarchy;
+	auto expected_depth = navigation().depth;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		       && navigation().hierarchy == expected_hierarchy;
+	};
 
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
+	if (!context_matches())
+		return false;
 	bool success = newUI->opened();
+	if (!context_matches())
+		return false;
 
 	if (!success) {
 		navigation().depth = oldNumUIs;
 		navigation().hierarchy[level] = oldRootUI;
+		expected_depth = oldNumUIs;
+		expected_hierarchy[level] = oldRootUI;
 		PadLEDs::reassessGreyout();
+		if (!context_matches())
+			return false;
 		oldUI->focusRegained();
+		if (!context_matches())
+			return false;
 	}
 	return success;
 }
@@ -135,8 +160,28 @@ void setRootUILowLevel(UI* newUI) {
 }
 
 bool changeUISideways(UI* newUI) {
+	if (!newUI || navigation().depth <= 0 || navigation().depth > navigation().capacity)
+		return false;
+	for (int32_t index = 0; index < navigation().depth; ++index) {
+		if (!navigation().hierarchy[index])
+			return false;
+	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto expected_hierarchy = navigation().hierarchy;
+	const auto expected_depth = navigation().depth;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		       && navigation().hierarchy == expected_hierarchy;
+	};
 	newUI = newUI->getUI();
-	bool success = changeUIAtLevel(newUI, navigation().depth - 1);
+	if (!newUI || !context_matches())
+		return false;
+	bool success = changeUIAtLevel(newUI, expected_depth - 1);
+	if (success)
+		expected_hierarchy[expected_depth - 1] = newUI;
+	if (!context_matches())
+		return false;
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}

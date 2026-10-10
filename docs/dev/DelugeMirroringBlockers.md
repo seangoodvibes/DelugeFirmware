@@ -1123,3 +1123,18 @@ side effects are not provided by these guards.
   fixed local storage; they neither pin UI objects nor roll back completed drawing
   or pops, and they do not detect stack ABA. G1/R4/L1 remain open; independent mode
   stays disabled.
+
+### G1 / R4 progress — UI replacement and sideways navigation (2026-10-10)
+
+- UI replacement validates target, depth, level and active stack entries before
+  mutation. Both replacement and sideways navigation check expected hierarchy and
+  owner across resolution, greyout, opening and failure-focus callbacks. Newer
+  navigation is preserved instead of being rolled back or redrawn by stale work.
+- Nine added extracted-production cases cover valid rejection/success, nested
+  opening, changed owner, resolution/greyout replacement, invalid inputs and
+  malformed stacks. Four callback cases failed initially; a further regression
+  caught sideways redraw after malformed-stack rejection during implementation.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Navigation/callbacks
+  are fixtures; fixed local snapshots are not object pins, ABA detection or full
+  recovery of partially replaced UIs. G1/R4/L1 remain open; independent mode stays
+  disabled.
