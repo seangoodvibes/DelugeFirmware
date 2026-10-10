@@ -2652,3 +2652,12 @@ generation/output destruction, freed instructions with surviving owners, retarge
 and collection replacement. All 36 suites and `./dbt build relwithdebinfo` pass.
 Sound render routing and MIDI/CV instrument routes remain distinct audit work;
 callback internals and hardware rescheduling/timing are not established here.
+
+MIDI/CV instrument render, tick and direct-note routing now share instruction
+dispatch with pre-callback note publication and post-callback validation of output/
+clip lifetime, song/panel, channel/type and instruction revision. Clipless direct
+notes and CV note-release glide remain supported. Ten production-body sanitizer
+regressions cover live modes, every dispatch boundary, generation/owner deletion,
+freed pending storage, channel retargeting and nested reset. All 36 suites and
+`./dbt build relwithdebinfo` pass. Concrete MIDI/CV output-method internals and
+remaining sound-render consumers still require their own lifetime audit.
