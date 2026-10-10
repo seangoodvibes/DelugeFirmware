@@ -198,6 +198,15 @@ void closeUI(UI* uiToClose) {
 	if (target_level <= 0)
 		return;
 
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto expected_hierarchy = navigation().hierarchy;
+	auto expected_depth = navigation().depth;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		       && navigation().hierarchy == expected_hierarchy;
+	};
+
 	bool redrawMainPads = false;
 	bool redrawSidebar = false;
 
@@ -206,7 +215,11 @@ void closeUI(UI* uiToClose) {
 
 		UI* thisUI = navigation().hierarchy[u];
 		redrawMainPads |= thisUI->renderMainPads();
+		if (!context_matches())
+			return;
 		redrawSidebar |= thisUI->renderSidebar();
+		if (!context_matches())
+			return;
 
 		if (thisUI == uiToClose) {
 			break;
@@ -215,12 +228,19 @@ void closeUI(UI* uiToClose) {
 
 	UI* newUI = navigation().hierarchy[u - 1];
 	navigation().depth = u;
+	expected_depth = u;
 
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
+	if (!context_matches())
+		return;
 	newUI->focusRegained();
+	if (!context_matches())
+		return;
 	if (display->haveOLED()) {
 		renderUIsForOled();
+		if (!context_matches())
+			return;
 	}
 
 	bool redrawMainPadsOrig = redrawMainPads;
@@ -235,15 +255,21 @@ void closeUI(UI* uiToClose) {
 		if (redrawMainPads) {
 			redrawMainPads = !thisUI->renderMainPads(0xFFFFFFFF, PadLEDs::image_for_session(),
 			                                         PadLEDs::occupancy_mask_for_session());
+			if (!context_matches())
+				return;
 		}
 		if (redrawSidebar) {
 			redrawSidebar =
 			    !thisUI->renderSidebar(0xFFFFFFFF, PadLEDs::image_for_session(), PadLEDs::occupancy_mask_for_session());
+			if (!context_matches())
+				return;
 		}
 	}
 
 	if (redrawMainPadsOrig) {
 		PadLEDs::sendOutMainPadColours();
+		if (!context_matches())
+			return;
 	}
 	if (redrawSidebarOrig) {
 		PadLEDs::sendOutSidebarColours();

@@ -1109,3 +1109,17 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime and
   changes during closure remain separate work. G1/R4 remain open; independent
   mode stays disabled.
+
+### G1 / R4 progress — UI closure callback containment (2026-10-10)
+
+- closeUI checks its expected stack and initiating owner between rendering queries,
+  greyout, focus restoration, pad rendering and main/sidebar transmission. Changed
+  context stops further work; owner scope restores the initiating panel on return.
+  Normal closure still redraws and sends both pad regions on that panel.
+- Seven added extracted-production cases cover query/greyout replacement, owner
+  changes during focus/transmission, main/sidebar render invalidation and normal
+  sends. Five cases failed before the fix. Rendering and transport are fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Stack snapshots use
+  fixed local storage; they neither pin UI objects nor roll back completed drawing
+  or pops, and they do not detect stack ABA. G1/R4/L1 remain open; independent mode
+  stays disabled.
