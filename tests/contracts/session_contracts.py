@@ -258,7 +258,10 @@ class SessionRoutingContracts(unittest.TestCase):
         renewal = clip.index(
             "noteRow->undo_identity = deluge::model::next_note_row_identity();"
         )
-        self.assertLess(clip.index("newClip->noteRows.cloneFrom(&noteRows)"), renewal)
+        self.assertLess(
+            clip.index("newClip->noteRows.cloneFrom(&noteRows, &source_lifetime)"),
+            renewal,
+        )
         self.assertLess(renewal, clip.index("noteRow->beenCloned("))
 
     def test_clip_deletion_preflight_precedes_target_access_and_mutation(self):

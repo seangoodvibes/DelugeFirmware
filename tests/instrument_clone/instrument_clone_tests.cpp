@@ -18,7 +18,7 @@ uint64_t next_note_row_identity() {
 static int allocated = 0, freed = 0, rows_processed = 0, unsafe_destructions = 0;
 static bool fail_allocation = false, fail_row_copy = false;
 static Error parameter_error = Error::NONE;
-static std::function<void()> on_allocate, on_parameters;
+static std::function<void()> on_allocate, on_parameters, on_row_copy;
 static int song;
 static int* currentSong = &song;
 struct GeneralMemoryAllocator {
@@ -62,7 +62,11 @@ struct NoteRow {
 };
 struct Rows {
 	std::vector<NoteRow> entries;
-	bool cloneFrom(const Rows* source) {
+	bool cloneFrom(const Rows* source, const deluge::lifetime::lifetime_watch* source_lifetime) {
+		if (on_row_copy)
+			on_row_copy();
+		if (!source_lifetime->alive())
+			return false;
 		if (fail_row_copy)
 			return false;
 		entries = source->entries;
@@ -113,7 +117,7 @@ TEST_GROUP(InstrumentClone) {
 	ModelStackWithTimelineCounter stack{&source};
 	void setup() {
 		allocated = freed = rows_processed = unsafe_destructions = 0;
-		on_allocate = on_parameters = {};
+		on_allocate = on_parameters = on_row_copy = {};
 		currentSong = &song;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 		fail_allocation = fail_row_copy = false;
@@ -121,7 +125,7 @@ TEST_GROUP(InstrumentClone) {
 		source.noteRows.entries.resize(3);
 	}
 	void teardown() {
-		on_allocate = on_parameters = {};
+		on_allocate = on_parameters = on_row_copy = {};
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 		if (stack.clip != &source) {
 			stack.clip->~InstrumentClip();
@@ -305,4 +309,39 @@ TEST(InstrumentClone, changed_stack_during_parameters_is_not_overwritten) {
 	LONGS_EQUAL(1, freed);
 	LONGS_EQUAL(0, rows_processed);
 	stack.clip = &source;
+}
+
+TEST(InstrumentClone, row_array_allocation_source_destruction_cancels_before_row_access) {
+	auto* target = new InstrumentClip;
+	target->noteRows.entries.resize(3);
+	ModelStackWithTimelineCounter target_stack{target};
+	on_row_copy = [&] { delete target; };
+	CHECK(target->clone(&target_stack, true) == Error::BUG);
+	LONGS_EQUAL(1, freed);
+	LONGS_EQUAL(0, rows_processed);
+	LONGS_EQUAL(0, unsafe_destructions);
+}
+TEST(InstrumentClone, row_array_allocation_source_address_reuse_cancels) {
+	auto* target = new InstrumentClip;
+	target->noteRows.entries.resize(3);
+	ModelStackWithTimelineCounter target_stack{target};
+	on_row_copy = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->noteRows.entries.resize(5);
+	};
+	CHECK(target->clone(&target_stack, true) == Error::BUG);
+	LONGS_EQUAL(5, target->noteRows.getNumElements());
+	LONGS_EQUAL(1, freed);
+	LONGS_EQUAL(0, rows_processed);
+	delete target;
+}
+TEST(InstrumentClone, row_array_allocation_retirement_preserves_original_rows) {
+	on_row_copy = [&] { source.lifetime_source.retire(); };
+	CHECK(source.clone(&stack, true) == Error::BUG);
+	POINTERS_EQUAL(&source, stack.clip);
+	LONGS_EQUAL(3, source.noteRows.getNumElements());
+	LONGS_EQUAL(1, freed);
+	LONGS_EQUAL(0, rows_processed);
+	LONGS_EQUAL(0, unsafe_destructions);
 }

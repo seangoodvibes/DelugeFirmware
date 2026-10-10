@@ -228,8 +228,8 @@ deleteClipAndGetOut:
 	newClip->soloingInSessionMode = false;
 	newClip->output = output;
 
-	if (!newClip->noteRows.cloneFrom(&noteRows)) {
-		error = Error::INSUFFICIENT_RAM;
+	if (!newClip->noteRows.cloneFrom(&noteRows, &source_lifetime)) {
+		error = source_lifetime.alive() ? Error::INSUFFICIENT_RAM : Error::BUG;
 		goto deleteClipAndGetOut;
 	}
 

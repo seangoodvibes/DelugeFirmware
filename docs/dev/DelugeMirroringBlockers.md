@@ -2298,3 +2298,12 @@ clones and callback layout replacement, with pool/allocation accounting. All 36
 native suites and `./dbt build relwithdebinfo` pass. The unpublished shallow
 destination must remain alive; this does not establish same-address collection
 identity or finish note-row integration.
+
+Instrument cloning now passes the source watch into the raw note-row array copy.
+Retirement during its allocation cancels before copying freed row storage or
+starting row normalization. Three sanitizer regressions execute the real clip
+clone body with a guarded array double, covering deletion, reuse and retirement;
+the real array deletion behavior is covered by the native array tests above.
+All 36 native suites pass (the updated routing source-contract check was rerun
+separately), and `./dbt build relwithdebinfo` passes. Row-internal callbacks and
+publication timing remain the next boundaries.
