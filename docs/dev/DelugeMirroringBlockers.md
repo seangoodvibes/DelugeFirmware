@@ -3466,3 +3466,12 @@ now leaves the old table intact. This makes range-table publication transactiona
 not the entire import: pitch-detection metadata, inner folder-loading callbacks,
 post-commit parameter/UI work and working-animation ownership remain separate
 L1/R4/R5 concerns. Independent mode stays disabled.
+
+Multisample import also binds its context to the initiating clip and instrument
+lifetimes/association. Clip changes and output rebinding cancel pre-commit work.
+After commit it marks that instrument edited and removes its working animation
+before navigating away, with no model/display access after the close callback.
+Five regressions cover clip/output changes, missing clip entry and both navigation
+side effects; the two navigation cases fail against the previous function. All
+38 suites and RelWithDebInfo pass. Inner folder loading and broader post-commit
+parameter recovery remain open; independent mode stays disabled.

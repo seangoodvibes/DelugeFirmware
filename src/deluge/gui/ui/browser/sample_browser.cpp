@@ -1711,13 +1711,29 @@ bool SampleBrowser::importFolderAsMultisamples() {
 	const bool reversed = selected_source->sampleControls.isCurrentlyReversed();
 	auto* source_ui = getCurrentUI();
 	auto* source_song = currentSong;
-	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (!source_song)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return false;
+	auto* source_clip = source_song->getCurrentClip();
+	if (!source_clip)
+		return false;
+	auto clip_lifetime = source_clip->watch_lifetime();
+	if (!clip_lifetime.alive())
+		return false;
+	auto* source_instrument = getCurrentInstrument();
+	if (!source_instrument)
+		return false;
+	auto instrument_lifetime = source_instrument->watch_lifetime();
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto context_valid = [&] {
-		return sound_lifetime.alive() && source_lifetime.alive() && (!source_song || song_lifetime.alive())
-		       && currentSong == source_song && deluge::gui::ui_session::current() == source_owner
-		       && getCurrentUI() == source_ui && sound_editor_for_session().currentSound == selected_sound
+		return sound_lifetime.alive() && source_lifetime.alive() && song_lifetime.alive() && clip_lifetime.alive()
+		       && instrument_lifetime.alive() && currentSong == source_song
+		       && source_song->getCurrentClip() == source_clip && source_clip->output == source_instrument
+		       && deluge::gui::ui_session::current() == source_owner && getCurrentUI() == source_ui
+		       && sound_editor_for_session().currentSound == selected_sound
 		       && sound_editor_for_session().currentSource == selected_source
 		       && sound_editor_for_session().currentSourceIndex == source_index
 		       && selected_source->ranges.layout_revision() == expected_layout
@@ -1954,10 +1970,11 @@ skipOctaveCorrection:
 
 	sound_editor_for_session().setCurrentMultiRange(numSamples >> 1);
 
-	exitAndNeverDeleteDrum();
-	getCurrentInstrument()->beenEdited();
-
+	source_instrument->beenEdited();
 	display->removeWorkingAnimation();
+	if (!context_valid())
+		return false;
+	exitAndNeverDeleteDrum();
 	return true;
 }
 

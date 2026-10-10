@@ -22,7 +22,7 @@ constexpr int32_t MIDI_NOTE_ERROR = -1;
 int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
 constexpr int CLUSTER_ENQUEUE = 0;
-std::function<void()> on_assignment, on_reserve, on_kill, on_audio;
+std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit;
 int audio_calls = 0;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
@@ -191,7 +191,10 @@ struct Kit {
 	void resetDrumTempValues() {}
 };
 Kit* active_kit = nullptr;
+struct Clip;
+Clip* current_clip = nullptr;
 struct Song : Lifetime {
+	Clip* getCurrentClip() { return current_clip; }
 	void backUpParamManager(SoundDrum*, void*, ParamManagerForTimeline*, bool) {}
 } song;
 auto* currentSong = &song;
@@ -254,17 +257,23 @@ void delugeDealloc(void* memory) {
 void FREEZE_WITH_ERROR(const char*) {
 	FAIL("invalid sample ownership");
 }
-struct Clip {
+struct Instrument;
+struct Clip : Lifetime {
+	Instrument* output = nullptr;
 	void assignDrumsToNoteRows(ModelStackWithTimelineCounter*) { ++row_assignments; }
 } clip;
-struct Instrument {
-	void beenEdited() { ++edits; }
+struct Instrument : Lifetime {
+	int own_edits = 0;
+	void beenEdited() {
+		++edits;
+		++own_edits;
+	}
 } instrument;
 Clip* getCurrentInstrumentClip() {
 	return &clip;
 }
 Instrument* getCurrentInstrument() {
-	return &instrument;
+	return current_clip ? current_clip->output : nullptr;
 }
 void* getCurrentClip() {
 	return &clip;
@@ -293,7 +302,11 @@ struct SampleBrowser {
 		return true;
 	}
 	void autoDetectSideChainSending(SoundDrum*, Source*, const char*) { ++sidechains; }
-	void exitAndNeverDeleteDrum() { ++exits; }
+	void exitAndNeverDeleteDrum() {
+		++exits;
+		if (on_exit)
+			on_exit();
+	}
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
 	void audioFileIsNowSet() { ++audio_publications; }
@@ -318,7 +331,7 @@ TEST_GROUP(KitSampleImport) {
 		sample_table = nullptr;
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
-		on_assignment = on_reserve = on_kill = on_audio = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = {};
 		audio_calls = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
@@ -327,11 +340,14 @@ TEST_GROUP(KitSampleImport) {
 		display_instance = {};
 		loaded_samples = {&samples[0], &samples[1], &samples[2]};
 		active_kit = &kit;
+		current_clip = &clip;
+		clip.output = &instrument;
+		instrument.own_edits = 0;
 		editor.currentSound = &first_drum;
 		editor.currentSource = &first_drum.sources[0];
 	}
 	void teardown() override {
-		on_assignment = on_reserve = on_kill = on_audio = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = {};
 		audio_calls = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
@@ -569,4 +585,44 @@ TEST(KitSampleImport, completed_multisample_replacement_releases_original_sample
 	LONGS_EQUAL(0, original_sample.numReasonsToBeLoaded);
 	for (auto& sample : samples)
 		LONGS_EQUAL(1, sample.numReasonsToBeLoaded);
+}
+
+TEST(KitSampleImport, multisample_clip_change_during_assignment_cancels_commit) {
+	Clip replacement;
+	replacement.output = &instrument;
+	on_assignment = [&] { current_clip = &replacement; };
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(0, audio_publications);
+	LONGS_EQUAL(1, first_drum.sources[0].ranges.getNumElements());
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, multisample_output_rebinding_during_assignment_cancels_commit) {
+	Instrument replacement;
+	on_assignment = [&] { clip.output = &replacement; };
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(0, audio_publications);
+	LONGS_EQUAL(0, replacement.own_edits);
+	LONGS_EQUAL(1, first_drum.sources[0].ranges.getNumElements());
+}
+TEST(KitSampleImport, multisample_navigation_does_not_mark_newly_selected_instrument_edited) {
+	Instrument replacement_instrument;
+	Clip replacement_clip;
+	replacement_clip.output = &replacement_instrument;
+	on_exit = [&] { current_clip = &replacement_clip; };
+	CHECK_TRUE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(1, instrument.own_edits);
+	LONGS_EQUAL(0, replacement_instrument.own_edits);
+	LONGS_EQUAL(1, display_instance.removals);
+}
+TEST(KitSampleImport, multisample_navigation_does_not_remove_new_working_animation) {
+	on_exit = [&] { display_instance.removals = 0; };
+	CHECK_TRUE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(0, display_instance.removals);
+}
+TEST(KitSampleImport, multisample_missing_clip_rejects_entry_without_loading_samples) {
+	current_clip = nullptr;
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	CHECK(sample_table == nullptr);
+	LONGS_EQUAL(0, assignment_calls);
 }
