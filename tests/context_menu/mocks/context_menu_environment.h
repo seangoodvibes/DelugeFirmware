@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <vector>
 #define PLACE_SDRAM_BSS
 namespace session = deluge::gui::ui_session;
 enum class LaunchStyle { DEFAULT, FILL, ONCE };
@@ -31,8 +32,16 @@ struct AudioOutput : Output {
 	}
 	void clearRecordingFrom() { setOutputRecordingFrom(nullptr); }
 };
+struct Clip;
+struct clip_list_fixture {
+	std::vector<Clip*> entries;
+	int32_t getNumElements() const { return entries.size(); }
+	Clip* getClipAtIndex(int32_t index) const { return entries[index]; }
+};
 struct Song {
 	Output* firstOutput = nullptr;
+	clip_list_fixture sessionClips, arrangementOnlyClips;
+	bool contains_clip_for_undo(const Clip* clip);
 };
 inline Song* currentSong = nullptr;
 inline AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::NONE;

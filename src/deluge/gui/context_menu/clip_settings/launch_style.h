@@ -29,6 +29,9 @@ public:
 
 	/// Options
 	std::span<const char*> getOptions() override;
+
+private:
+	bool has_current_clip() const;
 };
 
 LaunchStyleMenu& launch_style_for_session();

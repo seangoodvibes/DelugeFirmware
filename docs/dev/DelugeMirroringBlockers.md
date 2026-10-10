@@ -818,3 +818,16 @@ side effects are not provided by these guards.
   entry-point membership validation, not a pin across callbacks or a generation
   check against same-address replacement. G1/L1 remain open; independent mode is
   disabled.
+
+### G1 / L1 progress — departed launch-style menu targets (2026-10-09)
+
+- Launch-style menu setup, edits and shared refresh require the retained clip to
+  belong to the current song. The existing song membership check includes session
+  and arrangement-only clips; missing or replaced songs reject the old target.
+- Two added context-menu tests cover departure and reattachment on both panels,
+  preserved UI mode when entry is rejected, and missing/replaced songs. The native
+  fixture now compiles the production song-membership body and registers its clips
+  in the appropriate lists, including different-clip menu coverage.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. This checks
+  membership at entry, not lifetime across display callbacks or same-address reuse.
+  G1/L1 remain open and independent mode stays disabled.

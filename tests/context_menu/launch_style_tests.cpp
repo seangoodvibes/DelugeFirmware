@@ -1,16 +1,22 @@
 #include "CppUTest/CommandLineTestRunner.h"
 #include "CppUTest/TestHarness.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
+
+#include "clip_membership.inc"
+
 namespace deluge::gui {
 #include "context_menu_input.inc"
 }
 using deluge::gui::context_menu::clip_settings::LaunchStyleMenu;
 TEST_GROUP(LaunchStyleMenu) {
+	Song song;
 	Clip clip;
 	LaunchStyleMenu local_menu, remote_menu;
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		session::navigation = {};
+		currentSong = &song;
+		song.sessionClips.entries = {&clip};
 		redraws = {};
 		text = {};
 		modes = {};
@@ -21,6 +27,7 @@ TEST_GROUP(LaunchStyleMenu) {
 		remote_menu.setupAndCheckAvailability();
 	}
 	void teardown() override {
+		currentSong = nullptr;
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -62,6 +69,7 @@ TEST(LaunchStyleMenu, seven_segment_peer_refresh_draws_live_value_without_editin
 }
 TEST(LaunchStyleMenu, refresh_of_other_clip_keeps_its_selection_and_viewport) {
 	Clip other;
+	song.arrangementOnlyClips.entries = {&other};
 	other.launchStyle = LaunchStyle::ONCE;
 	remote_menu.clip = &other;
 	{
@@ -93,6 +101,40 @@ TEST(LaunchStyleMenu, absent_target_does_not_enter_edit_or_redraw) {
 	LONGS_EQUAL(123, currentUIMode);
 	LONGS_EQUAL(0, redraws.active());
 	CHECK(text.active().empty());
+}
+TEST(LaunchStyleMenu, departed_clip_is_not_read_or_edited_and_can_be_reattached) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& menu = owner == session::Id::Local ? local_menu : remote_menu;
+		song.sessionClips.entries.clear();
+		song.arrangementOnlyClips.entries.clear();
+		clip.launchStyle = LaunchStyle::FILL;
+		currentUIMode = 123;
+		CHECK_FALSE(menu.setupAndCheckAvailability());
+		LONGS_EQUAL(123, currentUIMode);
+		menu.currentOption = 0;
+		menu.refresh_shared_model();
+		LONGS_EQUAL(0, menu.currentOption);
+		currentUIMode = 0;
+		menu.selectEncoderAction(1);
+		CHECK(clip.launchStyle == LaunchStyle::FILL);
+		song.arrangementOnlyClips.entries = {&clip};
+		CHECK(menu.setupAndCheckAvailability());
+		menu.selectEncoderAction(-1);
+		CHECK(clip.launchStyle == LaunchStyle::DEFAULT);
+	}
+}
+TEST(LaunchStyleMenu, missing_or_replaced_song_rejects_retained_clip) {
+	currentSong = nullptr;
+	CHECK_FALSE(local_menu.setupAndCheckAvailability());
+	local_menu.selectEncoderAction(1);
+	CHECK(clip.launchStyle == LaunchStyle::DEFAULT);
+	Song replacement;
+	currentSong = &replacement;
+	CHECK_FALSE(local_menu.setupAndCheckAvailability());
+	local_menu.refresh_shared_model();
+	local_menu.selectEncoderAction(1);
+	CHECK(clip.launchStyle == LaunchStyle::DEFAULT);
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

@@ -7,6 +7,7 @@
 #include "gui/ui/ui_navigation_state.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
+#include "model/song/song.h"
 #include <cstddef>
 
 namespace deluge::gui::context_menu::clip_settings {
@@ -36,8 +37,12 @@ std::span<char const*> LaunchStyleMenu::getOptions() {
 	return {optionsls, kNumValues};
 }
 
+bool LaunchStyleMenu::has_current_clip() const {
+	return currentSong && currentSong->contains_clip_for_undo(clip);
+}
+
 bool LaunchStyleMenu::setupAndCheckAvailability() {
-	if (!clip)
+	if (!has_current_clip())
 		return false;
 	currentUIMode = UI_MODE_NONE;
 	this->currentOption = static_cast<int32_t>(clip->launchStyle);
@@ -50,7 +55,7 @@ bool LaunchStyleMenu::setupAndCheckAvailability() {
 }
 
 void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
-	if (!clip)
+	if (!has_current_clip())
 		return;
 	// The other panel may have committed before its deferred refresh was serviced.
 	refresh_shared_model();
@@ -65,7 +70,7 @@ void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
 }
 
 void LaunchStyleMenu::refresh_shared_model() {
-	if (!clip || currentOption == static_cast<int32_t>(clip->launchStyle))
+	if (!has_current_clip() || currentOption == static_cast<int32_t>(clip->launchStyle))
 		return;
 	currentOption = static_cast<int32_t>(clip->launchStyle);
 	scrollPos = currentOption;

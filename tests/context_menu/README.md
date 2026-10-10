@@ -22,3 +22,7 @@ Target-membership cases cover departure and reattachment on both panels, missing
 songs, wrong output types and absent roots during greyout. Edited audio outputs
 are registered in the fixture song list. These checks do not establish lifetime
 across rendering/monitoring callbacks or detect same-address object replacement.
+
+Launch-style target checks compile the production song-membership body against
+fixture clip lists. They cover departed/reattached clips, arrangement-only clips,
+and missing/replaced songs, without claiming callback-spanning lifetime protection.
