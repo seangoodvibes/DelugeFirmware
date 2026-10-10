@@ -6,6 +6,7 @@ namespace session = deluge::gui::ui_session;
 struct panel_state {
 	int closes = 0, transitions = 0, pad_calls = 0, button_calls = 0;
 	bool last_on = false;
+	deluge::hid::Button last_button = 0;
 	ActionResult result = ActionResult::DEALT_WITH;
 };
 static session::State<panel_state> panels;
@@ -19,9 +20,10 @@ struct session_view_fixture {
 		++panels.active().pad_calls;
 		return panels.active().result;
 	}
-	ActionResult clipCreationButtonPressed(deluge::hid::Button, bool on, bool) {
+	ActionResult clipCreationButtonPressed(deluge::hid::Button button, bool on, bool) {
 		++panels.active().button_calls;
 		panels.active().last_on = on;
+		panels.active().last_button = button;
 		return panels.active().result;
 	}
 };
@@ -96,4 +98,27 @@ TEST(NewClipTypeInput, handled_button_press_dispatches_and_closes_initiating_pan
 	LONGS_EQUAL(1, panels.active().transitions);
 	LONGS_EQUAL(0, panels.for_owner(session::Id::Local).button_calls);
 	LONGS_EQUAL(0, panels.for_owner(session::Id::Local).closes);
+}
+TEST(NewClipTypeInput, invalid_selection_never_dispatches_a_creation_button) {
+	for (int option : {-1, 5, INT32_MIN, INT32_MAX}) {
+		menu.currentOption = option;
+		CHECK_FALSE(menu.acceptCurrentOption());
+		LONGS_EQUAL(0, panels.active().button_calls);
+		CHECK(menu.buttonAction(deluge::hid::button::SELECT_ENC, true, false) == ActionResult::DEALT_WITH);
+		LONGS_EQUAL(0, panels.active().button_calls);
+		LONGS_EQUAL(0, panels.active().closes);
+		LONGS_EQUAL(0, panels.active().transitions);
+	}
+}
+
+TEST(NewClipTypeInput, valid_selections_dispatch_the_corresponding_buttons) {
+	using namespace deluge::hid::button;
+	const deluge::hid::Button expected[] = {SELECT_ENC, SYNTH, KIT, MIDI, CV};
+	for (int option = 0; option < 5; ++option) {
+		menu.currentOption = option;
+		CHECK(menu.acceptCurrentOption());
+		LONGS_EQUAL(expected[option], panels.active().last_button);
+		CHECK(panels.active().last_on);
+	}
+	LONGS_EQUAL(5, panels.active().button_calls);
 }

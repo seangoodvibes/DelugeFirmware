@@ -149,6 +149,9 @@ bool NewClipType::acceptCurrentOption() {
 	else if (currentOption == 4) {
 		b = CV;
 	}
+	else {
+		return false;
+	}
 
 	session_view_for_session().clipCreationButtonPressed(b, 1, sdRoutineLock); // let the grid handle this
 
@@ -172,7 +175,8 @@ ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		return ActionResult::DEALT_WITH;
 
 	if (b == SELECT_ENC) {
-		acceptCurrentOption();
+		if (!acceptCurrentOption())
+			return ActionResult::DEALT_WITH;
 	}
 	else {
 		const auto result = session_view_for_session().clipCreationButtonPressed(b, on, inCardRoutine);

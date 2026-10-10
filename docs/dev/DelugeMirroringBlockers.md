@@ -941,3 +941,14 @@ side effects are not provided by these guards.
   fixtures; this does not establish full hardware or session-creation coverage.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains open and
   independent mode remains disabled.
+
+### G1 progress — invalid new-clip selections (2026-10-09)
+
+- New Clip Type rejects an out-of-range selection before dispatching a creation
+  button. Select-encoder presses leave the menu open when selection is rejected,
+  rather than dispatching an uninitialized button value and closing it.
+- One regression failed before the fix and covers negative, upper-bound and
+  extreme indices. Another verifies all five valid button mappings. Tests compile
+  the production input bodies against the existing dispatch fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains open and
+  independent mode remains disabled.
