@@ -238,6 +238,12 @@ int main() {
 		expectNull(follow.getModelStackWithParam(timeline, &clip, id, 3, true));
 	}
 	check(follow.errors == 3, "MIDI follow must report rejected parameter requests");
+	clip.output = nullptr;
+	expectNull(follow.getModelStackWithParam(timeline, &clip, 0, 0, false));
+	check(follow.errors == 3, "Unavailable MIDI target must stay quiet when error display is disabled");
+	expectNull(follow.getModelStackWithParam(timeline, &clip, 0, 0, true));
+	check(follow.errors == 4, "Unavailable MIDI target must preserve requested error reporting");
+	clip.output = &synth;
 	expectNull(follow.getModelStackWithParam(nullptr, &clip, 0, 0, false));
 	expectNull(follow.getModelStackWithParam(timeline, nullptr, 0, 0, false));
 	for (auto type : {OutputType::MIDI_OUT, OutputType::CV, OutputType::NONE}) {
@@ -284,6 +290,15 @@ int main() {
 	AutomationView view;
 	clip.lastSelectedParamID = 2;
 	clip.lastSelectedParamKind = params::Kind::PATCHED;
+	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+		deluge::gui::ui_session::Scope scope(owner);
+		expectNull(view.getModelStackWithParamForClip(timeline, nullptr, params::kNoParamID, params::Kind::NONE));
+		expectNull(view.getModelStackWithParamForClip(nullptr, &clip, params::kNoParamID, params::Kind::NONE));
+		auto* const source_output = clip.output;
+		clip.output = nullptr;
+		expectNull(view.getModelStackWithParamForClip(timeline, &clip, params::kNoParamID, params::Kind::NONE));
+		clip.output = source_output;
+	}
 	expect(view.getModelStackWithParamForClip(timeline, &clip, params::kNoParamID, params::Kind::NONE),
 	       row.paramManager, 1, 2);
 	expect(view.getModelStackWithParamForClip(timeline, &clip, 3, params::Kind::UNPATCHED_SOUND), row.paramManager, 0,

@@ -1882,3 +1882,13 @@ lookup/write context changes and refresh cancellation. All 35 native suites and
 `./dbt build relwithdebinfo` pass. The tests use callback fixtures, not real
 parameter destruction; clip retention during refresh and callback-internal
 lifetime remain open under L1.
+
+### G1 progress — unavailable parameter-lookup targets (2026-10-10)
+
+MIDI Follow and Automation View clip parameter lookup now reject missing model
+stacks, clips and outputs before accessing clip state. The existing parameter
+lookup suites cover detached MIDI outputs (including requested error feedback)
+and unavailable Automation View targets under both panel owners. All 35 native
+suites, including diagnostics-on/off parameter lookup, and
+`./dbt build relwithdebinfo` pass. These are entry guards; dangling non-null
+objects and callback lifetime remain L1 concerns.

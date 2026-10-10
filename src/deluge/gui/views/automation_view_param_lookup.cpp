@@ -10,6 +10,9 @@ using params::kNoParamID;
 ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
                                                                        Clip* clip, int32_t paramID,
                                                                        params::Kind paramKind) {
+	if (!modelStack || !clip || !clip->output)
+		return nullptr;
+
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (paramID == kNoParamID) {

@@ -30,6 +30,9 @@ MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWith
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                           int32_t soundParamId, int32_t globalParamId) {
+	if (!modelStackWithTimelineCounter || !clip || !clip->output)
+		return nullptr;
+
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	OutputType outputType = clip->output->type;
 
