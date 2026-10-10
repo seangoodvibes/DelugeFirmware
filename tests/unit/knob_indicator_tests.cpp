@@ -14,7 +14,7 @@ namespace params {
 enum class Kind { NORMAL, PATCH_CABLE };
 }
 static std::function<void()> on_lookup, on_value, on_grab, on_mod_leds, on_redraw, on_resolve, on_activate;
-static std::function<void()> on_has_value, on_current_value, on_kind, on_conversion;
+static std::function<void()> on_has_value, on_current_value, on_kind, on_conversion, on_fallback;
 static int conversion_calls = 0;
 constexpr int NUM_LEVEL_INDICATORS = 2;
 static int lookup_calls = 0;
@@ -92,7 +92,11 @@ struct ModControllable {
 			on_lookup();
 		return result;
 	}
-	int32_t getKnobPosForNonExistentParam(uint8_t, ModelStackWithAutoParam*) { return fallback; }
+	int32_t getKnobPosForNonExistentParam(uint8_t, ModelStackWithAutoParam*) {
+		if (on_fallback)
+			on_fallback();
+		return fallback;
+	}
 };
 using ModControllableAudio = ModControllable;
 struct ModelStackWithAutoParam {
@@ -232,7 +236,7 @@ TEST_GROUP(KnobIndicator) {
 		roots.for_owner(session::Id::Remote) = &root;
 		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = on_resolve = on_activate = {};
 		redraw_calls = 0;
-		on_has_value = on_current_value = on_kind = on_conversion = {};
+		on_has_value = on_current_value = on_kind = on_conversion = on_fallback = {};
 		conversion_calls = 0;
 		currentSong = &song;
 		playbackHandler.active = false;
@@ -247,7 +251,7 @@ TEST_GROUP(KnobIndicator) {
 	void teardown() override {
 		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = on_resolve = on_activate = {};
 		redraw_calls = 0;
-		on_has_value = on_current_value = on_kind = on_conversion = {};
+		on_has_value = on_current_value = on_kind = on_conversion = on_fallback = {};
 		conversion_calls = 0;
 		session::detail::active = session::Id::Local;
 	}
@@ -657,5 +661,52 @@ TEST(KnobIndicator, value_callback_cannot_mix_collections_or_auto_parameters) {
 		view_for_session().setKnobIndicatorLevel(0);
 		LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
 		LONGS_EQUAL(0, conversion_calls);
+	}
+}
+
+TEST(KnobIndicator, legacy_fallback_mapping_change_cancels_output_on_both_panels) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		stack.paramId = 255;
+		on_fallback = [&] { stack.paramId = 10; };
+		view_for_session().setKnobIndicatorLevel(0);
+		LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+	}
+}
+TEST(KnobIndicator, timeline_activation_preserves_replaced_timeline) {
+	TimelineCounter counter, replacement;
+	counter.target = &controllable;
+	counter.manager = &manager;
+	auto& view = view_for_session();
+	on_activate = [&] { view.activeModControllableModelStack.timeline = &replacement; };
+	view.setActiveModControllableTimelineCounter(&counter, true);
+	POINTERS_EQUAL(&replacement, view.activeModControllableModelStack.timeline);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, view.feedback_calls);
+}
+TEST(KnobIndicator, timeline_followup_changes_stop_feedback_at_each_stage) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int phase = 0; phase < 3; ++phase) {
+			TimelineCounter counter;
+			counter.target = &controllable;
+			counter.manager = &manager;
+			auto& view = view_for_session();
+			view.renderedVUMeter = true;
+			view.modNoteRowId = 0;
+			currentSong = &song;
+			lookup_calls = 0;
+			on_mod_leds = on_lookup = on_redraw = {};
+			if (phase == 0)
+				on_mod_leds = [] { currentSong = &replacement_song; };
+			if (phase == 1)
+				on_lookup = [&] { view.activeModControllableModelStack.paramManager = nullptr; };
+			if (phase == 2)
+				on_redraw = [&] { view.modNoteRowId = 99; };
+			view.setActiveModControllableTimelineCounter(&counter, true);
+			LONGS_EQUAL(phase, lookup_calls);
+			LONGS_EQUAL(0, view.feedback_calls);
+			CHECK(session::current() == owner);
+		}
 	}
 }

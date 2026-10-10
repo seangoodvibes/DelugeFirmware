@@ -1460,3 +1460,14 @@ side effects are not provided by these guards.
 - Model-stack/parameter lifetime inside callbacks is still unprotected; equality
   checks are not pins and do not detect address reuse. G1/L1 remain open and
   independent mode stays disabled.
+
+### G1 coverage — modulation selection completion boundaries (2026-10-10)
+
+- Three additional extracted-method tests cover legacy fallback mapping changes,
+  replaced timelines during activation and complete timeline selection through
+  LED/lookup/sidebar invalidation. Both owners are exercised where applicable;
+  replacement state is preserved and stale MIDI feedback is skipped.
+- All 35 native suites pass. This tests/documentation-only commit follows the
+  production revision validated with `./dbt build relwithdebinfo`. Callbacks and
+  hardware output are fixtures; actual model destruction remains L1 coverage work.
+  Independent mode remains disabled.
