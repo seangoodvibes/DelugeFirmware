@@ -1733,3 +1733,13 @@ channels/types, valid MPE zones and duplicate suppression. All 35 native suites
 and `./dbt build relwithdebinfo` pass. This is defensive validation of the collector;
 it does not show that normal callers produce invalid lists, nor prove device
 filtering or callback lifetime safety. Independent mode remains disabled.
+
+### G1 coverage — complete feedback mode resolution (2026-10-10)
+
+Three additional tests execute the production feedback-mode resolver and target
+collector together: A/B/C, Track, all combined modes, track-first ordering,
+duplicate suppression, missing-track fallback and clearing old targets for
+unconfigured/disabled settings. All 35 native suites pass; production code is
+unchanged from the preceding successful RelWithDebInfo build. Track selection and
+MIDI engine configuration remain fixtures, and actual SysEx-only peer filtering
+and physical output are outside this test suite.

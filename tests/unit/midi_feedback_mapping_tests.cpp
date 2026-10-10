@@ -59,6 +59,7 @@ struct channel_fixture {
 using LearnedMIDI = channel_fixture;
 static struct {
 	std::array<channel_fixture, kNumMIDIFollowChannelTypesIncludingTracks> midiFollowChannelType;
+	MIDIFollowFeedbackChannelType midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::NONE;
 } midiEngine;
 namespace MIDIDeviceManager {
 static cable_fixture* readDeviceReferenceFromFile(Deserializer&) {
@@ -67,6 +68,9 @@ static cable_fixture* readDeviceReferenceFromFile(Deserializer&) {
 } // namespace MIDIDeviceManager
 struct MidiFollow {
 	using FeedbackChannelTypes = std::array<MIDIFollowChannelType, 2>;
+	MIDIFollowChannelType track_target = MIDIFollowChannelType::Track1;
+	MIDIFollowChannelType getChannelTypeForTrackFeedback() { return track_target; }
+	size_t getChannelTypesForFeedback(FeedbackChannelTypes&);
 	bool addChannelTypeForFeedback(FeedbackChannelTypes&, size_t&, MIDIFollowChannelType);
 	bool global_context = false;
 	void writeDefaultMappingsToFile(Serializer&);
@@ -322,4 +326,47 @@ TEST(MidiFeedbackMapping, valid_feedback_targets_deduplicate_and_keep_mpe_zones)
 	LONGS_EQUAL(2, count);
 	CHECK(targets[0] == MIDIFollowChannelType::A);
 	CHECK(targets[1] == MIDIFollowChannelType::C);
+}
+
+TEST(MidiFeedbackMapping, feedback_modes_resolve_regular_channels_and_track_in_order) {
+	using mode = MIDIFollowFeedbackChannelType;
+	using target = MIDIFollowChannelType;
+	const std::array<mode, 7> modes{mode::A,         mode::B,         mode::C,        mode::Track,
+	                                mode::TrackAndA, mode::TrackAndB, mode::TrackAndC};
+	const std::array<target, 7> first{target::A,      target::B,      target::C,     target::Track1,
+	                                  target::Track1, target::Track1, target::Track1};
+	for (int i = 0; i < 4; ++i)
+		midiEngine.midiFollowChannelType[i].channelOrZone = i;
+	for (size_t i = 0; i < modes.size(); ++i) {
+		midiEngine.midiFollowFeedbackChannelType = modes[i];
+		MidiFollow::FeedbackChannelTypes targets{};
+		LONGS_EQUAL(i < 4 ? 1 : 2, follow.getChannelTypesForFeedback(targets));
+		CHECK(targets[0] == first[i]);
+		if (i >= 4)
+			CHECK(targets[1] == static_cast<target>(i - 4));
+		else
+			CHECK(targets[1] == target::NONE);
+	}
+}
+TEST(MidiFeedbackMapping, combined_feedback_deduplicates_and_falls_back_without_track) {
+	midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::TrackAndA;
+	midiEngine.midiFollowChannelType[0].channelOrZone = 4;
+	midiEngine.midiFollowChannelType[3].channelOrZone = 4;
+	MidiFollow::FeedbackChannelTypes targets{};
+	LONGS_EQUAL(1, follow.getChannelTypesForFeedback(targets));
+	CHECK(targets[0] == MIDIFollowChannelType::Track1);
+	follow.track_target = MIDIFollowChannelType::NONE;
+	LONGS_EQUAL(1, follow.getChannelTypesForFeedback(targets));
+	CHECK(targets[0] == MIDIFollowChannelType::A);
+	CHECK(targets[1] == MIDIFollowChannelType::NONE);
+}
+TEST(MidiFeedbackMapping, disabled_and_unconfigured_modes_clear_previous_targets) {
+	MidiFollow::FeedbackChannelTypes targets{MIDIFollowChannelType::A, MIDIFollowChannelType::B};
+	for (auto mode : {MIDIFollowFeedbackChannelType::NONE, MIDIFollowFeedbackChannelType::INVALID,
+	                  MIDIFollowFeedbackChannelType::TrackAndC}) {
+		midiEngine.midiFollowFeedbackChannelType = mode;
+		LONGS_EQUAL(0, follow.getChannelTypesForFeedback(targets));
+		for (auto target : targets)
+			CHECK(target == MIDIFollowChannelType::NONE);
+	}
 }
