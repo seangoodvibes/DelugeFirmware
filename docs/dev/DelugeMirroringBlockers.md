@@ -2166,3 +2166,13 @@ values are retained across insertion. Five sanitizer regressions verify failures
 leave the original instance untouched and the exact sequence-end boundary still
 works. All 36 native suites and `./dbt build relwithdebinfo` pass. Instrument
 expansion and playback-position arithmetic are the next checks in this path.
+
+Recording-clone repeat length and playback position now use checked 64-bit
+arithmetic. Invalid/zero lengths and unrepresentable positions discard only the
+unpublished copy; invalid source loop lengths are rejected before clone code.
+Position is checked before publication and again after stopping the source, so a
+callback cannot introduce signed overflow before resume. Nine sanitizer tests
+cover extreme values, exact valid length, reversed wrapping, insertion rollback
+and late callback failure. All 36 native suites and `./dbt build relwithdebinfo`
+pass. A late post-publication failure still leaves the published prefix for R2/R4
+recovery; this change does not claim transactional rollback of that prefix.

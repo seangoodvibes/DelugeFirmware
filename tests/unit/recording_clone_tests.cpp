@@ -645,3 +645,98 @@ TEST(RecordingClone, nonpositive_audio_loop_length_does_not_publish_split) {
 	LONGS_EQUAL(0, output.clipInstances.inserts);
 	LONGS_EQUAL(0, original.clone_calls);
 }
+
+TEST(RecordingClone, excessive_instrument_repeat_length_discards_only_copy) {
+	original.type = ClipType::INSTRUMENT;
+	original.repeatCount = std::numeric_limits<int32_t>::max();
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(1, song.deletions);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	POINTERS_EQUAL(&original, stack.clip);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	LONGS_EQUAL(0, original.stop_calls);
+}
+TEST(RecordingClone, zero_instrument_recording_length_does_not_publish_copy) {
+	original.type = ClipType::INSTRUMENT;
+	original.repeatCount = -1;
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	POINTERS_EQUAL(&original, stack.clip);
+}
+TEST(RecordingClone, maximum_valid_instrument_recording_length_is_preserved) {
+	original.type = ClipType::INSTRUMENT;
+	original.repeatCount = 1;
+	original.loopLength = kMaxSequenceLength / 2;
+	CHECK(attempt_clone());
+	CHECK(result == Error::NONE);
+	LONGS_EQUAL(kMaxSequenceLength, cloned.new_length);
+	LONGS_EQUAL(original.loopLength + 5, cloned.new_position);
+}
+TEST(RecordingClone, reversed_minimum_position_discards_unpublished_audio_copy) {
+	original.type = ClipType::AUDIO;
+	original.currentlyPlayingReversed = true;
+	original.lastProcessedPos = std::numeric_limits<int32_t>::min();
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	LONGS_EQUAL(0, original.stop_calls);
+	POINTERS_EQUAL(&original, stack.clip);
+}
+TEST(RecordingClone, overflowing_instrument_play_position_does_not_publish_copy) {
+	original.type = ClipType::INSTRUMENT;
+	original.repeatCount = 1;
+	original.lastProcessedPos = std::numeric_limits<int32_t>::max();
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	LONGS_EQUAL(0, original.stop_calls);
+}
+TEST(RecordingClone, stop_callback_invalidating_position_cancels_before_resume) {
+	original.type = ClipType::AUDIO;
+	original.currentlyPlayingReversed = true;
+	original.on_stop = [&] { original.lastProcessedPos = std::numeric_limits<int32_t>::min(); };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(1, song.arrangementOnlyClips.inserts);
+	LONGS_EQUAL(0, cloned.resume_calls);
+	LONGS_EQUAL(0, song.deletions);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+}
+TEST(RecordingClone, reversed_recording_position_keeps_existing_wrap_behavior) {
+	original.type = ClipType::INSTRUMENT;
+	original.repeatCount = 2;
+	original.currentlyPlayingReversed = true;
+	CHECK(attempt_clone());
+	LONGS_EQUAL(3 * original.loopLength - original.lastProcessedPos, cloned.new_position);
+}
+
+TEST(RecordingClone, invalid_loop_lengths_do_not_reach_clone_implementations) {
+	for (auto type : {ClipType::AUDIO, ClipType::INSTRUMENT}) {
+		original.type = type;
+		for (int32_t length : {0, -1, std::numeric_limits<int32_t>::max()}) {
+			original.loopLength = length;
+			CHECK_FALSE(attempt_clone());
+			CHECK(result == Error::BUG);
+		}
+	}
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(0, song.deletions);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}
+TEST(RecordingClone, invalid_loop_length_after_split_insertion_rolls_back_split) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.on_insert = [&] { original.loopLength = 0; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(1, output.clipInstances.count);
+	LONGS_EQUAL(64, output.clipInstances.values[0].length);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+}

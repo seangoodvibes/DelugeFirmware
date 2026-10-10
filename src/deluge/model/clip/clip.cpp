@@ -1233,6 +1233,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				}
 			}
 
+			if (loopLength <= 0 || loopLength > kMaxSequenceLength) {
+				rollback_audio_split();
+				return fail(Error::BUG);
+			}
 			Error error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
 			if (!context_matches())
 				return fail(Error::BUG);
@@ -1273,17 +1277,45 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			newClip->section = 255;
 
-			int32_t newLength = loopLength;
+			const int64_t recording_length =
+			    static_cast<int64_t>(loopLength)
+			    * (type == ClipType::INSTRUMENT ? static_cast<int64_t>(repeatCount) + 1 : 1);
+			if (loopLength <= 0 || recording_length <= 0 || recording_length > kMaxSequenceLength) {
+				rollback_audio_split();
+				discard_unpublished_clone();
+				return fail(Error::BUG);
+			}
+			const int32_t new_length = static_cast<int32_t>(recording_length);
 
 			if (type == ClipType::INSTRUMENT) {
-				newLength *= (repeatCount + 1);
 				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
 				const bool repeated = newClip->increaseLengthWithRepeats(
-				    modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP, true);
+				    modelStack, new_length, IndependentNoteRowLengthIncrease::ROUND_UP, true);
 				if (!repeated || !clone_is_unpublished()) {
 					discard_unpublished_clone();
 					return fail(Error::BUG);
 				}
+			}
+
+			const auto get_recording_position = [&](int32_t& position) {
+				int64_t candidate = lastProcessedPos;
+				if (currentlyPlayingReversed) {
+					candidate = -candidate;
+					if (candidate < 0)
+						candidate += loopLength;
+				}
+				if (type == ClipType::INSTRUMENT)
+					candidate += static_cast<int64_t>(repeatCount) * loopLength;
+				if (candidate < std::numeric_limits<int32_t>::min() || candidate > std::numeric_limits<int32_t>::max())
+					return false;
+				position = static_cast<int32_t>(candidate);
+				return true;
+			};
+			int32_t new_play_pos;
+			if (!get_recording_position(new_play_pos)) {
+				rollback_audio_split();
+				discard_unpublished_clone();
+				return fail(Error::BUG);
 			}
 
 			// Add to Song
@@ -1301,27 +1333,16 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				return fail(Error::BUG);
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
-			if (!published_clone_matches())
+			if (!published_clone_matches() || !get_recording_position(new_play_pos))
 				return fail(Error::BUG);
 
 			clipInstance->clip = newClip;
-			clipInstance->length = newLength;
+			clipInstance->length = new_length;
 
 			newClip->activeIfNoSolo =
 			    true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
 
-			// Sort out new play-pos. Must "flatten" reversing.
-			int32_t newPlayPos = lastProcessedPos;
-			if (currentlyPlayingReversed) {
-				newPlayPos = -newPlayPos;
-				if (newPlayPos < 0) {
-					newPlayPos += loopLength;
-				}
-			}
-			if (type == ClipType::INSTRUMENT) {
-				newPlayPos += repeatCount * loopLength;
-			}
-			newClip->setPos(modelStack, newPlayPos, true);
+			newClip->setPos(modelStack, new_play_pos, true);
 			if (!published_clone_matches())
 				return fail(Error::BUG);
 			newClip->resumePlayback(modelStack, false); // Don't sound
