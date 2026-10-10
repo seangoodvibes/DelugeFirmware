@@ -25,6 +25,7 @@ struct Source {
 	OscType oscType = OscType::SQUARE;
 	struct {
 		int32_t elementSize = 1, count = 1;
+		int32_t element_size() const { return elementSize; }
 		int32_t getNumElements() { return count; }
 		void* getElementAddress(int32_t) { return &range; }
 		void empty() {

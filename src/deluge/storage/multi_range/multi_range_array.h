@@ -23,10 +23,26 @@ class MultisampleRange;
 class MultiWaveTableRange;
 class MultiRange;
 
-class MultiRangeArray final : public OrderedResizeableArray {
+class MultiRangeArray final : private OrderedResizeableArray {
 public:
 	MultiRangeArray();
+	explicit MultiRangeArray(int32_t element_size);
+	MultiRangeArray(const MultiRangeArray&) = delete;
+	MultiRangeArray& operator=(const MultiRangeArray&) = delete;
+	using OrderedResizeableArray::getElementAddress;
+	using OrderedResizeableArray::getNumElements;
+	using OrderedResizeableArray::search;
+	uint32_t element_size() const { return elementSize; }
+	uint32_t layout_revision() const { return layout_revision_; }
+	Error insertAtIndex(int32_t index, int32_t count = 1, void* protected_object = nullptr);
+	void deleteAtIndex(int32_t index, int32_t count = 1, bool may_shorten = true);
+	bool ensureEnoughSpaceAllocated(int32_t additional_count);
+	void swapStateWith(MultiRangeArray* other);
 	MultiRange* getElement(int32_t i);
 	MultiRange* insertMultiRange(int32_t i);
 	Error changeType(int32_t newSize);
+
+private:
+	// Invalidate retained range identities before any structural mutation attempt.
+	uint32_t layout_revision_ = 0;
 };

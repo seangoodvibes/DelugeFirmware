@@ -11,6 +11,8 @@ struct MultiRange {
 	virtual ~MultiRange() { ++destroyed; }
 };
 struct MultiRangeArray {
+	explicit MultiRangeArray(int size = 1) : elementSize(size), storage_stride(size) {}
+	int element_size() const { return elementSize; }
 	int elementSize = 1;
 	int storage_stride = 1;
 	std::vector<MultiRange*> entries;

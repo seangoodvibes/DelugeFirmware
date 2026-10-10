@@ -61,8 +61,7 @@ Source::~Source() {
 // Detach storage before servicing audio: callbacks must not see partially
 // destroyed ranges, and cleanup must not depend on the Source remaining alive.
 void Source::destructAllMultiRanges() {
-	MultiRangeArray retired_ranges;
-	retired_ranges.elementSize = ranges.elementSize;
+	MultiRangeArray retired_ranges(ranges.element_size());
 	ranges.swapStateWith(&retired_ranges);
 	for (int32_t index = 0; index < retired_ranges.getNumElements(); ++index) {
 		AudioEngine::logAction("destructAllMultiRanges()");
@@ -112,12 +111,13 @@ bool Source::detachAllAudioFiles() {
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto source_type = oscType;
 	const auto range_count = ranges.getNumElements();
+	const auto range_revision = ranges.layout_revision();
 	for (int32_t index = 0; index < range_count; ++index) {
 		auto* range = ranges.getElement(index);
 		const auto context_valid = [&] {
 			return source_lifetime.alive() && oscType == source_type
-			       && deluge::gui::ui_session::current() == source_owner && ranges.getNumElements() == range_count
-			       && ranges.getElement(index) == range;
+			       && deluge::gui::ui_session::current() == source_owner && ranges.layout_revision() == range_revision
+			       && ranges.getNumElements() == range_count && ranges.getElement(index) == range;
 		};
 		if (!(index & 7)) // Preserve audio servicing for multisampled sounds.
 			AudioEngine::routineWithClusterLoading();
@@ -140,12 +140,13 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles, const deluge::lifetime::
 	const auto source_type = oscType;
 	const auto reversed = sampleControls.isCurrentlyReversed();
 	const auto range_count = ranges.getNumElements();
+	const auto range_revision = ranges.layout_revision();
 	for (int32_t index = 0; index < range_count; ++index) {
 		auto* range = ranges.getElement(index);
 		const auto context_valid = [&] {
 			return source_lifetime.alive() && (!validation || validation->valid()) && oscType == source_type
-			       && sampleControls.isCurrentlyReversed() == reversed && ranges.getNumElements() == range_count
-			       && ranges.getElement(index) == range;
+			       && sampleControls.isCurrentlyReversed() == reversed && ranges.layout_revision() == range_revision
+			       && ranges.getNumElements() == range_count && ranges.getElement(index) == range;
 		};
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(index & 3)) // Preserve audio servicing for multisampled sounds.
@@ -175,13 +176,14 @@ void Source::setReversed(bool newReversed) {
 	const auto reversed = sampleControls.isCurrentlyReversed();
 	const auto source_type = oscType;
 	const auto range_count = ranges.getNumElements();
+	const auto range_revision = ranges.layout_revision();
 	for (int32_t index = 0; index < range_count; ++index) {
 		auto* range = ranges.getElement(index);
 		const auto context_valid = [&] {
 			return source_lifetime.alive() && oscType == source_type && sampleControls.reversed == newReversed
 			       && sampleControls.isCurrentlyReversed() == reversed
-			       && deluge::gui::ui_session::current() == source_owner && ranges.getNumElements() == range_count
-			       && ranges.getElement(index) == range;
+			       && deluge::gui::ui_session::current() == source_owner && ranges.layout_revision() == range_revision
+			       && ranges.getNumElements() == range_count && ranges.getElement(index) == range;
 		};
 		auto* holder = static_cast<SampleHolder*>(range->getAudioFileHolder());
 		auto* sample = static_cast<Sample*>(holder->audioFile);
@@ -321,7 +323,7 @@ void Source::setOscType(OscType newType) {
 	if (newType == OscType::SAMPLE) {
 		multiRangeSize = sizeof(MultisampleRange);
 possiblyDeleteRanges:
-		if (ranges.elementSize != multiRangeSize) {
+		if (ranges.element_size() != multiRangeSize) {
 
 doChangeType:
 			Error error = ranges.changeType(multiRangeSize);

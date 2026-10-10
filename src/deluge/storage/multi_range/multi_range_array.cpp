@@ -25,8 +25,11 @@
 // This is supported by GCC and other compilers should error (not warn), so turn off for this
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
-MultiRangeArray::MultiRangeArray()
-    : OrderedResizeableArray(sizeof(MultisampleRange), 16, __builtin_offsetof(MultiRange, topNote), 0, 0) {
+MultiRangeArray::MultiRangeArray() : MultiRangeArray(sizeof(MultisampleRange)) {
+}
+
+MultiRangeArray::MultiRangeArray(int32_t element_size)
+    : OrderedResizeableArray(element_size, 16, __builtin_offsetof(MultiRange, topNote), 0, 0) {
 }
 #pragma GCC diagnostic pop
 
@@ -53,6 +56,7 @@ MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 }
 
 Error MultiRangeArray::changeType(int32_t newSize) {
+	++layout_revision_;
 
 	if (!numElements) {
 		elementSize = newSize;
@@ -92,4 +96,25 @@ Error MultiRangeArray::changeType(int32_t newSize) {
 
 	swapStateWith(&newArray);
 	return Error::NONE;
+}
+
+Error MultiRangeArray::insertAtIndex(int32_t index, int32_t count, void* protected_object) {
+	++layout_revision_;
+	return OrderedResizeableArray::insertAtIndex(index, count, protected_object);
+}
+
+void MultiRangeArray::deleteAtIndex(int32_t index, int32_t count, bool may_shorten) {
+	++layout_revision_;
+	OrderedResizeableArray::deleteAtIndex(index, count, may_shorten);
+}
+
+bool MultiRangeArray::ensureEnoughSpaceAllocated(int32_t additional_count) {
+	++layout_revision_;
+	return OrderedResizeableArray::ensureEnoughSpaceAllocated(additional_count);
+}
+
+void MultiRangeArray::swapStateWith(MultiRangeArray* other) {
+	++layout_revision_;
+	++other->layout_revision_;
+	OrderedResizeableArray::swapStateWith(other);
 }

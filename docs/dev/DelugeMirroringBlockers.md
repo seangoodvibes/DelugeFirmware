@@ -3317,3 +3317,18 @@ propagation, normal end-marker clamping and audio-service cadence. All 38 suites
 RelWithDebInfo pass. Prior completed detachments, direction changes and marker clamps
 are not rolled back. Range identity at reused addresses and the earlier hibernation
 callbacks remain separate concerns. Independent mode stays disabled.
+
+MultiRangeArray now tracks structural mutation attempts with a per-array revision.
+Its base array is private, copying is disabled, and exposed insert/delete/reserve/
+swap/type-change methods invalidate retained layout identities. Element size is
+read-only to callers; detached teardown constructs its local array with the matching
+stride. Source loading, reversal and detachment check the revision before touching
+retained ranges, including when addresses/counts return to their original values.
+Ten regressions cover same-address replacement, swap round trips, failed mutations
+that preserve originals, conversion keys/stride and all three Source operations;
+the three Source cases fail against the previous methods. Compile-time checks
+prevent untracked base conversion/emptying and copying. All 38 suites and
+RelWithDebInfo pass. One counter is added per array, not per range; failed mutation
+attempts conservatively cancel older work. Other retained UI range pointers, inner
+mutation recovery and note-row identity remain L1/R4 work. Independent mode stays
+disabled.

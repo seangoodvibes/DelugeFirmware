@@ -71,6 +71,8 @@ struct Source : Lifetime {
 	} sampleControls;
 	struct {
 		std::vector<Range*> entries;
+		uint32_t revision = 0;
+		uint32_t layout_revision() const { return revision; }
 		int32_t getNumElements() { return entries.size(); }
 		Range* getElement(int32_t index) { return entries.at(index); }
 	} ranges;
@@ -419,4 +421,20 @@ TEST(SourceSampleLoading, holder_detachment_cancellation_stops_later_sources) {
 	LONGS_EQUAL(0, detachments);
 	LONGS_EQUAL(1, yields);
 	POINTERS_EQUAL(&sample, second.holder.audioFile);
+}
+
+TEST(SourceSampleLoading, identical_range_address_and_count_do_not_hide_layout_changes) {
+	on_load = [&] { ++instrument.sources[0].ranges.revision; };
+	CHECK(instrument.loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(0, publications);
+}
+TEST(SourceSampleLoading, identical_range_address_does_not_hide_reverse_layout_changes) {
+	on_claim = [&] { ++instrument.sources[0].ranges.revision; };
+	instrument.sources[0].setReversed(true);
+	LONGS_EQUAL(0, publications);
+}
+TEST(SourceSampleLoading, identical_range_address_does_not_hide_detachment_layout_changes) {
+	on_audio = [&] { ++instrument.sources[0].ranges.revision; };
+	CHECK_FALSE(instrument.sources[0].detachAllAudioFiles());
+	LONGS_EQUAL(0, detachments);
 }

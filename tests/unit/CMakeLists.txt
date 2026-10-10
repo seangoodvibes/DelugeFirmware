@@ -1255,3 +1255,13 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_detachment.in
         ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_detachment.inc Sound::detachSourcesFromAudioFiles
     DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/source_sample_operations.inc ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_detachment.inc)
+
+set(multi_range_layout_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/storage/multi_range/multi_range_array.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multi_range_layout.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${multi_range_layout_source} ${CMAKE_CURRENT_BINARY_DIR}/multi_range_layout.inc
+        MultiRangeArray::getElement MultiRangeArray::insertMultiRange MultiRangeArray::changeType
+        MultiRangeArray::insertAtIndex MultiRangeArray::deleteAtIndex
+        MultiRangeArray::ensureEnoughSpaceAllocated MultiRangeArray::swapStateWith
+    DEPENDS ${multi_range_layout_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE multi_range_layout_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/multi_range_layout.inc)

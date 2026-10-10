@@ -3641,7 +3641,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 					// is a sampleRange or wavetableRange
 
-					char tempMemory[source->ranges.elementSize];
+					char tempMemory[source->ranges.element_size()];
 
 					MultiRange* tempRange;
 					if (source->oscType == OscType::WAVETABLE) {
@@ -3730,7 +3730,7 @@ gotError:
 					}
 
 					void* destinationRange = (MultisampleRange*)source->ranges.getElementAddress(i);
-					memcpy(destinationRange, tempRange, source->ranges.elementSize);
+					memcpy(destinationRange, tempRange, source->ranges.element_size());
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
 				}
