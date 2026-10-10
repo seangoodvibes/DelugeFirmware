@@ -30,6 +30,7 @@ struct MIDICable {
 	} ports[1];
 };
 struct midi_input {
+	bool equalsChannelOrZone(MIDICable*, int32_t) { return match != MIDIMatchType::NO_MATCH; }
 	bool equalsNoteOrCCAllowMPE(MIDICable*, int32_t, int32_t) { return match != MIDIMatchType::NO_MATCH; }
 	bool equalsNoteOrCC(MIDICable*, int32_t, int32_t) { return match != MIDIMatchType::NO_MATCH; }
 	MIDIMatchType match = MIDIMatchType::MPE_MASTER;
@@ -56,7 +57,30 @@ struct Clip {
 	Kit* output = nullptr;
 	Drum* drum = nullptr;
 };
-struct NoteRow {};
+std::function<void()> on_expression;
+int expression_requests = 0;
+struct ExpressionParamSet {
+	bool automated = false;
+	int bendRanges[2]{2, 48};
+	bool isAutomated(int) { return automated; }
+};
+struct ParamManager {
+	ExpressionParamSet expression;
+	ExpressionParamSet* current = &expression;
+	ExpressionParamSet* getExpressionParamSet() { return current; }
+	ExpressionParamSet* getOrCreateExpressionParamSet() {
+		++expression_requests;
+		auto* result = current;
+		if (on_expression)
+			on_expression();
+		return result;
+	}
+};
+struct NoteRow {
+	uint64_t undo_identity = 1;
+	ParamManager paramManager;
+};
+struct ModelStack {};
 struct ModelStackWithTimelineCounter;
 struct ModelStackWithNoteRow {
 	NoteRow* row;
@@ -64,6 +88,8 @@ struct ModelStackWithNoteRow {
 };
 struct InstrumentClip : Clip {
 	NoteRow row;
+	NoteRow* mapped_row = &row;
+	NoteRow* getNoteRowForDrum(Drum*) { return mapped_row; }
 	ModelStackWithNoteRow row_stack{&row};
 	ModelStackWithNoteRow* getNoteRowForDrum(ModelStackWithTimelineCounter*, Drum*) { return &row_stack; }
 	void toggleNoteRowMute(ModelStackWithNoteRow*);
@@ -92,6 +118,7 @@ struct Kit {
 	Clip* activeClip = nullptr;
 	midi_input midiInput{MIDIMatchType::NO_MATCH};
 	int32_t getDrumIndex(Drum*);
+	void offerBendRangeUpdate(ModelStack*, MIDICable&, int32_t, int32_t, int32_t);
 	void cutAllSound();
 	void choke();
 	bool receivedNoteForDrum(ModelStackWithTimelineCounter* stack, MIDICable&, bool, int32_t, int32_t, int32_t, bool,
@@ -187,11 +214,13 @@ TEST_GROUP(kit_expression_lifetime) {
 	void setup() override {
 		dispatched = render_count = 0;
 		on_dispatch = {};
+ on_expression = {};
+ expression_requests = 0;
 		dispatch_success = true;
 		dispatched_stack = nullptr;
 		last_routed_clip = nullptr;
 	}
-	void teardown() override { on_dispatch = {}; }
+	void teardown() override { on_dispatch = {}; on_expression = {}; }
 };
 // clang-format on
 TEST(kit_expression_lifetime, live_routes_dispatch_to_all_drums) {
@@ -457,5 +486,149 @@ TEST(kit_expression_lifetime, cut_and_choke_reject_retiring_owners) {
 			send(mode, f.kit, nullptr);
 			LONGS_EQUAL(0, dispatched);
 		}
+	}
+}
+
+static void send_bend_range(Kit& kit, int range = BEND_RANGE_FINGER_LEVEL) {
+	MIDICable cable;
+	kit.offerBendRangeUpdate(nullptr, cable, 0, range, 12);
+}
+TEST(kit_expression_lifetime, bend_range_updates_live_unautomated_rows) {
+	fixture f;
+	send_bend_range(f.kit);
+	LONGS_EQUAL(2, expression_requests);
+	LONGS_EQUAL(12, f.clip.row.paramManager.expression.bendRanges[1]);
+	f.clip.row.paramManager.expression.automated = true;
+	f.clip.row.paramManager.expression.bendRanges[1] = 24;
+	send_bend_range(f.kit);
+	LONGS_EQUAL(24, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_rejects_unsupported_indices) {
+	fixture f;
+	for (int range : {-1, 0, 2, 100})
+		send_bend_range(f.kit, range);
+	LONGS_EQUAL(0, expression_requests);
+}
+TEST(kit_expression_lifetime, bend_range_allocation_can_delete_kit) {
+	fixture f;
+	auto kit = std::make_unique<Kit>();
+	kit->firstDrum = &f.first;
+	kit->activeClip = &f.clip;
+	f.clip.output = kit.get();
+	on_expression = [&] { kit.reset(); };
+	send_bend_range(*kit);
+	LONGS_EQUAL(1, expression_requests);
+}
+TEST(kit_expression_lifetime, bend_range_allocation_can_delete_clip) {
+	fixture f;
+	auto clip = std::make_unique<InstrumentClip>();
+	clip->output = &f.kit;
+	f.kit.activeClip = clip.get();
+	on_expression = [&] { clip.reset(); };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+}
+TEST(kit_expression_lifetime, bend_range_allocation_can_delete_drum) {
+	fixture f;
+	auto drum = std::make_unique<Drum>();
+	drum->next = &f.second;
+	f.kit.firstDrum = drum.get();
+	on_expression = [&] { drum.reset(); };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+}
+TEST(kit_expression_lifetime, bend_range_allocation_can_delete_row) {
+	fixture f;
+	auto row = std::make_unique<NoteRow>();
+	f.clip.mapped_row = row.get();
+	on_expression = [&] {
+		row.reset();
+		f.clip.mapped_row = nullptr;
+	};
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+}
+TEST(kit_expression_lifetime, bend_range_rejects_reused_row_identity) {
+	fixture f;
+	on_expression = [&] { ++f.clip.row.undo_identity; };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_preserves_replacement_parameter_set) {
+	fixture f;
+	ExpressionParamSet replacement;
+	on_expression = [&] { f.clip.row.paramManager.current = &replacement; };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+	LONGS_EQUAL(48, replacement.bendRanges[1]);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_preserves_clip_retarget) {
+	fixture f;
+	InstrumentClip replacement;
+	on_expression = [&] { f.kit.activeClip = &replacement; };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_rejects_live_drum_detachment) {
+	fixture f;
+	on_expression = [&] { f.kit.firstDrum = &f.second; };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_allocation_failure_skips_write) {
+	fixture f;
+	f.clip.row.paramManager.current = nullptr;
+	send_bend_range(f.kit);
+	LONGS_EQUAL(2, expression_requests);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_rejects_song_change) {
+	fixture f;
+	int replacement_song;
+	on_expression = [&] { currentSong = &replacement_song; };
+	send_bend_range(f.kit);
+	currentSong = &song;
+	LONGS_EQUAL(1, expression_requests);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_rejects_panel_change) {
+	fixture f;
+	std::unique_ptr<deluge::gui::ui_session::Scope> changed_owner;
+	const auto other_owner = deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local
+	                             ? deluge::gui::ui_session::Id::Remote
+	                             : deluge::gui::ui_session::Id::Local;
+	on_expression = [&] { changed_owner = std::make_unique<deluge::gui::ui_session::Scope>(other_owner); };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_rejects_output_change) {
+	fixture f;
+	Kit replacement;
+	on_expression = [&] { f.clip.output = &replacement; };
+	send_bend_range(f.kit);
+	LONGS_EQUAL(1, expression_requests);
+	LONGS_EQUAL(48, f.clip.row.paramManager.expression.bendRanges[1]);
+}
+TEST(kit_expression_lifetime, bend_range_rejects_retiring_and_missing_context) {
+	for (int target = 0; target < 5; ++target) {
+		fixture f;
+		expression_requests = 0;
+		if (target == 0)
+			f.kit.lifetime.retire();
+		if (target == 1)
+			f.first.lifetime.retire();
+		if (target == 2)
+			f.clip.lifetime.retire();
+		if (target == 3)
+			f.kit.activeClip = nullptr;
+		if (target == 4)
+			f.clip.output = nullptr;
+		send_bend_range(f.kit);
+		LONGS_EQUAL(0, expression_requests);
 	}
 }

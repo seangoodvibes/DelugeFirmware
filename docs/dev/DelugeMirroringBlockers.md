@@ -2426,3 +2426,13 @@ sanitizer regressions execute both production loops and real membership lookup,
 covering live traversal, heap deletion, same-address replacement, detachment and
 retired entry. All 36 native suites and `./dbt build relwithdebinfo` pass. Voice
 callback internals and rendering-list traversal remain separate lifetime work.
+
+Kit bend-range routing now checks kit/clip/drum lifetime, row identity,
+parameter-set association and song/panel context after expression allocation.
+Unsupported range indices are rejected before array access. Fifteen sanitizer
+regressions execute the production route and real membership lookup with allocation
+and model doubles, covering destruction, replacement, allocation failure,
+automation preservation and context changes. All 36 native suites and
+`./dbt build relwithdebinfo` pass. The production expression-creation helper still
+publishes into its manager after allocation without an owner guard: this is a
+confirmed inner-callback gap, not closed by the new caller checks.

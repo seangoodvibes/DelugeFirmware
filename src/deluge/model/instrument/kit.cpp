@@ -2139,32 +2139,41 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 
 void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone, int32_t whichBendRange,
                                int32_t bendSemitones) {
-
-	if (whichBendRange == BEND_RANGE_MAIN) {
-		return; // This is not used in Kits for Drums. Drums use their BEND_RANGE_FINGER_LEVEL for both kinds of bend.
-	}
-	// TODO: Hmm, for non-MPE instruments we'd want to use this kind of bend range update and just paste it into
-	// BEND_RANGE_FINGER_LEVEL though...
-
+	// Kits use the finger-level range; reject other indices before indexing bendRanges.
+	if (whichBendRange != BEND_RANGE_FINGER_LEVEL)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(activeClip);
+	if (!routed_clip)
+		return;
+	auto clip_lifetime = routed_clip->watch_lifetime();
+	if (!clip_lifetime.alive() || routed_clip->output != this)
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->midiInput.equalsChannelOrZone(&cable, channelOrZone)) {
-
-			if (activeClip) {
-				NoteRow* noteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(thisDrum);
-				if (noteRow) {
-					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet();
-					if (expressionParams) {
-						if (!expressionParams->isAutomated(0)) {
-							expressionParams->bendRanges[whichBendRange] = bendSemitones;
-						}
-					}
-				}
-			}
-			else {
-				// ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(thisDrum,
-				// NULL); // TODO...
-			}
-		}
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+		if (!thisDrum->midiInput.equalsChannelOrZone(&cable, channelOrZone))
+			continue;
+		auto* note_row = routed_clip->getNoteRowForDrum(thisDrum);
+		if (!note_row)
+			continue;
+		const auto row_identity = note_row->undo_identity;
+		auto* expression_params = note_row->paramManager.getOrCreateExpressionParamSet();
+		if (!kit_lifetime.alive() || !clip_lifetime.alive() || !drum_lifetime.alive() || activeClip != routed_clip
+		    || routed_clip->output != this || currentSong != source_song
+		    || deluge::gui::ui_session::current() != source_owner || getDrumIndex(thisDrum) < 0)
+			return;
+		auto* current_row = routed_clip->getNoteRowForDrum(thisDrum);
+		if (current_row != note_row || !current_row || current_row->undo_identity != row_identity
+		    || current_row->paramManager.getExpressionParamSet() != expression_params)
+			return;
+		if (expression_params && !expression_params->isAutomated(0))
+			expression_params->bendRanges[whichBendRange] = bendSemitones;
 	}
 }
 
