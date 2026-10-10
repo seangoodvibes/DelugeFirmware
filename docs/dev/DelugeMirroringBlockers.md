@@ -2059,3 +2059,14 @@ ASan/UBSan `ClipLifetimeTests` target. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Other MIDI selection/parameter callbacks and
 output lifetime are not comprehensively watched yet; callback-internal ownership
 and concurrent-thread access remain outside this cancellation mechanism.
+
+### L1 / G1 progress — watched MIDI parameter and feedback targets (2026-10-10)
+
+Learned CC handling now watches the original and resulting clip across cloning,
+lookup, parameter writes and display callbacks. Feedback sweeps watch their
+selected target across lookup and sending. Five regressions destroy targets during
+lookup/write, replace a feedback target at the same address, and reject retiring
+targets before parameter services. They run under ASan/UBSan in `ClipLifetimeTests`;
+all 36 native suites and `./dbt build relwithdebinfo` pass. These checks cover clip
+retirement after a live watch is acquired, not lifetime inside parameter services
+or independent destruction of parameter collections/outputs.

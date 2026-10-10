@@ -2,8 +2,10 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
 #include "modulation/params/param.h"
+#include "util/lifetime.h"
 #include <array>
 #include <functional>
+#include <memory>
 
 namespace midi_feedback_sweep_test {
 namespace panels = deluge::gui::ui_session;
@@ -32,7 +34,10 @@ static RootUI* getRootUI() {
 	return current_root;
 }
 
-struct Clip : TimelineCounter {};
+struct Clip : TimelineCounter {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
+};
 static std::function<void()> on_refresh;
 struct automation_fixture : RootUI {
 	bool possiblyRefreshAutomationEditorGrid(Clip*, params::Kind, int) {
@@ -375,4 +380,53 @@ TEST(MidiFeedbackSweep, failed_arrangement_clone_does_not_edit_original) {
 	LONGS_EQUAL(0, follow.lookups);
 	LONGS_EQUAL(0, follow.parameter.writes);
 	POINTERS_EQUAL(&clip, stack.timeline.timeline);
+}
+
+TEST(MidiFeedbackSweep, destroyed_feedback_target_stops_before_sending) {
+	auto* target = new Clip;
+	follow.selected_clip = target;
+	follow.on_lookup = [&] { delete target; };
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	LONGS_EQUAL(1, follow.lookups);
+	LONGS_EQUAL(0, follow.sends);
+}
+TEST(MidiFeedbackSweep, destroyed_incoming_target_stops_before_parameter_write) {
+	auto* target = new Clip;
+	stack.timeline.timeline = target;
+	follow.on_lookup = [&] { delete target; };
+	follow.handleReceivedCC(cable, stack.timeline, target, 7, 64);
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, destroyed_recording_clone_stops_post_write_display) {
+	auto* target = new Clip;
+	clone_result = true;
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) { model_stack->timeline = target; };
+	midiEngine.midiFollowDisplayParam = true;
+	follow.parameter.on_write = [&] { delete target; };
+	receive();
+	LONGS_EQUAL(1, follow.parameter.writes);
+	LONGS_EQUAL(0, view_for_session().popup_calls);
+}
+TEST(MidiFeedbackSweep, reused_feedback_target_address_does_not_continue_sweep) {
+	auto* target = new Clip;
+	follow.selected_clip = target;
+	follow.on_send = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+	};
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	LONGS_EQUAL(1, follow.sends);
+	LONGS_EQUAL(1, follow.lookups);
+	delete target;
+}
+TEST(MidiFeedbackSweep, retiring_target_never_reaches_parameter_services) {
+	auto* target = new Clip;
+	target->lifetime_source.retire();
+	follow.selected_clip = target;
+	stack.timeline.timeline = target;
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	follow.handleReceivedCC(cable, stack.timeline, target, 7, 64);
+	LONGS_EQUAL(0, follow.lookups);
+	LONGS_EQUAL(0, clone_calls);
+	delete target;
 }
