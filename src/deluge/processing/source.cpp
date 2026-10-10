@@ -57,13 +57,16 @@ Source::~Source() {
 	destructAllMultiRanges();
 }
 
-// Destructs the actual MultiRanges, but doesn't actually deallocate the memory, aka calling empty() on the Array - the
-// caller must do this.
+// Detach storage before servicing audio: callbacks must not see partially
+// destroyed ranges, and cleanup must not depend on the Source remaining alive.
 void Source::destructAllMultiRanges() {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+	MultiRangeArray retired_ranges;
+	retired_ranges.elementSize = ranges.elementSize;
+	ranges.swapStateWith(&retired_ranges);
+	for (int32_t index = 0; index < retired_ranges.getNumElements(); ++index) {
 		AudioEngine::logAction("destructAllMultiRanges()");
 		AudioEngine::routineWithClusterLoading();
-		ranges.getElement(e)->~MultiRange();
+		retired_ranges.getElement(index)->~MultiRange();
 	}
 }
 

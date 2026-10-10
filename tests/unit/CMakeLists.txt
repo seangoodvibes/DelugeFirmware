@@ -1227,3 +1227,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_loading_context.inc
         AudioFileManager::thingBeginningLoading AudioFileManager::thingFinishedLoading AudioFileManager::finish_loading_if_current
     DEPENDS ${audio_loading_context_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE audio_loading_context_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/audio_loading_context.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_range_teardown.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_range_teardown.inc Source::destructAllMultiRanges
+    DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE source_range_teardown_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/source_range_teardown.inc)

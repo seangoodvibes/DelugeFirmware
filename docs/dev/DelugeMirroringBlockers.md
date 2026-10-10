@@ -3274,3 +3274,14 @@ no extra audio/path buffers. The broader LoadSongUI transaction still uses expli
 unconditional completion and needs its own recovery audit; arbitrary direct writes
 to the public alternate-path fields are not a generation-tracked transaction.
 Independent mode stays disabled.
+
+Source range teardown now transfers the existing array storage into a local owner
+before audio servicing, preserving the element stride. Callbacks see an empty
+Source instead of partially destroyed ranges; cleanup can finish after Source
+destruction and does not traverse ranges inserted by a nested callback. Five
+sanitizer regressions exercise visibility, actual Source destruction, nested
+replacement, nondefault stride and empty teardown using the real cleanup method.
+All 38 suites and RelWithDebInfo pass. No range buffer is copied or newly allocated.
+The caller's oscillator-type transition still needs its own lifetime/recovery
+contract, and same-address range replacement during loading remains open.
+Independent mode stays disabled.
