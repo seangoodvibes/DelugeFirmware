@@ -2410,3 +2410,12 @@ rebuilding parameter context. Five additional regressions cover removed/reused
 rows, model-stack/output retargeting and a live no-row backup manager. All 36 native
 suites and `./dbt build relwithdebinfo` pass. Row/parameter changes inside callbacks
 still require their own contracts; these checks protect the audition caller.
+
+MIDI/gate drum note-on, note-off and kill-all-voices now watch drum lifetime across
+arp generation and each output dispatch. Note-on status is published before the
+callback; retired drums cancel traversal and the final kill-all reset. Fourteen
+sanitizer regressions execute all six production methods with arp/output doubles,
+covering real heap deletion, nested reset, retired entry, chords, glide note-offs
+and live/idle cleanup. All 36 native suites and `./dbt build relwithdebinfo` pass.
+Owner-preserving replacement of an arp instruction and safety inside generation
+or output callbacks remain separate concerns; these tests do not simulate hardware.

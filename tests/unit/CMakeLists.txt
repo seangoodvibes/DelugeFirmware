@@ -837,3 +837,17 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_prearp_lifetime.inc
     DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_prearp_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/kit_prearp_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_drum_note_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_drum_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_drum_note_lifetime.inc
+        MIDIDrum::noteOn MIDIDrum::noteOff MIDIDrum::killAllVoices
+    DEPENDS ${midi_drum_destruction_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_note_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${gate_drum_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_note_lifetime.inc
+        GateDrum::noteOn GateDrum::noteOff GateDrum::killAllVoices
+    DEPENDS ${gate_drum_destruction_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE non_audio_drum_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/midi_drum_note_lifetime.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_note_lifetime.inc)

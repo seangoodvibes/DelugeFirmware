@@ -36,43 +36,64 @@ GateDrum::~GateDrum() {
 
 void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+	auto drum_lifetime = watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
 	arpeggiator.noteOn(arpSettings, kNoteForDrum, velocity, &instruction, fromMIDIChannel, mpeValues);
+	if (!drum_lifetime.alive())
+		return;
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
-			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+			if (!drum_lifetime.alive())
+				return;
 		}
 	}
 }
 
 void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
+	auto drum_lifetime = watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, kNoteForDrum, &instruction);
+	if (!drum_lifetime.alive())
+		return;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
 		noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+		if (!drum_lifetime.alive())
+			return;
 	}
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
 		noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+		if (!drum_lifetime.alive())
+			return;
 	}
 }
 
 void GateDrum::killAllVoices() {
+	auto drum_lifetime = watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
 	if (hasActiveVoices()) {
 		noteOff(nullptr);
+		if (!drum_lifetime.alive())
+			return;
 	}
 	arpeggiator.reset();
 }
