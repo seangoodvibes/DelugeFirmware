@@ -2356,3 +2356,13 @@ now run in the sanitizer lifetime target. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Cancellation after a recording write preserves
 that prefix; full recovery, the outer note-dispatch loop and audition internals
 remain separate work.
+
+Kit note handlers now report callback cancellation to their caller. The outer
+note loop stops on invalidation but refreshes the routed clip after a successful
+clone, preserving delivery to other mapped drums. Mute callbacks are revalidated
+before rendering and traversal; whole-kit note mapping rejects absent or mismatched
+clip context. The six-route lifetime sweeps now include note dispatch, with eleven
+additional tests for handler status, successful retargeting, mute callbacks,
+rendering and clip association. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Audition and arpeggiator internals remain open;
+a safe outer loop does not establish their callback safety.

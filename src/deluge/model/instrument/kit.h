@@ -94,7 +94,8 @@ public:
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
 	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru) override;
-	void receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
+	// False means a callback invalidated the event; callers must stop the batch.
+	bool receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
 	                         int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
 	                         Drum* thisDrum);
 	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,

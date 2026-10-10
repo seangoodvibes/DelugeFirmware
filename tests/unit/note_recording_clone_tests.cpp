@@ -234,7 +234,7 @@ struct Kit : audition_fixture {
 	void endAuditioningForDrum(Args&&...) {
 		++ends;
 	}
-	void receivedNoteForDrum(ModelStackWithTimelineCounter*, MIDICable&, bool, int32_t, int32_t, int32_t, bool, bool*,
+	bool receivedNoteForDrum(ModelStackWithTimelineCounter*, MIDICable&, bool, int32_t, int32_t, int32_t, bool, bool*,
 	                         Drum*);
 };
 #include "kit_note_recording.inc"
@@ -442,5 +442,18 @@ TEST(NoteRecordingClone, retired_or_unlinked_kit_context_does_not_acquire_stale_
 	kit.lifetime.retire();
 	kit.receivedNoteForDrum(&stack, cable, true, 0, 60, 100, true, &thru, stale_drum);
 	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(0, kit.starts);
+}
+
+TEST(NoteRecordingClone, note_handler_reports_surviving_success_and_missing_row_as_safe_to_continue) {
+	CHECK(kit.receivedNoteForDrum(&stack, cable, true, 0, 60, 100, false, &thru, &drum));
+	original.row_present = false;
+	CHECK(kit.receivedNoteForDrum(&stack, cable, true, 0, 60, 100, false, &thru, &drum));
+	LONGS_EQUAL(1, kit.starts);
+}
+TEST(NoteRecordingClone, note_handler_reports_callback_row_replacement_as_cancellation) {
+	original.arrangement_only = true;
+	on_record = [&] { ++original.row.undo_identity; };
+	CHECK_FALSE(kit.receivedNoteForDrum(&stack, cable, true, 0, 60, 100, true, &thru, &drum));
 	LONGS_EQUAL(0, kit.starts);
 }

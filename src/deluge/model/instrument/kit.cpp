@@ -1431,17 +1431,17 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 	}
 }
 
-void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
+bool Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
                               int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
                               Drum* thisDrum) {
 	if (!modelStack || !thisDrum)
-		return;
+		return false;
 	auto kit_lifetime = watch_lifetime();
 	if (!kit_lifetime.alive() || getDrumIndex(thisDrum) < 0)
-		return;
+		return false;
 	auto drum_lifetime = thisDrum->watch_lifetime();
 	if (!drum_lifetime.alive())
-		return;
+		return false;
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
 	auto* const source_clip = instrumentClip;
 	auto source_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
@@ -1452,13 +1452,13 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 		       && currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
 	};
 	if (!owners_alive() || getDrumIndex(thisDrum) < 0 || (instrumentClip && instrumentClip->output != this))
-		return;
+		return false;
 
 	// do we need to update the selected_drum_for_session()?
 	possiblySetSelectedDrumAndRefreshUI(thisDrum);
 	if (!owners_alive() || modelStack->getTimelineCounterAllowNull() != instrumentClip
 	    || (instrumentClip && instrumentClip->output != this) || getDrumIndex(thisDrum) < 0)
-		return;
+		return false;
 
 	bool recordingNoteOnEarly = false;
 
@@ -1483,17 +1483,17 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 			Error clone_error = Error::NONE;
 			instrumentClip->possiblyCloneForArrangementRecording(modelStack, &clone_error);
 			if (!owners_alive())
-				return;
+				return false;
 			if (clone_error != Error::NONE) {
 				shouldRecordNoteOn = false;
 			}
 			else {
 				instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
 				if (!instrumentClip)
-					return;
+					return false;
 				auto cloned_lifetime = instrumentClip->watch_lifetime();
 				if (!cloned_lifetime.alive())
-					return;
+					return false;
 				if (instrumentClip->isArrangementOnlyClip()) {
 					shouldRecordNoteOn = true;
 				}
@@ -1529,7 +1529,7 @@ goingToRecordNoteOnEarly:
 		       && (!instrumentClip || instrumentClip->output == this) && getDrumIndex(thisDrum) >= 0;
 	};
 	if (!context_matches())
-		return;
+		return false;
 
 	ModelStackWithNoteRow* modelStackWithNoteRow;
 
@@ -1539,7 +1539,7 @@ goingToRecordNoteOnEarly:
 		modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
 		thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 		if (!thisNoteRow) {
-			return; // Yeah, we won't even let them sound one with no NoteRow
+			return true; // No row for this drum, but other mapped drums may still receive the event.
 		}
 	}
 	else {
@@ -1557,7 +1557,7 @@ goingToRecordNoteOnEarly:
 	if (recordingNoteOnEarly) {
 		bool allowingNoteTails = instrumentClip && instrumentClip->allowNoteTails(modelStackWithNoteRow);
 		if (!row_matches())
-			return;
+			return false;
 		thisDrum->recordNoteOnEarly(velocity, allowingNoteTails);
 	}
 
@@ -1589,7 +1589,7 @@ goingToRecordNoteOnEarly:
 		// this note-on.
 		instrument_clip_view_for_session().reportMPEInitialValuesForNoteEditing(modelStackWithNoteRow, mpeValues);
 		if (!row_matches())
-			return;
+			return false;
 
 		if (!thisNoteRow || !thisNoteRow->sequenced) {
 
@@ -1603,11 +1603,11 @@ goingToRecordNoteOnEarly:
 
 				instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
 				if (!row_matches())
-					return;
+					return false;
 				if (getRootUI()) {
 					getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
 					if (!row_matches())
-						return;
+						return false;
 				}
 			}
 			// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does
@@ -1635,17 +1635,17 @@ goingToRecordNoteOnEarly:
 				else {
 					instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
 					if (!row_matches())
-						return;
+						return false;
 					if (getRootUI()) {
 						getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
 						if (!row_matches())
-							return;
+							return false;
 					}
 				}
 			}
 			instrument_clip_view_for_session().reportNoteOffForMPEEditing(modelStackWithNoteRow);
 			if (!row_matches())
-				return;
+				return false;
 
 			// MPE-controlled params are a bit special in that we can see (via this note-off) when the user has removed
 			// their finger and won't be sending more values. So, let's unlatch those params now.
@@ -1658,6 +1658,7 @@ goingToRecordNoteOnEarly:
 		                      velocity); // Do this even if not marked as auditioned, to avoid stuck notes in cases like
 		                                 // if two note-ons were sent
 	}
+	return row_matches();
 }
 
 void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
@@ -1668,6 +1669,14 @@ void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 
 void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
                             int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
+	if (!modelStack)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
@@ -1678,13 +1687,21 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+		instrumentClip = static_cast<InstrumentClip*>(modelStack->getTimelineCounterAllowNull());
+		auto clip_lifetime = instrumentClip ? instrumentClip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		if (instrumentClip && (!clip_lifetime.alive() || instrumentClip->output != this))
+			return;
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
 		// We don't need the MPE match because all types of matches should sound the drum
 		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(&cable, channel, note)) {
-			receivedNoteForDrum(modelStack, cable, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-			                    thisDrum);
+			if (!receivedNoteForDrum(modelStack, cable, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+			                         thisDrum))
+				return;
 		}
 		// Or if this is the Drum's mute command...
 		// changed to else if dec 2023 because the same note should never be both mute and sound, this will save
@@ -1697,6 +1714,11 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable
 
 			if (thisNoteRow) {
 				instrumentClip->toggleNoteRowMute(modelStackWithNoteRow);
+				if (!kit_lifetime.alive() || !drum_lifetime.alive() || !clip_lifetime.alive()
+				    || modelStack->getTimelineCounterAllowNull() != instrumentClip || currentSong != source_song
+				    || deluge::gui::ui_session::current() != source_owner || instrumentClip->output != this
+				    || getDrumIndex(thisDrum) < 0)
+					return;
 
 				UI* currentUI = getCurrentUI();
 				if (currentUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
@@ -1704,6 +1726,10 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable
 				}
 			}
 		}
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || (instrumentClip && !clip_lifetime.alive())
+		    || currentSong != source_song || deluge::gui::ui_session::current() != source_owner
+		    || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 
@@ -1877,7 +1903,13 @@ void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithT
 void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
                              int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
                              InstrumentClip* clip) {
-	Kit* kit = (Kit*)clip->output;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || !clip)
+		return;
+	auto clip_lifetime = clip->watch_lifetime();
+	if (!clip_lifetime.alive() || clip->output != this)
+		return;
+	Kit* kit = this;
 	Drum* thisDrum = getDrumFromNoteCode(clip, note);
 
 	if (thisDrum) {
