@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 namespace knob_indicator_test {
 namespace session = ::deluge::gui::ui_session;
 constexpr int32_t operator""_i32(unsigned long long value) {
@@ -12,6 +13,9 @@ constexpr int kKnobPosOffset = 64, kMaxKnobPos = 128, UI_MODE_STUTTERING = 1;
 namespace params {
 enum class Kind { NORMAL, PATCH_CABLE };
 }
+static std::function<void()> on_lookup, on_value;
+static int song, replacement_song;
+static int* currentSong = &song;
 struct ModelStackWithAutoParam;
 struct ParamCollection {
 	bool has_value = false;
@@ -24,19 +28,29 @@ struct ParamCollection {
 };
 struct AutoParam {
 	int32_t value = 0;
-	int32_t getValuePossiblyAtPos(uint32_t, ModelStackWithAutoParam*) { return value; }
+	int32_t getValuePossiblyAtPos(uint32_t, ModelStackWithAutoParam*) {
+		if (on_value)
+			on_value();
+		return value;
+	}
 };
 struct ModControllable {
 	ModelStackWithAutoParam* result = nullptr;
 	int32_t fallback = -64;
 	template <class T>
 	ModelStackWithAutoParam* getParamFromModEncoder(uint8_t, T*, bool) {
+		if (on_lookup)
+			on_lookup();
 		return result;
 	}
 	int32_t getKnobPosForNonExistentParam(uint8_t, ModelStackWithAutoParam*) { return fallback; }
 };
 using ModControllableAudio = ModControllable;
 struct ModelStackWithAutoParam {
+	void* paramManager = nullptr;
+	void* timeline = nullptr;
+	int* song = nullptr;
+	void* getTimelineCounterAllowNull() const { return timeline; }
 	ModControllable* modControllable = nullptr;
 	AutoParam* autoParam = nullptr;
 	ParamCollection* paramCollection = nullptr;
@@ -87,6 +101,8 @@ TEST_GROUP(KnobIndicator) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		views = {};
+		on_lookup = on_value = {};
+		currentSong = &song;
 		indicator_leds::outputs = {};
 		bipolar = quantized = stuttering = false;
 		controllable.result = &stack;
@@ -95,6 +111,7 @@ TEST_GROUP(KnobIndicator) {
 			views.for_owner(owner).activeModControllableModelStack.modControllable = &controllable;
 	}
 	void teardown() override {
+		on_lookup = on_value = {};
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -168,4 +185,43 @@ TEST(KnobIndicator, missing_fallback_controllable_leaves_indicator_off) {
 	view_for_session().setKnobIndicatorLevel(0);
 	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].level);
 	CHECK_FALSE(indicator_leds::outputs.active()[0].bipolar);
+}
+
+TEST(KnobIndicator, lookup_context_changes_cancel_indicator_output) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int scenario = 0; scenario < 6; ++scenario) {
+			auto& view = view_for_session();
+			view.activeModControllableModelStack = {};
+			view.activeModControllableModelStack.modControllable = &controllable;
+			view.modPos = 0;
+			currentSong = &song;
+			on_lookup = [&] {
+				if (scenario == 0)
+					session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+				if (scenario == 1)
+					currentSong = &replacement_song;
+				if (scenario == 2)
+					view.activeModControllableModelStack.modControllable = nullptr;
+				if (scenario == 3)
+					view.activeModControllableModelStack.paramManager = &song;
+				if (scenario == 4)
+					view.activeModControllableModelStack.timeline = &song;
+				if (scenario == 5)
+					view.modPos = 48;
+			};
+			view.setKnobIndicatorLevel(0);
+			CHECK(session::current() == owner);
+			LONGS_EQUAL(0, indicator_leds::outputs.for_owner(owner)[0].calls);
+		}
+	}
+}
+TEST(KnobIndicator, value_callback_owner_change_does_not_send_to_peer) {
+	stack.autoParam = &param;
+	stack.paramCollection = &collection;
+	on_value = [] { session::detail::active = session::Id::Remote; };
+	view_for_session().setKnobIndicatorLevel(0);
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(0, indicator_leds::outputs.for_owner(session::Id::Remote)[0].calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
 }

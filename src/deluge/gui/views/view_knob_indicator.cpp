@@ -20,6 +20,7 @@
 #include "hid/led/indicator_leds.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
@@ -33,13 +34,27 @@ using namespace gui;
 void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	if (!activeModControllableModelStack.modControllable)
 		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_controllable = activeModControllableModelStack.modControllable;
+	auto* const source_manager = activeModControllableModelStack.paramManager;
+	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
+	const auto source_position = modPos;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && activeModControllableModelStack.modControllable == source_controllable
+		       && activeModControllableModelStack.paramManager == source_manager
+		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline
+		       && modPos == source_position;
+	};
 	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
 	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).
 	ModelStackWithAutoParam* modelStackWithParam =
 	    activeModControllableModelStack.modControllable->getParamFromModEncoder(
 	        whichModEncoder, &activeModControllableModelStack, false);
 
-	if (!modelStackWithParam)
+	if (!context_matches() || !modelStackWithParam)
 		return;
 
 	int32_t knobPos = 0; // An unavailable plain parameter leaves the indicator off.
@@ -51,6 +66,8 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		int32_t value = modelStackWithParam->autoParam
 		                    ? modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam)
 		                    : modelStackWithParam->paramCollection->get_current_value(modelStackWithParam->paramId);
+		if (!context_matches())
+			return;
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
@@ -106,7 +123,8 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		}
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos, isBipolar);
+	if (context_matches())
+		indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos, isBipolar);
 }
 
 /// if you're dealing with a patch cable which has a -128 to +128 range

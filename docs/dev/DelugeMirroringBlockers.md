@@ -1383,3 +1383,15 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Callback-spanning
   target lifetime remains separate; G1/L1/R4 remain open and independent mode stays
   disabled.
+
+### G1 progress — knob lookup context containment (2026-10-10)
+
+- Knob rendering retains its initiating owner and checks song, controllable,
+  parameter-manager, timeline and position identity after lookup/value retrieval
+  and before LED output. Context changes cancel the update.
+- Two extracted-renderer tests cover six lookup invalidations on both owners and
+  owner changes during automated-value retrieval. The lookup regression failed
+  before the fix. All 35 native suites, including real renderer linkage in the
+  parameter-lifecycle suite, and `./dbt build relwithdebinfo` pass.
+- These checks do not pin returned model/parameter objects or establish safety
+  inside their methods. G1/L1 remain open; independent mode stays disabled.
