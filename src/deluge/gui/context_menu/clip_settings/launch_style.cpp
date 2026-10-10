@@ -57,11 +57,23 @@ bool LaunchStyleMenu::setupAndCheckAvailability() {
 void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
 	if (!has_current_clip())
 		return;
+	auto* const source_song = currentSong;
+	auto* const source_clip = clip;
+	const auto source_owner = ui_session::current();
+	const auto target_is_current = [&] {
+		return ui_session::current() == source_owner && currentSong == source_song && clip == source_clip
+		       && has_current_clip();
+	};
 	// The other panel may have committed before its deferred refresh was serviced.
 	refresh_shared_model();
-	const auto previous_style = clip->launchStyle;
+	if (!target_is_current())
+		return;
+	const auto previous_style = source_clip->launchStyle;
 	ContextMenu::selectEncoderAction(offset);
-	clip->launchStyle = static_cast<LaunchStyle>(currentOption);
+	// Seven-segment feedback can service callbacks before the model write.
+	if (!target_is_current())
+		return;
+	source_clip->launchStyle = static_cast<LaunchStyle>(currentOption);
 	if (clip->launchStyle != previous_style) {
 		const auto peer =
 		    ui_session::current() == ui_session::Id::Local ? ui_session::Id::Remote : ui_session::Id::Local;

@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/ui/ui_navigation_state.h"
 #include <cstdint>
+#include <functional>
 #include <span>
 #include <string>
 #include <vector>
@@ -64,12 +65,17 @@ inline session::State<std::string> text;
 inline void renderUIsForOled() {
 	++redraws.active();
 }
+inline std::function<void()> on_text;
 struct display_fixture {
 	bool oled = true;
 	bool haveOLED() { return oled; }
 	bool have7SEG() { return !oled; }
 	void popupTextTemporary(const char* value) { text.active() = value; }
-	void setText(const char* value, bool, int, bool) { text.active() = value; }
+	void setText(const char* value, bool, int, bool) {
+		text.active() = value;
+		if (on_text)
+			on_text();
+	}
 };
 inline display_fixture display_instance;
 inline auto* display = &display_instance;

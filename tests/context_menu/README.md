@@ -26,3 +26,8 @@ across rendering/monitoring callbacks or detect same-address object replacement.
 Launch-style target checks compile the production song-membership body against
 fixture clip lists. They cover departed/reattached clips, arrangement-only clips,
 and missing/replaced songs, without claiming callback-spanning lifetime protection.
+
+Injected seven-segment callbacks exercise launch-style removal during refresh or
+encoder feedback, menu retargeting, and song/owner changes. Pending edits cancel
+before subsequent model access; these tests do not prove allocator reachability
+or protection against same-address reuse.

@@ -8,6 +8,7 @@ TEST_GROUP(AudioInputMenu) {
 	AudioInputSelector local_menu, remote_menu;
 	void setup() override {
 		session::detail::active = session::Id::Local;
+		on_text = {};
 		sdRoutineLock = false;
 		root_available = true;
 		session::navigation = {};
@@ -30,6 +31,7 @@ TEST_GROUP(AudioInputMenu) {
 	}
 	void teardown() override {
 		session::detail::active = session::Id::Local;
+		on_text = {};
 		sdRoutineLock = false;
 		root_available = true;
 	}

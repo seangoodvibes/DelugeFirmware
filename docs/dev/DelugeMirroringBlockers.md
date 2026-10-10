@@ -831,3 +831,14 @@ side effects are not provided by these guards.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. This checks
   membership at entry, not lifetime across display callbacks or same-address reuse.
   G1/L1 remain open and independent mode stays disabled.
+
+### G1 / L1 / R4 progress — launch-style display callback containment (2026-10-09)
+
+- Encoder edits recheck the initiating song, clip, panel owner and live membership
+  after shared refresh and base seven-segment feedback, before accessing the model
+  again. Departure or retargeting cancels the pending edit.
+- Three regression cases failed before the fix: removal during either redraw,
+  retargeting to another live clip, and song/owner replacement during feedback.
+  The display callback is injected; this is not an object pin or ABA protection.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/L1/R4 remain open;
+  independent mode remains disabled.
