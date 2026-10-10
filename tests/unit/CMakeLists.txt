@@ -851,3 +851,12 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_note_lifetime.in
 target_sources(ClipLifetimeTests PRIVATE non_audio_drum_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/midi_drum_note_lifetime.inc
     ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_note_lifetime.inc)
+
+set(note_row_lookup_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/instrument_clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/note_row_lookup.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${note_row_lookup_source} ${CMAKE_CURRENT_BINARY_DIR}/note_row_lookup.inc
+        InstrumentClip::find_note_row_from_id
+    DEPENDS ${note_row_lookup_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE note_row_lookup_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/note_row_lookup.inc)

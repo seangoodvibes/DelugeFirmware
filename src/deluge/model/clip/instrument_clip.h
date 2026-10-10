@@ -86,6 +86,8 @@ public:
 	void restoreBackedUpParamManagerMIDI(ModelStackWithModControllable* modelStack);
 	int32_t getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex);
 	NoteRow* getNoteRowFromId(int32_t id);
+	// Lookup only: missing rows and invalid kit indices return nullptr without allocation.
+	NoteRow* find_note_row_from_id(int32_t id);
 	bool can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) override;
 	/// Return true if successfully shifted; invalid clip or row lengths reject the edit.
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,

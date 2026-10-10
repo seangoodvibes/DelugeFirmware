@@ -3813,6 +3813,17 @@ int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 	}
 }
 
+NoteRow* InstrumentClip::find_note_row_from_id(int32_t id) {
+	if (!output)
+		return nullptr;
+	if (output->type == OutputType::KIT) {
+		if (id < 0 || id >= noteRows.getNumElements())
+			return nullptr;
+		return noteRows.getElement(id);
+	}
+	return getNoteRowForYNote(id);
+}
+
 NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 	if (output->type == OutputType::KIT) {
 		if (id < 0 || id >= noteRows.getNumElements()) {

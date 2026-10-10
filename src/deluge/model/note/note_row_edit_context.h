@@ -18,7 +18,7 @@ public:
 	      local_revision_(revision(gui::ui_session::Id::Local)),
 	      remote_revision_(revision(gui::ui_session::Id::Remote)) {
 		if (!song_ || !clip_ || !row_ || clip_->type != ClipType::INSTRUMENT
-		    || clip_->getNoteRowFromId(row_id_) != row_)
+		    || clip_->find_note_row_from_id(row_id_) != row_)
 			return;
 		clip_registered_ = song_->contains_clip_for_undo(clip_);
 		identity_ = row_->undo_identity;
@@ -61,7 +61,7 @@ public:
 		// Publication observed at any validation makes ownership mandatory thereafter.
 		clip_registered_ = clip_registered_ || currently_registered;
 		// Compare the looked-up address before touching potentially released row storage.
-		if (clip_->type != ClipType::INSTRUMENT || clip_->getNoteRowFromId(row_id_) != row_)
+		if (clip_->type != ClipType::INSTRUMENT || clip_->find_note_row_from_id(row_id_) != row_)
 			return invalidate();
 		if (!identity_ || row_->undo_identity != identity_ || clip_->loopLength != clip_length_
 		    || row_->loopLengthIfIndependent != row_length_ || clip_->output != output_

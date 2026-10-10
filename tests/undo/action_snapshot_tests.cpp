@@ -5390,3 +5390,15 @@ TEST(ClipRestorationReservation, detached_cleanup_retires_before_backup_callback
 	CHECK_TRUE(cleanup_called);
 	CHECK_FALSE(consequence.owns_detached_clip);
 }
+
+TEST(NoteSnapshotRecording, row_edit_context_uses_noncreating_lookup_for_missing_rows) {
+	deluge::model::NoteRowEditContext context(&clip, 7, &row);
+	CHECK_TRUE(context.valid());
+	clip.row = nullptr;
+	CHECK_FALSE(context.target_valid());
+	LONGS_EQUAL(0, clip.creating_row_lookups);
+	deluge::model::NoteRowEditContext missing(&clip, 7, &row);
+	CHECK_FALSE(missing.valid());
+	LONGS_EQUAL(0, clip.creating_row_lookups);
+	POINTERS_EQUAL(nullptr, clip.row);
+}

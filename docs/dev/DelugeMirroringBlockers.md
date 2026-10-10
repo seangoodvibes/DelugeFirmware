@@ -2449,3 +2449,13 @@ and normal reuse. All 36 suites and `./dbt build relwithdebinfo` pass. Unguarded
 callers still require a live-manager contract; pointer snapshots alone do not
 identify same-address collection replacement, and other expression-creation callers
 have not all adopted owner validation.
+
+Note-row edit-context validation now uses `find_note_row_from_id`, a non-creating
+lookup that returns null for absent outputs, missing melodic rows and invalid kit
+indices. Validation can no longer allocate a replacement row or freeze merely
+because a kit row disappeared. Three sanitizer tests execute the production lookup
+with array doubles; an edit-context regression verifies missing-row validation
+never invokes the creating lookup. All 36 native suites and
+`./dbt build relwithdebinfo` pass. This changes validation only; callers that
+intentionally create rows retain `getNoteRowFromId`. Detached owner lifetime still
+needs explicit watches in the edit context.

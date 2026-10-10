@@ -364,8 +364,13 @@ public:
 	bool wrap_editing_for_session() { return wrapEditing; }
 	NoteRow* row = nullptr;
 	int row_id = 7, row_lookups = 0, row_shift_calls = 0;
+	int creating_row_lookups = 0;
 	int64_t row_shift = 0;
 	NoteRow* getNoteRowFromId(int id) {
+		++creating_row_lookups;
+		return find_note_row_from_id(id);
+	}
+	NoteRow* find_note_row_from_id(int id) {
 		++row_lookups;
 		return id == row_id ? row : nullptr;
 	}
