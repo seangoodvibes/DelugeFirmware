@@ -1241,8 +1241,10 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	Error error;
 
 	FileItem* currentFileItem = getCurrentFileItem();
+	if (!currentFileItem)
+		return false;
 
-	char const* previouslyViewedFilename = "";
+	String previously_viewed_filename;
 
 	if (currentFileItem->isFolder) {
 		error = getCurrentFilePath(&dirToLoad);
@@ -1253,7 +1255,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	}
 	else {
 		dirToLoad.set(&current_dir_for_session());
-		previouslyViewedFilename = currentFileItem->filename.get();
+		previously_viewed_filename.set(&currentFileItem->filename);
 	}
 
 	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
@@ -1335,7 +1337,7 @@ removeReasonsFromSamplesAndGetOut:
 		if (numSamples > 0) {
 
 			for (int32_t i = 0; i < numCharsInPrefixForFolderLoad; i++) {
-				if (!staticFNO.fname[i] || staticFNO.fname[i] != previouslyViewedFilename[i]) {
+				if (!staticFNO.fname[i] || staticFNO.fname[i] != previously_viewed_filename.get()[i]) {
 					numCharsInPrefixForFolderLoad = i;
 					break;
 				}

@@ -3492,3 +3492,12 @@ holder tuning and failure after correction. The failure regression reproduces a
 48-to-60 shared metadata change against the previous import function. All 38
 suites and RelWithDebInfo pass. Earlier pitch detection/re-detection within folder
 loading still updates shared caches and remains a separate audit/recovery area.
+
+Folder sample loading retains the selected filename through an owned String
+reference instead of keeping a pointer into the mutable browser item. It also
+rejects missing selection before opening/loading. Five whole-loader regressions
+cover renamed/destroyed selection, absent entry, ordinary files and folders; the
+rename case reproduces incorrect prefix calculation before the fix. All 38 suites
+and RelWithDebInfo pass. This protects the retained basename only; shared directory
+cursor/file-info state, global per-folder sample marks and nested loading ownership
+remain L1/R4/R5 audit/recovery work.

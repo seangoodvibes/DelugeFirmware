@@ -1310,3 +1310,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sample_pitch_tuning.inc
         ${sample_pitch_tuning_source} ${CMAKE_CURRENT_BINARY_DIR}/sample_pitch_tuning.inc SampleHolderForVoice::setTransposeAccordingToSamplePitch
     DEPENDS ${sample_pitch_tuning_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sample_pitch_tuning_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sample_pitch_tuning.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/folder_sample_loading.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/folder_sample_loading.inc SampleBrowser::loadAllSamplesInFolder
+    DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE folder_sample_loading_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/folder_sample_loading.inc)
