@@ -2735,3 +2735,11 @@ missing parameters, base/final callback deletion, eight retargeting cases and
 invalid targets. All 36 suites and `./dbt build relwithdebinfo` pass. Current voltage
 remains unchanged during activation; the base change result is preserved on
 cancellation. Base activation and pitch-helper internals remain separate work.
+
+CV mono/poly expression handlers and final modulation output now validate the
+expression dimension and output/clip ownership before indexing or updating state.
+Six production-body sanitizer regressions cover invalid dimensions, retired or
+reassigned owners, inactive notes, pitch/modulation/pressure behavior, saturation,
+mode filtering and clipless final-callback deletion. All 36 suites and
+`./dbt build relwithdebinfo` pass. Pitch/voltage helper internals and acquisition of
+borrowed clip pointers are still separate boundaries.

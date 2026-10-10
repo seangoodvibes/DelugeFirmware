@@ -1,13 +1,22 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_session.h"
 #include "util/lifetime.h"
+#include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 namespace cv_note_output_lifetime_test {
+constexpr int kNumExpressionDimensions = 3;
+namespace Expression {
+constexpr int Y_SLIDE_TIMBRE = 1, Z_PRESSURE = 2;
+}
+int32_t add_saturate(int32_t a, int32_t b) {
+	return std::clamp<int64_t>(int64_t(a) + b, INT32_MIN, INT32_MAX);
+}
 constexpr int ARP_MAX_INSTRUCTION_NOTES = 3, BEND_RANGE_MAIN = 0, BEND_RANGE_FINGER_LEVEL = 1;
 enum class PgmChangeSend { NEVER };
-enum class CVMode { pitch, velocity, off };
+enum class CVMode { pitch, velocity, off, mod, aftertouch };
 struct ArpNote {
 	int16_t mpeValues[3]{11, 22, 33};
 	uint8_t velocity = 99;
@@ -16,8 +25,10 @@ struct ArpNote {
 int song;
 int* currentSong = &song;
 std::function<void()> on_bend, on_note, on_voltage, on_activate;
+bool note_is_on = true, last_bend_output = false;
 int bends = 0, notes = 0, voltages = 0, last_voltage = 0;
 struct {
+	bool isNoteOn(int, int) { return note_is_on; }
 	void sendNote(bool on, int channel, int note) {
 		CHECK(on);
 		LONGS_EQUAL(1, channel);
@@ -79,8 +90,12 @@ struct CVInstrument : NonAudioInstrument {
 	} arpeggiator;
 	int getChannel() const { return channel; }
 	int getPitchChannel() const { return channel; }
-	void updatePitchBendOutput(bool output) {
-		CHECK_FALSE(output);
+	int32_t lastCombinedPolyExpression[3]{}, lastMonoExpression[3]{};
+	void polyphonicExpressionEventPostArpeggiator(int32_t, int32_t, int32_t, ArpNote*, int32_t);
+	void monophonicExpressionEvent(int32_t, int32_t);
+	void sendMonophonicExpressionEvent(int32_t);
+	void updatePitchBendOutput(bool output = true) {
+		last_bend_output = output;
 		++bends;
 		if (on_bend)
 			on_bend();
@@ -104,6 +119,8 @@ TEST_GROUP(cv_note_output_lifetime) {
 		on_note = {};
 		on_voltage = {};
 		bends = notes = voltages = last_voltage = 0;
+		note_is_on = true;
+		last_bend_output = false;
 		currentSong = &song;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 	}
@@ -205,6 +222,7 @@ TEST(cv_note_output_lifetime, activation_caches_expression_without_changing_volt
 	next.output = instrument.get();
 	ModelStackWithTimelineCounter stack{currentSong, &next};
 	CHECK(instrument->setActiveClip(&stack, PgmChangeSend::NEVER));
+	CHECK_FALSE(last_bend_output);
 	LONGS_EQUAL(1234, instrument->monophonicPitchBendValue);
 	LONGS_EQUAL(48, instrument->cachedBendRanges[1]);
 	LONGS_EQUAL(1, bends);
@@ -299,4 +317,85 @@ TEST(cv_note_output_lifetime, activation_rejects_invalid_or_retired_target) {
 	next.lifetime.retire();
 	CHECK_FALSE(instrument->setActiveClip(&stack, PgmChangeSend::NEVER));
 	POINTERS_EQUAL(clip.get(), instrument->activeClip);
+}
+
+TEST(cv_note_output_lifetime, expression_rejects_invalid_dimensions_at_all_entries) {
+	for (int dimension : {-1, 3, 255}) {
+		instrument->polyphonicExpressionEventPostArpeggiator(123, 60, dimension, nullptr, 0);
+		instrument->monophonicExpressionEvent(123, dimension);
+		instrument->sendMonophonicExpressionEvent(dimension);
+	}
+	LONGS_EQUAL(0, bends);
+	LONGS_EQUAL(0, voltages);
+	LONGS_EQUAL(0, instrument->lastMonoExpression[1]);
+}
+TEST(cv_note_output_lifetime, expression_rejects_retired_and_reassigned_owners) {
+	for (int mutation = 0; mutation < 3; ++mutation) {
+		reset();
+		if (mutation == 0)
+			clip->lifetime.retire();
+		if (mutation == 1)
+			instrument->lifetime.retire();
+		if (mutation == 2)
+			clip->output = nullptr;
+		instrument->polyphonicExpressionEventPostArpeggiator(123, 60, 0, nullptr, 0);
+		instrument->monophonicExpressionEvent(123, 0);
+		instrument->sendMonophonicExpressionEvent(1);
+		LONGS_EQUAL(0, bends);
+		LONGS_EQUAL(0, voltages);
+		LONGS_EQUAL(99, instrument->monophonicPitchBendValue);
+	}
+}
+TEST(cv_note_output_lifetime, poly_expression_ignores_notes_that_are_not_sounding) {
+	note_is_on = false;
+	instrument->polyphonicExpressionEventPostArpeggiator(123, 60, 0, nullptr, 0);
+	LONGS_EQUAL(0, bends);
+	LONGS_EQUAL(0, instrument->polyPitchBendValue);
+}
+TEST(cv_note_output_lifetime, expression_routes_pitch_and_combined_modulation) {
+	instrument->monophonicExpressionEvent(123, 0);
+	instrument->polyphonicExpressionEventPostArpeggiator(456, 60, 0, nullptr, 0);
+	CHECK(last_bend_output);
+	LONGS_EQUAL(2, bends);
+	LONGS_EQUAL(123, instrument->monophonicPitchBendValue);
+	LONGS_EQUAL(456, instrument->polyPitchBendValue);
+	instrument->cvmode[1] = CVMode::mod;
+	instrument->monophonicExpressionEvent(1 << 16, 1);
+	instrument->polyphonicExpressionEventPostArpeggiator(2 << 16, 60, 1, nullptr, 0);
+	LONGS_EQUAL(3, last_voltage);
+	instrument->monophonicExpressionEvent(-(4 << 16), 1);
+	LONGS_EQUAL(0, last_voltage);
+	instrument->cvmode[1] = CVMode::aftertouch;
+	instrument->monophonicExpressionEvent(INT32_MAX, 2);
+	instrument->polyphonicExpressionEventPostArpeggiator(INT32_MAX, 60, 2, nullptr, 0);
+	LONGS_EQUAL(32767, last_voltage);
+}
+TEST(cv_note_output_lifetime, expression_allows_clipless_output_and_final_callback_deletion) {
+	for (bool pitch : {false, true}) {
+		reset();
+		instrument->activeClip = nullptr;
+		instrument->cvmode[1] = CVMode::mod;
+		auto destroy = [&] {
+			instrument.reset();
+			clip.reset();
+		};
+		if (pitch)
+			on_bend = destroy;
+		else
+			on_voltage = destroy;
+		instrument->monophonicExpressionEvent(123, pitch ? 0 : 1);
+		CHECK(!instrument);
+	}
+}
+TEST(cv_note_output_lifetime, cv_modes_ignore_unselected_expression_dimensions) {
+	for (auto mode : {CVMode::off, CVMode::pitch, CVMode::velocity}) {
+		instrument->cvmode[1] = mode;
+		instrument->monophonicExpressionEvent(123, 1);
+		instrument->monophonicExpressionEvent(123, 2);
+	}
+	instrument->cvmode[1] = CVMode::mod;
+	instrument->monophonicExpressionEvent(123, 2);
+	instrument->cvmode[1] = CVMode::aftertouch;
+	instrument->monophonicExpressionEvent(123, 1);
+	LONGS_EQUAL(0, voltages);
 }

@@ -970,7 +970,7 @@ set(cv_note_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cv_note_output_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${cv_note_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/cv_note_output_lifetime.inc
-        CVInstrument::noteOnPostArp CVInstrument::setActiveClip
+        CVInstrument::noteOnPostArp CVInstrument::setActiveClip CVInstrument::polyphonicExpressionEventPostArpeggiator CVInstrument::monophonicExpressionEvent CVInstrument::sendMonophonicExpressionEvent
     DEPENDS ${cv_note_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE cv_note_output_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/cv_note_output_lifetime.inc)
 

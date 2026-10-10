@@ -79,6 +79,16 @@ void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChanne
 void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
                                                             int32_t expressionDimension, ArpNote* arpNote,
                                                             int32_t noteIndex) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+
 	if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
 		if (!expressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
 			polyPitchBendValue = newValue;
@@ -93,6 +103,16 @@ void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, in
 }
 
 void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+
 	if (!expressionDimension) { // Pitch bend only
 		monophonicPitchBendValue = newValue;
 		updatePitchBendOutput();
@@ -197,6 +217,16 @@ void CVInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	monophonicPitchBendValue = 0;
 }
 void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
+	if (dimension < 0 || dimension >= kNumExpressionDimensions)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+
 	int32_t new_value = add_saturate(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
 	switch (cvmode[1]) {
 
