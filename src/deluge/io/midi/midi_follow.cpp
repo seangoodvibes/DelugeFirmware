@@ -1735,6 +1735,10 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 	while (*(tag_name = reader.readNextTagOrAttributeName())) {
 		foundParam = false;
 		int32_t value = reader.readTagOrAttributeValueInt();
+		if (value < 0 || value > kMaxMIDIValue) {
+			reader.exitTag();
+			continue;
+		}
 		// Loop through patched sound params
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
 			if (!strcmp(tag_name, params::paramNameForFile(params::Kind::PATCHED, paramId, true))) {

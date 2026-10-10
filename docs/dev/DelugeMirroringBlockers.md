@@ -1589,3 +1589,13 @@ actual `MIDI_CC_NONE` constant (255), replacing its incorrect local -1 sentinel.
 All 35 native suites and `./dbt build relwithdebinfo` pass. Context resolution is
 still a fixture here; this does not close lifetime protection or two-device
 acceptance. Independent mode remains disabled.
+
+### G1 / R4 progress — invalid CC mappings in defaults files (2026-10-10)
+
+Defaults loading now skips CC values outside 0–127 before writing either direction
+of the parameter mapping. It consumes the invalid tag and continues with later
+entries. Three extracted-production tests cover negative/oversized values for all
+mapping kinds, preserved prior tables, unknown names, valid endpoints and recovery
+after an invalid entry. All 35 native suites and `./dbt build relwithdebinfo` pass.
+The deserializer and parameter-name lookup are fixtures; this is bounds/recovery
+coverage, not filesystem or two-device acceptance.
