@@ -1152,3 +1152,16 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Root opened() rejection
   still has no rollback contract; object lifetime, stack ABA and completed callback
   side effects remain unresolved. G1/R4/L1 remain open; independent mode is disabled.
+
+### G1 / L1 progress — drum rename target membership (2026-10-10)
+
+- Drum rename validates the selected clip before output lookup, the output before
+  treating it as a kit, and the selected drum against that kit's live list. Missing
+  selection now makes rename unavailable instead of freezing. Arrangement-only
+  clips and reattached drums remain usable; each panel uses its own selected drum.
+- Five extracted-production cases cover clip/drum departure, independent selections,
+  duplicates, missing/wrong-type context and reattachment. Two cases failed before
+  the fix. Membership uses the production song method against fixture lists.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. std::string name writes
+  still require allocation/lifetime review; these entry guards do not establish
+  callback-spanning drum retention. G1/L1/R4 remain open; independent mode is disabled.

@@ -26,6 +26,7 @@ struct name_fixture {
 using String = name_fixture;
 struct Clip;
 struct Output {
+	OutputType type = OutputType::SYNTH;
 	name_fixture name;
 	Output* next = nullptr;
 	Clip* duplicate = nullptr;
@@ -34,6 +35,18 @@ struct Output {
 		++lookups;
 		return duplicate;
 	}
+};
+struct Drum {
+	Drum* next = nullptr;
+	std::string drumName = "original";
+};
+struct Kit : Output {
+	Kit() { type = OutputType::KIT; }
+	Drum* firstDrum = nullptr;
+	Drum* duplicate_drum = nullptr;
+	session::State<Drum*> selected_drums;
+	Drum* selected_drum_for_session() { return selected_drums.active(); }
+	Drum* getDrumFromName(std::string_view) { return duplicate_drum; }
 };
 struct Clip {
 	Output* output = nullptr;
@@ -45,6 +58,8 @@ struct clip_list_fixture {
 	Clip* getClipAtIndex(int32_t index) const { return entries[index]; }
 };
 struct Song {
+	session::State<Clip*> selected_clips;
+	Clip* getCurrentClip() { return selected_clips.active(); }
 	Output* duplicate_output = nullptr;
 	int output_lookups = 0;
 	Output* getAudioOutputFromName(std::string_view) {
@@ -56,6 +71,16 @@ struct Song {
 	bool contains_clip_for_undo(const Clip* clip);
 };
 static Song* currentSong;
+static int current_output_lookups = 0;
+static Output* getCurrentOutput() {
+	++current_output_lookups;
+	return currentSong->getCurrentClip()->output;
+}
+static Kit* getCurrentKit() {
+	return static_cast<Kit*>(getCurrentOutput());
+}
+static int freezes = 0;
+
 namespace deluge::gui {
 namespace ui_session = ::deluge::gui::ui_session;
 }
@@ -87,6 +112,17 @@ public:
 	std::string_view getCurrentName() const;
 	bool trySetName(std::string_view);
 };
+class RenameDrumUI {
+public:
+	bool canRename() const;
+	Drum* selected_drum_for_rename() const;
+	std::string_view getCurrentName() const;
+	bool trySetName(std::string_view);
+};
+#undef FREEZE_WITH_ERROR
+#define FREEZE_WITH_ERROR(...) (++freezes)
+#include "rename_drum_methods.inc"
+#undef FREEZE_WITH_ERROR
 #include "rename_clip_membership.inc"
 #include "rename_clip_methods.inc"
 #include "rename_output_methods.inc"
@@ -348,4 +384,91 @@ TEST(RenameOutputTargets, failed_allocation_does_not_report_into_changed_context
 		CHECK(display_instance.error == Error::NONE);
 		STRCMP_EQUAL("original", output.name.get());
 	}
+}
+
+TEST_GROUP(RenameDrumTargets) {
+	Song song;
+	Clip clip;
+	Kit kit;
+	Drum drum, other;
+	RenameDrumUI menu;
+	void setup() override {
+		session::detail::active = session::Id::Local;
+		currentSong = &song;
+		song.sessionClips.entries = {&clip};
+		song.firstOutput = &kit;
+		clip.output = &kit;
+		kit.firstDrum = &drum;
+		drum.next = &other;
+		for (auto owner : {session::Id::Local, session::Id::Remote}) {
+			song.selected_clips.for_owner(owner) = &clip;
+			kit.selected_drums.for_owner(owner) = &drum;
+		}
+		freezes = current_output_lookups = 0;
+		display_instance = {};
+	}
+	void teardown() override {
+		session::detail::active = session::Id::Local;
+		currentSong = nullptr;
+	}
+};
+TEST(RenameDrumTargets, departed_selected_drum_is_not_read_or_renamed) {
+	kit.firstDrum = &other;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		CHECK(menu.getCurrentName().empty());
+		CHECK_FALSE(menu.trySetName("changed"));
+		STRCMP_EQUAL("original", drum.drumName.c_str());
+	}
+	LONGS_EQUAL(0, freezes);
+}
+TEST(RenameDrumTargets, departed_clip_is_rejected_before_output_lookup) {
+	song.sessionClips.entries.clear();
+	CHECK(menu.getCurrentName().empty());
+	CHECK_FALSE(menu.trySetName("changed"));
+	LONGS_EQUAL(0, current_output_lookups);
+}
+TEST(RenameDrumTargets, selected_drums_are_independent_and_duplicates_are_rejected) {
+	kit.selected_drums.for_owner(session::Id::Remote) = &other;
+	CHECK(menu.trySetName("local"));
+	{
+		session::Scope scope(session::Id::Remote);
+		CHECK(menu.trySetName("remote"));
+		kit.duplicate_drum = &drum;
+		CHECK_FALSE(menu.trySetName("local"));
+	}
+	STRCMP_EQUAL("local", drum.drumName.c_str());
+	STRCMP_EQUAL("remote", other.drumName.c_str());
+	LONGS_EQUAL(1, display_instance.popups);
+}
+
+TEST(RenameDrumTargets, missing_context_is_unavailable_without_freezing) {
+	currentSong = nullptr;
+	CHECK_FALSE(menu.canRename());
+	CHECK_FALSE(menu.trySetName("changed"));
+	currentSong = &song;
+	song.selected_clips.active() = nullptr;
+	CHECK_FALSE(menu.canRename());
+	song.selected_clips.active() = &clip;
+	song.firstOutput = nullptr;
+	CHECK_FALSE(menu.canRename());
+	song.firstOutput = &kit;
+	kit.type = OutputType::SYNTH;
+	CHECK_FALSE(menu.canRename());
+	kit.type = OutputType::KIT;
+	kit.selected_drums.active() = nullptr;
+	CHECK_FALSE(menu.canRename());
+	CHECK(menu.getCurrentName().empty());
+	CHECK_FALSE(menu.trySetName("changed"));
+	LONGS_EQUAL(0, freezes);
+}
+TEST(RenameDrumTargets, arrangement_clip_and_reattached_drum_allow_rename) {
+	song.sessionClips.entries.clear();
+	song.arrangementOnlyClips.entries = {&clip};
+	kit.firstDrum = &other;
+	CHECK_FALSE(menu.canRename());
+	kit.firstDrum = &drum;
+	CHECK(menu.canRename());
+	CHECK(menu.trySetName("reattached"));
+	STRCMP_EQUAL("reattached", drum.drumName.c_str());
 }

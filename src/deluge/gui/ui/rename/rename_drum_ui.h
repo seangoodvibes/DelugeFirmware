@@ -21,15 +21,20 @@
 #include "hid/button.h"
 
 class SoundDrum;
+class Drum;
 
 class RenameDrumUI final : public RenameUI {
 public:
 	RenameDrumUI(const char* title_) : RenameUI(title_) {};
 
 protected:
+	bool canRename() const override;
 	bool trySetName(std::string_view name) override;
 	std::string_view getCurrentName() const override;
 	bool allowEmpty() const override { return false; }
+
+private:
+	Drum* selected_drum_for_rename() const;
 };
 
 RenameDrumUI& rename_drum_ui_for_session();

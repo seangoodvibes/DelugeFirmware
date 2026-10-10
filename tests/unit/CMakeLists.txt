@@ -465,3 +465,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc
         ${ui_open_source} ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc "bool openUI" "void closeUI" "bool changeUIAtLevel" "bool changeUISideways" "void changeRootUI" "void setRootUILowLevel"
     DEPENDS ${ui_open_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ui_open_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc)
+
+set(rename_drum_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/rename/rename_drum_ui.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_drum_methods.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${rename_drum_source} ${CMAKE_CURRENT_BINARY_DIR}/rename_drum_methods.inc
+        RenameDrumUI::selected_drum_for_rename RenameDrumUI::canRename RenameDrumUI::getCurrentName RenameDrumUI::trySetName
+    DEPENDS ${rename_drum_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/rename_drum_methods.inc)

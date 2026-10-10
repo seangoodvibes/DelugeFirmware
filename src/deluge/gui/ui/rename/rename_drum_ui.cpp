@@ -35,27 +35,46 @@ RenameDrumUI& rename_drum_ui_for_session() {
 	return remote_rename_drum_ui.get(local_rename_drum_ui, "Drum Name");
 }
 
-std::string_view RenameDrumUI::getCurrentName() const {
-	Kit* kit = getCurrentKit();
-	if (kit == nullptr || kit->selected_drum_for_session() == nullptr) {
-		FREEZE_WITH_ERROR("RN01");
-		return "NONE";
+Drum* RenameDrumUI::selected_drum_for_rename() const {
+	if (!currentSong || !currentSong->contains_clip_for_undo(currentSong->getCurrentClip()))
+		return nullptr;
+	auto* const selected_output = getCurrentOutput();
+	for (auto* output = currentSong->firstOutput; output; output = output->next) {
+		if (output != selected_output)
+			continue;
+		if (output->type != OutputType::KIT)
+			return nullptr;
+		auto* kit = static_cast<Kit*>(output);
+		auto* selected_drum = kit->selected_drum_for_session();
+		for (auto* drum = kit->firstDrum; drum; drum = drum->next) {
+			if (drum == selected_drum)
+				return drum;
+		}
+		return nullptr;
 	}
-	return kit->selected_drum_for_session()->drumName;
+	return nullptr;
+}
+
+bool RenameDrumUI::canRename() const {
+	return selected_drum_for_rename() != nullptr;
+}
+
+std::string_view RenameDrumUI::getCurrentName() const {
+	auto* drum = selected_drum_for_rename();
+	return drum ? std::string_view(drum->drumName) : std::string_view{};
 }
 
 bool RenameDrumUI::trySetName(std::string_view name) {
-	Kit* kit = getCurrentKit();
-	if (kit == nullptr || kit->selected_drum_for_session() == nullptr) {
-		FREEZE_WITH_ERROR("RN02");
+	auto* drum = selected_drum_for_rename();
+	if (!drum)
 		return false;
-	}
+	auto* kit = static_cast<Kit*>(getCurrentOutput());
 	Drum* other = kit->getDrumFromName(name);
-	if (other != nullptr && other != kit->selected_drum_for_session()) {
+	if (other != nullptr && other != drum) {
 		// We only allow renaming if there are no other drums with the same name.
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	kit->selected_drum_for_session()->drumName = name;
+	drum->drumName = name;
 	return true;
 }
