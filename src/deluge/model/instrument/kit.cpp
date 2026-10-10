@@ -712,10 +712,15 @@ yesTickParamManager:
 					if (!drum_lifetime.alive()) {
 						return rendered;
 					}
-					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
-					if (!context_matches() || !drum_lifetime.alive() || noteRows->getNumElements() != row_count
-					    || noteRows->getElement(i) != thisNoteRow || thisNoteRow->undo_identity != row_identity
-					    || thisNoteRow->drum != routed_drum) {
+					const auto row_matches = [&] {
+						return context_matches() && drum_lifetime.alive() && noteRows->getNumElements() == row_count
+						       && noteRows->getElement(i) == thisNoteRow && thisNoteRow->undo_identity == row_identity
+						       && thisNoteRow->drum == routed_drum;
+					};
+					const deluge::lifetime::callback_validation row_validation{row_matches};
+					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings,
+					                                      &row_validation);
+					if (!row_matches()) {
 						return rendered;
 					}
 					continue;

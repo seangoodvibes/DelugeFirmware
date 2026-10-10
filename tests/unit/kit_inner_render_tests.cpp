@@ -30,7 +30,7 @@ std::function<void()> on_render, on_kill, on_tick;
 int tick_calls = 0, render_calls = 0, row_index = -1;
 struct ParamManager {
 	ParamCollectionSummary summaries[4];
-	void tickSamples(size_t, ModelStackWithThreeMainThings*) {
+	void tickSamples(size_t, ModelStackWithThreeMainThings*, const deluge::lifetime::callback_validation* = nullptr) {
 		++tick_calls;
 		if (on_tick)
 			on_tick();

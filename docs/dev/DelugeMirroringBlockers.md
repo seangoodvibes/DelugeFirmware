@@ -2570,3 +2570,12 @@ The test fixture resets backup association between cases. All 36 native suites
 and `./dbt build relwithdebinfo` pass. These are boundary checks, not protection
 inside sound rendering or collection ticking; same-address backup replacement
 still needs identity tracking.
+
+Parameter-manager sample ticking accepts a synchronous owner validator, supplied
+by kit row ticking and the shared effects renderer. Guarded calls validate before
+entry and after each collection callback, then compare the captured collection
+layout before advancing. Five production-body sanitizer tests cover live guarded
+and unguarded traversal, destroyed/expired owners and changed/deleted collections.
+All 36 native suites and `./dbt build relwithdebinfo` pass. This protects traversal
+between collections only; individual collection loops, same-address collection
+reuse and unguarded callers retain their existing lifetime requirements.

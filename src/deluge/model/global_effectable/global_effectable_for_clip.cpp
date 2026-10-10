@@ -206,7 +206,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);
-			paramManagerForClip->toForTimeline()->tickSamples(output.size(), modelStackWithThreeMainThings);
+			const deluge::lifetime::callback_validation render_validation{context_matches};
+			paramManagerForClip->toForTimeline()->tickSamples(output.size(), modelStackWithThreeMainThings,
+			                                                  &render_validation);
 		}
 	}
 }

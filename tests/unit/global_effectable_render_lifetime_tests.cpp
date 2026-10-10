@@ -72,7 +72,9 @@ struct ParamManager {
 	UnpatchedParamSet* getUnpatchedParamSet() { return summaries[0].paramCollection; }
 	auto* getUnpatchedParamSetSummary() { return &summaries[0]; }
 	ParamManager* toForTimeline() { return this; }
-	void tickSamples(size_t, ModelStackWithThreeMainThings*) { stage(6); }
+	void tickSamples(size_t, ModelStackWithThreeMainThings*, const deluge::lifetime::callback_validation* = nullptr) {
+		stage(6);
+	}
 };
 struct Output;
 struct Clip {

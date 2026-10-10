@@ -288,7 +288,8 @@ class ParamManagerForTimeline final : public ParamManager { // I want to rename 
 public:
 	ParamManagerForTimeline();
 
-	void tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack);
+	void tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack,
+	                 const deluge::lifetime::callback_validation* owner_validation = nullptr);
 	void setPlayPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack, bool reversed);
 	void expectNoFurtherTicks(ModelStackWithThreeMainThings* modelStack);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack);

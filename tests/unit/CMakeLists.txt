@@ -909,3 +909,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_inner_render.inc
         Kit::renderGlobalEffectableForClip
     DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_inner_render_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_inner_render.inc)
+
+set(parameter_tick_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/modulation/params/param_manager.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/parameter_tick_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${parameter_tick_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/parameter_tick_lifetime.inc
+        ParamManagerForTimeline::tickSamples
+    DEPENDS ${parameter_tick_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE parameter_tick_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/parameter_tick_lifetime.inc)

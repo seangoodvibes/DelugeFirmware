@@ -27,6 +27,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <new>
 
@@ -235,21 +236,35 @@ void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* 
 }
 
 // Note: you must only call this if playbackHandler.isEitherClockActive()
-void ParamManagerForTimeline::tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack) {
+void ParamManagerForTimeline::tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack,
+                                          const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid()) {
+		return;
+	}
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
-	                              // with its "while".
+	ensureSomeParamCollections();
 #endif
-
-	// Beware - for efficiency, the caller of this sometimes pre-checks whether to even call this at all
-
-	ParamCollectionSummary* summary = summaries;
-	do {
-		ModelStackWithParamCollection* modelStackWithParamCollection =
-		    modelStack->addParamCollection(summary->paramCollection, summary);
-		summary->paramCollection->tickSamples(numSamples, modelStackWithParamCollection);
-		summary++;
-	} while (summary->paramCollection);
+	ParamCollection* original_collections[PARAM_COLLECTIONS_STORAGE_NUM];
+	if (owner_validation) {
+		for (int i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i) {
+			original_collections[i] = summaries[i].paramCollection;
+		}
+	}
+	for (int i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM && summaries[i].paramCollection; ++i) {
+		auto* summary = &summaries[i];
+		auto* collection_stack = modelStack->addParamCollection(summary->paramCollection, summary);
+		summary->paramCollection->tickSamples(numSamples, collection_stack);
+		if (owner_validation) {
+			if (!owner_validation->valid()) {
+				return;
+			}
+			for (int j = 0; j < PARAM_COLLECTIONS_STORAGE_NUM; ++j) {
+				if (summaries[j].paramCollection != original_collections[j]) {
+					return;
+				}
+			}
+		}
+	}
 }
 
 void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop,
