@@ -19,6 +19,7 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "hid/encoder_acceleration.h"
+#include "hid/encoder_input_state.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -81,10 +82,11 @@ public:
 
 	/// Returns multiplier for encoder offset
 	double calcNextKnobSpeed(int8_t offset);
+	void reset_speed_for_session() { acceleration_.active() = EncoderAcceleration{}; }
 
 private:
-	std::atomic_int8_t pos = 0; ///< Written by the IRQ (apply_edges), drained by the encoder task.
-	EncoderAcceleration acceleration_;
+	std::atomic_int8_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	gui::ui_session::State<EncoderAcceleration> acceleration_;
 };
 
 // ── Named encoder globals ─────────────────────────────────────────────────
@@ -103,12 +105,6 @@ constexpr size_t kNumModEncoders = 2;
 
 DetentedEncoder& functionEncoderAt(size_t i); ///< 0=scrollY 1=scrollX 2=tempo 3=select
 ContinuousEncoder& modEncoderAt(size_t i);    ///< 0=mod0 1=mod1
-
-// ── Shared timestamp ──────────────────────────────────────────────────────
-
-/// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
-/// Defined in encoder_input.cpp; also written by view.cpp.
-extern uint32_t timeModEncoderLastTurned[];
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 

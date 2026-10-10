@@ -30,7 +30,7 @@ namespace deluge::hid::encoders {
 TaskID EncoderTaskID = -1;
 
 double ContinuousEncoder::calcNextKnobSpeed(int8_t offset) {
-	return acceleration_.advance(offset, getSystemTime(), kGoldEncoderAcceleration);
+	return acceleration_.active().advance(offset, getSystemTime(), kGoldEncoderAcceleration);
 }
 
 // ── Named encoder globals ──────────────────────────────────────────────────
