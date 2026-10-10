@@ -17,6 +17,7 @@
 
 #include "processing/sound/sound_drum.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui_session.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -76,6 +77,12 @@ void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloc
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions)
+		return;
+	auto drum_lifetime = watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
@@ -97,14 +104,33 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                          int32_t channelOrNoteNumber,
                                                          MIDICharacteristic whichCharacteristic) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions
+	    || (whichCharacteristic != MIDICharacteristic::NOTE && whichCharacteristic != MIDICharacteristic::CHANNEL))
+		return;
+	auto drum_lifetime = watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	auto* source_kit = kit;
+	auto kit_lifetime = source_kit ? source_kit->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_kit && (!kit_lifetime.alive() || source_kit->getDrumIndex(this) < 0))
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return drum_lifetime.alive() && (!source_kit || kit_lifetime.alive()) && kit == source_kit
+		       && (!source_kit || source_kit->getDrumIndex(this) >= 0) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	const deluge::lifetime::callback_validation validation{context_matches};
+
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
 	// yeah, that's all irrelevant.
 	expressionEvent(newValue, expressionDimension);
 
 	// Let the Sound know about this polyphonic expression event
 	// The Sound class will use it to send MIDI out (if enabled in the sound config)
-	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
-	                                                whichCharacteristic);
+	send_polyphonic_expression_midi(newValue, expressionDimension, channelOrNoteNumber, whichCharacteristic,
+	                                validation);
 }
 
 void SoundDrum::killAllVoices() {

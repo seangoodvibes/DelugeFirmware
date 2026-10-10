@@ -1712,54 +1712,44 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	}
 }
 
-void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-                                                     int32_t channelOrNoteNumber,
-                                                     MIDICharacteristic whichCharacteristic) {
-	// Send midi if midi output enabled
-	if (outputMidiChannel == MIDI_CHANNEL_NONE) {
+void Sound::send_polyphonic_expression_midi(int32_t new_value, int32_t expression_dimension, int32_t channel_or_note,
+                                            MIDICharacteristic characteristic,
+                                            const deluge::lifetime::callback_validation& owner_validation) {
+	if (!owner_validation.valid() || expression_dimension != 2
+	    || (characteristic != MIDICharacteristic::NOTE && characteristic != MIDICharacteristic::CHANNEL)
+	    || outputMidiChannel == MIDI_CHANNEL_NONE)
+		return;
+	const auto output_channel = outputMidiChannel;
+	const auto value = new_value >> 24;
+	if (characteristic == MIDICharacteristic::CHANNEL) {
+		midiEngine.sendChannelAftertouch(this, output_channel, value, kMIDIOutputFilterNoMPE);
 		return;
 	}
-	// We only support mono or poly aftertouch at the moment (regular MIDI), not full MPE
-	if (expressionDimension != 2) {
+	auto* arpeggiator = getArp();
+	const auto revision = arpeggiator->instruction_revision();
+	ArpNote* arp_note = nullptr;
+	if (arpeggiator->getArpType() == ArpType::DRUM)
+		arp_note = &static_cast<ArpeggiatorForDrum*>(arpeggiator)->active_note;
+	else if (arpeggiator->getArpType() == ArpType::SYNTH) {
+		auto& notes = static_cast<Arpeggiator*>(arpeggiator)->notes;
+		const auto index = notes.search(channel_or_note, GREATER_OR_EQUAL);
+		if (index >= notes.getNumElements())
+			return;
+		arp_note = static_cast<ArpNote*>(notes.getElementAddress(index));
+		if (arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] != channel_or_note)
+			return;
+	}
+	if (!arp_note)
 		return;
-	}
-	int32_t value7 = newValue >> 24;
-	if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
-		// Channel aftertouch
-		midiEngine.sendChannelAftertouch(this, outputMidiChannel, value7, kMIDIOutputFilterNoMPE);
-	}
-	// whichCharacteristic == MIDICharacteristic::NOTE
-	else {
-		// Polyphonic aftertouch
-		if (getArp()->getArpType() == ArpType::DRUM) {
-			// This is a sound drum (kit)
-			ArpeggiatorForDrum* arpeggiator = (ArpeggiatorForDrum*)getArp();
-			// Just one note is possible
-			ArpNote arpNote = arpeggiator->active_note;
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (arpNote.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-					break;
-				}
-				midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, arpNote.noteCodeOnPostArp[n],
-				                                    kMIDIOutputFilterNoMPE);
-			}
-		}
-		else if (getArp()->getArpType() == ArpType::SYNTH) {
-			// This is a sound instrument (synth)
-			Arpeggiator* arpeggiator = (Arpeggiator*)getArp();
-			// Search for the note
-			int32_t i = arpeggiator->notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
-			if (i < arpeggiator->notes.getNumElements()) {
-				ArpNote* arpNote = (ArpNote*)arpeggiator->notes.getElementAddress(i);
-				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-						break;
-					}
-					midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, arpNote->noteCodeOnPostArp[n],
-					                                    kMIDIOutputFilterNoMPE);
-				}
-			}
-		}
+	int32_t note_codes[ARP_MAX_INSTRUCTION_NOTES];
+	std::copy_n(arp_note->noteCodeOnPostArp.begin(), ARP_MAX_INSTRUCTION_NOTES, note_codes);
+	for (int32_t note_code : note_codes) {
+		if (note_code == ARP_NOTE_NONE)
+			break;
+		midiEngine.sendPolyphonicAftertouch(this, output_channel, value, note_code, kMIDIOutputFilterNoMPE);
+		if (!owner_validation.valid() || outputMidiChannel != output_channel || getArp() != arpeggiator
+		    || arpeggiator->instruction_revision() != revision)
+			return;
 	}
 }
 

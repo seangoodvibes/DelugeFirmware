@@ -2815,3 +2815,13 @@ render/release reconstruction, fresh replacement watches and retired entry. All 
 suites and `./dbt build relwithdebinfo` pass. Each voice now stores a lifetime source;
 aggregate heap/stack/timing impact still needs hardware measurement. Other voice
 consumers and same-size changes elsewhere in the voice list remain open.
+
+Synth/drum expression entry points now reject invalid dimensions/characteristics
+and retired owners. MIDI aftertouch uses a guarded shared helper that snapshots
+chord notes, requires an exact synth-note match and checks owner/routing/arp revision
+between sends; drums also validate kit lifetime/membership. Nine production-body
+sanitizer regressions cover matching, smoothing/channel output, owner/kit deletion,
+freed arp storage, routing changes, invalid entry and disabled MIDI. All 36 suites
+and `./dbt build relwithdebinfo` pass. Voice expression setters are scalar-only and
+were not given synthetic callback boundaries. Direct arp writes bypassing revision,
+borrowed-pointer acquisition and downstream MIDI internals remain open.

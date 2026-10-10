@@ -1041,3 +1041,24 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/voice_owner_lifetime.inc
         Voice::~Voice Voice::watch_lifetime
     DEPENDS ${voice_owner_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/voice_owner_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_expression_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_render_arp_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_expression_output_lifetime.inc
+        Sound::send_polyphonic_expression_midi
+    DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_expression_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_render_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_expression_lifetime.inc
+        SoundInstrument::polyphonicExpressionEventOnChannelOrNote
+    DEPENDS ${sound_render_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+set(sound_drum_expression_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound_drum.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_expression_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_drum_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_expression_lifetime.inc
+        SoundDrum::expressionEvent SoundDrum::polyphonicExpressionEventOnChannelOrNote
+    DEPENDS ${sound_drum_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sound_expression_output_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/sound_expression_output_lifetime.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_expression_lifetime.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_expression_lifetime.inc)

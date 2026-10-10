@@ -375,6 +375,25 @@ void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expres
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions
+	    || (whichCharacteristic != MIDICharacteristic::NOTE && whichCharacteristic != MIDICharacteristic::CHANNEL))
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	const deluge::lifetime::callback_validation validation{context_matches};
+
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 	for (const auto& voice : this->voices()) {
 		if (voice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
@@ -410,8 +429,8 @@ lookAtArpNote:
 
 	// Let the Sound know about this polyphonic expression event
 	// The Sound class will use it to send MIDI out (if enabled in the sound config)
-	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
-	                                                whichCharacteristic);
+	send_polyphonic_expression_midi(newValue, expressionDimension, channelOrNoteNumber, whichCharacteristic,
+	                                validation);
 }
 
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
