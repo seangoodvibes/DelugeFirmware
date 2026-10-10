@@ -2344,3 +2344,15 @@ normal dispatch, deletion, address reuse, detachment and owner retirement. All 3
 native suites and `./dbt build relwithdebinfo` pass. Note-on/off and audition
 internals remain separate routing work; membership checks and end-to-end timing
 still require the two-device hardware validation in G2.
+
+Kit per-drum note handling now validates kit/drum membership before watch
+acquisition, watches original/resulting clips, and revalidates song/panel/stack,
+output association and row identity after selection, cloning, recording and UI
+callbacks. Removed or reused rows are resolved again before follow-up access.
+Sixteen new sanitizer regressions exercise real note-handler bodies with model
+and callback doubles, including actual owner destruction, stale entry, row
+replacement/removal and preserved callback edits. The existing note-routing tests
+now run in the sanitizer lifetime target. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Cancellation after a recording write preserves
+that prefix; full recovery, the outer note-dispatch loop and audition internals
+remain separate work.

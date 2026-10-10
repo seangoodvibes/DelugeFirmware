@@ -629,7 +629,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${kit_note_recording_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc Kit::receivedNoteForDrum
     DEPENDS ${kit_note_recording_source} ../support/extract_functions.py VERBATIM)
-target_sources(UnitTests PRIVATE note_recording_clone_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc)
+
 target_sources(UnitTests PRIVATE lifetime_tests.cpp)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_destruction_lifetime.inc
@@ -810,3 +810,5 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_expression_lifetime.in
     DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_expression_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/kit_expression_lifetime.inc)
+
+target_sources(ClipLifetimeTests PRIVATE note_recording_clone_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc)

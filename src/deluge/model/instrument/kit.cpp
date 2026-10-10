@@ -1434,10 +1434,31 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
                               int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
                               Drum* thisDrum) {
-	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
+	if (!modelStack || !thisDrum)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || getDrumIndex(thisDrum) < 0)
+		return;
+	auto drum_lifetime = thisDrum->watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
+	auto* const source_clip = instrumentClip;
+	auto source_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto owners_alive = [&] {
+		return kit_lifetime.alive() && drum_lifetime.alive() && (!source_clip || source_lifetime.alive())
+		       && currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!owners_alive() || getDrumIndex(thisDrum) < 0 || (instrumentClip && instrumentClip->output != this))
+		return;
 
 	// do we need to update the selected_drum_for_session()?
 	possiblySetSelectedDrumAndRefreshUI(thisDrum);
+	if (!owners_alive() || modelStack->getTimelineCounterAllowNull() != instrumentClip
+	    || (instrumentClip && instrumentClip->output != this) || getDrumIndex(thisDrum) < 0)
+		return;
 
 	bool recordingNoteOnEarly = false;
 
@@ -1461,11 +1482,18 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 
 			Error clone_error = Error::NONE;
 			instrumentClip->possiblyCloneForArrangementRecording(modelStack, &clone_error);
+			if (!owners_alive())
+				return;
 			if (clone_error != Error::NONE) {
 				shouldRecordNoteOn = false;
 			}
 			else {
-				instrumentClip = (InstrumentClip*)modelStack->getTimelineCounter(); // Re-get after cloning.
+				instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
+				if (!instrumentClip)
+					return;
+				auto cloned_lifetime = instrumentClip->watch_lifetime();
+				if (!cloned_lifetime.alive())
+					return;
 				if (instrumentClip->isArrangementOnlyClip()) {
 					shouldRecordNoteOn = true;
 				}
@@ -1494,6 +1522,15 @@ goingToRecordNoteOnEarly:
 		}
 	}
 
+	auto clip_lifetime = instrumentClip ? instrumentClip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto context_matches = [&] {
+		return owners_alive() && (!instrumentClip || clip_lifetime.alive())
+		       && modelStack->getTimelineCounterAllowNull() == instrumentClip
+		       && (!instrumentClip || instrumentClip->output == this) && getDrumIndex(thisDrum) >= 0;
+	};
+	if (!context_matches())
+		return;
+
 	ModelStackWithNoteRow* modelStackWithNoteRow;
 
 	NoteRow* thisNoteRow = nullptr; // Will only be set to true if there's a Clip / activeClip
@@ -1509,8 +1546,18 @@ goingToRecordNoteOnEarly:
 		modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 	}
 
+	const uint64_t row_identity = thisNoteRow ? thisNoteRow->undo_identity : 0;
+	const auto row_matches = [&] {
+		if (!context_matches())
+			return false;
+		auto* row = instrumentClip ? instrumentClip->getNoteRowForDrum(thisDrum) : nullptr;
+		return row == thisNoteRow && (!row || row->undo_identity == row_identity);
+	};
+
 	if (recordingNoteOnEarly) {
 		bool allowingNoteTails = instrumentClip && instrumentClip->allowNoteTails(modelStackWithNoteRow);
+		if (!row_matches())
+			return;
 		thisDrum->recordNoteOnEarly(velocity, allowingNoteTails);
 	}
 
@@ -1541,6 +1588,8 @@ goingToRecordNoteOnEarly:
 		// MPE stuff - if editing note, we need to take note of the initial values which might have been sent before
 		// this note-on.
 		instrument_clip_view_for_session().reportMPEInitialValuesForNoteEditing(modelStackWithNoteRow, mpeValues);
+		if (!row_matches())
+			return;
 
 		if (!thisNoteRow || !thisNoteRow->sequenced) {
 
@@ -1553,8 +1602,12 @@ goingToRecordNoteOnEarly:
 				}
 
 				instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
+				if (!row_matches())
+					return;
 				if (getRootUI()) {
 					getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+					if (!row_matches())
+						return;
 				}
 			}
 			// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does
@@ -1581,12 +1634,18 @@ goingToRecordNoteOnEarly:
 				    && !instrumentClip->isArrangementOnlyClip()) {}
 				else {
 					instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
+					if (!row_matches())
+						return;
 					if (getRootUI()) {
 						getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+						if (!row_matches())
+							return;
 					}
 				}
 			}
 			instrument_clip_view_for_session().reportNoteOffForMPEEditing(modelStackWithNoteRow);
+			if (!row_matches())
+				return;
 
 			// MPE-controlled params are a bit special in that we can see (via this note-off) when the user has removed
 			// their finger and won't be sending more values. So, let's unlatch those params now.
