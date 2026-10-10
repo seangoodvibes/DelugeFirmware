@@ -3187,3 +3187,15 @@ protocol handling and restoration of a suspended Remote caller. Three failures
 reproduced before the fix. All 38 suites and the RelWithDebInfo build pass. Internal
 multi-control release sweeps and recovery of remaining holds are still open; no
 hardware PIC/USB acceptance is implied. Independent mode stays disabled.
+
+Song sample-loading scans now watch source/current-song, output and clip lifetime
+across storage/audio callbacks, check output registration, and reject changed clip
+counts or positions before continuing. Both full and crucial loading avoid cached
+range ends across list mutation. Fifteen sanitizer-enabled regressions cover actual
+output/clip destruction, retirement, same-address song reuse, detached loading,
+owner changes, resized/same-size replaced clip lists and existing audio cadence/
+active filtering. Four failed before the fix. All 38 suites (including ASan/UBSan
+ClipLifetimeTests) and the RelWithDebInfo build pass. Cancellation leaves already
+loaded samples intact; this does not make loading transactional or protect inside
+individual holder/source/drum loading callbacks. Those inner paths remain L1/R4
+audit work. Independent mode stays disabled.

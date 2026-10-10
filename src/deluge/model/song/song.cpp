@@ -2405,40 +2405,110 @@ readClip:
 // Needs to be in a separate function than the above because the main song XML file needs to be closed first before
 // this is called, because this will open other (sample) files
 void Song::loadAllSamples(bool mayActuallyReadFiles) {
+	auto song_watch = watch_lifetime();
+	if (!song_watch.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_current_song = currentSong;
+	auto current_song_watch = source_current_song && source_current_song != this ? source_current_song->watch_lifetime()
+	                                                                             : deluge::lifetime::lifetime_watch{};
+	const auto context_valid = [&] {
+		return song_watch.alive() && currentSong == source_current_song
+		       && (!source_current_song || source_current_song == this || current_song_watch.alive())
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return;
 
-	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->loadAllAudioFiles(mayActuallyReadFiles);
+	for (Output* output = firstOutput; output; output = output->next) {
+		auto output_watch = output->watch_lifetime();
+		if (!output_watch.alive())
+			return;
+		output->loadAllAudioFiles(mayActuallyReadFiles);
+		if (!context_valid() || !output_watch.alive() || !owns_output_for_undo(output, false))
+			return;
 	}
 
-	// NOTE: Using AllClips instead of AudioClips to ensure we call into the audio engine during
-	// the scan, instead of only when we find audio clips!
-	uint32_t c = 0;
-	for (Clip* clip : AllClips::everywhere(this)) {
-		// If not reading files, high chance that we'll be searching through memory a lot and not reading the card
-		// (which would call the audio routine), so we'd better call the audio routine here.
-		if (!mayActuallyReadFiles && !(c++ & 7)) { // 31 bad. 15 seems to pass. 7 to be safe
-			AudioEngine::logAction("Song::loadAllSamples");
-			AudioEngine::routineWithClusterLoading();
-		}
-		if (clip->type == ClipType::AUDIO) {
-			((AudioClip*)clip)->loadSample(mayActuallyReadFiles);
+	const int32_t session_count = sessionClips.getNumElements();
+	const int32_t arrangement_count = arrangementOnlyClips.getNumElements();
+	const auto scan_valid = [&] {
+		return context_valid() && sessionClips.getNumElements() == session_count
+		       && arrangementOnlyClips.getNumElements() == arrangement_count;
+	};
+	uint32_t clip_count = 0;
+	// Do not retain an iterator end across storage/audio callbacks that can resize either list.
+	for (auto* clips : {&sessionClips, &arrangementOnlyClips}) {
+		const int32_t count = clips->getNumElements();
+		for (int32_t index = 0; index < count; ++index) {
+			auto* clip = clips->getClipAtIndex(index);
+			if (!clip)
+				return;
+			auto clip_watch = clip->watch_lifetime();
+			if (!clip_watch.alive())
+				return;
+			// Preserve audio service cadence even for instrument clips during memory-only searches.
+			if (!mayActuallyReadFiles && !(clip_count++ & 7)) {
+				AudioEngine::logAction("Song::loadAllSamples");
+				AudioEngine::routineWithClusterLoading();
+				if (!clip_watch.alive() || !scan_valid() || clips->getClipAtIndex(index) != clip)
+					return;
+			}
+			if (clip->type == ClipType::AUDIO)
+				static_cast<AudioClip*>(clip)->loadSample(mayActuallyReadFiles);
+			if (!clip_watch.alive() || !scan_valid() || clips->getClipAtIndex(index) != clip)
+				return;
 		}
 	}
 }
 
 void Song::loadCrucialSamplesOnly() {
-	// TODO: This searches just as much as loadAllSamples, why does this not need to call into the
-	// audio engine? Is the searching actually ok, and only the loadSample() counts should be considered
-	// for calling into the audio engine?
-	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->getActiveClip() && isClipActive(thisOutput->getActiveClip())) {
-			thisOutput->loadCrucialAudioFilesOnly();
-		}
+	auto song_watch = watch_lifetime();
+	if (!song_watch.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_current_song = currentSong;
+	auto current_song_watch = source_current_song && source_current_song != this ? source_current_song->watch_lifetime()
+	                                                                             : deluge::lifetime::lifetime_watch{};
+	const auto context_valid = [&] {
+		return song_watch.alive() && currentSong == source_current_song
+		       && (!source_current_song || source_current_song == this || current_song_watch.alive())
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return;
+
+	for (Output* output = firstOutput; output; output = output->next) {
+		auto output_watch = output->watch_lifetime();
+		if (!output_watch.alive())
+			return;
+		if (output->getActiveClip() && isClipActive(output->getActiveClip()))
+			output->loadCrucialAudioFilesOnly();
+		if (!context_valid() || !output_watch.alive() || !owns_output_for_undo(output, false))
+			return;
 	}
 
-	for (AudioClip* clip : AudioClips::everywhere(this)) {
-		if (clip->isActiveOnOutput()) {
-			clip->loadSample(true);
+	const int32_t session_count = sessionClips.getNumElements();
+	const int32_t arrangement_count = arrangementOnlyClips.getNumElements();
+	const auto scan_valid = [&] {
+		return context_valid() && sessionClips.getNumElements() == session_count
+		       && arrangementOnlyClips.getNumElements() == arrangement_count;
+	};
+	// Do not retain an iterator end across storage/audio callbacks that can resize either list.
+	for (auto* clips : {&sessionClips, &arrangementOnlyClips}) {
+		const int32_t count = clips->getNumElements();
+		for (int32_t index = 0; index < count; ++index) {
+			auto* clip = clips->getClipAtIndex(index);
+			if (!clip)
+				return;
+			auto clip_watch = clip->watch_lifetime();
+			if (!clip_watch.alive())
+				return;
+			if (clip->type == ClipType::AUDIO && clip->isActiveOnOutput())
+				static_cast<AudioClip*>(clip)->loadSample(true);
+			if (!clip_watch.alive() || !scan_valid() || clips->getClipAtIndex(index) != clip)
+				return;
 		}
 	}
 }

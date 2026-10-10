@@ -1144,3 +1144,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/loaded_song_ui.inc
         ${loaded_song_source} ${CMAKE_CURRENT_BINARY_DIR}/loaded_song_ui.inc setUIForLoadedSong
     DEPENDS ${loaded_song_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/loaded_song_ui.inc)
+
+set(song_sample_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/song/song.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_sample_loading.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${song_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/song_sample_loading.inc
+        Song::loadAllSamples Song::loadCrucialSamplesOnly
+    DEPENDS ${song_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE song_sample_loading_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/song_sample_loading.inc)
