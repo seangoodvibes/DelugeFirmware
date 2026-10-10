@@ -48,6 +48,7 @@ MIDICable* peer = nullptr;
 MIDICable* closing_host_peer = nullptr;
 std::optional<uint64_t> peer_connection, closing_host_connection;
 uint16_t session = 0, tx_sequence = 0, rx_sequence = 0;
+bool session_oled = false;
 protocol::SessionTokenGenerator client_sessions;
 protocol::InputAcknowledgement client_input_ack, host_input_ack;
 double last_receive = 0, last_heartbeat = 0, back_since = 0, last_o_led = 0;
@@ -148,7 +149,9 @@ bool session_connected() {
 }
 
 bool session_live() {
-	return session_connected() && getSystemTime() - last_receive <= 3.0;
+	// The wire format is negotiated for one display type. A settings change
+	// must terminate this session before accepting input or sending another frame.
+	return session_connected() && ::display->haveOLED() == session_oled && getSystemTime() - last_receive <= 3.0;
 }
 
 bool send_discovery_query(MIDICable& cable, bool for_startup) {
@@ -523,6 +526,7 @@ void begin() {
 	client_input_ack.reset();
 	host_input_ack.reset();
 	reset_injected_encoders();
+	session_oled = ::display->haveOLED();
 	state = State::Waiting;
 	uiTimerManager.pause_for_mirror();
 	last_receive = last_heartbeat = getSystemTime();
@@ -970,6 +974,7 @@ void received(MIDICable& cable, uint8_t* data, int32_t length) {
 		rx_sequence = 1;
 		active_session_mode = session_request->mode;
 		remote_initialization_pending = active_session_mode == protocol::session_mode::independent;
+		session_oled = session_request->oled;
 		state = State::Host;
 		// Remove pre-negotiation musical traffic now, even if USB cannot drain
 		// until after this session ends. Never touch the in-flight buffer.

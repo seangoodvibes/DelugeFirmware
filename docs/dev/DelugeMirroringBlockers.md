@@ -538,3 +538,18 @@ side effects are not provided by these guards.
   independent mode remains disabled.
 - Validation: all 32 native CTest suites (including ten runtime/battery menu cases)
   and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — negotiated display format lifetime (2026-10-09)
+
+- Sessions now retain their negotiated OLED/seven-segment format. Liveness checks
+  reject a subsequent format change before queued input dispatch, incoming packet
+  processing or transport output. Transmission callbacks retain the sequence of an
+  already sent packet but cannot send following packets after a format change.
+- Teardown still permits Stop, releases the session and resumes client timers.
+  A fresh request can negotiate the new format. This contains transport after a
+  display change; it does not establish display-object replacement lifetime safety.
+- Six new production-runtime cases reproduce the previous failures and cover both
+  host formats, reconnection, Waiting/Client states, queued and received input, and
+  changes during send. All 241 mirror runtime cases pass. G1 remains open and
+  independent mode remains disabled.
+- Validation: all 32 native CTest suites and `./dbt build relwithdebinfo` pass.

@@ -3877,3 +3877,78 @@ TEST(MirrorRuntime, independent_mode_change_at_each_root_startup_callback_preven
 		cable.sent.clear();
 	}
 }
+
+TEST(MirrorRuntime, host_display_change_stops_transport_and_requires_fresh_negotiation) {
+	for (bool oled : {true, false}) {
+		physical_display.oled = oled;
+		incoming(p::Op::Request, 0, {static_cast<uint8_t>(oled)});
+		m::routine();
+		CHECK(m::state == m::State::Host);
+		cable.sent.clear();
+		physical_display.oled = !oled;
+		fixture::now += 1;
+		m::transport_routine();
+		CHECK(m::failed);
+		CHECK(cable.sent.empty());
+		m::routine();
+		CHECK(m::state == m::State::Idle);
+		LONGS_EQUAL(1, sent(p::Op::Stop).size());
+		cable.sent.clear();
+		incoming(p::Op::Request, 0, {static_cast<uint8_t>(!oled)}, 43);
+		m::routine();
+		CHECK(m::state == m::State::Host);
+		LONGS_EQUAL(1, sent(p::Op::Accept).size());
+		m::stop("test");
+		cable.sent.clear();
+	}
+}
+TEST(MirrorRuntime, display_change_rejects_received_input_without_advancing_sequence) {
+	host();
+	const auto previous_sequence = m::rx_sequence;
+	physical_display.oled = false;
+	input(1, 0, 1, 1);
+	CHECK(m::failed);
+	LONGS_EQUAL(previous_sequence, m::rx_sequence);
+	LONGS_EQUAL(0, m::input_write - m::input_read);
+	CHECK(fixture::events.empty());
+}
+TEST(MirrorRuntime, display_change_discards_queued_input_before_dispatch) {
+	host();
+	input(1, 0, 1, 1);
+	physical_display.oled = false;
+	m::process_input();
+	CHECK(m::failed);
+	CHECK(fixture::events.empty());
+	CHECK(sent(p::Op::InputAck).empty());
+}
+TEST(MirrorRuntime, display_change_during_send_prevents_later_packets) {
+	host();
+	fixture::now += 1;
+	fixture::on_send = [] { physical_display.oled = false; };
+	const auto previous_sequence = m::tx_sequence;
+	m::transport_routine();
+	CHECK(m::failed);
+	LONGS_EQUAL(1, cable.sent.size());
+	LONGS_EQUAL(1, sent(p::Op::Heartbeat).size());
+	LONGS_EQUAL((previous_sequence + 1) & 0x3fff, m::tx_sequence);
+	fixture::on_send = {};
+}
+TEST(MirrorRuntime, client_display_change_rejects_panel_data_and_resumes_timers_on_teardown) {
+	client();
+	physical_display.oled = false;
+	incoming(p::Op::Panel, 1, {152}, m::session);
+	CHECK(m::failed);
+	CHECK(fixture::panel_frames.empty());
+	m::routine();
+	CHECK(m::state == m::State::Idle);
+	CHECK_FALSE(uiTimerManager.paused);
+}
+TEST(MirrorRuntime, display_change_while_waiting_rejects_acceptance) {
+	CHECK(m::start());
+	m::routine();
+	CHECK(m::state == m::State::Waiting);
+	physical_display.oled = false;
+	incoming(p::Op::Accept, 0, {}, m::session);
+	CHECK(m::failed);
+	CHECK(m::state == m::State::Waiting);
+}
