@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
+#include "util/lifetime.h"
 
 extern "C" {
 
@@ -86,7 +87,8 @@ private:
 	void audioFileIsNowSet();
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
-	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
+	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr,
+	                            const deluge::lifetime::callback_validation* validation = nullptr);
 	Error getCurrentFilePath(String* path) override;
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);

@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "util/finally.h"
+#include "util/lifetime.h"
 #include "util/try.h"
 #include <cmath>
 #include <cstdint>
@@ -18,7 +19,7 @@ namespace folder_sample_loading_test {
 enum class Error { NONE, SD_CARD, INSUFFICIENT_RAM };
 enum class AudioFileType { SAMPLE };
 constexpr int MIDI_NOTE_ERROR = -1000, AM_DIR = 16;
-std::function<void()> on_audio, on_append, on_pitch, on_sort_allocation;
+std::function<void()> on_audio, on_append, on_pitch, on_sort_allocation, on_file_load;
 int fail_owned_slot = -1;
 bool fail_sort_allocation = false;
 std::vector<std::string> requested_paths;
@@ -108,6 +109,8 @@ struct AudioFileManager {
 		requested_paths.push_back(path.get());
 		*error = Error::NONE;
 		++next_sample;
+		if (on_file_load)
+			on_file_load();
 		return loaded_samples.at(path.value.find("snare") != std::string::npos ? 1 : 0);
 	}
 } audioFileManager;
@@ -172,7 +175,8 @@ struct SampleBrowser {
 		result->set(&directory);
 		return Error::NONE;
 	}
-	bool loadAllSamplesInFolder(bool, int32_t*, Sample***, bool*, int32_t*);
+	bool loadAllSamplesInFolder(bool, int32_t*, Sample***, bool*, int32_t*,
+	                            const deluge::lifetime::callback_validation* = nullptr);
 };
 #include "folder_sample_loading.inc"
 } // namespace folder_sample_loading_test
@@ -190,7 +194,7 @@ TEST_GROUP(FolderSampleLoading) {
 		audioFileManager.next_sample = 0;
 		read_failure_after = -1;
 		display_instance = {};
-		on_audio = on_append = on_pitch = on_sort_allocation = {};
+		on_audio = on_append = on_pitch = on_sort_allocation = on_file_load = {};
 		fail_owned_slot = -1;
 		fail_sort_allocation = false;
 		requested_paths.clear();
@@ -199,7 +203,7 @@ TEST_GROUP(FolderSampleLoading) {
 		std::free(table);
 		loaded_samples.clear();
 		selected_file.reset();
-		on_audio = on_append = on_pitch = on_sort_allocation = {};
+		on_audio = on_append = on_pitch = on_sort_allocation = on_file_load = {};
 		fail_owned_slot = -1;
 		fail_sort_allocation = false;
 		requested_paths.clear();
@@ -369,6 +373,62 @@ TEST(FolderSampleLoading, omitted_output_table_releases_temporary_sample_ownersh
 	bool single_cycle = true;
 	CHECK_TRUE(browser.loadAllSamplesInFolder(false, &count, nullptr, &single_cycle, &prefix));
 	LONGS_EQUAL(2, count);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+}
+
+TEST(FolderSampleLoading, cancelled_entry_does_not_load_samples) {
+	const auto cancelled = [] { return false; };
+	deluge::lifetime::callback_validation validation(cancelled);
+	int32_t count = 0;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, nullptr, nullptr, &validation));
+	CHECK(requested_paths.empty());
+	CHECK(table == nullptr);
+}
+TEST(FolderSampleLoading, cancellation_during_audio_service_stops_before_enumerating_samples) {
+	bool valid = true;
+	const auto context_valid = [&] { return valid; };
+	deluge::lifetime::callback_validation validation(context_valid);
+	on_audio = [&] { valid = false; };
+	int32_t count = 0;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, nullptr, nullptr, &validation));
+	CHECK(requested_paths.empty());
+	CHECK_TRUE(display_instance.last_error == Error::NONE);
+}
+TEST(FolderSampleLoading, cancellation_during_file_loading_releases_prior_references) {
+	bool valid = true;
+	const auto context_valid = [&] { return valid; };
+	deluge::lifetime::callback_validation validation(context_valid);
+	on_file_load = [&] {
+		if (audioFileManager.next_sample == 2)
+			valid = false;
+	};
+	int32_t count = 0;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, nullptr, nullptr, &validation));
+	CHECK(table == nullptr);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+	CHECK_TRUE(display_instance.last_error == Error::NONE);
+}
+TEST(FolderSampleLoading, cancellation_during_sort_allocation_releases_owned_samples) {
+	bool valid = true;
+	const auto context_valid = [&] { return valid; };
+	deluge::lifetime::callback_validation validation(context_valid);
+	on_sort_allocation = [&] { valid = false; };
+	int32_t count = 0;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, nullptr, nullptr, &validation));
+	CHECK(table == nullptr);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+}
+TEST(FolderSampleLoading, cancellation_during_pitch_detection_does_not_publish_sample_table) {
+	bool valid = true;
+	const auto context_valid = [&] { return valid; };
+	deluge::lifetime::callback_validation validation(context_valid);
+	on_pitch = [&] { valid = false; };
+	int32_t count = 0;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(true, &count, &table, nullptr, nullptr, &validation));
+	CHECK(table == nullptr);
 	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
 	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
 }

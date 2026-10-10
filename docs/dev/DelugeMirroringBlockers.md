@@ -3530,3 +3530,12 @@ All 38 suites and RelWithDebInfo pass after correcting a recursive callback in t
 new test fixture. Peak temporary metadata adds a growable pointer list alongside
 the sorting table, with no audio-buffer copies. This isolates sample ownership,
 not shared pitch-cache mutations or caller-context cancellation inside loading.
+
+Folder loading accepts caller validation and checks it across file/path loading,
+allocation, pitch detection and sorting before returning owned samples. Multisample
+import forwards its context and avoids clearing a newer context's working animation
+after cancellation. Six new regressions cover cancelled entry, audio/file loading,
+sort allocation, pitch detection and caller UI recovery. All 38 suites and
+RelWithDebInfo pass. The checks stop continuation at these boundaries; they do not
+roll back pitch caches or establish safety inside every lower-level callback. Kit
+import still needs its own caller-context propagation.

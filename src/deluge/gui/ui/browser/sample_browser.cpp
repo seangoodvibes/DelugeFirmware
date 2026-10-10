@@ -1236,7 +1236,11 @@ int32_t getNumTimesIncorrectSampleOrderSeen(int32_t numSamples, Sample** samples
 }
 
 bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
-                                           bool* getDoingSingleCycle, int32_t* getPrefixAndDirLength) {
+                                           bool* getDoingSingleCycle, int32_t* getPrefixAndDirLength,
+                                           const deluge::lifetime::callback_validation* validation) {
+	const auto context_valid = [&] { return !validation || validation->valid(); };
+	if (!context_valid())
+		return false;
 
 	String dirToLoad;
 	Error error;
@@ -1250,7 +1254,8 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (currentFileItem->isFolder) {
 		error = getCurrentFilePath(&dirToLoad);
 		if (error != Error::NONE) {
-			display->displayError(error);
+			if (context_valid())
+				display->displayError(error);
 			return false;
 		}
 	}
@@ -1259,8 +1264,11 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 		previously_viewed_filename.set(&currentFileItem->filename);
 	}
 
+	if (!context_valid())
+		return false;
 	auto folder_directory = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
-		display->displayError(Error::SD_CARD);
+		if (context_valid())
+			display->displayError(Error::SD_CARD);
 		return false;
 	});
 
@@ -1284,11 +1292,14 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 
-		display->displayError(error);
+		if (context_valid())
+			display->displayError(error);
 		return false;
 	}
 
 	AudioEngine::routineWithClusterLoading();
+	if (!context_valid())
+		return false;
 
 	int32_t numCharsInPrefixForFolderLoad = 65535;
 
@@ -1302,11 +1313,15 @@ removeReasonsFromSamplesAndGetOut:
 
 	while (true) {
 		audioFileManager.loadAnyEnqueuedClusters();
+		if (!context_valid())
+			return false;
 		FilePointer thisFilePointer;
 		FatFS::FileInfo file_info;
 
 		/* Read a directory item */
 		auto directory_entry = folder_directory.read_and_get_filepointer();
+		if (!context_valid())
+			return false;
 		if (!directory_entry.has_value()) {
 			folder_directory.close();
 			error = Error::SD_CARD;
@@ -1343,10 +1358,14 @@ removeReasonsFromSamplesAndGetOut:
 		}
 
 		filePath.concatenateAtPos(file_info.fname, dirWithSlashLength);
+		if (!context_valid())
+			return false;
 
 		// We really want to be able to pass a file pointer in here
 		auto* newSample = static_cast<Sample*>(
 		    audioFileManager.getAudioFileFromFilename(filePath, true, &error, &thisFilePointer, AudioFileType::SAMPLE));
+		if (!context_valid())
+			return false;
 		if (error != Error::NONE || newSample == nullptr) {
 			// Clean up any samples we loaded in this folder load attempt
 			folder_directory.close();
@@ -1356,6 +1375,8 @@ removeReasonsFromSamplesAndGetOut:
 		newSample->addReason();
 		auto sample_cleanup = util::finally([newSample] { newSample->removeReason("E392"); });
 		error = owned_samples.insertAtIndex(numSamples);
+		if (!context_valid())
+			return false;
 		if (error != Error::NONE) {
 			folder_directory.close();
 			goto removeReasonsFromSamplesAndGetOut;
@@ -1401,6 +1422,8 @@ removeReasonsFromSamplesAndGetOut:
 	}
 
 	auto sort_area_cleanup = util::finally([sortArea] { delugeDealloc(sortArea); });
+	if (!context_valid())
+		return false;
 
 	// Each loader owns its pins independently, even when nested loads use the same cached Samples.
 	for (int32_t index = 0; index < numSamples; ++index) {
@@ -1409,6 +1432,8 @@ removeReasonsFromSamplesAndGetOut:
 			sample->midiNoteFromFile = -1;
 		if (detectPitch)
 			sample->workOutMIDINote(doingSingleCycle);
+		if (!context_valid())
+			return false;
 		sortArea[index] = sample;
 	}
 
@@ -1423,6 +1448,8 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Sort by filename
 	sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
+	if (!context_valid())
+		return false;
 
 	// If detecting pitch, do all of that
 	if (detectPitch) {
@@ -1606,6 +1633,8 @@ removeReasonsFromSamplesAndGetOut:
 			D_PRINT("redoing, limited to %d to %d", minFreqHz, maxFreqHz);
 
 			thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
+			if (!context_valid())
+				return false;
 
 			// If didn't work, see if we can pretend we're looking for 1 octave higher, where there'd probably be a
 			// harmonic too. This can help if the fundamental isn't visible - it worked on Leo's piano samples before I
@@ -1617,6 +1646,8 @@ removeReasonsFromSamplesAndGetOut:
 				D_PRINTLN("pretending an octave up...");
 
 				thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
+				if (!context_valid())
+					return false;
 
 				if (thisSample->midiNote != MIDI_NOTE_ERROR) {
 					thisSample->midiNote -= 12;
@@ -1637,6 +1668,8 @@ justSortByPitch:
 	}
 
 allSorted:
+	if (!context_valid())
+		return false;
 	// All sorted! If the sorted values have ended up in the secondary area, move them back to the first
 	if (readArea == 1) {
 		memcpy(sortArea, &sortArea[numSamples], numSamples * sizeof(Sample*));
@@ -1739,9 +1772,10 @@ bool SampleBrowser::importFolderAsMultisamples() {
 	bool doingSingleCycle;
 	Sample** sortArea;
 
-	bool success = loadAllSamplesInFolder(true, &numSamples, &sortArea, &doingSingleCycle);
+	bool success = loadAllSamplesInFolder(true, &numSamples, &sortArea, &doingSingleCycle, nullptr, &validation);
 	if (!success) {
-		display->removeWorkingAnimation();
+		if (context_valid())
+			display->removeWorkingAnimation();
 		return false;
 	}
 

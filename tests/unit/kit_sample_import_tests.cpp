@@ -22,7 +22,7 @@ constexpr int32_t MIDI_NOTE_ERROR = -1;
 int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
 constexpr int CLUSTER_ENQUEUE = 0;
-std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit;
+std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load;
 int audio_calls = 0, directory_closes = 0;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
@@ -293,7 +293,15 @@ void uiNeedsRendering(int*) {
 	++redraws;
 }
 struct SampleBrowser {
-	bool loadAllSamplesInFolder(bool, int32_t* count, Sample*** table, bool* single_cycle, int32_t* prefix = nullptr) {
+	bool loadAllSamplesInFolder(bool, int32_t* count, Sample*** table, bool* single_cycle, int32_t* prefix = nullptr,
+	                            const deluge::lifetime::callback_validation* validation = nullptr) {
+		if (on_folder_load)
+			on_folder_load();
+		if (validation && !validation->valid()) {
+			for (auto* sample : loaded_samples)
+				sample->removeReason("cancelled loader");
+			return false;
+		}
 		if (single_cycle)
 			*single_cycle = false;
 		*count = loaded_samples.size();
@@ -335,7 +343,7 @@ TEST_GROUP(KitSampleImport) {
 		sample_table = nullptr;
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
@@ -351,7 +359,7 @@ TEST_GROUP(KitSampleImport) {
 		editor.currentSource = &first_drum.sources[0];
 	}
 	void teardown() override {
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
@@ -679,4 +687,16 @@ TEST(KitSampleImport, failed_kit_import_does_not_close_an_unrelated_directory) {
 	fail_parameter = 1;
 	CHECK_FALSE(browser.importFolderAsKit());
 	LONGS_EQUAL(0, directory_closes);
+}
+
+TEST(KitSampleImport, cancelled_folder_load_does_not_clear_a_new_contexts_working_animation) {
+	Clip replacement;
+	replacement.output = &instrument;
+	on_folder_load = [&] { current_clip = &replacement; };
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(0, display_instance.removals);
+	LONGS_EQUAL(0, assignment_calls);
+	CHECK(sample_table == nullptr);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
 }
