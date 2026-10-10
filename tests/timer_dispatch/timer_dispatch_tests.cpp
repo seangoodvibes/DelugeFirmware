@@ -15,6 +15,7 @@ int uartGetTxBufferSpace(int) {
 }
 std::function<ActionResult()> on_timer, on_exit;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
+int root_note_calls = 0;
 struct UI {
 	virtual ~UI() = default;
 	virtual ActionResult timerCallback() { return on_timer ? on_timer() : ActionResult::DEALT_WITH; }
@@ -24,7 +25,7 @@ struct UI {
 	}
 	UIType getUIContextType() { return UIType::INSTRUMENT_CLIP; }
 	void graphicsRoutine() { ++graphics_calls; }
-	void flashDefaultRootNote() {}
+	void flashDefaultRootNote() { ++root_note_calls; }
 	void midiLearnFlash() {}
 	void flashPlayRoutine() {}
 	void flushPendingModEncoderValuePopup() {}
@@ -277,6 +278,44 @@ TEST(TimerDispatch, replacement_ui_explicit_timer_keeps_its_new_deadline) {
 		}
 		current_uis.active() = &ui;
 	}
+}
+TEST(TimerDispatch, missing_local_ui_skips_navigation_callbacks_but_services_hardware) {
+	current_uis.active() = nullptr;
+	root_note_calls = 0;
+	due(TimerName::DEFAULT_ROOT_NOTE);
+	due(TimerName::UI_SPECIFIC);
+	due(TimerName::BACK_MENU_EXIT);
+	due(TimerName::GRAPHICS_ROUTINE);
+	due(TimerName::READ_INPUTS);
+	manager.routine();
+	LONGS_EQUAL(0, exit_calls);
+	LONGS_EQUAL(0, graphics_calls);
+	LONGS_EQUAL(1, hardware_calls);
+	LONGS_EQUAL(0, root_note_calls);
+	CHECK_FALSE(manager.isTimerSet(TimerName::DEFAULT_ROOT_NOTE));
+	CHECK_FALSE(manager.isTimerSet(TimerName::UI_SPECIFIC));
+	CHECK_FALSE(manager.isTimerSet(TimerName::BACK_MENU_EXIT));
+	CHECK(manager.isTimerSet(TimerName::GRAPHICS_ROUTINE));
+	current_uis.active() = &ui;
+	AudioEngine::audioSampleTimer += 1000;
+	manager.routine();
+	LONGS_EQUAL(1, graphics_calls);
+}
+TEST(TimerDispatch, local_callback_closing_navigation_preserves_hardware_service) {
+	due(TimerName::UI_SPECIFIC);
+	due(TimerName::BACK_MENU_EXIT);
+	due(TimerName::GRAPHICS_ROUTINE);
+	due(TimerName::READ_INPUTS);
+	on_timer = [] {
+		current_uis.active() = nullptr;
+		return ActionResult::DEALT_WITH;
+	};
+	manager.routine();
+	LONGS_EQUAL(0, exit_calls);
+	LONGS_EQUAL(0, graphics_calls);
+	LONGS_EQUAL(1, hardware_calls);
+	CHECK_FALSE(manager.isTimerSet(TimerName::BACK_MENU_EXIT));
+	CHECK(manager.isTimerSet(TimerName::GRAPHICS_ROUTINE));
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

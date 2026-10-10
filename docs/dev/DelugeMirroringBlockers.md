@@ -638,3 +638,14 @@ side effects are not provided by these guards.
   not a lifetime pin or protection against same-address replacement. G1/R4/L1 remain
   open and independent mode stays disabled.
 - Validation: all 35 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 / L1 progress — Local navigation loss during timer dispatch (2026-10-09)
+
+- UI-specific, exit, root-note flash and graphics timers check for a current UI
+  before dereferencing it. Local input servicing continues without navigation;
+  periodic graphics stays scheduled so it can resume after navigation returns.
+- Two additional production-dispatch regression cases cover absent Local UI and
+  closure during a callback, hardware servicing, consumed one-shot events and
+  resumed graphics. This protects dispatch boundaries, not retained objects inside
+  callbacks. G1/L1 remain open and independent mode remains disabled.
+- Validation: all 35 native CTest suites and `./dbt build relwithdebinfo` pass.

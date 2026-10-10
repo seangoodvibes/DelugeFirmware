@@ -105,7 +105,7 @@ void UITimerManager::routine() {
 					if (getCurrentUI() == &keyboard_screen_for_session()) {
 						keyboard_screen_for_session().flashDefaultRootNote();
 					}
-					else if (getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+					else if (getCurrentUI() && getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
 						instrument_clip_view_for_session().flashDefaultRootNote();
 					}
 					break;
@@ -175,6 +175,9 @@ void UITimerManager::routine() {
 
 				case TimerName::UI_SPECIFIC: {
 					auto* const source_ui = getCurrentUI();
+					if (!source_ui) {
+						break;
+					}
 					ActionResult result = source_ui->timerCallback();
 					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && getCurrentUI() == source_ui) {
 						timer.active = true; // Come back soon and try again.
@@ -183,6 +186,9 @@ void UITimerManager::routine() {
 				}
 				case TimerName::BACK_MENU_EXIT: {
 					auto* const source_ui = getCurrentUI();
+					if (!source_ui) {
+						break;
+					}
 					ActionResult result = source_ui->exitUI();
 					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && getCurrentUI() == source_ui) {
 						timer.active = true;
@@ -248,8 +254,9 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::GRAPHICS_ROUTINE:
-					if (deluge::gui::ui_session::graphics_output_ready(
-					        [] { return uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage; })) {
+					if (getCurrentUI() && deluge::gui::ui_session::graphics_output_ready([] {
+						    return uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage;
+					    })) {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
