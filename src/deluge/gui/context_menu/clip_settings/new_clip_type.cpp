@@ -158,8 +158,10 @@ bool NewClipType::acceptCurrentOption() {
 	return true;
 }
 ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
+	const auto source_owner = ui_session::current();
 	ActionResult result = session_view_for_session().padAction(x, y, on); // let the grid handle this
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE || ui_session::current() != source_owner
+	    || getCurrentUI() != this)
 		return result;
 
 	display->setNextTransitionDirection(-1);
@@ -174,6 +176,7 @@ ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	if (!on)
 		return ActionResult::DEALT_WITH;
 
+	const auto source_owner = ui_session::current();
 	if (b == SELECT_ENC) {
 		if (!acceptCurrentOption())
 			return ActionResult::DEALT_WITH;
@@ -183,6 +186,10 @@ ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		if (result == ActionResult::NOT_DEALT_WITH || result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
 			return result;
 	}
+
+	// Delegated input may already have changed the owner or replaced this menu.
+	if (ui_session::current() != source_owner || getCurrentUI() != this)
+		return ActionResult::DEALT_WITH;
 
 	display->setNextTransitionDirection(-1);
 	close();

@@ -1,8 +1,15 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_session.h"
 #include "hid/button.h"
+#include <functional>
 namespace new_clip_input_test {
 namespace session = deluge::gui::ui_session;
+namespace ui_session = session;
+static session::State<void*> current_uis;
+static void* getCurrentUI() {
+	return current_uis.active();
+}
+static std::function<void()> on_dispatch;
 struct panel_state {
 	int closes = 0, transitions = 0, pad_calls = 0, button_calls = 0;
 	bool last_on = false;
@@ -18,13 +25,19 @@ static auto* display = &display_instance;
 struct session_view_fixture {
 	ActionResult padAction(int32_t, int32_t, int32_t) {
 		++panels.active().pad_calls;
-		return panels.active().result;
+		const auto result = panels.active().result;
+		if (on_dispatch)
+			on_dispatch();
+		return result;
 	}
 	ActionResult clipCreationButtonPressed(deluge::hid::Button button, bool on, bool) {
 		++panels.active().button_calls;
 		panels.active().last_on = on;
 		panels.active().last_button = button;
-		return panels.active().result;
+		const auto result = panels.active().result;
+		if (on_dispatch)
+			on_dispatch();
+		return result;
 	}
 };
 static session_view_fixture session_view;
@@ -48,9 +61,13 @@ TEST_GROUP(NewClipTypeInput) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		panels = {};
+		on_dispatch = {};
+		current_uis.for_owner(session::Id::Local) = &menu;
+		current_uis.for_owner(session::Id::Remote) = &menu;
 		sdRoutineLock = false;
 	}
 	void teardown() override {
+		on_dispatch = {};
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -121,4 +138,37 @@ TEST(NewClipTypeInput, valid_selections_dispatch_the_corresponding_buttons) {
 		CHECK(panels.active().last_on);
 	}
 	LONGS_EQUAL(5, panels.active().button_calls);
+}
+
+TEST(NewClipTypeInput, delegated_pad_ui_change_does_not_schedule_exit_or_close) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		on_dispatch = [] { current_uis.active() = nullptr; };
+		CHECK(menu.padAction(0, 0, 1) == ActionResult::DEALT_WITH);
+		LONGS_EQUAL(0, panels.active().closes);
+		LONGS_EQUAL(0, panels.active().transitions);
+	}
+}
+TEST(NewClipTypeInput, delegated_button_ui_change_does_not_schedule_exit_or_close) {
+	for (auto button : {deluge::hid::button::SELECT_ENC, deluge::hid::button::SYNTH}) {
+		current_uis.active() = &menu;
+		on_dispatch = [] { current_uis.active() = nullptr; };
+		CHECK(menu.buttonAction(button, true, false) == ActionResult::DEALT_WITH);
+		LONGS_EQUAL(0, panels.active().closes);
+		LONGS_EQUAL(0, panels.active().transitions);
+	}
+}
+TEST(NewClipTypeInput, delegated_owner_change_does_not_close_either_panel) {
+	for (bool pad : {false, true}) {
+		session::detail::active = session::Id::Local;
+		on_dispatch = [] { session::detail::active = session::Id::Remote; };
+		if (pad)
+			menu.padAction(0, 0, 1);
+		else
+			menu.buttonAction(deluge::hid::button::SYNTH, true, false);
+		for (auto owner : {session::Id::Local, session::Id::Remote}) {
+			LONGS_EQUAL(0, panels.for_owner(owner).closes);
+			LONGS_EQUAL(0, panels.for_owner(owner).transitions);
+		}
+	}
 }

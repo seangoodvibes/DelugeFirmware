@@ -952,3 +952,16 @@ side effects are not provided by these guards.
   the production input bodies against the existing dispatch fixtures.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains open and
   independent mode remains disabled.
+
+### G1 / R4 progress — new-clip closure after delegated input (2026-10-09)
+
+- New Clip Type rechecks the initiating panel owner and current UI after delegating
+  pad/button input. If the owner changes or the menu is no longer current, it does
+  not schedule a transition or call close on the old menu.
+- Three regressions failed before the fix: UI changes during pad input, UI changes
+  during Select and instrument-button dispatch, and owner changes during either
+  input path. Existing successful-input tests continue to verify normal closure.
+  Callbacks and closure are fixtures; no real UI-stack lifetime or generation
+  protection is implied, and these guards do not restore a changed owner.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 remain open and
+  independent mode remains disabled.
