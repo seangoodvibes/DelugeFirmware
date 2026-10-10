@@ -2176,3 +2176,12 @@ cover extreme values, exact valid length, reversed wrapping, insertion rollback
 and late callback failure. All 36 native suites and `./dbt build relwithdebinfo`
 pass. A late post-publication failure still leaves the published prefix for R2/R4
 recovery; this change does not claim transactional rollback of that prefix.
+
+Recording cloning no longer writes through an arrangement-instance pointer kept
+across callbacks. It validates count and instance fields, reacquires storage for
+replacement, and checks the published instance after subsequent callbacks.
+Seven sanitizer regressions include real vector relocation during cloning/source
+stop and callback edits to position, length or count. Unpublished copies are
+cleaned up when safe; callback edits are preserved. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Cancellation after publication still has the
+previously documented recovery-prefix limitation.

@@ -1237,6 +1237,16 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				rollback_audio_split();
 				return fail(Error::BUG);
 			}
+			ClipInstance expected_instance = *clipInstance;
+			const int32_t expected_instance_count = source_output->clipInstances.getNumElements();
+			const auto instance_matches = [&] {
+				if (!context_matches() || source_output->clipInstances.getNumElements() != expected_instance_count)
+					return false;
+				auto* current_instance = source_output->clipInstances.getElement(clipInstanceI);
+				return current_instance && current_instance->clip == expected_instance.clip
+				       && current_instance->pos == expected_instance.pos
+				       && current_instance->length == expected_instance.length;
+			};
 			Error error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
 			if (!context_matches())
 				return fail(Error::BUG);
@@ -1275,6 +1285,11 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				}
 			};
 
+			if (!instance_matches()) {
+				rollback_audio_split();
+				discard_unpublished_clone();
+				return fail(Error::BUG);
+			}
 			newClip->section = 255;
 
 			const int64_t recording_length =
@@ -1291,7 +1306,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
 				const bool repeated = newClip->increaseLengthWithRepeats(
 				    modelStack, new_length, IndependentNoteRowLengthIncrease::ROUND_UP, true);
-				if (!repeated || !clone_is_unpublished()) {
+				if (!repeated || !clone_is_unpublished() || !instance_matches()) {
 					discard_unpublished_clone();
 					return fail(Error::BUG);
 				}
@@ -1312,7 +1327,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				return true;
 			};
 			int32_t new_play_pos;
-			if (!get_recording_position(new_play_pos)) {
+			if (!instance_matches() || !get_recording_position(new_play_pos)) {
 				rollback_audio_split();
 				discard_unpublished_clone();
 				return fail(Error::BUG);
@@ -1326,7 +1341,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				return fail(insert_error);
 			}
 			const auto published_clone_matches = [&] {
-				return clone_context_matches() && source_song->contains_clip_for_undo(newClip)
+				return clone_context_matches() && instance_matches() && source_song->contains_clip_for_undo(newClip)
 				       && newClip->output == clone_output;
 			};
 			if (!published_clone_matches())
@@ -1336,8 +1351,12 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			if (!published_clone_matches() || !get_recording_position(new_play_pos))
 				return fail(Error::BUG);
 
-			clipInstance->clip = newClip;
-			clipInstance->length = new_length;
+			// Callbacks may have relocated the array. Reacquire only after validating its contents.
+			auto* current_instance = source_output->clipInstances.getElement(clipInstanceI);
+			current_instance->clip = newClip;
+			current_instance->length = new_length;
+			expected_instance.clip = newClip;
+			expected_instance.length = new_length;
 
 			newClip->activeIfNoSolo =
 			    true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()

@@ -2,10 +2,10 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_navigation_state.h"
 #include "util/lifetime.h"
-#include <array>
 #include <functional>
 #include <limits>
 #include <memory>
+#include <vector>
 namespace recording_clone_test {
 enum class RecordingMode { OFF, ARRANGEMENT };
 constexpr int LESS = -1;
@@ -17,7 +17,11 @@ struct ClipInstance {
 	int32_t length = 64;
 };
 struct instances_fixture {
-	std::array<ClipInstance, 2> values;
+	std::vector<ClipInstance> values = std::vector<ClipInstance>(2);
+	void relocate() {
+		auto replacement = values;
+		values.swap(replacement);
+	}
 	int search_result = 0;
 	Error insert_error = Error::NONE;
 	int inserts = 0;
@@ -739,4 +743,60 @@ TEST(RecordingClone, invalid_loop_length_after_split_insertion_rolls_back_split)
 	LONGS_EQUAL(1, output.clipInstances.count);
 	LONGS_EQUAL(64, output.clipInstances.values[0].length);
 	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+}
+
+TEST(RecordingClone, instance_storage_relocated_during_clone_is_reacquired) {
+	original.on_clone = [&](ModelStackWithTimelineCounter*) { output.clipInstances.relocate(); };
+	CHECK(attempt_clone());
+	POINTERS_EQUAL(&cloned, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(1, cloned.resume_calls);
+}
+TEST(RecordingClone, instance_storage_relocated_during_source_stop_is_reacquired) {
+	original.on_stop = [&] { output.clipInstances.relocate(); };
+	CHECK(attempt_clone());
+	POINTERS_EQUAL(&cloned, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(1, cloned.resume_calls);
+}
+TEST(RecordingClone, changed_instance_during_clone_preserves_edit_and_discards_copy) {
+	original.on_clone = [&](ModelStackWithTimelineCounter*) { output.clipInstances.values[0].pos = 7; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(7, output.clipInstances.values[0].pos);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}
+TEST(RecordingClone, changed_instance_during_repeat_expansion_prevents_publication) {
+	original.type = ClipType::INSTRUMENT;
+	cloned.on_repeat = [&] { output.clipInstances.values[0].length = 17; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(17, output.clipInstances.values[0].length);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}
+TEST(RecordingClone, changed_instance_during_stop_is_not_overwritten) {
+	original.on_stop = [&] { output.clipInstances.values[0].length = 17; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(17, output.clipInstances.values[0].length);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(0, cloned.resume_calls);
+	LONGS_EQUAL(0, song.deletions);
+}
+TEST(RecordingClone, changed_published_instance_during_positioning_prevents_resume) {
+	cloned.on_position = [&] { output.clipInstances.values[0].pos = 7; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(7, output.clipInstances.values[0].pos);
+	LONGS_EQUAL(0, cloned.resume_calls);
+	POINTERS_EQUAL(&original, output.active);
+}
+TEST(RecordingClone, changed_instance_count_during_clone_prevents_publication) {
+	original.on_clone = [&](ModelStackWithTimelineCounter*) { output.clipInstances.count = 0; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, output.clipInstances.count);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
 }
