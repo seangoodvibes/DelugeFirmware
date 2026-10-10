@@ -2105,3 +2105,11 @@ retiring outputs before retaining the note. Six sanitizer regressions include
 callbacks that leave the old output pointer in the list. All 36 native suites
 and `./dbt build relwithdebinfo` pass. This does not repair a stale list for later
 independent operations; deletion still must maintain the song's ownership list.
+
+Learned-CC edits and feedback sweeps now watch source/result output lifetimes and
+verify the clip still references the same output after lookup, writes and display
+callbacks. Output-less song contexts remain supported. Six sanitizer regressions
+cover deletion, address reuse, reassignment and retiring outputs, including a
+recording clone whose output dies during its parameter write. All 36 native
+suites and `./dbt build relwithdebinfo` pass. Parameter collection lifetime inside
+lookup/write callbacks remains separately open.

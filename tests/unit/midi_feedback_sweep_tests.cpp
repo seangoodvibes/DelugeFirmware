@@ -34,7 +34,12 @@ static RootUI* getRootUI() {
 	return current_root;
 }
 
+struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
+};
 struct Clip : TimelineCounter {
+	Output* output = nullptr;
 	mutable deluge::lifetime::lifetime_source lifetime_source;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 };
@@ -429,4 +434,71 @@ TEST(MidiFeedbackSweep, retiring_target_never_reaches_parameter_services) {
 	LONGS_EQUAL(0, follow.lookups);
 	LONGS_EQUAL(0, clone_calls);
 	delete target;
+}
+
+TEST(MidiFeedbackSweep, feedback_output_deleted_during_lookup_prevents_send) {
+	Clip target;
+	target.output = new Output;
+	follow.selected_clip = &target;
+	follow.on_lookup = [&] { delete target.output; };
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	LONGS_EQUAL(1, follow.lookups);
+	LONGS_EQUAL(0, follow.sends);
+}
+TEST(MidiFeedbackSweep, feedback_output_reuse_after_send_stops_sweep) {
+	Clip target;
+	target.output = new Output;
+	follow.selected_clip = &target;
+	follow.on_send = [&] {
+		std::destroy_at(target.output);
+		target.output = std::construct_at(target.output);
+	};
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	LONGS_EQUAL(1, follow.lookups);
+	LONGS_EQUAL(1, follow.sends);
+	delete target.output;
+}
+TEST(MidiFeedbackSweep, incoming_output_deleted_during_lookup_prevents_write) {
+	Clip target;
+	target.output = new Output;
+	stack.timeline.timeline = &target;
+	follow.on_lookup = [&] { delete target.output; };
+	follow.handleReceivedCC(cable, stack.timeline, &target, 7, 64);
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, recording_clone_output_destroyed_during_write_suppresses_display) {
+	Clip target;
+	target.output = new Output;
+	clone_result = true;
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) { model_stack->timeline = &target; };
+	midiEngine.midiFollowDisplayParam = true;
+	follow.parameter.on_write = [&] { delete target.output; };
+	receive();
+	LONGS_EQUAL(1, follow.parameter.writes);
+	LONGS_EQUAL(0, view_for_session().popup_calls);
+}
+TEST(MidiFeedbackSweep, changed_output_during_lookup_prevents_send_and_write) {
+	Clip target;
+	Output original_output, replacement_output;
+	target.output = &original_output;
+	follow.selected_clip = &target;
+	follow.on_lookup = [&] { target.output = &replacement_output; };
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	LONGS_EQUAL(0, follow.sends);
+	target.output = &original_output;
+	stack.timeline.timeline = &target;
+	follow.handleReceivedCC(cable, stack.timeline, &target, 7, 64);
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, retired_output_never_reaches_parameter_services) {
+	Clip target;
+	Output output;
+	target.output = &output;
+	output.lifetime_source.retire();
+	follow.selected_clip = &target;
+	stack.timeline.timeline = &target;
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	follow.handleReceivedCC(cable, stack.timeline, &target, 7, 64);
+	LONGS_EQUAL(0, follow.lookups);
+	LONGS_EQUAL(0, clone_calls);
 }

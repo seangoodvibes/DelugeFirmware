@@ -1074,6 +1074,11 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	auto source_clip_lifetime = clip->watch_lifetime();
 	if (!source_clip_lifetime.alive())
 		return;
+	auto* const source_clip = clip;
+	auto* const source_output = clip->output;
+	auto source_output_lifetime = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_output && !source_output_lifetime.alive())
+		return;
 	// directly access the parameter from the CC number
 	uint8_t soundParamId = ccToSoundParam[ccNumber];
 	uint8_t globalParamId = ccToGlobalParam[ccNumber];
@@ -1086,7 +1091,8 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_current_clip = getCurrentClip();
 	const auto context_matches = [&] {
-		return source_clip_lifetime.alive() && currentSong == source_song
+		return source_clip_lifetime.alive() && (!source_output || source_output_lifetime.alive())
+		       && source_clip->output == source_output && currentSong == source_song
 		       && deluge::gui::ui_session::current() == source_owner && getCurrentClip() == source_current_clip;
 	};
 
@@ -1123,9 +1129,17 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	if (!target_lifetime.alive())
 		return;
 
+	auto* const target_output = clip->output;
+	auto target_output_lifetime = target_output ? target_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto target_matches = [&] {
+		return target_lifetime.alive() && (!target_output || target_output_lifetime.alive())
+		       && clip->output == target_output && context_matches();
+	};
+	if (!target_matches())
+		return;
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(
 	    &modelStackWithTimelineCounter, clip, soundParamId, globalParamId, midiEngine.midiFollowDisplayParam);
-	if (!target_lifetime.alive() || !context_matches())
+	if (!target_matches())
 		return;
 	// check if model stack is valid
 	if (modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->paramCollection) {
@@ -1157,7 +1171,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 
 			// Set the new Parameter Value for the MIDI Learned Parameter
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
-			if (!target_lifetime.alive() || !context_matches())
+			if (!target_matches())
 				return;
 
 			// check if you're currently editing the same learned param in automation view or
@@ -1179,7 +1193,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 				}
 			}
 
-			if (!target_lifetime.alive() || !context_matches())
+			if (!target_matches())
 				return;
 
 			// check if you should display name of the parameter that was changed and the value that
@@ -1360,6 +1374,14 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 	if (!clip_lifetime.alive())
 		return;
 
+	auto* const source_output = clip->output;
+	auto output_lifetime = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto target_matches = [&] {
+		return clip_lifetime.alive() && (!source_output || output_lifetime.alive()) && clip->output == source_output
+		       && context_matches();
+	};
+	if (!target_matches())
+		return;
 	// setup model stack for the active context
 	if (clip) {
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -1394,14 +1416,14 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 
 		// loop through all params to see if any parameters have been learned
 		for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
-			if (!clip_lifetime.alive() || !context_matches())
+			if (!target_matches())
 				return;
 			uint8_t soundParamId = ccToSoundParam[ccNumber];
 			uint8_t globalParamId = ccToGlobalParam[ccNumber];
 			// obtain the model stack for the parameter that has been learned
 			ModelStackWithAutoParam* modelStackWithParam =
 			    getModelStackWithParam(modelStackWithTimelineCounter, clip, soundParamId, globalParamId, false);
-			if (!clip_lifetime.alive() || !context_matches())
+			if (!target_matches())
 				return;
 			// check that model stack is valid
 			if (modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->paramCollection) {
