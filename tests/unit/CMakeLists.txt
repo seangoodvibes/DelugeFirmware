@@ -1033,3 +1033,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_render_setup_lifetim
         Sound::process_render_modulation Sound::prepare_render_delay
     DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_render_setup_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_render_setup_lifetime.inc)
+
+set(voice_owner_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/voice/voice.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/voice_owner_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${voice_owner_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/voice_owner_lifetime.inc
+        Voice::~Voice Voice::watch_lifetime
+    DEPENDS ${voice_owner_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/voice_owner_lifetime.inc)

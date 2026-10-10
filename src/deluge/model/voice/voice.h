@@ -25,6 +25,7 @@
 #include "modulation/lfo.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
+#include "util/lifetime.h"
 #include <bitset>
 #include <compare>
 #include <memory>
@@ -35,7 +36,8 @@ using namespace deluge;
 class Voice final {
 public:
 	Voice(Sound& sound);
-	~Voice() { setAsUnassigned(nullptr); }
+	~Voice();
+	[[nodiscard]] deluge::lifetime::lifetime_watch watch_lifetime() const;
 	Patcher patcher;
 
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
@@ -136,6 +138,7 @@ public:
 	}
 
 private:
+	mutable deluge::lifetime::lifetime_source lifetime_;
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
 	// phaseShift);
 	bool delete_this_voice_{false};

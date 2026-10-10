@@ -12,7 +12,10 @@ struct ModelStackWithSoundFlags {};
 std::function<void()> on_render, on_release, on_destroy;
 int rendered = 0, released = 0, destroyed = 0;
 struct Voice {
-	~Voice() {
+	mutable deluge::lifetime::lifetime_source lifetime_;
+	~Voice();
+	deluge::lifetime::lifetime_watch watch_lifetime() const;
+	void setAsUnassigned(ModelStackWithSoundFlags*) {
 		++destroyed;
 		if (on_destroy)
 			on_destroy();
@@ -27,6 +30,7 @@ struct Voice {
 	}
 	bool shouldBeDeleted() const { return deleted; }
 };
+#include "voice_owner_lifetime.inc"
 struct Sound {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	using ActiveVoice = std::unique_ptr<Voice>;
@@ -188,4 +192,45 @@ TEST(sound_render_voice_lifetime, destructor_removing_remaining_voice_cancels_cl
 	CHECK_FALSE(render());
 	LONGS_EQUAL(2, destroyed);
 	CHECK(!sound->voices_[0]);
+}
+
+TEST(sound_render_voice_lifetime, voice_is_retired_before_destructor_callback) {
+	auto watch = sound->voices_[0]->watch_lifetime();
+	on_destroy = [&] { CHECK_FALSE(watch.alive()); };
+	sound->voices_[0].reset();
+	CHECK_FALSE(watch.alive());
+}
+TEST(sound_render_voice_lifetime, same_address_reconstruction_cancels_render_or_release_batch) {
+	for (bool during_release : {false, true}) {
+		reset();
+		auto* original = sound->voices_[0].get();
+		original->still_going = false;
+		auto replace = [&] {
+			original->~Voice();
+			new (original) Voice();
+		};
+		if (during_release)
+			on_release = replace;
+		else
+			on_render = replace;
+		CHECK_FALSE(render());
+		POINTERS_EQUAL(original, sound->voices_[0].get());
+		LONGS_EQUAL(1, rendered);
+		LONGS_EQUAL(1, destroyed);
+		CHECK_FALSE(sound->voices_[0]->deleted);
+	}
+}
+TEST(sound_render_voice_lifetime, replacement_voice_has_a_new_live_watch) {
+	auto* original = sound->voices_[0].get();
+	auto old_watch = original->watch_lifetime();
+	original->~Voice();
+	new (original) Voice();
+	auto new_watch = original->watch_lifetime();
+	CHECK_FALSE(old_watch.alive());
+	CHECK(new_watch.alive());
+}
+TEST(sound_render_voice_lifetime, retired_voice_is_not_dispatched) {
+	sound->voices_[0]->lifetime_.retire();
+	CHECK_FALSE(render());
+	LONGS_EQUAL(0, rendered);
 }

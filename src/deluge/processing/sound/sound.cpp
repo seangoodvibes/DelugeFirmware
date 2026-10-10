@@ -2526,9 +2526,12 @@ bool Sound::process_render_voices(ModelStackWithSoundFlags* model_stack, std::sp
 		auto* voice = voices_[index].get();
 		if (!voice)
 			return false;
+		auto voice_lifetime = voice->watch_lifetime();
+		if (!voice_lifetime.alive())
+			return false;
 		const auto context_matches = [&] {
-			return (!owner_validation || owner_validation->valid()) && voices_.data() == voice_storage
-			       && voices_.size() == voice_count && voices_[index].get() == voice;
+			return (!owner_validation || owner_validation->valid()) && voice_lifetime.alive()
+			       && voices_.data() == voice_storage && voices_.size() == voice_count && voices_[index].get() == voice;
 		};
 		const bool still_going = voice->render(model_stack, sound_buffer.data(), sound_buffer.size(), stereo, apply_pan,
 		                                       sourcesChanged, do_lpf, do_hpf, pitch_adjust);

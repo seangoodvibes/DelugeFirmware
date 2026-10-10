@@ -85,6 +85,15 @@ int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDim
 Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues), sound{sound} {
 }
 
+Voice::~Voice() {
+	lifetime_.retire();
+	setAsUnassigned(nullptr);
+}
+
+deluge::lifetime::lifetime_watch Voice::watch_lifetime() const {
+	return deluge::lifetime::lifetime_watch{lifetime_};
+}
+
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
 // it. You'll normally want to call audioDriver.voiceUnassigned() after this.
 void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong) {

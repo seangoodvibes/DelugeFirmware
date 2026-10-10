@@ -2806,3 +2806,12 @@ boundary, rejected result publication, DX replacement, rejected entry and delay
 feedback/finalization. Wiring contracts cover renderer dispatch. All 36 suites and
 `./dbt build relwithdebinfo` pass. DSP callback internals, shared scratch buffers,
 voice identity reuse and hardware behavior remain unproven.
+
+Voices now expose a non-owning lifetime watch and retire it before destructor
+callbacks. The render loop checks this watch, so reconstruction at the same address
+cannot impersonate the previous voice. Four added sanitizer regressions execute
+production destructor/watch bodies with cleanup doubles and cover early retirement,
+render/release reconstruction, fresh replacement watches and retired entry. All 36
+suites and `./dbt build relwithdebinfo` pass. Each voice now stores a lifetime source;
+aggregate heap/stack/timing impact still needs hardware measurement. Other voice
+consumers and same-size changes elsewhere in the voice list remain open.
