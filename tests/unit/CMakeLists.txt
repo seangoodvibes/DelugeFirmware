@@ -973,3 +973,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cv_note_output_lifetime.in
         CVInstrument::noteOnPostArp
     DEPENDS ${cv_note_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE cv_note_output_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/cv_note_output_lifetime.inc)
+
+set(midi_mpe_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/midi_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_mpe_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_mpe_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_mpe_output_lifetime.inc
+        MIDIInstrument::outputAllMPEValuesOnMemberChannel MIDIInstrument::noteOnPostArp MIDIInstrument::noteOffPostArp
+    DEPENDS ${midi_mpe_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE midi_mpe_output_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_mpe_output_lifetime.inc)

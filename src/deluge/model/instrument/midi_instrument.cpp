@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_session.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -36,6 +37,8 @@
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
+#include "util/lifetime.h"
+#include <algorithm>
 #include <cstring>
 #include <string_view>
 
@@ -860,6 +863,35 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 }
 
 void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
+	if (!arpNote || noteIndex < 0 || noteIndex >= ARP_MAX_INSTRUCTION_NOTES)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	const auto revision = arpeggiator.instruction_revision();
+	const auto source_channel = getChannel();
+	const auto source_y = outputMPEY;
+	const auto collapse_aftertouch = collapseAftertouch;
+	const auto collapse_mpe = collapseMPE;
+	const auto lower_zone_end = MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
+	const auto upper_zone_end = MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getChannel() == source_channel
+		       && outputMPEY == source_y && collapseAftertouch == collapse_aftertouch && collapseMPE == collapse_mpe
+		       && MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput == lower_zone_end
+		       && MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput == upper_zone_end
+		       && arpeggiator.instruction_revision() == revision;
+	};
+
+	const auto note_velocity = arpNote->velocity;
 	int32_t channel = getChannel();
 	ArpeggiatorSettings* arpSettings = nullptr;
 	if (activeClip) {
@@ -867,7 +899,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 	}
 
 	bool arpIsOn = arpSettings != nullptr && arpSettings->mode != ArpMode::OFF;
-	int32_t outputMemberChannel;
+	int32_t outputMemberChannel = channel;
 
 	// If no MPE, nice and simple.
 	if (!sendsToMPE()) {
@@ -885,6 +917,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 		                                   ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
 		                                   : 14;
 
+		if (lowestMemberChannel < 0 || highestMemberChannel >= 16 || lowestMemberChannel > highestMemberChannel)
+			return;
 		uint8_t numNotesPreviouslyActiveOnMemberChannel[16];
 		memset(numNotesPreviouslyActiveOnMemberChannel, 0, sizeof(numNotesPreviouslyActiveOnMemberChannel));
 
@@ -989,43 +1023,105 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 
 		// Ok, now we'll output MPE values - which will either be the values for this exact note we're outputting, or if
 		// it's sharing a member channel, it'll be the average values we worked out above.
-		outputAllMPEValuesOnMemberChannel(mpeValuesToUse, outputMemberChannel);
+		if (!outputAllMPEValuesOnMemberChannel(mpeValuesToUse, outputMemberChannel) || !context_matches())
+			return;
 	}
 
 	if (sendsToInternal()) {
-		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
+		sendNoteToInternal(true, noteCodePostArp, note_velocity, outputMemberChannel);
 	}
 	else {
-		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+		midiEngine.sendNote(this, true, noteCodePostArp, note_velocity, outputMemberChannel, channel);
 	}
 }
 
 // Will store them too. Only for when we definitely want to send all three.
 // And obviously you can't call this unless you know that this Instrument sendsToMPE().
-void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel) {
+bool MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel) {
+	if (!mpeValuesToUse || outputMemberChannel < 0 || outputMemberChannel >= 16)
+		return false;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return false;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return false;
+	const auto revision = arpeggiator.instruction_revision();
+	const auto source_channel = getChannel();
+	const auto source_y = outputMPEY;
+	const auto collapse_aftertouch = collapseAftertouch;
+	const auto collapse_mpe = collapseMPE;
+	const auto lower_zone_end = MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
+	const auto upper_zone_end = MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getChannel() == source_channel
+		       && outputMPEY == source_y && collapseAftertouch == collapse_aftertouch && collapseMPE == collapse_mpe
+		       && MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput == lower_zone_end
+		       && MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput == upper_zone_end
+		       && arpeggiator.instruction_revision() == revision;
+	};
+
+	int16_t mpe_values[kNumExpressionDimensions];
+	std::copy_n(mpeValuesToUse, kNumExpressionDimensions, mpe_values);
 	int32_t channel = getChannel();
 	{ // X
-		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
+		int32_t outputValue14 = mpe_values[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
 		int32_t outputValue14Unsigned = outputValue14 + 8192;
 		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned, channel);
+		if (!context_matches())
+			return false;
 	}
 
 	{ // Y
-		int32_t outputValue7 = mpeValuesToUse[1] >> 9;
+		int32_t outputValue7 = mpe_values[1] >> 9;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[0] = outputValue7;
 		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel);
+		if (!context_matches())
+			return false;
 	}
 
 	{ // Z
-		int32_t outputValue7 = mpeValuesToUse[2] >> 8;
+		int32_t outputValue7 = mpe_values[2] >> 8;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[1] = outputValue7;
 		midiEngine.sendChannelAftertouch(this, outputMemberChannel, outputValue7, channel);
 	}
+	return context_matches();
 }
 
 void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity,
                                     int32_t noteIndex) {
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	const auto revision = arpeggiator.instruction_revision();
+	const auto source_channel = getChannel();
+	const auto source_y = outputMPEY;
+	const auto collapse_aftertouch = collapseAftertouch;
+	const auto collapse_mpe = collapseMPE;
+	const auto lower_zone_end = MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
+	const auto upper_zone_end = MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getChannel() == source_channel
+		       && outputMPEY == source_y && collapseAftertouch == collapse_aftertouch && collapseMPE == collapse_mpe
+		       && MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput == lower_zone_end
+		       && MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput == upper_zone_end
+		       && arpeggiator.instruction_revision() == revision;
+	};
+
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
@@ -1033,27 +1129,39 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	// If no MPE, nice and simple
 	else if (!sendsToMPE()) {
 		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+		if (!context_matches())
+			return;
 
 		if (collapseAftertouch) {
 
 			combineMPEtoMono(0, Z_PRESSURE);
+			if (!context_matches())
+				return;
 		}
 		// this immediately sets pitch bend and modwheel back to 0, which is not the normal MPE behaviour but
 		// behaves more intuitively with multiple notes and mod wheel onto a single midi channel
 		if (collapseMPE) {
 			combineMPEtoMono(0, X_PITCH_BEND);
+			if (!context_matches())
+				return;
 			// This is CC74 value of 0
 			combineMPEtoMono(0, Y_SLIDE_TIMBRE);
+			if (!context_matches())
+				return;
 		}
 	}
 
 	// Or, MPE
 	else {
 
+		if (oldOutputMemberChannel < 0 || oldOutputMemberChannel >= 16)
+			return;
 		mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
 		mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
 		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
+		if (!context_matches())
+			return;
 
 		// And now, if this note was sharing a member channel with any others, we want to send MPE values for those new
 		// averages
@@ -1081,7 +1189,8 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 			for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 				mpeValuesAverage[m] = mpeValuesSum[m] / numNotesFound;
 			}
-			outputAllMPEValuesOnMemberChannel(mpeValuesAverage, oldOutputMemberChannel);
+			if (!outputAllMPEValuesOnMemberChannel(mpeValuesAverage, oldOutputMemberChannel))
+				return;
 		}
 	}
 }

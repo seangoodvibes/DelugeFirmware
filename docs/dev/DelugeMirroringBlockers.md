@@ -2671,3 +2671,14 @@ instructions, retargeting, retired entry and the negative pitch limit. All 36
 native suites and `./dbt build relwithdebinfo` pass. CV helper internals and physical
 output timing still require separate verification; emitted output is not rolled
 back on cancellation.
+
+Concrete MIDI note-on/off and the MPE output sequence now watch output/clip lifetime,
+song/panel, routing settings and arp revision across output callbacks. MPE output
+reports cancellation to its callers, snapshots expression values, and bounds member
+channels; note-on snapshots velocity and rejects invalid zone ranges. Fourteen
+production-body sanitizer regressions cover all three methods together, including
+real heap deletion, pending-note replacement, zone/channel/collapse changes,
+shared-channel averaging, internal/mono routes and stable values. All 36 suites
+and `./dbt build relwithdebinfo` pass. Sent events/cache writes remain a prefix;
+MPE averaging/collapse internals and other MIDI output batches remain separate
+work, as do direct state writes bypassing arp revision invalidation.
