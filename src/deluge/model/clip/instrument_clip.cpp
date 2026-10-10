@@ -233,22 +233,31 @@ deleteClipAndGetOut:
 		goto deleteClipAndGetOut;
 	}
 
-	modelStack->setTimelineCounter(newClip);
+	alignas(ModelStackWithNoteRow) char clone_stack_memory[MODEL_STACK_MAX_SIZE];
+	copyModelStack(clone_stack_memory, modelStack, sizeof(ModelStackWithTimelineCounter));
+	auto* clone_stack = reinterpret_cast<ModelStackWithTimelineCounter*>(clone_stack_memory);
+	clone_stack->setTimelineCounter(newClip);
+	deluge::lifetime::lifetime_watch cancelled;
 
 	for (int32_t i = 0; i < newClip->noteRows.getNumElements(); i++) {
 		NoteRow* noteRow = newClip->noteRows.getElement(i);
 		// cloneFrom copied storage, but these are newly owned rows.
 		noteRow->undo_identity = deluge::model::next_note_row_identity();
-		int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		Error row_error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+		int32_t noteRowId = context_matches() ? newClip->getNoteRowId(noteRow, i) : 0;
+		ModelStackWithNoteRow* modelStackWithNoteRow = clone_stack->addNoteRow(noteRowId, noteRow);
+		Error row_error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing,
+		                                      context_matches() ? &source_lifetime : &cancelled,
+		                                      source_output ? &output_lifetime : nullptr);
+		if (!context_matches())
+			row_error = Error::BUG;
 		if (error == Error::NONE && row_error != Error::NONE)
 			error = row_error;
 
 		// Finish every row even after failure so none retain borrowed source storage.
 	}
+	if (!context_matches())
+		error = Error::BUG;
 	if (error != Error::NONE) {
-		modelStack->setTimelineCounter(const_cast<InstrumentClip*>(this));
 		goto deleteClipAndGetOut;
 	}
 
@@ -259,6 +268,7 @@ deleteClipAndGetOut:
 	// happened. And we may be about to flatten it with a increaseLengthWithRepeats(), so need to keep this designation
 	// for now.
 
+	modelStack->setTimelineCounter(newClip);
 	return Error::NONE;
 }
 

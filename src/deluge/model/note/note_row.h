@@ -207,7 +207,9 @@ public:
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
-	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
+	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr,
+	                 const deluge::lifetime::lifetime_watch* output_lifetime = nullptr);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
 	void silentlyResumePlayback(ModelStackWithNoteRow* modelStack);

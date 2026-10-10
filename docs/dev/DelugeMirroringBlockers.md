@@ -2307,3 +2307,18 @@ the real array deletion behavior is covered by the native array tests above.
 All 36 native suites pass (the updated routing source-contract check was rerun
 separately), and `./dbt build relwithdebinfo` passes. Row-internal callbacks and
 publication timing remain the next boundaries.
+
+Instrument cloning now normalizes rows on a private model stack and publishes the
+copy only after every row and the initiating context remain valid. Source/output
+retirement skips output-dependent row lookup, finishes detaching borrowed rows,
+and preserves callback stack retargeting. NoteRow cloning forwards the source
+watch into parameters/notes, checks output lifetime after allocations, and clears
+borrowed drum names even on early cancellation. Six clip-clone regressions cover
+row-callback destruction/reuse, output death, delayed publication and stack edits;
+six additional sanitizer tests execute the real row clone body with parameter,
+array and model doubles. The real guarded parameter/array implementations are
+covered separately by native tests above. All 36 suites and
+`./dbt build relwithdebinfo` pass; the strengthened lifetime fixtures also pass
+when rerun. Owner-preserving edits to borrowed rows, drums or automation, and
+callback-internal sound/drum lifetime remain open. No original is deleted on
+clone failure.

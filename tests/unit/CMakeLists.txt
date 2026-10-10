@@ -761,3 +761,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_holder_clone.i
     DEPENDS ${clip_sample_holder_clone_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_holder_clone.inc)
 target_sources(ClipLifetimeTests PRIVATE sample_holder_clone_tests.cpp)
+
+set(note_row_clone_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/note/note_row.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/note_row_clone_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${note_row_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/note_row_clone_lifetime.inc NoteRow::beenCloned
+    DEPENDS ${note_row_clone_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE note_row_clone_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/note_row_clone_lifetime.inc)

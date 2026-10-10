@@ -43,6 +43,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/lifetime.h"
 #include "util/lookuptables/lookuptables.h"
 #include <new>
 #include <string.h>
@@ -89,11 +90,22 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 	}
 }
 
-Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
-	// No need to clone much stuff - it's been automatically copied already as a block of memory.
-
+Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing,
+                          const deluge::lifetime::lifetime_watch* source_lifetime,
+                          const deluge::lifetime::lifetime_watch* output_lifetime) {
 	firstOldDrumName = nullptr;
 	ignoreNoteOnsBefore_ = 0;
+	const auto source_alive = [&] {
+		return (!source_lifetime || source_lifetime->alive()) && (!output_lifetime || output_lifetime->alive());
+	};
+	if (!source_alive()) {
+		deluge::lifetime::lifetime_watch cancelled;
+		paramManager.beenCloned(0, &cancelled);
+		notes.init();
+		return Error::BUG;
+	}
+	// No need to clone much stuff - it's been automatically copied already as a block of memory.
+
 	// sequenced = false;
 
 	int32_t effectiveLength = modelStack->getLoopLength();
@@ -104,7 +116,10 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 
 	int32_t reverseWithLength = flatteningReversingNow ? effectiveLength : 0;
 
-	Error error = paramManager.beenCloned(reverseWithLength); // TODO: flatten reversing here too
+	Error error = paramManager.beenCloned(reverseWithLength, source_lifetime); // TODO: flatten reversing here too
+
+	if (!source_alive())
+		error = Error::BUG;
 
 	if (error != Error::NONE) {
 		notes.init(); // Abandon non-yet-cloned stuff
@@ -118,6 +133,10 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 		notes.init();
 
 		error = notes.insertAtIndex(0, numNotes);
+		if (!source_alive()) {
+			notes.empty();
+			error = Error::BUG;
+		}
 		if (error == Error::NONE) {
 
 			InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -195,7 +214,11 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 
 	// Or if not reversing the sequence, we can just make a simple call.
 	else {
-		error = notes.beenCloned();
+		error = notes.beenCloned(source_lifetime);
+		if (!source_alive()) {
+			notes.empty();
+			error = Error::BUG;
+		}
 	}
 
 	if (shouldFlattenReversing && sequenceDirectionMode != SequenceDirection::PINGPONG) {
