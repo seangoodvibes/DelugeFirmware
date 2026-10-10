@@ -44,6 +44,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <cstdint>
 #include <math.h>
@@ -1577,7 +1578,13 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+                            const deluge::lifetime::lifetime_watch* source_lifetime) {
+	if (source_lifetime && !source_lifetime->alive()) {
+		nodes.init();
+		renewedOverridingAtTime = 0;
+		return Error::BUG;
+	}
 
 	Error error = Error::NONE;
 
@@ -1591,6 +1598,10 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 			nodes.init();
 
 			error = nodes.insertAtIndex(0, numNodes);
+			if (source_lifetime && !source_lifetime->alive()) {
+				nodes.empty();
+				error = Error::BUG;
+			}
 
 			if (error == Error::NONE) {
 				ParamNode* rightmostNode = (ParamNode*)oldNodes.getElementAddress(numNodes - 1);
@@ -1631,7 +1642,7 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 		}
 
 		else {
-			error = nodes.beenCloned();
+			error = nodes.beenCloned(source_lifetime);
 		}
 	}
 	else {

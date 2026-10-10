@@ -2268,3 +2268,12 @@ entry, shallow normalization and independent successful copies. All 36 native
 suites and `./dbt build relwithdebinfo` pass. This supplies the guarded storage
 primitive; callers must propagate the watch through collection/node cloning.
 Destination lifetime and unguarded callers remain separate ownership contracts.
+
+AutoParam and lazy-node shallow cloning now accept and forward the source watch.
+Normal copying checks before vector/source access; reverse copying checks after
+node allocation before reading the old nodes. Cancellation leaves no borrowed
+storage in the copy. Native sanitizer tests destroy the actual source at both
+allocations for normal/reverse copies and cover expired entry and successful
+semantics. All 36 native suites and `./dbt build relwithdebinfo` pass. Collection
+callers still need to propagate the guard; source edits that do not retire its
+owner and destination lifetime remain separate concerns.

@@ -51,7 +51,7 @@ public:
 	/// Like ResizeableArray::cloneFrom(), this assumes there's currently nothing here to free.
 	bool cloneFrom(LazyParamNodeVector const* other);
 	/// Call after this object was memcpy'd from another one, to give it its own copy of the nodes.
-	Error beenCloned();
+	Error beenCloned(const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	void swapStateWith(LazyParamNodeVector* other) { std::swap(vector_, other->vector_); }
 
 	/// The underlying vector, or nullptr if there are no nodes.

@@ -65,7 +65,8 @@ public:
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
 	void cloneFrom(AutoParam* otherParam, bool copyAutomation);
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);

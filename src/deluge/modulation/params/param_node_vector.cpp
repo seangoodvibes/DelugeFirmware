@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_node_vector.h"
+#include "util/lifetime.h"
 
 #include "memory/general_memory_allocator.h"
 #include "modulation/params/param_node.h"
@@ -80,18 +81,20 @@ bool LazyParamNodeVector::cloneFrom(LazyParamNodeVector const* other) {
 	return success;
 }
 
-Error LazyParamNodeVector::beenCloned() {
+Error LazyParamNodeVector::beenCloned(const deluge::lifetime::lifetime_watch* source_lifetime) {
 	ParamNodeVector* source = vector_; // Still belongs to the object we were memcpy'd from
 	vector_ = nullptr;
+	if (source_lifetime && !source_lifetime->alive())
+		return Error::BUG;
 	if (!source || !source->getNumElements()) {
 		return Error::NONE;
 	}
 	if (!allocate()) {
 		return Error::INSUFFICIENT_RAM;
 	}
-	if (!vector_->cloneFrom(source)) {
+	if (!vector_->cloneFrom(source, source_lifetime)) {
 		empty();
-		return Error::INSUFFICIENT_RAM;
+		return source_lifetime && !source_lifetime->alive() ? Error::BUG : Error::INSUFFICIENT_RAM;
 	}
 	return Error::NONE;
 }

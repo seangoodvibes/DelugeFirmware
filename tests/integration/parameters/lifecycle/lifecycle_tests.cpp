@@ -4616,3 +4616,62 @@ TEST(parameter_lifecycle, live_array_guard_copies_independent_storage) {
 	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
 	LONGS_EQUAL(42, *static_cast<int32_t*>(shallow.getElementAddress(0)));
 }
+
+TEST(parameter_lifecycle, guarded_automation_clone_cancels_source_destruction_at_each_allocation) {
+	for (int32_t reverse_length : {0, 32}) {
+		for (int allocation_index : {0, 1}) {
+			auto source = std::make_unique<AutoParam>();
+			CHECK(source->setNodeAtPos(4, 99, false) >= 0);
+			AutoParam destination;
+			memcpy(&destination, source.get(), sizeof(AutoParam));
+			int32_t destination_value = 42;
+			destination.bind_current_value(destination_value);
+			deluge::lifetime::lifetime_source lifetime;
+			deluge::lifetime::lifetime_watch watch{lifetime};
+			const auto retire_source = [&] {
+				lifetime.retire();
+				source.reset();
+			};
+			if (allocation_index == 0)
+				parameter_test::on_allocation = retire_source;
+			else
+				parameter_test::on_allocation = [&] { parameter_test::on_allocation = retire_source; };
+			CHECK(destination.beenCloned(true, reverse_length, &watch) == Error::BUG);
+			CHECK_FALSE(watch.alive());
+			CHECK_FALSE(destination.isAutomated());
+			LONGS_EQUAL(42, destination.getCurrentValue());
+			LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+		}
+	}
+}
+TEST(parameter_lifecycle, expired_automation_clone_guard_detaches_borrowed_nodes) {
+	auto source = std::make_unique<AutoParam>();
+	CHECK(source->setNodeAtPos(4, 99, false) >= 0);
+	AutoParam destination;
+	memcpy(&destination, source.get(), sizeof(AutoParam));
+	int32_t destination_value = 42;
+	destination.bind_current_value(destination_value);
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	lifetime.retire();
+	source.reset();
+	CHECK(destination.beenCloned(true, 32, &watch) == Error::BUG);
+	CHECK_FALSE(destination.isAutomated());
+	LONGS_EQUAL(42, destination.getCurrentValue());
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, guarded_automation_clone_retains_normal_and_reverse_semantics) {
+	for (int32_t reverse_length : {0, 32}) {
+		AutoParam source, destination;
+		CHECK(source.setNodeAtPos(4, 99, false) >= 0);
+		memcpy(&destination, &source, sizeof(AutoParam));
+		int32_t destination_value = 42;
+		destination.bind_current_value(destination_value);
+		deluge::lifetime::lifetime_source lifetime;
+		deluge::lifetime::lifetime_watch watch{lifetime};
+		CHECK(destination.beenCloned(true, reverse_length, &watch) == Error::NONE);
+		source.deleteAutomationBasicForSetup();
+		check_node(destination, 0, reverse_length ? 28 : 4, 99, false);
+		LONGS_EQUAL(42, destination.getCurrentValue());
+	}
+}
