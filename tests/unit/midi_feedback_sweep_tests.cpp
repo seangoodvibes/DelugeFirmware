@@ -1,13 +1,56 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "modulation/params/param.h"
 #include <array>
 #include <functional>
 
 namespace midi_feedback_sweep_test {
 namespace panels = deluge::gui::ui_session;
-struct TimelineCounter {};
+namespace params = deluge::modulation::params;
+constexpr int PARAM_ID_NONE = 255;
+struct MIDICable {};
+struct ModelStackWithTimelineCounter;
+static std::function<void(ModelStackWithTimelineCounter*)> on_clone;
+static int clone_calls = 0;
+static bool clone_result = false;
+struct TimelineCounter {
+	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* model_stack) {
+		++clone_calls;
+		if (on_clone)
+			on_clone(model_stack);
+		return clone_result;
+	}
+};
+struct RootUI {};
+static RootUI root_ui;
+static RootUI* getRootUI() {
+	return &root_ui;
+}
+
 struct Clip : TimelineCounter {};
+struct automation_fixture : RootUI {
+	bool possiblyRefreshAutomationEditorGrid(Clip*, params::Kind, int) { return false; }
+};
+struct performance_fixture : RootUI {
+	bool possiblyRefreshPerformanceViewDisplay(params::Kind, int, int) { return false; }
+};
+static automation_fixture automation;
+static performance_fixture performance;
+static auto& automation_view_for_session() {
+	return automation;
+}
+static auto& performance_view_for_session() {
+	return performance;
+}
+static struct {
+	bool midiFollowDisplayParam = false;
+} midiEngine;
+namespace MidiTakeover {
+static int calculateKnobPos(MIDICable&, int, int value, void*, bool, int, bool) {
+	return value;
+}
+} // namespace MidiTakeover
 static Clip clip;
 static Clip* current_clip = &clip;
 static Clip* getCurrentClip() {
@@ -34,6 +77,7 @@ static ModelStack* setupModelStackWithSong(char*, int*) {
 	return &stack;
 }
 struct view_fixture {
+	void displayModEncoderValuePopup(params::Kind, int, int) {}
 	int modLength = 0;
 	int modPos = 0;
 	ModelStackWithTimelineCounter activeModControllableModelStack;
@@ -44,6 +88,8 @@ static view_fixture& view_for_session() {
 }
 struct ModelStackWithAutoParam;
 struct param_fixture {
+	int writes = 0;
+	void setValuePossiblyForRegion(int, ModelStackWithAutoParam*, int, int) { ++writes; }
 	bool automated = false;
 	int position_reads = 0;
 	int last_position = -1;
@@ -56,9 +102,12 @@ struct param_fixture {
 	}
 };
 struct collection_fixture {
+	params::Kind getParamKind() { return params::Kind::PATCHED; }
+	int knobPosToParamValue(int value, ModelStackWithAutoParam*) { return value; }
 	int paramValueToKnobPos(int value, ModelStackWithAutoParam*) { return value; }
 };
 struct ModelStackWithAutoParam {
+	int paramId = 0;
 	param_fixture* autoParam = nullptr;
 	collection_fixture* paramCollection = nullptr;
 };
@@ -68,7 +117,8 @@ struct MidiFollow {
 	Clip* selected_clip = &clip;
 	param_fixture parameter;
 	collection_fixture collection;
-	ModelStackWithAutoParam parameter_stack{&parameter, &collection};
+	ModelStackWithAutoParam parameter_stack{0, &parameter, &collection};
+	Clip* lookup_clip = nullptr;
 	int lookups = 0;
 	int sends = 0;
 	int last_value = -1;
@@ -78,7 +128,8 @@ struct MidiFollow {
 	uint8_t ccToGlobalParam[128]{};
 	size_t getChannelTypesForFeedback(FeedbackChannelTypes&) { return target_count; }
 	Clip* getSelectedOrActiveClip() { return selected_clip; }
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter*, Clip*, int, int, bool) {
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter*, Clip* target_clip, int, int, bool) {
+		lookup_clip = target_clip;
 		++lookups;
 		if (on_lookup)
 			on_lookup();
@@ -91,15 +142,24 @@ struct MidiFollow {
 			on_send();
 	}
 	void sendCCWithoutModelStackForMidiFollowFeedback(bool);
+	void handleReceivedCC(MIDICable&, ModelStackWithTimelineCounter&, Clip*, int32_t, int32_t);
 };
 #include "midi_feedback_sweep.inc"
 } // namespace midi_feedback_sweep_test
 using namespace midi_feedback_sweep_test;
 TEST_GROUP(MidiFeedbackSweep) {
 	MidiFollow follow;
+	MIDICable cable;
+	void receive(int cc = 7, int value = 64) {
+		stack.timeline.timeline = &clip;
+		follow.handleReceivedCC(cable, stack.timeline, &clip, cc, value);
+	}
 	void setup() override {
 		panels::detail::active = panels::Id::Local;
 		views = {};
+		on_clone = {};
+		clone_calls = 0;
+		clone_result = false;
 		currentSong = &song;
 		current_clip = &clip;
 	}
@@ -182,4 +242,56 @@ TEST(MidiFeedbackSweep, absent_targets_and_unlearned_parameters_do_not_send) {
 	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
 	LONGS_EQUAL(128, follow.lookups);
 	LONGS_EQUAL(0, follow.sends);
+}
+
+TEST(MidiFeedbackSweep, incoming_cc_uses_arrangement_clone_for_parameter_lookup) {
+	Clip cloned_clip;
+	clone_result = true;
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) { model_stack->timeline = &cloned_clip; };
+	receive();
+	POINTERS_EQUAL(&cloned_clip, follow.lookup_clip);
+	LONGS_EQUAL(1, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, unlearned_or_invalid_cc_does_not_clone) {
+	follow.ccToSoundParam[7] = follow.ccToGlobalParam[7] = PARAM_ID_NONE;
+	receive();
+	receive(-1);
+	receive(128);
+	receive(0, -1);
+	receive(0, 128);
+	LONGS_EQUAL(0, clone_calls);
+	LONGS_EQUAL(0, follow.lookups);
+}
+TEST(MidiFeedbackSweep, incoming_cc_stops_when_clone_changes_context) {
+	for (int change = 0; change < 3; ++change) {
+		currentSong = &song;
+		current_clip = &clip;
+		on_clone = [&](ModelStackWithTimelineCounter*) {
+			if (change == 0)
+				currentSong = nullptr;
+			if (change == 1)
+				current_clip = nullptr;
+			if (change == 2)
+				panels::detail::active = panels::Id::Remote;
+		};
+		receive();
+		LONGS_EQUAL(0, follow.lookups);
+		LONGS_EQUAL(0, follow.parameter.writes);
+		CHECK(panels::current() == panels::Id::Local);
+	}
+}
+TEST(MidiFeedbackSweep, incoming_cc_without_clone_keeps_original_target) {
+	receive();
+	POINTERS_EQUAL(&clip, follow.lookup_clip);
+	LONGS_EQUAL(1, follow.parameter.writes);
+}
+
+TEST(MidiFeedbackSweep, incoming_cc_rejects_mismatched_timeline_and_missing_song) {
+	Clip other_clip;
+	stack.timeline.timeline = &other_clip;
+	follow.handleReceivedCC(cable, stack.timeline, &clip, 7, 64);
+	currentSong = nullptr;
+	receive();
+	LONGS_EQUAL(0, clone_calls);
+	LONGS_EQUAL(0, follow.lookups);
 }

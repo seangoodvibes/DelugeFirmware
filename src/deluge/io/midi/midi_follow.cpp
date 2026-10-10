@@ -1040,6 +1040,23 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 /// to determine if the cc intends to control a song level or clip level parameter
 void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStackWithTimelineCounter,
                                   Clip* clip, int32_t ccNumber, int32_t ccValue) {
+	if (!currentSong || ccNumber < 0 || ccNumber > kMaxMIDIValue || ccValue < 0 || ccValue > kMaxMIDIValue)
+		return;
+	// directly access the parameter from the CC number
+	uint8_t soundParamId = ccToSoundParam[ccNumber];
+	uint8_t globalParamId = ccToGlobalParam[ccNumber];
+	if (soundParamId == PARAM_ID_NONE && globalParamId == PARAM_ID_NONE) {
+		// Abort
+		return;
+	}
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_current_clip = getCurrentClip();
+	const auto context_matches = [&] {
+		return currentSong == source_song && deluge::gui::ui_session::current() == source_owner
+		       && getCurrentClip() == source_current_clip;
+	};
 
 	int32_t modPos = 0;
 	int32_t modLength = 0;
@@ -1057,15 +1074,14 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			isStepEditing = true;
 		}
 
-		timelineCounter->possiblyCloneForArrangementRecording(&modelStackWithTimelineCounter);
-	}
-
-	// directly access the parameter from the CC number
-	uint8_t soundParamId = ccToSoundParam[ccNumber];
-	uint8_t globalParamId = ccToGlobalParam[ccNumber];
-	if (soundParamId == PARAM_ID_NONE && globalParamId == PARAM_ID_NONE) {
-		// Abort
-		return;
+		if (timelineCounter != clip)
+			return;
+		const bool timeline_changed =
+		    timelineCounter->possiblyCloneForArrangementRecording(&modelStackWithTimelineCounter);
+		if (!context_matches())
+			return;
+		if (timeline_changed)
+			clip = static_cast<Clip*>(modelStackWithTimelineCounter.getTimelineCounterAllowNull());
 	}
 
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(

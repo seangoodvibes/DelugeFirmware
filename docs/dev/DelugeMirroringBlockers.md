@@ -1859,3 +1859,15 @@ cover ordinary/automation feedback, per-panel step-edit positions, unavailable
 targets/parameters, incomplete stacks and callback context changes. All 35 native
 suites and `./dbt build relwithdebinfo` pass. Parameter and sending services are
 fixtures; cancellation between iterations is not object retention or rollback.
+
+### G1 / R5 progress — incoming CC arrangement-clone routing (2026-10-10)
+
+Incoming learned CC handling follows the updated timeline when arrangement
+recording supplies a clone, instead of passing the original clip alongside the
+clone's model stack. Unlearned/invalid CCs exit before cloning. Song/panel/current
+clip changes during cloning cancel parameter lookup; a mismatched input timeline
+is rejected. Five tests cover clone-target forwarding, unchanged targets,
+unlearned/invalid input, context changes and mismatched/missing context. All 35
+native suites and `./dbt build relwithdebinfo` pass. The clone service is a fixture;
+its existing boolean result still conflates unnecessary cloning with failure, so
+this change does not claim clone-failure recovery or original-state rollback.
