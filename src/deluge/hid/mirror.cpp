@@ -63,6 +63,8 @@ struct preparation_guard {
 };
 Song* requested_song = nullptr;
 deluge::lifetime::lifetime_watch requested_song_watch;
+Song* host_song = nullptr;
+deluge::lifetime::lifetime_watch host_song_watch;
 deluge::gui::ui_session::Id requested_owner = deluge::gui::ui_session::Id::Local;
 bool transport_busy = false, sending = false, accepting = false;
 bool encoder_input_queued = false;
@@ -153,7 +155,9 @@ bool session_connected() {
 bool session_live() {
 	// The wire format is negotiated for one display type. A settings change
 	// must terminate this session before accepting input or sending another frame.
-	return session_connected() && ::display->haveOLED() == session_oled && getSystemTime() - last_receive <= 3.0;
+	return session_connected() && ::display->haveOLED() == session_oled && getSystemTime() - last_receive <= 3.0
+	       && (state != State::Host || active_session_mode != protocol::session_mode::independent
+	           || (host_song_watch.alive() && currentSong == host_song));
 }
 
 bool send_discovery_query(MIDICable& cable, bool for_startup) {
@@ -187,7 +191,9 @@ bool send_discovery_query(MIDICable& cable, bool for_startup) {
 
 bool remote_ui_ready() {
 	deluge::gui::ui_session::Scope owner(deluge::gui::ui_session::Id::Remote);
-	if (!currentSong)
+	if (!currentSong
+	    || (state == State::Host && active_session_mode == protocol::session_mode::independent
+	        && (!host_song_watch.alive() || currentSong != host_song)))
 		return false;
 	auto song_watch = currentSong->watch_lifetime();
 	return song_watch.alive() && deluge::gui::ui_session::navigation.active().depth > 0 && getCurrentUI();
@@ -360,6 +366,9 @@ void stop(const char* reason) {
 	std::fill(std::begin(remote_held), std::end(remote_held), false);
 	for (size_t key = 0; key < held_at_disconnect.size(); ++key) {
 		if (held_at_disconnect[key]
+		    && (active_session_mode != protocol::session_mode::independent
+		        || (host_song_watch.alive() && currentSong == host_song
+		            && deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Remote))
 		    && (active_session_mode == protocol::session_mode::independent
 		        || !(local_held[key] && !ignore_until_release[key]))) {
 			Buttons::ignoreCurrentShiftForSticky();
@@ -406,6 +415,8 @@ void stop(const char* reason) {
 	}
 	closing_host_peer = nullptr;
 	closing_host_connection.reset();
+	host_song_watch.reset();
+	host_song = nullptr;
 	active_session_mode = protocol::session_mode::visible_host;
 	remote_initialization_pending = false;
 	last_remote_render = 0;
@@ -986,6 +997,10 @@ void received(MIDICable& cable, uint8_t* data, int32_t length) {
 		    || state != State::Idle || requested || busy || sending || transport_busy || closing_host_connection
 		    || session_request->oled != ::display->haveOLED() || sequence != 0 || !token)
 			return;
+		currentSong->observe_lifetime(host_song_watch);
+		if (!host_song_watch.alive())
+			return;
+		host_song = currentSong;
 		peer = &cable;
 		peer_connection = connection_identity(&cable);
 		session = token;

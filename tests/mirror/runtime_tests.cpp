@@ -60,6 +60,8 @@ TEST_GROUP(MirrorRuntime) {
 		m::sending = m::accepting = false;
 		m::requested_song = nullptr;
 		m::requested_song_watch.reset();
+		m::host_song = nullptr;
+		m::host_song_watch.reset();
 		m::requested_owner = session::Id::Local;
 		m::panel_read = m::panel_write = m::input_read = m::input_write = 0;
 		m::panel_position = m::panel_length = 0;
@@ -3638,8 +3640,9 @@ TEST(MirrorRuntime, remote_readiness_requires_song_before_input_and_snapshot_cal
 	currentSong = &song;
 	CHECK(m::remote_ui_ready());
 	m::process_input();
-	LONGS_EQUAL(1, fixture::events.size());
-	LONGS_EQUAL(1, sent(p::Op::InputAck).size());
+	CHECK(m::failed);
+	CHECK(fixture::events.empty());
+	CHECK(sent(p::Op::InputAck).empty());
 }
 
 TEST(MirrorRuntime, remote_service_without_song_fails_before_timer_callbacks) {
@@ -4273,4 +4276,84 @@ TEST(MirrorRuntime, retired_song_cannot_queue_client_startup) {
 	CHECK_FALSE(m::requested);
 	CHECK_FALSE(m::requested_song_watch.alive());
 	currentSong = &song;
+}
+
+TEST(MirrorRuntime, independent_session_rejects_song_reuse_between_transport_turns) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	song.~Song();
+	new (&song) Song;
+	cable.sent.clear();
+	m::transport_routine();
+	CHECK(m::failed);
+	CHECK(cable.sent.empty());
+	CHECK_FALSE(m::session_live());
+}
+TEST(MirrorRuntime, independent_session_rejects_retired_song_before_receiving_input) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	song.~Song();
+	new (&song) Song;
+	input(1, 0, 2, 1);
+	CHECK(m::failed);
+	LONGS_EQUAL(0, m::input_write);
+	CHECK(fixture::events.empty());
+}
+TEST(MirrorRuntime, independent_teardown_does_not_release_controls_into_replacement_song) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	m::remote_held[2] = m::remote_held[3] = true;
+	song.~Song();
+	new (&song) Song;
+	m::stop("test");
+	CHECK(fixture::events.empty());
+	CHECK_FALSE(m::remote_held[2]);
+	CHECK_FALSE(m::remote_held[3]);
+	CHECK_FALSE(m::host_song_watch.alive());
+	POINTERS_EQUAL(nullptr, m::host_song);
+	LONGS_EQUAL(0, session::navigation.for_owner(session::Id::Remote).depth);
+}
+TEST(MirrorRuntime, independent_teardown_stops_release_batch_after_song_reuse) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	m::remote_held[2] = m::remote_held[3] = true;
+	fixture::on_input = [] {
+		song.~Song();
+		new (&song) Song;
+	};
+	m::stop("test");
+	LONGS_EQUAL(1, fixture::events.size());
+	CHECK_FALSE(m::remote_held[2]);
+	CHECK_FALSE(m::remote_held[3]);
+	CHECK_FALSE(m::host_song_watch.alive());
+	CHECK(session::current() == session::Id::Local);
+}
+TEST(MirrorRuntime, visible_host_session_still_survives_song_reuse_between_turns) {
+	host();
+	song.~Song();
+	new (&song) Song;
+	CHECK(m::session_live());
+	fixture::now += 1;
+	m::transport_routine();
+	CHECK_FALSE(m::failed);
+	CHECK_FALSE(sent(p::Op::Heartbeat).empty());
+}
+
+TEST(MirrorRuntime, replacement_song_never_services_remote_timers_or_snapshot) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	song.~Song();
+	new (&song) Song;
+	int callbacks = 0;
+	on_ui_timers = on_remote_render = [&] { ++callbacks; };
+	CHECK_FALSE(m::remote_ui_ready());
+	CHECK_FALSE(m::prepare_remote_snapshot());
+	m::service_remote_ui();
+	CHECK(m::failed);
+	LONGS_EQUAL(0, callbacks);
 }

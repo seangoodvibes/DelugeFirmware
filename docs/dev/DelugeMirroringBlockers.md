@@ -3073,3 +3073,14 @@ into such a watch. Nine regressions cover intrusive-list rebinding, song teardow
 queued/discovery-wait replacement, discovery/cleanup callbacks and retired entry.
 All 36 suites and the RelWithDebInfo build pass. This closes the deferred-start
 song-address gap, not active independent-session lifetime or hardware acceptance.
+
+Host sessions now retain their starting song watch. Independent session liveness
+and Remote readiness reject song replacement/retirement between service turns;
+visible mirroring keeps its existing song-change behavior. Independent teardown
+clears held controls without dispatching them into a replacement song and stops a
+release batch if a callback invalidates its song/owner. Six runtime regressions
+cover inter-turn transmission/input, timer/render suppression and teardown; the
+missing-song test now requires permanent session cancellation. All 36 suites and
+the RelWithDebInfo build pass. This closes inter-turn independent song binding,
+not per-object lifetime/recovery or hardware acceptance. Independent mode stays
+disabled; cleanup of the retired song's voices remains owned by song teardown.
