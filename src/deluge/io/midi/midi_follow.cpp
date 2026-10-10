@@ -1642,8 +1642,8 @@ void MidiFollow::writeSpecificChannelSettingsToFile(Serializer& writer, MIDIFoll
 	writer.writeOpeningTagBeginning(tag_name);
 	writer.writeOpeningTagEnd();
 
-	writer.writeTag(MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG,
-	                midiEngine.midiFollowChannelType[util::to_underlying(type)].channelOrZone + 1);
+	const auto source_channel = midiEngine.midiFollowChannelType[util::to_underlying(type)].channelOrZone;
+	writer.writeTag(MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG, source_channel == MIDI_CHANNEL_NONE ? 0 : source_channel + 1);
 
 	MIDICable* cable = midiEngine.midiFollowChannelType[util::to_underlying(type)].cable;
 
@@ -1819,7 +1819,11 @@ void MidiFollow::readSpecificChannelSettingsFromFile(Deserializer& reader, MIDIF
 		// step into <channel> tag
 		if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_CHANNEL_TAG)) {
 			int32_t value = reader.readTagOrAttributeValueInt();
-			if (value >= 0 && value <= NUM_CHANNELS) {
+			// Older firmware wrote the unassigned sentinel plus one (256).
+			if (value == MIDI_CHANNEL_NONE + 1) {
+				midiEngine.midiFollowChannelType[util::to_underlying(type)].channelOrZone = MIDI_CHANNEL_NONE;
+			}
+			else if (value >= 0 && value <= NUM_CHANNELS) {
 				midiEngine.midiFollowChannelType[util::to_underlying(type)].channelOrZone = value - 1;
 			}
 		}

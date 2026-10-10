@@ -1609,3 +1609,13 @@ all channels/zones for the first and last Follow target, invalid values, tag
 consumption and the explicit unassigned value. All 35 native suites and
 `./dbt build relwithdebinfo` pass. XML tokenization and device references remain
 fixtures; physical MPE routing is not established by these tests.
+
+### G1 / R4 progress — unassigned MIDI Follow channel persistence (2026-10-10)
+
+Channel settings now save unassigned as 0, which the reader understands. The
+reader also accepts the old writer's 256 encoding so legacy files can clear an
+existing assignment. Two new tests execute both production writer and reader for
+all channels, both MPE zones and unassigned, plus legacy unassigned loading. The
+round-trip test failed before the fix (256 written instead of 0). All 35 native
+suites and `./dbt build relwithdebinfo` pass. Serialization tokens and device
+references are fixtures; filesystem and physical MIDI acceptance remain open.
