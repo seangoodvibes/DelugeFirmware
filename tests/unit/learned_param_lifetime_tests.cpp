@@ -38,7 +38,15 @@ struct InstrumentClip : Clip {
 	NoteRow* row = nullptr;
 	NoteRow* find_note_row_from_id(int) { return row; }
 };
-struct Song : Owner {};
+struct Song : Owner {
+	std::vector<Clip*> registered_clips;
+	bool contains_clip_for_undo(const Clip* clip) {
+		for (auto* registered : registered_clips)
+			if (registered == clip)
+				return true;
+		return false;
+	};
+};
 Song song;
 Song* currentSong = &song;
 struct ModelStackWithTimelineCounter {
@@ -271,6 +279,7 @@ TEST(learned_param_lifetime, clone_failure_preserves_original_without_lookup) {
 TEST(learned_param_lifetime, valid_clone_retarget_is_accepted) {
 	InstrumentClip clone;
 	clone.output = output.get();
+	song.registered_clips.push_back(&clone);
 	on_clone = [&] { stack.clip = &clone; };
 	CHECK(send());
 	LONGS_EQUAL(2, writes);
@@ -278,6 +287,7 @@ TEST(learned_param_lifetime, valid_clone_retarget_is_accepted) {
 TEST(learned_param_lifetime, cloned_target_deletion_during_lookup_cancels) {
 	auto clone = std::make_unique<InstrumentClip>();
 	clone->output = output.get();
+	song.registered_clips.push_back(clone.get());
 	on_clone = [&] { stack.clip = clone.get(); };
 	on_lookup = [&] { clone.reset(); };
 	CHECK(send());
@@ -313,6 +323,7 @@ TEST(learned_param_lifetime, retired_clone_target_is_rejected_before_lookup) {
 	InstrumentClip clone;
 	clone.output = output.get();
 	clone.lifetime.retire();
+	song.registered_clips.push_back(&clone);
 	on_clone = [&] { stack.clip = &clone; };
 	CHECK(send());
 	LONGS_EQUAL(0, lookups);
@@ -332,4 +343,34 @@ TEST(learned_param_lifetime, song_retirement_during_write_cancels_display) {
 	CHECK(send());
 	LONGS_EQUAL(1, writes);
 	LONGS_EQUAL(0, refreshes);
+}
+
+TEST(learned_param_lifetime, freed_clone_target_is_rejected_before_watch_acquisition) {
+	for (bool pitch : {false, true}) {
+		reset();
+		auto discarded = std::make_unique<InstrumentClip>();
+		on_clone = [&] {
+			stack.clip = discarded.get();
+			discarded.reset();
+		};
+		CHECK(send(pitch));
+		LONGS_EQUAL(0, manager_lookups);
+		LONGS_EQUAL(0, lookups);
+	}
+}
+
+TEST(learned_param_lifetime, removed_clone_registration_cancels_before_parameter_write) {
+	InstrumentClip clone;
+	clone.output = output.get();
+	song.registered_clips.push_back(&clone);
+	on_clone = [&] { stack.clip = &clone; };
+	on_lookup = [&] { song.registered_clips.clear(); };
+	CHECK(send());
+	LONGS_EQUAL(0, writes);
+}
+TEST(learned_param_lifetime, removed_source_registration_cancels_after_clone_callback) {
+	song.registered_clips.push_back(clip.get());
+	on_clone = [&] { song.registered_clips.clear(); };
+	CHECK(send());
+	LONGS_EQUAL(0, lookups);
 }

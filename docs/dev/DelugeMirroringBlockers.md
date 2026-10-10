@@ -2946,3 +2946,13 @@ and parameter deletion, same-address song replacement, rebinding and rejected
 contexts. All 36 suites and `./dbt build relwithdebinfo` pass. The enclosing playback
 MIDI dispatch still requires cancellation checks; lower parameter lookup/write
 internals and partial-write recovery remain open. Independent mode stays disabled.
+
+Learned MIDI routes now check song clip registration before acquiring lifetime
+watches on replacement model-stack targets. Initially registered sources must
+remain registered; replacement clones must remain registered through lookup/write
+validation. Unchanged detached sources retain their existing watch-based path.
+Six added sanitizer regressions cover freed replacement pointers and registration
+removal, while live arrangement-clone retarget tests still pass. All 36 suites and
+`./dbt build relwithdebinfo` pass. This relies on the owning registry removing clips
+before destruction; other acquisition paths and the enclosing playback dispatch
+remain open. Independent mode stays disabled.

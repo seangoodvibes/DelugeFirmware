@@ -1077,11 +1077,13 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(
 	auto song_lifetime = source_song->watch_lifetime();
 	if (!song_lifetime.alive())
 		return false;
+	const bool source_registered = source_clip && source_song->contains_clip_for_undo(source_clip);
 	const auto context_matches = [&] {
 		return song_lifetime.alive() && (!owner_validation || owner_validation->valid())
 		       && (!source_clip || source_lifetime.alive()) && (!source_output || output_lifetime.alive())
 		       && (!source_clip || source_clip->output == source_output)
-		       && deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner
+		       && (!source_registered || source_song->contains_clip_for_undo(source_clip)) && currentSong == source_song
 		       && modelStack->song == source_song && midi_knobs.data() == knob_storage
 		       && midi_knobs.size() == knob_count;
 	};
@@ -1133,6 +1135,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
 			// scratch now from that.
 			auto* target_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+			if (target_clip && target_clip != source_clip && !source_song->contains_clip_for_undo(target_clip))
+				return messageUsed;
 			auto target_lifetime = target_clip ? target_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 			if (target_clip && (!target_lifetime.alive() || target_clip->output != source_output))
 				return messageUsed;
@@ -1147,6 +1151,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(
 			const auto row_identity = target_row ? target_row->undo_identity : 0;
 			const auto target_matches = [&] {
 				if (!knob_matches() || (target_clip && !target_lifetime.alive())
+				    || (target_clip && target_clip != source_clip && !source_song->contains_clip_for_undo(target_clip))
 				    || modelStack->getTimelineCounterAllowNull() != target_clip
 				    || modelStackWithThreeMainThings->getNoteRowAllowNull() != target_row
 				    || (target_row && modelStackWithThreeMainThings->noteRowId != row_id)
@@ -1374,11 +1379,13 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(
 	auto song_lifetime = source_song->watch_lifetime();
 	if (!song_lifetime.alive())
 		return false;
+	const bool source_registered = source_clip && source_song->contains_clip_for_undo(source_clip);
 	const auto context_matches = [&] {
 		return song_lifetime.alive() && (!owner_validation || owner_validation->valid())
 		       && (!source_clip || source_lifetime.alive()) && (!source_output || output_lifetime.alive())
 		       && (!source_clip || source_clip->output == source_output)
-		       && deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner
+		       && (!source_registered || source_song->contains_clip_for_undo(source_clip)) && currentSong == source_song
 		       && modelStack->song == source_song && midi_knobs.data() == knob_storage
 		       && midi_knobs.size() == knob_count;
 	};
@@ -1423,6 +1430,8 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
 			// scratch now from that.
 			auto* target_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+			if (target_clip && target_clip != source_clip && !source_song->contains_clip_for_undo(target_clip))
+				return messageUsed;
 			auto target_lifetime = target_clip ? target_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 			if (target_clip && (!target_lifetime.alive() || target_clip->output != source_output))
 				return messageUsed;
@@ -1437,6 +1446,7 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(
 			const auto row_identity = target_row ? target_row->undo_identity : 0;
 			const auto target_matches = [&] {
 				if (!knob_matches() || (target_clip && !target_lifetime.alive())
+				    || (target_clip && target_clip != source_clip && !source_song->contains_clip_for_undo(target_clip))
 				    || modelStack->getTimelineCounterAllowNull() != target_clip
 				    || modelStackWithThreeMainThings->getNoteRowAllowNull() != target_row
 				    || (target_row && modelStackWithThreeMainThings->noteRowId != row_id)

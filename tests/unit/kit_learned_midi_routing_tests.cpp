@@ -32,7 +32,15 @@ struct InstrumentClip : Owner {
 		return index >= 0 && index < noteRows.getNumElements() ? noteRows.getElement(index) : nullptr;
 	}
 };
-struct Song : Owner {};
+struct Song : Owner {
+	std::vector<InstrumentClip*> registered_clips;
+	bool contains_clip_for_undo(const InstrumentClip* clip) {
+		for (auto* registered : registered_clips)
+			if (registered == clip)
+				return true;
+		return false;
+	};
+};
 Song song;
 Song* currentSong = &song;
 struct ModelStackWithTimelineCounter {
@@ -172,6 +180,7 @@ TEST(kit_learned_midi_routing, whole_kit_clone_retarget_routes_to_new_clip) {
 	InstrumentClip clone;
 	clone.output = kit.get();
 	clone.noteRows.rows = {&second_row};
+	song.registered_clips.push_back(&clone);
 	on_whole = [&] { stack.clip = &clone; };
 	CHECK_FALSE(bend());
 	LONGS_EQUAL(1, rows_received.size());
@@ -238,6 +247,7 @@ TEST(kit_learned_midi_routing, row_clone_retarget_routes_remaining_rows_to_clone
 	InstrumentClip clone;
 	clone.output = kit.get();
 	clone.noteRows.rows = {&first_row, &second_row};
+	song.registered_clips.push_back(&clone);
 	on_drum = [&] { stack.clip = &clone; };
 	send(true);
 	LONGS_EQUAL(2, rows_received.size());
@@ -302,4 +312,30 @@ TEST(kit_learned_midi_routing, same_address_song_replacement_cancels_remaining_r
 	};
 	send(true);
 	LONGS_EQUAL(1, rows_received.size());
+}
+
+TEST(kit_learned_midi_routing, freed_whole_callback_target_is_rejected_before_watch_acquisition) {
+	auto discarded = std::make_unique<InstrumentClip>();
+	on_whole = [&] {
+		stack.clip = discarded.get();
+		discarded.reset();
+	};
+	send(true);
+	LONGS_EQUAL(0, rows_received.size());
+}
+TEST(kit_learned_midi_routing, freed_row_callback_target_is_rejected_before_next_delivery) {
+	auto discarded = std::make_unique<InstrumentClip>();
+	on_drum = [&] {
+		stack.clip = discarded.get();
+		discarded.reset();
+	};
+	send(false);
+	LONGS_EQUAL(1, rows_received.size());
+}
+
+TEST(kit_learned_midi_routing, removed_source_registration_cancels_fanout) {
+	song.registered_clips.push_back(clip.get());
+	on_whole = [&] { song.registered_clips.clear(); };
+	send(true);
+	LONGS_EQUAL(0, rows_received.size());
 }

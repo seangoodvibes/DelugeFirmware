@@ -48,7 +48,9 @@ struct Clip : TimelineCounter, Owner {
 	NoteRow* find_note_row_from_id(int) { return nullptr; }
 };
 using InstrumentClip = Clip;
-struct Song : Owner {};
+struct Song : Owner {
+	bool contains_clip_for_undo(const Clip*) { return true; }
+};
 Song song;
 Song* currentSong = &song;
 
