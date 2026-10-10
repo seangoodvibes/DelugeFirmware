@@ -167,16 +167,45 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 // Will replace the Clip in the modelStack, if success.
 Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
-	if (!modelStack || modelStack->getTimelineCounterAllowNull() != this || loopLength <= 0)
+	if (!modelStack || modelStack->getTimelineCounterAllowNull() != this)
 		return Error::BUG;
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive() || loopLength <= 0)
+		return Error::BUG;
+	auto* const source_output = output;
+	auto output_lifetime = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_output && !output_lifetime.alive())
+		return Error::BUG;
+	auto* const source_song = modelStack->song;
+	auto* const active_song = currentSong;
+	const int32_t source_length = loopLength;
+	const auto source_direction = sequenceDirectionMode;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return source_lifetime.alive() && (!source_output || output_lifetime.alive()) && output == source_output
+		       && modelStack->getTimelineCounterAllowNull() == this && modelStack->song == source_song
+		       && currentSong == active_song && deluge::gui::ui_session::current() == source_owner
+		       && loopLength == source_length && sequenceDirectionMode == source_direction;
+	};
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	if (!context_matches()) {
+		if (clipMemory)
+			delugeDealloc(clipMemory);
+		return Error::BUG;
+	}
 	if (!clipMemory) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	auto newClip = new (clipMemory) InstrumentClip(); // Don't supply Song. yScroll will get set in copyBasicsFrom()
 
+	if (!context_matches()) {
+		newClip->~InstrumentClip();
+		delugeDealloc(clipMemory);
+		return Error::BUG;
+	}
 	newClip->copyBasicsFrom(this);
 
 	int32_t reverseWithLength = 0;
@@ -185,6 +214,8 @@ Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shou
 	}
 
 	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
+	if (!context_matches())
+		error = Error::BUG;
 	if (error != Error::NONE) {
 deleteClipAndGetOut:
 		newClip->~InstrumentClip();

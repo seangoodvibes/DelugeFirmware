@@ -2228,3 +2228,13 @@ All 36 native suites and `./dbt build relwithdebinfo` pass. Inspection also corr
 the prior path-error hypothesis: String::set(String const*) shares reference-counted
 storage and cannot fail. Destination lifetime and callbacks inside sample/parameter
 services remain covered by their separate ownership requirements.
+
+Instrument cloning now watches its source/output through allocation, construction
+and parameter-copy return, and rejects changed song, owner, stack, length or
+direction before reading source rows. Eight sanitizer regressions cover real
+source/output destruction, address reuse, retiring input and context changes.
+Existing tests still require every shallow-copied row to finish ownership
+normalization after row errors. All 36 native suites and
+`./dbt build relwithdebinfo` pass. This closes early boundaries only; source
+lifetime inside parameter/row copying and borrowed row-storage ownership remain
+open and must not be bypassed by destroying half-normalized rows.

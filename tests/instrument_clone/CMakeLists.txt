@@ -6,7 +6,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/instrument_clone_method.in
     DEPENDS ${clip_source} ../support/extract_functions.py VERBATIM)
 add_executable(InstrumentCloneTests ../unit/RunAllTests.cpp instrument_clone_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/instrument_clone_method.inc)
-target_include_directories(InstrumentCloneTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(InstrumentCloneTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ../../src ../../src/deluge)
 target_link_libraries(InstrumentCloneTests PRIVATE CppUTestExt)
 target_compile_features(InstrumentCloneTests PRIVATE cxx_std_23)
 target_compile_definitions(InstrumentCloneTests PRIVATE CPPUTEST_MEM_LEAK_DETECTION_DISABLED)
