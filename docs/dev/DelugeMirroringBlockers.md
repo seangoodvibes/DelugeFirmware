@@ -2661,3 +2661,13 @@ regressions cover live modes, every dispatch boundary, generation/owner deletion
 freed pending storage, channel retargeting and nested reset. All 36 suites and
 `./dbt build relwithdebinfo` pass. Concrete MIDI/CV output-method internals and
 remaining sound-render consumers still require their own lifetime audit.
+
+Concrete CV note-on output now validates output/clip, song/panel, channel/modes
+and arp revision after pitch setup and note output before publishing further
+state/output. Velocity is snapshotted, note indices are bounded, and negative MPE
+pitch conversion uses defined multiplication. Seven production-body sanitizer
+regressions cover live/clipless output, deletion at all three boundaries, freed
+instructions, retargeting, retired entry and the negative pitch limit. All 36
+native suites and `./dbt build relwithdebinfo` pass. CV helper internals and physical
+output timing still require separate verification; emitted output is not rolled
+back on cancellation.

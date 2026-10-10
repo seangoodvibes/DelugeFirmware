@@ -16,11 +16,15 @@
  */
 
 #include "model/instrument/cv_instrument.h"
+#include "gui/ui/ui_session.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
+#include "util/lifetime.h"
 #include <cstring>
 
 CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
@@ -29,15 +33,40 @@ CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 }
 
 void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
-	// First update pitch bend for the new note
-	polyPitchBendValue = (int32_t)arpNote->mpeValues[0] << 16;
+	if (!arpNote || noteIndex < 0 || noteIndex >= ARP_MAX_INSTRUCTION_NOTES)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	const auto revision = arpeggiator.instruction_revision();
+	const auto source_channel = getChannel();
+	const auto pitch_mode = cvmode[0];
+	const auto second_mode = cvmode[1];
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getChannel() == source_channel
+		       && cvmode[0] == pitch_mode && cvmode[1] == second_mode && arpeggiator.instruction_revision() == revision;
+	};
+	const auto velocity = arpNote->velocity;
+	// Multiplication also defines the conversion for negative MPE values.
+	polyPitchBendValue = static_cast<int32_t>(arpNote->mpeValues[0]) * 65536;
 	updatePitchBendOutput(false);
-	auto channel = getPitchChannel();
-	arpNote->outputMemberChannel[noteIndex] = channel;
-
-	cvEngine.sendNote(true, channel, noteCodePostArp);
-	if (cvmode[1] == CVMode::velocity) {
-		cvEngine.sendVoltageOut(1, arpNote->velocity << 8);
+	if (!context_matches())
+		return;
+	const auto pitch_channel = getPitchChannel();
+	arpNote->outputMemberChannel[noteIndex] = pitch_channel;
+	cvEngine.sendNote(true, pitch_channel, noteCodePostArp);
+	if (!context_matches())
+		return;
+	if (second_mode == CVMode::velocity) {
+		cvEngine.sendVoltageOut(1, velocity << 8);
 	}
 }
 
