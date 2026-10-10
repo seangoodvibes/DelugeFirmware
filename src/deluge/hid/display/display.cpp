@@ -2,6 +2,7 @@
 #include "drivers/pic/pic.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/ui_session.h"
 #include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
@@ -119,6 +120,8 @@ void wait_for_select_encoder_press() {
 }
 
 void swapDisplayType() {
+	// Display emulation is a physical host setting, even when edited remotely.
+	deluge::gui::ui_session::Scope owner(deluge::gui::ui_session::Id::Local);
 	using ::display; // this is c++
 	bool was_oled = display->haveOLED();
 	delete display;
@@ -137,7 +140,9 @@ void swapDisplayType() {
 		// displayOrLanguageChanged(). When swapping from OLED to 7SEG, invoke
 		// focusRegained() so the numeric display is populated immediately.
 		if (!display->haveOLED()) {
-			ui->focusRegained();
+			// The notification may have replaced or closed the active UI.
+			if (auto* current_ui = getCurrentUI())
+				current_ui->focusRegained();
 		}
 	}
 

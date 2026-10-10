@@ -553,3 +553,18 @@ side effects are not provided by these guards.
   changes during send. All 241 mirror runtime cases pass. G1 remains open and
   independent mode remains disabled.
 - Validation: all 32 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 / L1 progress — physical display-switch ownership (2026-10-09)
+
+- Display emulation changes now construct, retire, notify and render under Local
+  UI ownership, even when requested from Remote settings. The caller's ownership
+  is restored on return. The negotiated-format guard ends incompatible transport.
+- After display-change notification, seven-segment focus resolves the current UI
+  again rather than retaining the previous screen through its callback. A closed
+  UI is not focused; a replacement receives focus.
+- `DisplaySwapTests` compiles the production function with real session scopes.
+  Three regressions reproduced wrong-owner switching and old-UI focus after
+  replacement/removal. Four cases pass, including both formats, Local behavior
+  and absent navigation. Real display allocation/destructor callback lifetime is
+  not established by these fixtures. G1/L1 remain open; independent mode is disabled.
+- Validation: all 33 native CTest suites and `./dbt build relwithdebinfo` pass.
