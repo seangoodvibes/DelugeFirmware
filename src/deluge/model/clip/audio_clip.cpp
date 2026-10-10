@@ -1349,9 +1349,29 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 }
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
-	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
+	auto clip_watch = watch_lifetime();
+	if (!clip_watch.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* const source_output = output;
+	auto output_watch = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto context_valid = [&] {
+		return clip_watch.alive() && (!source_song || song_watch.alive()) && (!source_output || output_watch.alive())
+		       && output == source_output && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return;
+	deluge::lifetime::callback_validation validation(context_valid);
+	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile,
+	                                    CLUSTER_ENQUEUE, nullptr, false, &validation);
+	if (!context_valid() || error == Error::ABORTED_BY_USER)
+		return;
 
-	name.set(sampleHolder.filePath.get());
+	name.set(&sampleHolder.filePath);
 	if (error != Error::NONE) {
 		display->displayError(error);
 	}

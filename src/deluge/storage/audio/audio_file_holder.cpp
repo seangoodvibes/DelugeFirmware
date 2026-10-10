@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_manager.h"
+#include "util/lifetime.h"
 
 AudioFileHolder::AudioFileHolder() {
 	audioFile = nullptr;
@@ -33,7 +34,11 @@ AudioFileHolder::~AudioFileHolder() {
 // (!mayActuallyReadFile).
 Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
                                 int32_t clusterLoadInstruction, FilePointer* filePointer,
-                                bool makeWaveTableWorkAtAllCosts) {
+                                bool makeWaveTableWorkAtAllCosts,
+                                const deluge::lifetime::callback_validation* validation) {
+
+	if (validation && !validation->valid())
+		return Error::ABORTED_BY_USER;
 
 	// See if this AudioFile object already all loaded up
 	if (audioFile != nullptr) {
@@ -44,15 +49,29 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 		return Error::NONE; // This could happen if the filename tag wasn't present in the file
 	}
 
+	// String copies retain the shared buffer without allocating another path. Storage
+	// may yield or normalize its argument, so never lend it a member of a retiring owner.
+	String original_path(filePath);
+	String loading_path(original_path);
+	const auto source_type = audioFileType;
 	Error error;
 	AudioFile* maybeNewAudioFile = audioFileManager.getAudioFileFromFilename(
-	    filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
+	    loading_path, mayActuallyReadFile, &error, filePointer, source_type, makeWaveTableWorkAtAllCosts);
+	if (validation && !validation->valid())
+		return Error::ABORTED_BY_USER;
+	if (audioFile || audioFileType != source_type || filePath.get() != original_path.get())
+		return Error::ABORTED_BY_USER;
+	filePath.set(&loading_path);
 	// If we found it...
 	if (maybeNewAudioFile != nullptr) {
 
 		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
 		// the audio routine trying to sound it before it's all set up.
 		setAudioFile(maybeNewAudioFile, reversed, manuallySelected, clusterLoadInstruction);
+		if (validation && !validation->valid())
+			return Error::ABORTED_BY_USER;
+		if (audioFile != maybeNewAudioFile || audioFileType != source_type || filePath.get() != loading_path.get())
+			return Error::ABORTED_BY_USER;
 	}
 
 	return error;

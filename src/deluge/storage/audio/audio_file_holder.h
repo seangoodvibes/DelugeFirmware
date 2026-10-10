@@ -26,6 +26,9 @@ extern "C" {
 
 class Sample;
 class AudioFile;
+namespace deluge::lifetime {
+class callback_validation;
+}
 
 class AudioFileHolder {
 public:
@@ -33,9 +36,11 @@ public:
 	virtual ~AudioFileHolder();
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
 	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	// A yielding owner must supply validation to reject retirement/retargeting before publication.
 	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
 	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = nullptr,
-	               bool makeWaveTableWorkAtAllCosts = false);
+	               bool makeWaveTableWorkAtAllCosts = false,
+	               const deluge::lifetime::callback_validation* validation = nullptr);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
 	String filePath;

@@ -1152,3 +1152,16 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_sample_loading.inc
         Song::loadAllSamples Song::loadCrucialSamplesOnly
     DEPENDS ${song_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE song_sample_loading_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/song_sample_loading.inc)
+
+set(audio_holder_load_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/storage/audio/audio_file_holder.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_holder_load.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_holder_load_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_holder_load.inc AudioFileHolder::loadFile
+    DEPENDS ${audio_holder_load_source} ../support/extract_functions.py VERBATIM)
+set(audio_clip_load_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/audio_clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_clip_load.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_clip_load_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_clip_load.inc AudioClip::loadSample
+    DEPENDS ${audio_clip_load_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE audio_holder_load_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/audio_holder_load.inc ${CMAKE_CURRENT_BINARY_DIR}/audio_clip_load.inc)

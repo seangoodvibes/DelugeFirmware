@@ -3199,3 +3199,18 @@ ClipLifetimeTests) and the RelWithDebInfo build pass. Cancellation leaves alread
 loaded samples intact; this does not make loading transactional or protect inside
 individual holder/source/drum loading callbacks. Those inner paths remain L1/R4
 audit work. Independent mode stays disabled.
+
+AudioFileHolder loading now retains reference-counted original/working filename
+strings across storage callbacks (no extra path-buffer allocation), validates owner
+cancellation when supplied, and rejects concurrent path/type/file replacement before
+publication. AudioClip supplies clip/song/output/panel validation and shares the
+resolved name only while that context remains valid. Thirteen sanitizer-enabled
+regressions exercise the real holder/clip methods with reference-counted string and
+storage doubles: destroyed clip/output, lookup/assignment cancellation, concurrent
+selection, owner changes, normalization, normal errors and cached/empty paths. Two
+failures reproduced before the fix. All 38 suites and the RelWithDebInfo build pass.
+This does not yet propagate validation inside SampleHolder::setAudioFile,
+SampleHolderForClip::setAudioFile, claimClusterReasons/claimClusterReasonsForMarker,
+or Source/Drum loading. Legacy callers without a validator still require their
+own lifetime contract. Cached files remain owned by AudioFileManager; cancelled
+loads do not acquire a holder reason. Independent mode remains disabled.
