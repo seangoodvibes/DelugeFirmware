@@ -26,6 +26,7 @@ struct root_fixture {
 	int reads = 0;
 	root_fixture* getCurrentMenuItem() { return menu; }
 	void readValueAgain() { ++reads; }
+	bool onArrangerView = false;
 	bool automation_editor = false;
 	int renders = 0;
 	bool inAutomationEditor() { return automation_editor; }
@@ -95,7 +96,21 @@ struct ParamManager {
 			on_grab();
 	}
 };
+using ParamManagerForTimeline = ParamManager;
 struct ModControllable {
+	uint8_t mode = 0;
+	bool missing_mode = false;
+	int presses = 0, releases = 0;
+	std::function<void()> on_button;
+	uint8_t* getModKnobMode() { return missing_mode ? nullptr : &mode; }
+	void modButtonAction(uint8_t, bool on, ParamManager*) {
+		if (on)
+			++presses;
+		else
+			++releases;
+		if (on_button)
+			on_button();
+	}
 	template <class T>
 	bool modEncoderButtonAction(uint8_t, bool, T*) {
 		if (on_encoder)
@@ -225,6 +240,8 @@ struct View {
 	}
 	void modEncoderButtonAction_changeModControllable(uint8_t, bool);
 	bool renderedVUMeter = false;
+	bool displayVUMeter = false;
+	void modButtonAction(uint8_t, bool);
 	void setModLedStates() {
 		if (on_mod_leds)
 			on_mod_leds();
@@ -245,6 +262,14 @@ struct View {
 static session::State<View> views;
 static View& view_for_session() {
 	return views.active();
+}
+using RootUI = root_fixture;
+static const uint32_t modButtonUIModes[] = {0};
+static bool isUIModeWithinRange(const uint32_t*) {
+	return true;
+}
+static root_fixture& performance_view_for_session() {
+	return root;
 }
 #include "knob_indicator.inc"
 #include "knob_indicator_batch.inc"
@@ -808,4 +833,107 @@ TEST(KnobIndicator, encoder_edit_notification_change_stops_indicator_update) {
 	LONGS_EQUAL(1, view_for_session().edits);
 	LONGS_EQUAL(0, lookup_calls);
 	LONGS_EQUAL(0, editor.reads);
+}
+
+TEST(KnobIndicator, mod_button_missing_mode_still_delivers_release) {
+	controllable.missing_mode = true;
+	view_for_session().modButtonAction(1, true);
+	LONGS_EQUAL(0, controllable.presses);
+	view_for_session().modButtonAction(1, false);
+	LONGS_EQUAL(1, controllable.releases);
+}
+TEST(KnobIndicator, mod_button_sidebar_context_change_prevents_selection) {
+	auto& view = view_for_session();
+	view.renderedVUMeter = true;
+	on_redraw = [] { currentSong = &replacement_song; };
+	view.modButtonAction(1, true);
+	LONGS_EQUAL(0, controllable.mode);
+	LONGS_EQUAL(0, controllable.presses);
+}
+TEST(KnobIndicator, mod_button_callback_owner_change_stops_followup) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		controllable.on_button = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		view_for_session().modButtonAction(1, true);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, lookup_calls);
+	}
+	controllable.on_button = {};
+}
+TEST(KnobIndicator, mod_button_indicator_change_prevents_led_followup) {
+	int led_calls = 0;
+	on_mod_leds = [&] { ++led_calls; };
+	on_lookup = [] { currentSong = &replacement_song; };
+	view_for_session().modButtonAction(1, true);
+	LONGS_EQUAL(1, controllable.presses);
+	LONGS_EQUAL(0, led_calls);
+}
+TEST(KnobIndicator, mod_button_normal_selection_and_vu_toggle) {
+	auto& view = view_for_session();
+	view.modButtonAction(0, true);
+	CHECK(view.displayVUMeter);
+	view.modButtonAction(1, true);
+	LONGS_EQUAL(1, controllable.mode);
+	LONGS_EQUAL(2, controllable.presses);
+	LONGS_EQUAL(4, lookup_calls);
+}
+
+TEST(KnobIndicator, mod_button_target_changes_stop_followup_on_both_panels) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& view = view_for_session();
+		for (int change = 0; change < 8; ++change) {
+			view = View{};
+			view.activeModControllableModelStack.modControllable = &controllable;
+			currentSong = &song;
+			roots.active() = &root;
+			current_uis.active() = &editor;
+			lookup_calls = 0;
+			controllable.on_button = [&] {
+				switch (change) {
+				case 0:
+					currentSong = &replacement_song;
+					break;
+				case 1:
+					roots.active() = &automation;
+					break;
+				case 2:
+					current_uis.active() = &root;
+					break;
+				case 3:
+					view.activeModControllableModelStack.modControllable = nullptr;
+					break;
+				case 4:
+					view.activeModControllableModelStack.paramManager = &manager;
+					break;
+				case 5:
+					view.activeModControllableModelStack.timeline = &song;
+					break;
+				case 6:
+					++view.modLength;
+					break;
+				case 7:
+					++view.modNoteRowId;
+					break;
+				}
+			};
+			view.modButtonAction(1, true);
+			LONGS_EQUAL(0, lookup_calls);
+		}
+		controllable.on_button = {};
+	}
+}
+TEST(KnobIndicator, mod_button_automation_editor_preserves_arranger_exception) {
+	roots.active() = &automation;
+	automation.automation_editor = true;
+	automation.onArrangerView = false;
+	view_for_session().modButtonAction(0, true);
+	LONGS_EQUAL(0, controllable.presses);
+	automation.onArrangerView = true;
+	view_for_session().modButtonAction(1, true);
+	LONGS_EQUAL(0, controllable.presses);
+	view_for_session().modButtonAction(0, true);
+	LONGS_EQUAL(1, controllable.presses);
 }

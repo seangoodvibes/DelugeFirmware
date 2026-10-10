@@ -1527,7 +1527,24 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	RootUI* rootUI = getRootUI();
+	auto* const source_ui = getCurrentUI();
+	auto* const source_song = currentSong;
+	auto* const source_controllable = activeModControllableModelStack.modControllable;
+	auto* const source_manager = activeModControllableModelStack.paramManager;
+	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
+	const auto source_position = modPos;
+	const auto source_length = modLength;
+	const auto source_note_row = modNoteRowId;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song && getRootUI() == rootUI
+		       && getCurrentUI() == source_ui && activeModControllableModelStack.modControllable == source_controllable
+		       && activeModControllableModelStack.paramManager == source_manager
+		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline
+		       && modPos == source_position && modLength == source_length && modNoteRowId == source_note_row;
+	};
 
 	// ignore modButtonAction when in the Automation View Automation Editor
 	if ((rootUI == &automation_view_for_session()) && automation_view_for_session().inAutomationEditor()) {
@@ -1542,11 +1559,14 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
 			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performance_view_for_session())) {
+				auto* const source_mode = source_controllable->getModKnobMode();
+				if (!context_matches() || !source_mode)
+					return;
 				// only displaying VU meter in session view, arranger view, performance view and arranger automation
 				// view
 				if (!rootUIIsClipMinderScreen()) {
 					// are we pressing the same button that is currently selected
-					if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
+					if (*source_mode == whichButton) {
 						// you just pressed the volume mod button and it was already selected previously
 						// toggle displaying VU Meter on / off
 						if (whichButton == 0) {
@@ -1556,18 +1576,23 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 					// refresh sidebar if VU meter previously rendered is still showing
 					if (renderedVUMeter) {
 						uiNeedsRendering(rootUI, 0); // only render sidebar
+						if (!context_matches())
+							return;
 					}
 				}
 
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
-				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
+				*source_mode = whichButton;
 
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
 
+				if (!context_matches())
+					return;
 				setKnobIndicatorLevels();
-				setModLedStates();
+				if (context_matches())
+					setModLedStates();
 			}
 		}
 		else {

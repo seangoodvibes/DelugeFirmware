@@ -1483,3 +1483,15 @@ callback changes. The replaced-song test failed before the fix. All 35 native
 suites and `./dbt build relwithdebinfo` pass. These checks contain follow-up work;
 they do not retain objects across callbacks or roll back edits already applied.
 Independent mode remains disabled.
+
+### G1 / R4 progress — modulation-button routing completion (2026-10-10)
+
+Modulation-button presses now tolerate controllers without mode storage and stop
+selection/indicator follow-up after sidebar or instrument callbacks change the
+source panel, song, UI, target or region. The panel scope is restored on return.
+Releases still reach controllers without mode storage. Seven extracted-production
+tests cover these boundaries on both owners, normal selection and VU toggling,
+and the arranger automation exception. All 35 native suites and
+`./dbt build relwithdebinfo` pass. The fixtures replace model and hardware services;
+this is not device acceptance or object retention. Changes already applied before
+a callback are not rolled back. Independent mode remains disabled.
