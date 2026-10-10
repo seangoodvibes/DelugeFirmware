@@ -2,6 +2,7 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 
 SoundEditor soundEditor;
 void* currentUI = nullptr;
@@ -170,7 +171,82 @@ void check_menu_kind_context_failures() {
 	remote_sound_editor.currentParamManager = nullptr;
 }
 
+class callback_output : public Output {
+public:
+	std::function<void()> on_lookup;
+	ModelStackWithAutoParam result{};
+	callback_output() { type = OutputType::SYNTH; }
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::SOUND; }
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter*, Clip*, int32_t, params::Kind, bool,
+	                                                bool) override {
+		if (on_lookup)
+			on_lookup();
+		return &result;
+	}
+};
+static void check_midi_follow_lookup_lifetime() {
+	for (int change = 0; change < 7; ++change) {
+		MidiFollow follow;
+		auto clip = std::make_unique<Clip>();
+		callback_output output;
+		clip->output = &output;
+		ModelStackWithTimelineCounter stack{};
+		Song source_song;
+		stack.song = &source_song;
+		output.on_lookup = [&] {
+			switch (change) {
+			case 0:
+				clip.reset();
+				break;
+			case 1:
+				output.lifetime.retire();
+				break;
+			case 2:
+				clip->output = nullptr;
+				break;
+			case 3:
+				deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Remote;
+				break;
+			case 4:
+				clip->~Clip();
+				new (clip.get()) Clip;
+				clip->output = &output;
+				break;
+			case 5:
+				source_song.lifetime.retire();
+				break;
+			case 6:
+				stack.song = nullptr;
+				break;
+			}
+		};
+		expectNull(follow.getModelStackWithParam(&stack, clip.get(), 2, 3, true));
+		check(follow.errors == 0, "Cancelled lookup must not report a parameter error");
+		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
+	}
+	{
+		MidiFollow follow;
+		auto clip = std::make_unique<Clip>();
+		callback_output output;
+		clip->output = &output;
+		ModelStackWithTimelineCounter stack{};
+		follow.on_error = [&] { clip.reset(); };
+		expectNull(follow.getModelStackWithParam(&stack, clip.get(), 2, 3, true));
+		check(follow.errors == 1, "Live unavailable lookup must report once before cancellation");
+	}
+	{
+		MidiFollow follow;
+		Clip clip;
+		callback_output output;
+		clip.output = &output;
+		output.lifetime.retire();
+		ModelStackWithTimelineCounter stack{};
+		expectNull(follow.getModelStackWithParam(&stack, &clip, 2, 3, true));
+		check(follow.errors == 0, "Retired output must not produce a lookup error");
+	}
+}
 int main() {
+	check_midi_follow_lookup_lifetime();
 	check_menu_kind_context_failures();
 	check_remote_lookup_isolation();
 	ModelStackWithAutoParam storage{};

@@ -2,6 +2,8 @@
 #include "gui/ui/ui_session.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_set.h"
+#include "util/lifetime.h"
+#include <functional>
 namespace params = deluge::modulation::params;
 class ModControllable {
 public:
@@ -11,6 +13,8 @@ class TimelineCounter {};
 class Clip;
 class Output : public ModControllable {
 public:
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	virtual ~Output() = default;
 	OutputType type = OutputType::NONE;
 	ModControllable* toModControllable() { return this; }
@@ -21,6 +25,8 @@ public:
 };
 class Clip : public TimelineCounter {
 public:
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	Output* output = nullptr;
 	ParamManagerForTimeline paramManager;
 	int32_t& last_selected_param_id_for_session() {
@@ -122,6 +128,8 @@ public:
 };
 class Song {
 public:
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings*, int32_t);
 };
 namespace deluge::gui::menu_item {
@@ -159,7 +167,12 @@ public:
 class MidiFollow {
 public:
 	int errors = 0;
-	void displayParamControlError(int32_t, int32_t) { ++errors; }
+	std::function<void()> on_error;
+	void displayParamControlError(int32_t, int32_t) {
+		++errors;
+		if (on_error)
+			on_error();
+	}
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter*, Clip*, int32_t, int32_t, bool);
 	ModelStackWithAutoParam* getModelStackWithParamForClip(ModelStackWithTimelineCounter*, Clip*, int32_t, int32_t);
 	ModelStackWithAutoParam* getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter*, Clip*, int32_t,

@@ -1,7 +1,10 @@
+#include "gui/ui/ui_session.h"
 #include "io/midi/midi_follow.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/song/song.h"
+#include "util/lifetime.h"
 
 namespace params = deluge::modulation::params;
 
@@ -10,6 +13,24 @@ constexpr int32_t PARAM_ID_NONE = 255;
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                    int32_t soundParamId, int32_t globalParamId, bool displayError) {
+	auto* const source_song = modelStackWithTimelineCounter ? modelStackWithTimelineCounter->song : nullptr;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return nullptr;
+	auto clip_watch = clip ? clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (clip && !clip_watch.alive())
+		return nullptr;
+	auto* const source_output = clip ? clip->output : nullptr;
+	auto output_watch = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return (!source_song || song_watch.alive())
+		       && (!modelStackWithTimelineCounter || modelStackWithTimelineCounter->song == source_song)
+		       && (!clip || (clip_watch.alive() && clip->output == source_output))
+		       && (!source_output || output_watch.alive()) && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_matches())
+		return nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	// non-null clip means you're dealing with the clip context
@@ -20,11 +41,13 @@ MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWith
 		}
 	}
 
+	if (!context_matches())
+		return nullptr;
 	if (displayError && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
 		displayParamControlError(soundParamId, globalParamId);
 	}
 
-	return modelStackWithParam;
+	return context_matches() ? modelStackWithParam : nullptr;
 }
 
 ModelStackWithAutoParam*

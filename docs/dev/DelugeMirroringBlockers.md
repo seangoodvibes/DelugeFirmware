@@ -3046,3 +3046,12 @@ same-address song replacement during stop, retirement during reassessment and
 missing/retired entry. All 36 suites and the RelWithDebInfo build pass. Other menu
 callbacks and internal note-stop services remain open; independent mode stays
 disabled.
+
+The MIDI-follow parameter-lookup wrapper now validates optional model-stack song,
+clip/output lifetime, output association, stack song identity and UI owner before
+inspecting a lookup result or displaying an error, and again after error display.
+Nine callback/entry scenarios run against the compiled production lookup code in
+both diagnostics configurations, covering retirement, deletion, address reuse,
+retargeting and error-display deletion. All 36 suites and the RelWithDebInfo build
+pass. Parameter storage/layout invalidation inside a still-live owner and deeper
+lookup services remain open; caller ownership is still required at entry.
