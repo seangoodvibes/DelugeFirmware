@@ -2213,17 +2213,36 @@ getOut:
 					return false;
 			}
 
+			auto assigned_drum_lifetime = drum->watch_lifetime();
+			auto assigned_source_lifetime = source->watch_lifetime();
+			const auto assigned_layout = source->ranges.layout_revision();
+			const auto assigned_reversed = source->sampleControls.isCurrentlyReversed();
+			const auto assignment_context_valid = [&] {
+				return context_valid() && assigned_drum_lifetime.alive() && assigned_source_lifetime.alive()
+				       && drum->kit == kit && kit->getDrumIndex(drum) >= 0
+				       && source->ranges.layout_revision() == assigned_layout && source->oscType == OscType::SAMPLE
+				       && source->sampleControls.isCurrentlyReversed() == assigned_reversed && !drum->hasActiveVoices();
+			};
+			deluge::lifetime::callback_validation assignment_validation(assignment_context_valid);
+			if (!assignment_context_valid())
+				return false;
 			AudioFileHolder* holder = range->getAudioFileHolder();
-			if (!holder->setAudioFile(nullptr))
+			if (!holder->setAudioFile(nullptr, false, false, CLUSTER_ENQUEUE, &assignment_validation)
+			    || !assignment_context_valid())
 				return false;
 			holder->filePath.set(&thisSample->filePath);
-			if (!holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true))
+			if (!assignment_context_valid())
+				return false;
+			if (!holder->setAudioFile(thisSample, assigned_reversed, true, CLUSTER_ENQUEUE, &assignment_validation)
+			    || !assignment_context_valid())
 				return false;
 
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
 			String newName;
 			Error error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
+			if (!assignment_context_valid())
+				return false;
 			if (error == Error::NONE) {
 
 				char const* newNameChars = newName.get();
@@ -2235,6 +2254,8 @@ getOut:
 
 				if (kit->getDrumFromName(newName.get())) {
 					error = kit->makeDrumNameUnique(&newName, 2);
+					if (!assignment_context_valid())
+						return false;
 					if (error != Error::NONE) {
 						goto skipNameStuff;
 					}
@@ -2243,6 +2264,8 @@ getOut:
 				drum->drumName = newName.get();
 			}
 skipNameStuff:
+			if (!assignment_context_valid())
+				return false;
 
 			source->repeatMode =
 			    (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;

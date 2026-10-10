@@ -3580,3 +3580,12 @@ Four regressions cover allocation/initialization cancellation and setup/backup
 invalidation. All 38 suites and RelWithDebInfo pass. Registered Drums remain
 Kit-owned on cancellation; this does not roll back partial Kit publication or
 prove lifetime safety inside every called allocation/setup routine.
+
+Kit holder detachment and assignment now carry validation for the current Drum,
+Source, Kit membership, range layout, reversal and active voices. Naming callbacks
+are checked before later Drum/source updates. Six regressions cover retirement,
+actual range-storage replacement, detached later Drums, newly started voices and
+name-allocation/uniqueness cancellation. All 38 suites and RelWithDebInfo pass.
+This protects continuation and holder callbacks; partial sample/Drum publication
+is not rolled back, and lower-level naming/setup routines retain their own audit
+requirements. Independent mode remains disabled.

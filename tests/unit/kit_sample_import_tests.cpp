@@ -24,7 +24,7 @@ bool reserve_success = true;
 bool replace_ranges_on_type_change = false;
 constexpr int CLUSTER_ENQUEUE = 0;
 std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load, on_parameter, on_rows,
-    on_allocate, on_init, on_setup, on_backup;
+    on_allocate, on_init, on_setup, on_backup, on_name, on_unique;
 int audio_calls = 0, directory_closes = 0;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
@@ -55,6 +55,8 @@ struct String {
 	std::string value = "sample.wav";
 	void set(const String* other) { value = other->value; }
 	Error set(const char* text) {
+		if (on_name)
+			on_name();
 		value = text;
 		return Error::NONE;
 	}
@@ -231,8 +233,12 @@ struct Kit : Instrument {
 				return index + 1;
 		return -1;
 	}
-	bool getDrumFromName(const char*) { return false; }
-	Error makeDrumNameUnique(String*, int) { return Error::NONE; }
+	bool getDrumFromName(const char*) { return bool(on_unique); }
+	Error makeDrumNameUnique(String*, int) {
+		if (on_unique)
+			on_unique();
+		return Error::NONE;
+	}
 	void resetDrumTempValues() {}
 };
 Kit* active_kit = nullptr;
@@ -391,7 +397,7 @@ TEST_GROUP(KitSampleImport) {
 		reserve_success = true;
 		replace_ranges_on_type_change = false;
 		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows =
-		    on_allocate = on_init = on_setup = on_backup = {};
+		    on_allocate = on_init = on_setup = on_backup = on_name = on_unique = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
@@ -410,7 +416,7 @@ TEST_GROUP(KitSampleImport) {
 	}
 	void teardown() override {
 		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows =
-		    on_allocate = on_init = on_setup = on_backup = {};
+		    on_allocate = on_init = on_setup = on_backup = on_name = on_unique = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
@@ -899,5 +905,62 @@ TEST(KitSampleImport, kit_parameter_backup_range_change_stops_sample_assignment)
 	CHECK_FALSE(browser.importFolderAsKit());
 	LONGS_EQUAL(1, kit.drums.size());
 	LONGS_EQUAL(2, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+}
+
+TEST(KitSampleImport, kit_holder_detachment_retirement_cancels_before_assignment) {
+	on_assignment = [&] { first_drum.lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, sidechains);
+	LONGS_EQUAL(0, samples[0].numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, kit_holder_assignment_range_replacement_cancels_before_stale_access) {
+	on_assignment = [&] {
+		if (assignment_calls == 1) {
+			MultiRangeArray replacement;
+			replacement.insertMultiRange(0);
+			first_drum.sources[0].ranges.swapStateWith(&replacement);
+			replacement.getElement(0)->~MultiRange();
+		}
+	};
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(1, assignment_calls);
+	LONGS_EQUAL(0, sidechains);
+	LONGS_EQUAL(0, samples[0].numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, kit_later_holder_assignment_detached_drum_cancels_publication) {
+	on_assignment = [&] {
+		if (assignment_calls == 3)
+			kit.drums.back()->kit = nullptr;
+	};
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(3, assignment_calls);
+	LONGS_EQUAL(1, sidechains);
+	LONGS_EQUAL(0, row_assignments);
+	LONGS_EQUAL(1, samples[0].numReasonsToBeLoaded);
+	LONGS_EQUAL(0, samples[1].numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, kit_later_holder_assignment_voice_start_cancels_publication) {
+	on_assignment = [&] {
+		if (assignment_calls == 3)
+			kit.drums.back()->active_voices = true;
+	};
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(3, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+}
+
+TEST(KitSampleImport, kit_name_allocation_context_change_stops_drum_updates) {
+	on_name = [&] { first_drum.lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	CHECK(first_drum.drumName.empty());
+	LONGS_EQUAL(0, row_assignments);
+	LONGS_EQUAL(1, samples[0].numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, kit_unique_name_context_change_stops_drum_updates) {
+	on_unique = [&] { first_drum.kit = nullptr; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	CHECK(first_drum.drumName.empty());
 	LONGS_EQUAL(0, row_assignments);
 }
