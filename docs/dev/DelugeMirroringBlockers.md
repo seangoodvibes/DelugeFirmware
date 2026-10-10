@@ -1796,3 +1796,13 @@ both panels, valid selected/missing-track suppression and the 16-track cap.
 All 35 native suites and `./dbt build relwithdebinfo` pass. Individual delivery
 callbacks and enumeration are fixtures; this does not protect objects inside
 callbacks or roll back events already delivered.
+
+### G1 / R4 progress — selected all-notes-off context boundaries (2026-10-10)
+
+Selected-clip note handling now preserves the source panel and rejects changed
+song/panel context after delivery. All-notes-off checks after each retained note
+instead of continuing the batch in a replacement context. Three tests cover the
+reproduced song-change result, panel changes on both owners and normal 128-note
+release/retention cleanup. All 35 native suites and `./dbt build relwithdebinfo`
+pass. Instrument callbacks remain fixtures, and general retained-object lifetime
+and track-specific all-notes-off safety are not established by this change.

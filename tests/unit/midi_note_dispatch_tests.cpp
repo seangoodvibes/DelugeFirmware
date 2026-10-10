@@ -1,10 +1,12 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui_session.h"
 #include <array>
 #include <climits>
 #include <functional>
 namespace midi_note_dispatch_test {
-enum class MIDIMatchType { CHANNEL };
+namespace session = deluge::gui::ui_session;
+enum class MIDIMatchType { CHANNEL, NO_MATCH };
 struct MIDICable {};
 struct Clip;
 struct ModelStackWithTimelineCounter {};
@@ -56,10 +58,15 @@ static song_fixture song;
 static song_fixture* currentSong = &song;
 static Clip* clipForLastNoteReceived[kMaxMIDIValue + 1]{};
 struct MidiFollow {
+	MIDIMatchType match = MIDIMatchType::CHANNEL;
+	MIDIMatchType checkMidiFollowMatch(MIDICable&, uint8_t) { return match; }
+	Clip* getActiveClip(ModelStack*) { return nullptr; }
+	Output* noteMessageReceivedForSelectedOrActiveClip(MIDICable&, bool, int32_t, int32_t, int32_t, bool*, bool,
+	                                                   ModelStack*);
 	void clearStoredClips();
 	void removeClip(Clip*);
 	Output* sendNoteToClip(MIDICable&, Clip*, MIDIMatchType, bool, int32_t, int32_t, int32_t, bool*, bool, ModelStack*,
-	                       bool);
+	                       bool = true);
 };
 #include "midi_note_dispatch.inc"
 } // namespace midi_note_dispatch_test
@@ -77,6 +84,7 @@ TEST_GROUP(MidiNoteDispatch) {
 	}
 	void setup() override {
 		on_note = {};
+		session::detail::active = session::Id::Local;
 		clip.output = &output;
 		song.active = true;
 		currentSong = &song;
@@ -189,4 +197,38 @@ TEST(MidiNoteDispatch, unrelated_note_off_does_not_clear_newer_target) {
 	clipForLastNoteReceived[60] = &replacement;
 	send(false);
 	POINTERS_EQUAL(&replacement, clipForLastNoteReceived[60]);
+}
+
+TEST(MidiNoteDispatch, all_notes_off_stops_after_song_replacement) {
+	song_fixture replacement;
+	clipForLastNoteReceived[0] = &clip;
+	clipForLastNoteReceived[1] = &clip;
+	on_note = [&] { currentSong = &replacement; };
+	POINTERS_EQUAL(nullptr, follow.noteMessageReceivedForSelectedOrActiveClip(cable, false, 0, ALL_NOTES_OFF, 0, &thru,
+	                                                                          false, &stack));
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, all_notes_off_clears_retained_notes_in_normal_context) {
+	for (auto& target : clipForLastNoteReceived)
+		target = &clip;
+	POINTERS_EQUAL(&output, follow.noteMessageReceivedForSelectedOrActiveClip(cable, false, 0, ALL_NOTES_OFF, 0, &thru,
+	                                                                          false, &stack));
+	LONGS_EQUAL(128, sends);
+	for (auto target : clipForLastNoteReceived)
+		POINTERS_EQUAL(nullptr, target);
+}
+TEST(MidiNoteDispatch, all_notes_off_owner_change_stops_and_restores_panel) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		sends = 0;
+		for (auto& target : clipForLastNoteReceived)
+			target = &clip;
+		on_note = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		POINTERS_EQUAL(nullptr, follow.noteMessageReceivedForSelectedOrActiveClip(cable, false, 0, ALL_NOTES_OFF, 0,
+		                                                                          &thru, false, &stack));
+		LONGS_EQUAL(1, sends);
+		CHECK(session::current() == owner);
+	}
 }

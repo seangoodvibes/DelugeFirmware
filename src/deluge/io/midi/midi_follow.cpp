@@ -669,6 +669,15 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 Output* MidiFollow::noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable, bool on, int32_t channel, int32_t note,
                                                                int32_t velocity, bool* doingMidiThru,
                                                                bool shouldRecordNotesNowNow, ModelStack* modelStack) {
+	if (!currentSong || !modelStack)
+		return nullptr;
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
+	};
+
 	Output* selected_track = nullptr;
 
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
@@ -694,10 +703,12 @@ Output* MidiFollow::noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable,
 					selected_track = sendNoteToClip(cable, clipForLastNoteReceived[i], match, on, channel, i, velocity,
 					                                doingMidiThru, shouldRecordNotesNowNow, modelStack);
 				}
+				if (!context_matches())
+					return nullptr;
 			}
 		}
 	}
-	return selected_track;
+	return context_matches() ? selected_track : nullptr;
 }
 
 /// determines whether a midi note received is midi follow relevant
