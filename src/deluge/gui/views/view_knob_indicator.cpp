@@ -59,21 +59,36 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	if (!context_matches() || !modelStackWithParam)
 		return;
 
+	auto* const source_collection = modelStackWithParam->paramCollection;
+	auto* const source_param = modelStackWithParam->autoParam;
+	auto* const source_parameter_controllable = modelStackWithParam->modControllable;
+	const auto source_param_id = modelStackWithParam->paramId;
+	const auto parameter_matches = [&] {
+		return context_matches() && modelStackWithParam->paramCollection == source_collection
+		       && modelStackWithParam->autoParam == source_param && modelStackWithParam->paramId == source_param_id
+		       && modelStackWithParam->modControllable == source_parameter_controllable;
+	};
+
 	int32_t knobPos = 0; // An unavailable plain parameter leaves the indicator off.
 	bool isBipolar = false;
 
-	if (modelStackWithParam->paramCollection
-	    && (modelStackWithParam->autoParam
-	        || modelStackWithParam->paramCollection->has_current_value(modelStackWithParam->paramId))) {
+	const bool has_value = source_collection && (source_param || source_collection->has_current_value(source_param_id));
+	if (!parameter_matches())
+		return;
+	if (has_value) {
 		int32_t value = modelStackWithParam->autoParam
 		                    ? modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam)
 		                    : modelStackWithParam->paramCollection->get_current_value(modelStackWithParam->paramId);
-		if (!context_matches())
+		if (!parameter_matches())
 			return;
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
+		if (!parameter_matches())
+			return;
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
 		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+		if (!parameter_matches())
+			return;
 		int32_t lowerLimit;
 
 		if (kind == params::Kind::PATCH_CABLE) {
@@ -125,7 +140,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		}
 	}
 
-	if (context_matches())
+	if (parameter_matches())
 		indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos, isBipolar);
 }
 

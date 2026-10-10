@@ -14,6 +14,8 @@ namespace params {
 enum class Kind { NORMAL, PATCH_CABLE };
 }
 static std::function<void()> on_lookup, on_value, on_grab, on_mod_leds, on_redraw, on_resolve, on_activate;
+static std::function<void()> on_has_value, on_current_value, on_kind, on_conversion;
+static int conversion_calls = 0;
 constexpr int NUM_LEVEL_INDICATORS = 2;
 static int lookup_calls = 0;
 struct root_fixture {
@@ -37,10 +39,27 @@ struct ParamCollection {
 	bool has_value = false;
 	int32_t value = 0;
 	params::Kind kind = params::Kind::NORMAL;
-	bool has_current_value(int32_t) { return has_value; }
-	int32_t get_current_value(int32_t) { return value; }
-	params::Kind getParamKind() { return kind; }
-	int32_t paramValueToKnobPos(int32_t value, ModelStackWithAutoParam*) { return value; }
+	bool has_current_value(int32_t) {
+		if (on_has_value)
+			on_has_value();
+		return has_value;
+	}
+	int32_t get_current_value(int32_t) {
+		if (on_current_value)
+			on_current_value();
+		return value;
+	}
+	params::Kind getParamKind() {
+		if (on_kind)
+			on_kind();
+		return kind;
+	}
+	int32_t paramValueToKnobPos(int32_t value, ModelStackWithAutoParam*) {
+		++conversion_calls;
+		if (on_conversion)
+			on_conversion();
+		return value;
+	}
 };
 struct AutoParam {
 	int32_t value = 0;
@@ -213,6 +232,8 @@ TEST_GROUP(KnobIndicator) {
 		roots.for_owner(session::Id::Remote) = &root;
 		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = on_resolve = on_activate = {};
 		redraw_calls = 0;
+		on_has_value = on_current_value = on_kind = on_conversion = {};
+		conversion_calls = 0;
 		currentSong = &song;
 		playbackHandler.active = false;
 		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
@@ -226,6 +247,8 @@ TEST_GROUP(KnobIndicator) {
 	void teardown() override {
 		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = on_resolve = on_activate = {};
 		redraw_calls = 0;
+		on_has_value = on_current_value = on_kind = on_conversion = {};
+		conversion_calls = 0;
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -587,4 +610,52 @@ TEST(KnobIndicator, timeline_null_resolution_clears_target_without_dereference) 
 	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.modControllable);
 	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.paramManager);
 	LONGS_EQUAL(1, indicator_leds::clears.active());
+}
+
+TEST(KnobIndicator, parameter_mapping_changes_cancel_value_pipeline) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int phase = 0; phase < 5; ++phase) {
+			stack.paramCollection = &collection;
+			stack.autoParam = phase == 2 ? &param : nullptr;
+			stack.paramId = 10;
+			collection.has_value = true;
+			conversion_calls = 0;
+			on_has_value = on_current_value = on_value = on_kind = on_conversion = {};
+			auto replace_mapping = [&] { stack.paramId = 11; };
+			if (phase == 0)
+				on_has_value = replace_mapping;
+			if (phase == 1)
+				on_current_value = replace_mapping;
+			if (phase == 2)
+				on_value = replace_mapping;
+			if (phase == 3)
+				on_kind = replace_mapping;
+			if (phase == 4)
+				on_conversion = replace_mapping;
+			view_for_session().setKnobIndicatorLevel(0);
+			LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+			LONGS_EQUAL(phase == 4 ? 1 : 0, conversion_calls);
+		}
+	}
+}
+TEST(KnobIndicator, value_callback_cannot_mix_collections_or_auto_parameters) {
+	ParamCollection replacement_collection;
+	AutoParam replacement_param;
+	for (int scenario = 0; scenario < 3; ++scenario) {
+		stack.paramCollection = &collection;
+		stack.autoParam = &param;
+		stack.modControllable = &controllable;
+		on_value = [&] {
+			if (scenario == 0)
+				stack.paramCollection = &replacement_collection;
+			if (scenario == 1)
+				stack.autoParam = &replacement_param;
+			if (scenario == 2)
+				stack.modControllable = nullptr;
+		};
+		view_for_session().setKnobIndicatorLevel(0);
+		LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+		LONGS_EQUAL(0, conversion_calls);
+	}
 }

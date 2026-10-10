@@ -1447,3 +1447,16 @@ side effects are not provided by these guards.
   generally be distinguished from its intended result here. Callback-internal
   lifetime and rollback remain open; G1/L1 remain open and independent mode stays
   disabled.
+
+### G1 progress — knob parameter mapping consistency (2026-10-10)
+
+- Knob rendering checks the returned parameter collection, auto-parameter, ID and
+  controllable across availability, value, kind and conversion calls. An update
+  does not mix an old value with a newly installed mapping or emit stale output.
+- Two extracted-renderer tests cover five stages on both owners and replacement
+  collection/parameter/controllable pointers. The mapping regression emitted an
+  indicator update before the fix. All 35 native suites and
+  `./dbt build relwithdebinfo` pass.
+- Model-stack/parameter lifetime inside callbacks is still unprotected; equality
+  checks are not pins and do not detect address reuse. G1/L1 remain open and
+  independent mode stays disabled.
