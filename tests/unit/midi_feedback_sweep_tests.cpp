@@ -75,8 +75,12 @@ static Clip* current_clip = &clip;
 static Clip* getCurrentClip() {
 	return current_clip;
 }
-static int song;
-static int* currentSong = &song;
+struct song_fixture {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
+};
+static song_fixture song;
+static song_fixture* currentSong = &song;
 struct ModelStackWithTimelineCounter {
 	TimelineCounter* timeline = &clip;
 	bool timelineCounterIsSet() { return timeline != nullptr; }
@@ -92,7 +96,7 @@ struct ModelStack {
 };
 constexpr size_t MODEL_STACK_MAX_SIZE = sizeof(ModelStack);
 static ModelStack stack;
-static ModelStack* setupModelStackWithSong(char*, int*) {
+static ModelStack* setupModelStackWithSong(char*, song_fixture*) {
 	return &stack;
 }
 struct view_fixture {
@@ -501,4 +505,64 @@ TEST(MidiFeedbackSweep, retired_output_never_reaches_parameter_services) {
 	follow.handleReceivedCC(cable, stack.timeline, &target, 7, 64);
 	LONGS_EQUAL(0, follow.lookups);
 	LONGS_EQUAL(0, clone_calls);
+}
+
+TEST(MidiFeedbackSweep, feedback_song_reuse_after_send_cancels_remaining_parameters) {
+	follow.on_send = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	LONGS_EQUAL(1, follow.sends);
+	LONGS_EQUAL(1, follow.lookups);
+}
+TEST(MidiFeedbackSweep, feedback_song_retirement_during_lookup_prevents_send) {
+	song_fixture retiring_song;
+	currentSong = &retiring_song;
+	follow.on_lookup = [&] { retiring_song.lifetime.retire(); };
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	LONGS_EQUAL(1, follow.lookups);
+	LONGS_EQUAL(0, follow.sends);
+	currentSong = &song;
+}
+TEST(MidiFeedbackSweep, incoming_cc_song_reuse_during_clone_prevents_lookup) {
+	on_clone = [](ModelStackWithTimelineCounter*) {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	receive();
+	LONGS_EQUAL(1, clone_calls);
+	LONGS_EQUAL(0, follow.lookups);
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, incoming_cc_song_retirement_during_lookup_prevents_write) {
+	song_fixture retiring_song;
+	currentSong = &retiring_song;
+	follow.on_lookup = [&] { retiring_song.lifetime.retire(); };
+	receive();
+	LONGS_EQUAL(1, follow.lookups);
+	LONGS_EQUAL(0, follow.parameter.writes);
+	currentSong = &song;
+}
+TEST(MidiFeedbackSweep, incoming_cc_song_reuse_during_write_suppresses_popup) {
+	midiEngine.midiFollowDisplayParam = true;
+	follow.parameter.on_write = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	receive();
+	LONGS_EQUAL(1, follow.parameter.writes);
+	LONGS_EQUAL(0, view_for_session().popup_calls);
+}
+TEST(MidiFeedbackSweep, retired_song_rejects_feedback_and_incoming_cc) {
+	song_fixture retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	follow.sendCCWithoutModelStackForMidiFollowFeedback(false);
+	receive();
+	LONGS_EQUAL(0, clone_calls);
+	LONGS_EQUAL(0, follow.lookups);
+	LONGS_EQUAL(0, follow.sends);
+	LONGS_EQUAL(0, follow.parameter.writes);
+	currentSong = &song;
 }

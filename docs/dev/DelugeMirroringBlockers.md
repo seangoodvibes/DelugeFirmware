@@ -3001,3 +3001,10 @@ note releases or CC activation/delivery. All 36 suites and the RelWithDebInfo bu
 pass. Parameter/feedback internals, expression activation and other acquisition
 paths remain to audit; completed deliveries are retained. Independent mode remains
 disabled.
+
+MIDI-follow parameter input and feedback sweeps now include song lifetime in their
+existing callback predicates. Six regressions cover retirement/reuse during clone,
+lookup, write and feedback delivery plus retired entry. All 36 suites and the
+RelWithDebInfo build pass. Replacement-clip acquisition still needs registry
+validation before acquiring a watch; lower parameter internals and partial-write
+recovery remain open. Independent mode remains disabled.

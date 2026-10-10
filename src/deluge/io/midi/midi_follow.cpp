@@ -1157,11 +1157,14 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 		return;
 	}
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_current_clip = getCurrentClip();
 	const auto context_matches = [&] {
-		return source_clip_lifetime.alive() && (!source_output || source_output_lifetime.alive())
+		return song_watch.alive() && source_clip_lifetime.alive() && (!source_output || source_output_lifetime.alive())
 		       && source_clip->output == source_output && currentSong == source_song
 		       && deluge::gui::ui_session::current() == source_owner && getCurrentClip() == source_current_clip;
 	};
@@ -1418,11 +1421,14 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 	if (!currentSong)
 		return;
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_current_clip = getCurrentClip();
 	const auto context_matches = [&] {
-		return currentSong == source_song && deluge::gui::ui_session::current() == source_owner
+		return song_watch.alive() && currentSong == source_song && deluge::gui::ui_session::current() == source_owner
 		       && getCurrentClip() == source_current_clip;
 	};
 
