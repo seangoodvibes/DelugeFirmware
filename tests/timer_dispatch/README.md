@@ -32,3 +32,7 @@ Owner-change fault injection checks dispatch stops at the callback boundary,
 restores the caller, rejects retries despite matching UI pointers, and preserves a
 peer graphics deadline. It establishes containment of an unbalanced owner change,
 not that ordinary scoped callbacks leak ownership or that their internals are safe.
+
+A takeover-during-input case verifies later timers remain pending, the next client
+pass services only the OLED handshake, and ordinary timers resume after client
+mode ends. The transition is injected; USB negotiation remains in MirrorRuntimeTests.

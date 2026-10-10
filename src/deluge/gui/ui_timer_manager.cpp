@@ -79,8 +79,9 @@ void UITimerManager::routine() {
 	}
 
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
-		// A callback must return to its initiating panel before further dispatch.
-		if (deluge::gui::ui_session::current() != owner)
+		// A callback may start client takeover or leave its initiating panel.
+		// Preserve later timers for resume; the next pass services the OLED handshake.
+		if (deluge::hid::mirror::is_client() || deluge::gui::ui_session::current() != owner)
 			break;
 		// Remote callbacks may close navigation before later timers in this pass.
 		// Leave those timers pending for teardown or a valid subsequent service.

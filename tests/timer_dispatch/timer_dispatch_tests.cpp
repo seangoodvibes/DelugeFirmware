@@ -14,7 +14,7 @@ int uartGetTxBufferSpace(int) {
 	return 1000;
 }
 std::function<ActionResult()> on_timer, on_exit;
-std::function<void()> on_graphics;
+std::function<void()> on_graphics, on_input;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
 int root_note_calls = 0;
 struct UI {
@@ -120,6 +120,8 @@ void sendDisplayIfChanged() {
 } // namespace HIDSysex
 void inputRoutine() {
 	++hardware_calls;
+	if (on_input)
+		on_input();
 }
 void batteryLEDBlink() {
 	++hardware_calls;
@@ -138,13 +140,13 @@ TEST_GROUP(TimerDispatch) {
 		current_uis.for_owner(session::Id::Remote) = &ui;
 		console_calls = graphics_calls = exit_calls = hardware_calls = 0;
 		on_timer = on_exit = {};
-		on_graphics = {};
+		on_graphics = on_input = {};
 		deluge::hid::mirror::client = false;
 		AudioEngine::audioSampleTimer = 1000;
 	}
 	void teardown() override {
 		on_timer = on_exit = {};
-		on_graphics = {};
+		on_graphics = on_input = {};
 		session::detail::active = session::Id::Local;
 	}
 	void due(TimerName name) {
@@ -446,6 +448,33 @@ TEST(TimerDispatch, graphics_owner_change_does_not_schedule_peer_timer) {
 		session::Scope peer_scope(peer);
 		LONGS_EQUAL(1070, timers.getTimer(TimerName::GRAPHICS_ROUTINE).triggerTime);
 	}
+}
+TEST(TimerDispatch, client_takeover_during_input_defers_remaining_timers) {
+	due(TimerName::READ_INPUTS);
+	due(TimerName::BATT_LED_BLINK);
+	due(TimerName::GRAPHICS_ROUTINE);
+	due(TimerName::OLED_LOW_LEVEL);
+	due(TimerName::OLED_CONSOLE);
+	on_input = [] { deluge::hid::mirror::client = true; };
+	manager.routine();
+	LONGS_EQUAL(1, hardware_calls);
+	LONGS_EQUAL(0, graphics_calls);
+	LONGS_EQUAL(0, console_calls);
+	CHECK(manager.isTimerSet(TimerName::BATT_LED_BLINK));
+	CHECK(manager.isTimerSet(TimerName::GRAPHICS_ROUTINE));
+	CHECK(manager.isTimerSet(TimerName::OLED_LOW_LEVEL));
+	CHECK(manager.isTimerSet(TimerName::OLED_CONSOLE));
+	LONGS_EQUAL(999, manager.getTimer(TimerName::GRAPHICS_ROUTINE).triggerTime);
+	manager.routine();
+	LONGS_EQUAL(2, hardware_calls);
+	LONGS_EQUAL(0, graphics_calls);
+	LONGS_EQUAL(0, console_calls);
+	CHECK_FALSE(manager.isTimerSet(TimerName::OLED_LOW_LEVEL));
+	deluge::hid::mirror::client = false;
+	manager.routine();
+	LONGS_EQUAL(3, hardware_calls);
+	LONGS_EQUAL(1, graphics_calls);
+	LONGS_EQUAL(1, console_calls);
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

@@ -690,3 +690,16 @@ side effects are not provided by these guards.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. Individual
   callback internals and end-to-end routing remain open; independent mode stays
   disabled.
+
+### G1 progress — client takeover inside a timer pass (2026-10-09)
+
+- Dispatch rechecks client mode before each timer, so takeover during a callback
+  suspends the remaining timers immediately at the next callback boundary. Their
+  deadlines remain pending; subsequent client passes retain the OLED handshake
+  exception and ordinary service resumes after leaving client mode.
+- A production-dispatch regression failed before the fix, with battery and OLED
+  callbacks still running after the injected input callback entered client mode.
+  It now checks pending deadlines, suppressed graphics/console, handshake service
+  and resumption. This fixture injects the transition rather than USB negotiation.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
+  open and independent mode stays disabled.
