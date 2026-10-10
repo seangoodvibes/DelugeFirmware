@@ -13,7 +13,9 @@ enum class OscType { SAMPLE, WAVETABLE, SQUARE };
 enum class AlternateLoadDirStatus { NONE_SET, MIGHT_EXIST };
 constexpr int kNumSources = 2, CLUSTER_ENQUEUE = 1;
 int loads = 0, publications = 0, yields = 0, finishes = 0;
-std::function<void()> on_audio, on_abort, on_load, on_setup;
+std::function<void()> on_audio, on_abort, on_load, on_setup, on_claim, on_detach;
+int claims = 0, detachments = 0;
+bool claim_result = true;
 Error file_error = Error::NONE;
 bool abort_requested = false;
 struct Lifetime {
@@ -22,7 +24,30 @@ struct Lifetime {
 };
 struct Song : Lifetime {};
 Song* currentSong = nullptr;
+struct Sample {
+	uint64_t lengthInSamples = 100;
+} sample;
 struct Holder {
+	Sample* audioFile = &sample;
+	uint64_t endPos = 200;
+	bool claimClusterReasons(bool, int, const callback_validation* validation) {
+		++claims;
+		if (on_claim)
+			on_claim();
+		if (!validation->valid())
+			return false;
+		++publications;
+		return claim_result;
+	}
+	bool setAudioFile(Sample* file, bool, bool, int, const callback_validation* validation) {
+		if (on_detach)
+			on_detach();
+		if (!validation->valid())
+			return false;
+		audioFile = file;
+		++detachments;
+		return true;
+	}
 	Error loadFile(bool, bool, bool, int, void*, bool, const callback_validation* validation) {
 		++loads;
 		if (on_load)
@@ -33,6 +58,7 @@ struct Holder {
 		return file_error;
 	}
 };
+using SampleHolder = Holder;
 struct Range {
 	Holder holder;
 	Holder* getAudioFileHolder() { return &holder; }
@@ -40,8 +66,8 @@ struct Range {
 struct Source : Lifetime {
 	OscType oscType = OscType::SAMPLE;
 	struct {
-		bool reversed = false;
-		bool isCurrentlyReversed() { return reversed; }
+		bool reversed = false, invertReversed = false;
+		bool isCurrentlyReversed() { return invertReversed ? !reversed : reversed; }
 	} sampleControls;
 	struct {
 		std::vector<Range*> entries;
@@ -49,10 +75,13 @@ struct Source : Lifetime {
 		Range* getElement(int32_t index) { return entries.at(index); }
 	} ranges;
 	Error loadAllSamples(bool, const callback_validation* = nullptr);
+	bool detachAllAudioFiles();
+	void setReversed(bool);
 };
 struct Sound {
 	Source sources[kNumSources];
 	Error loadAllAudioFiles(bool, const callback_validation* = nullptr);
+	void detachSourcesFromAudioFiles();
 };
 struct {
 	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
@@ -99,8 +128,10 @@ void routineWithClusterLoading() {
 } // namespace AudioEngine
 #include "sound_drum_sample_loading.inc"
 #include "sound_instrument_sample_loading.inc"
+#include "sound_sample_detachment.inc"
 #include "sound_sample_loading.inc"
 #include "source_sample_loading.inc"
+#include "source_sample_operations.inc"
 } // namespace source_sample_loading_test
 using namespace source_sample_loading_test;
 TEST_GROUP(SourceSampleLoading) {
@@ -112,14 +143,15 @@ TEST_GROUP(SourceSampleLoading) {
 		session::detail::active = session::Id::Local;
 		instrument.sources[0].ranges.entries = {&first};
 		instrument.sources[1].ranges.entries = {&second};
-		on_audio = on_abort = on_load = on_setup = {};
-		loads = publications = yields = finishes = 0;
+		on_audio = on_abort = on_load = on_setup = on_claim = on_detach = {};
+		loads = publications = yields = finishes = claims = detachments = 0;
+		claim_result = true;
 		file_error = Error::NONE;
 		abort_requested = false;
 		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	}
 	void teardown() override {
-		on_audio = on_abort = on_load = on_setup = {};
+		on_audio = on_abort = on_load = on_setup = on_claim = on_detach = {};
 		currentSong = nullptr;
 		session::detail::active = session::Id::Local;
 	}
@@ -288,4 +320,103 @@ TEST(SourceSampleLoading, direct_source_loading_rejects_same_address_replacement
 	source->~Source();
 	CHECK(error == Error::ABORTED_BY_USER);
 	LONGS_EQUAL(0, loads);
+}
+
+TEST(SourceSampleLoading, detach_cancels_after_source_destruction_during_audio_service) {
+	auto source = std::make_unique<Source>();
+	source->ranges.entries = {&first};
+	on_audio = [&] { source.reset(); };
+	CHECK_FALSE(source->detachAllAudioFiles());
+	LONGS_EQUAL(0, detachments);
+}
+TEST(SourceSampleLoading, detach_cancels_after_range_replacement) {
+	on_audio = [&] { instrument.sources[0].ranges.entries[0] = &second; };
+	CHECK_FALSE(instrument.sources[0].detachAllAudioFiles());
+	LONGS_EQUAL(0, detachments);
+}
+TEST(SourceSampleLoading, detachment_cancellation_stops_later_sound_sources) {
+	auto owner = std::make_unique<SoundInstrument>();
+	owner->sources[0].ranges.entries = {&first};
+	owner->sources[1].ranges.entries = {&second};
+	on_audio = [&] { owner.reset(); };
+	owner->detachSourcesFromAudioFiles();
+	LONGS_EQUAL(1, yields);
+	LONGS_EQUAL(0, detachments);
+}
+TEST(SourceSampleLoading, normal_detachment_preserves_cadence_and_clears_all_files) {
+	instrument.sources[0].ranges.entries = {&first, &first, &first, &first, &first, &first, &first, &first, &second};
+	CHECK(instrument.sources[0].detachAllAudioFiles());
+	LONGS_EQUAL(9, detachments);
+	LONGS_EQUAL(2, yields);
+	POINTERS_EQUAL(nullptr, first.holder.audioFile);
+	POINTERS_EQUAL(nullptr, second.holder.audioFile);
+}
+TEST(SourceSampleLoading, reverse_rejects_destroyed_source_before_cluster_publication) {
+	auto source = std::make_unique<Source>();
+	source->ranges.entries = {&first};
+	on_claim = [&] { source.reset(); };
+	source->setReversed(true);
+	LONGS_EQUAL(1, claims);
+	LONGS_EQUAL(0, publications);
+}
+TEST(SourceSampleLoading, reverse_rejects_nested_direction_change) {
+	instrument.sources[0].ranges.entries = {&first, &second};
+	on_claim = [&] { instrument.sources[0].sampleControls.reversed = false; };
+	instrument.sources[0].setReversed(true);
+	LONGS_EQUAL(1, claims);
+	LONGS_EQUAL(0, publications);
+	CHECK_FALSE(instrument.sources[0].sampleControls.reversed);
+	LONGS_EQUAL(200, second.holder.endPos);
+}
+TEST(SourceSampleLoading, reverse_honors_cluster_cancellation_with_live_owner) {
+	instrument.sources[0].ranges.entries = {&first, &second};
+	claim_result = false;
+	instrument.sources[0].setReversed(true);
+	LONGS_EQUAL(1, claims);
+	LONGS_EQUAL(200, second.holder.endPos);
+}
+TEST(SourceSampleLoading, reverse_normal_path_clamps_end_and_skips_empty_holders) {
+	instrument.sources[0].ranges.entries = {&first, &second};
+	second.holder.audioFile = nullptr;
+	instrument.sources[0].setReversed(true);
+	LONGS_EQUAL(1, claims);
+	LONGS_EQUAL(1, publications);
+	LONGS_EQUAL(100, first.holder.endPos);
+	LONGS_EQUAL(200, second.holder.endPos);
+}
+TEST(SourceSampleLoading, changed_panel_cancels_reverse_and_restores_owner) {
+	on_claim = [&] { session::detail::active = session::Id::Remote; };
+	instrument.sources[0].setReversed(true);
+	LONGS_EQUAL(0, publications);
+	CHECK(session::current() == session::Id::Local);
+}
+TEST(SourceSampleLoading, retired_source_does_not_detach_or_reverse) {
+	instrument.sources[0].lifetime.retire();
+	CHECK_FALSE(instrument.sources[0].detachAllAudioFiles());
+	instrument.sources[0].setReversed(true);
+	CHECK_FALSE(instrument.sources[0].sampleControls.reversed);
+	LONGS_EQUAL(0, yields);
+	LONGS_EQUAL(0, claims);
+}
+
+TEST(SourceSampleLoading, changed_inversion_cancels_reverse_publication) {
+	on_claim = [&] { instrument.sources[0].sampleControls.invertReversed = true; };
+	instrument.sources[0].setReversed(true);
+	LONGS_EQUAL(1, claims);
+	LONGS_EQUAL(0, publications);
+}
+TEST(SourceSampleLoading, effective_reverse_direction_controls_end_clamping) {
+	instrument.sources[0].setReversed(false);
+	LONGS_EQUAL(200, first.holder.endPos);
+	instrument.sources[0].sampleControls.invertReversed = true;
+	instrument.sources[0].setReversed(false);
+	LONGS_EQUAL(100, first.holder.endPos);
+	LONGS_EQUAL(2, claims);
+}
+TEST(SourceSampleLoading, holder_detachment_cancellation_stops_later_sources) {
+	on_detach = [&] { instrument.sources[0].ranges.entries.clear(); };
+	instrument.detachSourcesFromAudioFiles();
+	LONGS_EQUAL(0, detachments);
+	LONGS_EQUAL(1, yields);
+	POINTERS_EQUAL(&sample, second.holder.audioFile);
 }

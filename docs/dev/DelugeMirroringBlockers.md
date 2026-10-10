@@ -3307,3 +3307,13 @@ failed against the previous method. All 38 suites and RelWithDebInfo pass. This
 protects caller continuation; inner allocation/conversion helpers and recovery of
 already-published type/range changes still require their own contracts. Independent
 mode remains disabled.
+
+Source reversal and sample detachment now watch Source/panel/range context across
+callbacks. Reversal supplies validation to cluster acquisition and honors cancellation;
+detachment returns cancellation to Sound so it cannot continue into another Source
+after its owner disappears. Thirteen added sanitizer regressions cover actual owner
+destruction, changed ranges/direction/inversion/panel, retired entry, cancellation
+propagation, normal end-marker clamping and audio-service cadence. All 38 suites and
+RelWithDebInfo pass. Prior completed detachments, direction changes and marker clamps
+are not rolled back. Range identity at reused addresses and the earlier hibernation
+callbacks remain separate concerns. Independent mode stays disabled.

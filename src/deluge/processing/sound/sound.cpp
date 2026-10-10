@@ -4913,7 +4913,8 @@ void Sound::wontBeRenderedForAWhile() {
 
 void Sound::detachSourcesFromAudioFiles() {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].detachAllAudioFiles();
+		if (!sources[s].detachAllAudioFiles())
+			return;
 	}
 }
 

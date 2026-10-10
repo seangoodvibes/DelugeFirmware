@@ -60,7 +60,7 @@ public:
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
-	void detachAllAudioFiles();
+	bool detachAllAudioFiles();
 	Error loadAllSamples(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation = nullptr);
 	void setReversed(bool newReversed);
 	int32_t getRangeIndex(int32_t note);

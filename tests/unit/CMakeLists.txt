@@ -1245,3 +1245,13 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_type_change.inc
         ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_type_change.inc Source::setOscType
     DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE source_type_change_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/source_type_change.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_sample_operations.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_sample_operations.inc Source::detachAllAudioFiles Source::setReversed
+    DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_detachment.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_detachment.inc Sound::detachSourcesFromAudioFiles
+    DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/source_sample_operations.inc ${CMAKE_CURRENT_BINARY_DIR}/sound_sample_detachment.inc)

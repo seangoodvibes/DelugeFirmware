@@ -104,13 +104,31 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 	       || (oscType == OscType::INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
 
-void Source::detachAllAudioFiles() {
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		if (!(e & 7)) { // 7 works, 15 occasionally drops voices - for multisampled synths
+bool Source::detachAllAudioFiles() {
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive())
+		return false;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto source_type = oscType;
+	const auto range_count = ranges.getNumElements();
+	for (int32_t index = 0; index < range_count; ++index) {
+		auto* range = ranges.getElement(index);
+		const auto context_valid = [&] {
+			return source_lifetime.alive() && oscType == source_type
+			       && deluge::gui::ui_session::current() == source_owner && ranges.getNumElements() == range_count
+			       && ranges.getElement(index) == range;
+		};
+		if (!(index & 7)) // Preserve audio servicing for multisampled sounds.
 			AudioEngine::routineWithClusterLoading();
-		}
-		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(nullptr);
+		if (!context_valid())
+			return false;
+		deluge::lifetime::callback_validation validation(context_valid);
+		if (!range->getAudioFileHolder()->setAudioFile(nullptr, false, false, CLUSTER_ENQUEUE, &validation)
+		    || !context_valid())
+			return false;
 	}
+	return true;
 }
 
 Error Source::loadAllSamples(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation) {
@@ -148,16 +166,31 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles, const deluge::lifetime::
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	sampleControls.reversed = newReversed;
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
-		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
-		Sample* sample = (Sample*)holder->audioFile;
+	const auto reversed = sampleControls.isCurrentlyReversed();
+	const auto source_type = oscType;
+	const auto range_count = ranges.getNumElements();
+	for (int32_t index = 0; index < range_count; ++index) {
+		auto* range = ranges.getElement(index);
+		const auto context_valid = [&] {
+			return source_lifetime.alive() && oscType == source_type && sampleControls.reversed == newReversed
+			       && sampleControls.isCurrentlyReversed() == reversed
+			       && deluge::gui::ui_session::current() == source_owner && ranges.getNumElements() == range_count
+			       && ranges.getElement(index) == range;
+		};
+		auto* holder = static_cast<SampleHolder*>(range->getAudioFileHolder());
+		auto* sample = static_cast<Sample*>(holder->audioFile);
 		if (sample) {
-			if (sampleControls.isCurrentlyReversed() && holder->endPos > sample->lengthInSamples) {
+			if (reversed && holder->endPos > sample->lengthInSamples)
 				holder->endPos = sample->lengthInSamples;
-			}
-			holder->claimClusterReasons(sampleControls.isCurrentlyReversed());
+			deluge::lifetime::callback_validation validation(context_valid);
+			if (!holder->claimClusterReasons(reversed, CLUSTER_ENQUEUE, &validation) || !context_valid())
+				return;
 		}
 	}
 }
