@@ -3,13 +3,21 @@
 #include "modulation/params/param.h"
 #include <array>
 #include <climits>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 namespace midi_feedback_mapping_test {
 constexpr int param_id_none = 255;
+constexpr int PARAM_ID_NONE = param_id_none;
+static void intToString(int value, char* buffer) {
+	std::snprintf(buffer, 10, "%d", value);
+}
 namespace params {
 using namespace deluge::modulation::params;
 static char const* paramNameForFile(Kind kind, int id, bool) {
+	if ((kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL) && id == UNPATCHED_START + 2)
+		return "shared";
 	if (kind == Kind::PATCHED && id == 1)
 		return "patched";
 	if (kind == Kind::UNPATCHED_SOUND && id == UNPATCHED_START + 1)
@@ -38,6 +46,7 @@ struct Serializer {
 	void writeOpeningTagEnd() {}
 	void writeClosingTag(char const*) {}
 	void writeTag(char const* tag, int value) { entries.emplace_back(tag, value); }
+	void writeTag(char const* tag, char const* value) { entries.emplace_back(tag, std::atoi(value)); }
 };
 struct cable_fixture {
 	void writeReferenceToFile(Serializer&, char const*) {}
@@ -57,6 +66,7 @@ static cable_fixture* readDeviceReferenceFromFile(Deserializer&) {
 } // namespace MIDIDeviceManager
 struct MidiFollow {
 	bool global_context = false;
+	void writeDefaultMappingsToFile(Serializer&);
 	char const* getNameFromChannelType(MIDIFollowChannelType) { return "a"; }
 	void writeSpecificChannelSettingsToFile(Serializer&, MIDIFollowChannelType);
 	std::array<uint8_t, kMaxMIDIValue + 1> ccToSoundParam, ccToGlobalParam;
@@ -198,4 +208,45 @@ TEST(MidiFeedbackMapping, legacy_unassigned_channel_value_clears_previous_select
 	reader.entries = {{"channel", MIDI_CHANNEL_NONE + 1}};
 	follow.readSpecificChannelSettingsFromFile(reader, MIDIFollowChannelType::A);
 	LONGS_EQUAL(MIDI_CHANNEL_NONE, channel);
+}
+
+TEST(MidiFeedbackMapping, distinct_sound_and_global_mappings_on_same_cc_round_trip) {
+	follow.ccToSoundParam[7] = 1;
+	follow.ccToGlobalParam[7] = 1;
+	Serializer writer;
+	follow.writeDefaultMappingsToFile(writer);
+	LONGS_EQUAL(2, writer.entries.size());
+	follow.ccToSoundParam.fill(param_id_none);
+	follow.ccToGlobalParam.fill(param_id_none);
+	Deserializer reader;
+	reader.entries = writer.entries;
+	follow.readDefaultMappingsFromFile(reader);
+	LONGS_EQUAL(1, follow.ccToSoundParam[7]);
+	LONGS_EQUAL(1, follow.ccToGlobalParam[7]);
+	LONGS_EQUAL(7, follow.soundParamToCC[1]);
+	LONGS_EQUAL(7, follow.globalParamToCC[1]);
+}
+TEST(MidiFeedbackMapping, shared_mapping_name_is_saved_once_and_restores_both_contexts) {
+	follow.ccToSoundParam[127] = params::UNPATCHED_START + 2;
+	follow.ccToGlobalParam[127] = 2;
+	Serializer writer;
+	follow.writeDefaultMappingsToFile(writer);
+	LONGS_EQUAL(1, writer.entries.size());
+	STRCMP_EQUAL("shared", writer.entries[0].first);
+	Deserializer reader;
+	reader.entries = writer.entries;
+	follow.readDefaultMappingsFromFile(reader);
+	LONGS_EQUAL(127, follow.soundParamToCC[params::UNPATCHED_START + 2]);
+	LONGS_EQUAL(127, follow.globalParamToCC[2]);
+}
+TEST(MidiFeedbackMapping, global_only_and_unpatched_sound_mappings_survive_save) {
+	follow.ccToGlobalParam[0] = 1;
+	follow.ccToSoundParam[127] = params::UNPATCHED_START + 1;
+	Serializer writer;
+	follow.writeDefaultMappingsToFile(writer);
+	LONGS_EQUAL(2, writer.entries.size());
+	STRCMP_EQUAL("global", writer.entries[0].first);
+	LONGS_EQUAL(0, writer.entries[0].second);
+	STRCMP_EQUAL("sound", writer.entries[1].first);
+	LONGS_EQUAL(127, writer.entries[1].second);
 }

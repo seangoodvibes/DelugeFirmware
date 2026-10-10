@@ -1539,39 +1539,26 @@ void MidiFollow::writeDefaultsToFile() {
 
 /// convert paramID to a paramName to write to XML
 void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
-	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
-		uint8_t soundParamId = ccToSoundParam[ccNumber];
-		uint8_t globalParamId = ccToGlobalParam[ccNumber];
-
-		bool writeTag = false;
-		char const* paramNameSound = nullptr;
-		char const* paramNameGlobal;
-		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, soundParamId, true);
-			writeTag = true;
+	for (int32_t cc_number = 0; cc_number <= kMaxMIDIValue; ++cc_number) {
+		const auto sound_param_id = ccToSoundParam[cc_number];
+		const auto global_param_id = ccToGlobalParam[cc_number];
+		char const* sound_name = nullptr;
+		if (sound_param_id != PARAM_ID_NONE && sound_param_id < params::UNPATCHED_START) {
+			sound_name = params::paramNameForFile(params::Kind::PATCHED, sound_param_id, true);
 		}
-		else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-			paramNameSound = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId, true);
-			writeTag = true;
+		else if (sound_param_id != PARAM_ID_NONE) {
+			sound_name = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, sound_param_id, true);
 		}
-		if (writeTag) {
-			char buffer[10];
-			intToString(ccNumber, buffer);
-			writer.writeTag(paramNameSound, buffer);
+		char cc_text[10];
+		intToString(cc_number, cc_text);
+		if (sound_name) {
+			writer.writeTag(sound_name, cc_text);
 		}
-		else {
-			if (globalParamId != PARAM_ID_NONE) {
-				paramNameGlobal = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
-				                                           params::UNPATCHED_START + globalParamId, true);
-				// Reaching here means no sound param claimed this CC (paramNameSound is still null), so the global
-				// mapping should be written. Only compare names when a sound name actually exists, to avoid passing a
-				// null pointer to strcmp.
-				writeTag = (paramNameSound == nullptr) || strcmp(paramNameGlobal, paramNameSound) != 0;
-			}
-			if (writeTag) {
-				char buffer[10];
-				intToString(ccNumber, buffer);
-				writer.writeTag(paramNameGlobal, buffer);
+		if (global_param_id != PARAM_ID_NONE) {
+			auto* const global_name = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+			                                                   params::UNPATCHED_START + global_param_id, true);
+			if (global_name && (!sound_name || strcmp(global_name, sound_name) != 0)) {
+				writer.writeTag(global_name, cc_text);
 			}
 		}
 	}

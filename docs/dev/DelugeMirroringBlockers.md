@@ -1619,3 +1619,13 @@ all channels, both MPE zones and unassigned, plus legacy unassigned loading. The
 round-trip test failed before the fix (256 written instead of 0). All 35 native
 suites and `./dbt build relwithdebinfo` pass. Serialization tokens and device
 references are fixtures; filesystem and physical MIDI acceptance remain open.
+
+### G1 / R4 progress — preserve distinct mappings sharing a CC (2026-10-10)
+
+The defaults writer now saves both sound and global mappings for a shared CC when
+their parameter names differ. Identical names still produce one entry, which the
+reader applies to both contexts. Three extracted-production tests cover the lost
+global mapping (reproduced before the fix), shared-name deduplication, global-only
+and unpatched sound entries, including CC endpoints and save/load. All 35 native
+suites and `./dbt build relwithdebinfo` pass. Parameter names and serialization
+are fixtures; filesystem/device acceptance remains outstanding.
