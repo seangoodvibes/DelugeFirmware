@@ -1671,14 +1671,21 @@ allSorted:
 	return true;
 }
 
+static void release_multisample_import_sample(Sample*& sample) {
+	if (!sample)
+		return;
+	auto* owned_sample = sample;
+	sample = nullptr;
+#if ALPHA_OR_BETA_VERSION
+	if (owned_sample->numReasonsToBeLoaded <= 0)
+		FREEZE_WITH_ERROR("E215");
+#endif
+	owned_sample->removeReason("E393");
+}
+
 static void release_multisample_import_samples(Sample** samples, int32_t sample_count) {
 	for (int32_t index = 0; index < sample_count; ++index) {
-		auto* sample = samples[index];
-#if ALPHA_OR_BETA_VERSION
-		if (sample->numReasonsToBeLoaded <= 0)
-			FREEZE_WITH_ERROR("E215");
-#endif
-		sample->removeReason("E393");
+		release_multisample_import_sample(samples[index]);
 	}
 	delugeDealloc(samples);
 }
@@ -1818,7 +1825,7 @@ skipOctaveCorrection:
 
 		if (thisSample->midiNote == MIDI_NOTE_ERROR) {
 			D_PRINTLN("dismissing 1 sample for which pitch couldn't be detected");
-			// TODO: shouldn't we remove a reason here?
+			// The table retains this temporary reason for cleanup after range creation.
 			continue;
 		}
 
@@ -1831,7 +1838,7 @@ skipOctaveCorrection:
 			topNote = midPoint; // Round down
 			if (topNote <= lastTopNote) {
 				D_PRINTLN("skipping sample cos %d <= %d", topNote, lastTopNote);
-				// TODO: shouldn't we remove a reason here?
+				// The table retains this temporary reason for cleanup after range creation.
 				continue;
 			}
 		}
@@ -1872,12 +1879,14 @@ skipOctaveCorrection:
 		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
 			FREEZE_WITH_ERROR("E216"); // I put this here to try and catch an E004 Luc got
 		}
-		thisSample->removeReason("E394"); // Remove that temporary reason we added above
+		release_multisample_import_sample(sortArea[s]); // Mark this temporary reason as released.
 
 		rangeIndex++;
 		lastTopNote = topNote;
 	}
 
+	// Release skipped samples and the table even when no usable ranges were created.
+	release_multisample_import_samples(sortArea, numSamples);
 	numSamples = rangeIndex;
 
 	if (!numSamples) {
@@ -1887,8 +1896,6 @@ skipOctaveCorrection:
 	}
 
 	D_PRINTLN("distinct ranges: %d", numSamples);
-
-	delugeDealloc(sortArea);
 
 	audioFileIsNowSet();
 

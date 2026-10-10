@@ -57,3 +57,36 @@ TEST(MultisampleImportCleanup, duplicate_entries_release_each_owned_reference_on
 	LONGS_EQUAL(1, sample.numReasonsToBeLoaded);
 	LONGS_EQUAL(1, frees);
 }
+
+TEST(MultisampleImportCleanup, completed_entries_are_not_released_twice_when_skipped_entries_are_cleaned_up) {
+	Sample imported, skipped;
+	imported.numReasonsToBeLoaded = 2; // Temporary import ownership and the destination holder.
+	auto** table = static_cast<Sample**>(std::malloc(2 * sizeof(Sample*)));
+	CHECK(table != nullptr);
+	table[0] = &imported;
+	table[1] = &skipped;
+	release_multisample_import_sample(table[0]);
+	CHECK(table[0] == nullptr);
+	LONGS_EQUAL(1, imported.numReasonsToBeLoaded);
+	release_multisample_import_samples(table, 2);
+	LONGS_EQUAL(1, imported.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, skipped.numReasonsToBeLoaded);
+	LONGS_EQUAL(1, frees);
+	LONGS_EQUAL(3, events.size());
+}
+TEST(MultisampleImportCleanup, per_entry_release_is_idempotent) {
+	Sample imported;
+	Sample* slot = &imported;
+	release_multisample_import_sample(slot);
+	release_multisample_import_sample(slot);
+	CHECK(slot == nullptr);
+	LONGS_EQUAL(0, imported.numReasonsToBeLoaded);
+	LONGS_EQUAL(1, events.size());
+}
+TEST(MultisampleImportCleanup, empty_result_still_frees_the_sorting_table) {
+	auto** table = static_cast<Sample**>(std::malloc(sizeof(Sample*)));
+	CHECK(table != nullptr);
+	release_multisample_import_samples(table, 0);
+	LONGS_EQUAL(1, frees);
+	LONGS_EQUAL(1, events.size());
+}

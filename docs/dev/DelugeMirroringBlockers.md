@@ -3404,3 +3404,12 @@ caller failure and successful menu publication. All 38 suites and RelWithDebInfo
 pass. Previously deleted import ranges are not restored, cancellation does not yet
 resolve ownership of a working animation, and earlier import callbacks/stale UI
 references remain L1/R4/R5 work. Independent mode remains disabled.
+
+Multisample import tracks released temporary Sample reasons by clearing their table
+slots. Final table cleanup skips those slots and releases skipped-pitch/duplicate
+entries before handling a zero-range result, so that failure also frees the table.
+Three additional regressions cover mixed transferred/skipped ownership, idempotent
+entry release and empty-table cleanup; existing alias-entry tests remain green.
+All 38 suites and RelWithDebInfo pass. This fixes temporary resource leaks without
+duplicating audio buffers; reservation-before-deletion, source conversion, partial
+range replacement and earlier/later callback cancellation remain open.
