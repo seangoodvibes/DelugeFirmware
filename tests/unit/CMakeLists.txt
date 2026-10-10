@@ -821,3 +821,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_audition_lifetime.inc
     DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_audition_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/kit_audition_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_arp_dispatch.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_arp_dispatch.inc
+        dispatch_kit_arp_note_on
+    DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_arp_dispatch_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/kit_arp_dispatch.inc)

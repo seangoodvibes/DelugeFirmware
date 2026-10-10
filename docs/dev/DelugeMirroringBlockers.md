@@ -2384,3 +2384,13 @@ note-off body for owner deletion, same-address drum reuse, live detachment,
 retargeting, multiple drums and no-clip audition. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Arpeggiator instruction storage and its nested
 callback paths remain open; cancellation does not roll back notes already stopped.
+
+All three kit-arp note-on dispatch sites now publish playing/reverse state before
+the drum callback through a shared helper. Expression values are copied into a
+small stack snapshot so nested arp reset cannot invalidate the data consumed by
+the callback. Six sanitizer regressions exercise the production helper, including
+actual heap deletion and nested note edits; a source contract checks all three
+call sites. Native validation passes (the new contract's assignment matcher was
+corrected to exclude equality comparisons), as does `./dbt build relwithdebinfo`.
+This closes post-dispatch status writes only: arp generation, row selection and
+subsequent tick/render traversal still require separate lifetime validation.

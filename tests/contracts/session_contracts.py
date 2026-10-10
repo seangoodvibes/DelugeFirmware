@@ -80,6 +80,20 @@ def violations(text, entry):
 
 
 class SessionRoutingContracts(unittest.TestCase):
+    def test_kit_arp_dispatch_uses_shared_publication_boundary(self):
+        source = code_only((ROOT / "src/deluge/model/instrument/kit.cpp").read_text())
+        for name, next_name in [
+            ("setupAndRenderArpPreOutput", "getArpSettings"),
+            ("doTickForwardForArp", "noteOnPreKitArp"),
+            ("noteOnPreKitArp", "noteOffPreKitArp"),
+        ]:
+            with self.subTest(name=name):
+                body = source.split("Kit::" + name + "(", 1)[1].split(
+                    "Kit::" + next_name + "(", 1
+                )[0]
+                self.assertIn("dispatch_kit_arp_note_on(", body)
+                self.assertNotRegex(body, r"arpNoteOn->noteStatus\[0\]\s*=(?!=)")
+
     def test_shortcut_colours_read_the_selected_drum_for_the_active_session(self):
         source = (ROOT / "src/deluge/gui/views/instrument_clip_view.cpp").read_text()
         start = source.index(

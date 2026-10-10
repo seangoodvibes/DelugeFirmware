@@ -50,6 +50,20 @@
 
 namespace params = deluge::modulation::params;
 
+// The drum callback can remove the arp note or reset its status. Publish first and
+// pass expression values from stack storage that survives a nested arp reset.
+static void dispatch_kit_arp_note_on(ModelStackWithThreeMainThings* model_stack, Drum* drum,
+                                     ArpReturnInstruction& instruction, uint32_t sample_sync_length, int32_t ticks_late,
+                                     uint32_t samples_late) {
+	auto* arp_note = instruction.arpNoteOn;
+	const auto velocity = arp_note->velocity;
+	int16_t mpe_values[kNumExpressionDimensions];
+	std::memcpy(mpe_values, arp_note->mpeValues, sizeof(mpe_values));
+	drum->arpeggiator.invertReversedFromKitArp = instruction.invertReversed;
+	arp_note->noteStatus[0] = ArpNoteStatus::PLAYING;
+	drum->noteOn(model_stack, velocity, mpe_values, 0, sample_sync_length, ticks_late, samples_late);
+}
+
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)), arpeggiator(), defaultArpSettings() {
 	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
@@ -782,17 +796,13 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 				NoteRow* thisNoteRow =
 				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
 				if (thisNoteRow->drum != nullptr) {
-					// Set the invertReverse flag for the drum arpeggiator
-					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
 					// Do row note on
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStackWithTimelineCounter
 					        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
 					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
-					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
-					                          0, 0);
-					kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
+					dispatch_kit_arp_note_on(modelStackWithThreeMainThings, thisNoteRow->drum, kitInstruction,
+					                         kitInstruction.sampleSyncLengthOn, 0, 0);
 				}
 			}
 		}
@@ -1215,18 +1225,13 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			NoteRow* thisNoteRow =
 			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
 			if (thisNoteRow->drum != nullptr) {
-				// Set the invertReverse flag for the drum arpeggiator
-				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
 				// Do row note on
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithTimelineCounter
 				        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
 				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
-				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
-				                          0);
-				// no check needed - will be held by the drum's own arp if it can't start immediately
-				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
+				dispatch_kit_arp_note_on(modelStackWithThreeMainThings, thisNoteRow->drum, kitInstruction,
+				                         kitInstruction.sampleSyncLengthOn, 0, 0);
 			}
 		}
 	}
@@ -1336,12 +1341,9 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		// If kit arp not bypassed, execute instruction
 		arpeggiator.noteOn(arpSettings, drumIndex, velocity, &kitInstruction, fromMIDIChannel, mpeValues);
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
-			// Set the invertReverse flag for the drum arpeggiator
-			thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
 			// Do row note on
-			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
-			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
-			kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
+			dispatch_kit_arp_note_on(modelStack, thisNoteRow->drum, kitInstruction, sampleSyncLength, ticksLate,
+			                         samplesLate);
 		}
 	}
 }
