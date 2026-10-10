@@ -1327,3 +1327,15 @@ side effects are not provided by these guards.
   All 35 native suites and `./dbt build relwithdebinfo` pass.
 - These checks do not retain menu objects across callbacks or detect same-address
   replacement. G1/L1 remain open; independent mode remains disabled.
+
+### G1 progress — fallback automation display menu ownership (2026-10-10)
+
+- `View::displayAutomation` snapshots its originating UI/root/menu before knob
+  indicator updates and skips follow-up reads after context changes or client
+  takeover. Missing menus are safe; the method restores its initiating owner.
+- Two extracted-production cases execute the fallback through timer dispatch on
+  both owners, covering five invalidations plus valid/missing menus. The context
+  regression failed before the fix. All 35 native suites and
+  `./dbt build relwithdebinfo` pass.
+- Callback internals and menu lifetime still require L1 work; independent mode
+  remains disabled and G1 remains open.

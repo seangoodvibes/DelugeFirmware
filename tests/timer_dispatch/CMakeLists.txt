@@ -12,3 +12,10 @@ target_include_directories(TimerDispatchTests PRIVATE mocks ${CMAKE_CURRENT_BINA
 target_compile_definitions(TimerDispatchTests PRIVATE CPPUTEST_MEM_LEAK_DETECTION_DISABLED)
 target_link_libraries(TimerDispatchTests PRIVATE CppUTest)
 add_test(NAME TimerDispatchTests COMMAND TimerDispatchTests)
+
+set(view_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/views/view.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/view_automation.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${view_source} ${CMAKE_CURRENT_BINARY_DIR}/view_automation.inc View::displayAutomation
+    DEPENDS ${view_source} ../support/extract_functions.py VERBATIM)
+target_sources(TimerDispatchTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/view_automation.inc)

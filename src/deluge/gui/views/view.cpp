@@ -47,6 +47,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "hid/mirror.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
@@ -1729,11 +1730,19 @@ bool View::isClipContext() {
 }
 
 void View::displayAutomation() {
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_ui = getCurrentUI();
+	auto* const source_root = getRootUI();
+	auto* const source_menu =
+	    source_ui == &sound_editor_for_session() ? sound_editor_for_session().getCurrentMenuItem() : nullptr;
 	if (pendingParamAutomationUpdatesModLevels) {
 		setKnobIndicatorLevels();
 	}
-	if (getCurrentUI() == &sound_editor_for_session()) {
-		sound_editor_for_session().getCurrentMenuItem()->readValueAgain();
+	if (source_menu && !deluge::hid::mirror::is_client() && deluge::gui::ui_session::current() == source_owner
+	    && getCurrentUI() == source_ui && getRootUI() == source_root
+	    && sound_editor_for_session().getCurrentMenuItem() == source_menu) {
+		source_menu->readValueAgain();
 	}
 }
 

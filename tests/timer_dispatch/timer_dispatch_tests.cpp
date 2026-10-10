@@ -14,7 +14,7 @@ int uartGetTxBufferSpace(int) {
 	return 1000;
 }
 std::function<ActionResult()> on_timer, on_exit;
-std::function<void()> on_graphics, on_input, on_automation;
+std::function<void()> on_graphics, on_input, on_automation, on_levels;
 int menu_reads = 0, automation_calls = 0;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
 int root_note_calls = 0;
@@ -52,7 +52,16 @@ struct UI {
 	void readValueAgain() { ++menu_reads; }
 	void sendMidiFollowFeedback(void*, int, bool) {}
 };
-UI view, keyboard, clip_view, automation, editor, song_view;
+struct View : UI {
+	bool pendingParamAutomationUpdatesModLevels = false;
+	void setKnobIndicatorLevels() {
+		if (on_levels)
+			on_levels();
+	}
+	void displayAutomation();
+};
+View view;
+UI keyboard, clip_view, automation, editor, song_view;
 session::State<UI*> current_uis, root_uis;
 UI* getCurrentUI() {
 	return current_uis.active();
@@ -60,7 +69,7 @@ UI* getCurrentUI() {
 UI* getRootUI() {
 	return root_uis.active() ? root_uis.active() : getCurrentUI();
 }
-UI& view_for_session() {
+View& view_for_session() {
 	return view;
 }
 UI& keyboard_screen_for_session() {
@@ -138,6 +147,7 @@ void oledLowLevelTimerCallback() {
 }
 UITimerManager::UITimerManager() = default;
 #include "timer_dispatch.inc"
+#include "view_automation.inc"
 TEST_GROUP(TimerDispatch) {
 	UITimerManager manager;
 	UI ui;
@@ -147,7 +157,8 @@ TEST_GROUP(TimerDispatch) {
 		current_uis.for_owner(session::Id::Remote) = &ui;
 		console_calls = graphics_calls = exit_calls = hardware_calls = 0;
 		on_timer = on_exit = {};
-		on_graphics = on_input = on_automation = {};
+		on_graphics = on_input = on_automation = on_levels = {};
+		view.pendingParamAutomationUpdatesModLevels = false;
 		root_uis = {};
 		menu_reads = automation_calls = 0;
 		automation.automation_editor = false;
@@ -157,7 +168,8 @@ TEST_GROUP(TimerDispatch) {
 	}
 	void teardown() override {
 		on_timer = on_exit = {};
-		on_graphics = on_input = on_automation = {};
+		on_graphics = on_input = on_automation = on_levels = {};
+		view.pendingParamAutomationUpdatesModLevels = false;
 		root_uis = {};
 		menu_reads = automation_calls = 0;
 		automation.automation_editor = false;
@@ -533,6 +545,47 @@ TEST(TimerDispatch, automation_refresh_reads_unchanged_menu_and_skips_missing_me
 	LONGS_EQUAL(1, menu_reads);
 }
 
+TEST(TimerDispatch, fallback_automation_stops_after_indicator_context_change) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int scenario = 0; scenario < 5; ++scenario) {
+			UITimerManager timers;
+			UI replacement;
+			current_uis.active() = &editor;
+			root_uis.active() = &ui;
+			editor.menu = &editor;
+			view.pendingParamAutomationUpdatesModLevels = true;
+			deluge::hid::mirror::client = false;
+			on_levels = [&] {
+				if (scenario == 0)
+					session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+				if (scenario == 1)
+					root_uis.active() = &replacement;
+				if (scenario == 2)
+					editor.menu = &replacement;
+				if (scenario == 3)
+					current_uis.active() = &replacement;
+				if (scenario == 4)
+					deluge::hid::mirror::client = true;
+			};
+			timers.setTimerSamples(TimerName::DISPLAY_AUTOMATION, -1);
+			timers.routine();
+			CHECK(session::current() == owner);
+			LONGS_EQUAL(0, menu_reads);
+		}
+	}
+}
+TEST(TimerDispatch, fallback_automation_reads_valid_menu_and_skips_missing_menu) {
+	current_uis.active() = &editor;
+	root_uis.active() = &ui;
+	due(TimerName::DISPLAY_AUTOMATION);
+	manager.routine();
+	LONGS_EQUAL(1, menu_reads);
+	editor.menu = nullptr;
+	due(TimerName::DISPLAY_AUTOMATION);
+	manager.routine();
+	LONGS_EQUAL(1, menu_reads);
+}
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
 }
