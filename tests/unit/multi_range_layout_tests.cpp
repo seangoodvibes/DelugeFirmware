@@ -147,3 +147,21 @@ TEST(MultiRangeLayout, empty_type_change_invalidates_revision) {
 	CHECK(first.layout_revision_ != revision);
 	LONGS_EQUAL(0, first.numElements);
 }
+
+TEST(MultiRangeLayout, swapping_different_range_types_moves_stride_with_storage) {
+	first.insertMultiRange(0);
+	auto* sample_second = first.insertMultiRange(1);
+	CHECK(second.changeType(sizeof(layout_test::MultiWaveTableRange)) == layout_test::Error::NONE);
+	second.insertMultiRange(0);
+	auto* wave_second = second.insertMultiRange(1);
+	first.swapStateWith(&second);
+	const auto first_size = first.elementSize;
+	const auto second_size = second.elementSize;
+	const bool first_matches = first.getElement(1) == wave_second;
+	const bool second_matches = second.getElement(1) == sample_second;
+	first.swapStateWith(&second);
+	LONGS_EQUAL(sizeof(layout_test::MultiWaveTableRange), first_size);
+	LONGS_EQUAL(sizeof(layout_test::MultisampleRange), second_size);
+	CHECK_TRUE(first_matches);
+	CHECK_TRUE(second_matches);
+}

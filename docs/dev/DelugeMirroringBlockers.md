@@ -3441,3 +3441,11 @@ import; both cancellation cases fail against the previous function. Earlier
 cleanup fixes are now also exercised through the complete multisample import
 function. All 38 suites and RelWithDebInfo pass. Already modified ranges are not
 rolled back, and the holder's internal callback-lifetime contract remains separate.
+
+MultiRangeArray storage swaps now exchange element size as well as backing storage.
+This preserves indexing/destruction when arrays contain different range types. A
+round-trip regression with two sample and two wavetable entries fails against the
+previous implementation and verifies both resulting strides and element addresses.
+Existing same-stride teardown and conversion callers retain their behavior. All
+38 suites and RelWithDebInfo pass; this is a prerequisite for detached replacement
+of a differently typed range table, not a complete import transaction by itself.

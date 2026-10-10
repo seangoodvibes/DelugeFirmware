@@ -20,6 +20,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include <new>
+#include <utility>
 
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this
@@ -117,4 +118,5 @@ void MultiRangeArray::swapStateWith(MultiRangeArray* other) {
 	++layout_revision_;
 	++other->layout_revision_;
 	OrderedResizeableArray::swapStateWith(other);
+	std::swap(elementSize, other->elementSize);
 }
