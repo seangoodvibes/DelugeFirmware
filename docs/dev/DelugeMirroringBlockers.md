@@ -676,3 +676,17 @@ side effects are not provided by these guards.
   arbitrary active timers left overdue for more than half the clock range. Those
   cannot be classified by signed 32-bit subtraction alone. G1 remains open and
   independent mode stays disabled.
+
+### G1 / R4 progress — timer callback owner-change containment (2026-10-09)
+
+- Timer dispatch stops when a callback returns under a different panel owner.
+  Retry results require both the original owner and UI; graphics callbacks cannot
+  overwrite the other panel's periodic deadline. End-of-pass deadline recomputation
+  explicitly uses the initiating bank, and the existing scope restores the caller.
+- Three fault-injection tests reproduced continued dispatch, a retry accepted with
+  the same UI pointer under another owner, and a peer graphics deadline overwritten
+  by the periodic rearm. Both initiating owners are covered. This is containment
+  of owner imbalance, not evidence of a normal scoped callback leaking ownership.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. Individual
+  callback internals and end-to-end routing remain open; independent mode stays
+  disabled.

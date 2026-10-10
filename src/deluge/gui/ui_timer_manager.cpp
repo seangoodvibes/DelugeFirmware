@@ -79,6 +79,9 @@ void UITimerManager::routine() {
 	}
 
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
+		// A callback must return to its initiating panel before further dispatch.
+		if (deluge::gui::ui_session::current() != owner)
+			break;
 		// Remote callbacks may close navigation before later timers in this pass.
 		// Leave those timers pending for teardown or a valid subsequent service.
 		if (owner == deluge::gui::ui_session::Id::Remote && !getCurrentUI())
@@ -179,7 +182,8 @@ void UITimerManager::routine() {
 						break;
 					}
 					ActionResult result = source_ui->timerCallback();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && getCurrentUI() == source_ui) {
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
+					    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui) {
 						timer.active = true; // Come back soon and try again.
 					}
 					break;
@@ -190,7 +194,8 @@ void UITimerManager::routine() {
 						break;
 					}
 					ActionResult result = source_ui->exitUI();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && getCurrentUI() == source_ui) {
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
+					    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui) {
 						timer.active = true;
 					}
 					break;
@@ -259,7 +264,8 @@ void UITimerManager::routine() {
 					    })) {
 						getCurrentUI()->graphicsRoutine();
 					}
-					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
+					if (deluge::gui::ui_session::current() == owner)
+						setTimer(TimerName::GRAPHICS_ROUTINE, 15);
 					break;
 
 				case TimerName::OLED_LOW_LEVEL:
@@ -299,7 +305,7 @@ void UITimerManager::routine() {
 		}
 	}
 
-	workOutNextEventTime();
+	state_.recompute(owner, AudioEngine::audioSampleTimer);
 }
 
 void UITimerManager::setTimer(TimerName which, int32_t ms) {

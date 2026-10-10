@@ -27,3 +27,8 @@ The idle-bank regression additionally schedules without first servicing the bank
 and verifies delivery after wrap on both panels. The timer-state suite checks
 expired-cache recomputation preserves genuinely overdue events. Active events
 left unserviced for more than half the clock range remain outside this coverage.
+
+Owner-change fault injection checks dispatch stops at the callback boundary,
+restores the caller, rejects retries despite matching UI pointers, and preserves a
+peer graphics deadline. It establishes containment of an unbalanced owner change,
+not that ordinary scoped callbacks leak ownership or that their internals are safe.

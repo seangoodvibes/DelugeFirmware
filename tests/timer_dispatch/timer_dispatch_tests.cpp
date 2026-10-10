@@ -14,6 +14,7 @@ int uartGetTxBufferSpace(int) {
 	return 1000;
 }
 std::function<ActionResult()> on_timer, on_exit;
+std::function<void()> on_graphics;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
 int root_note_calls = 0;
 struct UI {
@@ -24,7 +25,11 @@ struct UI {
 		return on_exit ? on_exit() : ActionResult::DEALT_WITH;
 	}
 	UIType getUIContextType() { return UIType::INSTRUMENT_CLIP; }
-	void graphicsRoutine() { ++graphics_calls; }
+	void graphicsRoutine() {
+		++graphics_calls;
+		if (on_graphics)
+			on_graphics();
+	}
 	void flashDefaultRootNote() { ++root_note_calls; }
 	void midiLearnFlash() {}
 	void flashPlayRoutine() {}
@@ -133,11 +138,13 @@ TEST_GROUP(TimerDispatch) {
 		current_uis.for_owner(session::Id::Remote) = &ui;
 		console_calls = graphics_calls = exit_calls = hardware_calls = 0;
 		on_timer = on_exit = {};
+		on_graphics = {};
 		deluge::hid::mirror::client = false;
 		AudioEngine::audioSampleTimer = 1000;
 	}
 	void teardown() override {
 		on_timer = on_exit = {};
+		on_graphics = {};
 		session::detail::active = session::Id::Local;
 	}
 	void due(TimerName name) {
@@ -385,6 +392,59 @@ TEST(TimerDispatch, first_timer_in_idle_bank_is_serviced_after_wrap) {
 		timers.routine();
 		LONGS_EQUAL(previous_calls + 1, console_calls);
 		CHECK_FALSE(timers.isTimerSet(TimerName::OLED_CONSOLE));
+	}
+}
+TEST(TimerDispatch, callback_owner_change_stops_later_timers_and_restores_caller) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		UITimerManager timers;
+		timers.setTimerSamples(TimerName::UI_SPECIFIC, -1);
+		timers.setTimerSamples(TimerName::OLED_CONSOLE, -1);
+		on_timer = [=] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+			return ActionResult::DEALT_WITH;
+		};
+		int previous_calls = console_calls;
+		timers.routine();
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(previous_calls, console_calls);
+		CHECK(timers.isTimerSet(TimerName::OLED_CONSOLE));
+		on_timer = {};
+		timers.routine();
+		LONGS_EQUAL(previous_calls + 1, console_calls);
+	}
+}
+TEST(TimerDispatch, retry_cannot_cross_owner_even_with_identical_ui_pointer) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (auto name : {TimerName::UI_SPECIFIC, TimerName::BACK_MENU_EXIT}) {
+			UITimerManager timers;
+			timers.setTimerSamples(name, -1);
+			on_timer = on_exit = [=] {
+				session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			};
+			timers.routine();
+			CHECK(session::current() == owner);
+			CHECK_FALSE(timers.isTimerSet(name));
+		}
+	}
+}
+TEST(TimerDispatch, graphics_owner_change_does_not_schedule_peer_timer) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		UITimerManager timers;
+		timers.setTimerSamples(TimerName::GRAPHICS_ROUTINE, -1);
+		const auto peer = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		{
+			session::Scope peer_scope(peer);
+			timers.setTimerSamples(TimerName::GRAPHICS_ROUTINE, 70);
+		}
+		on_graphics = [=] { session::detail::active = peer; };
+		timers.routine();
+		CHECK(session::current() == owner);
+		session::Scope peer_scope(peer);
+		LONGS_EQUAL(1070, timers.getTimer(TimerName::GRAPHICS_ROUTINE).triggerTime);
 	}
 }
 int main(int argc, char** argv) {
