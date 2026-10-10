@@ -46,11 +46,14 @@ struct navigation_fixture {
 	static constexpr int capacity = 16;
 	std::array<UI*, capacity> hierarchy{};
 	int depth = 0;
+	uint32_t mode = 0;
 };
 static session::State<navigation_fixture> navigation_states;
 static navigation_fixture& navigation() {
 	return navigation_states.active();
 }
+#define currentUIMode navigation().mode
+constexpr uint32_t UI_MODE_HOLDING_ARRANGEMENT_ROW = 42; // gui/ui/ui.h
 static UI* getCurrentUI() {
 	return navigation().depth ? navigation().hierarchy[navigation().depth - 1] : nullptr;
 }
@@ -64,8 +67,9 @@ struct display_fixture {
 static display_fixture display_instance;
 static auto* display = &display_instance;
 enum class TimerName { UI_SPECIFIC };
+static session::State<int> timer_unsets;
 struct timer_fixture {
-	void unsetTimer(TimerName) {}
+	void unsetTimer(TimerName) { ++timer_unsets.active(); }
 };
 static timer_fixture uiTimerManager;
 namespace PadLEDs {
@@ -100,6 +104,7 @@ TEST_GROUP(UIOpen) {
 		session::detail::active = session::Id::Local;
 		navigation_states = {};
 		redraws = {};
+		timer_unsets = {};
 		PadLEDs::on_greyout = {};
 		PadLEDs::on_main_send = {};
 		PadLEDs::main_sends = {};
@@ -424,4 +429,84 @@ TEST(UIOpen, replacement_greyout_changes_stop_opening_and_rollback_focus) {
 		LONGS_EQUAL(phase == 1 ? 0 : 1, menu.opens);
 		LONGS_EQUAL(0, root.focuses);
 	}
+}
+
+TEST(UIOpen, root_resolution_changes_do_not_overwrite_newer_navigation) {
+	for (bool low_level : {false, true}) {
+		navigation().hierarchy[0] = &root;
+		menu.on_resolve = [&] { navigation().hierarchy[0] = &replacement; };
+		if (low_level)
+			setRootUILowLevel(&menu);
+		else
+			changeRootUI(&menu);
+		POINTERS_EQUAL(&replacement, getCurrentUI());
+		LONGS_EQUAL(0, menu.opens);
+		LONGS_EQUAL(0, redraws.active());
+	}
+}
+TEST(UIOpen, root_greyout_change_does_not_open_obsolete_target) {
+	PadLEDs::on_greyout = [&] { navigation().hierarchy[0] = &replacement; };
+	changeRootUI(&menu);
+	POINTERS_EQUAL(&replacement, getCurrentUI());
+	LONGS_EQUAL(0, menu.opens);
+	LONGS_EQUAL(0, redraws.active());
+}
+TEST(UIOpen, root_open_callback_owner_change_does_not_redraw_peer) {
+	menu.on_open = [] { session::detail::active = session::Id::Remote; };
+	changeRootUI(&menu);
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(0, redraws.for_owner(session::Id::Remote));
+	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Remote).hierarchy[0]);
+}
+TEST(UIOpen, normal_root_change_preserves_arrangement_hold_timer) {
+	session::Scope scope(session::Id::Remote);
+	currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW;
+	changeRootUI(&menu);
+	POINTERS_EQUAL(&menu, getCurrentUI());
+	LONGS_EQUAL(1, menu.opens);
+	LONGS_EQUAL(0, timer_unsets.active());
+	LONGS_EQUAL(1, redraws.active());
+	currentUIMode = 0;
+	changeRootUI(&replacement);
+	LONGS_EQUAL(1, timer_unsets.active());
+	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Local).hierarchy[0]);
+}
+TEST(UIOpen, low_level_root_installation_does_not_open_or_render) {
+	setRootUILowLevel(&menu);
+	POINTERS_EQUAL(&menu, getCurrentUI());
+	LONGS_EQUAL(1, navigation().depth);
+	LONGS_EQUAL(0, menu.opens);
+	LONGS_EQUAL(0, timer_unsets.active());
+	LONGS_EQUAL(0, redraws.active());
+}
+
+TEST(UIOpen, missing_root_targets_and_invalid_depth_are_rejected) {
+	for (bool low_level : {false, true}) {
+		auto install = [&](UI* target) {
+			if (low_level)
+				setRootUILowLevel(target);
+			else
+				changeRootUI(target);
+		};
+		install(nullptr);
+		menu.redirected = nullptr;
+		install(&menu);
+		POINTERS_EQUAL(&root, getCurrentUI());
+		menu.redirected = &menu;
+		for (int depth : {-1, navigation_fixture::capacity + 1}) {
+			navigation().depth = depth;
+			install(&menu);
+			LONGS_EQUAL(depth, navigation().depth);
+		}
+		navigation().depth = 1;
+		LONGS_EQUAL(0, menu.opens);
+		LONGS_EQUAL(0, redraws.active());
+	}
+}
+TEST(UIOpen, low_level_greyout_owner_change_restores_caller) {
+	PadLEDs::on_greyout = [] { session::detail::active = session::Id::Remote; };
+	setRootUILowLevel(&menu);
+	CHECK(session::current() == session::Id::Local);
+	POINTERS_EQUAL(&menu, getCurrentUI());
+	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Remote).hierarchy[0]);
 }

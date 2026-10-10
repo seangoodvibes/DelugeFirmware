@@ -136,15 +136,33 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 // Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationView,
 // performanceView, etc.
 void changeRootUI(UI* newUI) {
+	if (!newUI || navigation().depth < 0 || navigation().depth > navigation().capacity)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto expected_hierarchy = navigation().hierarchy;
+	auto expected_depth = navigation().depth;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		       && navigation().hierarchy == expected_hierarchy;
+	};
 	newUI = newUI->getUI();
+	if (!newUI || !context_matches())
+		return;
 	navigation().hierarchy[0] = newUI;
 	navigation().depth = 1;
+	expected_hierarchy = navigation().hierarchy;
+	expected_depth = 1;
 
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	}
 	PadLEDs::reassessGreyout();
-	newUI->opened(); // These all can't fail, I guess.
+	if (!context_matches())
+		return;
+	newUI->opened(); // Root UIs are expected to support opening without rejection.
+	if (!context_matches())
+		return;
 
 	if (display->haveOLED()) {
 		renderUIsForOled();
@@ -153,7 +171,16 @@ void changeRootUI(UI* newUI) {
 
 // Only called when setting up blank song, so don't worry about this
 void setRootUILowLevel(UI* newUI) {
+	if (!newUI || navigation().depth < 0 || navigation().depth > navigation().capacity)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto expected_hierarchy = navigation().hierarchy;
+	const auto expected_depth = navigation().depth;
 	newUI = newUI->getUI();
+	if (!newUI || deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
+	    || navigation().hierarchy != expected_hierarchy)
+		return;
 	navigation().hierarchy[0] = newUI;
 	navigation().depth = 1;
 	PadLEDs::reassessGreyout();

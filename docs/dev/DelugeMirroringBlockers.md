@@ -1138,3 +1138,17 @@ side effects are not provided by these guards.
   are fixtures; fixed local snapshots are not object pins, ABA detection or full
   recovery of partially replaced UIs. G1/R4/L1 remain open; independent mode stays
   disabled.
+
+### G1 / R4 progress — root navigation callback containment (2026-10-10)
+
+- Normal and low-level root installation reject missing targets and invalid depth,
+  and preserve navigation changed during target resolution. Normal root changes
+  also stop after greyout/opening invalidation; both paths restore caller ownership.
+  The arrangement-row timer exception and low-level no-open/no-render behavior remain.
+- Seven extracted-production cases cover resolution/greyout replacement, owner
+  changes, valid root changes, low-level installation and invalid inputs. The native
+  fixture supplies the existing arrangement-row mode constant; navigation, UI and
+  display dependencies are mocked. No pre-fix runtime failures are claimed here.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Root opened() rejection
+  still has no rollback contract; object lifetime, stack ABA and completed callback
+  side effects remain unresolved. G1/R4/L1 remain open; independent mode is disabled.
