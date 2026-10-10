@@ -2608,3 +2608,11 @@ All 36 suites and `./dbt build relwithdebinfo` pass. This does not protect mutat
 inside generation, direct state writes outside those entry points, or other
 instruction consumers until they adopt the check. Revisions require a live owner;
 they do not replace lifetime watches. Hardware timing remains unverified.
+
+MIDI/gate drum note-on and note-off batches and the kit non-audio render loop now
+check instruction revision after each output callback, after establishing owner
+lifetime. Three production-body regressions sweep note-on/off and glide/off/on
+boundaries while replacing the event without deleting its owners. All 36 suites
+and `./dbt build relwithdebinfo` pass. Kit tick routing and kill-voices cleanup
+still need instruction-aware cancellation; generator internals and other direct
+state mutation remain outside this batch check.

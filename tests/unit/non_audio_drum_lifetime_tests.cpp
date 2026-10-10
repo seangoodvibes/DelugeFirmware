@@ -24,7 +24,12 @@ std::function<void(ArpNote*, int)> on_dispatch;
 int calls = 0;
 int resets = 0;
 struct Arpeggiator {
-	void reset() { ++resets; }
+	uint64_t revision = 0;
+	uint64_t instruction_revision() const { return revision; }
+	void reset() {
+		++resets;
+		++revision;
+	}
 	ArpNote active_note;
 	void noteOn(ArpeggiatorSettings*, int, uint8_t, ArpReturnInstruction* instruction, int32_t, const int16_t*) {
 		instruction->arpNoteOn = &active_note;
@@ -204,4 +209,25 @@ TEST(non_audio_drum_lifetime, midi_kill_live_and_retired) {
 }
 TEST(non_audio_drum_lifetime, gate_kill_live_and_retired) {
 	check_kill_live<GateDrum>();
+}
+
+template <class T>
+void check_replaced_instruction() {
+	for (bool on : {false, true}) {
+		T drum;
+		calls = 0;
+		on_dispatch = [&](ArpNote*, int) {
+			drum.arpeggiator.reset();
+			drum.arpeggiator.active_note.noteCodeOnPostArp[1] = 90;
+		};
+		send(&drum, on);
+		LONGS_EQUAL(1, calls);
+		on_dispatch = {};
+	}
+}
+TEST(non_audio_drum_lifetime, midi_replaced_instruction_cancels_old_batch) {
+	check_replaced_instruction<MIDIDrum>();
+}
+TEST(non_audio_drum_lifetime, gate_replaced_instruction_cancels_old_batch) {
+	check_replaced_instruction<GateDrum>();
 }

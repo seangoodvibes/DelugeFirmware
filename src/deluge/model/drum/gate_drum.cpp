@@ -45,6 +45,7 @@ void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	arpeggiator.noteOn(arpSettings, kNoteForDrum, velocity, &instruction, fromMIDIChannel, mpeValues);
 	if (!drum_lifetime.alive())
 		return;
+	const auto instruction_revision = arpeggiator.instruction_revision();
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -52,7 +53,7 @@ void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 			}
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
-			if (!drum_lifetime.alive())
+			if (!drum_lifetime.alive() || arpeggiator.instruction_revision() != instruction_revision)
 				return;
 		}
 	}
@@ -68,12 +69,13 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	arpeggiator.noteOff(arpSettings, kNoteForDrum, &instruction);
 	if (!drum_lifetime.alive())
 		return;
+	const auto instruction_revision = arpeggiator.instruction_revision();
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
 		noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
-		if (!drum_lifetime.alive())
+		if (!drum_lifetime.alive() || arpeggiator.instruction_revision() != instruction_revision)
 			return;
 	}
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
@@ -81,7 +83,7 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 			break;
 		}
 		noteOffPostArp(instruction.noteCodeOffPostArp[n]);
-		if (!drum_lifetime.alive())
+		if (!drum_lifetime.alive() || arpeggiator.instruction_revision() != instruction_revision)
 			return;
 	}
 }

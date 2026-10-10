@@ -992,12 +992,13 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 			                                 phaseIncrement);
 			if (!row_matches())
 				return;
+			const auto instruction_revision = nonAudioDrum->arpeggiator.instruction_revision();
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
 				nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
-				if (!row_matches())
+				if (!row_matches() || nonAudioDrum->arpeggiator.instruction_revision() != instruction_revision)
 					return;
 			}
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
@@ -1005,7 +1006,7 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 					break;
 				}
 				nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
-				if (!row_matches())
+				if (!row_matches() || nonAudioDrum->arpeggiator.instruction_revision() != instruction_revision)
 					return;
 			}
 			if (instruction.arpNoteOn != nullptr) {
@@ -1015,7 +1016,7 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 					}
 					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
-					if (!row_matches())
+					if (!row_matches() || nonAudioDrum->arpeggiator.instruction_revision() != instruction_revision)
 						return;
 				}
 			}

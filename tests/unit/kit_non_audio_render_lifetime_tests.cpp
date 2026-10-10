@@ -50,6 +50,8 @@ struct NonAudioDrum {
 	ArpeggiatorSettings arpSettings;
 	struct {
 		ArpNote note;
+		uint64_t revision = 0;
+		uint64_t instruction_revision() const { return revision; }
 		void render(ArpeggiatorSettings*, ArpReturnInstruction* instruction, size_t, uint32_t, uint32_t) {
 			++generated;
 			instruction->arpNoteOn = &note;
@@ -278,4 +280,18 @@ TEST(kit_non_audio_render_lifetime, missing_or_mismatched_clip_does_not_generate
 	render();
 	LONGS_EQUAL(0, generated);
 	LONGS_EQUAL(0, dispatched);
+}
+
+TEST(kit_non_audio_render_lifetime, surviving_drum_with_new_instruction_cancels_remaining_events) {
+	for (int stop_after : {1, 2, 3}) {
+		reset();
+		on_dispatch = [&] {
+			if (dispatched == stop_after) {
+				++drum->arpeggiator.revision;
+				drum->arpeggiator.note.noteCodeOnPostArp[1] = 90;
+			}
+		};
+		render();
+		LONGS_EQUAL(stop_after, dispatched);
+	}
 }
