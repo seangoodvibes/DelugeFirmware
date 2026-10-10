@@ -2097,3 +2097,11 @@ clip is still active. Six sanitizer regressions cover output deletion,
 same-address reuse and retirement before entry. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Persistent reference acquisition remains a
 separate lifetime gap; these guards cover outputs known live at acquisition.
+
+Specific-track note/CC routing now watches the output after verifying membership.
+All-notes-off loops and CC instrument follow-up stop on retirement, destruction
+or address reuse before traversing the list again. Single-note delivery rejects
+retiring outputs before retaining the note. Six sanitizer regressions include
+callbacks that leave the old output pointer in the list. All 36 native suites
+and `./dbt build relwithdebinfo` pass. This does not repair a stale list for later
+independent operations; deletion still must maintain the song's ownership list.

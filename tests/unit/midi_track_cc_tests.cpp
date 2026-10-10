@@ -16,6 +16,8 @@ struct ModelStack {
 	ModelStackWithTimelineCounter* addTimelineCounter(Clip*) { return &timeline; }
 };
 struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Output* next = nullptr;
 	Clip* active_clip = nullptr;
 	OutputType type = OutputType::SYNTH;
@@ -374,4 +376,36 @@ TEST(MidiTrackCC, replacement_at_same_clip_address_does_not_receive_old_cc) {
 	send();
 	LONGS_EQUAL(0, instrument_calls);
 	delete target;
+}
+
+TEST(MidiTrackCC, output_deleted_without_list_cleanup_stops_instrument_followup) {
+	auto* target = new MelodicInstrument;
+	target->active_clip = &clip;
+	clip.output = target;
+	song.firstOutput = target;
+	follow.on_parameter = [&] { delete target; };
+	follow.midiCCReceivedForSpecificTrack(cable, 0, 7, 100, &thru, &stack, target, 0);
+	LONGS_EQUAL(1, follow.parameter_calls);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, output_address_reuse_stops_instrument_followup) {
+	auto* target = new MelodicInstrument;
+	target->active_clip = &clip;
+	clip.output = target;
+	song.firstOutput = target;
+	follow.on_parameter = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->active_clip = &clip;
+	};
+	follow.midiCCReceivedForSpecificTrack(cable, 0, 7, 100, &thru, &stack, target, 0);
+	LONGS_EQUAL(1, follow.parameter_calls);
+	LONGS_EQUAL(0, instrument_calls);
+	delete target;
+}
+TEST(MidiTrackCC, retired_track_does_not_receive_cc) {
+	output.lifetime_source.retire();
+	send();
+	LONGS_EQUAL(0, follow.parameter_calls);
+	LONGS_EQUAL(0, instrument_calls);
 }

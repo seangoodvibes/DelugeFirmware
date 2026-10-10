@@ -17,6 +17,8 @@ struct ModelStack {
 	ModelStackWithTimelineCounter* addTimelineCounter(Clip*) { return &timeline; }
 };
 struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Output* next = nullptr;
 	Clip* active_clip = nullptr;
 	Clip* getActiveClip() { return active_clip; }
@@ -309,4 +311,35 @@ TEST(MidiNoteDispatch, track_all_notes_off_does_not_follow_reused_clip_address) 
 	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, &output, 0);
 	LONGS_EQUAL(1, sends);
 	delete target;
+}
+
+TEST(MidiNoteDispatch, track_output_deleted_without_list_cleanup_stops_all_notes_off) {
+	auto* target = new MelodicInstrument;
+	target->active_clip = &clip;
+	clip.output = target;
+	song.firstOutput = target;
+	on_note = [&] { delete target; };
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, target, 0);
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, track_output_address_reuse_stops_all_notes_off) {
+	auto* target = new MelodicInstrument;
+	target->active_clip = &clip;
+	clip.output = target;
+	song.firstOutput = target;
+	on_note = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->active_clip = &clip;
+	};
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, target, 0);
+	LONGS_EQUAL(1, sends);
+	delete target;
+}
+TEST(MidiNoteDispatch, retired_output_does_not_receive_or_retain_note) {
+	output.lifetime_source.retire();
+	POINTERS_EQUAL(nullptr, follow.sendNoteToClip(cable, &clip, MIDIMatchType::CHANNEL, true, 0, 60, 100, &thru, false,
+	                                              &stack, true));
+	LONGS_EQUAL(0, sends);
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
 }
