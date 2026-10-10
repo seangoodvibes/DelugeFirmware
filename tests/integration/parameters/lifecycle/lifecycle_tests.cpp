@@ -475,7 +475,7 @@ void check_real_persistence(bool json) {
 					STRCMP_EQUAL("sentinel", reader.readNextTagOrAttributeName());
 					LONGS_EQUAL(73, reader.readTagOrAttributeValueInt());
 					auto* loaded = destination.set().getParam(32, false);
-					CHECK_FALSE(loaded && loaded->hasInterpolationIncrement());
+					CHECK_FALSE(loaded && loaded->hasInterpolationIncrement(false));
 					if (!save_nodes || !load_nodes)
 						POINTERS_EQUAL(nullptr, loaded);
 					LONGS_EQUAL(17, source.set().getValue(32));
@@ -778,7 +778,7 @@ TEST(parameter_lifecycle, partial_node_clone_preserves_successful_parameter_and_
 	source.param(31)->autoParam->valueIncrementPerHalfTick = 10;
 	ParamManagerForTimeline clone;
 	{
-		fail_allocations failure(3); // Collection + parameter 31 succeed; parameter 32 fails.
+		fail_allocations failure(4); // Collection, parameter 31, lazy vector and nodes succeed; parameter 32 fails.
 		CHECK(clone.cloneParamCollectionsFrom(&source.manager, true) == Error::NONE);
 	}
 	check_node(*clone.getUnpatchedParamSet()->getParam(31), 0, 4, 400, true);
@@ -1469,7 +1469,7 @@ TEST(parameter_lifecycle, deterministic_edit_delete_clone_and_undo_sequence_pres
 
 	auto check_all = [&](char const* label) {
 		std::set<ParamNode*> owned_nodes;
-		auto check_nodes = [&](ParamNodeVector& actual, std::vector<expected_node> const& model) {
+		auto check_nodes = [&](LazyParamNodeVector& actual, std::vector<expected_node> const& model) {
 			CHECK_TEXT(actual.getNumElements() == static_cast<int>(model.size()), label);
 			for (size_t index = 0; index < model.size(); ++index) {
 				auto* node = actual.getElement(index);
@@ -1627,7 +1627,7 @@ TEST(parameter_lifecycle, shared_pool_reuses_storage_across_all_three_parameter_
 			POINTERS_EQUAL(previous, param);
 		LONGS_EQUAL(17, param->getCurrentValue());
 		CHECK_FALSE(param->isAutomated());
-		CHECK_FALSE(param->hasInterpolationIncrement());
+		CHECK_FALSE(param->hasInterpolationIncrement(false));
 		LONGS_EQUAL(0, param->renewedOverridingAtTime);
 		CHECK(param->setNodeAtPos(4, 400, true) >= 0);
 		param->valueIncrementPerHalfTick = 123;
@@ -1825,8 +1825,8 @@ void check_loading_pool_failure(bool json) {
 			STRCMP_EQUAL("params", reader.readNextTagOrAttributeName());
 		STRCMP_EQUAL("value", reader.readNextTagOrAttributeName());
 		if (fail) {
-			// The temporary node vector succeeds; acquiring its persistent owner fails.
-			fail_allocations failure(1);
+			// The temporary vector object and node storage succeed; acquiring its persistent owner fails.
+			fail_allocations failure(2);
 			f.set().readParam(reader, &f.summary(), 32, 32);
 			LONGS_EQUAL(1, parameter_test::allocation_failures);
 			LONGS_EQUAL(sizeof(AutoParam), parameter_test::last_failed_allocation_size);
@@ -1971,7 +1971,7 @@ TEST(parameter_lifecycle, clearing_full_idle_cache_preserves_active_automation_a
 	pool.clear_unused(); // Draining an empty cache is harmless.
 	LONGS_EQUAL(0, pool.cached_count());
 	LONGS_EQUAL(1, pool.active_count());
-	LONGS_EQUAL(2, parameter_test::outstanding_allocations()); // Active object and its nodes.
+	LONGS_EQUAL(3, parameter_test::outstanding_allocations()); // Active object, lazy vector and node storage.
 	LONGS_EQUAL(17, active->getCurrentValue());
 	check_node(*active, 0, 4, 400, true);
 	auto* another = pool.acquire();
@@ -3114,7 +3114,7 @@ void check_midi_load_pool_failure(bool json) {
 		STRCMP_EQUAL("value", reader.readNextTagOrAttributeName());
 		auto* owner = f.set().params.getParamFromCC(7);
 		if (fail) {
-			fail_allocations failure(1);
+			fail_allocations failure(2);
 			CHECK(owner->read_from_file(reader, 32) == Error::INSUFFICIENT_RAM);
 			LONGS_EQUAL(sizeof(AutoParam), parameter_test::last_failed_allocation_size);
 			POINTERS_EQUAL(nullptr, owner->get_auto_param());

@@ -240,7 +240,7 @@ void MIDIParamCollection::refresh_interpolation(ParamCollectionSummary* summary)
 	summary->whichParamsAreInterpolating[0] = 0;
 	for (int32_t index = 0; index < params.getNumElements(); ++index) {
 		auto* param = params.getElement(index)->get_auto_param();
-		if (param && param->hasInterpolationIncrement())
+		if (param && param->hasInterpolationIncrement(false))
 			summary->whichParamsAreInterpolating[0] = 1;
 	}
 }
