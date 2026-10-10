@@ -594,11 +594,20 @@ void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* mode
 	}                                                                                                                  \
 	}
 
-void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) {
+void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack,
+                                const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return;
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
 
-	AutoParam* param = patch_cables_[c]->get_auto_param();
+	if (c >= numPatchCables || !patch_cables_[c])
+		continue;
+	const auto cable_count = numPatchCables;
+	auto* cable = patch_cables_[c];
+	AutoParam* param = cable->get_auto_param();
+	if (!param)
+		continue;
 	int32_t paramId = getParamId(patch_cables_[c]->destinationParamDescriptor, patch_cables_[c]->from);
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
@@ -608,6 +617,11 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 	if (shouldNotify) { // Should always actually be true...
 		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
 	}
+
+	if (owner_validation && !owner_validation->valid())
+		return;
+	if (numPatchCables != cable_count || patch_cables_[c] != cable)
+		return;
 
 	FOR_EACH_PARAM_END
 }

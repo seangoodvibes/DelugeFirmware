@@ -17,6 +17,7 @@ struct midi_notification {
 };
 extern std::vector<midi_notification> midi_notifications;
 extern bool allow_patch_cables;
+extern std::function<void()> on_patch_value_change;
 extern size_t notifications;
 extern int allocations_before_failure;
 extern std::function<void()> on_allocation;

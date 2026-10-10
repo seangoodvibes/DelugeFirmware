@@ -250,10 +250,21 @@ void ParamManagerForTimeline::tickSamples(int32_t numSamples, ModelStackWithThre
 			original_collections[i] = summaries[i].paramCollection;
 		}
 	}
+	const auto collections_match = [&] {
+		if (!owner_validation->valid())
+			return false;
+		for (int i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i) {
+			if (summaries[i].paramCollection != original_collections[i])
+				return false;
+		}
+		return true;
+	};
+	const deluge::lifetime::callback_validation collection_validation{collections_match};
 	for (int i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM && summaries[i].paramCollection; ++i) {
 		auto* summary = &summaries[i];
 		auto* collection_stack = modelStack->addParamCollection(summary->paramCollection, summary);
-		summary->paramCollection->tickSamples(numSamples, collection_stack);
+		summary->paramCollection->tickSamples(numSamples, collection_stack,
+		                                      owner_validation ? &collection_validation : nullptr);
 		if (owner_validation) {
 			if (!owner_validation->valid()) {
 				return;

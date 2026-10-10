@@ -26,6 +26,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <set>
 #include <string>
@@ -4985,4 +4986,172 @@ TEST(parameter_lifecycle, guarded_parameter_lookup_preserves_existing_slot_witho
 	POINTERS_EQUAL(original, owner.set().getParam(0, true, &validation));
 	LONGS_EQUAL(1, checks);
 	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}
+
+namespace {
+class sample_tick_set final : public ParamSet {
+public:
+	mutable deluge::lifetime::lifetime_source lifetime;
+	std::array<AutoParam*, 2> owned_params{};
+	std::array<int32_t, 2> values{};
+	std::function<void()> notification;
+	int notifications = 0;
+	explicit sample_tick_set(ParamCollectionSummary* summary) : ParamSet(sizeof(sample_tick_set), summary) {
+		params = owned_params.data();
+		current_values = values.data();
+		numParams_ = 2;
+		topUintToRepParams = 0;
+	}
+	~sample_tick_set() override {
+		lifetime.retire();
+		release_all();
+	}
+	deluge::modulation::params::Kind getParamKind() override {
+		return deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+	}
+	void prepare(ParamCollectionSummary& summary) {
+		for (int i = 0; i < 2; ++i) {
+			auto* param = getParam(i);
+			CHECK(param);
+			param->valueIncrementPerHalfTick = 100000;
+		}
+		summary.whichParamsAreInterpolating[0] = 3;
+	}
+
+protected:
+	void notify_value_change(ModelStackWithAutoParam const*, int32_t, bool, bool, bool) override {
+		++notifications;
+		auto callback = notification;
+		if (callback)
+			callback();
+	}
+};
+} // namespace
+TEST(parameter_lifecycle, guarded_sample_tick_can_destroy_parameter_set_during_notification) {
+	ParamManagerForTimeline manager;
+	ParamCollectionSummary summary{};
+	auto set = std::make_unique<sample_tick_set>(&summary);
+	summary.paramCollection = set.get();
+	set->prepare(summary);
+	auto lifetime = deluge::lifetime::lifetime_watch{set->lifetime};
+	const auto valid = [&] { return lifetime.alive(); };
+	deluge::lifetime::callback_validation validation{valid};
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
+	auto* stack = setupModelStackWithThreeMainThingsButNoNoteRow(memory, nullptr, nullptr, nullptr, &manager)
+	                  ->addParamCollection(set.get(), &summary);
+	int notifications = 0;
+	set->notification = [&] {
+		++notifications;
+		set.reset();
+	};
+	set->tickSamples(32, stack, &validation);
+	LONGS_EQUAL(1, notifications);
+	CHECK(!set);
+}
+TEST(parameter_lifecycle, guarded_sample_tick_rejects_expired_owner_and_preserves_live_interpolation) {
+	ParamManagerForTimeline manager;
+	ParamCollectionSummary summary{};
+	sample_tick_set set(&summary);
+	summary.paramCollection = &set;
+	set.prepare(summary);
+	bool live = false;
+	const auto valid = [&] { return live; };
+	deluge::lifetime::callback_validation validation{valid};
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
+	auto* stack = setupModelStackWithThreeMainThingsButNoNoteRow(memory, nullptr, nullptr, nullptr, &manager)
+	                  ->addParamCollection(&set, &summary);
+	set.tickSamples(32, stack, &validation);
+	LONGS_EQUAL(0, set.notifications);
+	LONGS_EQUAL(0, set.getValue(0));
+	live = true;
+	set.tickSamples(32, stack, &validation);
+	LONGS_EQUAL(2, set.notifications);
+	CHECK(set.getValue(0) > 0);
+	CHECK(set.getValue(1) > 0);
+}
+TEST(parameter_lifecycle, sample_tick_skips_parameter_removed_by_previous_notification) {
+	ParamManagerForTimeline manager;
+	ParamCollectionSummary summary{};
+	sample_tick_set set(&summary);
+	summary.paramCollection = &set;
+	set.prepare(summary);
+	const auto valid = [] { return true; };
+	deluge::lifetime::callback_validation validation{valid};
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
+	auto* stack = setupModelStackWithThreeMainThingsButNoNoteRow(memory, nullptr, nullptr, nullptr, &manager)
+	                  ->addParamCollection(&set, &summary);
+	set.notification = [&] { set.release_unautomated(0); };
+	set.tickSamples(32, stack, &validation);
+	LONGS_EQUAL(1, set.notifications);
+	CHECK(!set.getParam(0, false));
+}
+
+namespace {
+void prepare_sample_tick_cables(patch_fixture& f) {
+	for (int destination : {0, 1}) {
+		auto id = f.add_cable(PatchSource::VELOCITY, destination, 100);
+		f.add_node(id, 0, 100);
+		f.param(id)->autoParam->valueIncrementPerHalfTick = 100000;
+	}
+	f.summary().whichParamsAreInterpolating[0] = 3;
+}
+} // namespace
+TEST(parameter_lifecycle, guarded_patch_sample_tick_can_destroy_manager_during_notification) {
+	struct watched_patch_fixture : patch_fixture {
+		deluge::lifetime::lifetime_source lifetime;
+	};
+	auto f = std::make_unique<watched_patch_fixture>();
+	prepare_sample_tick_cables(*f);
+	auto lifetime = deluge::lifetime::lifetime_watch{f->lifetime};
+	const auto valid = [&] { return lifetime.alive(); };
+	deluge::lifetime::callback_validation validation{valid};
+	int notifications = 0;
+	parameter_test::on_patch_value_change = [&] {
+		++notifications;
+		f.reset();
+	};
+	f->set().tickSamples(32, f->stack(), &validation);
+	LONGS_EQUAL(1, notifications);
+	CHECK(!f);
+	parameter_test::on_patch_value_change = {};
+}
+TEST(parameter_lifecycle, patch_sample_tick_cancels_after_cable_compaction) {
+	patch_fixture f;
+	prepare_sample_tick_cables(f);
+	const auto valid = [] { return true; };
+	deluge::lifetime::callback_validation validation{valid};
+	int notifications = 0;
+	parameter_test::on_patch_value_change = [&] {
+		++notifications;
+		f.set().deletePatchCable(f.stack(), 0);
+	};
+	f.set().tickSamples(32, f.stack(), &validation);
+	LONGS_EQUAL(1, notifications);
+	LONGS_EQUAL(1, f.set().numPatchCables);
+	parameter_test::on_patch_value_change = {};
+}
+TEST(parameter_lifecycle, guarded_patch_sample_tick_preserves_live_interpolation) {
+	patch_fixture f;
+	prepare_sample_tick_cables(f);
+	bool live = false;
+	const auto valid = [&] { return live; };
+	deluge::lifetime::callback_validation validation{valid};
+	int notifications = 0;
+	parameter_test::on_patch_value_change = [&] { ++notifications; };
+	f.set().tickSamples(32, f.stack(), &validation);
+	LONGS_EQUAL(0, notifications);
+	live = true;
+	f.set().tickSamples(32, f.stack(), &validation);
+	LONGS_EQUAL(2, notifications);
+	parameter_test::on_patch_value_change = {};
+}
+TEST(parameter_lifecycle, sample_tick_skips_scalar_patch_cable_with_stale_interpolation_flag) {
+	patch_fixture f;
+	auto id = f.add_cable(PatchSource::VELOCITY, 0, 100);
+	CHECK(!f.param(id, false)->autoParam);
+	f.summary().whichParamsAreInterpolating[0] = 1;
+	const auto valid = [] { return true; };
+	deluge::lifetime::callback_validation validation{valid};
+	f.set().tickSamples(32, f.stack(), &validation);
+	LONGS_EQUAL(100, f.set().get_current_value(id));
 }

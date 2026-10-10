@@ -8,8 +8,11 @@ constexpr int PARAM_COLLECTIONS_STORAGE_NUM = 5;
 struct ModelStackWithParamCollection {};
 struct ParamCollection {
 	int calls = 0;
+	const deluge::lifetime::callback_validation* active_validation = nullptr;
 	std::function<void()> callback;
-	void tickSamples(int32_t, ModelStackWithParamCollection*) {
+	void tickSamples(int32_t, ModelStackWithParamCollection*,
+	                 const deluge::lifetime::callback_validation* owner_validation = nullptr) {
+		active_validation = owner_validation;
 		++calls;
 		// The callback may delete its collection, so retain the callable separately.
 		auto local_callback = callback;
@@ -100,4 +103,25 @@ TEST(parameter_tick_lifetime, deletion_of_next_collection_cancels_before_derefer
 	};
 	manager.tickSamples(32, &stack, &validation);
 	LONGS_EQUAL(1, first.calls);
+}
+
+TEST(parameter_tick_lifetime, collection_receives_combined_owner_and_layout_validation) {
+	ParamManagerForTimeline manager;
+	ParamCollection first, second, replacement;
+	manager.summaries[0].paramCollection = &first;
+	manager.summaries[1].paramCollection = &second;
+	bool live = true;
+	const auto valid = [&] { return live; };
+	deluge::lifetime::callback_validation validation{valid};
+	first.callback = [&] {
+		CHECK(first.active_validation);
+		CHECK(first.active_validation->valid());
+		manager.summaries[1].paramCollection = &replacement;
+		CHECK_FALSE(first.active_validation->valid());
+		manager.summaries[1].paramCollection = &second;
+		live = false;
+		CHECK_FALSE(first.active_validation->valid());
+	};
+	manager.tickSamples(32, &stack, &validation);
+	LONGS_EQUAL(0, second.calls);
 }

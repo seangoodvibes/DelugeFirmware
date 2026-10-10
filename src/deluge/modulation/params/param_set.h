@@ -71,7 +71,8 @@ public:
 	void writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
 	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = nullptr);
 	void readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);
-	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) final;
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack,
+	                 const deluge::lifetime::callback_validation* owner_validation = nullptr) final;
 	void tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) final;
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) final;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) final;

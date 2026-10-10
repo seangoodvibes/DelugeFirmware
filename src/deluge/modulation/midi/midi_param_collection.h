@@ -35,7 +35,8 @@ public:
 	/// unnoticeable but limits the amount of data sent
 	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
 
-	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {};
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack,
+	                 const deluge::lifetime::callback_validation* owner_validation = nullptr) override {};
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override {}
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,

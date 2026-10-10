@@ -27,6 +27,7 @@ std::function<bool(ModelStackWithAutoParam const*)> on_record_param;
 bool allow_midi_params = false;
 std::vector<midi_notification> midi_notifications;
 bool allow_patch_cables = false;
+std::function<void()> on_patch_value_change;
 size_t notifications = 0;
 int allocations_before_failure = -1;
 std::function<void()> on_allocation;
@@ -50,6 +51,7 @@ void reset() {
 	allow_midi_params = false;
 	midi_notifications.clear();
 	allow_patch_cables = false;
+	on_patch_value_change = {};
 	notifications = 0;
 	allow_recording_controls = false;
 	indicator_calls = 0;
@@ -207,6 +209,9 @@ PatchCableAcceptance patch_cable_acceptance(ModelStackWithThreeMainThings const*
 void notify_patch_cable_value_change(ModelStackWithAutoParam const*, int32_t) {
 	if (!parameter_test::allow_patch_cables)
 		unsupported();
+	auto callback = parameter_test::on_patch_value_change;
+	if (callback)
+		callback();
 }
 void Sound::notifyValueChangeViaLPF(int32_t, bool, ModelStackWithThreeMainThings const*, int32_t, int32_t, bool) {
 	unsupported();

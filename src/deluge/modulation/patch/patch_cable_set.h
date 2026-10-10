@@ -59,7 +59,8 @@ public:
 	bool isSourcePatchedToSomethingManuallyCheckCables(PatchSource s);
 	bool doesParamHaveSomethingPatchedToIt(int32_t p);
 
-	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack,
+	                 const deluge::lifetime::callback_validation* owner_validation = nullptr) override;
 	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {};
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override;

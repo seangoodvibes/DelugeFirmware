@@ -2579,3 +2579,13 @@ and unguarded traversal, destroyed/expired owners and changed/deleted collection
 All 36 native suites and `./dbt build relwithdebinfo` pass. This protects traversal
 between collections only; individual collection loops, same-address collection
 reuse and unguarded callers retain their existing lifetime requirements.
+
+Guarded sample ticking now forwards combined owner/layout validation into parameter
+and patch-cable collections. Their loops validate after notifications; stale
+scalar slots are skipped, and patch-cable compaction cancels the remaining batch.
+Seven native parameter regressions execute real collections, automation and pool
+code with notification consumer doubles, including actual owner deletion. An
+additional manager regression checks forwarded layout/owner validation. All 36
+native suites and `./dbt build relwithdebinfo` pass. Notification internals,
+unguarded callers, tick-based automation and same-address collection/cable reuse
+remain separate audit work. Hardware timing remains unmeasured.

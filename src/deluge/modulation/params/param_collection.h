@@ -38,7 +38,8 @@ class ParamCollectionSummary;
 
 namespace deluge::lifetime {
 class lifetime_watch;
-}
+class callback_validation;
+} // namespace deluge::lifetime
 
 class ParamCollection {
 public:
@@ -53,7 +54,8 @@ public:
 	                         const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) = 0;
 
 	/// tick interpolation by a number of ticks
-	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
+	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack,
+	                         const deluge::lifetime::callback_validation* owner_validation = nullptr) = 0;
 
 	/// tick interpolation by a number of ticks
 	virtual void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;

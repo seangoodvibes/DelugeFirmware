@@ -250,11 +250,16 @@ void ParamSet::processCurrentPos(ModelStackWithParamCollection* modelStack, int3
 	}
 }
 
-void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) {
+void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack,
+                           const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return;
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
 
 	AutoParam* param = params[p];
+	if (!param)
+		continue;
 
 	int32_t oldValue = param->getCurrentValue();
 	bool shouldNotify = param->tickSamples(numSamples, shouldInterpolateWithFloat(modelStack->addParamId(p)));
@@ -262,6 +267,9 @@ void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* mo
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
 	}
+
+	if (owner_validation && !owner_validation->valid())
+		return;
 
 	FOR_EACH_PARAM_END
 }
