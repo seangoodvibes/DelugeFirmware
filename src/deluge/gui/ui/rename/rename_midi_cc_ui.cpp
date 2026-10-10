@@ -25,6 +25,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "util/exceptions.h"
 #include <string_view>
 
 namespace {
@@ -65,7 +66,21 @@ bool RenameMidiCCUI::trySetName(std::string_view name) {
 	if (!instrument)
 		return false;
 	const auto cc = currentSong->getCurrentClip()->last_selected_param_id_for_session();
-	instrument->setNameForCC(cc, name);
+	auto* const source_song = currentSong;
+	auto* const source_clip = currentSong->getCurrentClip();
+	const auto source_owner = deluge::gui::ui_session::current();
+	try {
+		instrument->setNameForCC(cc, name);
+	} catch (deluge::exception error) {
+		if (error != deluge::exception::BAD_ALLOC)
+			throw;
+		if (deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		    && instrument_for_rename() == instrument && currentSong->getCurrentClip() == source_clip
+		    && source_clip->last_selected_param_id_for_session() == cc) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+		}
+		return false;
+	}
 	instrument->editedByUser = true; // Persist the name with the song / preset.
 	return true;
 }

@@ -66,6 +66,8 @@ struct Kit : Output {
 	Drum* selected_drum_for_session() { return selected_drums.active(); }
 	Drum* getDrumFromName(std::string_view) { return duplicate_drum; }
 };
+static std::function<void()> on_midi_name_set;
+static std::optional<::deluge::exception> midi_exception;
 struct MIDIInstrument : Output {
 	MIDIInstrument() { type = OutputType::MIDI_OUT; }
 	std::array<std::string, kNumRealCCNumbers> labels{};
@@ -76,6 +78,10 @@ struct MIDIInstrument : Output {
 	}
 	void setNameForCC(int32_t cc, std::string_view name) {
 		++writes;
+		if (on_midi_name_set)
+			on_midi_name_set();
+		if (midi_exception)
+			throw *midi_exception;
 		if (cc >= 0 && cc < kNumRealCCNumbers)
 			labels[cc] = name;
 	}
@@ -593,6 +599,8 @@ TEST_GROUP(RenameMidiTargets) {
 	MIDIInstrument instrument;
 	RenameMidiCCUI menu;
 	void setup() override {
+		on_midi_name_set = {};
+		midi_exception.reset();
 		session::detail::active = session::Id::Local;
 		currentSong = &song;
 		song.sessionClips.entries = {&clip};
@@ -605,6 +613,8 @@ TEST_GROUP(RenameMidiTargets) {
 		display_instance = {};
 	}
 	void teardown() override {
+		on_midi_name_set = {};
+		midi_exception.reset();
 		session::detail::active = session::Id::Local;
 		currentSong = nullptr;
 	}
@@ -660,4 +670,61 @@ TEST(RenameMidiTargets, missing_wrong_type_and_reattached_context_are_handled) {
 	CHECK(menu.canRename());
 	CHECK(menu.trySetName("reattached"));
 	CHECK(menu.getCurrentName() == "reattached");
+}
+
+TEST(RenameMidiTargets, failed_allocation_preserves_label_and_allows_retry) {
+	instrument.labels[7] = "original";
+	midi_exception = ::deluge::exception::BAD_ALLOC;
+	CHECK_FALSE(menu.trySetName("replacement"));
+	CHECK(instrument.labels[7] == "original");
+	CHECK_FALSE(instrument.editedByUser);
+	CHECK(display_instance.error == Error::INSUFFICIENT_RAM);
+	midi_exception.reset();
+	CHECK(menu.trySetName("retry"));
+	CHECK(instrument.labels[7] == "retry");
+	CHECK(instrument.editedByUser);
+}
+TEST(RenameMidiTargets, failed_allocation_does_not_report_into_changed_context) {
+	Song replacement;
+	Clip other_clip;
+	other_clip.output = &instrument;
+	other_clip.selected_cc.active() = 7;
+	midi_exception = ::deluge::exception::BAD_ALLOC;
+	for (int scenario = 0; scenario < 6; ++scenario) {
+		session::detail::active = session::Id::Local;
+		currentSong = &song;
+		song.selected_clips.active() = &clip;
+		song.sessionClips.entries = {&clip, &other_clip};
+		song.firstOutput = &instrument;
+		clip.selected_cc.active() = 7;
+		on_midi_name_set = [&] {
+			if (scenario == 0)
+				session::detail::active = session::Id::Remote;
+			if (scenario == 1)
+				currentSong = &replacement;
+			if (scenario == 2)
+				song.selected_clips.active() = &other_clip;
+			if (scenario == 3)
+				clip.selected_cc.active() = 10;
+			if (scenario == 4)
+				song.firstOutput = nullptr;
+			if (scenario == 5)
+				song.sessionClips.entries.clear();
+		};
+		CHECK_FALSE(menu.trySetName("replacement"));
+		CHECK(display_instance.error == Error::NONE);
+		CHECK_FALSE(instrument.editedByUser);
+	}
+}
+TEST(RenameMidiTargets, unrelated_exception_propagates_without_marking_edited) {
+	midi_exception = ::deluge::exception::BAD_RELEASE;
+	bool caught = false;
+	try {
+		menu.trySetName("replacement");
+	} catch (::deluge::exception error) {
+		caught = error == ::deluge::exception::BAD_RELEASE;
+	}
+	CHECK(caught);
+	CHECK_FALSE(instrument.editedByUser);
+	CHECK(display_instance.error == Error::NONE);
 }

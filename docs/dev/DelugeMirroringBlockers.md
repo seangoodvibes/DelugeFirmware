@@ -1204,3 +1204,15 @@ side effects are not provided by these guards.
   regression failed before the fix. Firmware allocator pressure is not simulated.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. UI error recovery and
   callback-spanning lifetime remain separate; independent mode stays disabled.
+
+### G1 / R4 progress — MIDI CC rename allocation recovery (2026-10-10)
+
+- MIDI rename catches allocation failure without marking the instrument edited,
+  preserves the original label and allows retry. Unrelated exceptions propagate.
+  Error reporting requires the original owner, song, clip, instrument and CC.
+- Three extracted-production fixture tests cover retry, six context changes during
+  failure and unrelated exception propagation. All 35 native suites and
+  `./dbt build relwithdebinfo` pass.
+- Successful allocating writes still require object-lifetime protection. These
+  checks contain stale error reporting; they do not pin objects during allocation.
+  G1/L1/R4 remain open and independent mode stays disabled.
