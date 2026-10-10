@@ -717,10 +717,29 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
                                                      int32_t velocity, bool* doingMidiThru,
                                                      bool shouldRecordNotesNowNow, ModelStack* modelStack,
                                                      Output* specific_track, int32_t specific_track_index) {
+	if (!currentSong || !modelStack || !specific_track)
+		return;
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto track_is_current = [&] {
+		if (currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
+			return false;
+		for (auto* output = source_song->firstOutput; output; output = output->next) {
+			if (output == specific_track)
+				return true;
+		}
+		return false;
+	};
+	if (!track_is_current())
+		return;
+
 	MIDIMatchType match = checkMidiFollowMatchForSpecificTrack(cable, channel, specific_track_index);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
+		if (!clip || clip->output != specific_track)
+			return;
 
 		if (note >= 0 && note <= 127) {
 			sendNoteToClip(cable, clip, match, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
@@ -729,6 +748,8 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
 		// all notes off
 		else if (note == ALL_NOTES_OFF) {
 			for (int32_t i = 0; i <= 127; i++) {
+				if (!track_is_current() || specific_track->getActiveClip() != clip || clip->output != specific_track)
+					return;
 				sendNoteToClip(cable, clip, match, on, channel, i, velocity, doingMidiThru, shouldRecordNotesNowNow,
 				               modelStack, false);
 			}

@@ -15,6 +15,9 @@ struct ModelStack {
 	ModelStackWithTimelineCounter* addTimelineCounter(Clip*) { return &timeline; }
 };
 struct Output {
+	Output* next = nullptr;
+	Clip* active_clip = nullptr;
+	Clip* getActiveClip() { return active_clip; }
 	OutputType type = OutputType::SYNTH;
 };
 struct Clip {
@@ -51,6 +54,7 @@ static struct {
 	int midiFollowKitRootNote = 36;
 } midiEngine;
 struct song_fixture {
+	Output* firstOutput = nullptr;
 	bool active = true;
 	bool isOutputActiveInArrangement(Output*) { return active; }
 };
@@ -63,6 +67,9 @@ struct MidiFollow {
 	Clip* getActiveClip(ModelStack*) { return nullptr; }
 	Output* noteMessageReceivedForSelectedOrActiveClip(MIDICable&, bool, int32_t, int32_t, int32_t, bool*, bool,
 	                                                   ModelStack*);
+	MIDIMatchType checkMidiFollowMatchForSpecificTrack(MIDICable&, uint8_t, int32_t) { return match; }
+	void noteMessageReceivedForSpecificTrack(MIDICable&, bool, int32_t, int32_t, int32_t, bool*, bool, ModelStack*,
+	                                         Output*, int32_t);
 	void clearStoredClips();
 	void removeClip(Clip*);
 	Output* sendNoteToClip(MIDICable&, Clip*, MIDIMatchType, bool, int32_t, int32_t, int32_t, bool*, bool, ModelStack*,
@@ -87,6 +94,8 @@ TEST_GROUP(MidiNoteDispatch) {
 		session::detail::active = session::Id::Local;
 		clip.output = &output;
 		song.active = true;
+		song.firstOutput = &output;
+		output.active_clip = &clip;
 		currentSong = &song;
 		sends = 0;
 		last_note = -1;
@@ -231,4 +240,40 @@ TEST(MidiNoteDispatch, all_notes_off_owner_change_stops_and_restores_panel) {
 		LONGS_EQUAL(1, sends);
 		CHECK(session::current() == owner);
 	}
+}
+
+TEST(MidiNoteDispatch, track_all_notes_off_stops_when_callback_deletes_active_clip) {
+	auto* target = new Clip;
+	target->output = &output;
+	output.active_clip = target;
+	on_note = [&] {
+		output.active_clip = nullptr;
+		delete target;
+	};
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, &output, 0);
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, track_all_notes_off_stops_when_callback_removes_and_deletes_output) {
+	auto* target = new MelodicInstrument;
+	target->active_clip = &clip;
+	clip.output = target;
+	song.firstOutput = target;
+	on_note = [&] {
+		song.firstOutput = nullptr;
+		delete target;
+	};
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, target, 0);
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, track_all_notes_off_normal_delivery_does_not_change_selected_retention) {
+	clipForLastNoteReceived[60] = &clip;
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, &output, 0);
+	LONGS_EQUAL(128, sends);
+	POINTERS_EQUAL(&clip, clipForLastNoteReceived[60]);
+}
+TEST(MidiNoteDispatch, track_notes_reject_missing_or_detached_outputs) {
+	song.firstOutput = nullptr;
+	follow.noteMessageReceivedForSpecificTrack(cable, true, 0, 60, 100, &thru, false, &stack, &output, 0);
+	follow.noteMessageReceivedForSpecificTrack(cable, true, 0, 60, 100, &thru, false, &stack, nullptr, 0);
+	LONGS_EQUAL(0, sends);
 }

@@ -1806,3 +1806,14 @@ reproduced song-change result, panel changes on both owners and normal 128-note
 release/retention cleanup. All 35 native suites and `./dbt build relwithdebinfo`
 pass. Instrument callbacks remain fixtures, and general retained-object lifetime
 and track-specific all-notes-off safety are not established by this change.
+
+### G1 / L1 progress — specific-track all-notes-off target revalidation (2026-10-10)
+
+Specific-track note delivery now requires a registered song output and matching
+active clip. All-notes-off rechecks song/panel, output membership and clip
+association before every delivery. Four tests cover missing/detached outputs,
+normal 128-note dispatch without selected-note retention changes, and callbacks
+that remove/delete the fixture output or clear/delete the fixture clip after the
+first delivery. All 35 native suites and `./dbt build relwithdebinfo` pass.
+The tests perform real deletion of fixture objects, not firmware destructors;
+address reuse and destruction without registry/active-clip updates remain L1 gaps.
