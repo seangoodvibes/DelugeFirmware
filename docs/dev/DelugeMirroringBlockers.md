@@ -1095,3 +1095,17 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. These checks do not
   pin the name source during copying or roll back callback side effects. G1/R4/L1
   remain open and independent mode stays disabled.
+
+### G1 / R4 progress — stale UI close requests (2026-10-09)
+
+- closeUI validates depth, active hierarchy entries and target membership before
+  rendering or popping. Missing targets, root-close requests and incomplete stacks
+  leave navigation untouched instead of indexing below the root or dereferencing
+  a missing UI. Valid closure still removes the target and its descendants.
+- Four extracted-production tests cover nested Remote closure, absent/null/root
+  targets, invalid depths and incomplete stacks. Callback/rendering dependencies
+  are fixtures; invalid cases were added with the guards rather than executed
+  against the unsafe pre-fix indexing paths.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime and
+  changes during closure remain separate work. G1/R4 remain open; independent
+  mode stays disabled.

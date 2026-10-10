@@ -10,7 +10,15 @@ namespace ui_session = ::deluge::gui::ui_session;
 struct UI {
 	UI* redirected = this;
 	bool success = true;
-	int opens = 0, focuses = 0;
+	int opens = 0, focuses = 0, renders = 0;
+	bool renderMainPads(uint32_t = 0, void* = nullptr, void* = nullptr) {
+		++renders;
+		return false;
+	}
+	bool renderSidebar(uint32_t = 0, void* = nullptr, void* = nullptr) {
+		++renders;
+		return false;
+	}
 	std::function<void()> on_open, on_resolve, on_focus;
 	UI* getUI() {
 		if (on_resolve)
@@ -56,6 +64,16 @@ struct timer_fixture {
 };
 static timer_fixture uiTimerManager;
 namespace PadLEDs {
+static void* image_for_session() {
+	return nullptr;
+}
+static void* occupancy_mask_for_session() {
+	return nullptr;
+}
+static void sendOutMainPadColours() {
+}
+static void sendOutSidebarColours() {
+}
 static std::function<void()> on_greyout;
 static void reassessGreyout() {
 	if (on_greyout)
@@ -171,4 +189,49 @@ TEST(UIOpen, focus_callback_owner_change_does_not_redraw_peer) {
 	CHECK(session::current() == session::Id::Local);
 	LONGS_EQUAL(0, redraws.for_owner(session::Id::Remote));
 	LONGS_EQUAL(1, navigation().depth);
+}
+
+TEST(UIOpen, valid_close_removes_target_and_descendants_on_initiating_owner) {
+	session::Scope scope(session::Id::Remote);
+	navigation().hierarchy[1] = &menu;
+	navigation().hierarchy[2] = &replacement;
+	navigation().depth = 3;
+	closeUI(&menu);
+	LONGS_EQUAL(1, navigation().depth);
+	POINTERS_EQUAL(&root, getCurrentUI());
+	LONGS_EQUAL(1, root.focuses);
+	LONGS_EQUAL(2, menu.renders);
+	LONGS_EQUAL(2, replacement.renders);
+	LONGS_EQUAL(1, redraws.active());
+	LONGS_EQUAL(0, redraws.for_owner(session::Id::Local));
+}
+
+TEST(UIOpen, absent_null_and_root_close_requests_leave_stack_untouched) {
+	navigation().hierarchy[1] = &menu;
+	navigation().depth = 2;
+	for (auto* target : {static_cast<UI*>(nullptr), &replacement, &root}) {
+		closeUI(target);
+		LONGS_EQUAL(2, navigation().depth);
+		POINTERS_EQUAL(&menu, getCurrentUI());
+		LONGS_EQUAL(0, menu.renders);
+		LONGS_EQUAL(0, root.focuses);
+		LONGS_EQUAL(0, redraws.active());
+	}
+}
+TEST(UIOpen, invalid_depth_close_requests_do_not_access_stack) {
+	for (int depth : {-1, 0, 1, navigation_fixture::capacity + 1}) {
+		navigation().depth = depth;
+		closeUI(&menu);
+		LONGS_EQUAL(depth, navigation().depth);
+		LONGS_EQUAL(0, root.focuses);
+		LONGS_EQUAL(0, redraws.active());
+	}
+}
+TEST(UIOpen, incomplete_stack_is_not_closed) {
+	navigation().hierarchy[2] = &menu;
+	navigation().depth = 3;
+	closeUI(&menu);
+	LONGS_EQUAL(3, navigation().depth);
+	LONGS_EQUAL(0, menu.renders);
+	LONGS_EQUAL(0, root.focuses);
 }

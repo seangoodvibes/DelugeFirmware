@@ -185,6 +185,18 @@ UI* getUIUpOneLevel(int32_t numLevelsUp) {
 
 // If UI not found, chaos
 void closeUI(UI* uiToClose) {
+	if (!uiToClose || navigation().depth <= 1 || navigation().depth > navigation().capacity)
+		return;
+	int32_t target_level = -1;
+	for (int32_t level = 0; level < navigation().depth; ++level) {
+		if (!navigation().hierarchy[level])
+			return;
+		if (navigation().hierarchy[level] == uiToClose)
+			target_level = level;
+	}
+	// A stale close request must not remove the root or index below the stack.
+	if (target_level <= 0)
+		return;
 
 	bool redrawMainPads = false;
 	bool redrawSidebar = false;
