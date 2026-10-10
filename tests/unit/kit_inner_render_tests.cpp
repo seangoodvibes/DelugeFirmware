@@ -1,5 +1,9 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <span>
 #include <vector>
 namespace deluge::modulation::params {
@@ -20,10 +24,15 @@ struct ModelStackWithThreeMainThings {};
 struct ParamCollectionSummary {
 	int whichParamsAreInterpolating[3] = {};
 };
+std::function<void()> on_render, on_kill, on_tick;
 int tick_calls = 0, render_calls = 0, row_index = -1;
 struct ParamManager {
 	ParamCollectionSummary summaries[4];
-	void tickSamples(size_t, ModelStackWithThreeMainThings*) { ++tick_calls; }
+	void tickSamples(size_t, ModelStackWithThreeMainThings*) {
+		++tick_calls;
+		if (on_tick)
+			on_tick();
+	}
 } backup;
 struct NoteRow {
 	Drum* drum = nullptr;
@@ -34,7 +43,11 @@ struct NoteRowVector {
 	int getNumElements() { return rows.size(); }
 	NoteRow* getElement(int index) { return rows.at(index); }
 };
+struct Kit;
 struct InstrumentClip {
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
+	Kit* output = nullptr;
 	NoteRowVector noteRows;
 	NoteRow* getNoteRowForDrum(Drum* drum, int* index) {
 		for (int i = 0; i < noteRows.getNumElements(); ++i) {
@@ -48,17 +61,25 @@ struct InstrumentClip {
 };
 struct SoundDrum : Drum {
 	bool skippingRendering = false;
-	void killAllVoices() {}
+	void killAllVoices() {
+		if (on_kill)
+			on_kill();
+	}
 	template <class... Args>
 	void render(Args&&...) {
 		++render_calls;
+		if (on_render)
+			on_render();
 	}
 };
 struct Song {
 	ParamManager* getBackedUpParamManagerPreferablyWithClip(SoundDrum*, void*) { return &backup; }
 } song;
+Song* currentSong = &song;
 struct ModelStackWithTimelineCounter {
 	Song* song = &kit_inner_render_test::song;
+	InstrumentClip* clip = nullptr;
+	InstrumentClip* getTimelineCounterAllowNull() { return clip; }
 	ModelStackWithThreeMainThings main;
 	ModelStackWithTimelineCounter* addNoteRow(int index, NoteRow*) {
 		row_index = index;
@@ -71,6 +92,8 @@ struct {
 	int ticksLeftInCountIn = 0;
 } playbackHandler;
 struct Kit {
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	InstrumentClip* activeClip = nullptr;
 	struct {
 		std::vector<Drum*> drums;
@@ -87,6 +110,15 @@ void FREEZE_WITH_ERROR(const char*) {
 using namespace kit_inner_render_test;
 TEST_GROUP(kit_inner_render){void setup() override{tick_calls = render_calls = 0;
 row_index = -1;
+on_render = {};
+on_kill = {};
+on_tick = {};
+currentSong = &song;
+}
+void teardown() override {
+	on_render = {};
+	on_kill = {};
+	on_tick = {};
 }
 }
 ;
@@ -110,10 +142,64 @@ TEST(kit_inner_render, active_clip_still_ticks_interpolating_row) {
 	InstrumentClip clip;
 	clip.noteRows.rows.push_back(&row);
 	kit.activeClip = &clip;
+	clip.output = &kit;
 	kit.drumsWithRenderingActive.drums.push_back(&drum);
 	ModelStackWithTimelineCounter stack;
+	stack.clip = &clip;
 	StereoSample samples[1];
 	CHECK(kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0));
 	LONGS_EQUAL(1, render_calls);
 	LONGS_EQUAL(1, tick_calls);
+}
+
+TEST(kit_inner_render, owner_destruction_at_each_callback_stops_traversal) {
+	for (int stage = 0; stage < 3; ++stage) {
+		auto kit = std::make_unique<Kit>();
+		auto clip = std::make_unique<InstrumentClip>();
+		SoundDrum drum;
+		NoteRow row;
+		row.drum = &drum;
+		row.paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+		kit->activeClip = clip.get();
+		clip->output = kit.get();
+		if (stage != 1)
+			clip->noteRows.rows.push_back(&row);
+		if (stage != 2)
+			kit->drumsWithRenderingActive.drums.push_back(&drum);
+		ModelStackWithTimelineCounter stack;
+		stack.clip = clip.get();
+		auto destroy = [&] {
+			clip.reset();
+			kit.reset();
+		};
+		on_render = stage == 0 ? std::function<void()>(destroy) : std::function<void()>();
+		on_kill = stage == 1 ? std::function<void()>(destroy) : std::function<void()>();
+		on_tick = stage == 2 ? std::function<void()>(destroy) : std::function<void()>();
+		StereoSample samples[1];
+		kit->renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
+		CHECK(!kit);
+		CHECK(!clip);
+		on_render = {};
+		on_kill = {};
+		on_tick = {};
+	}
+}
+TEST(kit_inner_render, retarget_during_render_does_not_tick_replacement_clip) {
+	Kit kit;
+	InstrumentClip clip, replacement;
+	SoundDrum drum;
+	NoteRow row;
+	row.drum = &drum;
+	row.paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+	clip.output = replacement.output = &kit;
+	clip.noteRows.rows.push_back(&row);
+	replacement.noteRows.rows.push_back(&row);
+	kit.activeClip = &clip;
+	kit.drumsWithRenderingActive.drums.push_back(&drum);
+	ModelStackWithTimelineCounter stack;
+	stack.clip = &clip;
+	on_render = [&] { kit.activeClip = &replacement; };
+	StereoSample samples[1];
+	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
+	LONGS_EQUAL(0, tick_calls);
 }

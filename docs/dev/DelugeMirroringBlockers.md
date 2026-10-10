@@ -2544,3 +2544,10 @@ is set. Two production-body sanitizer regressions cover backup rendering and
 preserved active-row interpolation. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Callback invalidation inside this inner renderer
 remains separate from these no-clip fixes.
+
+The inner kit audio renderer now watches kit/clip lifetime and validates the
+song, panel and timeline association after voice-stop, drum-render and parameter-
+tick callbacks. Regression sweeps destroy both owners at each boundary and check
+that clip retargeting cannot tick a replacement clip. All 36 native suites and
+`./dbt build relwithdebinfo` pass. This stops traversal on owner invalidation;
+mutations of drum/row lists while those owners survive remain separate work.

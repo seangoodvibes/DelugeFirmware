@@ -577,6 +577,27 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
                                         int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+	if (!modelStack || !modelStack->song) {
+		return false;
+	}
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive()) {
+		return false;
+	}
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* source_song = modelStack->song;
+	auto* active_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return kit_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && modelStack->song == source_song
+		       && currentSong == active_song && modelStack->getTimelineCounterAllowNull() == routed_clip
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_matches()) {
+		return false;
+	}
 	bool rendered = false;
 	// Render Drums. Traverse backwards, in case one stops rendering (removing itself from the list) as we render it
 	for (int32_t d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
@@ -604,6 +625,9 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 			// This used to be E255
 			if (!thisNoteRow) {
 				soundDrum->killAllVoices();
+				if (!context_matches()) {
+					return rendered;
+				}
 				continue;
 			}
 			drumParamManager = &thisNoteRow->paramManager;
@@ -620,6 +644,9 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
+		if (!context_matches()) {
+			return rendered;
+		}
 	}
 
 	// Tick ParamManagers
@@ -652,6 +679,9 @@ yesTickParamManager:
 					    modelStack->addNoteRow(i, thisNoteRow)
 					        ->addOtherTwoThings((SoundDrum*)thisNoteRow->drum, &thisNoteRow->paramManager);
 					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
+					if (!context_matches()) {
+						return rendered;
+					}
 					continue;
 				}
 
