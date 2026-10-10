@@ -934,3 +934,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/arp_pending_revision.inc
 target_sources(ClipLifetimeTests PRIVATE arp_instruction_revision_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/arp_pending_revision.inc)
 set_source_files_properties(arp_instruction_revision_tests.cpp PROPERTIES
     INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/../32bit_unit_tests/mocks)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_tick_arp_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_tick_arp_lifetime.inc
+        Kit::doTickForwardForArp
+    DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/kit_tick_arp_lifetime.inc)

@@ -1320,89 +1320,103 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 // Returns num ticks til next arp event
 int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) {
+	if (!modelStack || !modelStack->song)
 		return 2147483647;
-	}
-
-	bool clipIsActive = modelStack->song->isClipActive(activeClip);
-
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
-
-	int32_t ticksTilNextArpEvent = 2147483647;
-
-	// kit arp
-
-	ParamManager* paramManager = getParamManager(modelStack->song);
-
-	ArpeggiatorSettings* arpSettings = getArpSettings();
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
-	arpSettings->chordPolyphony = 0;
-	arpSettings->chordProbability = 0;
-	arpSettings->spreadOctave = 0;
-
-	ArpReturnInstruction kitInstruction;
-	int32_t ticksTilNextKitArpEvent =
-	    arpeggiator.doTickForward(arpSettings, &kitInstruction, currentPos, activeClip->currentlyPlayingReversed);
-
-	if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
-		// Glide note off
-		if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-			NoteRow* thisNoteRow =
-			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
-			if (thisNoteRow->drum != nullptr) {
-				// reset invertReverse for drum arpeggiator (done for every noteOff)
-				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
-				// Do row note off
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
-				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
-			}
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || !activeClip)
+		return 2147483647;
+	auto* routed_clip = static_cast<InstrumentClip*>(activeClip);
+	auto clip_lifetime = routed_clip->watch_lifetime();
+	if (!clip_lifetime.alive() || routed_clip->output != this)
+		return 2147483647;
+	auto* source_song = modelStack->song;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto row_count = routed_clip->noteRows.getNumElements();
+	auto* modelStackWithTimelineCounter = modelStack->addTimelineCounter(routed_clip);
+	const auto context_matches = [&] {
+		return kit_lifetime.alive() && clip_lifetime.alive() && activeClip == routed_clip && routed_clip->output == this
+		       && currentSong == source_song && modelStack->song == source_song
+		       && modelStackWithTimelineCounter->song == source_song
+		       && modelStackWithTimelineCounter->getTimelineCounterAllowNull() == routed_clip
+		       && deluge::gui::ui_session::current() == source_owner
+		       && routed_clip->noteRows.getNumElements() == row_count;
+	};
+	if (!context_matches())
+		return 2147483647;
+	bool clipIsActive = source_song->isClipActive(routed_clip);
+	auto* param_manager = getParamManager(source_song);
+	auto* arp_settings = getArpSettings();
+	if (!param_manager || !arp_settings)
+		return 2147483647;
+	auto* unpatched_params = param_manager->getUnpatchedParamSet();
+	if (!unpatched_params)
+		return 2147483647;
+	arp_settings->updateParamsFromUnpatchedParamSet(unpatched_params);
+	arp_settings->chordPolyphony = 0;
+	arp_settings->chordProbability = 0;
+	arp_settings->spreadOctave = 0;
+	ArpReturnInstruction kit_instruction;
+	int32_t ticksTilNextArpEvent =
+	    arpeggiator.doTickForward(arp_settings, &kit_instruction, currentPos, routed_clip->currentlyPlayingReversed);
+	if (!context_matches())
+		return 2147483647;
+	const auto kit_revision = arpeggiator.instruction_revision();
+	const auto dispatch_kit_event = [&](int32_t row_index, bool note_on) {
+		auto* row = routed_clip->find_note_row_from_id(row_index);
+		if (!row || !row->drum)
+			return true;
+		auto* drum = row->drum;
+		if (getDrumIndex(drum) < 0)
+			return false;
+		auto drum_lifetime = drum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return false;
+		const auto row_identity = row->undo_identity;
+		auto* stack = modelStackWithTimelineCounter->addNoteRow(row_index, row)
+		                  ->addOtherTwoThings(drum->toModControllable(), &row->paramManager);
+		if (note_on) {
+			dispatch_kit_arp_note_on(stack, drum, kit_instruction, kit_instruction.sampleSyncLengthOn, 0, 0);
 		}
-	}
-	if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
-		// Normal note off
-		if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-			NoteRow* thisNoteRow =
-			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
-			if (thisNoteRow->drum != nullptr) {
-				// reset invertReverse for drum arpeggiator (done for every noteOff)
-				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
-				// Do row note off
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.noteCodeOffPostArp[0], thisNoteRow)
-				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
-			}
+		else {
+			drum->arpeggiator.invertReversedFromKitArp = false;
+			drum->noteOff(stack);
 		}
-	}
-	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
-	    && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
-		// Note on
-		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
-			NoteRow* thisNoteRow =
-			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
-			if (thisNoteRow->drum != nullptr) {
-				// Do row note on
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStackWithTimelineCounter
-				        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
-				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
-				dispatch_kit_arp_note_on(modelStackWithThreeMainThings, thisNoteRow->drum, kitInstruction,
-				                         kitInstruction.sampleSyncLengthOn, 0, 0);
-			}
-		}
-	}
+		if (!context_matches() || !drum_lifetime.alive() || arpeggiator.instruction_revision() != kit_revision
+		    || getDrumIndex(drum) < 0)
+			return false;
+		auto* current_row = routed_clip->find_note_row_from_id(row_index);
+		return current_row == row && current_row && current_row->undo_identity == row_identity
+		       && current_row->drum == drum;
+	};
+	if (kit_instruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE
+	    && !dispatch_kit_event(kit_instruction.glideNoteCodeOffPostArp[0], false))
+		return 2147483647;
+	if (kit_instruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE
+	    && !dispatch_kit_event(kit_instruction.noteCodeOffPostArp[0], false))
+		return 2147483647;
+	if (kit_instruction.arpNoteOn && kit_instruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
+	    && kit_instruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE
+	    && !dispatch_kit_event(kit_instruction.arpNoteOn->noteCodeOnPostArp[0], true))
+		return 2147483647;
 
-	ticksTilNextArpEvent = std::min(ticksTilNextArpEvent, ticksTilNextKitArpEvent);
-
-	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+	for (int32_t i = 0; i < row_count; i++) {
+		NoteRow* thisNoteRow = routed_clip->noteRows.getElement(i);
 		if (thisNoteRow->drum) {
-			Drum* drum = (Drum*)thisNoteRow->drum;
+			Drum* drum = thisNoteRow->drum;
+			if (getDrumIndex(drum) < 0)
+				return 2147483647;
+			auto drum_lifetime = drum->watch_lifetime();
+			if (!drum_lifetime.alive())
+				return 2147483647;
+			const auto row_identity = thisNoteRow->undo_identity;
+			const auto row_matches = [&] {
+				if (!context_matches() || !drum_lifetime.alive() || getDrumIndex(drum) < 0
+				    || arpeggiator.instruction_revision() != kit_revision)
+					return false;
+				auto* current_row = routed_clip->find_note_row_from_id(i);
+				return current_row == thisNoteRow && current_row && current_row->undo_identity == row_identity
+				       && current_row->drum == drum;
+			};
 
 			ArpReturnInstruction instruction;
 
@@ -1416,6 +1430,12 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 			int32_t ticksTilNextArpEventThisDrum =
 			    drum->arpeggiator.doTickForward(&drum->arpSettings, &instruction, currentPosThisRow, reversed);
+			if (!row_matches())
+				return 2147483647;
+			const auto drum_revision = drum->arpeggiator.instruction_revision();
+			const auto instruction_matches = [&] {
+				return row_matches() && drum->arpeggiator.instruction_revision() == drum_revision;
+			};
 
 			if (thisNoteRow->drum->type == DrumType::SOUND) {
 				SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
@@ -1428,14 +1448,20 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 						break;
 					}
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+					if (!instruction_matches())
+						return 2147483647;
 				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+					if (!instruction_matches())
+						return 2147483647;
 				}
 				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction);
+				if (!instruction_matches())
+					return 2147483647;
 			}
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
@@ -1445,20 +1471,26 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 						break;
 					}
 					nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+					if (!instruction_matches())
+						return 2147483647;
 				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
 					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+					if (!instruction_matches())
+						return 2147483647;
 				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.arpNoteOn == nullptr
 					    || instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
-					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+					if (!instruction_matches())
+						return 2147483647;
 				}
 			}
 

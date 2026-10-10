@@ -2623,3 +2623,14 @@ note-off batch. Two regressions retain the drum while replacing its event and
 assert that cleanup performs no additional reset; existing live/retired/destruction
 cases remain covered. All 36 native suites and `./dbt build relwithdebinfo` pass.
 Output events already sent remain a prefix; this is not note-output rollback.
+
+Tick-driven kit arp routing now validates kit/clip/song/panel, row identity/drum
+membership and instruction revision through kit-level and per-drum generation and
+dispatch. Non-audio note status is published before callbacks. Ten production-body
+regressions cover sound/MIDI/gate live routing, all six dispatch boundaries,
+generation destruction, event replacement, row/membership/model-stack changes,
+invalid entry and bounded row indices. All 36 suites and
+`./dbt build relwithdebinfo` pass. Cancellation retains already-sent output and
+returns the existing no-next-event sentinel; hardware rescheduling behavior still
+needs verification. Sound voice-start internals, generation internals and broader
+render callers remain separate work.
