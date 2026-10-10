@@ -2853,3 +2853,12 @@ sanitizer regressions cover live release, deletion/replacement/retargeting and b
 callers' validator propagation. All 36 suites and `./dbt build relwithdebinfo` pass.
 Voice release internals, all-notes-off/voice-clear cleanup and borrowed acquisition
 remain separate work; released notes are not restored on cancellation.
+
+Sound voice clearing now requires caller validation, watches each released voice
+and detaches voices before destructor callbacks. Synth/drum overrides validate
+ownership and arp revision; drum reset only follows successful clearing, preserving
+replacement arp events on cancellation. Ten added production-body sanitizer
+regressions cover release/destructor deletion, vector and same-address replacement,
+rejected entry, caller propagation and reset suppression. All 36 suites and
+`./dbt build relwithdebinfo` pass. Destructor/voice-release internals and all-notes-off
+menu callers still require separate checks; completed releases are retained.

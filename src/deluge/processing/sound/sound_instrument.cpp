@@ -87,8 +87,28 @@ Error SoundInstrument::readFromFile(Deserializer& reader, Song* song, Clip* clip
 	return Sound::readFromFile(reader, modelStack, readAutomationUpToPos, &defaultArpSettings);
 }
 
+void SoundInstrument::killAllVoices() {
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto revision = arpeggiator.instruction_revision();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && arpeggiator.instruction_revision() == revision;
+	};
+	const deluge::lifetime::callback_validation validation{context_matches};
+	clear_voices(validation);
+}
+
 void SoundInstrument::cutAllSound() {
-	Sound::killAllVoices();
+	killAllVoices();
 }
 
 void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,

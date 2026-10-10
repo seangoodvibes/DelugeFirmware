@@ -185,8 +185,24 @@ void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32
 }
 
 void SoundDrum::killAllVoices() {
-	Sound::killAllVoices();
-	arpeggiator.reset();
+	auto drum_lifetime = watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	auto* source_kit = kit;
+	auto kit_lifetime = source_kit ? source_kit->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_kit && (!kit_lifetime.alive() || source_kit->getDrumIndex(this) < 0))
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto revision = arpeggiator.instruction_revision();
+	const auto context_matches = [&] {
+		return drum_lifetime.alive() && (!source_kit || kit_lifetime.alive()) && kit == source_kit
+		       && (!source_kit || source_kit->getDrumIndex(this) >= 0) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && arpeggiator.instruction_revision() == revision;
+	};
+	const deluge::lifetime::callback_validation validation{context_matches};
+	if (clear_voices(validation) && validation.valid())
+		arpeggiator.reset();
 }
 
 void SoundDrum::setupPatchingForAllParamManagers(Song* song) {

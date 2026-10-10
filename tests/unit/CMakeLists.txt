@@ -1001,7 +1001,7 @@ set(sound_render_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/de
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_render_output_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${sound_render_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_render_output_lifetime.inc
-        SoundInstrument::renderOutput SoundInstrument::sendNote
+        SoundInstrument::renderOutput SoundInstrument::sendNote SoundInstrument::killAllVoices SoundInstrument::cutAllSound
     DEPENDS ${sound_render_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_render_output_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_render_output_lifetime.inc)
 
@@ -1023,7 +1023,7 @@ target_sources(ClipLifetimeTests PRIVATE sound_render_effects_lifetime_tests.cpp
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_render_voice_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${sound_render_arp_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_render_voice_lifetime.inc
-        Sound::process_render_voices
+        Sound::process_render_voices Sound::clear_voices
     DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_render_voice_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_render_voice_lifetime.inc)
 
@@ -1066,6 +1066,6 @@ target_sources(ClipLifetimeTests PRIVATE sound_expression_output_lifetime_tests.
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${sound_drum_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.inc
-        SoundDrum::noteOn SoundDrum::noteOff SoundDrum::dispatch_note
+        SoundDrum::noteOn SoundDrum::noteOff SoundDrum::dispatch_note SoundDrum::killAllVoices
     DEPENDS ${sound_drum_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_drum_choke_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.inc)

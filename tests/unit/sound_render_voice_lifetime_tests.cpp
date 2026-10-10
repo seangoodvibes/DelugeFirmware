@@ -16,9 +16,18 @@ struct Voice {
 	~Voice();
 	deluge::lifetime::lifetime_watch watch_lifetime() const;
 	void setAsUnassigned(ModelStackWithSoundFlags*) {
-		++destroyed;
-		if (on_destroy)
-			on_destroy();
+		deleted = true;
+		auto watch = watch_lifetime();
+		if (watch.alive()) {
+			++released;
+			if (on_release)
+				on_release();
+		}
+		else {
+			++destroyed;
+			if (on_destroy)
+				on_destroy();
+		}
 	}
 	bool still_going = true, deleted = false;
 	bool render(ModelStackWithSoundFlags*, q31_t*, size_t, bool, bool, int, bool, bool, int) {
@@ -36,6 +45,8 @@ struct Sound {
 	using ActiveVoice = std::unique_ptr<Voice>;
 	std::vector<ActiveVoice> voices_;
 	int sourcesChanged = 0;
+	bool invertReversed = true;
+	bool clear_voices(const deluge::lifetime::callback_validation&);
 	void checkVoiceExists(const ActiveVoice& voice, const char*) { CHECK(voice != nullptr); }
 	void freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags*, bool erase) {
 		CHECK_FALSE(erase);
@@ -67,6 +78,12 @@ TEST_GROUP(sound_render_voice_lifetime) {
 	}
 	void teardown() override {
 		on_render = on_release = on_destroy = {};
+	}
+	bool clear() {
+		deluge::lifetime::lifetime_watch watch{sound->lifetime};
+		const auto valid = [&] { return watch.alive() && context_valid; };
+		const deluge::lifetime::callback_validation validation{valid};
+		return sound->clear_voices(validation);
 	}
 	bool render() {
 		deluge::lifetime::lifetime_watch watch{sound->lifetime};
@@ -233,4 +250,63 @@ TEST(sound_render_voice_lifetime, retired_voice_is_not_dispatched) {
 	sound->voices_[0]->lifetime_.retire();
 	CHECK_FALSE(render());
 	LONGS_EQUAL(0, rendered);
+}
+
+TEST(sound_render_voice_lifetime, clear_releases_then_detaches_every_voice) {
+	on_destroy = [&] {
+		LONGS_EQUAL(2, released);
+		LONGS_EQUAL(2 - destroyed, sound->voices_.size());
+	};
+	CHECK(clear());
+	LONGS_EQUAL(2, released);
+	LONGS_EQUAL(2, destroyed);
+	CHECK(sound->voices_.empty());
+	CHECK_FALSE(sound->invertReversed);
+}
+TEST(sound_render_voice_lifetime, clear_owner_deletion_during_release_or_destruction_is_safe) {
+	for (bool during_destruction : {false, true}) {
+		reset();
+		if (during_destruction)
+			on_destroy = [&] {
+				if (destroyed == 1)
+					sound.reset();
+			};
+		else
+			on_release = [&] { sound.reset(); };
+		CHECK_FALSE(clear());
+		CHECK(!sound);
+	}
+}
+TEST(sound_render_voice_lifetime, clear_cancels_on_same_address_reconstruction) {
+	auto* original = sound->voices_[0].get();
+	on_release = [&] {
+		original->~Voice();
+		new (original) Voice();
+	};
+	CHECK_FALSE(clear());
+	LONGS_EQUAL(1, released);
+	LONGS_EQUAL(2, sound->voices_.size());
+	CHECK_FALSE(sound->voices_[0]->deleted);
+}
+TEST(sound_render_voice_lifetime, clear_preserves_new_voices_from_destructor_callbacks) {
+	on_destroy = [&] {
+		if (destroyed == 1)
+			sound->voices_.push_back(std::make_unique<Voice>());
+	};
+	CHECK_FALSE(clear());
+	LONGS_EQUAL(2, sound->voices_.size());
+	LONGS_EQUAL(1, destroyed);
+	CHECK_FALSE(sound->voices_.back()->deleted);
+}
+TEST(sound_render_voice_lifetime, clear_rejects_entry_without_modifying_state) {
+	context_valid = false;
+	CHECK_FALSE(clear());
+	CHECK(sound->invertReversed);
+	LONGS_EQUAL(0, released);
+}
+TEST(sound_render_voice_lifetime, clear_cancels_when_release_reallocates_voice_vector) {
+	on_release = [&] { sound->voices_.reserve(sound->voices_.capacity() + 1); };
+	CHECK_FALSE(clear());
+	LONGS_EQUAL(1, released);
+	LONGS_EQUAL(0, destroyed);
 }

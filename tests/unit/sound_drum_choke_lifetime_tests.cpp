@@ -18,9 +18,10 @@ struct NoteRow {
 	uint64_t undo_identity = 1;
 	ParamManager paramManager;
 };
-std::function<void()> on_choke, on_start, on_stop;
+std::function<void()> on_choke, on_start, on_stop, on_clear;
 int chokes = 0, starts = 0, stops = 0;
 bool stop_context_valid = true;
+int clear_calls = 0, arp_resets = 0;
 struct Kit {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
@@ -51,9 +52,20 @@ struct ModelStackWithThreeMainThings {
 struct Arpeggiator {
 	uint64_t revision = 0;
 	uint64_t instruction_revision() const { return revision; }
+	void reset() {
+		++revision;
+		++arp_resets;
+	}
 };
 bool expect_mpe = true;
 struct Sound {
+	bool clear_voices(const deluge::lifetime::callback_validation& validation) {
+		CHECK(validation.valid());
+		++clear_calls;
+		if (on_clear)
+			on_clear();
+		return validation.valid();
+	}
 	void noteOff(ModelStackWithThreeMainThings*, Arpeggiator*, int,
 	             const deluge::lifetime::callback_validation* validation) {
 		CHECK(validation);
@@ -93,6 +105,7 @@ struct SoundDrum : Sound {
 	Kit* kit = nullptr;
 	PolyphonyMode polyphonic = PolyphonyMode::CHOKE;
 	Arpeggiator arpeggiator;
+	void killAllVoices();
 	void dispatch_note(ModelStackWithThreeMainThings*, bool, uint8_t, const int16_t*, int32_t, uint32_t, int32_t,
 	                   uint32_t);
 	void noteOff(ModelStackWithThreeMainThings*, int32_t);
@@ -124,8 +137,8 @@ TEST_GROUP(sound_drum_choke_lifetime) {
 		row->drum = drum.get();
 		currentSong = &song;
 		stack = {currentSong, clip.get(), row.get(), &row->paramManager, 0};
-		on_choke = on_start = on_stop = {};
-		chokes = starts = stops = 0;
+		on_choke = on_start = on_stop = on_clear = {};
+		chokes = starts = stops = clear_calls = arp_resets = 0;
 		stop_context_valid = true;
 		expect_mpe = true;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
@@ -134,7 +147,7 @@ TEST_GROUP(sound_drum_choke_lifetime) {
 		reset();
 	}
 	void teardown() override {
-		on_choke = on_start = on_stop = {};
+		on_choke = on_start = on_stop = on_clear = {};
 		currentSong = &song;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 	}
@@ -279,4 +292,24 @@ TEST(sound_drum_choke_lifetime, note_off_validator_detects_removed_row) {
 	drum->noteOff(&stack, 99);
 	LONGS_EQUAL(1, stops);
 	CHECK_FALSE(stop_context_valid);
+}
+
+TEST(sound_drum_choke_lifetime, voice_clear_resets_arp_only_after_success) {
+	drum->killAllVoices();
+	LONGS_EQUAL(1, clear_calls);
+	LONGS_EQUAL(1, arp_resets);
+}
+TEST(sound_drum_choke_lifetime, voice_clear_does_not_reset_replacement_event_or_deleted_owner) {
+	for (bool delete_owner : {false, true}) {
+		reset();
+		on_clear = [&] {
+			if (delete_owner)
+				drum.reset();
+			else
+				++drum->arpeggiator.revision;
+		};
+		drum->killAllVoices();
+		LONGS_EQUAL(1, clear_calls);
+		LONGS_EQUAL(0, arp_resets);
+	}
 }

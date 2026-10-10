@@ -5068,14 +5068,34 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 	}
 }
 
-void Sound::killAllVoices() {
-	// Reset invertReversed flag so all voices get its reverse settings back to normal
+bool Sound::clear_voices(const deluge::lifetime::callback_validation& owner_validation) {
+	if (!owner_validation.valid())
+		return false;
 	invertReversed = false;
-
-	for (const ActiveVoice& voice : voices_) {
+	const auto* voice_storage = voices_.data();
+	const auto voice_count = voices_.size();
+	for (size_t index = 0; index < voice_count; ++index) {
+		auto* voice = voices_[index].get();
+		if (!voice)
+			return false;
+		auto voice_lifetime = voice->watch_lifetime();
+		if (!voice_lifetime.alive())
+			return false;
 		voice->setAsUnassigned(nullptr);
+		if (!owner_validation.valid() || !voice_lifetime.alive() || voices_.data() != voice_storage
+		    || voices_.size() != voice_count || voices_[index].get() != voice)
+			return false;
 	}
-	voices_.clear();
+	while (!voices_.empty()) {
+		auto retired_voice = std::move(voices_.back());
+		voices_.pop_back();
+		const auto* remaining_storage = voices_.data();
+		const auto remaining_count = voices_.size();
+		retired_voice.reset();
+		if (!owner_validation.valid() || voices_.data() != remaining_storage || voices_.size() != remaining_count)
+			return false;
+	}
+	return true;
 }
 
 const Sound::ActiveVoice& Sound::getLowestPriorityVoice() const {

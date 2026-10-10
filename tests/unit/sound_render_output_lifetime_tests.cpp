@@ -20,8 +20,9 @@ struct ParamCollectionSummary {
 };
 struct ModelStack;
 using ModelStackWithThreeMainThings = ModelStack;
-std::function<void()> on_render, on_tick, on_note;
-int note_starts = 0, note_stops = 0;
+std::function<void()> on_render, on_tick, on_note, on_clear;
+int note_starts = 0, note_stops = 0, clear_calls = 0;
+bool clear_context_valid = true;
 bool note_context_valid = true;
 int renders = 0, ticks = 0, tick_completions = 0;
 struct ParamManager {
@@ -90,6 +91,14 @@ struct {
 	bool isEitherClockActive() { return clock; }
 } playbackHandler;
 struct Sound {
+	bool clear_voices(const deluge::lifetime::callback_validation& validation) {
+		CHECK(validation.valid());
+		++clear_calls;
+		if (on_clear)
+			on_clear();
+		clear_context_valid = validation.valid();
+		return clear_context_valid;
+	}
 	void noteOn(ModelStack*, void*, int, const int16_t*, uint32_t, int32_t, uint32_t, int, int,
 	            const deluge::lifetime::callback_validation* validation) {
 		CHECK(validation);
@@ -122,7 +131,12 @@ struct SoundInstrument : Sound {
 	InstrumentClip* activeClip = nullptr;
 	void* recorder = nullptr;
 	bool skippingRendering = false, inValidState = true;
-	int arpeggiator = 0;
+	struct {
+		uint64_t revision = 0;
+		uint64_t instruction_revision() const { return revision; }
+	} arpeggiator;
+	void killAllVoices();
+	void cutAllSound();
 	void sendNote(ModelStack*, bool, int32_t, const int16_t*, int32_t, uint8_t, uint32_t, int32_t, uint32_t);
 	struct {
 		int gainReduction = 1;
@@ -149,9 +163,10 @@ TEST_GROUP(sound_render_output_lifetime) {
 		clip->paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
 		first->paramManager.summaries[0].whichParamsAreInterpolating[0] = 1;
 		second->paramManager.summaries[0].whichParamsAreInterpolating[0] = 1;
-		on_render = on_tick = on_note = {};
+		on_render = on_tick = on_note = on_clear = {};
 		renders = ticks = tick_completions = note_starts = note_stops = 0;
-		note_context_valid = true;
+		note_context_valid = clear_context_valid = true;
+		clear_calls = 0;
 		currentSong = &song;
 		stack = {};
 		stack.clip = clip.get();
@@ -164,7 +179,7 @@ TEST_GROUP(sound_render_output_lifetime) {
 		reset();
 	}
 	void teardown() override {
-		on_render = on_tick = on_note = {};
+		on_render = on_tick = on_note = on_clear = {};
 		currentSong = &song;
 		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 	}
@@ -365,4 +380,20 @@ TEST(sound_render_output_lifetime, direct_note_off_sender_forwards_lifetime_vali
 	instrument->sendNote(&stack, false, 60, nullptr, 2, 99, 0, 0, 0);
 	LONGS_EQUAL(1, note_stops);
 	CHECK_FALSE(note_context_valid);
+}
+
+TEST(sound_render_output_lifetime, synth_cut_forwards_guard_and_detects_deletion) {
+	on_clear = [&] {
+		instrument.reset();
+		clip.reset();
+	};
+	instrument->cutAllSound();
+	LONGS_EQUAL(1, clear_calls);
+	CHECK_FALSE(clear_context_valid);
+}
+TEST(sound_render_output_lifetime, synth_clear_cancels_replacement_arp_event) {
+	on_clear = [&] { ++instrument->arpeggiator.revision; };
+	instrument->killAllVoices();
+	CHECK_FALSE(clear_context_valid);
+	LONGS_EQUAL(1, instrument->arpeggiator.revision);
 }

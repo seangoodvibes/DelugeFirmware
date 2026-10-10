@@ -307,7 +307,7 @@ public:
 	[[nodiscard]] size_t numActiveVoices() const { return voices_.size(); }
 
 	/// @brief Immediately ends all active voices
-	void killAllVoices() override;
+	bool clear_voices(const deluge::lifetime::callback_validation& owner_validation);
 
 	/// @brief Get the voice with the lowest priority
 	/// @return The voice with the lowest priority

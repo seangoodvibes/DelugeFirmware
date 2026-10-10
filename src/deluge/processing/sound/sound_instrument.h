@@ -33,6 +33,7 @@ public:
 	~SoundInstrument() override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	void killAllVoices() override;
 	void cutAllSound() override;
 	bool noteIsOn(int32_t noteCode, bool resetTimeEntered);
 
