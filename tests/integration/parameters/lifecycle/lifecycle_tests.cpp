@@ -4844,3 +4844,75 @@ TEST(parameter_lifecycle, shallow_clone_retirement_preserves_callback_replacemen
 	CHECK(destination.getMIDIParamCollection() != nullptr);
 	CHECK(destination.has_valid_layout());
 }
+
+TEST(parameter_lifecycle, expression_creation_cancels_before_publishing_to_destroyed_owner) {
+	const auto baseline = parameter_test::outstanding_allocations();
+	struct watched_fixture : fixture {
+		deluge::lifetime::lifetime_source lifetime;
+	};
+	auto owner = std::make_unique<watched_fixture>();
+	auto watch = deluge::lifetime::lifetime_watch{owner->lifetime};
+	const auto owner_alive = [&] { return watch.alive(); };
+	deluge::lifetime::callback_validation validation{owner_alive};
+	parameter_test::on_allocation = [&] { owner.reset(); };
+	POINTERS_EQUAL(nullptr, owner->manager.getOrCreateExpressionParamSet(true, &validation));
+	CHECK_FALSE(watch.alive());
+	LONGS_EQUAL(baseline, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, expression_creation_rejects_expired_validation_before_allocation) {
+	fixture owner;
+	const auto expired = [] { return false; };
+	deluge::lifetime::callback_validation validation{expired};
+	parameter_test::allocations_before_failure = 0;
+	POINTERS_EQUAL(nullptr, owner.manager.getOrCreateExpressionParamSet(false, &validation));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	POINTERS_EQUAL(nullptr, owner.manager.getExpressionParamSet());
+}
+TEST(parameter_lifecycle, expression_creation_preserves_nested_expression_publication) {
+	fixture owner;
+	ExpressionParamSet* nested = nullptr;
+	const auto baseline = parameter_test::outstanding_allocations();
+	parameter_test::on_allocation = [&] {
+		nested = owner.manager.getOrCreateExpressionParamSet(true);
+		CHECK(nested);
+		nested->bendRanges[1] = 17;
+	};
+	POINTERS_EQUAL(nullptr, owner.manager.getOrCreateExpressionParamSet());
+	POINTERS_EQUAL(nested, owner.manager.getExpressionParamSet());
+	LONGS_EQUAL(17, nested->bendRanges[1]);
+	LONGS_EQUAL(baseline + 1, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, expression_creation_preserves_callback_manager_layout) {
+	fixture owner;
+	parameter_test::on_allocation = [&] { CHECK(owner.manager.setupWithPatching() == Error::NONE); };
+	POINTERS_EQUAL(nullptr, owner.manager.getOrCreateExpressionParamSet());
+	CHECK(owner.manager.has_valid_layout());
+	LONGS_EQUAL(3, owner.manager.getExpressionParamSetOffset());
+	POINTERS_EQUAL(nullptr, owner.manager.getExpressionParamSet());
+	CHECK(owner.manager.getOrCreateExpressionParamSet());
+}
+TEST(parameter_lifecycle, expression_creation_preserves_same_offset_collection_replacement) {
+	fixture owner;
+	parameter_test::on_allocation = [&] { CHECK(owner.manager.setupMIDI() == Error::NONE); };
+	POINTERS_EQUAL(nullptr, owner.manager.getOrCreateExpressionParamSet());
+	CHECK(owner.manager.has_valid_layout());
+	LONGS_EQUAL(1, owner.manager.getExpressionParamSetOffset());
+	POINTERS_EQUAL(nullptr, owner.manager.getExpressionParamSet());
+	CHECK(owner.manager.getOrCreateExpressionParamSet());
+}
+TEST(parameter_lifecycle, expression_creation_uses_live_validation_and_preserves_existing_set) {
+	fixture owner;
+	int checks = 0;
+	const auto valid = [&] {
+		++checks;
+		return true;
+	};
+	deluge::lifetime::callback_validation validation{valid};
+	auto* expression = owner.manager.getOrCreateExpressionParamSet(true, &validation);
+	CHECK(expression);
+	LONGS_EQUAL(2, checks);
+	parameter_test::allocations_before_failure = 0;
+	POINTERS_EQUAL(expression, owner.manager.getOrCreateExpressionParamSet(true, &validation));
+	LONGS_EQUAL(3, checks);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}

@@ -3,6 +3,7 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "util/lifetime.h"
 #include <new>
 
 Error ParamManager::setupMIDI() {
@@ -72,24 +73,44 @@ ramError2:
 }
 
 // Returns whether there is one / one could be created.
-bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
+bool ParamManager::ensureExpressionParamSetExists(bool forDrum,
+                                                  const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return false;
 	int32_t offset = getExpressionParamSetOffset();
 	getExpressionParamSetSummary(); // Validate the offset and optional collection before indexing or allocating.
 	if (!summaries[offset].paramCollection) {
 
+		ParamCollection* original_collections[PARAM_COLLECTIONS_STORAGE_NUM];
+		for (int32_t i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i)
+			original_collections[i] = summaries[i].paramCollection;
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ExpressionParamSet));
 		if (!memory) {
 			return false;
 		}
 
+		// Validate before touching this manager: its row or clip may have been removed.
+		if (owner_validation && !owner_validation->valid()) {
+			delugeDealloc(memory);
+			return false;
+		}
+		bool layout_matches = getExpressionParamSetOffset() == offset;
+		for (int32_t i = 0; layout_matches && i < PARAM_COLLECTIONS_STORAGE_NUM; ++i)
+			layout_matches = summaries[i].paramCollection == original_collections[i];
+		if (!layout_matches) {
+			delugeDealloc(memory);
+			return false;
+		}
 		summaries[offset].paramCollection = new (memory) ExpressionParamSet(&summaries[offset], forDrum);
 		summaries[offset + 1] = {0};
 	}
 	return true;
 }
 
-ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
-	if (!ensureExpressionParamSetExists(forDrum)) {
+ExpressionParamSet*
+ParamManager::getOrCreateExpressionParamSet(bool forDrum,
+                                            const deluge::lifetime::callback_validation* owner_validation) {
+	if (!ensureExpressionParamSetExists(forDrum, owner_validation)) {
 		return nullptr;
 	}
 

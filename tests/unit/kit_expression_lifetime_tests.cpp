@@ -68,12 +68,14 @@ struct ParamManager {
 	ExpressionParamSet expression;
 	ExpressionParamSet* current = &expression;
 	ExpressionParamSet* getExpressionParamSet() { return current; }
-	ExpressionParamSet* getOrCreateExpressionParamSet() {
+	ExpressionParamSet* getOrCreateExpressionParamSet(bool, const deluge::lifetime::callback_validation* validation) {
+		if (!validation->valid())
+			return nullptr;
 		++expression_requests;
 		auto* result = current;
 		if (on_expression)
 			on_expression();
-		return result;
+		return validation->valid() ? result : nullptr;
 	}
 };
 struct NoteRow {

@@ -22,7 +22,7 @@ ParamManager::ParamManager()
     : resonanceBackwardsCompatibilityProcessed(false), expressionParamSetOffset(0), summaries{} {
 }
 ParamManager::~ParamManager() = default;
-bool ParamManager::ensureExpressionParamSetExists(bool) {
+bool ParamManager::ensureExpressionParamSetExists(bool, const deluge::lifetime::callback_validation*) {
 	++expressionRequests;
 	return summaries[expressionParamSetOffset].paramCollection != nullptr;
 }

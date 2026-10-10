@@ -4,6 +4,22 @@ namespace deluge::lifetime {
 
 class lifetime_watch;
 
+// Non-owning synchronous validation across a callback/allocation boundary. The
+// lvalue predicate must outlive the operation, must not yield, and must establish
+// owner lifetime before reading its context. Temporaries are intentionally rejected.
+class callback_validation final {
+public:
+	template <typename Predicate>
+	explicit callback_validation(Predicate& predicate)
+	    : context_(&predicate),
+	      check_([](const void* context) { return (*static_cast<const Predicate*>(context))(); }) {}
+	[[nodiscard]] bool valid() const { return check_(context_); }
+
+private:
+	const void* context_;
+	bool (*check_)(const void*);
+};
+
 // Intrusive cancellation for serialized, reentrant firmware callbacks. This does
 // not retain the object or provide synchronization between concurrent threads.
 class lifetime_source final {

@@ -24,7 +24,8 @@
 
 namespace deluge::lifetime {
 class lifetime_watch;
-}
+class callback_validation;
+} // namespace deluge::lifetime
 
 class Song;
 class Sound;
@@ -161,11 +162,15 @@ public:
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	void destructMainParamCollections(); // Preserve expression values, automation and bend ranges.
-	bool ensureExpressionParamSetExists(bool forDrum = false);
+	// Without a validator the caller must keep this manager alive across allocation.
+	bool ensureExpressionParamSetExists(bool forDrum = false,
+	                                    const deluge::lifetime::callback_validation* owner_validation = nullptr);
 
 	inline int32_t getExpressionParamSetOffset() { return expressionParamSetOffset; }
 
-	ExpressionParamSet* getOrCreateExpressionParamSet(bool forDrum = false); // Will return NULL if can't create
+	ExpressionParamSet*
+	getOrCreateExpressionParamSet(bool forDrum = false,
+	                              const deluge::lifetime::callback_validation* owner_validation = nullptr);
 
 	inline ParamCollectionSummary* getExpressionParamSetSummary() { // Will return one containing NULL if didn't exist
 #if ALPHA_OR_BETA_VERSION

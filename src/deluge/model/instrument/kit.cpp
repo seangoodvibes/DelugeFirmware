@@ -2163,14 +2163,17 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t
 		if (!note_row)
 			continue;
 		const auto row_identity = note_row->undo_identity;
-		auto* expression_params = note_row->paramManager.getOrCreateExpressionParamSet();
-		if (!kit_lifetime.alive() || !clip_lifetime.alive() || !drum_lifetime.alive() || activeClip != routed_clip
-		    || routed_clip->output != this || currentSong != source_song
-		    || deluge::gui::ui_session::current() != source_owner || getDrumIndex(thisDrum) < 0)
-			return;
-		auto* current_row = routed_clip->getNoteRowForDrum(thisDrum);
-		if (current_row != note_row || !current_row || current_row->undo_identity != row_identity
-		    || current_row->paramManager.getExpressionParamSet() != expression_params)
+		const auto row_matches = [&] {
+			if (!kit_lifetime.alive() || !clip_lifetime.alive() || !drum_lifetime.alive() || activeClip != routed_clip
+			    || routed_clip->output != this || currentSong != source_song
+			    || deluge::gui::ui_session::current() != source_owner || getDrumIndex(thisDrum) < 0)
+				return false;
+			auto* current_row = routed_clip->getNoteRowForDrum(thisDrum);
+			return current_row == note_row && current_row && current_row->undo_identity == row_identity;
+		};
+		deluge::lifetime::callback_validation owner_validation{row_matches};
+		auto* expression_params = note_row->paramManager.getOrCreateExpressionParamSet(false, &owner_validation);
+		if (!row_matches() || note_row->paramManager.getExpressionParamSet() != expression_params)
 			return;
 		if (expression_params && !expression_params->isAutomated(0))
 			expression_params->bendRanges[whichBendRange] = bendSemitones;

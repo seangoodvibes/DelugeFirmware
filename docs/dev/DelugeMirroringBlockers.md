@@ -2436,3 +2436,16 @@ automation preservation and context changes. All 36 native suites and
 `./dbt build relwithdebinfo` pass. The production expression-creation helper still
 publishes into its manager after allocation without an owner guard: this is a
 confirmed inner-callback gap, not closed by the new caller checks.
+
+Expression creation now accepts an allocation-free synchronous owner validator,
+checks it before owner access and after allocation, and discards private storage
+when validation fails. It also rejects collection-layout changes or nested
+expression publication during allocation, preserving the callback's manager state.
+Kit bend-range routing supplies its clip/drum/row context validator to this inner
+helper. Six new native parameter-lifecycle regressions run the real helper,
+collections and allocator hooks with sanitizer/allocation accounting: owner heap
+deletion, expired entry, nested creation, different/same-offset layout replacement
+and normal reuse. All 36 suites and `./dbt build relwithdebinfo` pass. Unguarded
+callers still require a live-manager contract; pointer snapshots alone do not
+identify same-address collection replacement, and other expression-creation callers
+have not all adopted owner validation.
