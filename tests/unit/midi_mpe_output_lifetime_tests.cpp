@@ -26,6 +26,7 @@ int lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 1;
 int song;
 int* currentSong = &song;
 uint16_t lastNoteOffOrder = 1;
+constexpr int shiftAmountsFrom16Bit[3]{2, 9, 8};
 struct ArpNote {
 	int outputMemberChannel[3]{MIDI_CHANNEL_NONE, MIDI_CHANNEL_NONE, MIDI_CHANNEL_NONE};
 	int16_t inputCharacteristics[2]{60, 2};
@@ -61,6 +62,12 @@ struct {
 	}
 	void sendCC(MIDIInstrument*, int, int, int value, int) {
 		slide_value = value;
+		++outputs;
+		if (on_output)
+			on_output();
+	}
+	void sendPolyphonicAftertouch(MIDIInstrument*, int, int value, int, int) {
+		pressure_value = value;
 		++outputs;
 		if (on_output)
 			on_output();
@@ -119,6 +126,8 @@ struct MIDIInstrument {
 	}
 	bool outputAllMPEValuesOnMemberChannel(const int16_t*, int32_t);
 	void noteOnPostArp(int32_t, ArpNote*, int32_t);
+	ArpeggiatorSettings* getArpSettings() { return activeClip ? &activeClip->arpSettings : nullptr; }
+	void polyphonicExpressionEventPostArpeggiator(int32_t, int32_t, int32_t, ArpNote*, int32_t);
 	void allNotesOff();
 	void noteOffPostArp(int32_t, int32_t, int32_t, int32_t);
 };
@@ -355,4 +364,66 @@ TEST(midi_mpe_output_lifetime, clipless_mono_all_notes_off_still_sends_once) {
 	instrument->allNotesOff();
 	LONGS_EQUAL(1, all_off_channels.size());
 	LONGS_EQUAL(3, all_off_channels[0]);
+}
+
+TEST(midi_mpe_output_lifetime, expression_rejects_invalid_dimensions_indices_and_channels) {
+	for (int dimension : {-1, 3})
+		instrument->polyphonicExpressionEventPostArpeggiator(0, 60, dimension, note.get(), 0);
+	for (int index : {-1, ARP_MAX_INSTRUCTION_NOTES})
+		instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, note.get(), index);
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, nullptr, 0);
+	for (int channel : {-1, 16, MIDI_CHANNEL_NONE}) {
+		note->outputMemberChannel[0] = channel;
+		instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, note.get(), 0);
+	}
+	LONGS_EQUAL(0, outputs);
+}
+TEST(midi_mpe_output_lifetime, expression_rejects_retired_or_reassigned_owners) {
+	note->outputMemberChannel[0] = 1;
+	clip->output = nullptr;
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, note.get(), 0);
+	clip->output = instrument.get();
+	clip->lifetime.retire();
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, note.get(), 0);
+	instrument->activeClip = nullptr;
+	instrument->lifetime.retire();
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, note.get(), 0);
+	LONGS_EQUAL(0, outputs);
+}
+TEST(midi_mpe_output_lifetime, expression_averages_negative_pitch_and_suppresses_unchanged_output) {
+	ArpNote second;
+	second.outputMemberChannel[0] = note->outputMemberChannel[0] = 1;
+	second.mpeValues[0] = note->mpeValues[0] = INT16_MIN;
+	instrument->arpeggiator.notes.entries.push_back(&second);
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, note.get(), 0);
+	LONGS_EQUAL(1, outputs);
+	LONGS_EQUAL(0, pitch_value);
+	LONGS_EQUAL(-8192, instrument->mpeOutputMemberChannels[1].lastXValueSent);
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, note.get(), 0);
+	LONGS_EQUAL(1, outputs);
+}
+TEST(midi_mpe_output_lifetime, expression_outputs_each_dimension_and_allows_final_callback_deletion) {
+	for (int dimension = 0; dimension < 3; ++dimension) {
+		reset();
+		note->outputMemberChannel[0] = 1;
+		on_output = [&] {
+			instrument.reset();
+			clip.reset();
+			note.reset();
+		};
+		instrument->polyphonicExpressionEventPostArpeggiator(1 << 26, 60, dimension, note.get(), 0);
+		LONGS_EQUAL(1, outputs);
+	}
+}
+TEST(midi_mpe_output_lifetime, expression_preserves_mono_and_internal_routing_without_arp_note) {
+	instrument->mpe = false;
+	instrument->polyphonicExpressionEventPostArpeggiator(1 << 26, 60, 2, nullptr, 0);
+	LONGS_EQUAL(1, outputs);
+	LONGS_EQUAL(4, pressure_value);
+	instrument->collapseMPE = true;
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, nullptr, 0);
+	LONGS_EQUAL(1, combines);
+	instrument->internal = true;
+	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, nullptr, 0);
+	LONGS_EQUAL(1, combines);
 }

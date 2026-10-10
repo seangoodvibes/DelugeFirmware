@@ -2699,3 +2699,12 @@ cover live matching, owner deletion, freed/replaced notes, channel changes and
 invalid input. All 36 suites and `./dbt build relwithdebinfo` pass. Same-address
 raw note replacement and callback internals remain separate lifetime work; an
 already written expression or emitted event is not rolled back.
+
+MIDI post-arp expression output now rejects invalid dimensions, note indices and
+member channels before array access, and retired/reassigned owners before routing.
+Shared-channel negative pitch conversion uses defined multiplication. Five
+production-body sanitizer regressions cover those guards, negative averaging,
+unchanged-value suppression, all three output dimensions, final-callback deletion
+and mono/internal behavior. All 36 suites and `./dbt build relwithdebinfo` pass.
+Borrowed note acquisition and direct same-address replacement remain unproven;
+this entry validation does not make upstream raw pointers safe to acquire.

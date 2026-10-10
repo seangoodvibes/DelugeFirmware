@@ -1246,6 +1246,15 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
                                                               int32_t expressionDimension, ArpNote* arpNote,
                                                               int32_t noteIndex) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		// Do nothing
@@ -1270,7 +1279,11 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 
 	// Or if we do have MPE output...
 	else {
+		if (!arpNote || noteIndex < 0 || noteIndex >= ARP_MAX_INSTRUCTION_NOTES)
+			return;
 		int32_t memberChannel = arpNote->outputMemberChannel[noteIndex];
+		if (memberChannel < 0 || memberChannel >= 16)
+			return;
 
 		// Are multiple notes sharing the same output member channel?
 		ArpeggiatorSettings* settings = getArpSettings();
@@ -1305,7 +1318,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 				}
 
 				// Otherwise, do send this average value
-				value32 = averageValue16 << 16;
+				value32 = averageValue16 * 65536;
 			}
 		}
 
