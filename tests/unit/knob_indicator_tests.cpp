@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 namespace knob_indicator_test {
 namespace session = ::deluge::gui::ui_session;
@@ -16,15 +17,28 @@ enum class Kind { NORMAL, PATCH_CABLE };
 static std::function<void()> on_lookup, on_value, on_grab, on_mod_leds, on_redraw, on_resolve, on_activate;
 static std::function<void()> on_has_value, on_current_value, on_kind, on_conversion, on_fallback;
 static int conversion_calls = 0;
+static std::function<void()> on_encoder, on_mark_edited;
+static bool encoder_edited = false;
 constexpr int NUM_LEVEL_INDICATORS = 2;
 static int lookup_calls = 0;
 struct root_fixture {
+	root_fixture* menu = this;
+	int reads = 0;
+	root_fixture* getCurrentMenuItem() { return menu; }
+	void readValueAgain() { ++reads; }
 	bool automation_editor = false;
 	int renders = 0;
 	bool inAutomationEditor() { return automation_editor; }
 	void displayAutomation() { ++renders; }
 };
-static root_fixture root, automation;
+static root_fixture root, automation, editor;
+static session::State<root_fixture*> current_uis;
+static root_fixture* getCurrentUI() {
+	return current_uis.active();
+}
+static root_fixture& sound_editor_for_session() {
+	return editor;
+}
 static session::State<root_fixture*> roots;
 static root_fixture* getRootUI() {
 	return roots.active();
@@ -82,6 +96,12 @@ struct ParamManager {
 	}
 };
 struct ModControllable {
+	template <class T>
+	bool modEncoderButtonAction(uint8_t, bool, T*) {
+		if (on_encoder)
+			on_encoder();
+		return encoder_edited;
+	}
 	int required_param_manager_type() { return 0; }
 	ModelStackWithAutoParam* result = nullptr;
 	int32_t fallback = -64;
@@ -119,6 +139,11 @@ struct ModelStackWithAutoParam {
 	int32_t paramId = 0;
 };
 using ModelStackWithTimelineCounter = ModelStackWithAutoParam;
+using ModelStackWithThreeMainThings = ModelStackWithAutoParam;
+constexpr size_t MODEL_STACK_MAX_SIZE = sizeof(ModelStackWithAutoParam);
+static void copyModelStack(void* destination, const void* source, size_t size) {
+	std::memcpy(destination, source, size);
+}
 struct TimelineCounter {
 	TimelineCounter* redirected = this;
 	ModControllable* target = nullptr;
@@ -192,6 +217,13 @@ static struct {
 constexpr int kNoSelection = -1;
 struct View {
 	int feedback_calls = 0;
+	int edits = 0;
+	void instrumentBeenEdited() {
+		++edits;
+		if (on_mark_edited)
+			on_mark_edited();
+	}
+	void modEncoderButtonAction_changeModControllable(uint8_t, bool);
 	bool renderedVUMeter = false;
 	void setModLedStates() {
 		if (on_mod_leds)
@@ -227,6 +259,10 @@ TEST_GROUP(KnobIndicator) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		views = {};
+		editor.menu = &editor;
+		editor.reads = 0;
+		current_uis.for_owner(session::Id::Local) = &editor;
+		current_uis.for_owner(session::Id::Remote) = &editor;
 		root = {};
 		automation = {};
 		lookup_calls = 0;
@@ -238,6 +274,8 @@ TEST_GROUP(KnobIndicator) {
 		redraw_calls = 0;
 		on_has_value = on_current_value = on_kind = on_conversion = on_fallback = {};
 		conversion_calls = 0;
+		on_encoder = on_mark_edited = {};
+		encoder_edited = false;
 		currentSong = &song;
 		playbackHandler.active = false;
 		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
@@ -253,6 +291,8 @@ TEST_GROUP(KnobIndicator) {
 		redraw_calls = 0;
 		on_has_value = on_current_value = on_kind = on_conversion = on_fallback = {};
 		conversion_calls = 0;
+		on_encoder = on_mark_edited = {};
+		encoder_edited = false;
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -709,4 +749,63 @@ TEST(KnobIndicator, timeline_followup_changes_stop_feedback_at_each_stage) {
 			CHECK(session::current() == owner);
 		}
 	}
+}
+
+TEST(KnobIndicator, encoder_callback_cannot_mark_or_render_replaced_song) {
+	encoder_edited = true;
+	on_encoder = [] { currentSong = &replacement_song; };
+	view_for_session().modEncoderButtonAction_changeModControllable(0, true);
+	LONGS_EQUAL(0, view_for_session().edits);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, editor.reads);
+}
+TEST(KnobIndicator, encoder_normal_edit_and_no_edit_paths_refresh_menu) {
+	auto& view = view_for_session();
+	view.modEncoderButtonAction_changeModControllable(0, true);
+	LONGS_EQUAL(0, view.edits);
+	LONGS_EQUAL(1, editor.reads);
+	encoder_edited = true;
+	view.modEncoderButtonAction_changeModControllable(0, false);
+	LONGS_EQUAL(1, view.edits);
+	LONGS_EQUAL(2, editor.reads);
+}
+
+TEST(KnobIndicator, encoder_owner_change_restores_panel_without_followup) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		encoder_edited = true;
+		on_encoder = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		view_for_session().modEncoderButtonAction_changeModControllable(0, true);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, view_for_session().edits);
+		LONGS_EQUAL(0, editor.reads);
+	}
+}
+TEST(KnobIndicator, encoder_missing_targets_and_menus_are_safe) {
+	auto& view = view_for_session();
+	view.activeModControllableModelStack.modControllable = nullptr;
+	view.modEncoderButtonAction_changeModControllable(0, true);
+	LONGS_EQUAL(0, lookup_calls);
+	view.activeModControllableModelStack.modControllable = &controllable;
+	editor.menu = nullptr;
+	view.modEncoderButtonAction_changeModControllable(0, true);
+	LONGS_EQUAL(2, lookup_calls);
+	LONGS_EQUAL(0, editor.reads);
+}
+TEST(KnobIndicator, encoder_menu_replacement_is_not_reread) {
+	root_fixture replacement_menu;
+	on_encoder = [&] { editor.menu = &replacement_menu; };
+	view_for_session().modEncoderButtonAction_changeModControllable(0, true);
+	LONGS_EQUAL(0, replacement_menu.reads);
+	LONGS_EQUAL(0, editor.reads);
+}
+TEST(KnobIndicator, encoder_edit_notification_change_stops_indicator_update) {
+	encoder_edited = true;
+	on_mark_edited = [] { currentSong = &replacement_song; };
+	view_for_session().modEncoderButtonAction_changeModControllable(0, true);
+	LONGS_EQUAL(1, view_for_session().edits);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, editor.reads);
 }

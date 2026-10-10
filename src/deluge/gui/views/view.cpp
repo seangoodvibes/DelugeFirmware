@@ -1432,18 +1432,44 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 }
 
 void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	auto* const source_controllable = activeModControllableModelStack.modControllable;
+	if (!source_controllable)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_ui = getCurrentUI();
+	auto* const source_root = getRootUI();
+	auto* const source_manager = activeModControllableModelStack.paramManager;
+	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
+	const auto source_position = modPos;
+	const auto source_length = modLength;
+	const auto source_note_row = modNoteRowId;
+	auto* const source_menu =
+	    source_ui == &sound_editor_for_session() ? sound_editor_for_session().getCurrentMenuItem() : nullptr;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && getCurrentUI() == source_ui && getRootUI() == source_root
+		       && activeModControllableModelStack.modControllable == source_controllable
+		       && activeModControllableModelStack.paramManager == source_manager
+		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline
+		       && modPos == source_position && modLength == source_length && modNoteRowId == source_note_row;
+	};
+	alignas(ModelStackWithThreeMainThings) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	copyModelStack(modelStackMemory, &activeModControllableModelStack, sizeof(ModelStackWithThreeMainThings));
 	ModelStackWithThreeMainThings* modelStack = (ModelStackWithThreeMainThings*)modelStackMemory;
 
-	bool anyEditingDone =
-	    activeModControllableModelStack.modControllable->modEncoderButtonAction(whichModEncoder, on, modelStack);
+	bool anyEditingDone = source_controllable->modEncoderButtonAction(whichModEncoder, on, modelStack);
+	if (!context_matches())
+		return;
 	if (anyEditingDone) {
 		instrumentBeenEdited();
+		if (!context_matches())
+			return;
 	}
 	setKnobIndicatorLevels(); // These might have changed as a result
-	if (getCurrentUI() == &sound_editor_for_session()) {
-		sound_editor_for_session().getCurrentMenuItem()->readValueAgain();
+	if (context_matches() && source_menu && sound_editor_for_session().getCurrentMenuItem() == source_menu) {
+		source_menu->readValueAgain();
 	}
 }
 

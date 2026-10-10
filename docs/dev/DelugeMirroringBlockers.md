@@ -1471,3 +1471,15 @@ side effects are not provided by these guards.
   production revision validated with `./dbt build relwithdebinfo`. Callbacks and
   hardware output are fixtures; actual model destruction remains L1 coverage work.
   Independent mode remains disabled.
+
+### G1 progress — encoder-button completion context (2026-10-10)
+
+Encoder-button callbacks now retain the source panel scope and validate the song,
+UI, modulation target and region before dirty marking or indicator updates. Menu
+refresh requires the original non-null menu. Missing controllables are ignored.
+Six extracted-production regression tests cover normal edit/no-edit completion,
+song and owner changes, missing targets/menus, menu replacement and dirty-mark
+callback changes. The replaced-song test failed before the fix. All 35 native
+suites and `./dbt build relwithdebinfo` pass. These checks contain follow-up work;
+they do not retain objects across callbacks or roll back edits already applied.
+Independent mode remains disabled.
