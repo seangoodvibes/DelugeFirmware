@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "model/note/note_row_identity.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
@@ -97,6 +98,8 @@ constexpr int32_t kQuantizationPrecision = 10;
 /// length of this NoteRow (either loopLengthIfIndependent if that value is nonzero, or the loop length of the clip
 /// containing this NoteRow).
 class NoteRow {
+public:
+	uint64_t undo_identity = deluge::model::next_note_row_identity();
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();

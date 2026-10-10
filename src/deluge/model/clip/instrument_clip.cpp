@@ -156,6 +156,9 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 // Will replace the Clip in the modelStack, if success.
 Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
+	if (!modelStack || modelStack->getTimelineCounterAllowNull() != this || loopLength <= 0)
+		return Error::BUG;
+
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 		return Error::INSUFFICIENT_RAM;
@@ -191,12 +194,19 @@ deleteClipAndGetOut:
 
 	for (int32_t i = 0; i < newClip->noteRows.getNumElements(); i++) {
 		NoteRow* noteRow = newClip->noteRows.getElement(i);
+		// cloneFrom copied storage, but these are newly owned rows.
+		noteRow->undo_identity = deluge::model::next_note_row_identity();
 		int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		Error error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+		Error row_error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+		if (error == Error::NONE && row_error != Error::NONE)
+			error = row_error;
 
-		// If that fails, we have to keep going, cos otherwise some NoteRows' NoteVector will be left pointing to stuff
-		// it shouldn't be
+		// Finish every row even after failure so none retain borrowed source storage.
+	}
+	if (error != Error::NONE) {
+		modelStack->setTimelineCounter(const_cast<InstrumentClip*>(this));
+		goto deleteClipAndGetOut;
 	}
 
 	if (shouldFlattenReversing && newClip->sequenceDirectionMode == SequenceDirection::REVERSE) {

@@ -26,3 +26,5 @@ add_subdirectory(integration/parameters/native)
 add_subdirectory(param_manager)
 
 add_subdirectory(integration/parameters/lifecycle)
+
+add_subdirectory(instrument_clone)
