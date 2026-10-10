@@ -317,3 +317,35 @@ TEST(RenameOutputTargets, allocation_context_changes_cancel_commit) {
 		STRCMP_EQUAL("original", other.name.get());
 	}
 }
+TEST(RenameClipTargets, failed_allocation_does_not_report_into_changed_context) {
+	for (bool change_owner : {false, true}) {
+		session::detail::active = session::Id::Local;
+		menu.clip = &clip;
+		next_error = Error::INSUFFICIENT_RAM;
+		on_name_set = [&] {
+			if (change_owner)
+				session::detail::active = session::Id::Remote;
+			else
+				menu.clip = &other;
+		};
+		CHECK_FALSE(menu.trySetName("replacement"));
+		CHECK(display_instance.error == Error::NONE);
+		STRCMP_EQUAL("original", clip.name.get());
+	}
+}
+TEST(RenameOutputTargets, failed_allocation_does_not_report_into_changed_context) {
+	for (bool change_owner : {false, true}) {
+		session::detail::active = session::Id::Local;
+		menu.output = &output;
+		next_error = Error::INSUFFICIENT_RAM;
+		on_name_set = [&] {
+			if (change_owner)
+				session::detail::active = session::Id::Remote;
+			else
+				menu.output = &other;
+		};
+		CHECK_FALSE(menu.trySetName("replacement"));
+		CHECK(display_instance.error == Error::NONE);
+		STRCMP_EQUAL("original", output.name.get());
+	}
+}

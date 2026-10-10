@@ -60,13 +60,13 @@ bool RenameClipUI::trySetName(std::string_view name) {
 	previous_name.set(&clip->name); // Shares existing storage without allocation.
 	String replacement_name;
 	const auto error = replacement_name.set(name);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
 	// Allocation can service callbacks. Validate before touching the retained clip again.
 	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song || clip != source_clip
 	    || !canRename() || clip->output != source_output || std::string_view(clip->name.get()) != previous_name.get()) {
+		return false;
+	}
+	if (error != Error::NONE) {
+		display->displayError(error);
 		return false;
 	}
 	// Don't allow duplicate names on clips of a single output.

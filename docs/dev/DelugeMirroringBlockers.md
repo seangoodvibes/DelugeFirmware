@@ -1020,3 +1020,16 @@ side effects are not provided by these guards.
   replacement are not established by these tests.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4/L1 remain open
   and independent mode stays disabled.
+
+### G1 / R4 progress — rename errors after context changes (2026-10-09)
+
+- Clip and track rename now validate context after allocation before displaying
+  allocation errors. If the target or panel changed during allocation, the stale
+  operation cancels without showing its error in the new context.
+- Two injected-callback regressions failed before the fix, covering target and
+  owner changes for both rename paths. Existing valid-context failure/retry tests
+  continue to require error feedback and preservation of the original name.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. These tests use name
+  and display fixtures; allocator lifetime, UI-stack recovery and same-address
+  replacement remain outside this change. G1/R4 remain open; independent mode is
+  disabled.

@@ -59,13 +59,13 @@ bool RenameOutputUI::trySetName(std::string_view name) {
 	previous_name.set(&output->name); // Shares existing storage without allocation.
 	String replacement_name;
 	const auto error = replacement_name.set(name);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
 	// Allocation can service callbacks. Revalidate before accessing the retained output.
 	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song || output != source_output
 	    || !canRename() || std::string_view(output->name.get()) != previous_name.get()) {
+		return false;
+	}
+	if (error != Error::NONE) {
+		display->displayError(error);
 		return false;
 	}
 	// Duplicate names not allowed for audio outputs.
