@@ -2510,3 +2510,13 @@ retargeting, nested reset and normal multi-row MIDI/gate output. All 36 suites a
 an audit gap: surviving owners alone do not identify which generated arp event is
 still current. Kit tick/render siblings and the outer audio-render caller remain
 separate work.
+
+The outer kit audio renderer now watches kit/active-clip lifetime and validates
+song, panel and model-stack association after pre-arp and audio callbacks before
+continuing to later stages. Stem rendering publishes `renderedLastTime` only after
+validation. Ten sanitizer regressions execute the production caller with render
+and model doubles, covering both FX/stem paths, deletion, retargeting, retired
+entry and no-active-clip rendering. All 36 suites and
+`./dbt build relwithdebinfo` pass. The shared effects renderer still has its own
+post-callback accesses, and backup/collection/recorder lifetime inside render
+stages remains a separate concern.

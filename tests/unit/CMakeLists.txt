@@ -877,3 +877,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_non_audio_render_lifet
     DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_non_audio_render_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/kit_non_audio_render_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_render_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_render_output_lifetime.inc
+        Kit::renderOutput
+    DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_render_output_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/kit_render_output_lifetime.inc)

@@ -710,13 +710,36 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
                        int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                        bool isClipActive) {
 
-	ParamManager* paramManager = getParamManager(modelStack->song);
+	if (!modelStack || !modelStack->song)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	auto* source_song = modelStack->song;
+	auto* active_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	ParamManager* paramManager = getParamManager(source_song);
+	if (!paramManager)
+		return;
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
+	const auto context_matches = [&] {
+		return kit_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == active_song
+		       && modelStack->song == source_song && modelStackWithTimelineCounter->song == source_song
+		       && modelStackWithTimelineCounter->getTimelineCounterAllowNull() == routed_clip
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
 
 	// Kit arp, get arp settings, perform setup and render arp pre-output
 	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
+	if (!context_matches())
+		return;
 
 	// if you're exporting drum stems and includeKitFX configuration setting is disabled
 	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
@@ -727,9 +750,12 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		int32_t pitchAdjust =
 		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
+		const bool rendered = renderGlobalEffectableForClip(
 		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+		if (!context_matches())
+			return;
+		GlobalEffectableForClip::renderedLastTime = rendered;
 	}
 	// render kit row with kit affect entire FX
 	else {
@@ -738,6 +764,8 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		                                      isClipActive, OutputType::KIT, recorder);
 	}
 
+	if (!context_matches())
+		return;
 	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
 	renderNonAudioArpPostOutput(output);
 }
