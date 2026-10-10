@@ -202,6 +202,10 @@ deluge::lifetime::lifetime_watch Song::watch_lifetime() const {
 	return deluge::lifetime::lifetime_watch{lifetime_};
 }
 
+void Song::observe_lifetime(deluge::lifetime::lifetime_watch& watch) const {
+	watch.reset(lifetime_);
+}
+
 Song::~Song() {
 	lifetime_.retire();
 

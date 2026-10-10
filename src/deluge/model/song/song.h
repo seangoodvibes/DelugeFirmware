@@ -110,6 +110,7 @@ public:
 	Song();
 	~Song() override;
 	deluge::lifetime::lifetime_watch watch_lifetime() const;
+	void observe_lifetime(deluge::lifetime::lifetime_watch& watch) const;
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t interval);

@@ -67,3 +67,38 @@ TEST(LifetimeWatch, empty_watch_is_not_alive) {
 	lifetime_watch watch;
 	CHECK_FALSE(watch.alive());
 }
+
+TEST(LifetimeWatch, resetting_middle_watch_preserves_neighbors_and_can_rebind) {
+	lifetime_source first_source, second_source;
+	lifetime_watch first(first_source), middle(first_source), last(first_source);
+	middle.reset(second_source);
+	first_source.retire();
+	CHECK_FALSE(first.alive());
+	CHECK_FALSE(last.alive());
+	CHECK(middle.alive());
+	second_source.retire();
+	CHECK_FALSE(middle.alive());
+}
+TEST(LifetimeWatch, resetting_same_source_preserves_links_and_can_clear_repeatedly) {
+	lifetime_source source;
+	lifetime_watch first(source), second(source);
+	first.reset(source);
+	second.reset();
+	second.reset();
+	CHECK_FALSE(second.alive());
+	CHECK(first.alive());
+	source.retire();
+	CHECK_FALSE(first.alive());
+}
+TEST(LifetimeWatch, rebinding_after_destruction_rejects_retired_sources) {
+	std::optional<lifetime_source> source(std::in_place);
+	lifetime_watch watch(*source);
+	source.reset();
+	watch.reset();
+	source.emplace();
+	watch.reset(*source);
+	CHECK(watch.alive());
+	source->retire();
+	watch.reset(*source);
+	CHECK_FALSE(watch.alive());
+}

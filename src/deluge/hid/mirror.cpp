@@ -62,6 +62,7 @@ struct preparation_guard {
 	~preparation_guard() { preparing_remote_snapshot = false; }
 };
 Song* requested_song = nullptr;
+deluge::lifetime::lifetime_watch requested_song_watch;
 deluge::gui::ui_session::Id requested_owner = deluge::gui::ui_session::Id::Local;
 bool transport_busy = false, sending = false, accepting = false;
 bool encoder_input_queued = false;
@@ -415,6 +416,7 @@ void begin() {
 		~startup_cleanup() {
 			// Only an explicitly requeued discovery wait may retain the query.
 			if (!requested) {
+				requested_song_watch.reset();
 				startup_discovery = false;
 				discovery_peer = nullptr;
 				discovery_result.reset();
@@ -426,7 +428,8 @@ void begin() {
 	requested = false;
 	Song* const initiating_song = requested_song;
 	requested_song = nullptr;
-	if (currentSong != initiating_song || deluge::gui::ui_session::current() != requested_owner)
+	if (!requested_song_watch.alive() || currentSong != initiating_song
+	    || deluge::gui::ui_session::current() != requested_owner)
 		return;
 	// Check again: this task runs after the menu action has returned.
 	if (!currentSong || state != State::Idle || playbackHandler.playbackState || AudioEngine::firstRecorder
@@ -456,7 +459,7 @@ void begin() {
 			return;
 		}
 	}
-	if (startup_cancelled)
+	if (startup_cancelled || !requested_song_watch.alive() || currentSong != initiating_song)
 		return;
 	if (discovery_peer != candidate || connection_identity(candidate) != discovery_connection
 	    || getSystemTime() - discovery_started >= 3.0) {
@@ -480,16 +483,17 @@ void begin() {
 		::display->popupTextTemporary("Incompatible mirror device");
 		return;
 	}
-	if (currentSong != initiating_song || deluge::gui::ui_session::current() != requested_owner || !connected(candidate)
-	    || state != State::Idle || playbackHandler.playbackState || AudioEngine::firstRecorder
-	    || stemExport.processStarted)
+	if (!requested_song_watch.alive() || currentSong != initiating_song
+	    || deluge::gui::ui_session::current() != requested_owner || !connected(candidate) || state != State::Idle
+	    || playbackHandler.playbackState || AudioEngine::firstRecorder || stemExport.processStarted)
 		return;
 	Song* const song = currentSong;
 	const auto owner = deluge::gui::ui_session::current();
 	const auto can_continue = [song, candidate, owner, candidate_connection, negotiated_oled = capabilities.oled] {
-		return currentSong == song && connection_identity(candidate) == candidate_connection
-		       && ::display->haveOLED() == negotiated_oled && deluge::gui::ui_session::current() == owner
-		       && !playbackHandler.playbackState && !AudioEngine::firstRecorder && !stemExport.processStarted;
+		return requested_song_watch.alive() && currentSong == song
+		       && connection_identity(candidate) == candidate_connection && ::display->haveOLED() == negotiated_oled
+		       && deluge::gui::ui_session::current() == owner && !playbackHandler.playbackState
+		       && !AudioEngine::firstRecorder && !stemExport.processStarted;
 	};
 	// Complete the local UI operation before freezing its tasks.
 	sound_editor_for_session().exitCompletely();
@@ -784,6 +788,9 @@ bool start() {
 		::display->popupTextTemporary("Stop playback and recording first");
 		return false;
 	}
+	currentSong->observe_lifetime(requested_song_watch);
+	if (!requested_song_watch.alive())
+		return false;
 	startup_cancelled = false;
 	requested_song = currentSong;
 	requested_owner = deluge::gui::ui_session::current();
@@ -804,6 +811,7 @@ bool local_input(uint8_t key, bool on) {
 		startup_cancelled = true;
 		startup_discovery = requested = false;
 		requested_song = nullptr;
+		requested_song_watch.reset();
 		discovery_peer = nullptr;
 		discovery_result.reset();
 	}

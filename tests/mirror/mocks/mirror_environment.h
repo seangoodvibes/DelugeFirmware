@@ -182,7 +182,8 @@ struct UITimers {
 };
 inline UITimers uiTimerManager;
 struct Song {
-	deluge::lifetime::lifetime_source lifetime;
+	void observe_lifetime(deluge::lifetime::lifetime_watch& watch) const { watch.reset(lifetime); }
+	mutable deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	void stopAllAuditioning() {
 		if (fixture::on_stop_audition)

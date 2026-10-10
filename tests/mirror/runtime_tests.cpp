@@ -59,6 +59,7 @@ TEST_GROUP(MirrorRuntime) {
 		m::client_sessions = {};
 		m::sending = m::accepting = false;
 		m::requested_song = nullptr;
+		m::requested_song_watch.reset();
 		m::requested_owner = session::Id::Local;
 		m::panel_read = m::panel_write = m::input_read = m::input_write = 0;
 		m::panel_position = m::panel_length = 0;
@@ -4203,4 +4204,73 @@ TEST(MirrorRuntime, song_address_reuse_during_root_installation_or_open_never_ac
 		m::stop("test");
 		cable.sent.clear();
 	}
+}
+
+TEST(MirrorRuntime, pending_startup_rejects_same_address_song_replacement) {
+	CHECK(m::start());
+	song.~Song();
+	new (&song) Song;
+	m::routine();
+	CHECK_FALSE(m::is_client());
+	CHECK(sent(p::Op::Request).empty());
+	CHECK_FALSE(m::requested_song_watch.alive());
+	CHECK(m::start());
+	m::routine();
+	CHECK(m::is_client());
+	CHECK_FALSE(m::requested_song_watch.alive());
+}
+TEST(MirrorRuntime, discovery_wait_rejects_same_address_song_replacement) {
+	fixture::on_discovery = {};
+	CHECK(m::start());
+	m::routine();
+	CHECK(m::requested);
+	CHECK(m::requested_song_watch.alive());
+	song.~Song();
+	new (&song) Song;
+	m::routine();
+	CHECK_FALSE(m::requested);
+	CHECK_FALSE(m::startup_discovery);
+	CHECK_FALSE(m::is_client());
+	CHECK(sent(p::Op::Request).empty());
+}
+TEST(MirrorRuntime, startup_song_reuse_during_cleanup_prevents_takeover) {
+	for (bool audition : {false, true}) {
+		auto replace_song = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		if (audition)
+			fixture::on_stop_audition = replace_song;
+		else
+			fixture::on_exit_editor = replace_song;
+		CHECK(m::start());
+		m::routine();
+		CHECK_FALSE(m::is_client());
+		CHECK_FALSE(uiTimerManager.paused);
+		LONGS_EQUAL(0, fixture::note_stops);
+		CHECK(sent(p::Op::Request).empty());
+		CHECK_FALSE(m::requested_song_watch.alive());
+		fixture::on_stop_audition = fixture::on_exit_editor = {};
+	}
+}
+TEST(MirrorRuntime, discovery_callback_song_reuse_does_not_requeue_startup) {
+	fixture::on_discovery = [] {
+		song.~Song();
+		new (&song) Song;
+	};
+	CHECK(m::start());
+	m::routine();
+	CHECK_FALSE(m::requested);
+	CHECK_FALSE(m::startup_discovery);
+	CHECK_FALSE(m::is_client());
+	CHECK_FALSE(m::requested_song_watch.alive());
+}
+TEST(MirrorRuntime, retired_song_cannot_queue_client_startup) {
+	Song retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	CHECK_FALSE(m::start());
+	CHECK_FALSE(m::requested);
+	CHECK_FALSE(m::requested_song_watch.alive());
+	currentSong = &song;
 }

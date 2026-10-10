@@ -41,6 +41,7 @@ struct Song {
 	} undo_detached_outputs;
 	~Song();
 	deluge::lifetime::lifetime_watch watch_lifetime() const;
+	void observe_lifetime(deluge::lifetime::lifetime_watch& watch) const;
 	void deleteClipObject(Clip* clip, bool deleting_song, InstrumentRemoval) {
 		CHECK(deleting_song);
 		++deleted_clips;
@@ -116,4 +117,18 @@ TEST(song_owner_lifetime, watchers_can_leave_before_song_destruction) {
 	}
 	auto remaining = song.watch_lifetime();
 	CHECK(remaining.alive());
+}
+
+TEST(song_owner_lifetime, persistent_watch_rebinds_and_retires_before_cleanup) {
+	auto first = std::make_unique<Song>();
+	auto second = std::make_unique<Song>();
+	deluge::lifetime::lifetime_watch watch;
+	first->observe_lifetime(watch);
+	CHECK(watch.alive());
+	second->observe_lifetime(watch);
+	first.reset();
+	CHECK(watch.alive());
+	on_cleanup = [&] { CHECK_FALSE(watch.alive()); };
+	second.reset();
+	CHECK_FALSE(watch.alive());
 }

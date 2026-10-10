@@ -3064,3 +3064,12 @@ construction/installation/opening and retired entry, including same-address reus
 All 36 suites and the RelWithDebInfo build pass. Deferred client-start requests still
 need lifetime tracking across service turns; hardware acceptance, persistent session
 cancellation and the broader blockers remain open. Independent mode stays disabled.
+
+Deferred client startup now retains an allocation-free song lifetime watch across
+service turns and discovery waits, rejecting same-address replacement before
+requeue or takeover. Cancellation/completion clears the watch. Stable-address
+watches can now reset/rebind without becoming movable; Song exposes observation
+into such a watch. Nine regressions cover intrusive-list rebinding, song teardown,
+queued/discovery-wait replacement, discovery/cleanup callbacks and retired entry.
+All 36 suites and the RelWithDebInfo build pass. This closes the deferred-start
+song-address gap, not active independent-session lifetime or hardware acceptance.

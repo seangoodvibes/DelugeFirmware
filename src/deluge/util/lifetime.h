@@ -43,7 +43,21 @@ private:
 class lifetime_watch final {
 public:
 	lifetime_watch() = default;
-	explicit lifetime_watch(lifetime_source& source) {
+	explicit lifetime_watch(lifetime_source& source) { reset(source); }
+	~lifetime_watch() { reset(); }
+	// Reuse a stable-address watch for deferred work without allocating or moving it.
+	void reset() {
+		if (source_) {
+			*previous_link_ = next_;
+			if (next_)
+				next_->previous_link_ = previous_link_;
+		}
+		source_ = nullptr;
+		next_ = nullptr;
+		previous_link_ = nullptr;
+	}
+	void reset(lifetime_source& source) {
+		reset();
 		if (source.retiring_)
 			return;
 		source_ = &source;
@@ -53,13 +67,7 @@ public:
 			next_->previous_link_ = &next_;
 		source.first_ = this;
 	}
-	~lifetime_watch() {
-		if (!source_)
-			return;
-		*previous_link_ = next_;
-		if (next_)
-			next_->previous_link_ = previous_link_;
-	}
+
 	lifetime_watch(const lifetime_watch&) = delete;
 	lifetime_watch& operator=(const lifetime_watch&) = delete;
 	lifetime_watch(lifetime_watch&&) = delete;
