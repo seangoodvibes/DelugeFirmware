@@ -481,10 +481,14 @@ void Kit::loadCrucialAudioFilesOnly() {
 		if (!drum_lifetime.alive())
 			break;
 		const auto row_count = source_clip->noteRows.getNumElements();
+		const auto row_identity = row->undo_identity;
+		if (!row_identity)
+			break;
 		const auto row_valid = [&] {
 			return context_valid() && drum_lifetime.alive() && getDrumIndex(drum) >= 0
 			       && source_clip->noteRows.getNumElements() == row_count
-			       && source_clip->noteRows.getElement(index) == row && row->drum == drum;
+			       && source_clip->noteRows.getElement(index) == row && row->undo_identity == row_identity
+			       && row->drum == drum;
 		};
 		deluge::lifetime::callback_validation row_validation(row_valid);
 		const auto error = drum->loadAllSamples(true, &row_validation);

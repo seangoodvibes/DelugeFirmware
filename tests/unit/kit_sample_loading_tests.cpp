@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_session.h"
+#include "model/note/note_row_identity.h"
 #include "util/lifetime.h"
 #include <functional>
 #include <memory>
@@ -32,6 +33,7 @@ struct Drum : Lifetime {
 	}
 };
 struct NoteRow {
+	uint64_t undo_identity = deluge::model::next_note_row_identity();
 	Drum* drum = nullptr;
 	bool muted = false, empty = false;
 	bool hasNoNotes() { return empty; }
@@ -279,4 +281,23 @@ TEST(KitSampleLoading, newer_directory_context_survives_crucial_load_cancellatio
 	LONGS_EQUAL(1, loads);
 	LONGS_EQUAL(0, publications);
 	LONGS_EQUAL(0, finishes);
+}
+
+TEST(KitSampleLoading, same_address_row_replacement_cancels_inner_publication) {
+	on_load = [&] {
+		auto* original_drum = row.drum;
+		row = NoteRow{};
+		row.drum = original_drum;
+	};
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+	LONGS_EQUAL(1, finishes);
+}
+
+TEST(KitSampleLoading, unavailable_row_identity_does_not_start_crucial_loading) {
+	row.undo_identity = 0;
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(0, loads);
+	LONGS_EQUAL(1, finishes);
 }

@@ -183,8 +183,8 @@ Dependencies express safety requirements, not a requirement to postpone useful
 audits or test infrastructure.
 
 Current baseline: native coverage includes undo, kit restoration, song cleanup,
-parameter lifecycle, clone and mirror runtime suites. Changes validated on 2026-10-10 passed all
-36 CTest suites and `./dbt build relwithdebinfo`. These results cover tested paths;
+parameter lifecycle, clone and mirror runtime suites. Latest validation on 2026-10-10 passed all
+38 CTest suites and `./dbt build relwithdebinfo`. These results cover tested paths;
 they do not close the open items above or replace hardware validation.
 
 For each closure, append: **ID; implementation commit/PR; test names and results;
@@ -3332,3 +3332,12 @@ RelWithDebInfo pass. One counter is added per array, not per range; failed mutat
 attempts conservatively cancel older work. Other retained UI range pointers, inner
 mutation recovery and note-row identity remain L1/R4 work. Independent mode stays
 disabled.
+
+Crucial Kit sample loading now captures the existing NoteRow undo identity and
+requires it to remain nonzero and unchanged before inner drum/holder publication.
+Two regressions cover replacement with identical address/count/drum and an unavailable
+identity; both fail against the previous method. The final implementation reuses
+NoteRow's existing identity instead of adding another array revision or changing
+NoteRowVector. All 38 suites and RelWithDebInfo pass. This closes this loading
+path's same-address replacement case, not row destruction/partial-edit recovery
+or other retained row consumers. Independent mode stays disabled.
