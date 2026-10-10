@@ -1670,3 +1670,13 @@ different panel contexts. Existing context tests now execute the production
 selected-clip function too. All 35 native suites and `./dbt build relwithdebinfo`
 pass. Individual view selection providers remain fixtures; callback lifetime and
 physical routing acceptance remain open.
+
+### G1 / R4 progress — empty and unavailable MIDI track ranges (2026-10-10)
+
+Track counting now returns zero without a song, and indexed lookup rejects missing
+songs and indices outside its supplied track range before reverse-index arithmetic.
+Three tests cover the reproduced empty-range wraparound, missing song/empty list,
+and reverse ordering while skipping inactive outputs. All 35 native suites and
+`./dbt build relwithdebinfo` pass. The output list/activity are fixtures; this does
+not establish lifetime protection during shared output mutations or two-device
+acceptance. Independent mode remains disabled.

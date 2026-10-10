@@ -5,6 +5,7 @@ namespace midi_follow_context_test {
 namespace session = deluge::gui::ui_session;
 struct Clip;
 struct Output {
+	Output* next = nullptr;
 	Clip* active_clip = nullptr;
 	Clip* getActiveClip() { return active_clip; }
 	OutputType type = OutputType::SYNTH;
@@ -44,6 +45,7 @@ static RootUI& automation_view_for_session() {
 	return automation.active();
 }
 struct song_fixture {
+	Output* firstOutput = nullptr;
 	session::State<int> positions;
 	int last_clip_instance_entered_start_pos_for_session() { return positions.active(); }
 };
@@ -51,6 +53,8 @@ static song_fixture song;
 static song_fixture* currentSong = &song;
 struct MidiFollow {
 	Clip* getSelectedClip();
+	const size_t getTrackCount() const;
+	Output* getTrackFromIndex(uint32_t, uint32_t);
 	Clip* getSelectedOrActiveClip();
 	bool isGlobalEffectableContext();
 };
@@ -70,6 +74,7 @@ TEST_GROUP(MidiFollowContext) {
 		roots = {};
 		automation = {};
 		currentSong = &song;
+		song.firstOutput = nullptr;
 		song.positions.for_owner(session::Id::Local) = -1;
 		song.positions.for_owner(session::Id::Remote) = -1;
 		instrument.output = &output;
@@ -178,4 +183,31 @@ TEST(MidiFollowContext, panels_can_select_different_view_contexts) {
 		POINTERS_EQUAL(&instrument, follow.getSelectedClip());
 	}
 	POINTERS_EQUAL(&audio, follow.getSelectedClip());
+}
+
+TEST(MidiFollowContext, empty_track_range_rejects_wrapped_index) {
+	song.firstOutput = &output;
+	output.active_clip = &instrument;
+	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(UINT32_MAX, 0));
+}
+TEST(MidiFollowContext, missing_song_and_empty_list_have_no_tracks) {
+	currentSong = nullptr;
+	LONGS_EQUAL(0, follow.getTrackCount());
+	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(0, 1));
+	currentSong = &song;
+	LONGS_EQUAL(0, follow.getTrackCount());
+	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(0, 1));
+}
+TEST(MidiFollowContext, track_lookup_reverses_active_outputs_and_skips_inactive_ones) {
+	Output middle, last;
+	song.firstOutput = &output;
+	output.next = &middle;
+	middle.next = &last;
+	output.active_clip = &instrument;
+	last.active_clip = &audio;
+	LONGS_EQUAL(2, follow.getTrackCount());
+	POINTERS_EQUAL(&last, follow.getTrackFromIndex(0, 2));
+	POINTERS_EQUAL(&output, follow.getTrackFromIndex(1, 2));
+	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(2, 2));
+	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(UINT32_MAX, 2));
 }
