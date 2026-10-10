@@ -3249,148 +3249,178 @@ void PlaybackHandler::switchToSession() {
 bool dealingWithReceivedMIDIPitchBendRightNow = false;
 
 void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-                                        bool* doingMidiThru) {
-
-	bool isMPE = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
-
-	if (isMPE) {
-		cable.inputChannels[channel].defaultInputMPEValues[0] = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192)
-		                                                        << 2;
+                                        bool* doing_midi_thru) {
+	if (channel >= 16 || data1 > 127 || data2 > 127 || !currentSong)
+		return;
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const bool is_mpe = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
+	if (is_mpe) {
+		cable.inputChannels[channel].defaultInputMPEValues[0] = (static_cast<int32_t>(data1 | (data2 << 7)) - 8192) * 4;
 	}
-	else {
-		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &sound_editor_for_session()) {
-			if (sound_editor_for_session().pitchBendReceived(cable, channel, data1, data2)) {
-				return;
-			}
-		}
+	else if (getCurrentUI() == &sound_editor_for_session()) {
+		const bool used = sound_editor_for_session().pitchBendReceived(cable, channel, data1, data2);
+		if (used || !song_lifetime.alive() || currentSong != source_song
+		    || deluge::gui::ui_session::current() != source_owner)
+			return;
 	}
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
+	struct pitch_scope {
+		bool previous = dealingWithReceivedMIDIPitchBendRightNow;
+		~pitch_scope() { dealingWithReceivedMIDIPitchBendRightNow = previous; }
+	} scope;
 	dealingWithReceivedMIDIPitchBendRightNow = true;
-
-	// See if pitch bend received should be processed by midi follow mod
-	midiFollow.pitchBendReceived(cable, channel, data1, data2, doingMidiThru, modelStack);
-
-	// Go through all Outputs...
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(thisOutput->getActiveClip());
-
-		bool usedForParam = false;
-
-		if (!isMPE && modelStackWithTimelineCounter->timelineCounterIsSet()) { // Do we still need to check this?
-			// See if it's learned to a parameter
-			usedForParam = thisOutput->offerReceivedPitchBendToLearnedParams(
-			    cable, channel, data1, data2,
-			    modelStackWithTimelineCounter); // NOTE: this call may change
-			                                    // modelStackWithTimelineCounter->timelineCounter etc!
-		}
-
-		if (!usedForParam) {
-			thisOutput->offerReceivedPitchBend(modelStackWithTimelineCounter, cable, channel, data1, data2,
-			                                   doingMidiThru);
-		}
-	}
-
-	dealingWithReceivedMIDIPitchBendRightNow = false;
+	dispatch_midi_message(cable, incoming_midi_kind::pitch_bend, channel, data1, data2, is_mpe, doing_midi_thru);
 }
 
-void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                     bool* doingMidiThru) {
-	// true only if it's an MPE member channel, and therefore only used for per note expression
-	bool isMPE = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
-
-	if (isMPE) {
-		cable.inputChannels[channel].defaultInputMPEValues[1] = (value - 64) << 9;
+void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t cc_number, uint8_t value,
+                                     bool* doing_midi_thru) {
+	if (channel >= 16 || cc_number > 127 || value > 127 || !currentSong)
+		return;
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return song_lifetime.alive() && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	const bool is_mpe = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
+	if (is_mpe) {
+		cable.inputChannels[channel].defaultInputMPEValues[1] = (static_cast<int32_t>(value) - 64) * 512;
 	}
 	else {
-		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &sound_editor_for_session()
-		    && sound_editor_for_session().midiCCReceived(cable, channelOrZone, ccNumber, value)) {
+		const int32_t channel_or_zone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		if (getCurrentUI() == &sound_editor_for_session()) {
+			const bool used = sound_editor_for_session().midiCCReceived(cable, channel_or_zone, cc_number, value);
+			if (used || !context_matches())
+				return;
+		}
+		if (currentUIMode == UI_MODE_MIDI_LEARN) {
+			view_for_session().ccReceivedForMIDILearn(cable, channel_or_zone, cc_number, value);
 			return;
 		}
-		// then midi learn is second priority
-		else if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			view_for_session().ccReceivedForMIDILearn(cable, channelOrZone, ccNumber, value);
-			// we don't want this learn to immediately trigger the thing it was learnt to so just return
+		if (offerNoteToLearnedThings(cable, value > 0, channel_or_zone + IS_A_CC, cc_number) || !context_matches())
 			return;
-		}
-		// check if it was learned to on/off commands (loop, drums, section launch etc.)
-		else if (offerNoteToLearnedThings(cable, value > 0, channelOrZone + IS_A_CC, ccNumber)) {
-			return;
-		}
 	}
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
-	// See if midi cc received should be processed by midi follow mode
-	midiFollow.midiCCReceived(cable, channel, ccNumber, value, doingMidiThru, modelStack);
-
-	// See if midi cc received has been learned to a song param
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	if (modelStackWithThreeMainThings) {
-		ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
-		if (modControllable) {
-			modControllable->offerReceivedCCToLearnedParamsForSong(cable, channel, ccNumber, value,
-			                                                       modelStackWithThreeMainThings);
-		}
-	}
-
-	// Go through all Outputs...
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-
-		// If it has an activeClip... (Hmm, interesting, we don't allow MIDI control of params when no activeClip?
-		// Yeah this checks out, as the various offerReceivedCCToLearnedParams()'s require a timelineCounter, but
-		// this seems restrictive for the user...)
-		if (thisOutput->getActiveClip()) {
-
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
-
-			if (!isMPE) {
-				// See if it's learned to a parameter
-				// NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
-				thisOutput->offerReceivedCCToLearnedParams(cable, channel, ccNumber, value,
-				                                           modelStackWithTimelineCounter);
-			}
-
-			thisOutput->offerReceivedCC(modelStackWithTimelineCounter, cable, channel, ccNumber, value, doingMidiThru);
-		}
-	}
+	dispatch_midi_message(cable, incoming_midi_kind::cc, channel, cc_number, value, is_mpe, doing_midi_thru);
 }
 
-// noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one
-// note).
-void PlaybackHandler::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
-                                         bool* doingMidiThru) {
+// A note code of -1 denotes channel pressure (including MPE member pressure).
+void PlaybackHandler::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t note_code,
+                                         bool* doing_midi_thru) {
+	if (channel < 0 || channel >= 16 || value < 0 || value > 127 || note_code < -1 || note_code > 127 || !currentSong)
+		return;
+	const bool is_mpe =
+	    note_code == -1 && cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
+	if (is_mpe)
+		cable.inputChannels[channel].defaultInputMPEValues[2] = value * 256;
+	dispatch_midi_message(cable, incoming_midi_kind::aftertouch, channel, value, note_code, is_mpe, doing_midi_thru);
+}
 
-	bool isMPE = (noteCode == -1 && cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel));
-
-	if (isMPE) {
-		cable.inputChannels[channel].defaultInputMPEValues[2] = value << 8;
+void PlaybackHandler::dispatch_midi_message(MIDICable& cable, incoming_midi_kind kind, uint8_t channel, int32_t data1,
+                                            int32_t data2, bool is_mpe, bool* doing_midi_thru) {
+	auto* source_song = currentSong;
+	if (!source_song)
+		return;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	char model_stack_memory[MODEL_STACK_MAX_SIZE];
+	auto* model_stack = setupModelStackWithSong(model_stack_memory, source_song);
+	const auto context_matches = [&] {
+		return song_lifetime.alive() && currentSong == source_song && model_stack->song == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	switch (kind) {
+	case incoming_midi_kind::cc:
+		midiFollow.midiCCReceived(cable, channel, data1, data2, doing_midi_thru, model_stack);
+		break;
+	case incoming_midi_kind::pitch_bend:
+		midiFollow.pitchBendReceived(cable, channel, data1, data2, doing_midi_thru, model_stack);
+		break;
+	case incoming_midi_kind::aftertouch:
+		midiFollow.aftertouchReceived(cable, channel, data1, data2, doing_midi_thru, model_stack);
+		break;
 	}
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
-	// See if aftertouch received should be processed by midi follow mode
-	midiFollow.aftertouchReceived(cable, channel, value, noteCode, doingMidiThru, modelStack);
-
-	// Go through all Instruments...
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(thisOutput->getActiveClip());
-
-		thisOutput->offerReceivedAftertouch(modelStackWithTimelineCounter, cable, channel, value, noteCode,
-		                                    doingMidiThru);
+	if (!context_matches())
+		return;
+	if (kind == incoming_midi_kind::cc) {
+		auto* song_stack = source_song->setupModelStackWithSongAsTimelineCounter(model_stack_memory);
+		if (song_stack && song_stack->modControllable) {
+			auto* mod_controllable = static_cast<ModControllableAudio*>(song_stack->modControllable);
+			mod_controllable->offerReceivedCCToLearnedParamsForSong(cable, channel, data1, data2, song_stack);
+			if (!context_matches())
+				return;
+		}
+	}
+	for (auto* output = source_song->firstOutput; output;) {
+		auto output_lifetime = output->watch_lifetime();
+		if (!output_lifetime.alive())
+			return;
+		auto* next_output = output->next;
+		auto next_lifetime = next_output ? next_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		const auto output_matches = [&] {
+			return context_matches() && output_lifetime.alive() && (!next_output || next_lifetime.alive())
+			       && source_song->owns_output_for_undo(output, false) && output->next == next_output;
+		};
+		if (!output_matches())
+			return;
+		auto* source_clip = output->getActiveClip();
+		auto source_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		if (source_clip && (!source_lifetime.alive() || source_clip->output != output))
+			return;
+		const bool source_registered = source_clip && source_song->contains_clip_for_undo(source_clip);
+		if (kind != incoming_midi_kind::cc || source_clip) {
+			auto* clip_stack = model_stack->addTimelineCounter(source_clip);
+			bool used_for_param = false;
+			if (!is_mpe && source_clip) {
+				if (kind == incoming_midi_kind::cc)
+					output->offerReceivedCCToLearnedParams(cable, channel, data1, data2, clip_stack);
+				else if (kind == incoming_midi_kind::pitch_bend)
+					used_for_param =
+					    output->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, clip_stack);
+			}
+			if (!output_matches() || (source_clip && (!source_lifetime.alive() || source_clip->output != output))
+			    || (source_registered && !source_song->contains_clip_for_undo(source_clip)))
+				return;
+			auto* routed_clip = static_cast<Clip*>(clip_stack->getTimelineCounterAllowNull());
+			if (source_clip && !routed_clip)
+				return;
+			// A failed learned handler may leave a discarded clone in the stack.
+			// Establish ownership before acquiring a watch on any replacement.
+			if (routed_clip && routed_clip != source_clip && !source_song->contains_clip_for_undo(routed_clip))
+				return;
+			auto routed_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+			if ((routed_clip && (!routed_lifetime.alive() || routed_clip->output != output))
+			    || (output->getActiveClip() != source_clip && output->getActiveClip() != routed_clip))
+				return;
+			switch (kind) {
+			case incoming_midi_kind::cc:
+				output->offerReceivedCC(clip_stack, cable, channel, data1, data2, doing_midi_thru);
+				break;
+			case incoming_midi_kind::pitch_bend:
+				if (!used_for_param)
+					output->offerReceivedPitchBend(clip_stack, cable, channel, data1, data2, doing_midi_thru);
+				break;
+			case incoming_midi_kind::aftertouch:
+				output->offerReceivedAftertouch(clip_stack, cable, channel, data1, data2, doing_midi_thru);
+				break;
+			}
+			if (!output_matches() || (source_clip && !source_lifetime.alive())
+			    || (routed_clip && !routed_lifetime.alive())
+			    || (source_registered && !source_song->contains_clip_for_undo(source_clip))
+			    || (routed_clip && routed_clip != source_clip && !source_song->contains_clip_for_undo(routed_clip)))
+				return;
+		}
+		output = next_output;
 	}
 }
 

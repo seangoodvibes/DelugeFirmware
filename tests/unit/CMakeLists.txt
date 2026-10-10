@@ -1116,3 +1116,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_learned_param_lifetim
         ModControllableAudio::offerReceivedCCToLearnedParamsForSong
     DEPENDS ${learned_param_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE song_learned_param_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/song_learned_param_lifetime.inc)
+
+set(playback_midi_dispatch_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/playback/playback_handler.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/playback_midi_dispatch_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${playback_midi_dispatch_source} ${CMAKE_CURRENT_BINARY_DIR}/playback_midi_dispatch_lifetime.inc
+        PlaybackHandler::pitchBendReceived PlaybackHandler::midiCCReceived PlaybackHandler::aftertouchReceived PlaybackHandler::dispatch_midi_message
+    DEPENDS ${playback_midi_dispatch_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE playback_midi_dispatch_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/playback_midi_dispatch_lifetime.inc)

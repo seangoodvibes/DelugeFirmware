@@ -2956,3 +2956,15 @@ removal, while live arrangement-clone retarget tests still pass. All 36 suites a
 `./dbt build relwithdebinfo` pass. This relies on the owning registry removing clips
 before destruction; other acquisition paths and the enclosing playback dispatch
 remain open. Independent mode stays disabled.
+
+Playback CC/pitch-bend/aftertouch now share guarded fanout across MIDI follow,
+song learned parameters and output delivery. Song/current-next output watches,
+main-list membership, clip ownership and session checks cancel stale continuation;
+replacement clips are registered before watch acquisition. Input bounds precede
+cable-array access, and nested/cancelled pitch dispatch restores its previous flag.
+Twenty-two added production-body sanitizer regressions cover routing behavior,
+MPE defaults, learning/consumption, deletion/reuse/detachment, clone retargets and
+registration/active-clip changes. All 36 suites and `./dbt build relwithdebinfo` pass.
+Note-on/off and learned-command internals still require checks; cable lifetime and
+hardware timing remain unverified. Completed deliveries are retained; independent
+mode stays disabled.
