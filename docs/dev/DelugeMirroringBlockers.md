@@ -2743,3 +2743,13 @@ reassigned owners, inactive notes, pitch/modulation/pressure behavior, saturatio
 mode filtering and clipless final-callback deletion. All 36 suites and
 `./dbt build relwithdebinfo` pass. Pitch/voltage helper internals and acquisition of
 borrowed clip pointers are still separate boundaries.
+
+MIDI mono-expression/collapse entry points now reject invalid dimensions and
+retired/reassigned owners. Pitch collapse uses defined negative conversion,
+saturates before float-to-integer conversion and treats a zero main bend range
+as zero polyphonic contribution. Nine production-body sanitizer regressions cover
+those cases, averaging/max selection, unchanged output, clipless/arp behavior,
+final-callback deletion and zero-range activation. All 36 suites and
+`./dbt build relwithdebinfo` pass; the added activation regression also passes the
+targeted lifetime suite. Parameter acquisition and transport internals remain
+separate work; these checks do not establish full sound-render safety.

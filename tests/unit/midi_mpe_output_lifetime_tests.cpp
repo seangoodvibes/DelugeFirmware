@@ -564,3 +564,12 @@ TEST(midi_mpe_output_lifetime, activation_rejects_invalid_or_retired_target) {
 	CHECK_FALSE(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
 	POINTERS_EQUAL(clip.get(), instrument->activeClip);
 }
+TEST(midi_mpe_output_lifetime, activation_accepts_zero_main_bend_range_without_infinite_ratio) {
+	InstrumentClip next;
+	next.output = instrument.get();
+	next.paramManager.expression.bendRanges[0] = 0;
+	ModelStackWithTimelineCounter stack{currentSong, &next};
+	CHECK(instrument->setActiveClip(&stack, PgmChangeSend::NEVER));
+	DOUBLES_EQUAL(0, instrument->ratio, 0);
+	LONGS_EQUAL(48, instrument->cachedBendRanges[1]);
+}

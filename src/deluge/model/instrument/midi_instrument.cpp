@@ -46,7 +46,9 @@ int16_t lastNoteOffOrder = 1;
 
 MIDIInstrument::MIDIInstrument()
     : NonAudioInstrument(OutputType::MIDI_OUT), mpeOutputMemberChannels(),
-      ratio(float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN])),
+      ratio(cachedBendRanges[BEND_RANGE_MAIN]
+                ? float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN])
+                : 0.0f),
       modKnobCCAssignments() {
 	modKnobMode = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
@@ -236,11 +238,30 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 }
 
 void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+
 	lastMonoExpression[expressionDimension] = newValue;
 	sendMonophonicExpressionEvent(expressionDimension);
 }
 
 void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
 
 	int32_t masterChannel = getOutputMasterChannel();
 
@@ -320,7 +341,9 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 			if (expression_params) {
 				cachedBendRanges[BEND_RANGE_MAIN] = expression_params->bendRanges[BEND_RANGE_MAIN];
 				cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expression_params->bendRanges[BEND_RANGE_FINGER_LEVEL];
-				ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+				ratio = cachedBendRanges[BEND_RANGE_MAIN] ? float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL])
+				                                                / float(cachedBendRanges[BEND_RANGE_MAIN])
+				                                          : 0.0f;
 			}
 		}
 		else {
@@ -1375,6 +1398,15 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 }
 
 void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimension) {
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions)
+		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
 
 	ParamManager* paramManager = getParamManager(NULL);
 	if (paramManager) {
@@ -1382,7 +1414,9 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 		if (expressionParams) {
 			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
 			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
-			ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+			ratio = cachedBendRanges[BEND_RANGE_MAIN]
+			            ? float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN])
+			            : 0.0f;
 		}
 	}
 
@@ -1413,13 +1447,18 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 				averageValue16 = mpeValuesMax;
 			}
 
-			value32 = averageValue16 << 16;
+			value32 = averageValue16 * 65536;
 		}
 		if (expressionDimension == 0) {
-			// this can be bigger than 2^31
-			float fbend = value32 * ratio;
-			// casting down will truncate
-			value32 = (int32_t)fbend;
+			const float scaled_bend = value32 * ratio;
+			// INT32_MAX rounds up to 2^31 as a float. Test the bounds before
+			// converting so large bend ratios cannot produce an invalid cast.
+			if (scaled_bend >= 2147483648.0f)
+				value32 = INT32_MAX;
+			else if (scaled_bend <= -2147483648.0f)
+				value32 = INT32_MIN;
+			else
+				value32 = static_cast<int32_t>(scaled_bend);
 		}
 		// if it's changed, we need to update the outputs
 		if (value32 != lastCombinedPolyExpression[expressionDimension]) {

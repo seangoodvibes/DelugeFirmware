@@ -989,3 +989,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_program_lifetime.inc
         InstrumentClip::sendMIDIPGM
     DEPENDS ${midi_program_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE midi_program_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_program_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_expression_collapse.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_mpe_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_expression_collapse.inc
+        MIDIInstrument::monophonicExpressionEvent MIDIInstrument::sendMonophonicExpressionEvent MIDIInstrument::combineMPEtoMono
+    DEPENDS ${midi_mpe_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE midi_expression_collapse_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_expression_collapse.inc)
