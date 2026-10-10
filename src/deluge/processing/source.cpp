@@ -273,6 +273,16 @@ OscType Source::getOscType() {
 // If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get
 // emptied.
 void Source::setOscType(OscType newType) {
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto expected_type = oscType;
+	const auto context_valid = [&] {
+		return source_lifetime.alive() && oscType == expected_type
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
 
 	int32_t multiRangeSize;
 	if (newType == OscType::SAMPLE) {
@@ -280,32 +290,32 @@ void Source::setOscType(OscType newType) {
 possiblyDeleteRanges:
 		if (ranges.elementSize != multiRangeSize) {
 
-			/*
-			if (ranges.anyRangeHasAudioFile()) {
-
-			}
-
-			destructAllMultiRanges();
-			*/
-
 doChangeType:
 			Error error = ranges.changeType(multiRangeSize);
+			if (!context_valid())
+				return;
 			if (error != Error::NONE) {
 				destructAllMultiRanges();
-				ranges.empty();
-				sound_editor_for_session().currentMultiRangeIndex = 0;
+				if (!context_valid() || ranges.getNumElements() != 0)
+					return;
+				auto& editor = sound_editor_for_session();
+				if (editor.currentSource == this)
+					editor.currentMultiRangeIndex = 0;
 				goto doChangeType; // Can't fail now it's empty.
 			}
 
-			oscType = newType;
+			oscType = expected_type = newType;
 
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
 
-			if (sound_editor_for_session().currentMultiRangeIndex >= 0
-			    && sound_editor_for_session().currentMultiRangeIndex < ranges.getNumElements()) {
-				sound_editor_for_session().currentMultiRange =
-				    (MultiRange*)ranges.getElementAddress(sound_editor_for_session().currentMultiRangeIndex);
+			if (!context_valid())
+				return;
+			auto& editor = sound_editor_for_session();
+			if (editor.currentSource == this && editor.currentMultiRangeIndex >= 0
+			    && editor.currentMultiRangeIndex < ranges.getNumElements()) {
+				editor.currentMultiRange =
+				    static_cast<MultiRange*>(ranges.getElementAddress(editor.currentMultiRangeIndex));
 			}
 		}
 	}

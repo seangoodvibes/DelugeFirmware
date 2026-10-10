@@ -3296,3 +3296,14 @@ retirement ordering; retired-entry loading failed against the previous body. All
 are not raw-relocated range objects; no watch is embedded in MultiRange storage.
 Other Source methods, caller-side type-change recovery and range-identity tracking
 remain separate work. Independent mode stays disabled.
+
+Source oscillator-type transitions now watch Source lifetime, oscillator selection
+and panel context across conversion/cleanup/range-creation boundaries. Failed
+conversion cleanup does not clear ranges created by a nested callback. Sound Editor
+range/index publication is limited to an editor selecting that Source. Ten sanitizer
+regressions cover destruction, nested ranges/type changes, owner changes, unrelated
+editors and normal retry/same-size/DX behavior; both unrelated-editor regressions
+failed against the previous method. All 38 suites and RelWithDebInfo pass. This
+protects caller continuation; inner allocation/conversion helpers and recovery of
+already-published type/range changes still require their own contracts. Independent
+mode remains disabled.
