@@ -3572,3 +3572,11 @@ edit/render/animation publication before closing the browser. Three regressions
 cover changed clips, Kit retirement and navigation that starts a new animation.
 All 38 suites and RelWithDebInfo pass. These checks prevent stale continuation;
 they do not roll back rows or Drums already published before cancellation.
+
+Kit import now checks context around new Drum allocation and parameter setup,
+owns private Drums with scoped cleanup until Kit registration, and validates
+Drum/Source lifetime, membership and range layout after setup and parameter backup.
+Four regressions cover allocation/initialization cancellation and setup/backup
+invalidation. All 38 suites and RelWithDebInfo pass. Registered Drums remain
+Kit-owned on cancellation; this does not roll back partial Kit publication or
+prove lifetime safety inside every called allocation/setup routine.

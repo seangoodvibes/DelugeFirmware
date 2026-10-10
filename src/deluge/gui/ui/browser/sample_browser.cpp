@@ -2153,31 +2153,64 @@ getOut:
 
 				ParamManagerForTimeline paramManager;
 				Error error = paramManager.setupWithPatching();
+				if (!context_valid())
+					return false;
 				if (error != Error::NONE) {
 					goto getOut;
 				}
 
 				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
+				if (!context_valid()) {
+					if (drumMemory)
+						delugeDealloc(drumMemory);
+					return false;
+				}
 				if (!drumMemory) {
 					goto getOut;
 				}
 
 				drum = new (drumMemory) SoundDrum();
+				auto new_drum_lifetime = drum->watch_lifetime();
+				auto private_drum_cleanup = util::finally([&] {
+					if (new_drum_lifetime.alive()) {
+						drum->~SoundDrum();
+						delugeDealloc(drumMemory);
+					}
+				});
 				source = &drum->sources[0];
-
+				auto new_source_lifetime = source->watch_lifetime();
+				const auto private_context_valid = [&] {
+					return context_valid() && new_drum_lifetime.alive() && new_source_lifetime.alive();
+				};
+				if (!private_context_valid())
+					return false;
 				range = source->getOrCreateFirstRange();
-				if (!range) {
-					drum->~SoundDrum();
-					delugeDealloc(drumMemory);
+				if (!private_context_valid())
+					return false;
+				if (!range)
 					goto getOut;
-				}
+				const auto new_range_layout = source->ranges.layout_revision();
 
 				Sound::initParams(&paramManager);
+				if (!private_context_valid() || source->ranges.layout_revision() != new_range_layout)
+					return false;
 
+				// The Kit owns the Drum once it is linked, including on later cancellation.
+				private_drum_cleanup.disable();
 				kit->addDrum(drum);
+				const auto registered_context_valid = [&] {
+					return private_context_valid() && drum->kit == kit && kit->getDrumIndex(drum) >= 0
+					       && source->ranges.layout_revision() == new_range_layout;
+				};
+				if (!registered_context_valid())
+					return false;
 				drum->setupAsSample(&paramManager);
+				if (!registered_context_valid())
+					return false;
 				drum->nameIsDiscardable = true;
-				currentSong->backUpParamManager(drum, getCurrentClip(), &paramManager, true);
+				source_song->backUpParamManager(drum, source_clip, &paramManager, true);
+				if (!registered_context_valid())
+					return false;
 			}
 
 			AudioFileHolder* holder = range->getAudioFileHolder();

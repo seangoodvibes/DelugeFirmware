@@ -23,7 +23,8 @@ int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
 bool replace_ranges_on_type_change = false;
 constexpr int CLUSTER_ENQUEUE = 0;
-std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load, on_parameter, on_rows;
+std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load, on_parameter, on_rows,
+    on_allocate, on_init, on_setup, on_backup;
 int audio_calls = 0, directory_closes = 0;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
@@ -192,7 +193,10 @@ struct Sound : Lifetime {
 		--sources[index].ranges.count;
 		return true;
 	}
-	static void initParams(ParamManagerForTimeline*) {}
+	static void initParams(ParamManagerForTimeline*) {
+		if (on_init)
+			on_init();
+	}
 };
 struct Kit;
 struct SoundDrum : Sound {
@@ -200,7 +204,10 @@ struct SoundDrum : Sound {
 	bool nameIsDiscardable = false;
 	int noteRowAssignedTemp = 0;
 	std::string drumName;
-	void setupAsSample(ParamManagerForTimeline*) {}
+	void setupAsSample(ParamManagerForTimeline*) {
+		if (on_setup)
+			on_setup();
+	}
 };
 struct Instrument : Lifetime {
 	int own_edits = 0;
@@ -233,7 +240,10 @@ struct Clip;
 Clip* current_clip = nullptr;
 struct Song : Lifetime {
 	Clip* getCurrentClip() { return current_clip; }
-	void backUpParamManager(SoundDrum*, void*, ParamManagerForTimeline*, bool) {}
+	void backUpParamManager(SoundDrum*, void*, ParamManagerForTimeline*, bool) {
+		if (on_backup)
+			on_backup();
+	}
 } song;
 auto* currentSong = &song;
 struct ModelStackWithTimelineCounter {};
@@ -283,7 +293,11 @@ struct GeneralMemoryAllocator {
 		static GeneralMemoryAllocator allocator;
 		return allocator;
 	}
-	void* allocMaxSpeed(size_t size) { return ++allocation_calls == fail_allocation ? nullptr : std::malloc(size); }
+	void* allocMaxSpeed(size_t size) {
+		if (on_allocate)
+			on_allocate();
+		return ++allocation_calls == fail_allocation ? nullptr : std::malloc(size);
+	}
 };
 void delugeDealloc(void* memory) {
 	if (memory == sample_table) {
@@ -376,7 +390,8 @@ TEST_GROUP(KitSampleImport) {
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
 		replace_ranges_on_type_change = false;
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows =
+		    on_allocate = on_init = on_setup = on_backup = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
@@ -394,7 +409,8 @@ TEST_GROUP(KitSampleImport) {
 		editor.currentSource = &first_drum.sources[0];
 	}
 	void teardown() override {
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows =
+		    on_allocate = on_init = on_setup = on_backup = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
@@ -856,4 +872,32 @@ TEST(KitSampleImport, kit_navigation_preserves_new_working_animation_and_render_
 	LONGS_EQUAL(0, display_instance.removals);
 	LONGS_EQUAL(0, redraws);
 	LONGS_EQUAL(1, kit.own_edits);
+}
+
+TEST(KitSampleImport, kit_allocation_context_change_does_not_publish_new_drum) {
+	on_allocate = [&] { first_drum.kit = nullptr; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, kit.drums.size());
+	LONGS_EQUAL(2, assignment_calls);
+	LONGS_EQUAL(0, samples[1].numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, kit_parameter_initialization_cancellation_destroys_private_drum) {
+	on_init = [&] { first_drum.kit = nullptr; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, kit.drums.size());
+	LONGS_EQUAL(2, assignment_calls);
+}
+TEST(KitSampleImport, kit_new_drum_setup_cancellation_preserves_kit_ownership) {
+	on_setup = [&] { kit.drums.back()->lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(1, kit.drums.size());
+	LONGS_EQUAL(2, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+}
+TEST(KitSampleImport, kit_parameter_backup_range_change_stops_sample_assignment) {
+	on_backup = [&] { kit.drums.back()->sources[0].ranges.insertMultiRange(1); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(1, kit.drums.size());
+	LONGS_EQUAL(2, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
 }
