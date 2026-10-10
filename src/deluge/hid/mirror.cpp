@@ -23,6 +23,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -185,7 +186,10 @@ bool send_discovery_query(MIDICable& cable, bool for_startup) {
 
 bool remote_ui_ready() {
 	deluge::gui::ui_session::Scope owner(deluge::gui::ui_session::Id::Remote);
-	return currentSong && deluge::gui::ui_session::navigation.active().depth > 0 && getCurrentUI();
+	if (!currentSong)
+		return false;
+	auto song_watch = currentSong->watch_lifetime();
+	return song_watch.alive() && deluge::gui::ui_session::navigation.active().depth > 0 && getCurrentUI();
 }
 
 bool remote_transport_ready() {
@@ -214,7 +218,13 @@ bool send(Op op, std::span<const uint8_t> payload = {}) {
 		return false;
 	}
 	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	const bool independent_host = state == State::Host && active_session_mode == protocol::session_mode::independent;
+	if (op != Op::Stop && independent_host && !song_watch.alive()) {
+		failed = true;
+		sending = false;
+		return false;
+	}
 	bool old_developer_code = developerSysexCodeReceived;
 	developerSysexCodeReceived = false;
 	accepting = op == Op::Accept;
@@ -234,7 +244,7 @@ bool send(Op op, std::span<const uint8_t> payload = {}) {
 	    && (!session_live()
 	        || (independent_host
 	            && (state != State::Host || active_session_mode != protocol::session_mode::independent
-	                || currentSong != source_song))
+	                || !song_watch.alive() || currentSong != source_song))
 	        || (op != Op::InputAck && !remote_transport_ready())))
 		failed = true;
 	return true;
@@ -674,12 +684,13 @@ void process_input() {
 			auto* const source_peer = peer;
 			const auto source_connection = peer_connection;
 			auto* const source_song = currentSong;
+			auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 			const bool independent = active_session_mode == protocol::session_mode::independent;
 			const auto dispatch_context_live = [&] {
 				return session_live()
 				       && (!independent
 				           || (state == State::Host && active_session_mode == protocol::session_mode::independent
-				               && currentSong == source_song
+				               && song_watch.alive() && currentSong == source_song
 				               && deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Remote));
 			};
 			if (event.kind == 0) {
@@ -1075,11 +1086,12 @@ void service_remote_ui() {
 	if (navigation.rendering || PadLEDs::rendering_lock_for_session())
 		return;
 	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	if (!uiTimerManager.isTimerSet(TimerName::GRAPHICS_ROUTINE))
 		uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 15);
 	uiTimerManager.routine();
 	if (failed || state != State::Host || active_session_mode != protocol::session_mode::independent || !session_live()
-	    || currentSong != source_song || !remote_ui_ready()
+	    || !song_watch.alive() || currentSong != source_song || !remote_ui_ready()
 	    || deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Remote) {
 		failed = true;
 		return;
@@ -1095,8 +1107,8 @@ void service_remote_ui() {
 		return;
 	doAnyPendingUIRendering();
 	if (failed || state != State::Host || active_session_mode != protocol::session_mode::independent || !session_live()
-	    || currentSong != source_song || deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Remote
-	    || !remote_ui_ready())
+	    || !song_watch.alive() || currentSong != source_song
+	    || deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Remote || !remote_ui_ready())
 		failed = true;
 }
 
@@ -1112,7 +1124,8 @@ void initialize_remote_root() {
 		return;
 	remote_initialization_pending = false;
 	auto* const source_song = currentSong;
-	if (!source_song || navigation.depth || !session_live()) {
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (!song_watch.alive() || navigation.depth || !session_live()) {
 		failed = true;
 		return;
 	}
@@ -1121,7 +1134,7 @@ void initialize_remote_root() {
 	// Lazy construction may service callbacks. Validate before publishing the
 	// root into navigation, not only after installing it.
 	if (failed || state != State::Host || active_session_mode != protocol::session_mode::independent
-	    || currentSong != source_song || !session_live()
+	    || !song_watch.alive() || currentSong != source_song || !session_live()
 	    || deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Remote || navigation.depth) {
 		failed = true;
 		return;
@@ -1137,7 +1150,7 @@ void initialize_remote_root() {
 	setRootUILowLevel(root);
 	auto installed_root_valid = [&] {
 		return !failed && state == State::Host && active_session_mode == protocol::session_mode::independent
-		       && currentSong == source_song && session_live()
+		       && song_watch.alive() && currentSong == source_song && session_live()
 		       && deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Remote && navigation.depth > 0
 		       && navigation.hierarchy[0] == root;
 	};
@@ -1175,6 +1188,7 @@ bool prepare_remote_snapshot() {
 	preparation_guard guard;
 	deluge::gui::ui_session::Scope owner(deluge::gui::ui_session::Id::Remote);
 	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	auto& navigation = deluge::gui::ui_session::navigation.active();
 	if (navigation.rendering || PadLEDs::rendering_lock_for_session())
 		return false;
@@ -1182,7 +1196,7 @@ bool prepare_remote_snapshot() {
 	// consume its dirty rows. The normal service waits until after acceptance.
 	uiTimerManager.routine();
 	if (failed || state != State::Host || active_session_mode != protocol::session_mode::independent || !session_live()
-	    || currentSong != source_song || !remote_ui_ready()
+	    || !song_watch.alive() || currentSong != source_song || !remote_ui_ready()
 	    || deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Remote) {
 		failed = true;
 		return false;
@@ -1199,7 +1213,7 @@ bool prepare_remote_snapshot() {
 	const auto previous_frame_revision = display::OLED::remote_frame_revision();
 	doAnyPendingUIRendering();
 	if (failed || state != State::Host || active_session_mode != protocol::session_mode::independent || !session_live()
-	    || currentSong != source_song || !remote_ui_ready()
+	    || !song_watch.alive() || currentSong != source_song || !remote_ui_ready()
 	    || deluge::gui::ui_session::current() != deluge::gui::ui_session::Id::Remote) {
 		failed = true;
 		return false;

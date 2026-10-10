@@ -3055,3 +3055,12 @@ both diagnostics configurations, covering retirement, deletion, address reuse,
 retargeting and error-display deletion. All 36 suites and the RelWithDebInfo build
 pass. Parameter storage/layout invalidation inside a still-live owner and deeper
 lookup services remain open; caller ownership is still required at entry.
+
+Independent mirror transmission, input dispatch, Remote UI service/root startup and
+snapshot preparation now watch song lifetime across their callbacks. Remote readiness
+rejects retiring songs; visible mirroring preserves its existing song-change behavior.
+Seven runtime regressions cover packet/input/encoder callbacks, timers/rendering, root
+construction/installation/opening and retired entry, including same-address reuse.
+All 36 suites and the RelWithDebInfo build pass. Deferred client-start requests still
+need lifetime tracking across service turns; hardware acceptance, persistent session
+cancellation and the broader blockers remain open. Independent mode stays disabled.

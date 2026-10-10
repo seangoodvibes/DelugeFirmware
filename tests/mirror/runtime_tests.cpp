@@ -4050,3 +4050,157 @@ TEST(MirrorRuntime, shift_feedback_queue_failure_stops_remote_render) {
 		CHECK(session::current() == session::Id::Local);
 	}
 }
+
+TEST(MirrorRuntime, song_address_reuse_during_send_cancels_only_independent_transport) {
+	for (bool independent : {false, true}) {
+		host();
+		m::active_session_mode = independent ? p::session_mode::independent : p::session_mode::visible_host;
+		session::navigation.for_owner(session::Id::Remote).depth = 1;
+		m::last_sync_led = -1;
+		fixture::now += 1;
+		cable.sent.clear();
+		fixture::on_send = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		m::transport_routine();
+		CHECK_EQUAL(independent, m::failed);
+		LONGS_EQUAL(1, sent(p::Op::Heartbeat).size());
+		if (independent)
+			LONGS_EQUAL(1, cable.sent.size());
+		else
+			CHECK_FALSE(sent(p::Op::SyncLED).empty());
+		fixture::on_send = {};
+		m::stop("test");
+		cable.sent.clear();
+	}
+}
+TEST(MirrorRuntime, song_address_reuse_during_input_prevents_ack_and_next_event) {
+	for (bool encoder : {false, true}) {
+		host();
+		m::active_session_mode = p::session_mode::independent;
+		session::navigation.for_owner(session::Id::Remote).depth = 1;
+		auto replace_song = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		if (encoder)
+			fixture::on_encoder = replace_song;
+		else
+			fixture::on_input = replace_song;
+		input(1, encoder ? 1 : 0, encoder ? 0 : 2, 1);
+		input(2, 0, 3, 1);
+		m::process_input();
+		CHECK(m::failed);
+		LONGS_EQUAL(0, m::input_read);
+		CHECK(sent(p::Op::InputAck).empty());
+		CHECK_FALSE(m::remote_held[3]);
+		fixture::on_input = fixture::on_encoder = {};
+		m::stop("test");
+		cable.sent.clear();
+	}
+}
+TEST(MirrorRuntime, song_address_reuse_during_remote_timers_cancels_render_and_snapshot) {
+	for (bool snapshot : {false, true}) {
+		host();
+		m::active_session_mode = p::session_mode::independent;
+		session::navigation.for_owner(session::Id::Remote).depth = 1;
+		int renders = 0;
+		on_remote_render = [&] { ++renders; };
+		on_ui_timers = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		if (snapshot)
+			CHECK_FALSE(m::prepare_remote_snapshot());
+		else
+			m::service_remote_ui();
+		CHECK(m::failed);
+		LONGS_EQUAL(0, renders);
+		CHECK(session::current() == session::Id::Local);
+		on_ui_timers = on_remote_render = {};
+		m::stop("test");
+		cable.sent.clear();
+	}
+}
+TEST(MirrorRuntime, song_address_reuse_during_remote_root_construction_prevents_install) {
+	incoming(p::Op::Request, 0, {1});
+	m::active_session_mode = p::session_mode::independent;
+	m::remote_initialization_pending = true;
+	int openings = 0;
+	on_root_open = [&] { ++openings; };
+	on_root_lookup = [] {
+		song.~Song();
+		new (&song) Song;
+	};
+	m::routine();
+	CHECK(m::failed);
+	LONGS_EQUAL(0, openings);
+	LONGS_EQUAL(0, session::navigation.for_owner(session::Id::Remote).depth);
+	CHECK(sent(p::Op::Accept).empty());
+}
+TEST(MirrorRuntime, retiring_song_is_not_ready_for_independent_input_or_transport) {
+	host();
+	m::active_session_mode = p::session_mode::independent;
+	session::navigation.for_owner(session::Id::Remote).depth = 1;
+	input(1, 0, 2, 1);
+	Song retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	CHECK_FALSE(m::remote_ui_ready());
+	m::process_input();
+	CHECK(fixture::events.empty());
+	cable.sent.clear();
+	m::transport_routine();
+	CHECK(m::failed);
+	CHECK(cable.sent.empty());
+	currentSong = &song;
+}
+
+TEST(MirrorRuntime, song_address_reuse_during_remote_render_invalidates_service_and_snapshot) {
+	for (bool snapshot : {false, true}) {
+		host();
+		m::active_session_mode = p::session_mode::independent;
+		session::navigation.for_owner(session::Id::Remote).depth = 1;
+		int renders = 0;
+		on_remote_render = [&] {
+			++renders;
+			song.~Song();
+			new (&song) Song;
+		};
+		if (snapshot)
+			CHECK_FALSE(m::prepare_remote_snapshot());
+		else
+			m::service_remote_ui();
+		CHECK(m::failed);
+		LONGS_EQUAL(1, renders);
+		CHECK(session::current() == session::Id::Local);
+		on_remote_render = {};
+		m::stop("test");
+		cable.sent.clear();
+	}
+}
+TEST(MirrorRuntime, song_address_reuse_during_root_installation_or_open_never_accepts) {
+	for (int stage = 0; stage < 3; ++stage) {
+		incoming(p::Op::Request, 0, {1});
+		m::active_session_mode = p::session_mode::independent;
+		m::remote_initialization_pending = true;
+		auto replace_song = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		if (stage == 0)
+			on_root_install = replace_song;
+		else if (stage == 1)
+			on_cancel_popup = replace_song;
+		else
+			on_root_open = replace_song;
+		m::routine();
+		CHECK(m::failed);
+		CHECK(sent(p::Op::Accept).empty());
+		CHECK(fixture::main_pad_owners.empty());
+		on_root_install = on_cancel_popup = on_root_open = {};
+		m::stop("test");
+		cable.sent.clear();
+	}
+}

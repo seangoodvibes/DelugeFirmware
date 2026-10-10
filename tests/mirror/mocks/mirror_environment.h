@@ -3,6 +3,7 @@
 #include "gui/ui/ui_navigation_state.h"
 #include "gui/ui/ui_session.h"
 #include "gui/ui_timer_state.h"
+#include "util/lifetime.h"
 #include <array>
 #include <cstdint>
 #include <functional>
@@ -181,6 +182,8 @@ struct UITimers {
 };
 inline UITimers uiTimerManager;
 struct Song {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	void stopAllAuditioning() {
 		if (fixture::on_stop_audition)
 			fixture::on_stop_audition();
