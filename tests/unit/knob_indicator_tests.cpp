@@ -13,7 +13,7 @@ constexpr int kKnobPosOffset = 64, kMaxKnobPos = 128, UI_MODE_STUTTERING = 1;
 namespace params {
 enum class Kind { NORMAL, PATCH_CABLE };
 }
-static std::function<void()> on_lookup, on_value;
+static std::function<void()> on_lookup, on_value, on_grab;
 constexpr int NUM_LEVEL_INDICATORS = 2;
 static int lookup_calls = 0;
 struct root_fixture {
@@ -50,7 +50,20 @@ struct AutoParam {
 		return value;
 	}
 };
+struct ParamManager {
+	bool compatible = true;
+	int grabs = 0;
+	bool matches_type(int) { return compatible; }
+	ParamManager* toForTimeline() { return this; }
+	template <class T>
+	void grabValuesFromPos(uint32_t, T*) {
+		++grabs;
+		if (on_grab)
+			on_grab();
+	}
+};
 struct ModControllable {
+	int required_param_manager_type() { return 0; }
 	ModelStackWithAutoParam* result = nullptr;
 	int32_t fallback = -64;
 	template <class T>
@@ -64,10 +77,11 @@ struct ModControllable {
 };
 using ModControllableAudio = ModControllable;
 struct ModelStackWithAutoParam {
-	void* paramManager = nullptr;
+	ParamManager* paramManager = nullptr;
 	void* timeline = nullptr;
 	int* song = nullptr;
 	void* getTimelineCounterAllowNull() const { return timeline; }
+	bool timelineCounterIsSet() const { return timeline != nullptr; }
 	ModControllable* modControllable = nullptr;
 	AutoParam* autoParam = nullptr;
 	ParamCollection* paramCollection = nullptr;
@@ -105,7 +119,22 @@ static void setKnobIndicatorLevel(uint8_t index, int32_t level, bool bipolar) {
 	target.bipolar = bipolar;
 }
 } // namespace indicator_leds
+enum class MIDIFollowFeedbackAutomationMode { DISABLED, ENABLED };
+static struct {
+	bool active = false;
+	bool isEitherClockActive() { return active; }
+} playbackHandler;
+static struct {
+	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+} midiEngine;
+constexpr int kNoSelection = -1;
 struct View {
+	int feedback_calls = 0;
+	uint32_t modLength = 0;
+	int32_t modNoteRowId = 0;
+	void pretendModKnobsUntouchedForAWhile() {}
+	void sendMidiFollowFeedback(ModelStackWithAutoParam*, int32_t, bool) { ++feedback_calls; }
+	void setModRegion(uint32_t, uint32_t, int32_t);
 	ModelStackWithAutoParam activeModControllableModelStack;
 	uint32_t modPos = 0;
 	void setKnobIndicatorLevel(uint8_t);
@@ -122,6 +151,7 @@ static View& view_for_session() {
 using namespace knob_indicator_test;
 TEST_GROUP(KnobIndicator) {
 	ModControllable controllable;
+	ParamManager manager;
 	ModelStackWithAutoParam stack;
 	ParamCollection collection;
 	AutoParam param;
@@ -135,8 +165,10 @@ TEST_GROUP(KnobIndicator) {
 		indicator_leds::clears = {};
 		roots.for_owner(session::Id::Local) = &root;
 		roots.for_owner(session::Id::Remote) = &root;
-		on_lookup = on_value = {};
+		on_lookup = on_value = on_grab = {};
 		currentSong = &song;
+		playbackHandler.active = false;
+		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 		indicator_leds::outputs = {};
 		bipolar = quantized = stuttering = false;
 		controllable.result = &stack;
@@ -145,7 +177,7 @@ TEST_GROUP(KnobIndicator) {
 			views.for_owner(owner).activeModControllableModelStack.modControllable = &controllable;
 	}
 	void teardown() override {
-		on_lookup = on_value = {};
+		on_lookup = on_value = on_grab = {};
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -238,7 +270,7 @@ TEST(KnobIndicator, lookup_context_changes_cancel_indicator_output) {
 				if (scenario == 2)
 					view.activeModControllableModelStack.modControllable = nullptr;
 				if (scenario == 3)
-					view.activeModControllableModelStack.paramManager = &song;
+					view.activeModControllableModelStack.paramManager = &manager;
 				if (scenario == 4)
 					view.activeModControllableModelStack.timeline = &song;
 				if (scenario == 5)
@@ -273,7 +305,7 @@ TEST(KnobIndicator, batch_stops_after_first_lookup_changes_context) {
 			lookup_calls = 0;
 			on_lookup = [&] {
 				if (scenario == 0)
-					view.activeModControllableModelStack.paramManager = &song;
+					view.activeModControllableModelStack.paramManager = &manager;
 				if (scenario == 1)
 					currentSong = &replacement_song;
 				if (scenario == 2)
@@ -310,4 +342,77 @@ TEST(KnobIndicator, batch_handles_missing_root_and_clears_missing_target) {
 	view_for_session().activeModControllableModelStack.modControllable = nullptr;
 	view_for_session().setKnobIndicatorLevels();
 	LONGS_EQUAL(1, indicator_leds::clears.active());
+}
+
+TEST(KnobIndicator, region_value_grab_context_change_skips_indicators_and_feedback) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		currentSong = &song;
+		auto& view = view_for_session();
+		view.activeModControllableModelStack.paramManager = &manager;
+		view.activeModControllableModelStack.timeline = &song;
+		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::ENABLED;
+		on_grab = [] { currentSong = &replacement_song; };
+		view.setModRegion(24, 12, 7);
+		LONGS_EQUAL(0, lookup_calls);
+		LONGS_EQUAL(0, view.feedback_calls);
+		LONGS_EQUAL(24, view.modPos);
+	}
+}
+TEST(KnobIndicator, region_selection_obeys_playback_and_manager_compatibility) {
+	auto& view = view_for_session();
+	view.activeModControllableModelStack.paramManager = &manager;
+	view.activeModControllableModelStack.timeline = &song;
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::ENABLED;
+	view.setModRegion(24, 12, 7);
+	LONGS_EQUAL(1, manager.grabs);
+	LONGS_EQUAL(1, view.feedback_calls);
+	LONGS_EQUAL(12, view.modLength);
+	LONGS_EQUAL(7, view.modNoteRowId);
+	playbackHandler.active = true;
+	view.setModRegion(48, 12, 8);
+	LONGS_EQUAL(1, manager.grabs);
+	playbackHandler.active = false;
+	manager.compatible = false;
+	view.setModRegion(72, 12, 9);
+	LONGS_EQUAL(1, manager.grabs);
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+	view.setModRegion(0, 0, 0);
+	LONGS_EQUAL(3, view.feedback_calls);
+}
+
+TEST(KnobIndicator, region_indicator_lookup_change_prevents_feedback) {
+	auto& view = view_for_session();
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::ENABLED;
+	on_lookup = [&] { view.modNoteRowId = 99; };
+	view.setModRegion(24, 0, 7);
+	LONGS_EQUAL(0, view.feedback_calls);
+	LONGS_EQUAL(99, view.modNoteRowId);
+	LONGS_EQUAL(1, lookup_calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[1].calls);
+}
+TEST(KnobIndicator, region_value_grab_owner_change_restores_initiating_panel) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& view = view_for_session();
+		view.activeModControllableModelStack.paramManager = &manager;
+		view.activeModControllableModelStack.timeline = &song;
+		on_grab = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		view.setModRegion(24, 12, 7);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, lookup_calls);
+		LONGS_EQUAL(0, view.feedback_calls);
+	}
+}
+
+TEST(KnobIndicator, changed_region_length_cancels_pending_indicator_batch) {
+	auto& view = view_for_session();
+	on_lookup = [&] { view.modLength = 96; };
+	view.setKnobIndicatorLevels();
+	LONGS_EQUAL(1, lookup_calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[1].calls);
 }

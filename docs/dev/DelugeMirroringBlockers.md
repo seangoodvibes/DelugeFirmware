@@ -1406,3 +1406,18 @@ side effects are not provided by these guards.
   failed before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
 - Already emitted indicator updates are not rolled back. Callback-internal
   retention remains L1 work; G1 stays open and independent mode stays disabled.
+
+### G1 / R4 progress — modulation-region callback containment (2026-10-10)
+
+- Region selection rechecks owner, song, root, model targets and full region after
+  value retrieval and indicator updates before continuing to MIDI feedback. It
+  preserves callback selection changes and restores the initiating owner.
+- Individual/batched knob guards now also check region length and note-row ID,
+  distinguishing selections at the same position.
+- Five extracted-method tests cover song/owner changes during value retrieval,
+  note-row/length changes during lookup, playback/type guards and feedback settings.
+  The song-change regression performed two stale lookups before the fix. All 35
+  native suites and `./dbt build relwithdebinfo` pass.
+- Value retrieval and MIDI transmission are fixtures. Already applied parameter
+  values are not rolled back; no callback-internal target retention is established.
+  G1/L1/R4 remain open and independent mode stays disabled.

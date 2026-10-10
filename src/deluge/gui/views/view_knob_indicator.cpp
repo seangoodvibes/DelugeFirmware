@@ -41,12 +41,14 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	auto* const source_manager = activeModControllableModelStack.paramManager;
 	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
 	const auto source_position = modPos;
+	const auto source_length = modLength;
+	const auto source_note_row = modNoteRowId;
 	const auto context_matches = [&] {
 		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
 		       && activeModControllableModelStack.modControllable == source_controllable
 		       && activeModControllableModelStack.paramManager == source_manager
 		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline
-		       && modPos == source_position;
+		       && modPos == source_position && modLength == source_length && modNoteRowId == source_note_row;
 	};
 	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
 	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).

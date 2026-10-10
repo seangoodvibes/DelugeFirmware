@@ -1456,12 +1456,14 @@ void View::setKnobIndicatorLevels() {
 	auto* const source_manager = activeModControllableModelStack.paramManager;
 	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
 	const auto source_position = modPos;
+	const auto source_length = modLength;
+	const auto source_note_row = modNoteRowId;
 	const auto context_matches = [&] {
 		return deluge::gui::ui_session::current() == source_owner && getRootUI() == source_root
 		       && currentSong == source_song && activeModControllableModelStack.modControllable == source_controllable
 		       && activeModControllableModelStack.paramManager == source_manager
 		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline
-		       && modPos == source_position;
+		       && modPos == source_position && modLength == source_length && modNoteRowId == source_note_row;
 	};
 	if (!source_root) {
 		return; // What's this?
@@ -1938,6 +1940,20 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_root = getRootUI();
+	auto* const source_controllable = activeModControllableModelStack.modControllable;
+	auto* const source_manager = activeModControllableModelStack.paramManager;
+	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && getRootUI() == source_root && activeModControllableModelStack.modControllable == source_controllable
+		       && activeModControllableModelStack.paramManager == source_manager
+		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline && modPos == pos
+		       && modLength == length && modNoteRowId == noteRowId;
+	};
 
 	modPos = pos;
 	modLength = length;
@@ -1956,7 +1972,11 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 		    pos, &activeModControllableModelStack);
 		// activeModControllable might not be a Sound, but in that case, the pointer's not going to get used
 	}
+	if (!context_matches())
+		return;
 	setKnobIndicatorLevels();
+	if (!context_matches())
+		return;
 
 	// midi follow and midi feedback enabled
 	// re-send midi cc's because learned parameter values may have changed
