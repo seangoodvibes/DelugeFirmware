@@ -1057,3 +1057,13 @@ side effects are not provided by these guards.
   UI closure are fixtures; actual UI-stack recovery and lifetime are not proved.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 remain open and
   independent mode stays disabled.
+
+### G1 / R4 progress — missing UI targets during opening (2026-10-09)
+
+- openUI rejects a null target returned by getUI before inserting it into the
+  hierarchy, and rejected opening only restores focus when a previous UI exists.
+- Five extracted-production tests cover redirected-null targets, rejected first
+  UI, normal rejection on both panels, Remote opening and null/full-stack input.
+  Navigation, callbacks and rendering are fixtures; this is not lifetime proof.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Callback-driven stack
+  changes still require protection. G1/R4 remain open; independent mode is disabled.

@@ -243,6 +243,8 @@ bool openUI(UI* newUI) {
 		return false;
 	}
 	newUI = newUI->getUI();
+	if (!newUI)
+		return false;
 	UI* oldUI = getCurrentUI();
 	navigation().hierarchy[navigation().depth] = newUI;
 	navigation().depth++;
@@ -254,8 +256,8 @@ bool openUI(UI* newUI) {
 	if (!success) {
 		navigation().depth--;
 		PadLEDs::reassessGreyout();
-		oldUI->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if
-		                        // they wish?
+		if (oldUI)
+			oldUI->focusRegained();
 	}
 	if (display->haveOLED()) {
 		renderUIsForOled();
