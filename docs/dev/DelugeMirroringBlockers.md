@@ -2643,3 +2643,12 @@ nested reset, voice-budget deferral, live chords, retired entry and already-play
 notes. All 36 native suites and `./dbt build relwithdebinfo` pass. Voice-start
 internals and unguarded sound-render/instrument callers remain separate work;
 this does not make the entire sound renderer lifetime-safe.
+
+Sound-instrument tick routing now watches output/clip lifetime and validates song,
+panel, model-stack/parameter association and arp revision between note-off events
+and through the guarded sound note-start loop. Six sanitizer regressions execute
+both production bodies together with model/voice doubles, covering live chords,
+generation/output destruction, freed instructions with surviving owners, retargeting
+and collection replacement. All 36 suites and `./dbt build relwithdebinfo` pass.
+Sound render routing and MIDI/CV instrument routes remain distinct audit work;
+callback internals and hardware rescheduling/timing are not established here.

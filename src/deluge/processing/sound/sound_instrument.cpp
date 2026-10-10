@@ -18,6 +18,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
+#include "gui/ui/ui_session.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -32,6 +33,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/lifetime.h"
 #include "util/misc.h"
 
 namespace params = deluge::modulation::params;
@@ -412,9 +414,17 @@ void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
 
 // Returns num ticks til next arp event
 int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) {
+	if (!modelStack || !modelStack->song)
 		return 2147483647;
-	}
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive() || !activeClip)
+		return 2147483647;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip->watch_lifetime();
+	if (!clip_lifetime.alive() || routed_clip->output != this)
+		return 2147483647;
+	auto* source_song = modelStack->song;
+	const auto source_owner = deluge::gui::ui_session::current();
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
@@ -422,13 +432,33 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 
 	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
 
+	if (!unpatchedParams)
+		return 2147483647;
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && clip_lifetime.alive() && activeClip == routed_clip
+		       && routed_clip->output == this && currentSong == source_song && modelStack->song == source_song
+		       && modelStackWithThreeMainThings->getTimelineCounterAllowNull() == routed_clip
+		       && modelStackWithThreeMainThings->paramManager == &routed_clip->paramManager
+		       && routed_clip->paramManager.getUnpatchedParamSet() == unpatchedParams
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_matches())
+		return 2147483647;
 	ArpeggiatorSettings* arpSettings = getArpSettings();
+	if (!arpSettings)
+		return 2147483647;
 	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 
 	ArpReturnInstruction instruction;
 
 	int32_t ticksTilNextArpEvent =
 	    arpeggiator.doTickForward(arpSettings, &instruction, currentPos, activeClip->currentlyPlayingReversed);
+	if (!context_matches())
+		return 2147483647;
+	const auto instruction_revision = arpeggiator.instruction_revision();
+	const auto instruction_matches = [&] {
+		return context_matches() && arpeggiator.instruction_revision() == instruction_revision;
+	};
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithThreeMainThings->addSoundFlags();
 
@@ -439,6 +469,8 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 		}
 		atLeastOneOff = true;
 		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+		if (!instruction_matches())
+			return 2147483647;
 	}
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
@@ -446,11 +478,16 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 		}
 		atLeastOneOff = true;
 		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+		if (!instruction_matches())
+			return 2147483647;
 	}
 	if (atLeastOneOff) {
 		invertReversed = false;
 	}
-	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
+	const deluge::lifetime::callback_validation instruction_validation{instruction_matches};
+	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction, &instruction_validation);
+	if (!instruction_matches())
+		return 2147483647;
 
 	return ticksTilNextArpEvent;
 }

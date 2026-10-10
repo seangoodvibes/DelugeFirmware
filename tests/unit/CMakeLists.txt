@@ -949,3 +949,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_arp_dispatch_lifetim
         Sound::process_postarp_notes
     DEPENDS ${sound_arp_dispatch_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_arp_dispatch_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_arp_dispatch_lifetime.inc)
+
+set(sound_instrument_tick_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_tick_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_instrument_tick_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_tick_lifetime.inc
+        SoundInstrument::doTickForwardForArp
+    DEPENDS ${sound_instrument_tick_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_tick_lifetime.inc)

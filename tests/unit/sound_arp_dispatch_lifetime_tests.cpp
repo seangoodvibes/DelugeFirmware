@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/ui_session.h"
 #include "util/lifetime.h"
 #include <algorithm>
 #include <cstdint>
@@ -15,7 +16,15 @@ int to_underlying(T value) {
 }
 } // namespace util
 struct ModelStackWithSoundFlags {};
-struct ArpeggiatorSettings {};
+struct UnpatchedParamSet {
+} unpatched;
+struct ParamManager {
+	UnpatchedParamSet* unpatched_set = &unpatched;
+	UnpatchedParamSet* getUnpatchedParamSet() { return unpatched_set; }
+};
+struct ArpeggiatorSettings {
+	void updateParamsFromUnpatchedParamSet(UnpatchedParamSet*) {}
+};
 struct ArpNote {
 	int noteCodeOnPostArp[3]{60, 64, ARP_NOTE_NONE};
 	ArpNoteStatus noteStatus[3]{ArpNoteStatus::PENDING, ArpNoteStatus::PENDING, ArpNoteStatus::OFF};
@@ -27,9 +36,14 @@ struct ArpReturnInstruction {
 	ArpNote* arpNoteOn = nullptr;
 	bool invertReversed = true;
 	int sampleSyncLengthOn = 16;
+	int glideNoteCodeOffPostArp[3]{60, ARP_NOTE_NONE, ARP_NOTE_NONE};
+	int noteCodeOffPostArp[3]{64, ARP_NOTE_NONE, ARP_NOTE_NONE};
 };
 int started = 0, voice_budget = 3;
-std::function<void()> on_start;
+std::function<void()> on_start, on_off, on_generation;
+int stopped = 0;
+int song;
+int* currentSong = &song;
 namespace AudioEngine {
 bool allowedToStartVoice() {
 	return started < voice_budget;
@@ -38,6 +52,11 @@ bool allowedToStartVoice() {
 struct Sound {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	bool invertReversed = false;
+	void noteOffPostArpeggiator(ModelStackWithSoundFlags*, int) {
+		++stopped;
+		if (on_off)
+			on_off();
+	}
 	void noteOnPostArpeggiator(ModelStackWithSoundFlags*, int input_note, int, int velocity, const int16_t* mpe,
 	                           int length, int, int, int channel) {
 		++started;
@@ -55,7 +74,55 @@ struct Sound {
 	void process_postarp_notes(ModelStackWithSoundFlags*, ArpeggiatorSettings*, ArpReturnInstruction,
 	                           const deluge::lifetime::callback_validation* = nullptr);
 };
+
+struct SoundInstrument;
+struct Clip {
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
+	SoundInstrument* output = nullptr;
+	ParamManager paramManager;
+	ArpeggiatorSettings settings;
+	bool currentlyPlayingReversed = false;
+};
+struct ModelStackWithThreeMainThings {
+	Clip* clip = nullptr;
+	ParamManager* paramManager = nullptr;
+	ModelStackWithSoundFlags flags;
+	Clip* getTimelineCounterAllowNull() { return clip; }
+	ModelStackWithSoundFlags* addSoundFlags() { return &flags; }
+	ModelStackWithThreeMainThings* addOtherTwoThingsButNoNoteRow(SoundInstrument*, ParamManager* manager) {
+		paramManager = manager;
+		return this;
+	}
+};
+struct ModelStack {
+	int* song = &sound_arp_dispatch_lifetime_test::song;
+	ModelStackWithThreeMainThings main;
+	ModelStackWithThreeMainThings* addTimelineCounter(Clip* clip) {
+		main.clip = clip;
+		return &main;
+	}
+};
+struct SoundInstrument : Sound {
+	Clip* activeClip = nullptr;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
+	ParamManager* getParamManager(int*) { return &activeClip->paramManager; }
+	ArpeggiatorSettings* getArpSettings() { return &activeClip->settings; }
+	struct {
+		std::unique_ptr<ArpNote> note = std::make_unique<ArpNote>();
+		uint64_t revision = 0;
+		uint64_t instruction_revision() const { return revision; }
+		int32_t doTickForward(ArpeggiatorSettings*, ArpReturnInstruction* instruction, int32_t, bool) {
+			instruction->arpNoteOn = note.get();
+			if (on_generation)
+				on_generation();
+			return 7;
+		}
+	} arpeggiator;
+	int32_t doTickForwardForArp(ModelStack*, int32_t);
+};
 #include "sound_arp_dispatch_lifetime.inc"
+#include "sound_instrument_tick_lifetime.inc"
 } // namespace sound_arp_dispatch_lifetime_test
 using namespace sound_arp_dispatch_lifetime_test;
 TEST_GROUP(sound_arp_dispatch_lifetime) {
@@ -129,4 +196,89 @@ TEST(sound_arp_dispatch_lifetime, already_playing_notes_are_not_retriggered) {
 	note.noteStatus[0] = ArpNoteStatus::PLAYING;
 	sound.process_postarp_notes(&stack, nullptr, {&note});
 	LONGS_EQUAL(1, started);
+}
+
+TEST_GROUP(sound_instrument_tick_lifetime) {
+	std::unique_ptr<SoundInstrument> instrument;
+	std::unique_ptr<Clip> clip;
+	ModelStack stack;
+	void reset() {
+		instrument = std::make_unique<SoundInstrument>();
+		clip = std::make_unique<Clip>();
+		instrument->activeClip = clip.get();
+		clip->output = instrument.get();
+		on_generation = {};
+		on_off = {};
+		on_start = {};
+		started = stopped = 0;
+		voice_budget = 3;
+		currentSong = &song;
+	}
+	void setup() override {
+		reset();
+	}
+	void teardown() override {
+		on_generation = {};
+		on_off = {};
+		on_start = {};
+		currentSong = &song;
+	}
+	int32_t tick() {
+		return instrument->doTickForwardForArp(&stack, 0);
+	}
+};
+TEST(sound_instrument_tick_lifetime, live_tick_stops_and_starts_chord) {
+	LONGS_EQUAL(7, tick());
+	LONGS_EQUAL(2, stopped);
+	LONGS_EQUAL(2, started);
+}
+TEST(sound_instrument_tick_lifetime, generation_can_destroy_output_and_clip) {
+	on_generation = [&] {
+		clip.reset();
+		instrument.reset();
+	};
+	LONGS_EQUAL(2147483647, tick());
+	LONGS_EQUAL(0, stopped);
+	LONGS_EQUAL(0, started);
+}
+TEST(sound_instrument_tick_lifetime, each_output_callback_can_destroy_owners) {
+	for (int stage = 1; stage <= 4; ++stage) {
+		reset();
+		auto destroy = [&] {
+			if (started + stopped == stage) {
+				clip.reset();
+				instrument.reset();
+			}
+		};
+		on_off = on_start = destroy;
+		LONGS_EQUAL(2147483647, tick());
+		LONGS_EQUAL(stage, started + stopped);
+	}
+}
+TEST(sound_instrument_tick_lifetime, reset_can_free_instruction_with_owners_alive) {
+	for (int stage = 1; stage <= 4; ++stage) {
+		reset();
+		auto replace = [&] {
+			if (started + stopped == stage) {
+				++instrument->arpeggiator.revision;
+				instrument->arpeggiator.note.reset();
+			}
+		};
+		on_off = on_start = replace;
+		LONGS_EQUAL(2147483647, tick());
+		LONGS_EQUAL(stage, started + stopped);
+	}
+}
+TEST(sound_instrument_tick_lifetime, retargeted_clip_cancels_remaining_events) {
+	on_off = [&] { instrument->activeClip = nullptr; };
+	LONGS_EQUAL(2147483647, tick());
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, started);
+}
+TEST(sound_instrument_tick_lifetime, parameter_collection_replacement_cancels_remaining_events) {
+	UnpatchedParamSet replacement;
+	on_off = [&] { clip->paramManager.unpatched_set = &replacement; };
+	LONGS_EQUAL(2147483647, tick());
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, started);
 }
