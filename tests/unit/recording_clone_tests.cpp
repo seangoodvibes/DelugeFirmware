@@ -18,15 +18,19 @@ struct instances_fixture {
 	int search_result = 0;
 	Error insert_error = Error::NONE;
 	int inserts = 0;
+	std::function<void()> on_insert;
 	int search(int, int) { return search_result; }
 	ClipInstance* getElement(int index) { return &values[index]; }
 	Error insertAtIndex(int) {
 		++inserts;
+		if (on_insert)
+			on_insert();
 		return insert_error;
 	}
 };
 struct Output {
 	Clip* active = nullptr;
+	std::function<void()> on_activate;
 	instances_fixture clipInstances;
 	Clip* getActiveClip() { return active; }
 	bool clipHasInstance(Clip* clip) {
@@ -50,10 +54,15 @@ struct song_fixture {
 	bool isClipActive(Clip*) { return active; }
 	struct {
 		bool reserve_ok = true;
+		std::function<void()> on_reserve;
 		int inserts = 0;
 		Error insert_error = Error::NONE;
 		Clip* inserted = nullptr;
-		bool ensureEnoughSpaceAllocated(int) { return reserve_ok; }
+		bool ensureEnoughSpaceAllocated(int) {
+			if (on_reserve)
+				on_reserve();
+			return reserve_ok;
+		}
 		Error insertClipAtIndex(Clip* clip, int) {
 			++inserts;
 			if (insert_error == Error::NONE)
@@ -83,6 +92,7 @@ struct Clip {
 	int32_t repeatCount = 0, loopLength = 64, lastProcessedPos = 5;
 	int section = 0;
 	int clone_calls = 0, stop_calls = 0, resume_calls = 0;
+	std::function<void()> on_stop, on_position, on_resume;
 	int new_position = -1, new_length = -1;
 	bool isArrangementOnlyClip() { return arrangement_only; }
 	Error clone(ModelStackWithTimelineCounter* stack, bool) {
@@ -101,9 +111,21 @@ struct Clip {
 			on_repeat();
 		return repeat_success;
 	}
-	void expectNoFurtherTicks(song_fixture*, bool) { ++stop_calls; }
-	void setPos(ModelStackWithTimelineCounter*, int position, bool) { new_position = position; }
-	void resumePlayback(ModelStackWithTimelineCounter*, bool) { ++resume_calls; }
+	void expectNoFurtherTicks(song_fixture*, bool) {
+		++stop_calls;
+		if (on_stop)
+			on_stop();
+	}
+	void setPos(ModelStackWithTimelineCounter*, int position, bool) {
+		new_position = position;
+		if (on_position)
+			on_position();
+	}
+	void resumePlayback(ModelStackWithTimelineCounter*, bool) {
+		++resume_calls;
+		if (on_resume)
+			on_resume();
+	}
 	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter*, Error* = nullptr);
 };
 struct AudioClip : Clip {
@@ -111,6 +133,8 @@ struct AudioClip : Clip {
 };
 void Output::setActiveClip(ModelStackWithTimelineCounter* stack, PgmChangeSend) {
 	active = stack->clip;
+	if (on_activate)
+		on_activate();
 }
 static struct {
 	RecordingMode recording = RecordingMode::ARRANGEMENT;
@@ -343,4 +367,62 @@ TEST(RecordingClone, successful_repeat_callback_adoption_prevents_duplicate_publ
 		LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
 		LONGS_EQUAL(0, original.stop_calls);
 	}
+}
+
+TEST(RecordingClone, allocation_callback_invalidation_stops_before_clone) {
+	song.arrangementOnlyClips.on_reserve = [&] { currentSong = nullptr; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(0, original.stop_calls);
+}
+TEST(RecordingClone, audio_insertion_callback_invalidation_prevents_followup) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 2;
+	output.clipInstances.values[0].length = 256;
+	output.clipInstances.on_insert = [&] { currentSong = nullptr; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(256, output.clipInstances.values[0].length);
+	LONGS_EQUAL(0, original.clone_calls);
+}
+TEST(RecordingClone, stop_callback_cancels_before_instance_replacement) {
+	original.on_stop = [&] { currentSong = nullptr; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(1, song.arrangementOnlyClips.inserts);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(-1, cloned.new_position);
+	LONGS_EQUAL(0, cloned.resume_calls);
+	LONGS_EQUAL(0, song.deletions);
+}
+TEST(RecordingClone, position_callback_cancels_before_resume) {
+	cloned.on_position = [&] { currentSong = nullptr; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, cloned.resume_calls);
+	POINTERS_EQUAL(&original, output.active);
+}
+TEST(RecordingClone, resume_callback_cancels_before_activation_and_restores_owner) {
+	namespace panels = deluge::gui::ui_session;
+	cloned.on_resume = [&] { panels::detail::active = panels::Id::Remote; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&original, output.active);
+	CHECK(panels::current() == panels::Id::Local);
+}
+TEST(RecordingClone, activation_callback_invalidation_reports_failure_without_disposal) {
+	output.on_activate = [&] { currentSong = nullptr; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&cloned, output.active);
+	LONGS_EQUAL(0, song.deletions);
+}
+TEST(RecordingClone, removed_published_clone_stops_before_later_access) {
+	original.on_stop = [&] { song.arrangementOnlyClips.inserted = nullptr; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(-1, cloned.new_position);
+	LONGS_EQUAL(0, cloned.resume_calls);
+	LONGS_EQUAL(0, song.deletions);
 }

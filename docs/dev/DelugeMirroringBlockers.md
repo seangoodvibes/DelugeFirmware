@@ -1994,3 +1994,15 @@ on either panel. All 35 native suites and `./dbt build relwithdebinfo` pass.
 Cleanup is counted through a fixture, not a real destructor. Invalidation without
 notification/address reuse, cleanup after lost context, prior audio-instance
 edits and later playback callbacks remain open; R5/L3 are not closed.
+
+### L1 / R5 progress — recording-clone callback boundaries (2026-10-10)
+
+Recording cloning now carries song/panel/structural checkpoints from entry,
+restores the initiating panel and checks after reservation, audio-instance
+insertion, cloning and playback callbacks. After publication it also requires
+continued clip membership before following the clone pointer. Seven regressions
+invalidate allocation, insertion, note-stop, positioning, resume, activation and
+published membership, checking that later work stops. All 35 native suites and
+`./dbt build relwithdebinfo` pass. A prefix may already be published or stopped;
+these checks are cancellation, not rollback, and do not retain objects or handle
+unnotified destruction/address reuse. Those remain L1/R5 blockers.

@@ -1110,6 +1110,19 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 		return fail(Error::BUG);
 
 	auto* const source_song = modelStack->song;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto revision = [](deluge::gui::ui_session::Id owner) {
+		return deluge::gui::ui_session::navigation.for_owner(owner).structural_refresh.revision();
+	};
+	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+	const auto context_matches = [&] {
+		return currentSong == source_song && modelStack->song == source_song
+		       && deluge::gui::ui_session::current() == source_owner
+		       && revision(deluge::gui::ui_session::Id::Local) == local_revision
+		       && revision(deluge::gui::ui_session::Id::Remote) == remote_revision;
+	};
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && playbackHandler.isEitherClockActive()
 	    && !isArrangementOnlyClip() && modelStack->song->isClipActive(this)) {
@@ -1120,7 +1133,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 		else {
 
-			if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+			const bool reserved = source_song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1);
+			if (!context_matches())
+				return fail(Error::BUG);
+			if (!reserved) {
 				return fail(Error::INSUFFICIENT_RAM);
 			}
 
@@ -1150,6 +1166,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					clipInstanceI++;
 
 					Error error = output->clipInstances.insertAtIndex(clipInstanceI);
+					if (!context_matches())
+						return fail(Error::BUG);
 					if (error != Error::NONE) {
 						return fail(error);
 					}
@@ -1163,7 +1181,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			Error error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
-			if (currentSong != source_song || modelStack->song != source_song)
+			if (!context_matches())
 				return fail(Error::BUG);
 			if (error != Error::NONE) {
 				return fail(error);
@@ -1175,18 +1193,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				return fail(Error::BUG);
 
 			auto* const clone_output = newClip->output;
-			const auto source_owner = deluge::gui::ui_session::current();
-			const auto revision = [](deluge::gui::ui_session::Id owner) {
-				return deluge::gui::ui_session::navigation.for_owner(owner).structural_refresh.revision();
-			};
-			const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
-			const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
 			const auto clone_context_matches = [&] {
-				return currentSong == source_song && modelStack->song == source_song
-				       && deluge::gui::ui_session::current() == source_owner
-				       && revision(deluge::gui::ui_session::Id::Local) == local_revision
-				       && revision(deluge::gui::ui_session::Id::Remote) == remote_revision
-				       && modelStack->getTimelineCounterAllowNull() == newClip;
+				return context_matches() && modelStack->getTimelineCounterAllowNull() == newClip;
 			};
 			const auto clone_is_unpublished = [&] {
 				return clone_context_matches() && !source_song->contains_clip_for_undo(newClip)
@@ -1222,10 +1230,16 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				discard_unpublished_clone();
 				return fail(insert_error);
 			}
-			if (!clone_context_matches())
+			const auto published_clone_matches = [&] {
+				return clone_context_matches() && source_song->contains_clip_for_undo(newClip)
+				       && newClip->output == clone_output;
+			};
+			if (!published_clone_matches())
 				return fail(Error::BUG);
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
+			if (!published_clone_matches())
+				return fail(Error::BUG);
 
 			clipInstance->clip = newClip;
 			clipInstance->length = newLength;
@@ -1245,7 +1259,11 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				newPlayPos += repeatCount * loopLength;
 			}
 			newClip->setPos(modelStack, newPlayPos, true);
+			if (!published_clone_matches())
+				return fail(Error::BUG);
 			newClip->resumePlayback(modelStack, false); // Don't sound
+			if (!published_clone_matches())
+				return fail(Error::BUG);
 
 			if (type == ClipType::AUDIO) {
 				((AudioClip*)newClip)->voiceSample = ((AudioClip*)this)->voiceSample;
@@ -1255,6 +1273,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			newClip->activeIfNoSolo = false; // And now, we want it to actually be false
 			newClip->beingRecordedFromClip = this;
 			output->setActiveClip(modelStack, PgmChangeSend::NEVER);
+			if (!published_clone_matches())
+				return fail(Error::BUG);
 		}
 
 		return true;
