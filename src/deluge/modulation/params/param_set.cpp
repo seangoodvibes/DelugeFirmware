@@ -896,3 +896,22 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
         }
 
  */
+
+bool ParamSet::remove_inserted_time(ModelStackWithParamCollection* model_stack, int32_t pos, int32_t length) {
+	if (!model_stack || !model_stack->summary || model_stack->paramCollection != this || pos < 0 || length <= 0
+	    || static_cast<int64_t>(pos) + length > INT32_MAX)
+		return false;
+	const int32_t end_pos = pos + length;
+	FOR_EACH_FLAGGED_PARAM(model_stack->summary->whichParamsAreAutomated);
+
+	if (p >= numParams_ || !params[p])
+		return false;
+	auto& nodes = params[p]->nodes;
+	const int32_t index = nodes.search(pos, GREATER_OR_EQUAL);
+	if (index < nodes.getNumElements() && nodes.getElement(index)->pos < end_pos)
+		return false;
+
+	FOR_EACH_PARAM_END
+	insertTime(model_stack, end_pos, -length);
+	return true;
+}

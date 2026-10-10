@@ -3964,3 +3964,127 @@ TEST(parameter_lifecycle, lazy_node_reserved_storage_survives_empty_replacement_
 	nodes.empty();
 	POINTERS_EQUAL(nullptr, nodes.get());
 }
+
+TEST(parameter_lifecycle, inserted_time_inverse_preserves_single_node_without_allocation) {
+	for (int32_t node_pos : {4, 8, 20}) {
+		fixture f;
+		f.add_node(1, node_pos, 123, true);
+		f.set().insertTime(f.stack(), 8, 12);
+		parameter_test::allocations_before_failure = 0;
+		CHECK(f.set().remove_inserted_time(f.stack(), 8, 12));
+		LONGS_EQUAL(0, parameter_test::allocation_failures);
+		LONGS_EQUAL(1, f.param(1)->autoParam->nodes.getNumElements());
+		check_node(*f.param(1)->autoParam, 0, node_pos, 123, true);
+		check_flag(f.summary(), 1, true);
+		parameter_test::allocations_before_failure = -1;
+	}
+}
+TEST(parameter_lifecycle, inserted_time_inverse_round_trip_preserves_multiple_envelopes) {
+	fixture f;
+	for (int32_t id : {1, 3}) {
+		f.add_node(id, 0, id * 100, false);
+		f.add_node(id, 8, id * 200, true);
+		f.add_node(id, 24, id * 300, false);
+	}
+	for (int repeat = 0; repeat < 3; ++repeat) {
+		f.set().insertTime(f.stack(), 8, 12);
+		CHECK(f.set().remove_inserted_time(f.stack(), 8, 12));
+		for (int32_t id : {1, 3}) {
+			LONGS_EQUAL(3, f.param(id)->autoParam->nodes.getNumElements());
+			check_node(*f.param(id)->autoParam, 0, 0, id * 100, false);
+			check_node(*f.param(id)->autoParam, 1, 8, id * 200, true);
+			check_node(*f.param(id)->autoParam, 2, 24, id * 300, false);
+		}
+	}
+}
+TEST(parameter_lifecycle, inserted_time_inverse_rejects_new_nodes_before_changing_any_parameter) {
+	for (int32_t added_pos : {8, 12, 19}) {
+		fixture f;
+		f.add_node(3, 8, 300);
+		f.add_node(1, 8, 100);
+		f.set().insertTime(f.stack(), 8, 12);
+		// ID 3 is validated first. An occupied interval in ID 1 must leave it unchanged.
+		f.add_node(1, added_pos, 999);
+		CHECK_FALSE(f.set().remove_inserted_time(f.stack(), 8, 12));
+		check_node(*f.param(3)->autoParam, 0, 20, 300, false);
+		check_node(*f.param(1)->autoParam, 0, added_pos, 999, false);
+		check_node(*f.param(1)->autoParam, 1, 20, 100, false);
+	}
+}
+TEST(parameter_lifecycle, inserted_time_inverse_rejects_invalid_ranges_without_mutation) {
+	fixture f;
+	f.add_node(1, 24, 123);
+	CHECK_FALSE(f.set().remove_inserted_time(f.stack(), -1, 4));
+	CHECK_FALSE(f.set().remove_inserted_time(f.stack(), 8, 0));
+	CHECK_FALSE(f.set().remove_inserted_time(f.stack(), 8, -4));
+	CHECK_FALSE(f.set().remove_inserted_time(f.stack(), INT32_MAX, 1));
+	check_node(*f.param(1)->autoParam, 0, 24, 123, false);
+}
+
+TEST(parameter_lifecycle, contraction_preserves_cut_point_without_allocating) {
+	fixture f;
+	f.add_node(1, 0, 100);
+	f.add_node(1, 8, 200);
+	f.add_node(1, 20, 300);
+	int allocation_calls = 0;
+	parameter_test::on_allocation = [&] { ++allocation_calls; };
+	parameter_test::allocations_before_failure = 0;
+	f.set().deleteTime(f.stack(), 8, 8);
+	LONGS_EQUAL(0, allocation_calls);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(3, f.param(1)->autoParam->nodes.getNumElements());
+	check_node(*f.param(1)->autoParam, 0, 0, 100, false);
+	check_node(*f.param(1)->autoParam, 1, 8, 200, false);
+	check_node(*f.param(1)->autoParam, 2, 12, 300, false);
+	parameter_test::on_allocation = nullptr;
+}
+TEST(parameter_lifecycle, contraction_reuses_removed_slot_for_zero_cut_point_without_allocating) {
+	fixture f;
+	f.add_node(1, 4, 100);
+	f.add_node(1, 8, 200);
+	f.add_node(1, 20, 300);
+	const int32_t value_at_zero = f.param(1)->autoParam->getValueAtPos(0, f.param(1));
+	int allocation_calls = 0;
+	parameter_test::on_allocation = [&] { ++allocation_calls; };
+	parameter_test::allocations_before_failure = 0;
+	f.set().deleteTime(f.stack(), 8, 16);
+	LONGS_EQUAL(0, allocation_calls);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(2, f.param(1)->autoParam->nodes.getNumElements());
+	check_node(*f.param(1)->autoParam, 0, 0, value_at_zero, false);
+	check_node(*f.param(1)->autoParam, 1, 4, 100, false);
+	parameter_test::on_allocation = nullptr;
+}
+TEST(parameter_lifecycle, contraction_removing_all_nodes_releases_parameter_without_allocating) {
+	fixture f;
+	f.add_node(1, 8, 100);
+	f.add_node(1, 12, 200);
+	f.set().setCurrentValueBasicForSetup(1, 77);
+	int allocation_calls = 0;
+	parameter_test::on_allocation = [&] { ++allocation_calls; };
+	parameter_test::allocations_before_failure = 0;
+	f.set().deleteTime(f.stack(), 8, 8);
+	LONGS_EQUAL(0, allocation_calls);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	CHECK_FALSE(f.set().isAutomated(1));
+	POINTERS_EQUAL(nullptr, f.set().getParam(1, false));
+	LONGS_EQUAL(77, f.set().getValue(1));
+	check_flag(f.summary(), 1, false);
+	parameter_test::on_allocation = nullptr;
+}
+
+TEST(parameter_lifecycle, contraction_retains_capacity_after_large_node_deletion) {
+	fixture f;
+	for (int index = 0; index < 40; ++index)
+		f.add_node(1, index * 2, index * 100);
+	parameter_test::allocations_before_failure = 0;
+	f.set().deleteTime(f.stack(), 8, 64);
+	auto* param = f.param(1)->autoParam;
+	LONGS_EQUAL(8, param->nodes.getNumElements());
+	CHECK(param->nodes.get() && param->nodes.get()->has_capacity_for(32));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	check_node(*param, 3, 6, 300, false);
+	check_node(*param, 4, 8, 3600, false);
+	check_node(*param, 7, 14, 3900, false);
+}
+

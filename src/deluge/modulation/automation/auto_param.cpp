@@ -2415,7 +2415,7 @@ void AutoParam::transposeCCValuesToChannelPressureValues() {
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
 void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack) {
 
-	// No need to do any revertability with an Action here - ParamCollection::backUpAllAutomatedParamsToAction() should
+	// No need to do any revertability with an Action here - ParamSet::backup_all_automated_params_to_action() should
 	// have already been called.
 
 	int32_t endPos = startPos + lengthToDelete;
@@ -2457,11 +2457,12 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 			}
 		}
 
-		nodes.deleteAtIndex(start, numToDelete, !shouldAddNodeAtPos0);
+		// Keep storage stable throughout the edit; a replacement cut-point can
+		// reuse the removed slot without invoking the allocator.
+		nodes.delete_at_index_preserving_capacity(start, numToDelete);
 
 		if (shouldAddNodeAtPos0) {
-			Error error =
-			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
+			Error error = nodes.insert_at_index_without_allocation(0);
 			if (error == Error::NONE) {
 				ParamNode* newNode = nodes.getElement(0);
 				newNode->value = oldValue;
@@ -2481,7 +2482,7 @@ allDeleted:
 	// If only one node left, that's not allowed, so delete that too. Actually it is allowed now, but let's keep this
 	// safe
 	if (nodes.getNumElements() == 1) {
-		nodes.deleteAtIndex(0);
+		nodes.delete_at_index_preserving_capacity(0);
 	}
 }
 

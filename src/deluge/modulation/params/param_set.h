@@ -34,6 +34,8 @@ class ModelStackWithParamCollection;
 // classes of ParamCollection.
 
 class ParamSet : public ParamCollection {
+public:
+	bool remove_inserted_time(ModelStackWithParamCollection* model_stack, int32_t pos, int32_t length);
 protected:
 	/// Number of parameters in the params array
 	int32_t numParams_;
