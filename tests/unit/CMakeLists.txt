@@ -413,3 +413,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shift_led_feedback.inc
         ${button_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/shift_led_feedback.inc update_shift_led
     DEPENDS ${button_reset_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/shift_led_feedback.inc)
+
+set(community_reset_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/settings/runtime_feature_settings.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/community_settings_reset.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${community_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/community_settings_reset.inc RuntimeFeatureSettings::factoryReset
+    DEPENDS ${community_reset_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/community_settings_reset.inc)

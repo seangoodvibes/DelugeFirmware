@@ -776,3 +776,17 @@ side effects are not provided by these guards.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. Settings
   replacement is injected into the fixture store; filesystem reset and end-to-end
   repaint remain outside these cases. G1 stays open; independent mode is disabled.
+
+### G1 progress — panel state after community-settings reset (2026-10-09)
+
+- After reset finishes reloading settings, both panels receive a deferred shared
+  menu refresh. If the resulting sticky Shift setting is Off, both latches clear
+  while physical holds remain intact. A reloaded On value preserves the latches.
+  The initiating panel owner is restored after each update.
+- Two production-reset-body tests reproduced retained latches and absent refresh
+  requests. They cover both initiating owners, physical hold preservation,
+  coalesced refresh, and using the reloaded setting rather than initial defaults.
+  The real button-clear body is used; filesystem and settings loading are fixtures.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. This covers
+  post-reset UI effects, not reset filesystem failure recovery or all setting side
+  effects. G1 remains open and independent mode stays disabled.

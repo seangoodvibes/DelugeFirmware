@@ -17,6 +17,8 @@
 
 #include "runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/ui_navigation_state.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
@@ -221,6 +223,16 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 	startupSong.clear();
 	init();
 	readSettingsFromFile();
+
+	// Reset/reload bypasses individual menu writers, but both panels retain
+	// modifier state and presentation caches for these shared settings.
+	const bool sticky_disabled = get(RuntimeFeatureSettingType::ShiftIsSticky) == RuntimeFeatureStateToggle::Off;
+	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
+		deluge::gui::ui_session::Scope scope(owner);
+		if (sticky_disabled)
+			Buttons::clearShiftSticky();
+		deluge::gui::ui_session::navigation.active().shared_model_refresh.request();
+	}
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

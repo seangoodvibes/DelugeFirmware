@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/ui/ui_session.h"
 #include "hid/buttons.h"
 namespace Buttons {
@@ -255,6 +256,103 @@ TEST(RemoteShiftReset, shared_shift_led_setting_changes_apply_without_a_button_e
 		CHECK_TRUE(Buttons::state().shiftCurrentlyPressed);
 		feedback::Buttons::update_shift_led();
 		LONGS_EQUAL(2, feedback::indicator_leds::writes.active());
+	}
+	Buttons::button_states = {};
+}
+
+namespace community_reset_test {
+using sticky_setting_test::RuntimeFeatureSettingType;
+namespace RuntimeFeatureStateToggle = sticky_setting_test::RuntimeFeatureStateToggle;
+namespace l10n {
+enum class String { STRING_FOR_RESET_COMMUNITY_FEATURES, STRING_FOR_FACTORY_RESET };
+const char* get(String) {
+	return "reset";
+}
+} // namespace l10n
+struct display_fixture {
+	bool haveOLED() { return true; }
+	void displayPopup(const char*) {}
+};
+static display_fixture display_instance;
+static auto* display = &display_instance;
+constexpr const char* RUNTIME_FEATURE_SETTINGS_FILE = "settings";
+static int unlink_calls = 0;
+void f_unlink(const char*) {
+	++unlink_calls;
+}
+struct reset_field {
+	bool reset = false;
+	void empty() { reset = true; }
+	void clear() { reset = true; }
+};
+struct RuntimeFeatureSettings {
+	reset_field unknownSettings, startupSong;
+	int sticky = 1;
+	int loaded_sticky = 0;
+	int loads = 0;
+	void init() { sticky = 0; }
+	void readSettingsFromFile() {
+		sticky = loaded_sticky;
+		++loads;
+	}
+	int get(RuntimeFeatureSettingType) { return sticky; }
+	void factoryReset(bool showPopup);
+};
+#include "community_settings_reset.inc"
+} // namespace community_reset_test
+TEST(RemoteShiftReset, settings_reset_clears_both_latches_and_requests_both_menu_refreshes) {
+	namespace session = deluge::gui::ui_session;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		Buttons::button_states = {};
+		for (auto panel : {session::Id::Local, session::Id::Remote}) {
+			auto& state = Buttons::button_states.for_owner(panel);
+			state.shiftCurrentlyPressed = state.shiftCurrentlyStuck = true;
+			session::navigation.for_owner(panel).shared_model_refresh = {};
+		}
+		const auto shift = deluge::hid::button::toXY(deluge::hid::button::SHIFT);
+		Buttons::button_states.for_owner(session::Id::Remote).buttonStates[shift.x][shift.y] = true;
+		community_reset_test::RuntimeFeatureSettings settings;
+		community_reset_test::unlink_calls = 0;
+		settings.factoryReset(false);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, settings.sticky);
+		LONGS_EQUAL(1, settings.loads);
+		LONGS_EQUAL(1, community_reset_test::unlink_calls);
+		CHECK(settings.unknownSettings.reset);
+		CHECK(settings.startupSong.reset);
+		for (auto panel : {session::Id::Local, session::Id::Remote}) {
+			auto& state = Buttons::button_states.for_owner(panel);
+			CHECK_FALSE(state.shiftCurrentlyStuck);
+			CHECK_EQUAL(panel == session::Id::Remote, state.shiftCurrentlyPressed);
+			CHECK_TRUE(state.shiftHasChangedSinceLastCheck);
+			auto& refresh = session::navigation.for_owner(panel).shared_model_refresh;
+			CHECK(refresh.consume(0));
+			CHECK_FALSE(refresh.consume(0));
+		}
+	}
+	Buttons::button_states = {};
+}
+TEST(RemoteShiftReset, settings_reset_uses_reloaded_sticky_setting_before_clearing_latches) {
+	namespace session = deluge::gui::ui_session;
+	session::Scope scope(session::Id::Remote);
+	Buttons::button_states = {};
+	for (auto panel : {session::Id::Local, session::Id::Remote}) {
+		auto& state = Buttons::button_states.for_owner(panel);
+		state.shiftCurrentlyPressed = state.shiftCurrentlyStuck = true;
+		session::navigation.for_owner(panel).shared_model_refresh = {};
+	}
+	community_reset_test::RuntimeFeatureSettings settings;
+	settings.loaded_sticky = 1;
+	settings.factoryReset(true);
+	LONGS_EQUAL(1, settings.sticky);
+	CHECK(session::current() == session::Id::Remote);
+	for (auto panel : {session::Id::Local, session::Id::Remote}) {
+		auto& state = Buttons::button_states.for_owner(panel);
+		CHECK(state.shiftCurrentlyStuck);
+		CHECK(state.shiftCurrentlyPressed);
+		CHECK_FALSE(state.shiftHasChangedSinceLastCheck);
+		CHECK(session::navigation.for_owner(panel).shared_model_refresh.consume(0));
 	}
 	Buttons::button_states = {};
 }
