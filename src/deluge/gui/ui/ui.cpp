@@ -27,6 +27,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/mirror.h"
+#include "model/song/song.h"
 #include "modulation/automation/parameter_revision.h"
 #include "util/misc.h"
 #include <utility>
@@ -109,6 +110,10 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 		if (!navigation().hierarchy[index])
 			return false;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return false;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	UI* oldUI = getCurrentUI();
@@ -119,7 +124,8 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	auto expected_hierarchy = navigation().hierarchy;
 	auto expected_depth = navigation().depth;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
 		       && navigation().hierarchy == expected_hierarchy;
 	};
 
@@ -151,12 +157,17 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 void changeRootUI(UI* newUI) {
 	if (!newUI || navigation().depth < 0 || navigation().depth > navigation().capacity)
 		return;
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto expected_hierarchy = navigation().hierarchy;
 	auto expected_depth = navigation().depth;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
 		       && navigation().hierarchy == expected_hierarchy;
 	};
 	newUI = newUI->getUI();
@@ -186,12 +197,17 @@ void changeRootUI(UI* newUI) {
 void setRootUILowLevel(UI* newUI) {
 	if (!newUI || navigation().depth < 0 || navigation().depth > navigation().capacity)
 		return;
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto expected_hierarchy = navigation().hierarchy;
 	const auto expected_depth = navigation().depth;
 	newUI = newUI->getUI();
-	if (!newUI || deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
+	if ((source_song && !song_watch.alive()) || currentSong != source_song || !newUI
+	    || deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
 	    || navigation().hierarchy != expected_hierarchy)
 		return;
 	navigation().hierarchy[0] = newUI;
@@ -206,12 +222,17 @@ bool changeUISideways(UI* newUI) {
 		if (!navigation().hierarchy[index])
 			return false;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return false;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto expected_hierarchy = navigation().hierarchy;
 	const auto expected_depth = navigation().depth;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
 		       && navigation().hierarchy == expected_hierarchy;
 	};
 	newUI = newUI->getUI();
@@ -261,12 +282,17 @@ void swapOutRootUILowLevel(UI* newUI) {
 		if (!navigation().hierarchy[level])
 			return;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto expected_depth = navigation().depth;
 	const auto expected_hierarchy = navigation().hierarchy;
 	newUI = newUI->getUI();
-	if (!newUI || deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
+	if ((source_song && !song_watch.alive()) || currentSong != source_song || !newUI
+	    || deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
 	    || navigation().hierarchy != expected_hierarchy)
 		return;
 	navigation().hierarchy[0] = newUI;
@@ -296,12 +322,17 @@ void closeUI(UI* uiToClose) {
 	if (target_level <= 0)
 		return;
 
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto expected_hierarchy = navigation().hierarchy;
 	auto expected_depth = navigation().depth;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
 		       && navigation().hierarchy == expected_hierarchy;
 	};
 
@@ -378,12 +409,17 @@ bool openUI(UI* newUI) {
 	if (!newUI || navigation().depth < 0 || navigation().depth >= navigation().capacity) {
 		return false;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return false;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto expected_hierarchy = navigation().hierarchy;
 	auto expected_depth = navigation().depth;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
 		       && navigation().hierarchy == expected_hierarchy;
 	};
 	newUI = newUI->getUI();

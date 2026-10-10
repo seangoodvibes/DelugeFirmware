@@ -2,10 +2,21 @@
 #include "gui/ui/graphics_routing.h"
 #include "gui/ui/ui_navigation_state.h"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <array>
 #include <functional>
+#include <new>
 namespace ui_open_test {
+namespace deluge {
+namespace lifetime = ::deluge::lifetime;
+}
+struct Song {
+	::deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return ::deluge::lifetime::lifetime_watch(lifetime); }
+};
+static Song song;
+static Song* currentSong = &song;
 namespace session = ::deluge::gui::ui_session;
 namespace deluge::gui {
 namespace ui_session = ::deluge::gui::ui_session;
@@ -222,6 +233,7 @@ TEST_GROUP(UIOpen) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		navigation_states = {};
+		currentSong = &song;
 		greyout_effects::cols = {};
 		greyout_effects::rows = {};
 		greyout_effects::direction = {};
@@ -254,6 +266,7 @@ TEST_GROUP(UIOpen) {
 		}
 	}
 	void teardown() override {
+		currentSong = &song;
 		PadLEDs::on_greyout = {};
 		PadLEDs::on_main_send = {};
 		PadLEDs::on_side_send = {};
@@ -1100,4 +1113,148 @@ TEST(UIOpen, layered_grid_render_keeps_occluded_regions_separate) {
 	LONGS_EQUAL(1, PadLEDs::side_sends.active());
 	LONGS_EQUAL(0, PadLEDs::main_sends.for_owner(session::Id::Local));
 	LONGS_EQUAL(0, PadLEDs::side_sends.for_owner(session::Id::Local));
+}
+
+TEST(UIOpen, song_reuse_during_resolution_does_not_publish_new_navigation) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int operation = 0; operation < 5; ++operation) {
+			navigation().depth = 1;
+			navigation().hierarchy[0] = &root;
+			menu.on_resolve = [] {
+				song.~Song();
+				new (&song) Song;
+			};
+			if (operation == 0)
+				CHECK_FALSE(openUI(&menu));
+			else if (operation == 1)
+				CHECK_FALSE(changeUISideways(&menu));
+			else if (operation == 2)
+				changeRootUI(&menu);
+			else if (operation == 3)
+				setRootUILowLevel(&menu);
+			else
+				swapOutRootUILowLevel(&menu);
+			LONGS_EQUAL(1, navigation().depth);
+			POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+			LONGS_EQUAL(0, menu.opens);
+		}
+	}
+}
+
+TEST(UIOpen, song_reuse_during_failed_open_does_not_restore_or_focus_old_ui) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (bool replace : {false, true}) {
+			navigation().depth = 1;
+			navigation().hierarchy[0] = &root;
+			menu.success = false;
+			menu.on_open = [] {
+				song.~Song();
+				new (&song) Song;
+			};
+			CHECK_FALSE(replace ? changeUIAtLevel(&menu, 0) : openUI(&menu));
+			LONGS_EQUAL(replace ? 1 : 2, navigation().depth);
+			POINTERS_EQUAL(&menu, getCurrentUI());
+			LONGS_EQUAL(0, root.focuses);
+			LONGS_EQUAL(0, redraws.active());
+		}
+	}
+}
+
+TEST(UIOpen, song_reuse_during_greyout_prevents_opening_callback) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int operation = 0; operation < 3; ++operation) {
+			navigation().depth = 1;
+			navigation().hierarchy[0] = &root;
+			PadLEDs::on_greyout = [] {
+				song.~Song();
+				new (&song) Song;
+			};
+			if (operation == 0)
+				CHECK_FALSE(openUI(&menu));
+			else if (operation == 1)
+				CHECK_FALSE(changeUIAtLevel(&menu, 0));
+			else
+				changeRootUI(&menu);
+			LONGS_EQUAL(0, menu.opens);
+		}
+	}
+}
+
+TEST(UIOpen, close_song_reuse_stops_render_focus_and_redraw_continuation) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int boundary = 0; boundary < 3; ++boundary) {
+			root = {};
+			menu = {};
+			navigation().depth = 2;
+			navigation().hierarchy[0] = &root;
+			navigation().hierarchy[1] = &menu;
+			auto reuse_song = [] {
+				song.~Song();
+				new (&song) Song;
+			};
+			PadLEDs::on_greyout = {};
+			if (boundary == 0)
+				menu.on_main = reuse_song;
+			else if (boundary == 1)
+				PadLEDs::on_greyout = reuse_song;
+			else
+				root.on_focus = reuse_song;
+			closeUI(&menu);
+			LONGS_EQUAL(boundary == 0 ? 1 : 2, menu.renders);
+			LONGS_EQUAL(boundary == 2 ? 1 : 0, root.focuses);
+			LONGS_EQUAL(0, redraws.active());
+		}
+	}
+}
+
+TEST(UIOpen, retired_song_rejects_navigation_mutation) {
+	Song retired_song;
+	retired_song.lifetime.retire();
+	currentSong = &retired_song;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		navigation().depth = 2;
+		navigation().hierarchy[1] = &menu;
+		CHECK_FALSE(openUI(&replacement));
+		CHECK_FALSE(changeUIAtLevel(&replacement, 1));
+		CHECK_FALSE(changeUISideways(&replacement));
+		changeRootUI(&replacement);
+		setRootUILowLevel(&replacement);
+		swapOutRootUILowLevel(&replacement);
+		closeUI(&menu);
+		LONGS_EQUAL(2, navigation().depth);
+		POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+		POINTERS_EQUAL(&menu, navigation().hierarchy[1]);
+		LONGS_EQUAL(0, menu.renders);
+	}
+}
+
+TEST(UIOpen, successful_root_open_song_reuse_does_not_schedule_redraw) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		menu.on_open = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		changeRootUI(&menu);
+		POINTERS_EQUAL(&menu, getCurrentUI());
+		LONGS_EQUAL(0, redraws.active());
+	}
+}
+
+TEST(UIOpen, no_song_navigation_still_opens_closes_and_changes_root) {
+	currentSong = nullptr;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		CHECK(openUI(&menu));
+		POINTERS_EQUAL(&menu, getCurrentUI());
+		closeUI(&menu);
+		POINTERS_EQUAL(&root, getCurrentUI());
+		changeRootUI(&replacement);
+		POINTERS_EQUAL(&replacement, getCurrentUI());
+	}
 }

@@ -3135,3 +3135,14 @@ panels, normal playback/recording, no-song menus and retry behavior are covered.
 All 38 suites and the RelWithDebInfo build pass. Handler internals, same-UI retargeting
 and nested cancellation remain outside this boundary fix. G1/L1 remain open and
 independent mode stays disabled.
+
+Seven navigation entry points (open/close, level/sideways/root changes and low-level
+root setup/swap) now watch optional song lifetime before mutation and through
+resolver, greyout, open/focus and rendering callbacks. Same-address replacement
+cannot publish a resolved old target or restore/focus the old UI after a rejected
+open. Seven UIOpen regressions cover both panels, retired entry and no-song menus;
+five failed before the fix. All 38 suites and the RelWithDebInfo build pass.
+Already-published navigation is preserved on cancellation rather than rolled back
+against a changed song; reconciling that partial transition remains R4. UI-object
+lifetime and rendering entry points are still separate audit work. Independent
+mode remains disabled.
