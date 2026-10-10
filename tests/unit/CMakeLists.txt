@@ -734,3 +734,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_clip_destruction_life
         ${song_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/song_clip_destruction_lifetime.inc Song::deleteClipObject
     DEPENDS ${song_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/song_clip_destruction_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_clone_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_clone_lifetime.inc AudioClip::clone
+    DEPENDS ${audio_destruction_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE audio_clone_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/audio_clone_lifetime.inc)

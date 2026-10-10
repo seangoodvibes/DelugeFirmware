@@ -19,6 +19,7 @@
 #include "clip.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "gui/ui/ui_session.h"
 #include "gui/views/automation_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
@@ -80,22 +81,63 @@ AudioClip::~AudioClip() {
 // Will replace the Clip in the modelStack, if success.
 Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
+	if (!modelStack)
+		return Error::BUG;
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive())
+		return Error::BUG;
+	auto* const source_output = output;
+	auto output_lifetime = source_output ? source_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_output && !output_lifetime.alive())
+		return Error::BUG;
+	auto* const source_song = modelStack->song;
+	auto* const active_song = currentSong;
+	auto* const source_timeline = modelStack->getTimelineCounterAllowNull();
+	auto* const source_stack_clip =
+	    source_timeline && source_timeline != source_song ? static_cast<Clip*>(source_timeline) : nullptr;
+	auto stack_lifetime = source_stack_clip ? source_stack_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_stack_clip && !stack_lifetime.alive())
+		return Error::BUG;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return source_lifetime.alive() && (!source_stack_clip || stack_lifetime.alive())
+		       && (!source_output || output_lifetime.alive()) && output == source_output
+		       && modelStack->song == source_song && currentSong == active_song
+		       && modelStack->getTimelineCounterAllowNull() == source_timeline
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
+	if (!context_matches()) {
+		if (clipMemory)
+			delugeDealloc(clipMemory);
+		return Error::BUG;
+	}
 	if (!clipMemory) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	auto newClip = new (clipMemory) AudioClip();
+	const auto discard_copy = [&] {
+		newClip->~AudioClip();
+		delugeDealloc(clipMemory);
+	};
+	if (!context_matches()) {
+		discard_copy();
+		return Error::BUG;
+	}
 
 	newClip->copyBasicsFrom(this);
 	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
+	if (!context_matches()) {
+		discard_copy();
+		return Error::BUG;
+	}
 	if (error != Error::NONE) {
-		newClip->~AudioClip();
-		delugeDealloc(clipMemory);
+		discard_copy();
 		return error;
 	}
-
-	modelStack->setTimelineCounter(newClip);
 
 	newClip->activeIfNoSolo = false;
 	newClip->soloingInSessionMode = false;
@@ -108,6 +150,11 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
 
+	if (!context_matches()) {
+		discard_copy();
+		return Error::BUG;
+	}
+	modelStack->setTimelineCounter(newClip);
 	return Error::NONE;
 }
 

@@ -2195,3 +2195,14 @@ tests now inject at reservation. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Allocation-free insertion itself retains the
 existing native ring-array test coverage; ownership changes inside reservation
 remain subject to the broader array/object lifetime contract.
+
+AudioClip::clone now watches the source, its output and an incoming clip timeline
+through allocation/parameter/sample stages, checks song/owner/stack context, and
+publishes the copy to the stack only after sample setup. Fifteen sanitizer tests
+execute this production body with allocation/parameter/sample doubles, including
+real source/output destruction, address reuse, errors, caller retargeting, a
+separate recording timeline and a song timeline. The implementation uses the
+existing Song/Clip timeline distinction rather than RTTI, which firmware disables.
+All 36 native suites and `./dbt build relwithdebinfo` pass. Source lifetime inside
+parameter/sample copying and sample-path allocation-error propagation remain
+open; outer checks alone do not prove those internals safe.
