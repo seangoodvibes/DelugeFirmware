@@ -67,7 +67,6 @@ Sample::Sample()
 	lengthInSamples = 0;
 	rawDataFormat = RawDataFormat::NATIVE;
 	midiNote = MIDI_NOTE_UNSET;
-	partOfFolderBeingLoaded = false;
 
 	minValueFound = 2147483647;
 	maxValueFound = -2147483648;

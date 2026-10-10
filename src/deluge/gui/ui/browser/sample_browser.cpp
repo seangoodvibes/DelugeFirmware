@@ -69,6 +69,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "util/container/array/resizeable_array.h"
 #include "util/d_string.h"
 #include "util/finally.h"
 #include "util/functions.h"
@@ -1264,6 +1265,17 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	});
 
 	int32_t numSamples = 0;
+	ResizeableArray owned_samples(sizeof(Sample*));
+	auto owned_samples_cleanup = util::finally([&] {
+		for (int32_t index = 0; index < numSamples; ++index) {
+			auto* sample = *static_cast<Sample**>(owned_samples.getElementAddress(index));
+#if ALPHA_OR_BETA_VERSION
+			if (sample->numReasonsToBeLoaded <= 0)
+				FREEZE_WITH_ERROR("E213");
+#endif
+			sample->removeReason("E392");
+		}
+	});
 
 	bool doingSingleCycle = true; // Until we find a sample too long
 
@@ -1271,25 +1283,6 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
-		// Remove reasons from any samples we loaded in just before
-		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
-
-			if (audioFile->type == AudioFileType::SAMPLE) {
-				Sample* thisSample = (Sample*)audioFile;
-
-				// If this sample is one of the ones we loaded a moment ago...
-				if (thisSample->partOfFolderBeingLoaded) {
-					thisSample->partOfFolderBeingLoaded = false;
-#if ALPHA_OR_BETA_VERSION
-					if (thisSample->numReasonsToBeLoaded <= 0) {
-						FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
-					}
-#endif
-					thisSample->removeReason("E392"); // Remove that temporary reason we added
-				}
-			}
-		}
 
 		display->displayError(error);
 		return false;
@@ -1361,7 +1354,15 @@ removeReasonsFromSamplesAndGetOut:
 		}
 
 		newSample->addReason();
-		newSample->partOfFolderBeingLoaded = true;
+		auto sample_cleanup = util::finally([newSample] { newSample->removeReason("E392"); });
+		error = owned_samples.insertAtIndex(numSamples);
+		if (error != Error::NONE) {
+			folder_directory.close();
+			goto removeReasonsFromSamplesAndGetOut;
+		}
+		*static_cast<Sample**>(owned_samples.getElementAddress(numSamples)) = newSample;
+		++numSamples;
+		sample_cleanup.disable();
 		if (newSample->getLengthInMSec() > 20) {
 			doingSingleCycle = false;
 		}
@@ -1374,8 +1375,6 @@ removeReasonsFromSamplesAndGetOut:
 				commonMIDINote = -3;
 			}
 		}
-
-		numSamples++;
 	}
 	folder_directory.close();
 
@@ -1401,40 +1400,17 @@ removeReasonsFromSamplesAndGetOut:
 		goto removeReasonsFromSamplesAndGetOut;
 	}
 
-	Sample** thisSamplePointer = sortArea;
+	auto sort_area_cleanup = util::finally([sortArea] { delugeDealloc(sortArea); });
 
-	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
-	int32_t sampleI = 0;
-	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
-
-		if (audioFile->type == AudioFileType::SAMPLE) {
-
-			Sample* thisSample = (Sample*)audioFile;
-			// If this sample is one of the ones we loaded a moment ago...
-			if (thisSample->partOfFolderBeingLoaded) {
-				thisSample->partOfFolderBeingLoaded = false;
-
-				if (discardingMIDINoteFromFile) {
-					thisSample->midiNoteFromFile = -1;
-				}
-
-				if (detectPitch) {
-					thisSample->workOutMIDINote(doingSingleCycle);
-				}
-
-				*thisSamplePointer = thisSample;
-				sampleI++;
-				thisSamplePointer++;
-
-				if (sampleI == numSamples) {
-					break; // Just for safety
-				}
-			}
-		}
+	// Each loader owns its pins independently, even when nested loads use the same cached Samples.
+	for (int32_t index = 0; index < numSamples; ++index) {
+		auto* sample = *static_cast<Sample**>(owned_samples.getElementAddress(index));
+		if (discardingMIDINoteFromFile)
+			sample->midiNoteFromFile = -1;
+		if (detectPitch)
+			sample->workOutMIDINote(doingSingleCycle);
+		sortArea[index] = sample;
 	}
-
-	numSamples = sampleI; // In case it's lower now, e.g. due to some samples' pitch detection failing
 
 	D_PRINTLN("successfully detected pitch: %d", numSamples);
 
@@ -1668,6 +1644,8 @@ allSorted:
 
 	if (getSortArea) {
 		*getSortArea = sortArea;
+		sort_area_cleanup.disable();
+		owned_samples_cleanup.disable();
 	}
 	if (getNumSamples) {
 		*getNumSamples = numSamples;

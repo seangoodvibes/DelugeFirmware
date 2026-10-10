@@ -125,7 +125,6 @@ public:
 	bool unloadable{false}; // Only gets set to true if user has re-inserted the card and the sample appears to have
 	                        // been deleted / moved / modified
 	bool unplayable{false};
-	bool partOfFolderBeingLoaded;
 	bool fileExplicitlySpecifiesSelfAsWaveTable{false};
 
 #if SAMPLE_DO_LOCKS

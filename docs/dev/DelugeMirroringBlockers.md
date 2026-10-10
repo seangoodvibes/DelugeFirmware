@@ -3518,3 +3518,15 @@ loaded item; both fail against the previous function and verify no output table,
 released temporary references and SD-card error reporting. All 38 suites and
 RelWithDebInfo pass. Nested import ownership still depends on shared Sample marks
 and remains separate work.
+
+Folder loading now records its own pinned Sample pointers instead of marking and
+rescanning the global cache. The shared `partOfFolderBeingLoaded` field is removed.
+Scoped guards own each newly acquired reason, the collected reasons and the sort
+table until successful transfer to the caller; omitted output tables also clean
+up. Six added regressions cover nested pitch/allocation loads, ownership-list and
+sort allocation failures, repeated cached samples and omitted output. The nested
+pitch test reproduces a truncated outer list with the previous shared marks.
+All 38 suites and RelWithDebInfo pass after correcting a recursive callback in the
+new test fixture. Peak temporary metadata adds a growable pointer list alongside
+the sorting table, with no audio-buffer copies. This isolates sample ownership,
+not shared pitch-cache mutations or caller-context cancellation inside loading.

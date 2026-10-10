@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "util/finally.h"
 #include "util/try.h"
 #include <cmath>
 #include <cstdint>
@@ -17,7 +18,9 @@ namespace folder_sample_loading_test {
 enum class Error { NONE, SD_CARD, INSUFFICIENT_RAM };
 enum class AudioFileType { SAMPLE };
 constexpr int MIDI_NOTE_ERROR = -1000, AM_DIR = 16;
-std::function<void()> on_audio, on_append;
+std::function<void()> on_audio, on_append, on_pitch, on_sort_allocation;
+int fail_owned_slot = -1;
+bool fail_sort_allocation = false;
 std::vector<std::string> requested_paths;
 int read_failure_after = -1;
 struct String {
@@ -82,12 +85,16 @@ struct AudioFile {
 };
 struct Sample : AudioFile {
 	int numReasonsToBeLoaded = 0;
-	bool partOfFolderBeingLoaded = false;
 	float midiNote = 60, midiNoteFromFile = -1;
 	void addReason() { ++numReasonsToBeLoaded; }
 	void removeReason(const char*) { --numReasonsToBeLoaded; }
 	int32_t getLengthInMSec() const { return 100; }
-	void workOutMIDINote(bool, float = 0, float = 0, bool = true) {}
+	void workOutMIDINote(bool, float = 0, float = 0, bool = true) {
+		if (on_pitch) {
+			auto callback = std::exchange(on_pitch, {});
+			callback();
+		}
+	}
 };
 std::vector<Sample*> loaded_samples;
 struct AudioFileManager {
@@ -100,7 +107,8 @@ struct AudioFileManager {
 	AudioFile* getAudioFileFromFilename(String& path, bool, Error* error, FilePointer*, AudioFileType) {
 		requested_paths.push_back(path.get());
 		*error = Error::NONE;
-		return loaded_samples.at(next_sample++);
+		++next_sample;
+		return loaded_samples.at(path.value.find("snare") != std::string::npos ? 1 : 0);
 	}
 } audioFileManager;
 namespace AudioEngine {
@@ -119,7 +127,13 @@ struct GeneralMemoryAllocator {
 		static GeneralMemoryAllocator allocator;
 		return allocator;
 	}
-	void* allocMaxSpeed(size_t bytes) { return std::malloc(bytes); }
+	void* allocMaxSpeed(size_t bytes) {
+		if (on_sort_allocation) {
+			auto callback = std::exchange(on_sort_allocation, {});
+			callback();
+		}
+		return fail_sort_allocation ? nullptr : std::malloc(bytes);
+	}
 };
 void FREEZE_WITH_ERROR(const char*) {
 	FAIL("invalid sample reference count");
@@ -138,6 +152,20 @@ void sortSamples(bool (*)(Sample*, Sample*), int32_t, Sample***, int32_t*, int32
 int32_t getNumTimesIncorrectSampleOrderSeen(int32_t, Sample**) {
 	return 0;
 }
+void delugeDealloc(void* memory) {
+	std::free(memory);
+}
+struct ResizeableArray {
+	std::vector<Sample*> entries;
+	explicit ResizeableArray(int32_t) {}
+	Error insertAtIndex(int32_t index) {
+		if (index == fail_owned_slot)
+			return Error::INSUFFICIENT_RAM;
+		entries.push_back(nullptr);
+		return Error::NONE;
+	}
+	void* getElementAddress(int32_t index) { return &entries.at(index); }
+};
 struct SampleBrowser {
 	FileItem* getCurrentFileItem() { return selected_file.get(); }
 	Error getCurrentFilePath(String* result) {
@@ -162,14 +190,18 @@ TEST_GROUP(FolderSampleLoading) {
 		audioFileManager.next_sample = 0;
 		read_failure_after = -1;
 		display_instance = {};
-		on_audio = on_append = {};
+		on_audio = on_append = on_pitch = on_sort_allocation = {};
+		fail_owned_slot = -1;
+		fail_sort_allocation = false;
 		requested_paths.clear();
 	}
 	void teardown() override {
 		std::free(table);
 		loaded_samples.clear();
 		selected_file.reset();
-		on_audio = on_append = {};
+		on_audio = on_append = on_pitch = on_sort_allocation = {};
+		fail_owned_slot = -1;
+		fail_sort_allocation = false;
 		requested_paths.clear();
 	}
 };
@@ -251,7 +283,6 @@ TEST(FolderSampleLoading, directory_read_failure_rejects_partial_sample_list_and
 	LONGS_EQUAL(0, count);
 	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
 	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
-	CHECK_FALSE(first.partOfFolderBeingLoaded);
 	CHECK_TRUE(display_instance.last_error == Error::SD_CARD);
 }
 TEST(FolderSampleLoading, initial_directory_read_failure_does_not_allocate_or_publish_samples) {
@@ -262,4 +293,82 @@ TEST(FolderSampleLoading, initial_directory_read_failure_does_not_allocate_or_pu
 	CHECK(table == nullptr);
 	LONGS_EQUAL(0, audioFileManager.next_sample);
 	CHECK_TRUE(display_instance.last_error == Error::SD_CARD);
+}
+
+TEST(FolderSampleLoading, nested_import_keeps_each_loads_temporary_sample_ownership_separate) {
+	int32_t nested_count = 0;
+	on_pitch = [&] {
+		on_pitch = {};
+		Sample** nested_table = nullptr;
+		bool single_cycle = false;
+		int32_t prefix = 0;
+		CHECK_TRUE(browser.loadAllSamplesInFolder(false, &nested_count, &nested_table, &single_cycle, &prefix));
+		for (int32_t index = 0; index < nested_count; ++index)
+			nested_table[index]->removeReason("nested");
+		std::free(nested_table);
+	};
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_TRUE(browser.loadAllSamplesInFolder(true, &count, &table, &single_cycle, &prefix));
+	LONGS_EQUAL(2, nested_count);
+	LONGS_EQUAL(2, count);
+	LONGS_EQUAL(1, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(1, second.numReasonsToBeLoaded);
+}
+TEST(FolderSampleLoading, owned_pointer_allocation_failure_releases_new_and_prior_references) {
+	fail_owned_slot = 1;
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	CHECK(table == nullptr);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+	CHECK_TRUE(display_instance.last_error == Error::INSUFFICIENT_RAM);
+}
+TEST(FolderSampleLoading, sort_table_allocation_failure_releases_all_owned_references) {
+	fail_sort_allocation = true;
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	CHECK(table == nullptr);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+}
+TEST(FolderSampleLoading, duplicate_cached_samples_keep_one_reason_for_each_returned_entry) {
+	loaded_samples[1] = &first;
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_TRUE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	LONGS_EQUAL(2, count);
+	CHECK(table[0] == &first);
+	CHECK(table[1] == &first);
+	LONGS_EQUAL(2, first.numReasonsToBeLoaded);
+}
+
+TEST(FolderSampleLoading, nested_load_during_sort_allocation_preserves_outer_sample_references) {
+	int32_t nested_count = 0;
+	on_sort_allocation = [&] {
+		Sample** nested_table = nullptr;
+		bool single_cycle = false;
+		int32_t prefix = 0;
+		CHECK_TRUE(browser.loadAllSamplesInFolder(false, &nested_count, &nested_table, &single_cycle, &prefix));
+		for (int32_t index = 0; index < nested_count; ++index)
+			nested_table[index]->removeReason("nested");
+		std::free(nested_table);
+	};
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_TRUE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	LONGS_EQUAL(2, nested_count);
+	LONGS_EQUAL(2, count);
+	LONGS_EQUAL(1, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(1, second.numReasonsToBeLoaded);
+}
+TEST(FolderSampleLoading, omitted_output_table_releases_temporary_sample_ownership) {
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_TRUE(browser.loadAllSamplesInFolder(false, &count, nullptr, &single_cycle, &prefix));
+	LONGS_EQUAL(2, count);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
 }
