@@ -593,3 +593,20 @@ side effects are not provided by these guards.
   OLED boundaries and absent targets. Fixtures do not establish retained clip
   lifetime through callbacks; G1/L1 remain open and independent mode is disabled.
 - Validation: all 34 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — shared audio-input context menus (2026-10-09)
+
+- Audio-input context menus resolve the live channel before encoder edits and OLED
+  rendering. They now consume deferred shared-model refreshes, including Track
+  source/name changes when the channel itself is unchanged. Refresh preserves the
+  viewport when selection is unchanged and does not reset UI mode.
+- Encoder and pad changes notify the peer only when channel/source changes. Existing
+  monitoring-claim calls remain intact. Source lookup checks active-song membership
+  before inspecting a retained source and handles an absent song.
+- Eight new `ContextMenuTests` cases include the production selector and base input
+  methods. Three regressions reproduced stale edits and absent peer notifications.
+  Additional coverage includes leaving Track, source repair, unrelated outputs,
+  mode locks, missing targets and rejected inputs. Monitoring claims and retained
+  output lifetime remain outside these fixtures. G1/L1 remain open; independent
+  mode stays disabled.
+- Validation: all 34 native CTest suites and `./dbt build relwithdebinfo` pass.

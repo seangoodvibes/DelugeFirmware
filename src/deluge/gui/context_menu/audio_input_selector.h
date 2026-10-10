@@ -29,17 +29,21 @@ public:
 	AudioInputSelector() = default;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	void selectEncoderAction(int8_t offset) override;
+	void refresh_shared_model() override;
 	bool setupAndCheckAvailability() override;
 	bool canSeeViewUnderneath() override { return true; }
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
-	AudioOutput* audioOutput;
+	AudioOutput* audioOutput = nullptr;
 
 	/// Title
 	char const* getTitle() override;
 
 	/// Options
 	std::span<const char*> getOptions() override;
+
+private:
+	bool read_input_selection();
 };
 
 AudioInputSelector& audio_input_selector_for_session();

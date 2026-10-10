@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/views/session_view.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
@@ -50,13 +51,13 @@ AudioInputSelector& audio_input_selector_for_session() {
 namespace {
 // A saved source pointer can become stale if its instrument leaves the active song list, e.g. by being hibernated.
 Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutput) {
-	if (!audioOutput->canRecordFrom(selectedOutput)) {
+	if (!currentSong || !audioOutput || !selectedOutput) {
 		return nullptr;
 	}
 
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
 		if (output == selectedOutput) {
-			return selectedOutput;
+			return audioOutput->canRecordFrom(output) ? output : nullptr;
 		}
 	}
 
@@ -65,6 +66,8 @@ Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutp
 
 // Used when entering Track mode without a valid previous source.
 Output* getFirstRecordableOutput(AudioOutput* audioOutput) {
+	if (!currentSong || !audioOutput)
+		return nullptr;
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
 		if (audioOutput->canRecordFrom(output)) {
 			return output;
@@ -72,6 +75,10 @@ Output* getFirstRecordableOutput(AudioOutput* audioOutput) {
 	}
 
 	return nullptr;
+}
+void request_peer_input_refresh() {
+	const auto peer = ui_session::current() == ui_session::Id::Local ? ui_session::Id::Remote : ui_session::Id::Local;
+	ui_session::navigation.for_owner(peer).shared_model_refresh.request();
 }
 } // namespace
 
@@ -91,6 +98,25 @@ std::span<const char*> AudioInputSelector::getOptions() {
 }
 
 bool AudioInputSelector::setupAndCheckAvailability() {
+	if (!read_input_selection())
+		return false;
+	scrollPos = currentOption;
+	return true;
+}
+
+void AudioInputSelector::refresh_shared_model() {
+	if (!read_input_selection())
+		return;
+	// Track names can change even when the channel selection stays the same.
+	if (display->haveOLED())
+		renderUIsForOled();
+	else
+		drawCurrentOption();
+}
+
+bool AudioInputSelector::read_input_selection() {
+	if (!audioOutput)
+		return false;
 	Value valueOption = Value::OFF;
 
 	switch (audioOutput->inputChannel) {
@@ -126,9 +152,10 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 		valueOption = Value::OFF;
 	}
 
-	currentOption = static_cast<int32_t>(valueOption);
-
-	scrollPos = currentOption;
+	if (currentOption != static_cast<int32_t>(valueOption)) {
+		currentOption = static_cast<int32_t>(valueOption);
+		scrollPos = currentOption;
+	}
 	return true;
 }
 
@@ -138,10 +165,12 @@ bool AudioInputSelector::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 void AudioInputSelector::selectEncoderAction(int8_t offset) {
-	if (currentUIMode != 0u) {
+	if (currentUIMode != 0u || !read_input_selection()) {
 		return;
 	}
 
+	const auto previous_channel = audioOutput->inputChannel;
+	auto* const previous_source = audioOutput->getOutputRecordingFrom();
 	ContextMenu::selectEncoderAction(offset);
 
 	auto valueOption = static_cast<Value>(currentOption);
@@ -197,6 +226,8 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
+	if (audioOutput->inputChannel != previous_channel || audioOutput->getOutputRecordingFrom() != previous_source)
+		request_peer_input_refresh();
 
 	if (display->haveOLED()) {
 		renderUIsForOled();
@@ -205,11 +236,15 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on && getUIUpOneLevel() == &session_view_for_session()) {
+	if (on && audioOutput && getUIUpOneLevel() == &session_view_for_session()) {
 		auto track = (&session_view_for_session())->getOutputFromPad(x, y);
 		if (audioOutput->canRecordFrom(track)) {
+			const bool changed = audioOutput->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT
+			                     || audioOutput->getOutputRecordingFrom() != track;
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
+			if (changed)
+				request_peer_input_refresh();
 			if (display->have7SEG()) {
 				// OLED shows this persistently in renderOLED(); 7SEG still needs popup feedback.
 				display->popupTextTemporary(track->name.get());
@@ -232,6 +267,8 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (!read_input_selection())
+		return;
 	ContextMenu::renderOLED(canvas);
 
 	if (audioOutput->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {

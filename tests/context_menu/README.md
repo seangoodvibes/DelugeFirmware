@@ -8,3 +8,8 @@ lightweight fixtures.
 Coverage includes same-clip edits before deferred refresh, both display types,
 different-clip navigation, unchanged boundary values and absent targets. This does
 not prove clip lifetime across callbacks or real hardware rendering.
+
+The audio-input group also compiles the production AudioInputSelector. Tests cover
+live channel reads, pad/encoder peer notifications, Track-source refresh, source
+repair, mode locks and rejected inputs. Audio monitoring claims are mocked and
+not validated by this target.
