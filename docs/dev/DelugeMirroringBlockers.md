@@ -762,3 +762,17 @@ side effects are not provided by these guards.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. This is
   service-time synchronization; physical device acceptance remains in G2. G1 stays
   open and independent mode remains disabled.
+
+### G1 progress — developer SysEx menus after settings replacement (2026-10-09)
+
+- Developer SysEx menu caches now track the live stored code, including changes
+  made by settings reset/reload rather than a menu commit. Both panels reload their
+  enabled state and labels on access; a reset produces fresh per-panel drafts
+  without enabling the setting. A commit records its new cache revision so a
+  subsequent reset cannot appear unchanged by matching the pre-commit revision.
+- Three new RuntimeMenuTests failed before the fix. They cover reset with both
+  menus open, replacement of one nonzero code by another, and reset following the
+  same menu's commit. Existing draft isolation and retained-label tests still pass.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. Settings
+  replacement is injected into the fixture store; filesystem reset and end-to-end
+  repaint remain outside these cases. G1 stays open; independent mode is disabled.

@@ -33,6 +33,9 @@ public:
 	[[nodiscard]] std::string_view getName() const override;
 	[[nodiscard]] std::string_view getTitle() const override;
 
+protected:
+	uint64_t model_value_revision() const override;
+
 private:
 	friend class Settings;
 	uint32_t currentSettingIndex;

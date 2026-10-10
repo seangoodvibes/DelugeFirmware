@@ -76,6 +76,56 @@ TEST(RuntimeMenu, options_reload_peer_commit_before_formatting_the_label) {
 	LONGS_EQUAL(1, menu.getValue());
 	LONGS_EQUAL(3, noise_index);
 }
+TEST(RuntimeMenu, settings_reset_disables_both_cached_menus_and_refreshes_their_drafts) {
+	runtimeFeatureSettings.settings[0].value = 0x44444444;
+	DevSysexSetting menu(RuntimeFeatureSettingType::DevSysexAllowed);
+	menu.readCurrentValue();
+	{
+		session::Scope remote(session::Id::Remote);
+		menu.readCurrentValue();
+	}
+	runtimeFeatureSettings.settings[0].value = 0;
+	LONGS_EQUAL(0, menu.getValue());
+	auto options = menu.getOptions(OptType::FULL);
+	STRCMP_EQUAL("on - 11111111", std::string(options[1]).c_str());
+	{
+		session::Scope remote(session::Id::Remote);
+		LONGS_EQUAL(0, menu.getValue());
+		auto peer_options = menu.getOptions(OptType::FULL);
+		STRCMP_EQUAL("on - 22222222", std::string(peer_options[1]).c_str());
+	}
+	LONGS_EQUAL(0, runtimeFeatureSettings.settings[0].value);
+	menu.commit(1);
+	LONGS_EQUAL(0x11111111, runtimeFeatureSettings.settings[0].value);
+}
+TEST(RuntimeMenu, external_code_replacement_refreshes_label_even_when_enabled_state_is_unchanged) {
+	runtimeFeatureSettings.settings[0].value = 0x11111111;
+	DevSysexSetting menu(RuntimeFeatureSettingType::DevSysexAllowed);
+	menu.readCurrentValue();
+	{
+		session::Scope remote(session::Id::Remote);
+		menu.readCurrentValue();
+	}
+	runtimeFeatureSettings.settings[0].value = 0x44444444;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto options = menu.getOptions(OptType::FULL);
+		STRCMP_EQUAL("on - 44444444", std::string(options[1]).c_str());
+		LONGS_EQUAL(1, menu.getValue());
+	}
+	LONGS_EQUAL(0, noise_index);
+}
+TEST(RuntimeMenu, external_reset_after_own_commit_cannot_reuse_precommit_cache_revision) {
+	DevSysexSetting menu(RuntimeFeatureSettingType::DevSysexAllowed);
+	menu.readCurrentValue();
+	menu.commit(1);
+	runtimeFeatureSettings.settings[0].value = 0;
+	LONGS_EQUAL(0, menu.getValue());
+	auto options = menu.getOptions(OptType::FULL);
+	STRCMP_EQUAL("on - 22222222", std::string(options[1]).c_str());
+	menu.commit(1);
+	LONGS_EQUAL(0x22222222, runtimeFeatureSettings.settings[0].value);
+}
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
 }

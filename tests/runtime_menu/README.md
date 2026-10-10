@@ -19,3 +19,7 @@ The fixture Selection base passes model revisions through the real shared-value
 cache. Cases cover changes made outside the menu, distinct menu instances,
 non-index stored values and preservation of a pending selection when an unrelated
 setting changes. This establishes reload on access, not an end-to-end repaint.
+
+Developer SysEx cases also inject settings reset and nonzero-code replacement,
+checking both panel caches and the same-menu commit/reset round trip. They cover
+cache reload and draft isolation; they do not run filesystem reset or authorization.

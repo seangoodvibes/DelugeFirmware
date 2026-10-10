@@ -26,6 +26,11 @@ namespace deluge::gui::menu_item::runtime_feature {
 DevSysexSetting::DevSysexSetting(RuntimeFeatureSettingType ty) : currentSettingIndex(static_cast<uint32_t>(ty)) {
 }
 
+uint64_t DevSysexSetting::model_value_revision() const {
+	// Reset and settings reloads can replace the code without a menu commit.
+	return runtimeFeatureSettings.settings[currentSettingIndex].value;
+}
+
 void DevSysexSetting::readCurrentValue() {
 	int32_t rawValue = runtimeFeatureSettings.settings[currentSettingIndex].value;
 	setValue(rawValue != 0);
@@ -40,12 +45,15 @@ void DevSysexSetting::readCurrentValue() {
 }
 
 void DevSysexSetting::writeCurrentValue() {
-	if (this->getValue()) {
+	const auto selected_option = getValue();
+	if (selected_option) {
 		runtimeFeatureSettings.settings[currentSettingIndex].value = session_states.active().on_value;
 	}
 	else {
 		runtimeFeatureSettings.settings[currentSettingIndex].value = 0;
 	}
+	// Keep this draft, but associate the cached choice with the committed code.
+	setValue(selected_option);
 }
 
 deluge::vector<std::string_view> DevSysexSetting::getOptions(OptType optType) {
