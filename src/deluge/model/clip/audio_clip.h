@@ -86,6 +86,7 @@ public:
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) override;
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
+	bool can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) override;
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
 	                       bool shiftSequenceAndMPE) override;
 

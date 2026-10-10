@@ -145,6 +145,7 @@ public:
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
 	/// Return true if successfully shifted
+	virtual bool can_shift_horizontally(int32_t amount, bool shiftSequenceAndMPE) { return loopLength > 0; }
 	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
 	                               bool shiftSequenceAndMPE) = 0;
 
