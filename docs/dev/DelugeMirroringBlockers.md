@@ -2142,3 +2142,13 @@ clips and outputs. Seven sanitizer regressions cover selected targets, fallback
 source/active targets and track filtering. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Lookup still requires live storage at entry;
 long-lived reference ownership remains part of L1.
+
+Clip retirement now starts at Song::deleteClipObject entry, before selection
+invalidation, including whole-song destruction. Detached-clip consequence cleanup
+retires after checking that the song has not reclaimed ownership and before
+backup cleanup. A sanitizer test executes the real song deletion/clip retirement
+bodies for both destruction modes; undo fixture tests verify retirement before
+backup callbacks and no retirement for song-owned clips. All 36 native suites
+and `./dbt build relwithdebinfo` pass. Hibernation and reversible detachment do not
+call these retirement entry points. Reentrant ownership changes inside cleanup
+still require the broader L1/L2 contract.

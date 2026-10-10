@@ -292,6 +292,8 @@ struct Sample {
 
 class Clip {
 public:
+	bool retiring = false;
+	void retire_lifetime() { retiring = true; }
 	int expected_events = 0;
 	std::function<void()> on_expect_event;
 	void expectEvent() {
@@ -397,7 +399,10 @@ public:
 		void* getElementAddress(int32_t i) { return &values.at(i); }
 		void deleteAtIndex(int32_t i) { values.erase(values.begin() + i); }
 	} backedUpParamManagers;
+	std::function<void(Clip*)> on_delete_clip_backups;
 	void deleteBackedUpParamManagersForClip(Clip* clip) {
+		if (on_delete_clip_backups)
+			on_delete_clip_backups(clip);
 		std::erase_if(backedUpParamManagers.values, [clip](const auto& backup) { return backup.clip == clip; });
 	}
 	// This fixture models collections as integer identities; the real summary

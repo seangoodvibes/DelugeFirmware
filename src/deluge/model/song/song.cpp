@@ -3178,6 +3178,7 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 }
 
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
+	clip->retire_lifetime();
 	invalidate_clip_selection(clip);
 
 	if (!songBeingDestroyedToo) {

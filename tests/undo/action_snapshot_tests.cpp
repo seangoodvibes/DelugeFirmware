@@ -843,6 +843,7 @@ TEST(ClipRestorationReservation, cleanup_preserves_clip_returned_to_either_song_
 		CHECK_FALSE(consequence.owns_detached_clip);
 		LONGS_EQUAL(freed_before, recording::freed);
 		CHECK_TRUE(song.contains_clip_for_undo(&clip));
+		CHECK_FALSE(clip.retiring);
 		array->values.clear();
 	}
 }
@@ -5374,4 +5375,18 @@ TEST(InstanceHistoryRecording, instance_resize_rejects_neighbor_overlap_in_both_
 		CHECK(consequence.revert(time, &stack) == Error::NONE);
 		LONGS_EQUAL(8, output.clipInstances.entries[0].length);
 	}
+}
+
+TEST(ClipRestorationReservation, detached_cleanup_retires_before_backup_callback) {
+	auto* detached = new Clip;
+	consequence.clip = detached;
+	bool cleanup_called = false;
+	song.on_delete_clip_backups = [&](Clip* target) {
+		cleanup_called = true;
+		POINTERS_EQUAL(detached, target);
+		CHECK_TRUE(target->retiring);
+	};
+	consequence.prepareForDestruction(BEFORE, &song);
+	CHECK_TRUE(cleanup_called);
+	CHECK_FALSE(consequence.owns_detached_clip);
 }

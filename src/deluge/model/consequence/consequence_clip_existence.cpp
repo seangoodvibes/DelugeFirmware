@@ -49,6 +49,7 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 			return;
 		}
 		owns_detached_clip = false;
+		clip->retire_lifetime();
 		song->deleteBackedUpParamManagersForClip(clip);
 
 #if ALPHA_OR_BETA_VERSION

@@ -10,10 +10,13 @@ struct MidiFollow {
 	void removeClip(Clip*);
 };
 static MidiFollow midiFollow;
-struct Output {};
+struct Output {
+	bool clipHasInstance(Clip*) { return false; }
+};
 static std::function<void()> on_prepare, on_cleanup, on_selection;
 struct song_fixture {
 	int invalidations = 0;
+	void deleteClipObject(Clip*, bool, InstrumentRemoval);
 	void invalidate_clip_selection(Clip*) {
 		++invalidations;
 		if (on_selection)
@@ -37,6 +40,7 @@ static struct {
 struct Clip {
 	mutable deluge::lifetime::lifetime_source lifetime_source_;
 	Output* output = nullptr;
+	ClipType type = ClipType::INSTRUMENT;
 	virtual ~Clip();
 	void retire_lifetime();
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source_}; }
@@ -59,10 +63,21 @@ struct AudioClip : Clip {
 static void freezeWithError(const char*) {
 	FAIL("Unexpected active recorder during destruction");
 }
+using Song = song_fixture;
+constexpr size_t MODEL_STACK_MAX_SIZE = sizeof(ModelStackWithTimelineCounter);
+static ModelStackWithTimelineCounter* setupModelStackWithTimelineCounter(char*, Song* source, Clip*) {
+	static ModelStackWithTimelineCounter stack;
+	stack.song = source;
+	return &stack;
+}
+static void delugeDealloc(void* ptr) {
+	::operator delete(ptr);
+}
 #include "audio_destruction_lifetime.inc"
 #include "clip_destruction_lifetime.inc"
 #include "clip_retained_notes.inc"
 #include "instrument_destruction_lifetime.inc"
+#include "song_clip_destruction_lifetime.inc"
 } // namespace clip_destruction_lifetime_test
 using namespace clip_destruction_lifetime_test;
 TEST_GROUP(ClipDestructionLifetime){void setup() override{on_prepare = on_cleanup = on_selection = {};
@@ -133,4 +148,19 @@ TEST(ClipDestructionLifetime, direct_destruction_clears_retained_notes_without_s
 	currentSong = nullptr;
 	clip.reset();
 	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[61]);
+}
+
+TEST(ClipDestructionLifetime, song_deletion_retires_before_selection_callback) {
+	for (bool destroying_song : {false, true}) {
+		auto* clip = new InstrumentClip;
+		auto watch = clip->watch_lifetime();
+		clipForLastNoteReceived[60] = clip;
+		on_selection = [&] {
+			CHECK_FALSE(watch.alive());
+			POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
+		};
+		song.deleteClipObject(clip, destroying_song, InstrumentRemoval::NONE);
+		CHECK_FALSE(watch.alive());
+		on_selection = {};
+	}
 }
