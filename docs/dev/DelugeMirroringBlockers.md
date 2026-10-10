@@ -3589,3 +3589,12 @@ name-allocation/uniqueness cancellation. All 38 suites and RelWithDebInfo pass.
 This protects continuation and holder callbacks; partial sample/Drum publication
 is not rolled back, and lower-level naming/setup routines retain their own audit
 requirements. Independent mode remains disabled.
+
+Source first-range creation now allocates in detached storage and publishes only
+while Source lifetime, oscillator type, panel and range layout remain unchanged.
+Seven regressions cover existing ranges, stride preservation, allocation failure,
+actual Source destruction, nested creation, type changes and empty-layout changes.
+All 38 suites and RelWithDebInfo pass. The temporary table holds one new range,
+not audio buffers; an empty Source with retained capacity may now allocate fresh
+storage rather than reuse that capacity. Type-conversion allocation/destruction
+inside MultiRangeArray remains a separate lifetime/recovery blocker.

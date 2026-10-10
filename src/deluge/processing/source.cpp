@@ -230,21 +230,29 @@ int32_t Source::getRangeIndex(int32_t note) {
 }
 
 MultiRange* Source::getOrCreateFirstRange() {
-	if (!ranges.getNumElements()) {
-		MultiRange* newRange = ranges.insertMultiRange(
-		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
-		        // before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
-		if (!newRange) {
-			return nullptr;
-		}
-
-		newRange->topNote = 32767;
-		return newRange;
-	}
-
-	else {
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive())
+		return nullptr;
+	if (ranges.getNumElements())
 		return ranges.getElement(0);
+
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto source_type = oscType;
+	const auto source_layout = ranges.layout_revision();
+	// Allocate away from the Source: allocator callbacks can retire it or populate its ranges.
+	MultiRangeArray replacement_ranges(ranges.element_size());
+	MultiRange* new_range = replacement_ranges.insertMultiRange(0);
+	if (!new_range)
+		return nullptr;
+	if (!source_lifetime.alive() || oscType != source_type || deluge::gui::ui_session::current() != source_owner
+	    || ranges.layout_revision() != source_layout || ranges.getNumElements()) {
+		new_range->~MultiRange();
+		return nullptr;
 	}
+	new_range->topNote = 32767;
+	ranges.swapStateWith(&replacement_ranges);
+	return new_range;
 }
 
 bool Source::hasAtLeastOneAudioFileLoaded() {

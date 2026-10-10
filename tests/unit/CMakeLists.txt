@@ -1316,3 +1316,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/folder_sample_loading.inc
         ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/folder_sample_loading.inc SampleBrowser::loadAllSamplesInFolder
     DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE folder_sample_loading_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/folder_sample_loading.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_first_range.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_first_range.inc Source::getOrCreateFirstRange
+    DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE source_first_range_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/source_first_range.inc)
