@@ -60,6 +60,8 @@ static struct {
 	int midiFollowKitRootNote = 36;
 } midiEngine;
 struct song_fixture {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	Output* firstOutput = nullptr;
 	bool active = true;
 	bool isOutputActiveInArrangement(Output*) { return active; }
@@ -342,4 +344,38 @@ TEST(MidiNoteDispatch, retired_output_does_not_receive_or_retain_note) {
 	                                              &stack, true));
 	LONGS_EQUAL(0, sends);
 	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
+}
+
+TEST(MidiNoteDispatch, selected_all_notes_off_stops_on_same_address_song_replacement) {
+	clipForLastNoteReceived[0] = &clip;
+	clipForLastNoteReceived[1] = &clip;
+	on_note = [&] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+		song.firstOutput = &output;
+	};
+	POINTERS_EQUAL(nullptr, follow.noteMessageReceivedForSelectedOrActiveClip(cable, false, 0, ALL_NOTES_OFF, 0, &thru,
+	                                                                          false, &stack));
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, track_all_notes_off_stops_on_song_retirement) {
+	song_fixture retiring_song;
+	retiring_song.firstOutput = &output;
+	currentSong = &retiring_song;
+	on_note = [&] { retiring_song.lifetime.retire(); };
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, &output, 0);
+	LONGS_EQUAL(1, sends);
+	currentSong = &song;
+}
+TEST(MidiNoteDispatch, retired_song_rejects_selected_and_track_notes) {
+	song_fixture retiring_song;
+	retiring_song.firstOutput = &output;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	clipForLastNoteReceived[0] = &clip;
+	POINTERS_EQUAL(nullptr, follow.noteMessageReceivedForSelectedOrActiveClip(cable, false, 0, ALL_NOTES_OFF, 0, &thru,
+	                                                                          false, &stack));
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, &output, 0);
+	LONGS_EQUAL(0, sends);
+	currentSong = &song;
 }

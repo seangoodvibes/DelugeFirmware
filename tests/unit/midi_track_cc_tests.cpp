@@ -63,6 +63,8 @@ struct MelodicInstrument : Output {
 	}
 };
 struct song_fixture {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	Output* firstOutput = nullptr;
 };
 static song_fixture song;
@@ -468,4 +470,38 @@ TEST(MidiTrackCC, retiring_output_rejects_selected_and_track_expression) {
 	for (bool selected : {false, true})
 		send_expression(selected, &stack, &output);
 	LONGS_EQUAL(0, instrument_calls);
+}
+
+TEST(MidiTrackCC, selected_parameter_song_reuse_prevents_activation) {
+	follow.on_parameter = [&] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+		song.firstOutput = &output;
+	};
+	POINTERS_EQUAL(nullptr, send_selected());
+	LONGS_EQUAL(1, follow.parameter_calls);
+	LONGS_EQUAL(0, follow.activation_calls);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, track_parameter_song_retirement_prevents_delivery) {
+	song_fixture retiring_song;
+	retiring_song.firstOutput = &output;
+	currentSong = &retiring_song;
+	follow.on_parameter = [&] { retiring_song.lifetime.retire(); };
+	send();
+	LONGS_EQUAL(1, follow.parameter_calls);
+	LONGS_EQUAL(0, instrument_calls);
+	currentSong = &song;
+}
+TEST(MidiTrackCC, retired_song_rejects_selected_and_track_cc) {
+	song_fixture retiring_song;
+	retiring_song.firstOutput = &output;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	POINTERS_EQUAL(nullptr, send_selected());
+	send();
+	LONGS_EQUAL(0, follow.parameter_calls);
+	LONGS_EQUAL(0, follow.activation_calls);
+	LONGS_EQUAL(0, instrument_calls);
+	currentSong = &song;
 }

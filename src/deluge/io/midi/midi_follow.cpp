@@ -712,10 +712,13 @@ Output* MidiFollow::noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable,
 	if (!currentSong || !modelStack)
 		return nullptr;
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return nullptr;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto context_matches = [&] {
-		return currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
+		return song_watch.alive() && currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
 	};
 
 	Output* selected_track = nullptr;
@@ -760,10 +763,13 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
 	if (!currentSong || !modelStack || !specific_track)
 		return;
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto track_is_current = [&] {
-		if (currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
+		if (!song_watch.alive() || currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
 			return false;
 		for (auto* output = source_song->firstOutput; output; output = output->next) {
 			if (output == specific_track)
@@ -914,6 +920,9 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 	if (!currentSong || !modelStack || ccNumber > kMaxMIDIValue || ccValue > kMaxMIDIValue)
 		return nullptr;
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return nullptr;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_current_clip = getCurrentClip();
@@ -927,7 +936,8 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 	if (current_output && !current_output_lifetime.alive())
 		return nullptr;
 	const auto context_matches = [&] {
-		return (!source_current_clip || (current_lifetime.alive() && source_current_clip->output == current_output))
+		return song_watch.alive()
+		       && (!source_current_clip || (current_lifetime.alive() && source_current_clip->output == current_output))
 		       && (!current_output || current_output_lifetime.alive()) && currentSong == source_song
 		       && deluge::gui::ui_session::current() == source_owner && getCurrentClip() == source_current_clip;
 	};
@@ -1023,10 +1033,13 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 	if (!currentSong || !modelStack || !specific_track || ccNumber > kMaxMIDIValue || ccValue > kMaxMIDIValue)
 		return;
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto track_is_current = [&] {
-		if (currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
+		if (!song_watch.alive() || currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
 			return false;
 		for (auto* output = source_song->firstOutput; output; output = output->next) {
 			if (output == specific_track)

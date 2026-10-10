@@ -2993,3 +2993,11 @@ reject retired entry, retirement during track delivery and same-address song
 replacement during selected delivery. All 36 suites and the RelWithDebInfo firmware
 build pass. Inner selected/track routes still need their own song-lifetime checks;
 this outer guard only cancels continuation after they return. G1 remains open.
+
+Selected and per-track MIDI-follow note/CC routes now watch song lifetime within
+their own callbacks and loops. Six regressions cover same-address replacement,
+retirement after parameter/note delivery and retired entry, preventing remaining
+note releases or CC activation/delivery. All 36 suites and the RelWithDebInfo build
+pass. Parameter/feedback internals, expression activation and other acquisition
+paths remain to audit; completed deliveries are retained. Independent mode remains
+disabled.
