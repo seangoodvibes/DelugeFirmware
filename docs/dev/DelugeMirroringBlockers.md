@@ -2322,3 +2322,14 @@ covered separately by native tests above. All 36 suites and
 when rerun. Owner-preserving edits to borrowed rows, drums or automation, and
 callback-internal sound/drum lifetime remain open. No original is deleted on
 clone failure.
+
+Drums now expose allocation-free retirement watches; base and all three concrete
+destructors retire before member cleanup. Drum expression recording stops after
+clone/record callbacks if the drum retires, and restores the prior smoothing flag
+for nested dispatch. Five sanitizer routing regressions cover actual deletion,
+address reuse, retiring entry and nested smoothing; four destructor regressions
+execute production destructor bodies with cleanup doubles. Expression tests now
+run in the sanitizer lifetime target. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Early deletion cleanup, linked-list dispatch
+continuations, retained drum acquisition and note-row drum ownership still need
+separate checks; adding watches does not make those paths safe automatically.

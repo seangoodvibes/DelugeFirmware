@@ -31,6 +31,7 @@ public:
 	bool nameIsDiscardable = false;
 
 	SoundDrum() : Drum(DrumType::SOUND) {}
+	~SoundDrum() override;
 
 	using Sound::allowNoteTails;
 	using Sound::anyNoteIsOn;

@@ -1,9 +1,13 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <array>
+#include <functional>
+#include <memory>
 #include <type_traits>
 namespace expression_recording_test {
+static std::function<void()> on_clone, on_record;
 
 template <int shift>
 static int32_t lshiftAndSaturate(int32_t value) {
@@ -22,6 +26,9 @@ struct NoteRow {
 	bool success = true;
 	bool recordPolyphonicExpressionEvent(ModelStackWithNoteRow*, int32_t, int32_t, bool) {
 		++records;
+		auto callback = on_record;
+		if (callback)
+			callback();
 		return success;
 	}
 };
@@ -43,6 +50,9 @@ struct InstrumentClip {
 	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* stack, Error* error) {
 		++clones;
 		*error = clone_error;
+		auto callback = on_clone;
+		if (callback)
+			callback();
 		if (clone_error == Error::NONE && clone_target) {
 			stack->timeline = clone_target;
 			return true;
@@ -67,6 +77,8 @@ struct live_fixture {
 	}
 };
 struct Drum : live_fixture {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	int16_t lastExpressionInputsReceived[2][3]{};
 	void expressionEvent(int32_t, int32_t) { send(); }
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter*, int16_t, int32_t, int32_t);
@@ -97,6 +109,7 @@ TEST_GROUP(ExpressionRecording) {
 	Drum drum;
 	MelodicInstrument melodic;
 	void setup() override {
+		on_clone = on_record = {};
 		playbackHandler = {};
 		expressionValueChangesMustBeDoneSmoothly = false;
 		original.row_stack.row = &original_row;
@@ -106,6 +119,9 @@ TEST_GROUP(ExpressionRecording) {
 			note.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = 1;
 			note.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = 60;
 		}
+	}
+	void teardown() override {
+		on_clone = on_record = {};
 	}
 	void send(bool is_drum, ModelStackWithTimelineCounter* target) {
 		if (is_drum)
@@ -156,5 +172,60 @@ TEST(ExpressionRecording, row_recording_failure_preserves_existing_live_fallback
 	LONGS_EQUAL(3, original_row.records);
 	LONGS_EQUAL(1, drum.sends);
 	LONGS_EQUAL(2, melodic.sends);
+	CHECK_FALSE(expressionValueChangesMustBeDoneSmoothly);
+}
+
+TEST(ExpressionRecording, drum_destroyed_during_clone_is_not_used_for_recording_or_fallback) {
+	for (Error clone_error : {Error::NONE, Error::INSUFFICIENT_RAM}) {
+		auto target = std::make_unique<Drum>();
+		original.clone_error = clone_error;
+		on_clone = [&] { target.reset(); };
+		target->expressionEventPossiblyToRecord(&stack, 256, 0, 0);
+		LONGS_EQUAL(0, original.row_lookups);
+		LONGS_EQUAL(0, original_row.records);
+		CHECK_FALSE(expressionValueChangesMustBeDoneSmoothly);
+	}
+}
+TEST(ExpressionRecording, drum_address_reuse_during_clone_does_not_send_to_replacement) {
+	auto* target = new Drum;
+	original.clone_error = Error::INSUFFICIENT_RAM;
+	on_clone = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+	};
+	target->expressionEventPossiblyToRecord(&stack, 256, 0, 0);
+	LONGS_EQUAL(0, target->sends);
+	LONGS_EQUAL(0, original_row.records);
+	CHECK_FALSE(expressionValueChangesMustBeDoneSmoothly);
+	delete target;
+}
+TEST(ExpressionRecording, drum_destroyed_during_recording_is_not_used_for_fallback) {
+	auto target = std::make_unique<Drum>();
+	original_row.success = false;
+	on_record = [&] { target.reset(); };
+	target->expressionEventPossiblyToRecord(&stack, 256, 0, 0);
+	LONGS_EQUAL(1, original_row.records);
+	CHECK_FALSE(expressionValueChangesMustBeDoneSmoothly);
+}
+TEST(ExpressionRecording, retiring_drum_rejects_expression_without_changing_input_or_smoothing) {
+	drum.lifetime_source.retire();
+	expressionValueChangesMustBeDoneSmoothly = true;
+	drum.expressionEventPossiblyToRecord(&stack, 256, 0, 0);
+	LONGS_EQUAL(0, original.clones);
+	LONGS_EQUAL(0, drum.sends);
+	LONGS_EQUAL(0, drum.lastExpressionInputsReceived[0][0]);
+	CHECK(expressionValueChangesMustBeDoneSmoothly);
+	expressionValueChangesMustBeDoneSmoothly = false;
+}
+TEST(ExpressionRecording, nested_drum_expression_restores_outer_smoothing_state) {
+	Drum nested;
+	on_clone = [&] {
+		CHECK(expressionValueChangesMustBeDoneSmoothly);
+		nested.expressionEventPossiblyToRecord(nullptr, 256, 0, 0);
+		CHECK(expressionValueChangesMustBeDoneSmoothly);
+	};
+	drum.expressionEventPossiblyToRecord(&stack, 256, 0, 0);
+	LONGS_EQUAL(1, nested.sends);
+	CHECK(nested.smooth_during_send);
 	CHECK_FALSE(expressionValueChangesMustBeDoneSmoothly);
 }

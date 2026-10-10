@@ -31,6 +31,10 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	note = 0;
 }
 
+MIDIDrum::~MIDIDrum() {
+	retire_lifetime();
+}
+
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();

@@ -31,6 +31,10 @@
 #include "util/misc.h"
 #include <new>
 
+SoundDrum::~SoundDrum() {
+	retire_lifetime();
+}
+
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "path")) {
 		reader.readTagOrAttributeValueString(&path);

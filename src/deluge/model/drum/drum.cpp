@@ -44,6 +44,10 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
+Drum::~Drum() {
+	retire_lifetime();
+}
+
 void Drum::writeDrumTagsToFile(Serializer& writer) {
 	// Called by subclasses to handle all the shared tags (except for MIDI commands).
 	writer.writeAttribute("name", drumName.c_str());
@@ -95,6 +99,9 @@ void Drum::getCombinedExpressionInputs(int16_t* combined) {
 
 void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
                                            int32_t expressionDimension, int32_t level) {
+	auto drum_lifetime = watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
 
 	// Ok we have to first combine the expression inputs that the user might have sent at both MPE/polyphonic/finger
 	// level, *and* at channel/instrument level. Yes, we combine these here at the input before the data gets recorded
@@ -105,12 +112,18 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][expressionDimension] << 8);
 	combinedValue = lshiftAndSaturate<16>(combinedValue);
 
+	struct smoothing_scope {
+		bool previous = expressionValueChangesMustBeDoneSmoothly;
+		~smoothing_scope() { expressionValueChangesMustBeDoneSmoothly = previous; }
+	} smoothing;
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
 	if (modelStack && modelStack->timelineCounterIsSet()) {
 		Error clone_error = Error::NONE;
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack, &clone_error);
+		if (!drum_lifetime.alive())
+			return;
 		if (clone_error != Error::NONE)
 			goto justSend;
 
@@ -123,6 +136,8 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 
 		bool success =
 		    noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue, expressionDimension, true);
+		if (!drum_lifetime.alive())
+			return;
 		if (!success) {
 			goto justSend;
 		}
@@ -133,6 +148,4 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 justSend:
 		expressionEvent(combinedValue, expressionDimension); // Virtual function
 	}
-
-	expressionValueChangesMustBeDoneSmoothly = false;
 }

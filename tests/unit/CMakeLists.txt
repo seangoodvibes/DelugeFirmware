@@ -618,7 +618,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recordi
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${midi_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc MelodicInstrument::polyphonicExpressionEventPossiblyToRecord
     DEPENDS ${midi_parameter_input_source} ../support/extract_functions.py VERBATIM)
-target_sources(UnitTests PRIVATE expression_recording_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/drum_expression_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc)
+
 
 set(kit_note_recording_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/kit.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc
@@ -769,3 +769,34 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/note_row_clone_lifetime.in
     DEPENDS ${note_row_clone_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE note_row_clone_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/note_row_clone_lifetime.inc)
+
+target_sources(ClipLifetimeTests PRIVATE expression_recording_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/drum_expression_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc)
+
+set(drum_destruction_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/drum/drum.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/drum_destruction_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${drum_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/drum_destruction_lifetime.inc Drum::~Drum
+    DEPENDS ${drum_destruction_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/drum_destruction_lifetime.inc)
+
+set(sound_drum_destruction_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound_drum.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_destruction_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_drum_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_destruction_lifetime.inc SoundDrum::~SoundDrum
+    DEPENDS ${sound_drum_destruction_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_destruction_lifetime.inc)
+
+set(midi_drum_destruction_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/drum/midi_drum.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_drum_destruction_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_drum_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_drum_destruction_lifetime.inc MIDIDrum::~MIDIDrum
+    DEPENDS ${midi_drum_destruction_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/midi_drum_destruction_lifetime.inc)
+
+set(gate_drum_destruction_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/drum/gate_drum.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_destruction_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${gate_drum_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_destruction_lifetime.inc GateDrum::~GateDrum
+    DEPENDS ${gate_drum_destruction_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_destruction_lifetime.inc)
+target_sources(ClipLifetimeTests PRIVATE drum_destruction_lifetime_tests.cpp)

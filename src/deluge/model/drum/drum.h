@@ -21,6 +21,7 @@
 #include "io/midi/learned_midi.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
+#include "util/lifetime.h"
 #include <cstdint>
 
 class Clip;
@@ -44,7 +45,11 @@ class Song;
 class Drum : public virtual Voiced {
 public:
 	Drum(DrumType newType);
-	~Drum() override = default;
+	~Drum() override;
+	deluge::lifetime::lifetime_watch watch_lifetime() const {
+		return deluge::lifetime::lifetime_watch{lifetime_source_};
+	}
+	void retire_lifetime() { lifetime_source_.retire(); }
 
 	std::string drumName;
 	Kit* kit;
@@ -91,4 +96,7 @@ public:
 	void getCombinedExpressionInputs(int16_t* combined);
 
 	virtual ModControllable* toModControllable() { return nullptr; }
+
+private:
+	mutable deluge::lifetime::lifetime_source lifetime_source_;
 };
