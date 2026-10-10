@@ -22,3 +22,8 @@ Wraparound cases service both empty banks at the simulated starting time, then
 check exact-deadline behavior, distinct panel deadlines and Remote deferral across
 UINT32 wrap. They do not simulate an unserviced bank idle for more than half the
 32-bit clock range; signed deadline comparisons require a separate audit there.
+
+The idle-bank regression additionally schedules without first servicing the bank
+and verifies delivery after wrap on both panels. The timer-state suite checks
+expired-cache recomputation preserves genuinely overdue events. Active events
+left unserviced for more than half the clock range remain outside this coverage.

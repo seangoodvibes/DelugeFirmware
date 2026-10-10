@@ -374,6 +374,19 @@ TEST(TimerDispatch, deferred_remote_timer_survives_clock_wrap_without_rearming_l
 	manager.routine();
 	LONGS_EQUAL(2, console_calls);
 }
+TEST(TimerDispatch, first_timer_in_idle_bank_is_serviced_after_wrap) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		UITimerManager timers;
+		AudioEngine::audioSampleTimer = UINT32_MAX - 10;
+		timers.setTimerSamples(TimerName::OLED_CONSOLE, 30);
+		AudioEngine::audioSampleTimer = 20;
+		int previous_calls = console_calls;
+		timers.routine();
+		LONGS_EQUAL(previous_calls + 1, console_calls);
+		CHECK_FALSE(timers.isTimerSet(TimerName::OLED_CONSOLE));
+	}
+}
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
 }

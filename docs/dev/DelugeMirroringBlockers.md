@@ -661,3 +661,18 @@ side effects are not provided by these guards.
   the 32-bit clock range: a stale cached next-event deadline can then compare as
   future. These tests do not establish safety for that interval. G1 remains open;
   independent mode stays disabled.
+
+### G1 progress — scheduling into an idle timer bank (2026-10-09)
+
+- Scheduling now rebuilds an expired cached next-event deadline from active
+  timers. This fixes a new timer being hidden by an idle bank's stale cache across
+  clock wrap, and removes obsolete cached deadlines when a due timer is moved.
+  The normal future-deadline scheduling path remains constant-time.
+- A production-dispatch regression failed before the fix and now covers first
+  scheduling into either idle panel bank across wrap. A storage regression checks
+  that genuinely overdue timers remain first and rescheduling them reveals the
+  next active timer. All 35 native suites and the RelWithDebInfo build pass.
+- This closes the newly scheduled idle-bank case from the preceding entry, not
+  arbitrary active timers left overdue for more than half the clock range. Those
+  cannot be classified by signed 32-bit subtraction alone. G1 remains open and
+  independent mode stays disabled.

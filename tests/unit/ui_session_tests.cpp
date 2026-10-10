@@ -234,6 +234,16 @@ TEST(UISession, timer_deadlines_remain_ordered_across_sample_clock_wraparound) {
 	CHECK_EQUAL(16, timers.get(TimerName::DISPLAY).triggerTime);
 }
 
+TEST(UISession, setting_timer_refreshes_expired_cache_without_hiding_overdue_events) {
+	UITimerState timers;
+	timers.set(TimerName::DISPLAY, 100, 10);
+	timers.set(TimerName::UI_SPECIFIC, 120, 30);
+	CHECK_EQUAL(110, timers.active_bank().next_event);
+	timers.set(TimerName::DISPLAY, 120, 50);
+	CHECK_EQUAL(150, timers.active_bank().next_event);
+	CHECK_EQUAL(170, timers.get(TimerName::DISPLAY).triggerTime);
+}
+
 TEST(UISession, following_timer_recomputes_the_destination_sessions_deadline) {
 	UITimerState timers;
 	timers.set(TimerName::OLED_LOW_LEVEL, 100, 15);

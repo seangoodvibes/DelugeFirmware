@@ -89,8 +89,15 @@ public:
 		auto& state = bank(owner(name));
 		auto& timer = get(name);
 		timer = {true, now + static_cast<uint32_t>(samples)};
-		if (samples < static_cast<int32_t>(state.next_event - now))
+		const int32_t cached_distance = static_cast<int32_t>(state.next_event - now);
+		if (cached_distance < 0) {
+			// An idle bank's cached deadline can be stale across clock wrap. Rebuild
+			// it from active timers, retaining any genuinely overdue event.
+			recompute(owner(name), now);
+		}
+		else if (samples < cached_distance) {
 			state.next_event = timer.triggerTime;
+		}
 	}
 
 	void unset(TimerName name, uint32_t now) {
