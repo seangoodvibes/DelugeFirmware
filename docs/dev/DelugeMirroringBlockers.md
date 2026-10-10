@@ -1193,3 +1193,14 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Allocation failures
   and callback-spanning target lifetime remain separate work. G1/L1/R4 remain open;
   independent mode stays disabled.
+
+### R4 progress — atomic MIDI CC label insertion (2026-10-10)
+
+- New CC labels are constructed during map insertion. Failed string allocation
+  no longer leaves an empty entry; existing labels retain their failure guarantee
+  and can reuse capacity.
+- Four extracted-production tests use real STL containers and fault-injecting
+  allocators to cover string/node failure, retry and CC boundaries. The empty-entry
+  regression failed before the fix. Firmware allocator pressure is not simulated.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. UI error recovery and
+  callback-spanning lifetime remain separate; independent mode stays disabled.

@@ -1293,6 +1293,11 @@ std::string_view MIDIInstrument::getNameFromCC(int32_t cc) {
 
 void MIDIInstrument::setNameForCC(int32_t cc, std::string_view name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		labels[cc] = name;
+		// Construct a new label as part of insertion so a failed string allocation
+		// cannot leave an empty entry behind. Existing string updates retain their
+		// allocation-failure guarantee and can reuse their current capacity.
+		auto [entry, inserted] = labels.try_emplace(cc, name);
+		if (!inserted)
+			entry->second = name;
 	}
 }

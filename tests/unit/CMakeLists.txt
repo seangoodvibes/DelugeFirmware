@@ -481,3 +481,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_midi_methods.inc
         RenameMidiCCUI::instrument_for_rename RenameMidiCCUI::canRename RenameMidiCCUI::getCurrentName RenameMidiCCUI::trySetName
     DEPENDS ${rename_midi_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/rename_midi_methods.inc)
+
+set(midi_cc_name_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/midi_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_cc_names.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_cc_name_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_cc_names.inc
+        MIDIInstrument::setNameForCC MIDIInstrument::getNameFromCC
+    DEPENDS ${midi_cc_name_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE midi_cc_name_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_cc_names.inc)
