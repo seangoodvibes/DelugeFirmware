@@ -1495,3 +1495,14 @@ and the arranger automation exception. All 35 native suites and
 `./dbt build relwithdebinfo` pass. The fixtures replace model and hardware services;
 this is not device acceptance or object retention. Changes already applied before
 a callback are not rolled back. Independent mode remains disabled.
+
+### G1 coverage — button completion and nested panel restoration (2026-10-10)
+
+Two further extracted-production tests exercise encoder menu completion after
+indicator lookups change the song, root, current UI, controller, parameter manager,
+timeline, position or menu, on both panels. They also check that nested indicator
+scopes restore temporary owner changes before a valid original menu refresh, and
+that a mode lookup switching owners cannot redirect a modulation-button press.
+This distinguishes a restored owner scope from persistent context replacement;
+it does not prove object lifetime safety. All 35 native suites pass. Production
+code is unchanged from the preceding successful RelWithDebInfo build.

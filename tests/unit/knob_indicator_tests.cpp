@@ -102,7 +102,12 @@ struct ModControllable {
 	bool missing_mode = false;
 	int presses = 0, releases = 0;
 	std::function<void()> on_button;
-	uint8_t* getModKnobMode() { return missing_mode ? nullptr : &mode; }
+	std::function<void()> on_mode;
+	uint8_t* getModKnobMode() {
+		if (on_mode)
+			on_mode();
+		return missing_mode ? nullptr : &mode;
+	}
 	void modButtonAction(uint8_t, bool on, ParamManager*) {
 		if (on)
 			++presses;
@@ -936,4 +941,71 @@ TEST(KnobIndicator, mod_button_automation_editor_preserves_arranger_exception) {
 	LONGS_EQUAL(0, controllable.presses);
 	view_for_session().modButtonAction(0, true);
 	LONGS_EQUAL(1, controllable.presses);
+}
+
+TEST(KnobIndicator, encoder_indicator_completion_cannot_refresh_changed_menu_context) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& view = view_for_session();
+		for (int change = 0; change < 9; ++change) {
+			view = View{};
+			view.activeModControllableModelStack.modControllable = &controllable;
+			currentSong = &song;
+			roots.active() = &root;
+			current_uis.active() = &editor;
+			editor.menu = &editor;
+			editor.reads = 0;
+			on_lookup = [&] {
+				switch (change) {
+				case 0:
+					currentSong = &replacement_song;
+					break;
+				case 1:
+					roots.active() = &automation;
+					break;
+				case 2:
+					current_uis.active() = &root;
+					break;
+				case 3:
+					view.activeModControllableModelStack.modControllable = nullptr;
+					break;
+				case 4:
+					view.activeModControllableModelStack.paramManager = &manager;
+					break;
+				case 5:
+					view.activeModControllableModelStack.timeline = &song;
+					break;
+				case 6:
+					++view.modPos;
+					break;
+				case 7:
+					editor.menu = nullptr;
+					break;
+				case 8:
+					session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+					break;
+				}
+			};
+			view.modEncoderButtonAction_changeModControllable(0, true);
+			CHECK(session::current() == owner);
+			// Nested indicator scopes restore a temporary owner change. The original
+			// menu remains valid in that case; persistent context changes cancel it.
+			LONGS_EQUAL(change == 8 ? 1 : 0, editor.reads);
+		}
+		on_lookup = {};
+	}
+}
+
+TEST(KnobIndicator, mod_button_mode_lookup_cannot_redirect_press) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		controllable.on_mode = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		view_for_session().modButtonAction(1, true);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, controllable.presses);
+		LONGS_EQUAL(0, controllable.mode);
+	}
+	controllable.on_mode = {};
 }
