@@ -26,9 +26,10 @@ class RenameOutputUI final : public RenameUI {
 public:
 	using RenameUI::RenameUI;
 	// Assigned before openUI() is called -- not necessarily the current output!
-	Output* output;
+	Output* output = nullptr;
 
 protected:
+	bool canRename() const override;
 	bool trySetName(std::string_view name) override;
 	std::string_view getCurrentName() const override;
 };

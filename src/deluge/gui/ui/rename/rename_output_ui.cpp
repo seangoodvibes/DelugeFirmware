@@ -33,11 +33,25 @@ RenameOutputUI& rename_output_ui_for_session() {
 	return remote_rename_output_ui.get(local_rename_output_ui, "Track name");
 }
 
+bool RenameOutputUI::canRename() const {
+	if (!currentSong || !output)
+		return false;
+	for (auto* candidate = currentSong->firstOutput; candidate; candidate = candidate->next) {
+		if (candidate == output)
+			return true;
+	}
+	return false;
+}
+
 std::string_view RenameOutputUI::getCurrentName() const {
+	if (!canRename())
+		return {};
 	return output->name.get();
 }
 
 bool RenameOutputUI::trySetName(std::string_view name) {
+	if (!canRename())
+		return false;
 	// Duplicate names not allowed for audio outputs.
 	void* other = currentSong->getAudioOutputFromName(name);
 	if (other != nullptr && other != output) {

@@ -26,6 +26,7 @@ struct name_fixture {
 using String = name_fixture;
 struct Clip;
 struct Output {
+	name_fixture name;
 	Output* next = nullptr;
 	Clip* duplicate = nullptr;
 	int lookups = 0;
@@ -44,6 +45,12 @@ struct clip_list_fixture {
 	Clip* getClipAtIndex(int32_t index) const { return entries[index]; }
 };
 struct Song {
+	Output* duplicate_output = nullptr;
+	int output_lookups = 0;
+	Output* getAudioOutputFromName(std::string_view) {
+		++output_lookups;
+		return duplicate_output;
+	}
 	Output* firstOutput = nullptr;
 	clip_list_fixture sessionClips, arrangementOnlyClips;
 	bool contains_clip_for_undo(const Clip* clip);
@@ -73,8 +80,16 @@ public:
 	std::string_view getCurrentName() const;
 	bool trySetName(std::string_view);
 };
+class RenameOutputUI {
+public:
+	Output* output = nullptr;
+	bool canRename() const;
+	std::string_view getCurrentName() const;
+	bool trySetName(std::string_view);
+};
 #include "rename_clip_membership.inc"
 #include "rename_clip_methods.inc"
+#include "rename_output_methods.inc"
 } // namespace rename_clip_test
 using namespace rename_clip_test;
 TEST_GROUP(RenameClipTargets) {
@@ -197,4 +212,62 @@ TEST(RenameClipTargets, allocation_context_changes_and_new_duplicates_cancel_com
 		STRCMP_EQUAL("original", clip.name.get());
 		STRCMP_EQUAL("original", other.name.get());
 	}
+}
+
+TEST_GROUP(RenameOutputTargets) {
+	Song song;
+	Output output, other;
+	RenameOutputUI menu;
+	void setup() override {
+		session::detail::active = session::Id::Local;
+		currentSong = &song;
+		song.firstOutput = &output;
+		output.next = &other;
+		menu.output = &output;
+		display_instance = {};
+		next_error = Error::NONE;
+		on_name_set = {};
+	}
+	void teardown() override {
+		on_name_set = {};
+		currentSong = nullptr;
+		session::detail::active = session::Id::Local;
+	}
+};
+TEST(RenameOutputTargets, departed_output_is_unavailable_on_both_panels) {
+	song.firstOutput = &other;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		CHECK(menu.getCurrentName().empty());
+		CHECK_FALSE(menu.trySetName("changed"));
+		STRCMP_EQUAL("original", output.name.get());
+		LONGS_EQUAL(0, song.output_lookups);
+	}
+}
+TEST(RenameOutputTargets, live_target_allows_rename_and_rejects_duplicates) {
+	CHECK(menu.trySetName("changed"));
+	song.duplicate_output = &other;
+	CHECK_FALSE(menu.trySetName("duplicate"));
+	STRCMP_EQUAL("changed", output.name.get());
+	LONGS_EQUAL(1, display_instance.popups);
+	song.duplicate_output = &output;
+	CHECK(menu.trySetName("changed"));
+}
+
+TEST(RenameOutputTargets, missing_context_rejects_and_reattachment_allows_rename) {
+	currentSong = nullptr;
+	CHECK_FALSE(menu.canRename());
+	CHECK_FALSE(menu.trySetName("changed"));
+	CHECK(menu.getCurrentName().empty());
+	currentSong = &song;
+	menu.output = nullptr;
+	CHECK_FALSE(menu.canRename());
+	CHECK_FALSE(menu.trySetName("changed"));
+	menu.output = &output;
+	song.firstOutput = &other;
+	CHECK_FALSE(menu.canRename());
+	song.firstOutput = &output;
+	CHECK(menu.canRename());
+	CHECK(menu.trySetName("reattached"));
+	STRCMP_EQUAL("reattached", output.name.get());
 }

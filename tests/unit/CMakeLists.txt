@@ -442,3 +442,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_membership.inc
     DEPENDS ${rename_song_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE rename_clip_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_methods.inc
     ${CMAKE_CURRENT_BINARY_DIR}/rename_clip_membership.inc)
+
+set(rename_output_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/rename/rename_output_ui.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rename_output_methods.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${rename_output_source} ${CMAKE_CURRENT_BINARY_DIR}/rename_output_methods.inc
+        RenameOutputUI::canRename RenameOutputUI::getCurrentName RenameOutputUI::trySetName
+    DEPENDS ${rename_output_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/rename_output_methods.inc)

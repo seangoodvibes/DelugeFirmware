@@ -995,3 +995,15 @@ side effects are not provided by these guards.
   pins, generation checks, or UI-stack recovery after arbitrary callbacks.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4/L1 remain open
   and independent mode remains disabled.
+
+### G1 / L1 progress — retained track rename targets (2026-10-09)
+
+- Track rename checks current-song output membership before entry, name reads,
+  duplicate lookup and writes. Its retained output starts null. Missing and
+  departed targets are unavailable; reattachment permits editing again.
+- Three extracted-production cases cover both panel owners, valid/duplicate/self
+  names, missing context and reattachment. The departed-target case failed before
+  the fix. Output lists, name storage and duplicate lookup are fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Allocation recovery,
+  callback lifetime and same-address replacement are not established by these
+  entry guards. G1/L1 remain open and independent mode stays disabled.
