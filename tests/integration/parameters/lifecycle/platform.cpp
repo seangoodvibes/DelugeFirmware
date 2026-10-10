@@ -28,6 +28,7 @@ std::vector<midi_notification> midi_notifications;
 bool allow_patch_cables = false;
 size_t notifications = 0;
 int allocations_before_failure = -1;
+std::function<void()> on_allocation;
 size_t allocation_failures = 0;
 uint32_t last_failed_allocation_size = 0;
 bool allow_no_action = false;
@@ -43,6 +44,7 @@ size_t outstanding_allocations() {
 	return allocations.size();
 }
 void reset() {
+	on_allocation = {};
 	allow_midi_params = false;
 	midi_notifications.clear();
 	allow_patch_cables = false;
@@ -64,6 +66,10 @@ void reset() {
 MemoryRegion::MemoryRegion() = default;
 GeneralMemoryAllocator::GeneralMemoryAllocator() = default;
 void* GeneralMemoryAllocator::alloc(uint32_t size, bool, bool, void*) {
+	auto callback = std::move(parameter_test::on_allocation);
+	parameter_test::on_allocation = {};
+	if (callback)
+		callback();
 	if (parameter_test::allocations_before_failure == 0) {
 		++parameter_test::allocation_failures;
 		parameter_test::last_failed_allocation_size = size;

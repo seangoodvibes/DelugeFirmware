@@ -82,6 +82,16 @@ public:
 	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded);
 	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true);
 
+	// Transactional edits retain even an empty vector until reserved slots are reused.
+	// These operations never allocate or release the underlying storage.
+	void delete_at_index_preserving_capacity(int32_t index, int32_t count = 1) {
+		if (vector_)
+			vector_->delete_at_index_preserving_capacity(index, count);
+	}
+	Error insert_at_index_without_allocation(int32_t index, int32_t count = 1) {
+		return vector_ ? vector_->insert_at_index_without_allocation(index, count) : Error::INSUFFICIENT_RAM;
+	}
+
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength) {
 		if (vector_) {
 			vector_->shiftHorizontal(amount, effectiveLength);
