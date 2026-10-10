@@ -1566,3 +1566,14 @@ They check rejected mode values, panel restoration, no meter rendering and the
 sidebar fallback. All 35 native suites pass. No production code changed since the
 preceding successful RelWithDebInfo build. The baseline suite count above is now
 updated to the current 35; all top-level blockers remain open.
+
+### G1 coverage — production VU calculation and pixel rendering (2026-10-10)
+
+Four tests now execute the extracted production VU level calculation, pixel
+renderer and rendering selector together. Coverage includes silence, every meter
+band, clipping, stereo colors, preserving the main grid, clearing old peaks,
+per-panel caches, unchanged-level caching, re-enabling and render-lock cleanup.
+All 35 native suites pass. This closes the prior pixel-renderer stub gap for these
+cases, not G1: RGB storage, audio input and mode/context selection are fixtures,
+and device acceptance remains outstanding. No production code changed; the
+preceding successful RelWithDebInfo build remains applicable.

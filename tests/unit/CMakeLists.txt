@@ -529,3 +529,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc
         ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc View::sendMidiFollowFeedback View::notifyParamAutomationOccurred
     DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_feedback_view_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/vu_render.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/vu_render.inc
+        View::getMaxYDisplayForVUMeter View::renderVUMeter View::potentiallyRenderVUMeter
+    DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE vu_render_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/vu_render.inc)
