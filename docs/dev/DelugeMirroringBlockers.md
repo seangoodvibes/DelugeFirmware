@@ -3008,3 +3008,11 @@ lookup, write and feedback delivery plus retired entry. All 36 suites and the
 RelWithDebInfo build pass. Replacement-clip acquisition still needs registry
 validation before acquiring a watch; lower parameter internals and partial-write
 recovery remain open. Independent mode remains disabled.
+
+MIDI-follow active-clip acquisition now rejects missing/retired songs and validates
+song lifetime after activation. Selected pitch-bend/aftertouch routes validate song
+and session after activation, then song/clip/output lifetime after instrument
+delivery before returning a target. Seven regressions cover retirement, same-address
+replacement, session changes and deletion during delivery. All 36 suites and the
+RelWithDebInfo build pass. Specific-track expression acquisition and lower activation
+services remain open; these checks do not undo an already delivered expression.

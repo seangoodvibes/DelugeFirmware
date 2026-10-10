@@ -476,7 +476,7 @@ Clip* MidiFollow::getSelectedClip() {
 /// midi modulation sources (e.g. mod wheel), and MPE through to the active clip
 Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	auto* const source_clip = getCurrentClip();
-	if (!modelStack || !source_clip)
+	if (!modelStack || !source_clip || !currentSong)
 		return nullptr;
 	auto source_lifetime = source_clip->watch_lifetime();
 	if (!source_lifetime.alive() || source_clip->type != ClipType::INSTRUMENT || !source_clip->output)
@@ -484,14 +484,18 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return nullptr;
 	auto* const source_output = source_clip->output;
 	auto output_lifetime = source_output->watch_lifetime();
 	if (!output_lifetime.alive())
 		return nullptr;
 	// Auditioning may activate this clip when its output is available.
 	InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-	if (!source_lifetime.alive() || !output_lifetime.alive() || deluge::gui::ui_session::current() != source_owner
-	    || currentSong != source_song || getCurrentClip() != source_clip || source_clip->output != source_output)
+	if (!song_watch.alive() || !source_lifetime.alive() || !output_lifetime.alive()
+	    || deluge::gui::ui_session::current() != source_owner || currentSong != source_song
+	    || getCurrentClip() != source_clip || source_clip->output != source_output)
 		return nullptr;
 	auto* const active_clip = source_output->getActiveClip();
 	if (!active_clip)
@@ -1621,13 +1625,22 @@ Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, u
 	if (!currentSong || !modelStack)
 		return nullptr;
 
+	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return nullptr;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return song_watch.alive() && currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
+	};
 	Output* selected_track = nullptr;
 
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (!clip)
+		if (!context_matches() || !clip)
 			return nullptr;
 		auto clip_lifetime = clip->watch_lifetime();
 		if (!clip_lifetime.alive())
@@ -1659,6 +1672,9 @@ Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, u
 					                                     data2, doingMidiThru);
 				}
 			}
+			if (!context_matches() || !clip_lifetime.alive() || !output_lifetime.alive()
+			    || clip->output != selected_track)
+				return nullptr;
 		}
 	}
 	return selected_track;
@@ -1759,13 +1775,22 @@ Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, 
 	if (!currentSong || !modelStack)
 		return nullptr;
 
+	auto* const source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return nullptr;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return song_watch.alive() && currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
+	};
 	Output* selected_track = nullptr;
 
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (!clip)
+		if (!context_matches() || !clip)
 			return nullptr;
 		auto clip_lifetime = clip->watch_lifetime();
 		if (!clip_lifetime.alive())
@@ -1797,6 +1822,9 @@ Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, 
 					                                      noteCode, doingMidiThru);
 				}
 			}
+			if (!context_matches() || !clip_lifetime.alive() || !output_lifetime.alive()
+			    || clip->output != selected_track)
+				return nullptr;
 		}
 	}
 	return selected_track;

@@ -34,14 +34,19 @@ static Clip* getCurrentClip() {
 	return current_clip;
 }
 static int instrument_calls = 0;
+static std::function<void()> on_expression;
 struct Kit : Output {
 	template <class... Args>
 	void receivedPitchBendForKit(Args&&...) {
 		++instrument_calls;
+		if (on_expression)
+			on_expression();
 	}
 	template <class... Args>
 	void receivedAftertouchForKit(Args&&...) {
 		++instrument_calls;
+		if (on_expression)
+			on_expression();
 	}
 	template <class... Args>
 	void receivedCCForKit(Args&&...) {
@@ -52,10 +57,14 @@ struct MelodicInstrument : Output {
 	template <class... Args>
 	void receivedPitchBend(Args&&...) {
 		++instrument_calls;
+		if (on_expression)
+			on_expression();
 	}
 	template <class... Args>
 	void receivedAftertouch(Args&&...) {
 		++instrument_calls;
+		if (on_expression)
+			on_expression();
 	}
 	template <class... Args>
 	void receivedCC(Args&&...) {
@@ -160,6 +169,7 @@ TEST_GROUP(MidiTrackCC) {
 		follow.selected_clip = &clip;
 		follow.active_clip = &clip;
 		instrument_calls = 0;
+		on_expression = {};
 		session = {};
 		midiEngine = {};
 		AudioEngine::audioSampleTimer = 0;
@@ -504,4 +514,58 @@ TEST(MidiTrackCC, retired_song_rejects_selected_and_track_cc) {
 	LONGS_EQUAL(0, follow.activation_calls);
 	LONGS_EQUAL(0, instrument_calls);
 	currentSong = &song;
+}
+
+TEST(MidiTrackCC, selected_expression_song_reuse_during_activation_prevents_delivery) {
+	follow.on_activation = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	send_expression(true, &stack, &output);
+	LONGS_EQUAL(2, follow.activation_calls);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, selected_expression_owner_change_during_activation_cancels_and_restores) {
+	follow.on_activation = [] { panels::detail::active = panels::Id::Remote; };
+	send_expression(true, &stack, &output);
+	LONGS_EQUAL(2, follow.activation_calls);
+	LONGS_EQUAL(0, instrument_calls);
+	CHECK(panels::current() == panels::Id::Local);
+}
+TEST(MidiTrackCC, retired_song_prevents_selected_expression_activation) {
+	song_fixture retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	send_expression(true, &stack, &output);
+	LONGS_EQUAL(0, follow.activation_calls);
+	LONGS_EQUAL(0, instrument_calls);
+	currentSong = &song;
+}
+
+TEST(MidiTrackCC, selected_expression_deleted_clip_is_not_returned) {
+	for (bool pitch : {false, true}) {
+		auto target = std::make_unique<Clip>();
+		target->output = &output;
+		follow.active_clip = target.get();
+		on_expression = [&] { target.reset(); };
+		Output* result = pitch ? follow.pitchBendReceivedForSelectedOrActiveClip(cable, 0, 0, 64, &thru, &stack)
+		                       : follow.aftertouchReceivedForSelectedOrActiveClip(cable, 0, 64, -1, &thru, &stack);
+		POINTERS_EQUAL(nullptr, result);
+	}
+	LONGS_EQUAL(2, instrument_calls);
+}
+TEST(MidiTrackCC, selected_expression_reused_output_is_not_returned) {
+	for (bool pitch : {false, true}) {
+		auto target = std::make_unique<MelodicInstrument>();
+		clip.output = target.get();
+		on_expression = [&] {
+			target->~MelodicInstrument();
+			new (target.get()) MelodicInstrument;
+		};
+		Output* result = pitch ? follow.pitchBendReceivedForSelectedOrActiveClip(cable, 0, 0, 64, &thru, &stack)
+		                       : follow.aftertouchReceivedForSelectedOrActiveClip(cable, 0, 64, -1, &thru, &stack);
+		POINTERS_EQUAL(nullptr, result);
+	}
+	clip.output = &output;
+	LONGS_EQUAL(2, instrument_calls);
 }

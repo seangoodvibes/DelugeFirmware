@@ -52,6 +52,8 @@ static RootUI& automation_view_for_session() {
 	return automation.active();
 }
 struct song_fixture {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 	Output* firstOutput = nullptr;
 	session::State<int> positions;
 	int last_clip_instance_entered_start_pos_for_session() { return positions.active(); }
@@ -458,4 +460,27 @@ TEST(MidiFollowContext, retiring_fallback_output_is_rejected_before_active_looku
 	output.active_clip = &audio;
 	output.lifetime_source.retire();
 	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+}
+
+TEST(MidiFollowContext, activation_reusing_song_address_cancels_target) {
+	ModelStack stack;
+	current_clips.active() = &instrument;
+	output.active_clip = &instrument;
+	on_activation = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	LONGS_EQUAL(1, activation_calls);
+}
+TEST(MidiFollowContext, retired_song_prevents_activation) {
+	ModelStack stack;
+	current_clips.active() = &instrument;
+	output.active_clip = &instrument;
+	song_fixture retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	LONGS_EQUAL(0, activation_calls);
+	currentSong = &song;
 }
