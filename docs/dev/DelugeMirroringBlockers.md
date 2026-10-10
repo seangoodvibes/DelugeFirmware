@@ -1,0 +1,474 @@
+# Independent Deluge mode: remaining blockers
+
+Last reviewed: 2026-10-09. This is the current completion checklist; the
+[incremental implementation notes](DelugeMirroring.md) remain the change history.
+
+Independent mode remains disabled. `supported_session_modes = 1` in
+[`mirror_protocol.h`](../../src/deluge/hid/mirror_protocol.h) advertises only
+visible-host mirroring. Do not enable it merely because the build and native tests
+pass. No completion percentage is assigned: the items below differ substantially
+in size, and audit items may reveal additional work.
+
+## Tracking rules
+
+- **Confirmed gap:** current code or recent tests demonstrate the limitation.
+- **Audit required:** safety/completeness has not been established; this is not a
+  claim that every path in that area is broken.
+- Keep each ID stable. Close an item only with an implementation reference,
+  regression-test evidence, and any required hardware results recorded here.
+- A guard returning an error is mitigation, not proof of rollback or lifetime
+  protection. A passing mocked callback test is not proof that real destruction,
+  parameter transfer, or two-device behavior is safe.
+- Record newly discovered subcases under the relevant ID rather than adding a
+  new top-level blocker for each guard.
+
+## Lifetime checklist
+
+### L1 — Detached objects and callback lifetime protection
+
+- [ ] **Open — confirmed gap.** Membership, identity and UI-revision checks cover
+  selected boundaries, but do not retain detached clips, initially unregistered
+  outputs, drums, samples, actions or consequences through all yielding callbacks.
+  Same-address replacement and destruction without notification are not generally
+  covered by pointer equality.
+- **Where:** clip/consequence restoration; shared model mutation; retained UI,
+  model-stack and action targets. Start with
+  [`consequence_clip_existence.cpp`](../../src/deluge/model/consequence/consequence_clip_existence.cpp),
+  [`clip.cpp`](../../src/deluge/model/clip/clip.cpp), and
+  [`instrument_clip.cpp`](../../src/deluge/model/clip/instrument_clip.cpp).
+- **Done when:** each retained target has an explicit ownership/lifetime contract
+  across callbacks, with safe cancellation and reclamation. Registered and
+  detached objects both have defined behavior; no reliance on a UI refresh alone.
+- **Required tests:** destroy/replace targets during callbacks, including reused
+  addresses, detached objects, nested edits and song replacement. Verify no stale
+  access, double destruction or leaked ownership with real implementations where
+  feasible, plus sanitizer runs where supported.
+
+### L2 — Deletion callbacks and safe publication of deletion history
+
+- [ ] **Open — confirmed gap.** `ConsequenceClipExistence::revert` calls note-stop,
+  session, recording, removal, detachment and output callbacks. Successful return
+  is followed by `Action::recordClipExistenceChange` publishing the private
+  consequence and accessing the action. The extensive allocation guards do not
+  establish lifetime safety across this later phase.
+- **Done when:** callback invalidation cannot lead to stale action/clip/output
+  access; a successfully detached clip always has exactly one valid owner; history
+  publication either succeeds safely or follows a defined recovery/cleanup path.
+  Freeing only the consequence storage must not leak its detached clip.
+- **Required tests:** invalidation at every deletion callback, action/history
+  replacement, clip return to the song, output removal, nested deletion, and
+  publication failure after successful detachment. Assert model and owner state,
+  not just the returned error.
+- **Depends on:** L1.
+
+### L3 — Failure cleanup and early output reclamation
+
+- [ ] **Open — audit required, with known callback-lifetime concerns.** Review
+  `Action::prepareForDestruction`, `ConsequenceClipExistence::prepareForDestruction`,
+  and `ActionLogger::revert` failure cleanup. They must use a live owning song and
+  retain required objects until all dependent consequences/references are gone.
+  Undo-retained output tracking exists; it is not a complete reclamation proof.
+- **Done when:** failed undo, history discard and song teardown release each
+  detached object exactly once, preserve song-owned objects, and never reclaim an
+  output still used by another clip, instance or history entry.
+- **Required tests:** cleanup after partial restoration/detachment, changed song,
+  returned clips, shared outputs, nested cleanup and both undo queues; allocation
+  accounting and actual destruction checks.
+- **Depends on:** L1, L2 and the ownership decisions in R1/R2.
+
+## Recovery checklist
+
+### R1 — Partial parameter restoration
+
+- [ ] **Open — confirmed gap.** Base, MIDI and kit restoration can transfer
+  parameter collections before a later failure. The guards stop further work;
+  they do not restore already consumed backups or guarantee a safe retry.
+  Reservation can also be followed by reattachment and then insertion failure.
+- **Done when:** define and implement failure semantics for the entire operation:
+  either restore the original state or complete a documented consistent recovery
+  with explicit ownership and retry/discard behavior. Include row parameters,
+  expression parameters, MIDI backup, kit-level parameters and clip insertion.
+- **Required tests:** failure at every transfer/trim/insertion boundary; multiple
+  rows; missing/invalid backups; changed assignments; actual parameter values and
+  ownership before/after; retry and discard; no loss or double-free of collections.
+- **Depends on:** L1; coordinate with L3. Existing kit callback tests are partial
+  failure containment, not transactional recovery tests.
+
+### R2 — Failed multi-consequence undo/redo and arrangement recording
+
+- [ ] **Open — confirmed gap.** `Action::revert` may apply a prefix before failure.
+  History remains reachable for cleanup, and the logger discards a failed action;
+  that does not reverse the prefix. Arrangement recording additionally clears and
+  rebuilds history while reverting.
+- **Where:** [`action.cpp`](../../src/deluge/model/action/action.cpp) and
+  [`action_logger.cpp`](../../src/deluge/model/action/action_logger.cpp).
+- **Done when:** partial application, new/old arrangement history and failure
+  cleanup have consistent model/ownership semantics; neither panel can continue
+  using an invalid history direction or stale target.
+- **Required tests:** fail each consequence position, both directions, mixed clip/
+  instance/parameter consequences, partial arrangement clear, nested history and
+  song/action invalidation; validate actual model state and both panels' recovery.
+- **Depends on:** L1–L3 and R1 for clip-restoration failures.
+
+### R3 — Arrangement batches containing clip-bearing deletions
+
+- [ ] **Open — confirmed gap.** Recovery covers isolated moves, shortening and
+  empty-instance deletion prefixes. Single-instance cleanup failure can restore a
+  still-live reference. Successful clip detachment and earlier batch changes are
+  outside that narrow recovery path.
+- **Where:** [`arranger_view.cpp`](../../src/deluge/gui/views/arranger_view.cpp),
+  `Action::rollback_instance_batch`, and song clip-instance cleanup.
+- **Done when:** contraction/expansion failure involving a clip-bearing deletion
+  leaves instances, clip ownership, automation and history mutually consistent.
+- **Required tests:** mixed outputs, multiple deletions, failure after successful
+  detachment, earlier moves/shortening, automation insertion/contraction, occupied
+  restore destinations and exhausted retained capacity.
+- **Depends on:** L2, R1 and R2.
+
+### R4 — Recovery after the initiating context changes
+
+- [ ] **Open — confirmed gap.** Current rollback deliberately rejects changed
+  song, UI owner/revisions, action/history identity or arrangement cursor. This
+  prevents rollback against the wrong context but can leave completed edits.
+- **Done when:** define which partial edits remain committed and how they are
+  represented, or recover them under a valid retained context; both panels reach
+  safe screens/selections and all held inputs are released appropriately.
+- **Required tests:** each invalidation dimension, nested callbacks, panel switch,
+  disconnect and song replacement; check model, history, selections and held input.
+- **Depends on:** L1–L3 and R2/R3.
+
+### R5 — Import, preview, clone and pre-edit action acquisition audit
+
+- [ ] **Open — audit required.** The completion notes still identify interleaved
+  pattern previews, broader clone/note transactions and action acquisition before
+  guarded edits. Numerous local fixes exist; end-to-end completeness is unproven.
+- **Done when:** inventory the remaining entry points and close each with evidence.
+  Failure must not destroy the original when cloning; previews must not overwrite
+  another panel's committed edits; action acquisition must not leave stale targets.
+- **Required tests:** real clone/preview cancellation and failure boundaries,
+  allocation failure, concurrent panel edits, source preservation, nested action
+  creation and retry. Record the audited entry-point list here.
+- **Depends on:** L1 and applicable R2/R4 semantics. Schedule action-acquisition
+  work after the other areas, per the requested priority.
+
+## Other gates before enabling independent mode
+
+These are separate from lifetime/recovery and prevent treating their completion as
+completion of the whole feature.
+
+- [ ] **G1 — Routing, transport and UI integration audit.** Independent-session
+  scaffolding exists in [`mirror.cpp`](../../src/deluge/hid/mirror.cpp), including
+  remote initialization/render paths and readiness checks. The advertised mode
+  remains disabled. Establish end-to-end negotiation, ordered input/acknowledgement,
+  Remote rendering, stale-session rejection, reconnect and resynchronization.
+  Preserve SysEx-only traffic to the paired client. Audit remaining direct hardware,
+  mutable singleton and shared-playback/view-state paths. Prioritize routing work.
+- [ ] **G2 — Two-device acceptance.** Run the hardware matrix in
+  [the main document](DelugeMirroring.md#validation): both USB-host roles, OLED and
+  seven-segment devices, simultaneous same/different-menu edits, playback/storage,
+  disconnect with held controls, repeated reconnect, load and memory pressure.
+  Record firmware revision, device pair, observations and pass/fail results.
+- [ ] **G3 — Enablement review.** Close L1–L3, R1–R5 and G1–G2 with evidence, review
+  the remaining risk list, then change advertised support and add tests that prove
+  requests negotiate independent mode without falling back to visible-host input.
+
+## Suggested execution order and evidence
+
+Prioritize G1 routing, while keeping its public capability disabled. For lifetime
+and recovery: establish L1's ownership contract, implement L2, then R1 and L3;
+finish R2/R3 and R4, audit R5 (action acquisition last), and perform G2/G3.
+Dependencies express safety requirements, not a requirement to postpone useful
+audits or test infrastructure.
+
+Current baseline: native coverage includes undo, kit restoration, song cleanup,
+parameter lifecycle, clone and mirror runtime suites. Recent changes passed all
+29 CTest suites and `./dbt build relwithdebinfo`. These results cover tested paths;
+they do not close the open items above or replace hardware validation.
+
+For each closure, append: **ID; implementation commit/PR; test names and results;
+hardware evidence if required; residual limitations; reviewer/date.** No item in
+this tracker has yet been closed.
+
+### G1 progress — remote render locks (2026-10-01)
+
+Remote UI servicing now defers timer dispatch under an existing navigation/pad
+render lock and rechecks both locks after timer callbacks before rendering.
+Regression: `remote_render_defers_existing_and_callback_render_locks`, covering
+both lock types, unchanged render timestamp, restored Local ownership and resume.
+G1 remains open; this is one service-boundary fix, not end-to-end routing proof.
+
+### G1 progress — snapshot pad-render locks (2026-10-01)
+
+Snapshot preparation now checks the Remote pad-render lock before timer dispatch,
+after timers, and before declaring the snapshot ready. Regression:
+`snapshot_waits_for_pad_render_lock_at_each_preparation_boundary` checks all three
+boundaries, deferred acceptance/panel traffic, owner/guard restoration and retry
+once unlocked. G1 remains open; independent capability remains disabled.
+
+### G1 progress — startup storage/audio locks (2026-10-01)
+
+Snapshot preparation now rejects an SD/audio lock before timer dispatch. Remote
+root opening can acquire either lock after the outer routine's entry check.
+Regression: `startup_lock_acquired_by_root_defers_snapshot_timers_until_unlock`
+checks both locks, no timer/render/acceptance/panel work while locked, restored
+owner/guard state and successful startup after unlocking. G1 remains open.
+
+### G1 progress — lost remote UI during servicing (2026-10-01)
+
+Remote UI service now fails the session when navigation is absent at entry or is
+removed by timer callbacks. Previously those cases could silently defer rendering
+and allow transport to continue. Regressions:
+`missing_remote_ui_fails_service_before_timers_or_transport` and
+`timer_removing_remote_ui_fails_before_render_or_transport` verify no stale
+transport/rendering, owner restoration and subsequent teardown. G1 remains open.
+
+### G1 progress — direct transport readiness (2026-10-01)
+
+Direct transport servicing now rejects an accepted independent session whose
+Remote UI is missing, before sending even a heartbeat. Pending initialization
+still permits heartbeats while suppressing frame traffic. Regressions:
+`direct_transport_rejects_missing_accepted_remote_ui` and
+`direct_transport_allows_pending_remote_initialization_heartbeat`. G1 remains open.
+
+### G1 progress — packet callback readiness (2026-10-01)
+
+Packet sending now validates accepted independent UI readiness before transmission
+and after yielding to transmission callbacks. A sent packet retains its sequence;
+further display/heartbeat traffic is rejected after UI loss. Stop remains permitted
+for teardown, and completed inputs retain their acknowledgement behavior.
+Regression: `packet_callback_losing_remote_ui_stops_following_transport_packets`
+checks heartbeat, sync LED, panel and OLED boundaries, packet counts, sequence
+advancement, owner restoration and blocked subsequent transport. G1 remains open.
+
+### G1 progress — song validity across transmission (2026-10-01)
+
+Accepted independent transport now requires a current song and rejects a song
+change during packet transmission, retaining the sent packet's sequence while
+blocking subsequent traffic. Visible-host mirroring keeps its existing song-load
+behavior. Regressions: `send_callback_song_change_stops_independent_transport_but_not_visible_mirroring`
+and `accepted_independent_transport_requires_a_song_even_with_remote_navigation`.
+G1 remains open; this detects invalidation, not lifetime pinning or recovery.
+
+### G1 progress — shared readiness requires a song (2026-10-01)
+
+Remote UI readiness now includes current-song presence, protecting input, timer
+and snapshot paths as well as transport. Regressions:
+`remote_readiness_requires_song_before_input_and_snapshot_callbacks` and
+`remote_service_without_song_fails_before_timer_callbacks` cover queued input,
+callback suppression, scope/guard restoration and resumption. G1 remains open.
+
+### G1 progress — input dispatch context (2026-10-01)
+
+Independent input now checks its initiating song, mode and owner after dispatch,
+including pad/button deferral and encoder retries, before acknowledgement or the
+next queued command. Visible-host song-change behavior is unchanged. Tests cover
+completed/deferred input, completed/deferred encoders, mode/owner switches and
+visible-host input. Invalidated independent sessions fail for teardown rather
+than replaying queued input into a different song. G1 remains open.
+
+### G1/R4 progress — deferred release after teardown (2026-10-01)
+
+A deferred release now validates its original session identity before restoring
+the prior held-key flag. Timeout/reconnect cleanup retains its existing ownership
+behavior when the same session is still present. If the handler already ended the session, teardown's cleared hold
+must remain cleared. Regression `deferred_release_cannot_restore_remote_hold_after_teardown`
+failed on the prior code and covers visible-host and independent modes. Existing
+valid-context retry tests remain applicable. G1 and broader R4 recovery remain open.
+
+### G1 progress — handshake re-entry during teardown (2026-10-01)
+
+Supported requests now honor sending/transport guards as well as the retained
+closing-connection guard. Incoming/outgoing discovery and unsupported-mode replies
+also defer while teardown callbacks run. Tests verify each guard, release-callback
+re-entry without peer reservation or packets, and fresh negotiation after cleanup.
+G1 remains open; independent mode is still not advertised.
+
+### L2 progress — pre-detachment callback validation (2026-10-01)
+
+Clip deletion now uses `prepare_for_deletion` to validate song, clip membership,
+output, stack, owner and revisions after each pre-detachment callback. It resolves
+the removal index after unsolo callbacks rather than retaining the earlier index.
+`ClipDeletionPreparation` executes the production helper with injected callbacks,
+including actual clip destruction at each boundary, changed contexts and a valid
+reorder. The clip is not detached by this helper. L2 remains open for removal,
+detachment and publication callbacks; L1 lifetime protection and recovery of prior
+side effects are not provided by these guards.
+
+### R4 progress — clip-existence entry context (2026-10-01)
+
+- Clip-existence undo/redo rejects a replaced or missing current song before
+  inspecting clip-array membership or constructing a timeline stack.
+- A native fixture now executes the actual `revert` function. Tests reproduce
+  both stale-song entry failures and verify that deletion-preparation and
+  recreation-reservation failures do not proceed to detachment or publication.
+- R4 remains open: entry validation does not protect the owning action or
+  detached objects against callbacks later in the operation.
+
+### L1/R4 progress — recreated clip activation (2026-10-01)
+
+- Clip-existence reversion validates song, UI owner/revisions, timeline target,
+  registered clip membership and output after session activation and output
+  activation callbacks. Insertion's intentional peer refresh occurs before the
+  revision snapshot.
+- Runtime tests execute the real reversion function, destroy the restored clip at
+  each activation boundary, and invalidate the song, stack, output and either
+  panel's revision. The undo suite runs with address/undefined sanitizers enabled.
+- This contains subsequent access after activation invalidation; it does not undo
+  activation side effects or retain an action/consequence destroyed in a callback.
+  L1 and R4 remain open.
+
+### G1 progress — retain independent mode across callbacks (2026-10-01)
+
+- Remote root startup, UI service and initial snapshot preparation recheck the host role
+  and independent mode after timer and rendering callbacks. Packet transmission
+  makes the same check after sending an independent-host packet, preserving the
+  sequence of the packet already sent while stopping subsequent packets.
+- Runtime regressions reproduced mode changes being accepted at these boundaries.
+  They cover six root-startup callbacks, service/snapshot timer and render
+  callbacks and transmission, verify
+  that follow-up rendering/packets stop, and check scope/guard cleanup.
+- G1 remains open for the broader integration audit. Advertised independent-mode
+  support remains disabled.
+
+### R4 progress — arrangement-instance undo context (2026-10-01)
+
+- Instance movement, resizing, creation and deletion now reject a missing or
+  replaced current song before output lookup or mutation. Recreation also checks
+  that its caller's model-stack song survived the reservation callback.
+- Runtime tests reproduce inactive-song mutation and stack replacement, verify
+  no mutation or reservation on rejected entry, and exercise successful retry in
+  both undo/redo directions. This does not restore an earlier action prefix; R4
+  remains open.
+
+### R2/R3 progress — occupied instance-change destinations (2026-10-01)
+
+- Instance undo/redo checks both neighbors before moving or resizing its retained
+  slot. A later edit can otherwise occupy or cross the destination while leaving
+  the source snapshot unchanged, producing overlapping or unsorted instances.
+- Regression tests reproduce the mutation, check predecessor/successor conflicts
+  and crossed slots in both directions, verify adjacent destinations and retry,
+  and round-trip complete expansion/contraction batches through real action undo.
+- Rejection leaves this instance untouched. Earlier consequences in a failed
+  action still require the broader recovery design; R2 and R3 remain open.
+
+### L1/L3 progress — song teardown clip membership (2026-10-01)
+
+- Song destruction removes each clip's array entry before destroying it. Cleanup
+  pops from the end without allocation or array compaction, and rechecks the
+  remaining count after audio servicing instead of retaining an earlier index.
+- Tests execute the production song destructor and membership lookup with actual
+  clip allocation/destruction. They reproduce stale membership, cover both arrays
+  across multiple audio-service boundaries, and exercise nested removal and an
+  array emptied by audio servicing. Remaining cleanup still runs exactly once.
+- This does not pin the song through callbacks or clear every output/history/UI
+  reference to retiring clips. L1 and L3 remain open for those ownership contracts.
+
+### L1/L3 progress — bulk backup cleanup ownership (2026-10-09)
+
+- Bulk parameter-backup cleanup removes each registry entry before destroying its
+  collections. A local parameter manager takes ownership of every summary slot,
+  including expression, malformed tails and aliases, without heap allocation or
+  layout-dependent transfer. The entry is then removed without reallocating.
+- Cleanup rechecks the registry after audio servicing. Tests compile the actual
+  backup implementation and parameter collection cleanup, verify absence during
+  collection deallocation, and cover nested cleanup from audio and collection
+  callbacks, malformed layouts, exactly-once frees and retained/released storage.
+- The implementation now lives beside the other song backup operations. This
+  does not pin the song or protect every selective cleanup path; L1/L3 remain open.
+
+### L1/L3 progress — selective backup cleanup (2026-10-09)
+
+- Clip-only and output-specific cleanup now use the same unlink-before-destruction
+  helper as bulk cleanup. Output cleanup resolves its key again after every
+  destruction; clip-only cleanup searches the live table after audio servicing
+  and after each destruction, retaining no pointer or run boundary over callbacks.
+- Tests reproduce visible retiring entries, verify generic main/expression
+  collection identities survive, cover nested clip-only cleanup from both callback
+  boundaries, and remove preceding entries during output cleanup to verify shifted
+  entries are not skipped. Allocation accounting checks exactly-once destruction.
+- Clip-only cleanup trades grouped deletion for rescanning after callbacks; it
+  uses no heap scratch space. Per-clip conversion to generic backups and lookup/
+  transfer callbacks still need review. L1/L3 remain open.
+
+### L1/R1 progress — retained backup transfer source (2026-10-09)
+
+- Exact restoration detaches the selected backup into a local owner before
+  destination cleanup can yield. Registry edits during cleanup cannot invalidate
+  that source or cause restoration to consume a newly published replacement key.
+- Preferred/fallback restoration uses the same transfer path, including rejection
+  of destinations inside any backup entry. Previously that path could destroy its
+  selected source or another entry and return a dangling destination.
+- Tests reproduce destination aliasing and exercise exact/fallback selection,
+  unrelated-entry aliases, destination cleanup publishing a same-key replacement,
+  original collection identity, preserved destination expression and leak-free
+  teardown. Existing malformed-backup cleanup remains covered.
+- This retains the source collections, not the caller's destination, song, output
+  or action. Operation-wide rollback and destination lifetime remain open in L1/R1.
+
+### L1/L3 progress — publish generic conversion before retirement (2026-10-09)
+
+- Deleting a clip's backup now publishes its main collections under the generic
+  output key and removes/repositions the old clip key before destroying expression
+  or superseded generic collections. Both retiring sets have local ownership, so
+  callbacks may remove the new entry without leaving a retained array pointer.
+- Slot reuse and capacity-preserving removal keep conversion allocation-free.
+  A shared callback-free ownership move also serves backup detachment.
+- Tests reproduce the old key remaining visible during destruction, cover first
+  entries, sibling entries and existing generic backups, verify publication and
+  collection identities during deallocation, and remove the new generic entry
+  from a nested cleanup callback without leaks or resurrection.
+- Song/output/action lifetime and whole-operation recovery remain open; this
+  closes the identified conversion publication window, not L1/L3 as a whole.
+
+### L1/L3 progress — replacement backup publication (2026-10-09)
+
+- Replacing an existing backup now moves its old collections into a local owner,
+  installs the incoming collections, then retires the old ownership. No registry
+  pointer is used after retirement callbacks begin. Nested replacement/deletion
+  therefore remains authoritative instead of being overwritten by the outer call.
+- Tests reproduce the unpublished replacement, cover main-only and expression
+  transfer, preserve source expression where requested, verify a nested latest
+  replacement wins, and delete the entry during retirement with exact allocation
+  accounting. Existing-slot replacement succeeds with insertion disabled.
+- New-entry allocation still needs its own source/song lifetime contract; this
+  change covers existing-entry replacement and does not close L1/L3.
+
+### L3 progress — output-list teardown re-entry (2026-10-09)
+
+- Output-list cleanup rechecks its head after audio servicing. Nested cleanup can
+  empty the list before the outer iteration resumes; the old code dereferenced a
+  null output at that point. The regression reproduced this under UBSan.
+- Tests execute the production cleanup with real output allocation/destruction,
+  cover nested cleanup from audio, reference-clearing and destructor callbacks,
+  and replace the list during audio servicing. They check unlinking, exactly-once
+  destruction/deallocation and completion against the current list.
+- The owning song/list pointer itself is not pinned across callbacks. L3 remains
+  open for that lifetime contract and other failure-cleanup paths.
+
+### L3 / R1 progress — failed backup insertion retirement (2026-10-09)
+
+- Failed insertion moves all source collections into a local retiring manager
+  before running collection cleanup. Cleanup no longer accesses the caller after
+  callbacks begin; a callback may destroy it or install new parameters without
+  the outer cleanup destroying those new parameters.
+- Regression coverage exercises both expression-transfer choices, checks that
+  all old ownership and the expression offset are cleared before retirement,
+  replaces source parameters during cleanup, and deletes the source during
+  cleanup. Original failure semantics still discard old expression parameters
+  even when expression transfer was not requested. Collection allocation
+  accounting verifies exactly-once cleanup and no leaks.
+- The allocation step itself still retains song, source, owner and clip pointers.
+  This change contains retirement only; it does not establish their lifetime
+  across allocation or close L3/R1.
+
+### L1 / L3 validation — backup ownership sanitizers (2026-10-09)
+
+- Native `SongBackupTests` and `SongBackupTestsNoDiagnostics` now enable AddressSanitizer
+  and UndefinedBehaviorSanitizer by default on Clang/GNU. Instrumentation covers
+  both the fixtures and the compiled production backup/parameter implementations;
+  undefined behavior fails the test rather than merely printing a diagnostic.
+- Configure with `-Dsong_backup_test_sanitizers=OFF` only when the host cannot run
+  these sanitizers. Other native targets and firmware build flags are unchanged.
+- This complements collection allocation accounting, particularly for tests that
+  delete the caller during cleanup. It does not prove callback reachability or
+  lifetime safety for model objects outside these fixtures.
