@@ -8,8 +8,12 @@ enum class ArpMode { OFF, ON };
 enum class ArpPreset { OFF, UP, DOWN };
 constexpr int MODEL_STACK_MAX_SIZE = 128, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR = 1;
 int currentUIMode = 0;
-int song;
-int* currentSong = &song;
+struct song_fixture {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
+};
+song_fixture song;
+song_fixture* currentSong = &song;
 struct ArpeggiatorSettings {
 	ArpMode mode = ArpMode::ON;
 	ArpPreset preset = ArpPreset::UP;
@@ -264,4 +268,36 @@ TEST(arp_mode_change_lifetime, retired_drum_entry_is_rejected) {
 	drum->lifetime.retire();
 	apply();
 	LONGS_EQUAL(0, stops);
+}
+
+TEST(arp_mode_change_lifetime, song_reuse_during_note_stop_cancels_settings_write) {
+	on_stop = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	apply();
+	LONGS_EQUAL(1, stops);
+	LONGS_EQUAL(0, reassessments);
+	CHECK(sound->settings.mode == ArpMode::ON);
+}
+TEST(arp_mode_change_lifetime, song_retirement_during_reassessment_cancels_settings_write) {
+	song_fixture retiring_song;
+	currentSong = &retiring_song;
+	on_reassess = [&] { retiring_song.lifetime.retire(); };
+	apply(true);
+	LONGS_EQUAL(1, reassessments);
+	CHECK(sound->settings.preset == ArpPreset::UP);
+	currentSong = &song;
+}
+TEST(arp_mode_change_lifetime, missing_or_retired_song_rejects_menu_edit) {
+	currentSong = nullptr;
+	apply();
+	song_fixture retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	apply(true);
+	LONGS_EQUAL(0, stops);
+	CHECK(sound->settings.mode == ArpMode::ON);
+	CHECK(sound->settings.preset == ArpPreset::UP);
+	currentSong = &song;
 }

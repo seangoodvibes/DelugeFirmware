@@ -3039,3 +3039,10 @@ callbacks. Four regressions cover song reuse, clip deletion, output reuse and re
 entry. All 36 suites and the RelWithDebInfo build pass. Note-retention cleanup still
 relies on the existing deletion notifications; completed note events are retained.
 Nested routing cancellation propagation and lower instrument internals remain open.
+
+Shared arpeggiator mode/preset edits now require a live song and include its
+lifetime in the existing stop/reassessment validation. Three regressions cover
+same-address song replacement during stop, retirement during reassessment and
+missing/retired entry. All 36 suites and the RelWithDebInfo build pass. Other menu
+callbacks and internal note-stop services remain open; independent mode stays
+disabled.

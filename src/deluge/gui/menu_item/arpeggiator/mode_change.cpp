@@ -13,7 +13,7 @@ namespace deluge::gui::menu_item::arpeggiator {
 void apply_mode_change(ArpMode mode, ArpPreset preset, bool use_preset) {
 	auto& editor = sound_editor_for_session();
 	auto* clip = getCurrentClip();
-	if (!clip)
+	if (!clip || !currentSong)
 		return;
 	auto clip_lifetime = clip->watch_lifetime();
 	if (!clip_lifetime.alive() || !clip->output)
@@ -36,12 +36,16 @@ void apply_mode_change(ArpMode mode, ArpPreset preset, bool use_preset) {
 	const auto source_owner = deluge::gui::ui_session::current();
 	const auto source_mode = currentUIMode;
 	auto* source_song = currentSong;
+	auto song_watch = source_song->watch_lifetime();
+	if (!song_watch.alive())
+		return;
 	const auto previous_mode = settings->mode;
 	const auto previous_preset = settings->preset;
 	const auto valid = [&] {
-		if (!clip_lifetime.alive() || !output_lifetime.alive() || (drum && !drum_lifetime.alive())
-		    || currentSong != source_song || deluge::gui::ui_session::current() != source_owner
-		    || currentUIMode != source_mode || getCurrentClip() != clip || clip->output != output)
+		if (!song_watch.alive() || !clip_lifetime.alive() || !output_lifetime.alive()
+		    || (drum && !drum_lifetime.alive()) || currentSong != source_song
+		    || deluge::gui::ui_session::current() != source_owner || currentUIMode != source_mode
+		    || getCurrentClip() != clip || clip->output != output)
 			return false;
 		if (kit && (kit->selected_drum_for_session() != drum || (drum && kit->getDrumIndex(drum) < 0)))
 			return false;
