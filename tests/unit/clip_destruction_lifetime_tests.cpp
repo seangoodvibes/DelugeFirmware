@@ -5,6 +5,11 @@
 #include <optional>
 namespace clip_destruction_lifetime_test {
 struct Clip;
+static Clip* clipForLastNoteReceived[kMaxMIDIValue + 1]{};
+struct MidiFollow {
+	void removeClip(Clip*);
+};
+static MidiFollow midiFollow;
 struct Output {};
 static std::function<void()> on_prepare, on_cleanup, on_selection;
 struct song_fixture {
@@ -30,11 +35,11 @@ static struct {
 	bool isEitherClockActive() { return false; }
 } playbackHandler;
 struct Clip {
-	mutable deluge::lifetime::lifetime_source lifetime_source;
+	mutable deluge::lifetime::lifetime_source lifetime_source_;
 	Output* output = nullptr;
 	virtual ~Clip();
-	void retire_lifetime() { lifetime_source.retire(); }
-	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
+	void retire_lifetime();
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source_}; }
 	bool isActiveOnOutput() { return false; }
 	void expectNoFurtherTicks(song_fixture*, bool = true) {}
 	void detachFromOutput(ModelStackWithTimelineCounter*, bool) { output = nullptr; }
@@ -56,11 +61,14 @@ static void freezeWithError(const char*) {
 }
 #include "audio_destruction_lifetime.inc"
 #include "clip_destruction_lifetime.inc"
+#include "clip_retained_notes.inc"
 #include "instrument_destruction_lifetime.inc"
 } // namespace clip_destruction_lifetime_test
 using namespace clip_destruction_lifetime_test;
 TEST_GROUP(ClipDestructionLifetime){void setup() override{on_prepare = on_cleanup = on_selection = {};
 song = {};
+for (auto& target : clipForLastNoteReceived)
+	target = nullptr;
 currentSong = &song;
 }
 void teardown() override {
@@ -107,4 +115,22 @@ TEST(ClipDestructionLifetime, audio_destruction_without_current_song_still_retir
 	clip.reset();
 	CHECK_FALSE(watch.alive());
 	LONGS_EQUAL(0, song.invalidations);
+}
+
+TEST(ClipDestructionLifetime, retirement_clears_only_matching_retained_midi_notes) {
+	Clip clip, other;
+	clipForLastNoteReceived[0] = &clip;
+	clipForLastNoteReceived[127] = &clip;
+	clipForLastNoteReceived[60] = &other;
+	clip.retire_lifetime();
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[0]);
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[127]);
+	POINTERS_EQUAL(&other, clipForLastNoteReceived[60]);
+}
+TEST(ClipDestructionLifetime, direct_destruction_clears_retained_notes_without_song) {
+	std::optional<InstrumentClip> clip(std::in_place);
+	clipForLastNoteReceived[61] = &*clip;
+	currentSong = nullptr;
+	clip.reset();
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[61]);
 }

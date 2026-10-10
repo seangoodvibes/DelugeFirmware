@@ -2045,3 +2045,17 @@ or deferred reclamation. It assumes serialized/reentrant firmware callbacks and
 requires a live object when acquiring a watch. It does not make callback internals
 safe, protect outputs/songs/other model types, or cover every saved clip reference.
 Those migrations and ownership/recovery decisions remain L1 work.
+
+### L1 / G1 progress — MIDI retirement cleanup and watched dispatch (2026-10-10)
+
+Clip retirement now clears MIDI Follow's retained note targets once, before
+cleanup callbacks, including direct destruction without a current song. Track
+CC/all-notes-off hold lifetime watches across delivery, and note dispatch rejects
+retiring clips before retaining or dereferencing their output. Eight new
+regressions cover idempotent retirement, matching-only cache cleanup, direct
+destruction, retired input, destruction without active-pointer cleanup and
+same-address replacement during CC/all-notes-off. These paths also run in the
+ASan/UBSan `ClipLifetimeTests` target. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Other MIDI selection/parameter callbacks and
+output lifetime are not comprehensively watched yet; callback-internal ownership
+and concurrent-thread access remain outside this cancellation mechanism.

@@ -1,7 +1,9 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <functional>
+#include <memory>
 namespace midi_track_cc_test {
 namespace panels = deluge::gui::ui_session;
 constexpr int MIDI_CC_MUTE = 89, MIDI_CC_SOLO = 90;
@@ -20,6 +22,8 @@ struct Output {
 	Clip* getActiveClip() { return active_clip; }
 };
 struct Clip {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Output* output = nullptr;
 	ClipType type = ClipType::INSTRUMENT;
 };
@@ -348,4 +352,26 @@ TEST(MidiTrackCC, expression_kit_delivery_and_audio_clip_exclusion) {
 	for (bool selected : {false, true})
 		send_expression(selected, &stack, &kit);
 	LONGS_EQUAL(4, instrument_calls);
+}
+
+TEST(MidiTrackCC, destroyed_clip_without_active_pointer_cleanup_stops_cc) {
+	auto* target = new Clip;
+	target->output = &output;
+	output.active_clip = target;
+	follow.on_parameter = [&] { delete target; };
+	send();
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, replacement_at_same_clip_address_does_not_receive_old_cc) {
+	auto* target = new Clip;
+	target->output = &output;
+	output.active_clip = target;
+	follow.on_parameter = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->output = &output;
+	};
+	send();
+	LONGS_EQUAL(0, instrument_calls);
+	delete target;
 }

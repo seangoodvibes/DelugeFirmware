@@ -1,4 +1,5 @@
 #include "gui/ui/ui_navigation_state.h"
+#include "io/midi/midi_follow.h"
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
  *
@@ -73,6 +74,11 @@ Clip::Clip(ClipType newType) : type(newType) {
 	// end initialize of automation clip view variables
 
 	sequenceDirectionMode = SequenceDirection::FORWARD;
+}
+
+void Clip::retire_lifetime() {
+	if (lifetime_source_.retire())
+		midiFollow.removeClip(this);
 }
 
 Clip::~Clip() {

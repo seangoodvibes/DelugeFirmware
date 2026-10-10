@@ -14,7 +14,7 @@ public:
 	lifetime_source& operator=(const lifetime_source&) = delete;
 	lifetime_source(lifetime_source&&) = delete;
 	lifetime_source& operator=(lifetime_source&&) = delete;
-	void retire();
+	bool retire();
 
 private:
 	friend class lifetime_watch;
@@ -56,7 +56,9 @@ private:
 	lifetime_watch** previous_link_ = nullptr;
 };
 
-inline void lifetime_source::retire() {
+inline bool lifetime_source::retire() {
+	if (retiring_)
+		return false;
 	retiring_ = true;
 	auto* watch = first_;
 	first_ = nullptr;
@@ -67,6 +69,7 @@ inline void lifetime_source::retire() {
 		watch->previous_link_ = nullptr;
 		watch = next;
 	}
+	return true;
 }
 
 } // namespace deluge::lifetime

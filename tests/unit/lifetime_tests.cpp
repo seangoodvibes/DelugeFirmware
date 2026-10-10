@@ -56,3 +56,9 @@ TEST(LifetimeWatch, address_reuse_does_not_revive_old_watch) {
 	std::destroy_at(source);
 	CHECK_FALSE(new_watch.alive());
 }
+
+TEST(LifetimeWatch, retirement_reports_only_the_first_transition) {
+	lifetime_source source;
+	CHECK(source.retire());
+	CHECK_FALSE(source.retire());
+}

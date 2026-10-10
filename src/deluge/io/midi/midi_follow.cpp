@@ -738,7 +738,10 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
-		if (!clip || clip->output != specific_track)
+		if (!clip)
+			return;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (!clip_lifetime.alive() || clip->output != specific_track)
 			return;
 
 		if (note >= 0 && note <= 127) {
@@ -748,7 +751,8 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
 		// all notes off
 		else if (note == ALL_NOTES_OFF) {
 			for (int32_t i = 0; i <= 127; i++) {
-				if (!track_is_current() || specific_track->getActiveClip() != clip || clip->output != specific_track)
+				if (!clip_lifetime.alive() || !track_is_current() || specific_track->getActiveClip() != clip
+				    || clip->output != specific_track)
 					return;
 				sendNoteToClip(cable, clip, match, on, channel, i, velocity, doingMidiThru, shouldRecordNotesNowNow,
 				               modelStack, false);
@@ -760,7 +764,10 @@ void MidiFollow::noteMessageReceivedForSpecificTrack(MIDICable& cable, bool on, 
 Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel,
                                    int32_t note, int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
                                    ModelStack* modelStack, bool updateClipForLastNoteReceived) {
-	if (!clip || !clip->output || !modelStack || !currentSong || note < 0 || note > kMaxMIDIValue)
+	if (!clip || !modelStack || !currentSong || note < 0 || note > kMaxMIDIValue)
+		return nullptr;
+	auto clip_lifetime = clip->watch_lifetime();
+	if (!clip_lifetime.alive() || !clip->output)
 		return nullptr;
 	Output* selected_track = nullptr;
 
@@ -962,7 +969,10 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
-		if (!clip || clip->output != specific_track)
+		if (!clip)
+			return;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (!clip_lifetime.alive() || clip->output != specific_track)
 			return;
 
 		bool isMIDIClip = false;
@@ -1012,7 +1022,8 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 					}
 				}
 			}
-			if (!track_is_current() || specific_track->getActiveClip() != clip || clip->output != specific_track)
+			if (!clip_lifetime.alive() || !track_is_current() || specific_track->getActiveClip() != clip
+			    || clip->output != specific_track)
 				return;
 			if (clip->type == ClipType::INSTRUMENT) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);

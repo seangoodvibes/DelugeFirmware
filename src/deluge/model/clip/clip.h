@@ -53,7 +53,7 @@ public:
 	[[nodiscard]] deluge::lifetime::lifetime_watch watch_lifetime() const {
 		return deluge::lifetime::lifetime_watch{lifetime_source_};
 	}
-	void retire_lifetime() { lifetime_source_.retire(); }
+	void retire_lifetime();
 	bool cancelAnyArming();
 	int32_t getMaxZoom();
 	virtual int32_t getMaxLength();

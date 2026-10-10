@@ -1,9 +1,11 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <array>
 #include <climits>
 #include <functional>
+#include <memory>
 namespace midi_note_dispatch_test {
 namespace session = deluge::gui::ui_session;
 enum class MIDIMatchType { CHANNEL, NO_MATCH };
@@ -21,6 +23,8 @@ struct Output {
 	OutputType type = OutputType::SYNTH;
 };
 struct Clip {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Output* output = nullptr;
 	ClipType type = ClipType::INSTRUMENT;
 };
@@ -276,4 +280,33 @@ TEST(MidiNoteDispatch, track_notes_reject_missing_or_detached_outputs) {
 	follow.noteMessageReceivedForSpecificTrack(cable, true, 0, 60, 100, &thru, false, &stack, &output, 0);
 	follow.noteMessageReceivedForSpecificTrack(cable, true, 0, 60, 100, &thru, false, &stack, nullptr, 0);
 	LONGS_EQUAL(0, sends);
+}
+
+TEST(MidiNoteDispatch, retiring_clip_does_not_receive_or_retain_notes) {
+	clip.lifetime_source.retire();
+	send(true);
+	LONGS_EQUAL(0, sends);
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
+}
+
+TEST(MidiNoteDispatch, track_all_notes_off_stops_without_active_pointer_cleanup) {
+	auto* target = new Clip;
+	target->output = &output;
+	output.active_clip = target;
+	on_note = [&] { delete target; };
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, &output, 0);
+	LONGS_EQUAL(1, sends);
+}
+TEST(MidiNoteDispatch, track_all_notes_off_does_not_follow_reused_clip_address) {
+	auto* target = new Clip;
+	target->output = &output;
+	output.active_clip = target;
+	on_note = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->output = &output;
+	};
+	follow.noteMessageReceivedForSpecificTrack(cable, false, 0, ALL_NOTES_OFF, 0, &thru, false, &stack, &output, 0);
+	LONGS_EQUAL(1, sends);
+	delete target;
 }

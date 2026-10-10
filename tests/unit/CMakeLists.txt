@@ -634,7 +634,7 @@ target_sources(UnitTests PRIVATE lifetime_tests.cpp)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_destruction_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${recording_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/clip_destruction_lifetime.inc Clip::~Clip Clip::prepareForDestruction
+        ${recording_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/clip_destruction_lifetime.inc Clip::~Clip Clip::prepareForDestruction Clip::retire_lifetime
     DEPENDS ${recording_clone_source} ../support/extract_functions.py VERBATIM)
 set(instrument_destruction_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/instrument_clip.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/instrument_destruction_lifetime.inc
@@ -661,3 +661,11 @@ if(clip_lifetime_test_sanitizers AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 add_test(NAME ClipLifetimeTests COMMAND ClipLifetimeTests)
 add_dependencies(UnitTests ClipLifetimeTests)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_retained_notes.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/clip_retained_notes.inc MidiFollow::removeClip
+    DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/clip_retained_notes.inc
+    midi_track_cc_tests.cpp midi_note_dispatch_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/midi_track_cc.inc ${CMAKE_CURRENT_BINARY_DIR}/midi_note_dispatch.inc)
