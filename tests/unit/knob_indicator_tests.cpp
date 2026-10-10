@@ -1,10 +1,12 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_session.h"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <new>
 namespace knob_indicator_test {
 namespace session = ::deluge::gui::ui_session;
 constexpr int32_t operator""_i32(unsigned long long value) {
@@ -47,8 +49,12 @@ static root_fixture* getRootUI() {
 static root_fixture& automation_view_for_session() {
 	return automation;
 }
-static int song, replacement_song;
-static int* currentSong = &song;
+struct song_fixture {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
+};
+static song_fixture song, replacement_song;
+static song_fixture* currentSong = &song;
 struct ModelStackWithAutoParam;
 struct ParamCollection {
 	bool has_value = false;
@@ -150,7 +156,7 @@ struct ModelStackWithAutoParam {
 	}
 	ParamManager* paramManager = nullptr;
 	void* timeline = nullptr;
-	int* song = nullptr;
+	song_fixture* song = nullptr;
 	void* getTimelineCounterAllowNull() const { return timeline; }
 	bool timelineCounterIsSet() const { return timeline != nullptr; }
 	ModControllable* modControllable = nullptr;
@@ -181,7 +187,7 @@ struct TimelineCounter {
 			on_activate();
 	}
 };
-static ModelStackWithAutoParam* setupModelStackWithSong(ModelStackWithAutoParam* stack, int* song) {
+static ModelStackWithAutoParam* setupModelStackWithSong(ModelStackWithAutoParam* stack, song_fixture* song) {
 	stack->song = song;
 	return stack;
 }
@@ -1134,4 +1140,94 @@ TEST(KnobIndicator, vu_meter_without_volume_selection_returns_sidebar_to_caller)
 		LONGS_EQUAL(0, view.vu_renders);
 		CHECK_FALSE(PadLEDs::rendering_lock_for_session());
 	}
+}
+
+TEST(KnobIndicator, song_reuse_during_indicator_lookup_cancels_publication) {
+	on_lookup = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	view_for_session().setKnobIndicatorLevels();
+	LONGS_EQUAL(1, lookup_calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[1].calls);
+}
+TEST(KnobIndicator, song_reuse_during_encoder_callback_cancels_followups) {
+	encoder_edited = true;
+	on_encoder = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	view_for_session().modEncoderButtonAction_changeModControllable(0, true);
+	LONGS_EQUAL(0, view_for_session().edits);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, editor.reads);
+}
+TEST(KnobIndicator, song_reuse_during_mod_button_callback_cancels_indicators) {
+	controllable.on_button = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	view_for_session().modButtonAction(1, true);
+	LONGS_EQUAL(1, controllable.presses);
+	LONGS_EQUAL(0, lookup_calls);
+	controllable.on_button = {};
+}
+TEST(KnobIndicator, song_reuse_during_mode_lookup_rejects_returned_pointer) {
+	controllable.on_mode = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	LONGS_EQUAL(-1, view_for_session().getModKnobMode());
+	controllable.on_mode = {};
+}
+TEST(KnobIndicator, song_reuse_during_timeline_resolution_cancels_selection) {
+	TimelineCounter counter;
+	counter.target = &controllable;
+	counter.manager = &manager;
+	on_resolve = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	view_for_session().setActiveModControllableTimelineCounter(&counter, true);
+	LONGS_EQUAL(0, counter.activations);
+	LONGS_EQUAL(0, view_for_session().feedback_calls);
+}
+TEST(KnobIndicator, song_reuse_during_target_leds_cancels_feedback) {
+	on_mod_leds = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	view_for_session().setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, view_for_session().feedback_calls);
+}
+TEST(KnobIndicator, song_reuse_during_region_indicators_cancels_feedback) {
+	on_lookup = [] {
+		song.~song_fixture();
+		new (&song) song_fixture;
+	};
+	view_for_session().setModRegion(24, 0, 7);
+	LONGS_EQUAL(1, lookup_calls);
+	LONGS_EQUAL(0, view_for_session().feedback_calls);
+}
+TEST(KnobIndicator, retired_song_rejects_modulation_entry_points) {
+	song_fixture retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	auto& view = view_for_session();
+	view.setKnobIndicatorLevels();
+	view.setKnobIndicatorLevel(0);
+	view.modEncoderButtonAction_changeModControllable(0, true);
+	view.modButtonAction(1, true);
+	LONGS_EQUAL(-1, view.getModKnobMode());
+	view.setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
+	TimelineCounter counter;
+	view.setActiveModControllableTimelineCounter(&counter, true);
+	view.setModRegion(24, 0, 7);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, controllable.presses);
+	LONGS_EQUAL(0, counter.activations);
+	LONGS_EQUAL(0, view.feedback_calls);
+	currentSong = &song;
 }

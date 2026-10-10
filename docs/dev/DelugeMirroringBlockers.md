@@ -3084,3 +3084,12 @@ missing-song test now requires permanent session cancellation. All 36 suites and
 the RelWithDebInfo build pass. This closes inter-turn independent song binding,
 not per-object lifetime/recovery or hardware acceptance. Independent mode stays
 disabled; cleanup of the retired song's voices remains owned by song teardown.
+
+Modulation selection, encoder/button handling, mode lookup, individual/batched knob
+indicators and automation menu refresh now watch optional song lifetime across
+callbacks. Eleven regressions cover same-address reuse and retired entry, including
+the first indicator publication and direct automation-timer render path. The native
+parameter lifecycle target links the extracted production Song accessor used by
+the real indicator renderer. All 36 suites and the RelWithDebInfo build pass.
+Live-song child-object/parameter ownership and whole timer-batch cancellation remain
+open; these checks preserve existing no-song contexts. Independent mode stays disabled.

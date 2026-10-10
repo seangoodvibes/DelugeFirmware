@@ -34,6 +34,7 @@
 #include "hid/mirror.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
@@ -204,6 +205,9 @@ void UITimerManager::routine() {
 
 				case TimerName::DISPLAY_AUTOMATION: {
 					auto* const source_song = currentSong;
+					auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+					if (source_song && !song_watch.alive())
+						break;
 					auto* const source_ui = getCurrentUI();
 					auto* const source_root = getRootUI();
 					if ((source_ui == &automation_view_for_session() || source_root == &automation_view_for_session())
@@ -212,7 +216,7 @@ void UITimerManager::routine() {
 						                              ? sound_editor_for_session().getCurrentMenuItem()
 						                              : nullptr;
 						automation_view_for_session().displayAutomation();
-						if (source_menu && !deluge::hid::mirror::is_client()
+						if ((!source_song || song_watch.alive()) && source_menu && !deluge::hid::mirror::is_client()
 						    && deluge::gui::ui_session::current() == owner && currentSong == source_song
 						    && getCurrentUI() == source_ui && getRootUI() == source_root
 						    && sound_editor_for_session().getCurrentMenuItem() == source_menu) {

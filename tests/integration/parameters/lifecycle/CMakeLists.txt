@@ -65,3 +65,14 @@ if(PARAMETER_LIFECYCLE_ASAN)
     target_compile_options(NativeParameterLifecycleTests PRIVATE -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(NativeParameterLifecycleTests PRIVATE -fsanitize=address)
 endif()
+
+# Keep the indicator renderer's song observation linked to the production accessor.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(song_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/deluge/model/song/song.cpp)
+set(lifetime_extractor ${CMAKE_CURRENT_SOURCE_DIR}/../../../support/extract_functions.py)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${lifetime_extractor}
+        ${song_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/song_lifetime.inc Song::watch_lifetime
+    DEPENDS ${song_lifetime_source} ${lifetime_extractor} VERBATIM)
+target_sources(NativeParameterLifecycleTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/song_lifetime.inc)
+target_include_directories(NativeParameterLifecycleTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

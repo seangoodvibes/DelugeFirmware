@@ -8,9 +8,11 @@
 #include "model/clip/clip.h"
 #include "model/consequence/consequence_param_change.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
+#include "song_lifetime.inc"
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>

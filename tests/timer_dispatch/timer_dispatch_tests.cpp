@@ -2,9 +2,14 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/graphics_routing.h"
 #include "gui/ui_timer_manager.h"
+#include "util/lifetime.h"
 #include <functional>
+#include <new>
 namespace session = deluge::gui::ui_session;
-struct Song {};
+struct Song {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
+};
 Song original_song, replacement_song;
 Song* currentSong = &original_song;
 enum class ActionResult { DEALT_WITH, REMIND_ME_OUTSIDE_CARD_ROUTINE };
@@ -659,4 +664,44 @@ TEST(TimerDispatch, automation_menu_callback_owner_change_defers_later_timers) {
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
+}
+
+TEST(TimerDispatch, automation_fallback_song_reuse_during_indicators_skips_menu_read) {
+	current_uis.active() = &editor;
+	root_uis.active() = &ui;
+	view.pendingParamAutomationUpdatesModLevels = true;
+	on_levels = [] {
+		original_song.~Song();
+		new (&original_song) Song;
+	};
+	view.displayAutomation();
+	LONGS_EQUAL(0, menu_reads);
+}
+TEST(TimerDispatch, automation_fallback_retired_song_does_not_refresh) {
+	Song retiring_song;
+	retiring_song.lifetime.retire();
+	currentSong = &retiring_song;
+	current_uis.active() = &editor;
+	view.pendingParamAutomationUpdatesModLevels = true;
+	int level_calls = 0;
+	on_levels = [&] { ++level_calls; };
+	view.displayAutomation();
+	LONGS_EQUAL(0, level_calls);
+	LONGS_EQUAL(0, menu_reads);
+	currentSong = &original_song;
+}
+
+TEST(TimerDispatch, automation_timer_song_reuse_during_render_skips_menu_read) {
+	current_uis.active() = &editor;
+	root_uis.active() = &automation;
+	automation.automation_editor = true;
+	on_automation = [] {
+		original_song.~Song();
+		new (&original_song) Song;
+	};
+	UITimerManager timers;
+	timers.setTimerSamples(TimerName::DISPLAY_AUTOMATION, -1);
+	timers.routine();
+	LONGS_EQUAL(1, automation_calls);
+	LONGS_EQUAL(0, menu_reads);
 }

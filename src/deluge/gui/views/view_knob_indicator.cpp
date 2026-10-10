@@ -37,6 +37,9 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	auto* const source_controllable = activeModControllableModelStack.modControllable;
 	auto* const source_manager = activeModControllableModelStack.paramManager;
 	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
@@ -44,8 +47,8 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	const auto source_length = modLength;
 	const auto source_note_row = modNoteRowId;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
-		       && activeModControllableModelStack.modControllable == source_controllable
+		return (!source_song || song_watch.alive()) && deluge::gui::ui_session::current() == source_owner
+		       && currentSong == source_song && activeModControllableModelStack.modControllable == source_controllable
 		       && activeModControllableModelStack.paramManager == source_manager
 		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline
 		       && modPos == source_position && modLength == source_length && modNoteRowId == source_note_row;
