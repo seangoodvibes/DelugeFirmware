@@ -2690,3 +2690,12 @@ callbacks. Six sanitizer regressions cover both zones, mono/clipless behavior,
 deletion, event/configuration replacement and retired/invalid entry. All 36 native
 suites and `./dbt build relwithdebinfo` pass. A cancelled sweep can have already
 sent a prefix; downstream transport/hardware delivery is not rolled back.
+
+Non-audio polyphonic expression routing now validates output/clip lifetime,
+song/panel, channel, arp revision, note count and the current note address after
+each chord output. It rejects invalid dimensions/characteristics and preserves
+exact-note versus channel matching. Seven production-body sanitizer regressions
+cover live matching, owner deletion, freed/replaced notes, channel changes and
+invalid input. All 36 suites and `./dbt build relwithdebinfo` pass. Same-address
+raw note replacement and callback internals remain separate lifetime work; an
+already written expression or emitted event is not rolled back.

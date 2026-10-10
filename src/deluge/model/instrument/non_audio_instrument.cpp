@@ -148,41 +148,48 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                   int32_t channelOrNoteNumber,
                                                                   MIDICharacteristic whichCharacteristic) {
-	int32_t n;
-	int32_t nEnd;
-
-	// If for note, we can search right to it.
-	if (whichCharacteristic == MIDICharacteristic::NOTE) {
-		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
-		if (n < arpeggiator.notes.getNumElements()) {
-			nEnd = 0;
-			goto lookAtArpNote;
-		}
+	if (expressionDimension < 0 || expressionDimension >= kNumExpressionDimensions
+	    || (whichCharacteristic != MIDICharacteristic::NOTE && whichCharacteristic != MIDICharacteristic::CHANNEL))
 		return;
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto source_channel = getChannel();
+	const auto revision = arpeggiator.instruction_revision();
+	const auto note_count = arpeggiator.notes.getNumElements();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getChannel() == source_channel
+		       && arpeggiator.instruction_revision() == revision && arpeggiator.notes.getNumElements() == note_count;
+	};
+	int32_t first_note = 0;
+	int32_t end_note = note_count;
+	if (whichCharacteristic == MIDICharacteristic::NOTE) {
+		first_note = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
+		if (first_note >= note_count)
+			return;
+		end_note = first_note + 1;
 	}
-
-	nEnd = arpeggiator.notes.getNumElements();
-
-	for (n = 0; n < nEnd; n++) {
-lookAtArpNote:
-		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
-
-			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a
-			// note-on-post-arp. I realise this is potentially frequent writing when it's only going to be read
-			// occasionally, but since we're already this far (the Instrument being notified), it's hardly any extra
-			// work.
-			arpNote->mpeValues[expressionDimension] = newValue >> 16;
-
-			// Send this even if arp is on and this note isn't currently sounding: its release might still be
-			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
-				if (arpNote->noteCodeOnPostArp[i] == ARP_NOTE_NONE
-				    || arpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
-					break;
-				}
-				polyphonicExpressionEventPostArpeggiator(newValue, arpNote->noteCodeOnPostArp[i], expressionDimension,
-				                                         arpNote, i);
-			}
+	for (int32_t n = first_note; n < end_note; ++n) {
+		auto* arp_note = static_cast<ArpNote*>(arpeggiator.notes.getElementAddress(n));
+		if (arp_note->inputCharacteristics[util::to_underlying(whichCharacteristic)] != channelOrNoteNumber)
+			continue;
+		arp_note->mpeValues[expressionDimension] = newValue >> 16;
+		for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; ++i) {
+			if (arp_note->noteCodeOnPostArp[i] == ARP_NOTE_NONE
+			    || arp_note->outputMemberChannel[i] == MIDI_CHANNEL_NONE)
+				break;
+			polyphonicExpressionEventPostArpeggiator(newValue, arp_note->noteCodeOnPostArp[i], expressionDimension,
+			                                         arp_note, i);
+			if (!context_matches() || arpeggiator.notes.getElementAddress(n) != arp_note)
+				return;
 		}
 	}
 }

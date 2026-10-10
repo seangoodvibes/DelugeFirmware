@@ -962,7 +962,7 @@ set(non_audio_instrument_arp_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../s
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/non_audio_instrument_arp_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${non_audio_instrument_arp_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/non_audio_instrument_arp_lifetime.inc
-        dispatch_non_audio_arp_instruction NonAudioInstrument::renderOutput NonAudioInstrument::sendNote NonAudioInstrument::doTickForwardForArp
+        dispatch_non_audio_arp_instruction NonAudioInstrument::renderOutput NonAudioInstrument::sendNote NonAudioInstrument::doTickForwardForArp NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote
     DEPENDS ${non_audio_instrument_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE non_audio_instrument_arp_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/non_audio_instrument_arp_lifetime.inc)
 

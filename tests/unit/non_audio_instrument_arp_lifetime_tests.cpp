@@ -5,11 +5,20 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <vector>
 namespace deluge::modulation::params {
 constexpr int GLOBAL_ARP_RATE = 0;
 }
 namespace non_audio_instrument_arp_lifetime_test {
 constexpr int ARP_MAX_INSTRUCTION_NOTES = 3, ARP_NOTE_NONE = -1, kDefaultLiftValue = 64;
+constexpr int kNumExpressionDimensions = 3, MIDI_CHANNEL_NONE = 255, GREATER_OR_EQUAL = 0;
+enum class MIDICharacteristic { NOTE, CHANNEL };
+namespace util {
+template <class T>
+int to_underlying(T value) {
+	return static_cast<int>(value);
+}
+} // namespace util
 int song;
 int* currentSong = &song;
 int paramNeutralValues[1]{};
@@ -33,6 +42,9 @@ struct ArpeggiatorSettings {
 	int getPhaseIncrement(int value) { return value; }
 };
 struct ArpNote {
+	int inputCharacteristics[2]{60, 2};
+	int16_t mpeValues[3]{};
+	int outputMemberChannel[3]{1, 2, MIDI_CHANNEL_NONE};
 	int noteCodeOnPostArp[3]{60, 64, ARP_NOTE_NONE};
 	ArpNoteStatus noteStatus[3]{ArpNoteStatus::PENDING, ArpNoteStatus::PENDING, ArpNoteStatus::OFF};
 };
@@ -47,6 +59,17 @@ std::function<void()> on_generation;
 std::function<void(bool)> on_dispatch;
 int generated = 0, dispatched = 0, ons = 0, offs = 0, last_velocity = 0;
 struct Arpeggiator {
+	struct {
+		std::vector<ArpNote*> entries;
+		int getNumElements() const { return entries.size(); }
+		void* getElementAddress(int index) { return entries.at(index); }
+		int search(int value, int) {
+			int index = 0;
+			while (index < getNumElements() && entries[index]->inputCharacteristics[0] < value)
+				++index;
+			return index;
+		}
+	} notes;
 	uint64_t revision = 0;
 	uint64_t instruction_revision() const { return revision; }
 	std::unique_ptr<ArpNote> note = std::make_unique<ArpNote>();
@@ -99,6 +122,13 @@ struct NonAudioInstrument {
 		if (on_dispatch)
 			on_dispatch(false);
 	}
+	void polyphonicExpressionEventPostArpeggiator(int32_t value, int32_t, int32_t dimension, ArpNote* note, int32_t) {
+		CHECK(note->mpeValues[dimension] == (value >> 16));
+		++dispatched;
+		if (on_dispatch)
+			on_dispatch(false);
+	}
+	void polyphonicExpressionEventOnChannelOrNote(int32_t, int32_t, int32_t, MIDICharacteristic);
 	void renderOutput(ModelStack*, std::span<StereoSample>, int32_t*, int32_t, int32_t, bool, bool);
 	void sendNote(ModelStackWithThreeMainThings*, bool, int32_t, const int16_t*, int32_t, uint8_t, uint32_t, int32_t,
 	              uint32_t);
@@ -116,6 +146,7 @@ TEST_GROUP(non_audio_instrument_arp_lifetime) {
 		clip = std::make_unique<InstrumentClip>();
 		instrument->activeClip = clip.get();
 		clip->output = instrument.get();
+		instrument->arpeggiator.notes.entries = {instrument->arpeggiator.note.get()};
 		on_generation = {};
 		on_dispatch = {};
 		generated = dispatched = ons = offs = last_velocity = 0;
@@ -234,4 +265,59 @@ TEST(non_audio_instrument_arp_lifetime, note_status_does_not_overwrite_nested_re
 	run(2);
 	LONGS_EQUAL(1, ons);
 	CHECK(instrument->arpeggiator.note->noteStatus[0] == ArpNoteStatus::OFF);
+}
+
+TEST(non_audio_instrument_arp_lifetime, expression_routes_matching_note_and_channel_members) {
+	for (bool by_note : {false, true}) {
+		reset();
+		ArpNote second;
+		second.inputCharacteristics[0] = 62;
+		instrument->arpeggiator.notes.entries.push_back(&second);
+		instrument->polyphonicExpressionEventOnChannelOrNote(
+		    123 << 16, 1, by_note ? 60 : 2, by_note ? MIDICharacteristic::NOTE : MIDICharacteristic::CHANNEL);
+		LONGS_EQUAL(by_note ? 2 : 4, dispatched);
+		LONGS_EQUAL(123, instrument->arpeggiator.note->mpeValues[1]);
+	}
+}
+TEST(non_audio_instrument_arp_lifetime, expression_callback_can_destroy_output_and_clip) {
+	on_dispatch = [&](bool) {
+		clip.reset();
+		instrument.reset();
+	};
+	instrument->polyphonicExpressionEventOnChannelOrNote(123 << 16, 1, 2, MIDICharacteristic::CHANNEL);
+	LONGS_EQUAL(1, dispatched);
+}
+TEST(non_audio_instrument_arp_lifetime, expression_callback_can_remove_pending_note) {
+	on_dispatch = [&](bool) {
+		++instrument->arpeggiator.revision;
+		instrument->arpeggiator.notes.entries.clear();
+		instrument->arpeggiator.note.reset();
+	};
+	instrument->polyphonicExpressionEventOnChannelOrNote(123 << 16, 1, 2, MIDICharacteristic::CHANNEL);
+	LONGS_EQUAL(1, dispatched);
+}
+TEST(non_audio_instrument_arp_lifetime, expression_storage_replacement_cancels_even_without_revision_change) {
+	ArpNote replacement;
+	on_dispatch = [&](bool) {
+		instrument->arpeggiator.notes.entries[0] = &replacement;
+		instrument->arpeggiator.note.reset();
+	};
+	instrument->polyphonicExpressionEventOnChannelOrNote(123 << 16, 1, 2, MIDICharacteristic::CHANNEL);
+	LONGS_EQUAL(1, dispatched);
+}
+TEST(non_audio_instrument_arp_lifetime, expression_channel_change_stops_chord_members) {
+	on_dispatch = [&](bool) { ++instrument->channel; };
+	instrument->polyphonicExpressionEventOnChannelOrNote(123 << 16, 1, 2, MIDICharacteristic::CHANNEL);
+	LONGS_EQUAL(1, dispatched);
+}
+TEST(non_audio_instrument_arp_lifetime, invalid_expression_dimensions_and_characteristics_do_not_dispatch) {
+	for (int dimension : {-1, 3})
+		instrument->polyphonicExpressionEventOnChannelOrNote(0, dimension, 2, MIDICharacteristic::CHANNEL);
+	instrument->polyphonicExpressionEventOnChannelOrNote(0, 0, 2, static_cast<MIDICharacteristic>(2));
+	LONGS_EQUAL(0, dispatched);
+}
+TEST(non_audio_instrument_arp_lifetime, expression_note_lookup_does_not_dispatch_next_higher_note) {
+	instrument->polyphonicExpressionEventOnChannelOrNote(0, 0, 59, MIDICharacteristic::NOTE);
+	instrument->polyphonicExpressionEventOnChannelOrNote(0, 0, 61, MIDICharacteristic::NOTE);
+	LONGS_EQUAL(0, dispatched);
 }
