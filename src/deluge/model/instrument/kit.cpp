@@ -830,15 +830,39 @@ ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
 }
 
 void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
-	if (activeClip == nullptr) {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || !activeClip)
 		return;
-	}
-	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+	auto* routed_clip = static_cast<InstrumentClip*>(activeClip);
+	auto clip_lifetime = routed_clip->watch_lifetime();
+	if (!clip_lifetime.alive() || routed_clip->output != this)
+		return;
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto row_count = routed_clip->noteRows.getNumElements();
+	for (int32_t i = 0; i < row_count; i++) {
+		NoteRow* thisNoteRow = routed_clip->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
 		if (thisNoteRow->drum == nullptr) {
 			continue;
 		}
+		auto* drum = thisNoteRow->drum;
+		if (getDrumIndex(drum) < 0)
+			return;
+		auto drum_lifetime = drum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+		const auto row_identity = thisNoteRow->undo_identity;
+		const auto row_matches = [&] {
+			if (!kit_lifetime.alive() || !clip_lifetime.alive() || !drum_lifetime.alive() || activeClip != routed_clip
+			    || routed_clip->output != this || currentSong != source_song
+			    || deluge::gui::ui_session::current() != source_owner || getDrumIndex(drum) < 0
+			    || routed_clip->noteRows.getNumElements() != row_count)
+				return false;
+			auto* current_row = routed_clip->find_note_row_from_id(i);
+			return current_row == thisNoteRow && current_row && current_row->undo_identity == row_identity
+			       && current_row->drum == drum;
+		};
 		if (thisNoteRow->drum->type != DrumType::MIDI && thisNoteRow->drum->type != DrumType::GATE) {
 			continue;
 		}
@@ -854,25 +878,33 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 			ArpReturnInstruction instruction;
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
 			                                 phaseIncrement);
+			if (!row_matches())
+				return;
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
 				nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+				if (!row_matches())
+					return;
 			}
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
 				nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+				if (!row_matches())
+					return;
 			}
 			if (instruction.arpNoteOn != nullptr) {
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
-					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+					if (!row_matches())
+						return;
 				}
 			}
 		}

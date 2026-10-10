@@ -2499,3 +2499,14 @@ address reuse, retired entry, non-creating validation and deletion during row
 resume. All 36 suites and `./dbt build relwithdebinfo` pass. Changes already applied
 before cancellation remain a prefix; parameter-repeat internals and full edit
 rollback are not established by these caller checks.
+
+The kit MIDI/gate arp-render batch now watches kit/clip/drum lifetime and validates
+row identity/count, drum membership, active-clip association and song/panel context
+after generation and every output dispatch. Note-on status is published before
+the callback. Fifteen sanitizer regressions execute the production renderer with
+arp/model doubles, including destruction at each dispatch boundary, row replacement,
+retargeting, nested reset and normal multi-row MIDI/gate output. All 36 suites and
+`./dbt build relwithdebinfo` pass. Owner-preserving instruction replacement remains
+an audit gap: surviving owners alone do not identify which generated arp event is
+still current. Kit tick/render siblings and the outer audio-render caller remain
+separate work.
