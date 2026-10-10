@@ -1316,3 +1316,14 @@ side effects are not provided by these guards.
 - Session/arranger overview constructors were inspected and currently only
   initialize state; no additional yielding-constructor fix was justified there.
   G1/L1 remain open; advertised support remains `supported_session_modes = 1`.
+
+### G1 progress — automation timer follow-up menu reads (2026-10-10)
+
+- Automation-display timer follow-up reads require the initiating owner, current
+  UI, root UI and menu to remain unchanged. Missing menus and client takeover skip
+  the read instead of touching a new context.
+- Two extracted-dispatch tests cover both owners, root/menu changes, takeover,
+  normal reads and missing menus. The changed-context test failed before the fix.
+  All 35 native suites and `./dbt build relwithdebinfo` pass.
+- These checks do not retain menu objects across callbacks or detect same-address
+  replacement. G1/L1 remain open; independent mode remains disabled.

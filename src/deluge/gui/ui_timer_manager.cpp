@@ -202,22 +202,27 @@ void UITimerManager::routine() {
 					break;
 				}
 
-				case TimerName::DISPLAY_AUTOMATION:
-					if (((getCurrentUI() == &automation_view_for_session())
-					     || (getRootUI() == &automation_view_for_session()))
+				case TimerName::DISPLAY_AUTOMATION: {
+					auto* const source_ui = getCurrentUI();
+					auto* const source_root = getRootUI();
+					if ((source_ui == &automation_view_for_session() || source_root == &automation_view_for_session())
 					    && automation_view_for_session().inAutomationEditor()) {
-
+						auto* const source_menu = source_ui == &sound_editor_for_session()
+						                              ? sound_editor_for_session().getCurrentMenuItem()
+						                              : nullptr;
 						automation_view_for_session().displayAutomation();
-
-						if (getCurrentUI() == &sound_editor_for_session()) {
-							sound_editor_for_session().getCurrentMenuItem()->readValueAgain();
+						if (source_menu && !deluge::hid::mirror::is_client()
+						    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui
+						    && getRootUI() == source_root
+						    && sound_editor_for_session().getCurrentMenuItem() == source_menu) {
+							source_menu->readValueAgain();
 						}
 					}
-
 					else {
 						view_for_session().displayAutomation();
 					}
 					break;
+				}
 
 				case TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
 					// midi follow and midi feedback enabled

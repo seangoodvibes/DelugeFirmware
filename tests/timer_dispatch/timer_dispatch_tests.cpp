@@ -14,10 +14,13 @@ int uartGetTxBufferSpace(int) {
 	return 1000;
 }
 std::function<ActionResult()> on_timer, on_exit;
-std::function<void()> on_graphics, on_input;
+std::function<void()> on_graphics, on_input, on_automation;
+int menu_reads = 0, automation_calls = 0;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
 int root_note_calls = 0;
 struct UI {
+	bool automation_editor = false;
+	UI* menu = this;
 	virtual ~UI() = default;
 	virtual ActionResult timerCallback() { return on_timer ? on_timer() : ActionResult::DEALT_WITH; }
 	virtual ActionResult exitUI() {
@@ -39,19 +42,23 @@ struct UI {
 	void blinkPadSelectionShortcut() {}
 	void blinkSelectedNoteRow() {}
 	void gridPulseSelectedClip() {}
-	bool inAutomationEditor() { return false; }
-	void displayAutomation() {}
-	UI* getCurrentMenuItem() { return this; }
-	void readValueAgain() {}
+	bool inAutomationEditor() { return automation_editor; }
+	void displayAutomation() {
+		++automation_calls;
+		if (on_automation)
+			on_automation();
+	}
+	UI* getCurrentMenuItem() { return menu; }
+	void readValueAgain() { ++menu_reads; }
 	void sendMidiFollowFeedback(void*, int, bool) {}
 };
 UI view, keyboard, clip_view, automation, editor, song_view;
-session::State<UI*> current_uis;
+session::State<UI*> current_uis, root_uis;
 UI* getCurrentUI() {
 	return current_uis.active();
 }
 UI* getRootUI() {
-	return getCurrentUI();
+	return root_uis.active() ? root_uis.active() : getCurrentUI();
 }
 UI& view_for_session() {
 	return view;
@@ -140,13 +147,21 @@ TEST_GROUP(TimerDispatch) {
 		current_uis.for_owner(session::Id::Remote) = &ui;
 		console_calls = graphics_calls = exit_calls = hardware_calls = 0;
 		on_timer = on_exit = {};
-		on_graphics = on_input = {};
+		on_graphics = on_input = on_automation = {};
+		root_uis = {};
+		menu_reads = automation_calls = 0;
+		automation.automation_editor = false;
+		editor.menu = &editor;
 		deluge::hid::mirror::client = false;
 		AudioEngine::audioSampleTimer = 1000;
 	}
 	void teardown() override {
 		on_timer = on_exit = {};
-		on_graphics = on_input = {};
+		on_graphics = on_input = on_automation = {};
+		root_uis = {};
+		menu_reads = automation_calls = 0;
+		automation.automation_editor = false;
+		editor.menu = &editor;
 		session::detail::active = session::Id::Local;
 	}
 	void due(TimerName name) {
@@ -476,6 +491,48 @@ TEST(TimerDispatch, client_takeover_during_input_defers_remaining_timers) {
 	LONGS_EQUAL(1, graphics_calls);
 	LONGS_EQUAL(1, console_calls);
 }
+
+TEST(TimerDispatch, automation_refresh_does_not_read_menu_after_context_changes) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int scenario = 0; scenario < 4; ++scenario) {
+			UITimerManager timers;
+			UI replacement;
+			current_uis.active() = &editor;
+			root_uis.active() = &automation;
+			automation.automation_editor = true;
+			editor.menu = &editor;
+			deluge::hid::mirror::client = false;
+			on_automation = [&] {
+				if (scenario == 0)
+					session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+				if (scenario == 1)
+					root_uis.active() = &replacement;
+				if (scenario == 2)
+					editor.menu = &replacement;
+				if (scenario == 3)
+					deluge::hid::mirror::client = true;
+			};
+			timers.setTimerSamples(TimerName::DISPLAY_AUTOMATION, -1);
+			timers.routine();
+			CHECK(session::current() == owner);
+			LONGS_EQUAL(0, menu_reads);
+		}
+	}
+}
+TEST(TimerDispatch, automation_refresh_reads_unchanged_menu_and_skips_missing_menu) {
+	current_uis.active() = &editor;
+	root_uis.active() = &automation;
+	automation.automation_editor = true;
+	due(TimerName::DISPLAY_AUTOMATION);
+	manager.routine();
+	LONGS_EQUAL(1, menu_reads);
+	editor.menu = nullptr;
+	due(TimerName::DISPLAY_AUTOMATION);
+	manager.routine();
+	LONGS_EQUAL(1, menu_reads);
+}
+
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
 }
