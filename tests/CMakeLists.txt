@@ -30,3 +30,6 @@ add_subdirectory(integration/parameters/lifecycle)
 add_subdirectory(instrument_clone)
 
 add_subdirectory(undo)
+
+add_subdirectory(clip_repeat)
+add_subdirectory(arrangement_clone)
