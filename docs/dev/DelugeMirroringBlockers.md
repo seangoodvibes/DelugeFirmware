@@ -3124,3 +3124,14 @@ Three cases failed before the fix. All 37 suites and the RelWithDebInfo build pa
 This covers the shared dispatch boundary, not handler-internal object ownership,
 same-UI navigation revisions or nested cancellation propagation. G1/L1 remain open;
 independent mode remains disabled.
+
+Button dispatch now retains song/panel/UI context, rejects invalidated UI results
+before playback fallback or card retries, and validates playback/recording callbacks
+before consuming record holds. Popup cancellation cannot redirect the original
+button into a replacement UI. Missing/retired/client contexts still record release
+edges without dispatching actions. Nine ButtonDispatch regressions compile the real
+function with callback doubles; four reproduced failures before the fix. Both
+panels, normal playback/recording, no-song menus and retry behavior are covered.
+All 38 suites and the RelWithDebInfo build pass. Handler internals, same-UI retargeting
+and nested cancellation remain outside this boundary fix. G1/L1 remain open and
+independent mode stays disabled.

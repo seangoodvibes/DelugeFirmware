@@ -50,3 +50,5 @@ add_subdirectory(context_menu)
 add_subdirectory(timer_dispatch)
 
 add_subdirectory(encoder_dispatch)
+
+add_subdirectory(button_dispatch)

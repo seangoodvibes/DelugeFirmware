@@ -26,8 +26,10 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/led/indicator_leds.h"
+#include "hid/mirror.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -47,10 +49,24 @@ State& state() {
 ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* const source_ui = getCurrentUI();
+	const auto context_valid = [&] {
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && source_ui && getCurrentUI() == source_ui
+		       && !deluge::hid::mirror::is_client();
+	};
+
 	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this
 	// function, and don't want to then be setting this after that later action, erasing what it set
 	auto xy = deluge::hid::button::toXY(b);
 	state().buttonStates[xy.x][xy.y] = on;
+	// Always record releases, even when navigation or the song is retiring.
+	if (!context_valid())
+		return ActionResult::DEALT_WITH;
 
 // This is a debug feature that allows us to output SYSEX debug logging button presses
 // See contributing.md for more information
@@ -81,6 +97,8 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (b == AFFECT_ENTIRE) {
 		if (on) {
 			display->cancelPopup();
+			if (!context_valid())
+				return ActionResult::DEALT_WITH;
 		}
 		if (on && isShiftButtonPressed() && isButtonPressed(LEARN)) {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
@@ -110,7 +128,9 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
+	result = source_ui->buttonAction(b, on, inCardRoutine);
+	if (!context_valid())
+		return ActionResult::DEALT_WITH;
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -134,6 +154,8 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 
 				// if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+				if (!context_valid())
+					return ActionResult::DEALT_WITH;
 
 				// Begin output-recording simultaneously with playback
 				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !state().recordButtonPressUsedUp) {
@@ -141,6 +163,8 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 				}
 			}
 
+			if (!context_valid())
+				return ActionResult::DEALT_WITH;
 			state().recordButtonPressUsedUp = true;
 		}
 	}
@@ -159,6 +183,8 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			if (audio_recorder_for_session().recordingSource == AudioInputChannel::NONE) {
 				if (isShiftButtonPressed()) {
 					audio_recorder_for_session().beginOutputRecording();
+					if (!context_valid())
+						return ActionResult::DEALT_WITH;
 					state().recordButtonPressUsedUp = true;
 				}
 			}
