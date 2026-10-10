@@ -54,10 +54,19 @@ struct Song {
 };
 Song song;
 Song* currentSong = &song;
-std::function<ActionResult()> on_button;
+std::function<ActionResult()> on_button, on_pad;
+int pad_calls = 0;
+struct {
+	bool processStarted = false;
+} stemExport;
+constexpr int kDisplayWidth = 16, kSideBarWidth = 2, kDisplayHeight = 8;
 std::function<void()> on_play, on_record, on_popup;
 int button_calls = 0, play_calls = 0, record_calls = 0, mod_calls = 0;
 struct UI {
+	ActionResult padAction(int32_t, int32_t, int32_t) {
+		++pad_calls;
+		return on_pad ? on_pad() : ActionResult::DEALT_WITH;
+	}
 	ActionResult buttonAction(deluge::hid::Button, bool, bool) {
 		++button_calls;
 		return on_button ? on_button() : ActionResult::NOT_DEALT_WITH;
@@ -153,26 +162,40 @@ void commandToggleShift(bool) {
 }
 #include "button_dispatch.inc"
 } // namespace Buttons
-TEST_GROUP(ButtonDispatch){void setup() override{session::detail::active = session::Id::Local;
-for (auto owner : {session::Id::Local, session::Id::Remote}) {
-	current_uis.for_owner(owner) = &ui;
-	Buttons::states.for_owner(owner) = {};
-	recorders.for_owner(owner) = {};
-}
-on_button = {};
-on_play = on_record = on_popup = {};
-button_calls = play_calls = record_calls = mod_calls = 0;
-currentSong = &song;
-deluge::hid::mirror::client = false;
-}
-void teardown() override {
-	on_button = {};
-	on_play = on_record = on_popup = {};
-	currentSong = &song;
-	session::detail::active = session::Id::Local;
-}
-}
-;
+class MatrixDriver {
+public:
+	struct State {
+		bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight]{};
+	};
+	session::State<State> states_;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	bool isPadPressed(int32_t x, int32_t y);
+};
+#include "pad_dispatch.inc"
+// clang-format off
+TEST_GROUP(ButtonDispatch) {
+	void setup() override {
+		session::detail::active = session::Id::Local;
+		for (auto owner : {session::Id::Local, session::Id::Remote}) {
+			current_uis.for_owner(owner) = &ui;
+			Buttons::states.for_owner(owner) = {};
+			recorders.for_owner(owner) = {};
+		}
+		on_button = on_pad = {};
+		on_play = on_record = on_popup = {};
+		button_calls = play_calls = record_calls = mod_calls = pad_calls = 0;
+		stemExport.processStarted = false;
+		currentSong = &song;
+		deluge::hid::mirror::client = false;
+	}
+	void teardown() override {
+		on_button = on_pad = {};
+		on_play = on_record = on_popup = {};
+		currentSong = &song;
+		session::detail::active = session::Id::Local;
+	}
+};
+// clang-format on
 
 TEST(ButtonDispatch, invalidated_ui_callback_cannot_start_playback_or_retry) {
 	for (auto owner : {session::Id::Local, session::Id::Remote}) {
@@ -302,4 +325,74 @@ TEST(ButtonDispatch, play_recording_callback_song_reuse_does_not_consume_hold) {
 
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
+}
+
+TEST(ButtonDispatch, pad_retry_is_cancelled_when_callback_invalidates_context) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int invalidation = 0; invalidation < 4; ++invalidation) {
+			MatrixDriver matrix;
+			current_uis.active() = &ui;
+			deluge::hid::mirror::client = false;
+			on_pad = [=] {
+				if (invalidation == 0) {
+					song.~Song();
+					new (&song) Song;
+				}
+				else if (invalidation == 1)
+					current_uis.active() = &replacement_ui;
+				else if (invalidation == 2)
+					deluge::hid::mirror::client = true;
+				else
+					session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			};
+			CHECK(matrix.padAction(0, 0, 100) == ActionResult::DEALT_WITH);
+			CHECK(session::current() == owner);
+			CHECK(matrix.isPadPressed(0, 0));
+			const auto peer = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+			CHECK_FALSE(matrix.states_.for_owner(peer).padStates[0][0]);
+		}
+	}
+}
+
+TEST(ButtonDispatch, invalid_pad_context_records_release_without_invoking_ui) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int invalidation = 0; invalidation < 3; ++invalidation) {
+			MatrixDriver matrix;
+			matrix.states_.active().padStates[0][0] = true;
+			Song retired_song;
+			retired_song.lifetime.retire();
+			currentSong = invalidation == 0 ? &retired_song : &song;
+			current_uis.active() = invalidation == 1 ? nullptr : &ui;
+			deluge::hid::mirror::client = invalidation == 2;
+			CHECK(matrix.padAction(0, 0, 0) == ActionResult::DEALT_WITH);
+			CHECK_FALSE(matrix.isPadPressed(0, 0));
+			LONGS_EQUAL(0, pad_calls);
+		}
+	}
+}
+
+TEST(ButtonDispatch, valid_pad_retry_and_no_song_context_are_preserved) {
+	MatrixDriver matrix;
+	currentSong = nullptr;
+	on_pad = [] { return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; };
+	CHECK(matrix.padAction(0, 0, 100) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE);
+	CHECK(matrix.isPadPressed(0, 0));
+	on_pad = {};
+	CHECK(matrix.padAction(0, 0, 0) == ActionResult::DEALT_WITH);
+	CHECK_FALSE(matrix.isPadPressed(0, 0));
+}
+
+TEST(ButtonDispatch, invalid_pad_coordinates_and_stem_export_do_not_dispatch) {
+	MatrixDriver matrix;
+	for (auto x : {-1, kDisplayWidth + kSideBarWidth})
+		CHECK(matrix.padAction(x, 0, 100) == ActionResult::DEALT_WITH);
+	for (auto y : {-1, kDisplayHeight})
+		CHECK(matrix.padAction(0, y, 100) == ActionResult::DEALT_WITH);
+	stemExport.processStarted = true;
+	CHECK(matrix.padAction(0, 0, 100) == ActionResult::DEALT_WITH);
+	CHECK_FALSE(matrix.isPadPressed(0, 0));
+	LONGS_EQUAL(0, pad_calls);
 }

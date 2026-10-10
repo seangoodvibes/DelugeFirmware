@@ -31,6 +31,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "hid/mirror.h"
 #include "io/debug/log.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -75,16 +76,26 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* const source_ui = getCurrentUI();
+	const auto context_valid = [&] {
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && source_ui && getCurrentUI() == source_ui
+		       && !deluge::hid::mirror::is_client();
+	};
+
 	states_.active().padStates[x][y] = velocity;
+	if (!context_valid())
+		return ActionResult::DEALT_WITH;
+
 #if ENABLE_MATRIX_DEBUG
 	D_PRINT("UI=%s,PAD_X=%d,PAD_Y=%d,VEL=%d", getCurrentUI()->getUIName(), x, y, velocity);
 #endif
-	auto ui = getCurrentUI();
-	if (ui == nullptr) {
-		return ActionResult::DEALT_WITH; // only happens when booting
-	}
-	ActionResult result = getCurrentUI()->padAction(x, y, velocity);
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+	ActionResult result = source_ui->padAction(x, y, velocity);
+	if (context_valid() && result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	return ActionResult::DEALT_WITH;

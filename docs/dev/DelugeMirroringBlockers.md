@@ -3156,3 +3156,13 @@ retired entry and no-song success. Six failed before the fix. All 38 suites and 
 RelWithDebInfo build pass. Already-transmitted pixels cannot be rolled back; these
 checks do not pin UI/model targets inside callbacks or close recovery/hardware
 gates. Independent mode stays disabled.
+
+Pad dispatch now validates its song/UI/panel before invoking a handler or returning
+an SD retry, restores the caller's panel, and still records releases for invalid
+contexts. Four regressions extend ButtonDispatch with extracted production pad
+handling/pressed-state lookup, covering same-address reuse, navigation/owner/client
+changes, retired entry, no-song retry, bounds and stem-export behavior. Two failed
+before the fix. All 38 suites and the RelWithDebInfo build pass. Multi-control
+release sweeps and the outer physical-input continuation still need auditing;
+this is single-event cancellation, not complete held-input recovery. Independent
+mode stays disabled.

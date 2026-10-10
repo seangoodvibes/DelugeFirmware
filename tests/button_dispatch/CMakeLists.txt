@@ -10,3 +10,10 @@ target_include_directories(ButtonDispatchTests PRIVATE ${CMAKE_CURRENT_BINARY_DI
 target_compile_definitions(ButtonDispatchTests PRIVATE CPPUTEST_MEM_LEAK_DETECTION_DISABLED)
 target_link_libraries(ButtonDispatchTests PRIVATE CppUTest)
 add_test(NAME ButtonDispatchTests COMMAND ButtonDispatchTests)
+
+set(matrix_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/hid/matrix/matrix_driver.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pad_dispatch.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${matrix_source} ${CMAKE_CURRENT_BINARY_DIR}/pad_dispatch.inc MatrixDriver::padAction MatrixDriver::isPadPressed
+    DEPENDS ${matrix_source} ../support/extract_functions.py VERBATIM)
+target_sources(ButtonDispatchTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/pad_dispatch.inc)
