@@ -1,9 +1,12 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/ui_session.h"
 #include "util/finally.h"
 #include "util/lifetime.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <memory>
 #include <new>
 #include <string>
 #include <vector>
@@ -18,10 +21,18 @@ enum class SampleRepeatMode { ONCE, CUT, LOOP };
 constexpr int32_t MIDI_NOTE_ERROR = -1;
 int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
+constexpr int CLUSTER_ENQUEUE = 0;
+std::function<void()> on_assignment, on_reserve, on_kill, on_audio;
+int audio_calls = 0;
+struct Lifetime {
+	deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
+};
 void uartPrintlnFloat(float) {
 }
 namespace deluge {
 namespace lifetime = ::deluge::lifetime;
+namespace gui = ::deluge::gui;
 namespace l10n {
 enum class String { STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT };
 String get(String value) {
@@ -40,10 +51,7 @@ int sidechains = 0, row_assignments = 0, edits = 0, exits = 0, redraws = 0, tabl
 void* sample_table = nullptr;
 struct String {
 	std::string value = "sample.wav";
-	Error set(const String* other) {
-		value = other->value;
-		return Error::NONE;
-	}
+	void set(const String* other) { value = other->value; }
 	Error set(const char* text) {
 		value = text;
 		return Error::NONE;
@@ -69,7 +77,12 @@ struct AudioFileHolder {
 		if (sample)
 			sample->removeReason("fixture");
 	}
-	bool setAudioFile(Sample* replacement, bool = false, bool = false) {
+	bool setAudioFile(Sample* replacement, bool = false, bool = false, int32_t = CLUSTER_ENQUEUE,
+	                  const ::deluge::lifetime::callback_validation* validation = nullptr) {
+		if (on_assignment)
+			on_assignment();
+		if (validation && !validation->valid())
+			return false;
 		if (++assignment_calls == fail_assignment)
 			return false;
 		if (sample)
@@ -86,26 +99,52 @@ struct MultiRange {
 	AudioFileHolder* getAudioFileHolder() { return &sampleHolder; }
 };
 using MultisampleRange = MultiRange;
-struct Source {
-	struct RangeArray {
-		MultiRange entries[4];
-		int32_t count = 1;
-		int32_t getNumElements() { return count; }
-		int32_t element_size() { return sizeof(MultisampleRange); }
-		bool ensureEnoughSpaceAllocated(int32_t) { return reserve_success; }
-		MultiRange* getElement(int32_t index) { return &entries[index]; }
-		MultiRange* insertMultiRange(int32_t index) {
-			++count;
-			return &entries[index];
-		}
-	} ranges;
-	MultiRange& range = ranges.entries[0];
+struct MultiRangeArray {
+	MultiRange* entries = nullptr;
+	int32_t count = 0;
+	uint32_t revision = 0;
+	~MultiRangeArray() { std::free(entries); }
+	int32_t getNumElements() const { return count; }
+	uint32_t layout_revision() const { return revision; }
+	int32_t element_size() const { return sizeof(MultisampleRange); }
+	bool ensureEnoughSpaceAllocated(int32_t) {
+		if (on_reserve)
+			on_reserve();
+		if (!reserve_success)
+			return false;
+		if (!entries)
+			entries = static_cast<MultiRange*>(std::malloc(4 * sizeof(MultiRange)));
+		return entries != nullptr;
+	}
+	MultiRange* getElement(int32_t index) { return &entries[index]; }
+	MultiRange* insertMultiRange(int32_t index) {
+		if (!entries)
+			entries = static_cast<MultiRange*>(std::malloc(4 * sizeof(MultiRange)));
+		++count;
+		++revision;
+		return new (&entries[index]) MultiRange;
+	}
+	void swapStateWith(MultiRangeArray* other) {
+		std::swap(entries, other->entries);
+		std::swap(count, other->count);
+		++revision;
+		++other->revision;
+	}
+};
+struct Source : Lifetime {
+	MultiRangeArray ranges;
+	Source() { ranges.insertMultiRange(0); }
+	~Source() {
+		for (int32_t index = 0; index < ranges.count; ++index)
+			ranges.getElement(index)->~MultiRange();
+	}
 	OscType oscType = OscType::SAMPLE;
+	int defaultRangeI = 0;
 	SampleRepeatMode repeatMode = SampleRepeatMode::CUT;
 	struct {
 		bool isCurrentlyReversed() const { return false; }
 	} sampleControls;
-	MultiRange* getOrCreateFirstRange() { return ++range_calls == fail_range ? nullptr : &range; }
+	MultiRange* getOrCreateFirstRange() { return ++range_calls == fail_range ? nullptr : ranges.getElement(0); }
 	void setOscType(OscType type) { oscType = type; }
 };
 struct ParamSet {
@@ -121,9 +160,15 @@ struct ParamManagerForTimeline {
 	Error setupWithPatching() { return ++parameter_calls == fail_parameter ? Error::INSUFFICIENT_RAM : Error::NONE; }
 	ParamCollectionSummary* getPatchedParamSetSummary() { return &summary; }
 };
-struct Sound {
+struct Sound : Lifetime {
 	Source sources[1];
-	void killAllVoices() {}
+	bool active_voices = false;
+	bool hasActiveVoices() const { return active_voices; }
+	auto watch_sound_lifetime() { return watch_lifetime(); }
+	void killAllVoices() {
+		if (on_kill)
+			on_kill();
+	}
 	bool try_delete_multi_range(int32_t index, int32_t, const deluge::lifetime::callback_validation* validation) {
 		if (!validation->valid())
 			return false;
@@ -146,7 +191,7 @@ struct Kit {
 	void resetDrumTempValues() {}
 };
 Kit* active_kit = nullptr;
-struct Song {
+struct Song : Lifetime {
 	void backUpParamManager(SoundDrum*, void*, ParamManagerForTimeline*, bool) {}
 } song;
 auto* currentSong = &song;
@@ -174,6 +219,9 @@ constexpr int LOCAL_OSC_A_VOLUME = 0;
 namespace AudioEngine {
 bool audioRoutineLocked = false;
 void routineWithClusterLoading() {
+	++audio_calls;
+	if (on_audio)
+		on_audio();
 }
 void stopAnyPreviewing() {
 }
@@ -259,6 +307,7 @@ struct SampleBrowser {
 using namespace kit_sample_import_test;
 TEST_GROUP(KitSampleImport) {
 	Sample samples[3];
+	Sample original_sample;
 	SoundDrum first_drum;
 	Kit kit;
 	SampleBrowser browser;
@@ -269,6 +318,9 @@ TEST_GROUP(KitSampleImport) {
 		sample_table = nullptr;
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
+		on_assignment = on_reserve = on_kill = on_audio = {};
+		audio_calls = 0;
+		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
 		for (int32_t index = 0; index < 3; ++index)
 			samples[index].midiNote = 60 + index;
@@ -279,6 +331,9 @@ TEST_GROUP(KitSampleImport) {
 		editor.currentSource = &first_drum.sources[0];
 	}
 	void teardown() override {
+		on_assignment = on_reserve = on_kill = on_audio = {};
+		audio_calls = 0;
+		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
 			drum->~SoundDrum();
 			std::free(drum);
@@ -370,12 +425,12 @@ TEST(KitSampleImport, multisample_assignment_cancellation_stops_range_publicatio
 	for (auto& sample : samples)
 		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
 }
-TEST(KitSampleImport, later_multisample_cancellation_preserves_completed_range_reference) {
+TEST(KitSampleImport, later_multisample_cancellation_discards_detached_ranges) {
 	fail_assignment = 2;
 	CHECK_FALSE(browser.importFolderAsMultisamples());
 	LONGS_EQUAL(2, assignment_calls);
 	LONGS_EQUAL(1, transpose_calls);
-	LONGS_EQUAL(1, samples[0].numReasonsToBeLoaded);
+	LONGS_EQUAL(0, samples[0].numReasonsToBeLoaded);
 	LONGS_EQUAL(0, samples[1].numReasonsToBeLoaded);
 	LONGS_EQUAL(0, samples[2].numReasonsToBeLoaded);
 	LONGS_EQUAL(1, table_frees);
@@ -418,4 +473,100 @@ TEST(KitSampleImport, successful_multisample_import_publishes_completed_ranges) 
 	LONGS_EQUAL(1, audio_publications);
 	LONGS_EQUAL(1, edits);
 	LONGS_EQUAL(1, exits);
+}
+
+TEST(KitSampleImport, multisample_reservation_failure_preserves_original_mapping) {
+	auto& ranges = first_drum.sources[0].ranges;
+	ranges.insertMultiRange(1)->topNote = 96;
+	auto* original = ranges.getElement(1);
+	reserve_success = false;
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(2, ranges.getNumElements());
+	CHECK(original == ranges.getElement(1));
+	LONGS_EQUAL(96, original->topNote);
+}
+TEST(KitSampleImport, multisample_assignment_failure_preserves_original_mapping_and_type) {
+	auto& source = first_drum.sources[0];
+	source.oscType = OscType::OTHER;
+	source.ranges.getElement(0)->topNote = 90;
+	auto* original = source.ranges.getElement(0);
+	fail_assignment = 2;
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	CHECK_TRUE(source.oscType == OscType::OTHER);
+	CHECK(original == source.ranges.getElement(0));
+	LONGS_EQUAL(90, original->topNote);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, multisample_source_retirement_during_assignment_cancels_commit) {
+	on_assignment = [&] { first_drum.sources[0].lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(1, first_drum.sources[0].ranges.getNumElements());
+	LONGS_EQUAL(0, audio_publications);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, multisample_owner_destruction_during_reservation_cleans_only_detached_resources) {
+	auto owner = std::make_unique<SoundDrum>();
+	editor.currentSound = owner.get();
+	editor.currentSource = &owner->sources[0];
+	on_reserve = [&] { owner.reset(); };
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(1, table_frees);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, multisample_nested_voices_cancel_commit_and_preserve_original_ranges) {
+	auto* original = first_drum.sources[0].ranges.getElement(0);
+	on_kill = [&] { first_drum.active_voices = true; };
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	CHECK(original == first_drum.sources[0].ranges.getElement(0));
+	LONGS_EQUAL(0, audio_publications);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, multisample_commit_preserves_caller_audio_lock) {
+	AudioEngine::audioRoutineLocked = true;
+	CHECK_TRUE(browser.importFolderAsMultisamples());
+	CHECK_TRUE(AudioEngine::audioRoutineLocked);
+}
+
+TEST(KitSampleImport, multisample_owner_destruction_during_retired_range_cleanup_stops_ui_publication) {
+	auto owner = std::make_unique<SoundDrum>();
+	editor.currentSound = owner.get();
+	editor.currentSource = &owner->sources[0];
+	on_audio = [&] {
+		if (audio_calls == 2)
+			owner.reset();
+	};
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	CHECK(owner == nullptr);
+	LONGS_EQUAL(0, audio_publications);
+	LONGS_EQUAL(0, edits);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+
+TEST(KitSampleImport, failed_multisample_replacement_preserves_original_sample_reference) {
+	original_sample.numReasonsToBeLoaded = 0;
+	auto* original_range = first_drum.sources[0].ranges.getElement(0);
+	CHECK_TRUE(original_range->sampleHolder.setAudioFile(&original_sample));
+	assignment_calls = 0;
+	fail_assignment = 2;
+	CHECK_FALSE(browser.importFolderAsMultisamples());
+	CHECK(original_range == first_drum.sources[0].ranges.getElement(0));
+	CHECK(original_range->sampleHolder.sample == &original_sample);
+	LONGS_EQUAL(1, original_sample.numReasonsToBeLoaded);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, completed_multisample_replacement_releases_original_sample_reference_once) {
+	original_sample.numReasonsToBeLoaded = 0;
+	CHECK_TRUE(first_drum.sources[0].ranges.getElement(0)->sampleHolder.setAudioFile(&original_sample));
+	assignment_calls = 0;
+	CHECK_TRUE(browser.importFolderAsMultisamples());
+	LONGS_EQUAL(0, original_sample.numReasonsToBeLoaded);
+	for (auto& sample : samples)
+		LONGS_EQUAL(1, sample.numReasonsToBeLoaded);
 }

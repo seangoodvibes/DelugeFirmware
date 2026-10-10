@@ -1697,9 +1697,42 @@ static auto release_multisample_import_samples_on_exit(Sample** samples, int32_t
 
 bool SampleBrowser::importFolderAsMultisamples() {
 
+	auto* selected_sound = sound_editor_for_session().currentSound;
+	auto* selected_source = sound_editor_for_session().currentSource;
+	if (!selected_sound || !selected_source)
+		return false;
+	auto sound_lifetime = selected_sound->watch_sound_lifetime();
+	auto source_lifetime = selected_source->watch_lifetime();
+	if (!sound_lifetime.alive() || !source_lifetime.alive())
+		return false;
+	const auto source_index = sound_editor_for_session().currentSourceIndex;
+	auto expected_layout = selected_source->ranges.layout_revision();
+	auto expected_type = selected_source->oscType;
+	const bool reversed = selected_source->sampleControls.isCurrentlyReversed();
+	auto* source_ui = getCurrentUI();
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return sound_lifetime.alive() && source_lifetime.alive() && (!source_song || song_lifetime.alive())
+		       && currentSong == source_song && deluge::gui::ui_session::current() == source_owner
+		       && getCurrentUI() == source_ui && sound_editor_for_session().currentSound == selected_sound
+		       && sound_editor_for_session().currentSource == selected_source
+		       && sound_editor_for_session().currentSourceIndex == source_index
+		       && selected_source->ranges.layout_revision() == expected_layout
+		       && selected_source->oscType == expected_type
+		       && selected_source->sampleControls.isCurrentlyReversed() == reversed;
+	};
+	deluge::lifetime::callback_validation validation(context_valid);
+
 	AudioEngine::stopAnyPreviewing();
+	if (!context_valid())
+		return false;
 
 	display->displayLoadingAnimationText("Working");
+	if (!context_valid())
+		return false;
 
 	int32_t numSamples;
 	bool doingSingleCycle;
@@ -1707,52 +1740,34 @@ bool SampleBrowser::importFolderAsMultisamples() {
 
 	bool success = loadAllSamplesInFolder(true, &numSamples, &sortArea, &doingSingleCycle);
 	if (!success) {
-doReturnFalse:
 		display->removeWorkingAnimation();
 		return false;
 	}
 
-	D_PRINTLN("loaded and sorted samples");
+	auto sample_cleanup = release_multisample_import_samples_on_exit(sortArea, numSamples);
+	if (!context_valid())
+		return false;
 
-	AudioEngine::routineWithClusterLoading();
-
-	// Delete all but first pre-existing range. Stop if voice cleanup changes the editor's target.
-	auto* selected_sound = sound_editor_for_session().currentSound;
-	auto* selected_source = sound_editor_for_session().currentSource;
-	const auto source_index = sound_editor_for_session().currentSourceIndex;
-	auto* source_ui = getCurrentUI();
-	const auto selection_valid = [&] {
-		return getCurrentUI() == source_ui && sound_editor_for_session().currentSound == selected_sound
-		       && sound_editor_for_session().currentSource == selected_source
-		       && sound_editor_for_session().currentSourceIndex == source_index;
+	// Build detached ranges first. Neither reservation nor failed assignment may discard the original mapping.
+	MultiRangeArray replacement_ranges;
+	int32_t cleanup_index = 0;
+	const auto clean_ranges = [&] {
+		for (; cleanup_index < replacement_ranges.getNumElements(); ++cleanup_index) {
+			AudioEngine::routineWithClusterLoading();
+			replacement_ranges.getElement(cleanup_index)->~MultiRange();
+		}
 	};
-	deluge::lifetime::callback_validation validation(selection_valid);
-	int32_t oldNumRanges = selected_source->ranges.getNumElements();
-	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
-		if (!selected_sound->try_delete_multi_range(source_index, i, &validation)) {
-			release_multisample_import_samples(sortArea, numSamples);
-			return false;
-		}
-	}
-
-	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory
-	// it's going to use
-	if (numSamples > 1) {
-		sound_editor_for_session().currentSound->killAllVoices();
-		AudioEngine::audioRoutineLocked = true;
-		bool success = sound_editor_for_session().currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
-		AudioEngine::audioRoutineLocked = false;
-
-		if (!success) {
-			release_multisample_import_samples(sortArea, numSamples);
+	auto range_cleanup = util::finally(clean_ranges);
+	if (!replacement_ranges.ensureEnoughSpaceAllocated(numSamples)) {
+		if (context_valid()) {
 			display->displayError(Error::INSUFFICIENT_RAM);
-			goto doReturnFalse;
+			if (context_valid())
+				display->removeWorkingAnimation();
 		}
+		return false;
 	}
-
-	sound_editor_for_session().setCurrentMultiRange(0);
-
-	AudioEngine::audioRoutineLocked = false;
+	if (!context_valid())
+		return false;
 
 	// If we've ended up with some samples a whole octave higher than the others, this may be in error
 	int32_t whichSampleIsAnOctaveUp = 0;
@@ -1813,17 +1828,14 @@ skipOctaveCorrection:
 	int32_t numWithFileLoopPoints = 0;
 	int32_t numWithResultingLoopEndPoints = 0;
 
-	if (sound_editor_for_session().currentSource->oscType != OscType::SAMPLE) {
-		sound_editor_for_session().currentSound->killAllVoices();
-		sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
-	}
-
 	D_PRINTLN("creating ranges");
 
 	for (int32_t s = 0; s < numSamples; s++) {
 
 		if (!(s & 31)) {
 			AudioEngine::routineWithClusterLoading();
+			if (!context_valid())
+				return false;
 		}
 
 		Sample* thisSample = sortArea[s];
@@ -1848,30 +1860,18 @@ skipOctaveCorrection:
 			}
 		}
 
-		MultisampleRange* range;
-		if (rangeIndex == 0) {
-			range = (MultisampleRange*)sound_editor_for_session().currentMultiRange;
-		}
-		else {
-#if ALPHA_OR_BETA_VERSION
-			if (sound_editor_for_session().currentSource->ranges.element_size() != sizeof(MultisampleRange)) {
-				FREEZE_WITH_ERROR("E431");
-			}
-#endif
-			range = (MultisampleRange*)sound_editor_for_session().currentSource->ranges.insertMultiRange(
-			    rangeIndex); // We know it's gonna succeed
-		}
+		auto* range = static_cast<MultisampleRange*>(replacement_ranges.insertMultiRange(rangeIndex));
+		if (!context_valid() || !range)
+			return false;
 
 		D_PRINT("top note:  %d", topNote);
 
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		if (!range->sampleHolder.setAudioFile(
-		        thisSample, sound_editor_for_session().currentSource->sampleControls.isCurrentlyReversed(), true)) {
-			release_multisample_import_samples(sortArea, numSamples);
+		if (!range->sampleHolder.setAudioFile(thisSample, reversed, true, CLUSTER_ENQUEUE, &validation)
+		    || !context_valid())
 			return false;
-		}
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);
@@ -1894,18 +1894,41 @@ skipOctaveCorrection:
 	}
 
 	// Release skipped samples and the table even when no usable ranges were created.
+	sample_cleanup.disable();
 	release_multisample_import_samples(sortArea, numSamples);
 	numSamples = rangeIndex;
 
 	if (!numSamples) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
-		goto doReturnFalse;
+		if (context_valid())
+			display->removeWorkingAnimation();
+		return false;
 	}
 
 	D_PRINTLN("distinct ranges: %d", numSamples);
 
+	if (!context_valid())
+		return false;
+	selected_sound->killAllVoices();
+	if (!context_valid() || selected_sound->hasActiveVoices())
+		return false;
+	const bool was_audio_routine_locked = AudioEngine::audioRoutineLocked;
+	AudioEngine::audioRoutineLocked = true;
+	selected_source->ranges.swapStateWith(&replacement_ranges);
+	selected_source->setOscType(OscType::SAMPLE);
+	selected_source->defaultRangeI = 0;
+	expected_layout = selected_source->ranges.layout_revision();
+	expected_type = OscType::SAMPLE;
+	sound_editor_for_session().setCurrentMultiRange(0);
+	AudioEngine::audioRoutineLocked = was_audio_routine_locked;
+
+	clean_ranges();
+	if (!context_valid())
+		return false;
 	audioFileIsNowSet();
+	if (!context_valid())
+		return false;
 
 	int32_t averageMSec = totalMSec / numSamples;
 

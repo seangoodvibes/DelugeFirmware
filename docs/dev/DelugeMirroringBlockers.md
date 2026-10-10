@@ -3449,3 +3449,20 @@ previous implementation and verifies both resulting strides and element addresse
 Existing same-stride teardown and conversion callers retain their behavior. All
 38 suites and RelWithDebInfo pass; this is a prerequisite for detached replacement
 of a differently typed range table, not a complete import transaction by itself.
+
+Multisample import now constructs a detached replacement range table and swaps it
+into the Source only after every accepted sample is assigned and voice cleanup
+completes. Reservation, invalid pitches, assignment cancellation and pre-commit
+context changes discard staged ranges without deleting the original mapping.
+Sound/Source/song/panel/selection/layout/type/reversal validation reaches holder
+assignment; cleanup of retired ranges precedes final UI publication and is followed
+by revalidation. The caller's audio lock is preserved. Nine new import regressions
+cover original mapping/type/reference preservation, owner destruction, retirement,
+nested voices, post-swap cleanup cancellation and successful reference transfer;
+the reservation-preservation case fails against the previous whole function.
+All 38 suites and RelWithDebInfo pass. Peak memory includes a replacement range
+table alongside the original, but no duplicate audio buffers; insufficient memory
+now leaves the old table intact. This makes range-table publication transactional,
+not the entire import: pitch-detection metadata, inner folder-loading callbacks,
+post-commit parameter/UI work and working-animation ownership remain separate
+L1/R4/R5 concerns. Independent mode stays disabled.
