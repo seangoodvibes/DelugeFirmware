@@ -1076,9 +1076,10 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 
 		if (timelineCounter != clip)
 			return;
+		Error clone_error = Error::NONE;
 		const bool timeline_changed =
-		    timelineCounter->possiblyCloneForArrangementRecording(&modelStackWithTimelineCounter);
-		if (!context_matches())
+		    timelineCounter->possiblyCloneForArrangementRecording(&modelStackWithTimelineCounter, &clone_error);
+		if (clone_error != Error::NONE || !context_matches())
 			return;
 		if (timeline_changed)
 			clip = static_cast<Clip*>(modelStackWithTimelineCounter.getTimelineCounterAllowNull());

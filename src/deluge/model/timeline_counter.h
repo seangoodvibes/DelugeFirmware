@@ -39,7 +39,11 @@ public:
 	[[nodiscard]] virtual bool backtrackingCouldLoopBackToEnd() const = 0;
 	[[nodiscard]] virtual int32_t
 	getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const = 0;
-	virtual bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) {
+	// Returns whether the timeline changed. Optional error distinguishes failure from no clone needed.
+	virtual bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack,
+	                                                  Error* clone_error = nullptr) {
+		if (clone_error)
+			*clone_error = Error::NONE;
 		return false;
 	} // Returns whether any change.
 

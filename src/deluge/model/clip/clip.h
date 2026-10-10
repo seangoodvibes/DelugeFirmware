@@ -160,7 +160,8 @@ public:
 	[[nodiscard]] bool backtrackingCouldLoopBackToEnd() const override;
 	[[nodiscard]] int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const override;
 	[[nodiscard]] int32_t getLastProcessedPos() const override;
-	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) override;
+	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack,
+	                                          Error* clone_error = nullptr) override;
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
 	void expectEvent() override;

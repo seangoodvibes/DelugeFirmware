@@ -14,8 +14,11 @@ struct ModelStackWithTimelineCounter;
 static std::function<void(ModelStackWithTimelineCounter*)> on_clone;
 static int clone_calls = 0;
 static bool clone_result = false;
+static Error clone_error = Error::NONE;
 struct TimelineCounter {
-	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* model_stack) {
+	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* model_stack, Error* error = nullptr) {
+		if (error)
+			*error = clone_error;
 		++clone_calls;
 		if (on_clone)
 			on_clone(model_stack);
@@ -179,6 +182,7 @@ TEST_GROUP(MidiFeedbackSweep) {
 		on_clone = {};
 		clone_calls = 0;
 		clone_result = false;
+		clone_error = Error::NONE;
 		currentSong = &song;
 		current_clip = &clip;
 	}
@@ -362,4 +366,13 @@ TEST(MidiFeedbackSweep, incoming_cc_changed_refresh_context_suppresses_popup) {
 	receive();
 	LONGS_EQUAL(1, follow.parameter.writes);
 	LONGS_EQUAL(0, view_for_session().popup_calls);
+}
+
+TEST(MidiFeedbackSweep, failed_arrangement_clone_does_not_edit_original) {
+	clone_error = Error::INSUFFICIENT_RAM;
+	receive();
+	LONGS_EQUAL(1, clone_calls);
+	LONGS_EQUAL(0, follow.lookups);
+	LONGS_EQUAL(0, follow.parameter.writes);
+	POINTERS_EQUAL(&clip, stack.timeline.timeline);
 }

@@ -1098,7 +1098,16 @@ int32_t Clip::getMaxLength() {
 	return loopLength;
 }
 
-bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) {
+bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack, Error* clone_error) {
+	if (clone_error)
+		*clone_error = Error::NONE;
+	const auto fail = [clone_error](Error error) {
+		if (clone_error)
+			*clone_error = error;
+		return false;
+	};
+	if (!modelStack || !modelStack->song || !output)
+		return fail(Error::BUG);
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && playbackHandler.isEitherClockActive()
 	    && !isArrangementOnlyClip() && modelStack->song->isClipActive(this)) {
@@ -1110,7 +1119,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 		else {
 
 			if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-				return false;
+				return fail(Error::INSUFFICIENT_RAM);
 			}
 
 			// Find the ClipInstance which we expect to have already been created
@@ -1120,7 +1129,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			// If it can't be found (should be impossible), we'll just get out and leave everything the same, so at
 			// least nothing will crash
 			if (clipInstanceI < 0) {
-				return false;
+				return fail(Error::BUG);
 			}
 
 			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
@@ -1142,7 +1151,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 					Error error = output->clipInstances.insertAtIndex(clipInstanceI);
 					if (error != Error::NONE) {
-						return false;
+						return fail(error);
 					}
 
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
@@ -1153,7 +1162,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			Error error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
 			if (error != Error::NONE) {
-				return false;
+				return fail(error);
 			}
 
 			Clip* newClip = (Clip*)modelStack->getTimelineCounter();

@@ -581,3 +581,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc
         ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback MidiFollow::handleReceivedCC
     DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_feedback_sweep_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc)
+
+set(recording_clone_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recording_clone.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${recording_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/recording_clone.inc Clip::possiblyCloneForArrangementRecording
+    DEPENDS ${recording_clone_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE recording_clone_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/recording_clone.inc)

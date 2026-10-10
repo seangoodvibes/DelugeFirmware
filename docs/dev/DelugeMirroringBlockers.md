@@ -1892,3 +1892,16 @@ and unavailable Automation View targets under both panel owners. All 35 native
 suites, including diagnostics-on/off parameter lookup, and
 `./dbt build relwithdebinfo` pass. These are entry guards; dangling non-null
 objects and callback lifetime remain L1 concerns.
+
+### G1 / R5 progress — arrangement-clone failure reporting for learned CC (2026-10-10)
+
+`possiblyCloneForArrangementRecording` now offers an optional error result while
+preserving its existing boolean and default-argument callers. Allocation,
+missing-instance, insertion and clone failures are distinguishable from no clone
+needed. Learned CC handling consumes that result and does not edit the original
+when cloning fails. Five real-method fixture tests cover error propagation,
+unchanged targets, successful cloning/reuse and legacy calls; an additional CC
+test verifies failure stops parameter lookup/writes. All 35 native suites and
+`./dbt build relwithdebinfo` pass. Other callers still omit the error result, and
+partial instance edits before clone failure are not rolled back. R5 stays open;
+this is failure reporting and CC containment, not complete clone recovery.
