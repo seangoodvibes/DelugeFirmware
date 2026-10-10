@@ -1506,3 +1506,14 @@ that a mode lookup switching owners cannot redirect a modulation-button press.
 This distinguishes a restored owner scope from persistent context replacement;
 it does not prove object lifetime safety. All 35 native suites pass. Production
 code is unchanged from the preceding successful RelWithDebInfo build.
+
+### G1 / R4 progress — modulation LEDs with missing clip targets (2026-10-10)
+
+Modulation LED routing checks arranger row bounds, song/output/clip availability,
+and keyboard clip availability before reading automation state. Instrument affect
+state requires an actual instrument clip. Four extracted-production tests cover
+missing targets, invalid rows, mismatched clip types and shared clips with distinct
+per-panel automation/affect state across session, arranger and keyboard views.
+All 35 native suites and `./dbt build relwithdebinfo` pass. Model and hardware
+services are fixtures; these guards do not retain objects or prove device
+acceptance. Independent mode remains disabled.

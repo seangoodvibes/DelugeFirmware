@@ -1627,8 +1627,10 @@ void View::setModLedStates() {
 		// if you're in an instrument clip, get affectEntire status from clip class
 		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
 		// enabled
-		affectEntire =
-		    (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affect_entire_for_session() : true;
+		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP)
+		                   ? (clip && clip->type == ClipType::INSTRUMENT
+		                      && static_cast<InstrumentClip*>(clip)->affect_entire_for_session())
+		                   : true;
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
@@ -1661,20 +1663,19 @@ void View::setModLedStates() {
 			break;
 		}
 		case UIType::ARRANGER: {
-			Output* output = arranger_view_for_session().outputsOnScreen[arranger_view_for_session().yPressedEffective];
-
-			if (output) {
-				if (currentSong->getClipWithOutput(output)->on_automation_clip_view_for_session()) {
-					onAutomationClipView = true;
-				}
+			const auto source_row = arranger_view_for_session().yPressedEffective;
+			if (source_row >= 0 && source_row < kDisplayHeight && currentSong) {
+				auto* const source_output = arranger_view_for_session().outputsOnScreen[source_row];
+				auto* const source_clip = source_output ? currentSong->getClipWithOutput(source_output) : nullptr;
+				onAutomationClipView = source_clip && source_clip->on_automation_clip_view_for_session();
 			}
 			break;
 		}
-		case UIType::KEYBOARD_SCREEN:
-			if (getCurrentClip()->on_automation_clip_view_for_session()) {
-				onAutomationClipView = true;
-			}
+		case UIType::KEYBOARD_SCREEN: {
+			auto* const source_clip = getCurrentClip();
+			onAutomationClipView = source_clip && source_clip->on_automation_clip_view_for_session();
 			break;
+		}
 		case UIType::AUTOMATION:
 			onAutomationClipView = true;
 			break;

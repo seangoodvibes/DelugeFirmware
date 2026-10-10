@@ -517,3 +517,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/knob_indicator_batch.inc
         ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/knob_indicator_batch.inc View::setKnobIndicatorLevels View::setModRegion View::setActiveModControllableWithoutTimelineCounter View::setActiveModControllableTimelineCounter View::modEncoderButtonAction_changeModControllable View::modButtonAction
     DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/knob_indicator_batch.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mod_led.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/mod_led.inc View::setModLedStates
+    DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE mod_led_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/mod_led.inc)
