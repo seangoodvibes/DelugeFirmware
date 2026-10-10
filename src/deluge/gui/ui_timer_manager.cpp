@@ -189,7 +189,8 @@ void UITimerManager::routine() {
 					}
 					ActionResult result = source_ui->timerCallback();
 					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && song_context_valid()
-					    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui) {
+					    && !deluge::hid::mirror::is_client() && deluge::gui::ui_session::current() == owner
+					    && getCurrentUI() == source_ui) {
 						timer.active = true; // Come back soon and try again.
 					}
 					break;
@@ -201,7 +202,8 @@ void UITimerManager::routine() {
 					}
 					ActionResult result = source_ui->exitUI();
 					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && song_context_valid()
-					    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui) {
+					    && !deluge::hid::mirror::is_client() && deluge::gui::ui_session::current() == owner
+					    && getCurrentUI() == source_ui) {
 						timer.active = true;
 					}
 					break;
@@ -253,7 +255,9 @@ void UITimerManager::routine() {
 						// if so, send another automation feedback message
 						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent) >= sendRate) {
 							view_for_session().sendMidiFollowFeedback(nullptr, kNoSelection, true);
-							midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
+							if (song_context_valid() && !deluge::hid::mirror::is_client()
+							    && deluge::gui::ui_session::current() == owner)
+								midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
 						}
 					}
 					// if automation feedback was previously sent and now playback is stopped,
@@ -261,7 +265,9 @@ void UITimerManager::routine() {
 					// for automated params only
 					else if (midiFollow.timeAutomationFeedbackLastSent != 0) {
 						view_for_session().sendMidiFollowFeedback(nullptr, kNoSelection, true);
-						midiFollow.timeAutomationFeedbackLastSent = 0;
+						if (song_context_valid() && !deluge::hid::mirror::is_client()
+						    && deluge::gui::ui_session::current() == owner)
+							midiFollow.timeAutomationFeedbackLastSent = 0;
 					}
 					break;
 

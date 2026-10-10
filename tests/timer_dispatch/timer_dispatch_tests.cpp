@@ -22,7 +22,7 @@ int uartGetTxBufferSpace(int) {
 	return 1000;
 }
 std::function<ActionResult()> on_timer, on_exit;
-std::function<void()> on_graphics, on_input, on_automation, on_levels, on_menu_read;
+std::function<void()> on_graphics, on_input, on_automation, on_levels, on_menu_read, on_feedback;
 int menu_reads = 0, automation_calls = 0;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
 int root_note_calls = 0;
@@ -62,7 +62,10 @@ struct UI {
 		if (on_menu_read)
 			on_menu_read();
 	}
-	void sendMidiFollowFeedback(void*, int, bool) {}
+	void sendMidiFollowFeedback(void*, int, bool) {
+		if (on_feedback)
+			on_feedback();
+	}
 };
 struct View : UI {
 	bool pendingParamAutomationUpdatesModLevels = false;
@@ -124,7 +127,8 @@ inline uint32_t audioSampleTimer = 1000;
 }
 struct Playback {
 	void tapTempoAutoSwitchOff() {}
-	bool isEitherClockActive() { return false; }
+	bool clock_active = false;
+	bool isEitherClockActive() { return clock_active; }
 } playbackHandler;
 struct {
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
@@ -169,7 +173,7 @@ TEST_GROUP(TimerDispatch) {
 		current_uis.for_owner(session::Id::Remote) = &ui;
 		console_calls = graphics_calls = exit_calls = hardware_calls = 0;
 		on_timer = on_exit = {};
-		on_graphics = on_input = on_automation = on_levels = on_menu_read = {};
+		on_graphics = on_input = on_automation = on_levels = on_menu_read = on_feedback = {};
 		view.pendingParamAutomationUpdatesModLevels = false;
 		root_uis = {};
 		menu_reads = automation_calls = 0;
@@ -178,10 +182,13 @@ TEST_GROUP(TimerDispatch) {
 		deluge::hid::mirror::client = false;
 		AudioEngine::audioSampleTimer = 1000;
 		currentSong = &original_song;
+		playbackHandler.clock_active = false;
+		midiFollow.timeAutomationFeedbackLastSent = 0;
+		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	}
 	void teardown() override {
 		on_timer = on_exit = {};
-		on_graphics = on_input = on_automation = on_levels = on_menu_read = {};
+		on_graphics = on_input = on_automation = on_levels = on_menu_read = on_feedback = {};
 		view.pendingParamAutomationUpdatesModLevels = false;
 		root_uis = {};
 		menu_reads = automation_calls = 0;
@@ -794,4 +801,70 @@ TEST(TimerDispatch, graphics_invalidated_context_does_not_rearm_timer) {
 		}
 	}
 	deluge::hid::mirror::client = false;
+}
+
+TEST(TimerDispatch, client_takeover_cancels_ui_and_back_menu_retry) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (auto name : {TimerName::UI_SPECIFIC, TimerName::BACK_MENU_EXIT}) {
+			UITimerManager timers;
+			deluge::hid::mirror::client = false;
+			timers.setTimerSamples(name, -1);
+			on_timer = on_exit = [] {
+				deluge::hid::mirror::client = true;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			};
+			timers.routine();
+			CHECK_FALSE(timers.isTimerSet(name));
+		}
+	}
+	deluge::hid::mirror::client = false;
+}
+
+TEST(TimerDispatch, invalidated_feedback_callback_preserves_feedback_bookkeeping) {
+	const auto owner = session::Id::Local;
+	session::Scope scope(owner);
+	for (bool clock_active : {false, true}) {
+		for (int invalidation = 0; invalidation < 3; ++invalidation) {
+			UITimerManager timers;
+			currentSong = &original_song;
+			deluge::hid::mirror::client = false;
+			playbackHandler.clock_active = clock_active;
+			midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::LOW;
+			midiFollow.timeAutomationFeedbackLastSent = 1;
+			timers.setTimerSamples(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, -1);
+			on_feedback = [=] {
+				midiFollow.timeAutomationFeedbackLastSent = 42;
+				if (invalidation == 0) {
+					original_song.~Song();
+					new (&original_song) Song;
+				}
+				else if (invalidation == 1)
+					deluge::hid::mirror::client = true;
+				else
+					session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+			};
+			timers.routine();
+			LONGS_EQUAL(42, midiFollow.timeAutomationFeedbackLastSent);
+			CHECK(session::current() == owner);
+		}
+	}
+	deluge::hid::mirror::client = false;
+}
+
+TEST(TimerDispatch, valid_feedback_callback_updates_feedback_bookkeeping) {
+	const auto owner = session::Id::Local;
+	session::Scope scope(owner);
+	for (bool clock_active : {false, true}) {
+		UITimerManager timers;
+		playbackHandler.clock_active = clock_active;
+		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::LOW;
+		midiFollow.timeAutomationFeedbackLastSent = 1;
+		timers.setTimerSamples(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, -1);
+		int feedback_calls = 0;
+		on_feedback = [&] { ++feedback_calls; };
+		timers.routine();
+		LONGS_EQUAL(1, feedback_calls);
+		LONGS_EQUAL(clock_active ? AudioEngine::audioSampleTimer : 0, midiFollow.timeAutomationFeedbackLastSent);
+	}
 }

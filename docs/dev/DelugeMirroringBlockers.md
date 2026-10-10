@@ -3102,3 +3102,13 @@ panels, retired entry, preserved pending work and valid no-song service. All 36
 suites and the RelWithDebInfo build pass. This closes the whole timer-batch song
 cancellation gap; live-song child ownership, recovery and hardware acceptance
 remain open. Independent mode stays disabled.
+
+Timer callback continuation also rejects client takeover before rearming UI/back
+menu retries. Automation feedback only publishes its timestamp/reset while the
+initiating song and panel remain valid and client takeover has not started; a
+cancelled callback cannot overwrite replacement feedback state. Three regressions
+cover retry takeover on both panels, Local-owned feedback cancellation during
+playback/stopped service, and unchanged-context success. The new failure cases
+reproduced before the fix. All 36 suites and the RelWithDebInfo build pass. These
+checks cover timer continuation, not nested callback cancellation or cable/object
+lifetime within MIDI transmission. Independent mode remains disabled.
