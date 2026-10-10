@@ -2468,3 +2468,12 @@ doubles for detached deletion, clip/output address reuse, output deletion and
 retired entry. Existing bulk-edit/undo collaborator tests also pass. All 36 suites
 and `./dbt build relwithdebinfo` pass. These watches do not retain owners or protect
 song identity reuse and callbacks inside individual edit operations.
+
+`ParamSet::getParam` now supports the same synchronous owner validation before
+pool allocation and before slot publication. New objects remain private until
+validation and slot/layout checks pass; nested slot creation is preserved rather
+than overwritten, and cancelled objects return to the pool. Six real native
+parameter/pool regressions cover owner deletion, nested slot creation, expired
+entry, nested scalar edits, allocation failure and existing-slot reuse. All 36
+suites and `./dbt build relwithdebinfo` pass. Unguarded callers still require owner
+lifetime; adopting this guard at recording/UI allocation sites remains work.

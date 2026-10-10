@@ -47,13 +47,30 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
       topUintToRepParams(1) {
 }
 
-AutoParam* ParamSet::getParam(int32_t p, bool allow_creation) {
+AutoParam* ParamSet::getParam(int32_t p, bool allow_creation,
+                              const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return nullptr;
 	if (p < 0 || p >= numParams_)
 		return nullptr;
 	if (!params[p] && allow_creation) {
-		params[p] = auto_param_pool::get().acquire();
-		if (params[p])
-			params[p]->bind_current_value(current_values[p]);
+		auto** original_params = params;
+		auto* original_values = current_values;
+		const auto original_count = numParams_;
+		auto* created = auto_param_pool::get().acquire();
+		if (!created)
+			return nullptr;
+		if (owner_validation && !owner_validation->valid()) {
+			auto_param_pool::get().release(created);
+			return nullptr;
+		}
+		if (params != original_params || current_values != original_values || numParams_ != original_count
+		    || params[p]) {
+			auto_param_pool::get().release(created);
+			return nullptr;
+		}
+		created->bind_current_value(current_values[p]);
+		params[p] = created;
 	}
 	return params[p];
 }

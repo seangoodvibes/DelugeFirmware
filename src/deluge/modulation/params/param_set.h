@@ -24,6 +24,10 @@
 #include "storage/storage_manager.h"
 #include <array>
 
+namespace deluge::lifetime {
+class callback_validation;
+}
+
 class Sound;
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -48,7 +52,9 @@ public:
 	// Non-creating lookup returns nullptr for a scalar-only parameter. Creation can fail.
 	// Notifications may release the object; reacquire before another edit.
 	// Use scalar accessors below when no automation object is needed.
-	AutoParam* getParam(int32_t p, bool allow_creation = true);
+	// Unguarded callers must keep the set alive across pool allocation.
+	AutoParam* getParam(int32_t p, bool allow_creation = true,
+	                    const deluge::lifetime::callback_validation* owner_validation = nullptr);
 	void release_unautomated(int32_t p);
 	void set_current_value(ModelStackWithParamCollection const* model_stack, int32_t p, int32_t value);
 	bool has_current_value(int32_t id) const override { return id >= 0 && id < numParams_; }

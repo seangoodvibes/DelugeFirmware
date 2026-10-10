@@ -4916,3 +4916,73 @@ TEST(parameter_lifecycle, expression_creation_uses_live_validation_and_preserves
 	LONGS_EQUAL(3, checks);
 	LONGS_EQUAL(0, parameter_test::allocation_failures);
 }
+
+TEST(parameter_lifecycle, parameter_creation_cancels_after_owner_destruction) {
+	struct watched_fixture : fixture {
+		deluge::lifetime::lifetime_source lifetime;
+	};
+	auto owner = std::make_unique<watched_fixture>();
+	auto watch = deluge::lifetime::lifetime_watch{owner->lifetime};
+	const auto alive = [&] { return watch.alive(); };
+	deluge::lifetime::callback_validation validation{alive};
+	parameter_test::on_allocation = [&] { owner.reset(); };
+	POINTERS_EQUAL(nullptr, owner->set().getParam(0, true, &validation));
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+	auto_param_pool::get().clear_unused();
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, parameter_creation_preserves_nested_slot_publication) {
+	fixture owner;
+	AutoParam* nested = nullptr;
+	parameter_test::on_allocation = [&] {
+		nested = owner.set().getParam(0);
+		CHECK(nested);
+		owner.set().setCurrentValueBasicForSetup(0, 1234);
+	};
+	POINTERS_EQUAL(nullptr, owner.set().getParam(0));
+	POINTERS_EQUAL(nested, owner.set().getParam(0, false));
+	LONGS_EQUAL(1234, nested->getCurrentValue());
+	LONGS_EQUAL(1, auto_param_pool::get().active_count());
+}
+TEST(parameter_lifecycle, parameter_creation_rejects_expired_validation_without_allocation) {
+	fixture owner;
+	const auto expired = [] { return false; };
+	deluge::lifetime::callback_validation validation{expired};
+	parameter_test::allocations_before_failure = 0;
+	POINTERS_EQUAL(nullptr, owner.set().getParam(0, true, &validation));
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+}
+TEST(parameter_lifecycle, parameter_creation_preserves_nested_scalar_edit) {
+	fixture owner;
+	parameter_test::on_allocation = [&] { owner.set().setCurrentValueBasicForSetup(0, 9876); };
+	auto* created = owner.set().getParam(0);
+	CHECK(created);
+	LONGS_EQUAL(9876, created->getCurrentValue());
+	LONGS_EQUAL(9876, owner.set().getValue(0));
+}
+TEST(parameter_lifecycle, guarded_parameter_creation_preserves_allocation_failure) {
+	fixture owner;
+	const auto valid = [] { return true; };
+	deluge::lifetime::callback_validation validation{valid};
+	parameter_test::allocations_before_failure = 0;
+	POINTERS_EQUAL(nullptr, owner.set().getParam(0, true, &validation));
+	LONGS_EQUAL(1, parameter_test::allocation_failures);
+	POINTERS_EQUAL(nullptr, owner.set().getParam(0, false));
+	LONGS_EQUAL(0, auto_param_pool::get().active_count());
+}
+TEST(parameter_lifecycle, guarded_parameter_lookup_preserves_existing_slot_without_allocation) {
+	fixture owner;
+	auto* original = owner.set().getParam(0);
+	CHECK(original);
+	int checks = 0;
+	const auto valid = [&] {
+		++checks;
+		return true;
+	};
+	deluge::lifetime::callback_validation validation{valid};
+	parameter_test::allocations_before_failure = 0;
+	POINTERS_EQUAL(original, owner.set().getParam(0, true, &validation));
+	LONGS_EQUAL(1, checks);
+	LONGS_EQUAL(0, parameter_test::allocation_failures);
+}
