@@ -2049,6 +2049,10 @@ getOut:
 				if (sound_editor_for_session().currentSource->oscType != OscType::SAMPLE) {
 					sound_editor_for_session().currentSound->killAllVoices();
 					sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
+					// Type conversion may replace the range storage.
+					range = source->getOrCreateFirstRange();
+					if (!range)
+						goto getOut;
 				}
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();

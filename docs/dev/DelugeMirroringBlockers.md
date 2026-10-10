@@ -3545,3 +3545,11 @@ and filename. It stops before asking the file manager to load a truncated path a
 releases any previously collected references. Two whole-loader regressions fail
 against the old ignored-return-value paths and verify no incorrect file request or
 returned table. All 38 suites and RelWithDebInfo pass.
+
+Kit import reacquires its first range after oscillator-type conversion, which can
+replace and free the previous range storage. It aborts if no replacement range is
+available. Two whole-import regressions exercise actual replacement allocation/
+reclamation in the dependency double and failure to retrieve the converted range.
+All 38 suites and RelWithDebInfo pass. This fixes the retained range address across
+normal conversion; lifetime protection inside conversion and the surrounding Kit
+callbacks remain separate work.

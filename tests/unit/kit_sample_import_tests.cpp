@@ -21,6 +21,7 @@ enum class SampleRepeatMode { ONCE, CUT, LOOP };
 constexpr int32_t MIDI_NOTE_ERROR = -1;
 int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
+bool replace_ranges_on_type_change = false;
 constexpr int CLUSTER_ENQUEUE = 0;
 std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load;
 int audio_calls = 0, directory_closes = 0;
@@ -149,7 +150,16 @@ struct Source : Lifetime {
 		bool isCurrentlyReversed() const { return false; }
 	} sampleControls;
 	MultiRange* getOrCreateFirstRange() { return ++range_calls == fail_range ? nullptr : ranges.getElement(0); }
-	void setOscType(OscType type) { oscType = type; }
+	void setOscType(OscType type) {
+		if (replace_ranges_on_type_change && oscType != type) {
+			MultiRangeArray replacement;
+			replacement.insertMultiRange(0);
+			ranges.swapStateWith(&replacement);
+			for (int32_t index = 0; index < replacement.count; ++index)
+				replacement.getElement(index)->~MultiRange();
+		}
+		oscType = type;
+	}
 };
 struct ParamSet {
 	bool isAutomated(int32_t) { return false; }
@@ -343,6 +353,7 @@ TEST_GROUP(KitSampleImport) {
 		sample_table = nullptr;
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
+		replace_ranges_on_type_change = false;
 		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
@@ -697,6 +708,29 @@ TEST(KitSampleImport, cancelled_folder_load_does_not_clear_a_new_contexts_workin
 	LONGS_EQUAL(0, display_instance.removals);
 	LONGS_EQUAL(0, assignment_calls);
 	CHECK(sample_table == nullptr);
+	for (auto& sample : samples)
+		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+}
+
+TEST(KitSampleImport, type_conversion_uses_the_replacement_range_for_sample_assignment) {
+	auto& source = first_drum.sources[0];
+	auto* original_range = source.ranges.getElement(0);
+	source.oscType = OscType::OTHER;
+	replace_ranges_on_type_change = true;
+	CHECK_TRUE(browser.importFolderAsKit());
+	CHECK(source.ranges.getElement(0) != original_range);
+	CHECK(source.ranges.getElement(0)->sampleHolder.sample == &samples[0]);
+	for (auto& sample : samples)
+		LONGS_EQUAL(1, sample.numReasonsToBeLoaded);
+}
+TEST(KitSampleImport, unavailable_range_after_type_conversion_cancels_import_and_releases_temporary_samples) {
+	first_drum.sources[0].oscType = OscType::OTHER;
+	replace_ranges_on_type_change = true;
+	fail_range = 2;
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, assignment_calls);
+	LONGS_EQUAL(0, row_assignments);
+	LONGS_EQUAL(1, table_frees);
 	for (auto& sample : samples)
 		LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
 }
