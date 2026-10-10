@@ -1083,3 +1083,15 @@ side effects are not provided by these guards.
   undo callback model changes, pin UI objects, detect same-address/stack ABA, or
   guarantee removal of a partially opened UI after context invalidation. G1/R4/L1
   remain open; independent mode stays disabled.
+
+### G1 / R4 progress — rename initialization callback boundaries (2026-10-09)
+
+- Rename initialization rechecks the owner, active UI and target availability after
+  Qwerty opening, text allocation, text display and key drawing. Invalidated work
+  stops before subsequent rendering or allocation-error feedback in a new context.
+- Two extracted-production regressions failed before the fix. A phase matrix tests
+  changed owner/UI/availability at four boundaries; a failed-copy case verifies
+  no error is reported on the peer. Callbacks and buffers remain fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. These checks do not
+  pin the name source during copying or roll back callback side effects. G1/R4/L1
+  remain open and independent mode stays disabled.

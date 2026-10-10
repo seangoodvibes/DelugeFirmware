@@ -9,11 +9,14 @@ namespace session = ::deluge::gui::ui_session;
 namespace deluge::gui {
 namespace ui_session = ::deluge::gui::ui_session;
 }
+static std::function<void()> on_base, on_text_set, on_display, on_keys;
 struct text_fixture {
 	std::string value;
 	Error result = Error::NONE;
 	Error set(std::string_view name) {
 		value.clear();
+		if (on_text_set)
+			on_text_set();
 		if (result == Error::NONE)
 			value = name;
 		return result;
@@ -41,6 +44,8 @@ public:
 	bool base_opened = true;
 	bool opened() {
 		panels.active().text.value.clear();
+		if (on_base)
+			on_base();
 		return base_opened;
 	}
 };
@@ -54,8 +59,16 @@ public:
 	bool allowEmpty() const { return allow_empty; }
 	std::string_view getCurrentName() const { return "original"; }
 	text_fixture& entered_text_for_session() { return panels.active().text; }
-	void displayText() { ++panels.active().draws; }
-	void drawKeys() { ++panels.active().keys; }
+	void displayText() {
+		++panels.active().draws;
+		if (on_display)
+			on_display();
+	}
+	void drawKeys() {
+		++panels.active().keys;
+		if (on_keys)
+			on_keys();
+	}
 	void exitUI() { ++panels.active().exits; }
 	bool trySetName(std::string_view) {
 		++panels.active().commits;
@@ -72,10 +85,12 @@ TEST_GROUP(RenameDialog) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		panels = {};
+		on_base = on_text_set = on_display = on_keys = {};
 		panels.for_owner(session::Id::Local).current_ui = &menu;
 		panels.for_owner(session::Id::Remote).current_ui = &menu;
 	}
 	void teardown() override {
+		on_base = on_text_set = on_display = on_keys = {};
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -133,4 +148,37 @@ TEST(RenameDialog, prohibited_empty_name_does_not_commit_or_exit) {
 	menu.enterKeyPress();
 	LONGS_EQUAL(0, panels.active().commits);
 	LONGS_EQUAL(0, panels.active().exits);
+}
+
+TEST(RenameDialog, initialization_callbacks_stop_after_context_invalidation) {
+	for (int phase = 0; phase < 4; ++phase) {
+		for (int change = 0; change < 3; ++change) {
+			session::detail::active = session::Id::Local;
+			panels = {};
+			panels.active().current_ui = &menu;
+			menu.available = true;
+			on_base = on_text_set = on_display = on_keys = {};
+			auto invalidate = [&] {
+				if (change == 0)
+					session::detail::active = session::Id::Remote;
+				if (change == 1)
+					panels.active().current_ui = nullptr;
+				if (change == 2)
+					menu.available = false;
+			};
+			std::function<void()>* hooks[] = {&on_base, &on_text_set, &on_display, &on_keys};
+			*hooks[phase] = invalidate;
+			CHECK_FALSE(menu.opened());
+			LONGS_EQUAL(phase >= 2 ? 1 : 0, panels.for_owner(session::Id::Local).draws);
+			LONGS_EQUAL(phase == 3 ? 1 : 0, panels.for_owner(session::Id::Local).keys);
+			LONGS_EQUAL(0, panels.for_owner(session::Id::Remote).draws);
+			LONGS_EQUAL(0, panels.for_owner(session::Id::Remote).keys);
+		}
+	}
+}
+TEST(RenameDialog, copy_failure_after_owner_change_does_not_report_to_peer) {
+	panels.active().text.result = Error::INSUFFICIENT_RAM;
+	on_text_set = [] { session::detail::active = session::Id::Remote; };
+	CHECK_FALSE(menu.opened());
+	CHECK(panels.for_owner(session::Id::Remote).error == Error::NONE);
 }

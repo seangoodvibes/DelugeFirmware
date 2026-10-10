@@ -26,23 +26,28 @@ RenameUI::RenameUI(const char* title_) : QwertyUI() {
 }
 
 bool RenameUI::opened() {
-	if (!QwertyUI::opened()) {
-		return false;
-	}
-	if (!canRename()) {
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && getCurrentUI() == this && canRename();
+	};
+	if (!QwertyUI::opened() || !context_matches()) {
 		return false;
 	}
 
 	const auto error = entered_text_for_session().set(getCurrentName());
+	if (!context_matches())
+		return false;
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
 	}
 
 	displayText();
+	if (!context_matches())
+		return false;
 	drawKeys();
 
-	return true;
+	return context_matches();
 }
 
 void RenameUI::enterKeyPress() {
