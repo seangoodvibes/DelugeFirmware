@@ -21,6 +21,7 @@
 #include "playback/playback_handler.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -4448,4 +4449,66 @@ TEST(parameter_lifecycle, lazy_node_reserved_storage_survives_empty_replacement_
 	LONGS_EQUAL(0, parameter_test::allocation_failures);
 	nodes.empty();
 	POINTERS_EQUAL(nullptr, nodes.get());
+}
+
+TEST(parameter_lifecycle, guarded_clone_stops_when_source_owner_dies_during_allocation) {
+	struct watched_fixture : fixture {
+		deluge::lifetime::lifetime_source lifetime;
+	};
+	fixture destination;
+	destination.set().setCurrentValueBasicForSetup(31, 123);
+	const auto baseline = parameter_test::outstanding_allocations();
+	auto source = std::make_unique<watched_fixture>();
+	auto watch = deluge::lifetime::lifetime_watch{source->lifetime};
+	parameter_test::on_allocation = [&] { source.reset(); };
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source->manager, true, false, 0, &watch) == Error::BUG);
+	CHECK_FALSE(watch.alive());
+	LONGS_EQUAL(123, destination.set().getValue(31));
+	LONGS_EQUAL(baseline, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, guarded_clone_releases_prior_raw_allocations_after_source_dies) {
+	struct watched_fixture : fixture {
+		deluge::lifetime::lifetime_source lifetime;
+	};
+	fixture destination;
+	destination.set().setCurrentValueBasicForSetup(31, 123);
+	const auto baseline = parameter_test::outstanding_allocations();
+	auto source = std::make_unique<watched_fixture>();
+	CHECK(source->manager.ensureExpressionParamSetExists());
+	auto watch = deluge::lifetime::lifetime_watch{source->lifetime};
+	parameter_test::on_allocation = [&] { parameter_test::on_allocation = [&] { source.reset(); }; };
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source->manager, true, true, 0, &watch) == Error::BUG);
+	CHECK_FALSE(watch.alive());
+	LONGS_EQUAL(123, destination.set().getValue(31));
+	LONGS_EQUAL(baseline, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, expired_clone_guard_prevents_reading_source) {
+	fixture destination;
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	lifetime.retire();
+	CHECK(destination.manager.cloneParamCollectionsFrom(nullptr, true, false, 0, &watch) == Error::BUG);
+	CHECK(destination.manager.has_valid_layout());
+}
+TEST(parameter_lifecycle, guarded_clone_cancellation_after_collection_clone_preserves_destination) {
+	fixture source, destination;
+	source.add_node(31, 4, 99);
+	destination.set().setCurrentValueBasicForSetup(31, 123);
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	parameter_test::on_allocation = [&] { parameter_test::on_allocation = [&] { lifetime.retire(); }; };
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source.manager, true, false, 0, &watch) == Error::BUG);
+	CHECK_FALSE(watch.alive());
+	LONGS_EQUAL(123, destination.set().getValue(31));
+	check_node(*source.param(31)->autoParam, 0, 4, 99, false);
+}
+TEST(parameter_lifecycle, live_clone_guard_preserves_normal_copy_behavior) {
+	fixture source, destination;
+	source.add_node(31, 4, 99);
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	CHECK(destination.manager.cloneParamCollectionsFrom(&source.manager, true, false, 0, &watch) == Error::NONE);
+	CHECK(watch.alive());
+	check_node(*destination.param(31)->autoParam, 0, 4, 99, false);
+	CHECK(source.param(31)->autoParam != destination.param(31)->autoParam);
 }

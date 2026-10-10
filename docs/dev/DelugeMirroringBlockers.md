@@ -2238,3 +2238,15 @@ normalization after row errors. All 36 native suites and
 `./dbt build relwithdebinfo` pass. This closes early boundaries only; source
 lifetime inside parameter/row copying and borrowed row-storage ownership remain
 open and must not be bypassed by destroying half-normalized rows.
+
+Audio/instrument clip cloning now passes its source lifetime watch into parameter
+cloning. ParamManager checks it before source access, after each raw allocation
+and after collection cloning returns, releasing temporary raw/constructed copies
+on cancellation. Cleanup uses captured counts/layout rather than rereading a
+retired source. Five native parameter lifecycle regressions cover actual source
+manager destruction on the first/second allocation, expired entry, cancellation
+after collection cloning and normal copies, with allocation accounting and
+sanitizers. All 36 native suites and `./dbt build relwithdebinfo` pass. The optional
+guard protects these boundaries; source collection mutation and callbacks inside
+collection-specific cloning remain open. Unguarded callers retain their existing
+source-ownership contract.

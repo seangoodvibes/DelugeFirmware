@@ -22,6 +22,10 @@
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
 
+namespace deluge::lifetime {
+class lifetime_watch;
+}
+
 class Song;
 class Sound;
 class ParamSet;
@@ -148,7 +152,8 @@ public:
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,
-	                                int32_t reverseDirectionWithLength = 0);
+	                                int32_t reverseDirectionWithLength = 0,
+	                                const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();

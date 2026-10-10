@@ -51,7 +51,7 @@ struct AudioClip : TimelineCounter {
 	bool activeIfNoSolo = true, soloingInSessionMode = true;
 	int attack = 5, voicePriority = 7, loop_length = 64;
 	struct {
-		Error cloneParamCollectionsFrom(const void*, bool) {
+		Error cloneParamCollectionsFrom(const void*, bool, bool, int32_t, const deluge::lifetime::lifetime_watch*) {
 			++parameter_calls;
 			const auto result = parameter_error;
 			if (on_parameters)

@@ -129,7 +129,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	}
 
 	newClip->copyBasicsFrom(this);
-	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
+	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, false, 0, &source_lifetime);
 	if (!context_matches()) {
 		discard_copy();
 		return Error::BUG;

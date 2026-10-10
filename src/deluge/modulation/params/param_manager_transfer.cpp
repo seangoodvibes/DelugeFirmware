@@ -1,5 +1,6 @@
 #include "memory/general_memory_allocator.h"
 #include "modulation/params/param_manager.h"
+#include "util/lifetime.h"
 #include <cstring>
 
 // Make sure other isn't NULL before you call this, you muppet.
@@ -67,7 +68,11 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 }
 
 Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,
-                                              bool cloneExpressionParams, int32_t reverseDirectionWithLength) {
+                                              bool cloneExpressionParams, int32_t reverseDirectionWithLength,
+                                              const deluge::lifetime::lifetime_watch* source_lifetime) {
+	// Collection internals still own their callback contract. Check the owner before any source reads here.
+	if (source_lifetime && !source_lifetime->alive())
+		return Error::BUG;
 
 #if ALPHA_OR_BETA_VERSION
 	if (!other || !other->has_valid_layout() || !has_valid_layout()) {
@@ -92,25 +97,30 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	ParamCollectionSummary* __restrict__ newSummary = newSummaries;
 	ParamCollectionSummary const* otherSummary =
 	    other->summaries; // Not __restrict__, because other might be the same as this!
-	ParamCollectionSummary const* otherStopAt = &other->summaries[other->expressionParamSetOffset];
+	const int32_t source_expression_offset = other->expressionParamSetOffset;
+	ParamCollectionSummary const* otherStopAt = &other->summaries[source_expression_offset];
 
 	if (cloneExpressionParams && otherStopAt->paramCollection) {
 		otherStopAt++;
 	}
 
+	const int32_t collection_count = static_cast<int32_t>(otherStopAt - other->summaries);
 	while (otherSummary != otherStopAt) {
 		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
 		newSummary->paramCollection =
 		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
 
 		// If that failed, deallocate all the previous memories
-		if (!newSummary->paramCollection) {
+		const bool source_alive = !source_lifetime || source_lifetime->alive();
+		if (!newSummary->paramCollection || !source_alive) {
+			if (newSummary->paramCollection)
+				delugeDealloc(newSummary->paramCollection);
 			while (newSummary != newSummaries) {
 				newSummary--;
 				delugeDealloc(newSummary->paramCollection);
 			}
 
-			if (this == other) {
+			if (this == other && source_alive) {
 				// beenCloned() operates on a shallow copy of a NoteRow. None of these pointers,
 				// including expression, belong to the new row until cloning succeeds.
 				for (auto& summary : summaries) {
@@ -119,7 +129,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 				expressionParamSetOffset = 0;
 			}
 			// For a distinct source, leave our existing collections and expression untouched.
-			return Error::INSUFFICIENT_RAM;
+			return source_alive ? Error::INSUFFICIENT_RAM : Error::BUG;
 		}
 
 		newSummary++;
@@ -147,16 +157,18 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		// whose automation could not be copied (e.g. a node allocation failure).
 		auto clone_error =
 		    newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength, newSummary);
+		const bool source_alive = !source_lifetime || source_lifetime->alive();
+		if (!source_alive)
+			clone_error = Error::BUG;
 		if (clone_error != Error::NONE) {
-			const auto count = otherStopAt - other->summaries;
-			for (int32_t index = 0; index < count; ++index) {
+			for (int32_t index = 0; index < collection_count; ++index) {
 				auto* allocated = &newSummaries[index];
 				// Later entries contain raw allocation only; their constructors have not run.
 				if (allocated <= newSummary)
 					allocated->paramCollection->~ParamCollection();
 				delugeDealloc(allocated->paramCollection);
 			}
-			if (this == other) {
+			if (this == other && source_alive) {
 				for (auto& summary : summaries)
 					summary = {0};
 				expressionParamSetOffset = 0;
@@ -203,7 +215,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		*stale = {0};
 	}
 
-	expressionParamSetOffset = other->expressionParamSetOffset;
+	expressionParamSetOffset = source_expression_offset;
 
 	return Error::NONE;
 }

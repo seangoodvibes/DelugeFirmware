@@ -213,7 +213,8 @@ Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shou
 		reverseWithLength = loopLength;
 	}
 
-	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
+	Error error =
+	    newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength, &source_lifetime);
 	if (!context_matches())
 		error = Error::BUG;
 	if (error != Error::NONE) {

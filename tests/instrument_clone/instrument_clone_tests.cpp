@@ -74,7 +74,7 @@ struct Rows {
 	NoteRow* getElement(int index) { return &entries.at(index); }
 };
 struct Params {
-	Error cloneParamCollectionsFrom(const Params*, bool, bool, int32_t) {
+	Error cloneParamCollectionsFrom(const Params*, bool, bool, int32_t, const deluge::lifetime::lifetime_watch*) {
 		const auto result = parameter_error;
 		if (on_parameters)
 			on_parameters();
