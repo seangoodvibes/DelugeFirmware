@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include <array>
+#include <functional>
 namespace recording_clone_test {
 enum class RecordingMode { OFF, ARRANGEMENT };
 constexpr int LESS = -1;
@@ -30,6 +31,8 @@ struct Output {
 	void setActiveClip(ModelStackWithTimelineCounter*, PgmChangeSend);
 };
 struct song_fixture {
+	Clip* owned_clip = nullptr;
+	bool contains_clip_for_undo(Clip* clip) { return clip == owned_clip || clip == arrangementOnlyClips.inserted; }
 	bool active = true;
 	bool isClipActive(Clip*) { return active; }
 	struct {
@@ -43,10 +46,12 @@ struct song_fixture {
 		}
 	} arrangementOnlyClips;
 };
+static song_fixture* currentSong = nullptr;
 struct ModelStackWithTimelineCounter {
 	song_fixture* song = nullptr;
 	Clip* clip = nullptr;
 	Clip* getTimelineCounter() { return clip; }
+	Clip* getTimelineCounterAllowNull() { return clip; }
 	void setTimelineCounter(Clip* target) { clip = target; }
 };
 struct Clip {
@@ -54,6 +59,7 @@ struct Clip {
 	Clip* beingRecordedFromClip = nullptr;
 	Clip* clone_target = nullptr;
 	Error clone_error = Error::NONE;
+	std::function<void(ModelStackWithTimelineCounter*)> on_clone;
 	ClipType type = ClipType::INSTRUMENT;
 	bool arrangement_only = false;
 	bool activeIfNoSolo = false;
@@ -67,6 +73,8 @@ struct Clip {
 		++clone_calls;
 		if (clone_error == Error::NONE)
 			stack->clip = clone_target;
+		if (on_clone)
+			on_clone(stack);
 		return clone_error;
 	}
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter*, int length, IndependentNoteRowLengthIncrease, bool) {
@@ -104,6 +112,7 @@ TEST_GROUP(RecordingClone) {
 		output.active = &original;
 		output.clipInstances.values[0].clip = &original;
 		stack.song = &song;
+		currentSong = &song;
 		stack.clip = &original;
 		playbackHandler = {};
 	}
@@ -205,4 +214,37 @@ TEST(RecordingClone, successful_repeated_audio_clone_keeps_prior_repeats) {
 	POINTERS_EQUAL(&sample, cloned.voiceSample);
 	POINTERS_EQUAL(nullptr, original.voiceSample);
 	CHECK(result == Error::NONE);
+}
+
+TEST(RecordingClone, invalid_success_result_never_repurposes_original_or_owned_clip) {
+	for (auto* target : {static_cast<Clip*>(nullptr), static_cast<Clip*>(&original), static_cast<Clip*>(&cloned)}) {
+		original.clone_target = target;
+		song.owned_clip = &cloned;
+		CHECK_FALSE(attempt_clone());
+		CHECK(result == Error::BUG);
+		LONGS_EQUAL(0, original.section);
+		LONGS_EQUAL(0, cloned.section);
+		LONGS_EQUAL(0, original.stop_calls);
+		LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+		POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	}
+}
+TEST(RecordingClone, changed_song_during_clone_stops_publication) {
+	song_fixture replacement;
+	for (bool change_current : {false, true}) {
+		currentSong = &song;
+		stack.song = &song;
+		stack.clip = &original;
+		original.on_clone = [&](ModelStackWithTimelineCounter* model_stack) {
+			if (change_current)
+				currentSong = &replacement;
+			else
+				model_stack->song = &replacement;
+		};
+		CHECK_FALSE(attempt_clone());
+		CHECK(result == Error::BUG);
+		LONGS_EQUAL(0, cloned.section);
+		LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+		LONGS_EQUAL(0, original.stop_calls);
+	}
 }

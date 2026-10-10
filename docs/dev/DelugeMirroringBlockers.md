@@ -1970,3 +1970,14 @@ Follow, encoder lookup, melodic note/parameter/expression, kit note, drum
 expression, learned CC and learned pitch bend). **Caller error-result migration
 is complete**, but failures ignored inside the clone operation, partial instance
 edits, clone ownership and callback lifetime still keep R5/L1 open.
+
+### R5 progress — validate arrangement-recording clone results (2026-10-10)
+
+Arrangement-recording cloning now requires the current owning song and rejects
+song changes after cloning. A successful result must be non-null, distinct from
+the original, and absent from song/history ownership before it is repurposed or
+published. Two production-body regressions cover null/original/already-owned
+results and changes to either song pointer, verifying no clip-field mutation or
+publication. All 35 native suites and `./dbt build relwithdebinfo` pass. Unexpected
+results are not destroyed because their ownership is unknown; this does not
+recover prior audio-instance edits or prove lifetime during callbacks.

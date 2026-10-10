@@ -1106,8 +1106,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			*clone_error = error;
 		return false;
 	};
-	if (!modelStack || !modelStack->song || !output)
+	if (!modelStack || !modelStack->song || currentSong != modelStack->song || !output)
 		return fail(Error::BUG);
+
+	auto* const source_song = modelStack->song;
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && playbackHandler.isEitherClockActive()
 	    && !isArrangementOnlyClip() && modelStack->song->isClipActive(this)) {
@@ -1161,11 +1163,16 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			Error error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
+			if (currentSong != source_song || modelStack->song != source_song)
+				return fail(Error::BUG);
 			if (error != Error::NONE) {
 				return fail(error);
 			}
 
-			Clip* newClip = (Clip*)modelStack->getTimelineCounter();
+			Clip* newClip = (Clip*)modelStack->getTimelineCounterAllowNull();
+			// Cloning must return a distinct, unpublished object. Never repurpose the source or another owned clip.
+			if (!newClip || newClip == this || source_song->contains_clip_for_undo(newClip))
+				return fail(Error::BUG);
 
 			newClip->section = 255;
 
