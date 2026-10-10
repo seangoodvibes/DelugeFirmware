@@ -119,3 +119,5 @@ target_compile_options(UnitTests PUBLIC
 )
 
 target_sources(UnitTests PRIVATE ui_session_tests.cpp)
+
+target_sources(UnitTests PRIVATE mirror_protocol_tests.cpp)
