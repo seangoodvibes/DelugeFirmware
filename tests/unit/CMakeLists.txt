@@ -813,3 +813,11 @@ target_sources(ClipLifetimeTests PRIVATE kit_expression_lifetime_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/kit_expression_lifetime.inc)
 
 target_sources(ClipLifetimeTests PRIVATE note_recording_clone_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_audition_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_audition_lifetime.inc
+        Kit::beginAuditioningforDrum Kit::endAuditioningForDrum
+    DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_audition_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/kit_audition_lifetime.inc)

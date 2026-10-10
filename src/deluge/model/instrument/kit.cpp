@@ -2132,9 +2132,19 @@ bool Kit::isAnyAuditioningHappening() {
 // activeClip. Drum must not be NULL - check first if not sure!
 void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
                                   int16_t const* mpeValues, int32_t fromMIDIChannel) {
-	if (!drum) {
+	if (!modelStack || !drum) {
 		return;
 	}
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || getDrumIndex(drum) < 0)
+		return;
+	auto drum_lifetime = drum->watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	auto* audition_clip = activeClip;
+	auto clip_lifetime = audition_clip ? audition_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (audition_clip && !clip_lifetime.alive())
+		return;
 	ParamManager* paramManagerForDrum = nullptr;
 
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
@@ -2164,19 +2174,36 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
 
-	noteOnPreKitArp(modelStackWithThreeMainThings, drum, velocity, mpeValues, fromMIDIChannel);
+	bool allowing_note_tails = !audition_clip || ((InstrumentClip*)audition_clip)->allowNoteTails(modelStack);
+	if (!kit_lifetime.alive() || !drum_lifetime.alive() || (audition_clip && !clip_lifetime.alive())
+	    || activeClip != audition_clip || getDrumIndex(drum) < 0)
+		return;
 
-	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStack)) {
+	// Publish before dispatch so a nested note-off can clear this state without being overwritten.
+	if (allowing_note_tails) {
 		drum->auditioned = true;
 	}
 
 	drum->lastMIDIChannelAuditioned = fromMIDIChannel;
+	noteOnPreKitArp(modelStackWithThreeMainThings, drum, velocity, mpeValues, fromMIDIChannel);
 }
 
 // Check that it's auditioned before calling this if you don't want it potentially sending an extra note-off in some
 // rare cases. You must supply noteRow if there is an activeClip with a NoteRow for that Drum. The TimelineCounter
 // should be the activeClip.
 void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity) {
+	if (!modelStack || !drum)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || getDrumIndex(drum) < 0)
+		return;
+	auto drum_lifetime = drum->watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	auto* audition_clip = activeClip;
+	auto clip_lifetime = audition_clip ? audition_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (audition_clip && !clip_lifetime.alive())
+		return;
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 
 	drum->auditioned = false;
@@ -2211,8 +2238,9 @@ gotParamManager:
 
 	noteOffPreKitArp(modelStackWithThreeMainThings, drum);
 
-	if (activeClip) {
-		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
+	if (kit_lifetime.alive() && drum_lifetime.alive() && audition_clip && clip_lifetime.alive()
+	    && activeClip == audition_clip && audition_clip->output == this && getDrumIndex(drum) >= 0) {
+		audition_clip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
 	}
 }
 

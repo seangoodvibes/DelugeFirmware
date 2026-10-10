@@ -2366,3 +2366,13 @@ additional tests for handler status, successful retargeting, mute callbacks,
 rendering and clip association. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Audition and arpeggiator internals remain open;
 a safe outer loop does not establish their callback safety.
+
+Kit audition entry points now reject detached/retiring drums and watch the kit,
+drum and active clip. Note-on publishes audition state before dispatch, preserving
+nested note-off edits and avoiding post-dispatch owner access. Note-off schedules
+only the original surviving, still-associated active clip. Thirteen sanitizer
+regressions execute the production audition bodies with model/dispatch doubles,
+covering deletion, address reuse, retargeting, tail-query cancellation and normal
+one-shot/drone behavior. All 36 native suites and `./dbt build relwithdebinfo`
+pass. This does not establish the safety of arpeggiator internals or the outer
+stop-all loop, nor protect row/parameter removal while their owners survive.
