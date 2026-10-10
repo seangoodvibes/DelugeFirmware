@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "util/finally.h"
 #include <cstdint>
 #include <cstdlib>
 #include <vector>
@@ -89,4 +90,51 @@ TEST(MultisampleImportCleanup, empty_result_still_frees_the_sorting_table) {
 	release_multisample_import_samples(table, 0);
 	LONGS_EQUAL(1, frees);
 	LONGS_EQUAL(1, events.size());
+}
+
+TEST(MultisampleImportCleanup, scoped_cleanup_releases_every_unprocessed_prefix_on_failure) {
+	for (int32_t completed = 0; completed <= 3; ++completed) {
+		Sample samples[3];
+		auto** table = static_cast<Sample**>(std::malloc(3 * sizeof(Sample*)));
+		CHECK(table != nullptr);
+		for (int32_t index = 0; index < 3; ++index) {
+			samples[index].numReasonsToBeLoaded = 2;
+			table[index] = &samples[index];
+		}
+		const int previous_frees = frees;
+		{
+			auto cleanup = release_multisample_import_samples_on_exit(table, 3);
+			for (int32_t index = 0; index < completed; ++index)
+				release_multisample_import_sample(table[index]);
+		}
+		LONGS_EQUAL(previous_frees + 1, frees);
+		for (auto& sample : samples)
+			LONGS_EQUAL(1, sample.numReasonsToBeLoaded);
+	}
+}
+TEST(MultisampleImportCleanup, jumping_to_failure_label_releases_table_ownership) {
+	Sample sample;
+	auto** table = static_cast<Sample**>(std::malloc(sizeof(Sample*)));
+	CHECK(table != nullptr);
+	table[0] = &sample;
+	{
+		auto cleanup = release_multisample_import_samples_on_exit(table, 1);
+		goto failure;
+	}
+failure:
+	LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+	LONGS_EQUAL(1, frees);
+}
+TEST(MultisampleImportCleanup, returning_from_import_releases_table_ownership) {
+	Sample sample;
+	auto** table = static_cast<Sample**>(std::malloc(sizeof(Sample*)));
+	CHECK(table != nullptr);
+	table[0] = &sample;
+	const auto run_import = [&] {
+		auto cleanup = release_multisample_import_samples_on_exit(table, 1);
+		return false;
+	};
+	CHECK_FALSE(run_import());
+	LONGS_EQUAL(0, sample.numReasonsToBeLoaded);
+	LONGS_EQUAL(1, frees);
 }

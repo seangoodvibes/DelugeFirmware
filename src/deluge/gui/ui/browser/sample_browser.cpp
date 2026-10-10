@@ -70,6 +70,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include "util/finally.h"
 #include "util/functions.h"
 #include <cstring>
 
@@ -1690,6 +1691,10 @@ static void release_multisample_import_samples(Sample** samples, int32_t sample_
 	delugeDealloc(samples);
 }
 
+static auto release_multisample_import_samples_on_exit(Sample** samples, int32_t sample_count) {
+	return util::finally([samples, sample_count] { release_multisample_import_samples(samples, sample_count); });
+}
+
 bool SampleBrowser::importFolderAsMultisamples() {
 
 	AudioEngine::stopAnyPreviewing();
@@ -1953,6 +1958,7 @@ doReturnFalse:
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
+		auto sample_cleanup = release_multisample_import_samples_on_exit(sortArea, numSamples);
 		ModelStackWithThreeMainThings* modelStack = sound_editor_for_session().getCurrentModelStack(modelStackMemory);
 
 		for (int32_t s = 0; s < numSamples; s++) {
@@ -2069,10 +2075,8 @@ skipNameStuff:
 				FREEZE_WITH_ERROR("E217"); // I put this here to try and catch an E004 Luc got
 			}
 #endif
-			thisSample->removeReason("E395");
+			release_multisample_import_sample(sortArea[s]);
 		}
-
-		delugeDealloc(sortArea);
 	}
 
 	// Make NoteRows for all these new Drums

@@ -3413,3 +3413,12 @@ entry release and empty-table cleanup; existing alias-entry tests remain green.
 All 38 suites and RelWithDebInfo pass. This fixes temporary resource leaks without
 duplicating audio buffers; reservation-before-deletion, source conversion, partial
 range replacement and earlier/later callback cancellation remain open.
+
+Kit import now owns its loaded Sample table through a scoped finalizer. Each
+completed entry clears its temporary-reference slot; failure exits release the
+unprocessed entries and free the table without taking references owned by drums.
+Three additional regressions exercise every completed prefix and both return/goto
+exits using the production cleanup helper and finalizer. All 38 suites and
+RelWithDebInfo pass. Partially created drums, parameter-manager publication and
+callback lifetime/recovery inside the import remain R4/R5 work; this change owns
+only the temporary sample resources. Independent mode remains disabled.

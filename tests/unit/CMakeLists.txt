@@ -1282,7 +1282,7 @@ target_sources(ClipLifetimeTests PRIVATE voiced_hibernation_tests.cpp ${CMAKE_CU
 set(multisample_import_cleanup_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/browser/sample_browser.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multisample_import_cleanup.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/multisample_import_cleanup.inc release_multisample_import_sample release_multisample_import_samples
+        ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/multisample_import_cleanup.inc release_multisample_import_sample release_multisample_import_samples release_multisample_import_samples_on_exit
     DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE multisample_import_cleanup_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/multisample_import_cleanup.inc)
 
