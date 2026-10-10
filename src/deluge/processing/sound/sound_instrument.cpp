@@ -94,14 +94,42 @@ void SoundInstrument::cutAllSound() {
 void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                                    int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                    bool shouldLimitDelayFeedback, bool isClipActive) {
-	// this should only happen in the rare case that this is called while replacing an instrument but after the clips
-	// have been cleared
-	if (!activeClip) [[unlikely]] {
+	if (!modelStack || !modelStack->song)
 		return;
-	}
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive() || !activeClip)
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(activeClip);
+	auto clip_lifetime = routed_clip->watch_lifetime();
+	if (!clip_lifetime.alive() || routed_clip->output != this)
+		return;
+	auto* source_song = modelStack->song;
+	auto* source_current_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	auto* source_recorder = recorder;
+	auto* param_manager = &routed_clip->paramManager;
+	const auto row_count = routed_clip->noteRows.getNumElements();
+	ParamCollection* collections[PARAM_COLLECTIONS_STORAGE_NUM];
+	for (int32_t i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i)
+		collections[i] = param_manager->summaries[i].paramCollection;
+	const auto context_matches = [&] {
+		if (!output_lifetime.alive() || !clip_lifetime.alive() || activeClip != routed_clip
+		    || routed_clip->output != this || modelStack->song != source_song || currentSong != source_current_song
+		    || deluge::gui::ui_session::current() != source_owner || recorder != source_recorder
+		    || routed_clip->noteRows.getNumElements() != row_count)
+			return false;
+		for (int32_t i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i)
+			if (param_manager->summaries[i].paramCollection != collections[i])
+				return false;
+		return true;
+	};
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addTimelineCounter(activeClip)
-	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
+	    modelStack->addTimelineCounter(routed_clip)->addOtherTwoThingsButNoNoteRow(this, param_manager);
+	const auto clip_context_matches = [&] {
+		return context_matches() && modelStackWithThreeMainThings->getTimelineCounter() == routed_clip
+		       && modelStackWithThreeMainThings->paramManager == param_manager;
+	};
+	const deluge::lifetime::callback_validation clip_validation{clip_context_matches};
 
 	if (skippingRendering) {
 		compressor.reset();
@@ -111,6 +139,9 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
 		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 	}
+
+	if (!clip_validation.valid())
+		return;
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
 
@@ -128,8 +159,10 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 		}
 		if (anyInterpolating) {
 yesTickParamManagerForClip:
-			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(output.size(),
-			                                                                          modelStackWithThreeMainThings);
+			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(
+			    output.size(), modelStackWithThreeMainThings, &clip_validation);
+			if (!clip_validation.valid())
+				return;
 		}
 		else {
 
@@ -180,8 +213,8 @@ yesTickParamManagerForClip:
 		}
 
 		// Do the ParamManagers of each NoteRow, too
-		for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+		for (int32_t i = 0; i < row_count; i++) {
+			NoteRow* thisNoteRow = routed_clip->noteRows.getElement(i);
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
 			bool result = false;
@@ -195,7 +228,17 @@ yesTickParamManagerForClip:
 			if (result) {
 				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y);
 				modelStackWithThreeMainThings->paramManager = &thisNoteRow->paramManager;
-				thisNoteRow->paramManager.tickSamples(output.size(), modelStackWithThreeMainThings);
+				const auto row_identity = thisNoteRow->undo_identity;
+				const auto row_context_matches = [&] {
+					return context_matches() && routed_clip->noteRows.getElement(i) == thisNoteRow
+					       && thisNoteRow->undo_identity == row_identity
+					       && modelStackWithThreeMainThings->getTimelineCounter() == routed_clip
+					       && modelStackWithThreeMainThings->paramManager == &thisNoteRow->paramManager;
+				};
+				const deluge::lifetime::callback_validation row_validation{row_context_matches};
+				thisNoteRow->paramManager.tickSamples(output.size(), modelStackWithThreeMainThings, &row_validation);
+				if (!row_validation.valid())
+					return;
 			}
 		}
 	}

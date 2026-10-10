@@ -996,3 +996,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_expression_collapse.i
         MIDIInstrument::monophonicExpressionEvent MIDIInstrument::sendMonophonicExpressionEvent MIDIInstrument::combineMPEtoMono
     DEPENDS ${midi_mpe_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE midi_expression_collapse_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_expression_collapse.inc)
+
+set(sound_render_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_render_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_render_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_render_output_lifetime.inc
+        SoundInstrument::renderOutput
+    DEPENDS ${sound_render_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sound_render_output_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_render_output_lifetime.inc)

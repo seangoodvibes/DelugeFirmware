@@ -2753,3 +2753,13 @@ final-callback deletion and zero-range activation. All 36 suites and
 `./dbt build relwithdebinfo` pass; the added activation regression also passes the
 targeted lifetime suite. Parameter acquisition and transport internals remain
 separate work; these checks do not establish full sound-render safety.
+
+Sound-instrument output rendering now watches output/clip lifetime and validates
+song/panel, recorder, model-stack, clip collection layout and row count before
+continuing after rendering. Clip and row sample ticks receive owner validation;
+row ticks also check row address/identity before advancing. Nine production-body
+sanitizer regressions cover live/skipped rendering, deletion after render and at
+each tick, routing/layout changes, row removal/replacement, playback gating,
+interpolation flags and invalid entry. All 36 suites and
+`./dbt build relwithdebinfo` pass. The actual sound renderer, voice traversal and
+same-address collection replacement remain separate inner boundaries.
