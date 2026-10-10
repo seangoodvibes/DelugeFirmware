@@ -46,34 +46,7 @@ public:
 		}
 		setValue(rawVal);
 	}
-	void writeCurrentValue() override {
-		OscType oldValue = sound_editor_for_session().currentSound->sources[sourceId_].oscType;
-		auto newValue = getValue<OscType>();
-		if (!mayUseDx() && static_cast<int32_t>(newValue) >= static_cast<int32_t>(OscType::DX7)) {
-			newValue = static_cast<OscType>(static_cast<int32_t>(newValue) + 1);
-		}
-
-		const auto needs_unassignment = {
-		    OscType::INPUT_L,
-		    OscType::INPUT_R,
-		    OscType::INPUT_STEREO,
-		    OscType::SAMPLE,
-		    OscType::DX7,
-
-		    // Haven't actually really determined if this needs to be here - maybe not?
-		    OscType::WAVETABLE,
-		};
-
-		if (util::one_of(oldValue, needs_unassignment) || util::one_of(newValue, needs_unassignment)) {
-			sound_editor_for_session().currentSound->killAllVoices();
-		}
-
-		sound_editor_for_session().currentSound->sources[sourceId_].setOscType(newValue);
-
-		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
-			sound_editor_for_session().currentSound->setupPatchingForAllParamManagers(currentSong);
-		}
-	}
+	void writeCurrentValue() override;
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
@@ -179,5 +152,60 @@ public:
 private:
 	uint8_t sourceId_;
 };
+
+inline void Type::writeCurrentValue() {
+	auto* selected_sound = sound_editor_for_session().currentSound;
+	auto* source_song = currentSong;
+	if (!selected_sound || !source_song || sourceId_ >= kNumSources)
+		return;
+	auto sound_lifetime = selected_sound->watch_sound_lifetime();
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!sound_lifetime.alive() || !song_lifetime.alive())
+		return;
+	auto* selected_source = &selected_sound->sources[sourceId_];
+	auto source_lifetime = selected_source->watch_lifetime();
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* source_ui = getCurrentUI();
+	const auto context_valid = [&] {
+		return sound_lifetime.alive() && song_lifetime.alive() && source_lifetime.alive() && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getCurrentUI() == source_ui
+		       && sound_editor_for_session().currentSound == selected_sound;
+	};
+	if (!context_valid())
+		return;
+	const auto source_layout = selected_source->ranges.layout_revision();
+	OscType old_value = selected_source->oscType;
+	auto new_value = getValue<OscType>();
+	if (!mayUseDx() && static_cast<int32_t>(new_value) >= static_cast<int32_t>(OscType::DX7)) {
+		new_value = static_cast<OscType>(static_cast<int32_t>(new_value) + 1);
+	}
+
+	const auto needs_unassignment = {
+	    OscType::INPUT_L,
+	    OscType::INPUT_R,
+	    OscType::INPUT_STEREO,
+	    OscType::SAMPLE,
+	    OscType::DX7,
+
+	    // Haven't actually really determined if this needs to be here - maybe not?
+	    OscType::WAVETABLE,
+	};
+
+	if (util::one_of(old_value, needs_unassignment) || util::one_of(new_value, needs_unassignment)) {
+		selected_sound->killAllVoices();
+		if (!context_valid() || selected_source->oscType != old_value
+		    || selected_source->ranges.layout_revision() != source_layout || selected_sound->hasActiveVoices())
+			return;
+	}
+
+	selected_source->setOscType(new_value);
+	if (!context_valid() || selected_source->oscType != new_value)
+		return;
+
+	if (old_value == OscType::SQUARE || new_value == OscType::SQUARE) {
+		selected_sound->setupPatchingForAllParamManagers(source_song);
+	}
+}
 
 } // namespace deluge::gui::menu_item::osc

@@ -1322,3 +1322,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_first_range.inc
         ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_first_range.inc Source::getOrCreateFirstRange
     DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE source_first_range_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/source_first_range.inc)
+
+set(osc_type_menu_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/menu_item/osc/type.h)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/osc_type_menu_write.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${osc_type_menu_source} ${CMAKE_CURRENT_BINARY_DIR}/osc_type_menu_write.inc Type::writeCurrentValue
+    DEPENDS ${osc_type_menu_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE osc_type_menu_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/osc_type_menu_write.inc)

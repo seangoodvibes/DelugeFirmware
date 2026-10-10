@@ -3617,3 +3617,12 @@ Source destruction, nested type changes and multi-range cleanup after destructio
 All 38 suites and RelWithDebInfo pass. This reuses existing conversion allocations
 and adds no audio-buffer copies. Allocation-failure fallback, invalid selected-range
 recovery and callers of cancelled type changes remain open.
+
+Oscillator-menu writes now bind to the initiating Sound, Source, Song, UI and
+panel across voice cleanup and type conversion. They reject remaining voices,
+changed range layouts and cancelled conversion before patching the original Sound.
+Ten extracted-body regressions cover normal source selection, changed selection,
+actual Sound destruction, voices, layout changes, cancelled conversion, Song
+retirement, panel changes and invalid source indices. All 38 suites and
+RelWithDebInfo pass. Audio-recorder, slicer and direct browser type-change callers
+still require equivalent continuation checks; independent mode remains disabled.
