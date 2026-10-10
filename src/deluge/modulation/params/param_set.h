@@ -75,8 +75,8 @@ public:
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                 ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary = nullptr,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) override;
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
@@ -121,8 +121,8 @@ class UnpatchedParamSet final : public ParamSet {
 public:
 	~UnpatchedParamSet() override { release_all(); }
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                 ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary = nullptr,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) override;
 	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
@@ -142,8 +142,8 @@ class PatchedParamSet final : public ParamSet {
 public:
 	~PatchedParamSet() override { release_all(); }
 	PatchedParamSet(ParamCollectionSummary* summary);
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                 ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary = nullptr,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) override;
 	void notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
 	                         bool automatedBefore, bool automatedNow) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
@@ -160,8 +160,8 @@ class ExpressionParamSet final : public ParamSet {
 public:
 	~ExpressionParamSet() override { release_all(); }
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                 ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary = nullptr,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) override;
 	void notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
 	                         bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override { return false; }

@@ -4675,3 +4675,89 @@ TEST(parameter_lifecycle, guarded_automation_clone_retains_normal_and_reverse_se
 		LONGS_EQUAL(42, destination.getCurrentValue());
 	}
 }
+
+namespace {
+template <class Source, class Populate>
+void check_collection_clone_retirement(Populate populate) {
+	for (int32_t reverse_length : {0, 32}) {
+		bool reached_success = false;
+		for (int allocation_index = 0; allocation_index < 40 && !reached_success; ++allocation_index) {
+			patch_cable_pool::get().clear_unused();
+			auto_param_pool::get().clear_unused();
+			{
+				fixture destination;
+				destination.set().setCurrentValueBasicForSetup(31, 123);
+				auto* retained_collection = destination.manager.summaries[0].paramCollection;
+				auto source = std::make_unique<Source>();
+				populate(*source);
+				CHECK(source->manager.ensureExpressionParamSetExists());
+				CHECK(source->manager.getExpressionParamSet()->getParam(0)->setNodeAtPos(4, 71, false) >= 0);
+				deluge::lifetime::lifetime_source lifetime;
+				deluge::lifetime::lifetime_watch watch{lifetime};
+				int allocation_count = 0;
+				std::function<void()> callback = [&] {
+					if (allocation_count++ == allocation_index) {
+						lifetime.retire();
+						source.reset();
+					}
+					else
+						parameter_test::on_allocation = callback;
+				};
+				parameter_test::on_allocation = callback;
+				auto result =
+				    destination.manager.cloneParamCollectionsFrom(&source->manager, true, true, reverse_length, &watch);
+				parameter_test::on_allocation = nullptr;
+				if (!watch.alive()) {
+					CHECK(result == Error::BUG);
+					POINTERS_EQUAL(retained_collection, destination.manager.summaries[0].paramCollection);
+					LONGS_EQUAL(123, destination.set().getValue(31));
+					CHECK(destination.manager.getExpressionParamSet() == nullptr);
+				}
+				else {
+					CHECK(result == Error::NONE);
+					CHECK(allocation_index > 2); // Reached collection internals, not only manager raw storage.
+					reached_success = true;
+				}
+				CHECK(destination.manager.has_valid_layout());
+			}
+			LONGS_EQUAL(0, patch_cable_pool::get().active_count());
+			LONGS_EQUAL(0, auto_param_pool::get().active_count());
+			patch_cable_pool::get().clear_unused();
+			auto_param_pool::get().clear_unused();
+			LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+		}
+		CHECK(reached_success);
+	}
+}
+} // namespace
+
+TEST(parameter_lifecycle, guarded_fixed_collection_clone_survives_source_deletion_at_every_allocation) {
+	check_collection_clone_retirement<fixture>([](fixture& source) {
+		source.add_node(31, 4, 99);
+		source.add_node(32, 8, 123);
+	});
+}
+TEST(parameter_lifecycle, guarded_midi_collection_clone_survives_source_deletion_at_every_allocation) {
+	check_collection_clone_retirement<midi_fixture>([](midi_fixture& source) {
+		source.scalar(7, 42);
+		source.add_node(7, 4, 99);
+		source.scalar(10, 77);
+		source.add_node(10, 8, 123);
+	});
+}
+TEST(parameter_lifecycle, guarded_patch_collection_clone_survives_source_deletion_at_every_allocation) {
+	check_collection_clone_retirement<patch_fixture>([](patch_fixture& source) {
+		auto first = source.add_cable(PatchSource::VELOCITY, 0, 42);
+		source.add_node(first, 4, 99);
+		auto second = source.add_cable(PatchSource::NOTE, 1, 77);
+		source.add_node(second, 8, 123);
+		CHECK(source.manager.getPatchedParamSet()->getParam(0)->setNodeAtPos(4, 71, false) >= 0);
+		for (auto& destination : source.set().destinations) {
+			if (destination)
+				continue;
+			destination = static_cast<Destination*>(GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination)));
+			CHECK(destination != nullptr);
+			new (destination) Destination{}; // Empty, terminated destination group.
+		}
+	});
+}

@@ -38,6 +38,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/lifetime.h"
 
 namespace params = deluge::modulation::params;
 
@@ -90,16 +91,26 @@ void ParamSet::set_current_value(ModelStackWithParamCollection const* model_stac
 	}
 }
 
-Error ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary) {
+Error ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary,
+                           const deluge::lifetime::lifetime_watch* source_lifetime) {
+	Error error = Error::NONE;
 	for (int32_t p = 0; p < numParams_; ++p) {
 		auto* source = params[p];
 		params[p] = nullptr; // The raw collection copy still points into the source.
-		if (copyAutomation && source && source->isAutomated()) {
+		if (source_lifetime && !source_lifetime->alive())
+			error = Error::BUG;
+		if (error == Error::NONE && copyAutomation && source && source->isAutomated()) {
 			auto* destination = getParam(p);
-			if (destination) {
+			if (source_lifetime && !source_lifetime->alive()) {
+				error = Error::BUG;
+				release_unautomated(p);
+			}
+			else if (destination) {
 				memcpy(destination, source, sizeof(AutoParam));
 				destination->bind_current_value(current_values[p]);
-				destination->beenCloned(true, reverseDirectionWithLength);
+				auto clone_error = destination->beenCloned(true, reverseDirectionWithLength, source_lifetime);
+				if (clone_error == Error::BUG)
+					error = clone_error;
 				release_unautomated(p);
 			}
 		}
@@ -109,7 +120,7 @@ Error ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLeng
 			summary->whichParamsAreInterpolating[p >> 5] &= mask;
 		}
 	}
-	return Error::NONE;
+	return error;
 }
 
 void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
@@ -524,13 +535,14 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 }
 
 Error UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                    ParamCollectionSummary* summary) {
+                                    ParamCollectionSummary* summary,
+                                    const deluge::lifetime::lifetime_watch* source_lifetime) {
 	params = params_.data();
 	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary, source_lifetime);
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
@@ -609,13 +621,14 @@ PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(siz
 }
 
 Error PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                  ParamCollectionSummary* summary) {
+                                  ParamCollectionSummary* summary,
+                                  const deluge::lifetime::lifetime_watch* source_lifetime) {
 	params = params_.data();
 	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary, source_lifetime);
 }
 
 void PatchedParamSet::notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -727,13 +740,14 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 }
 
 Error ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                     ParamCollectionSummary* summary) {
+                                     ParamCollectionSummary* summary,
+                                     const deluge::lifetime::lifetime_watch* source_lifetime) {
 	params = params_.data();
 	current_values = current_values_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	return ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary, source_lifetime);
 }
 
 void ExpressionParamSet::notify_value_change(ModelStackWithAutoParam const* modelStack, int32_t oldValue,

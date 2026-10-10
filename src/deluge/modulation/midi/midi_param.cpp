@@ -17,6 +17,7 @@
 
 #include "modulation/midi/midi_param.h"
 #include "modulation/automation/auto_param_pool.h"
+#include "util/lifetime.h"
 #include <cstring>
 #include <utility>
 
@@ -46,17 +47,24 @@ void MIDIParam::release_unautomated() {
 		release_automation();
 }
 
-Error MIDIParam::clone_automation(bool copy_automation, int32_t reverse_length) {
+Error MIDIParam::clone_automation(bool copy_automation, int32_t reverse_length,
+                                  const deluge::lifetime::lifetime_watch* source_lifetime) {
 	// Called only after the vector's raw copy. Never release the source pointer.
 	auto* source = std::exchange(automation_, nullptr);
+	if (source_lifetime && !source_lifetime->alive())
+		return Error::BUG;
 	if (!copy_automation || !source || !source->isAutomated())
 		return Error::NONE;
 	auto* destination = get_auto_param(true);
+	if (source_lifetime && !source_lifetime->alive()) {
+		release_unautomated();
+		return Error::BUG;
+	}
 	if (!destination)
 		return Error::INSUFFICIENT_RAM;
 	memcpy(destination, source, sizeof(AutoParam));
 	rebind_automation();
-	auto error = destination->beenCloned(true, reverse_length);
+	auto error = destination->beenCloned(true, reverse_length, source_lifetime);
 	release_unautomated();
 	return error;
 }

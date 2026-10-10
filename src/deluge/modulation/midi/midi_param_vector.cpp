@@ -17,6 +17,7 @@
 
 #include "modulation/midi/midi_param_vector.h"
 #include "modulation/midi/midi_param.h"
+#include "util/lifetime.h"
 #include <new>
 
 MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8) {
@@ -102,13 +103,15 @@ void MIDIParamVector::deleteAtKey(int32_t cc) {
 	rebind_automation();
 }
 
-Error MIDIParamVector::clone_automation(bool copy_automation, int32_t reverse_length) {
-	auto error = ResizeableArray::beenCloned();
+Error MIDIParamVector::clone_automation(bool copy_automation, int32_t reverse_length,
+                                        const deluge::lifetime::lifetime_watch* source_lifetime) {
+	auto error = ResizeableArray::beenCloned(source_lifetime);
 	if (error != Error::NONE)
 		return error;
 	// Detach all source AutoParam pointers even if an earlier allocation failed.
 	for (int32_t index = 0; index < getNumElements(); ++index) {
-		auto result = getElement(index)->clone_automation(copy_automation && error == Error::NONE, reverse_length);
+		auto result = getElement(index)->clone_automation(copy_automation && error == Error::NONE, reverse_length,
+		                                                  source_lifetime);
 		if (result != Error::NONE)
 			error = result;
 	}

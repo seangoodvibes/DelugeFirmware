@@ -1,4 +1,7 @@
 #pragma once
+namespace deluge::lifetime {
+class lifetime_watch;
+}
 #include "modulation/params/param.h"
 class ModelStackWithParamCollection;
 class ParamCollectionSummary;
@@ -19,7 +22,8 @@ public:
 	virtual void processCurrentPos(ModelStackWithParamCollection* stack, int32_t ticks, bool reversed, bool pingpong,
 	                               bool interpolate) {}
 	int32_t ticksTilNextEvent = 0;
-	Error beenCloned(bool copyAutomation, int32_t reverseLength, ParamCollectionSummary* = nullptr) {
+	Error beenCloned(bool copyAutomation, int32_t reverseLength, ParamCollectionSummary* = nullptr,
+	                 const deluge::lifetime::lifetime_watch* = nullptr) {
 		cloned_for_test_ = true;
 		if (clone_calls_before_failure == 0)
 			return Error::INSUFFICIENT_RAM;

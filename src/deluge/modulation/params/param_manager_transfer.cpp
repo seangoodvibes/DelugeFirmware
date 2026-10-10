@@ -184,8 +184,8 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 
 		// Initialize flags first so collection-specific cloning can clear entries
 		// whose automation could not be copied (e.g. a node allocation failure).
-		auto clone_error =
-		    newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength, newSummary);
+		auto clone_error = newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength,
+		                                                           newSummary, source_lifetime);
 		const bool source_valid = source_matches();
 		if (!source_valid)
 			clone_error = Error::BUG;

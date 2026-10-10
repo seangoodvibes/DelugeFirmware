@@ -17,6 +17,10 @@
 
 #pragma once
 
+namespace deluge::lifetime {
+class lifetime_watch;
+}
+
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_descriptor.h"
 #include "util/fixedpoint.h"
@@ -50,7 +54,8 @@ public:
 	void release_automation();
 	void release_unautomated();
 	void rebind_automation();
-	Error clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length);
+	Error clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	Error take_automation_from(AutoParam& source);
 	void write_amount(Serializer& writer, bool write_automation);
 	void setDefaultPolarity();

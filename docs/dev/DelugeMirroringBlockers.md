@@ -2277,3 +2277,15 @@ allocations for normal/reverse copies and cover expired entry and successful
 semantics. All 36 native suites and `./dbt build relwithdebinfo` pass. Collection
 callers still need to propagate the guard; source edits that do not retire its
 owner and destination lifetime remain separate concerns.
+
+The clip source watch now reaches fixed, expression, MIDI and patch-cable
+collection cloning, including pooled parameter/cable acquisition, node storage
+and destination-group copying. Cancellation normalizes every borrowed pointer
+before the failed copy is destroyed. Native sanitizer sweeps retire and actually
+destroy source managers at every allocation until successful completion, for
+normal and reverse cloning with multiple parameters, automated expression and
+patch destination groups. They check preserved destination state, layout and
+allocation/pool balance. All 36 native suites and `./dbt build relwithdebinfo` pass.
+This protects owner-retirement paths through these clone implementations; source
+collection/parameter edits while the owner remains alive, shallow note-row clone
+integration and destination lifetime still need their own protection.

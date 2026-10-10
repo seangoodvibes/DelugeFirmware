@@ -22,6 +22,7 @@
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_output.h"
 #include "storage/storage_manager.h"
+#include "util/lifetime.h"
 
 MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
     : ParamCollection(sizeof(MIDIParamCollection), summary) {
@@ -54,8 +55,9 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 }
 
 Error MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                      ParamCollectionSummary* summary) {
-	auto error = params.clone_automation(copyAutomation, reverseDirectionWithLength);
+                                      ParamCollectionSummary* summary,
+                                      const deluge::lifetime::lifetime_watch* source_lifetime) {
+	auto error = params.clone_automation(copyAutomation, reverseDirectionWithLength, source_lifetime);
 	if (summary) {
 		summary->whichParamsAreAutomated[0] = 1; // Retain the MIDI collection's scheduling sentinel.
 		refresh_interpolation(summary);

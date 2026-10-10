@@ -32,6 +32,7 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/algorithm/quick_sorter.h"
+#include "util/lifetime.h"
 #include "util/misc.h"
 #include <string.h>
 #include <utility>
@@ -808,7 +809,8 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 }
 
 Error PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                ParamCollectionSummary* summary) {
+                                ParamCollectionSummary* summary,
+                                const deluge::lifetime::lifetime_watch* source_lifetime) {
 	// The manager shallow-copied the set. Detach every source-owned pointer before
 	// allocating anything so even a partially constructed clone can be destroyed.
 	auto source_cables = patch_cables_;
@@ -818,12 +820,19 @@ Error PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWit
 	patch_cables_.fill(nullptr);
 	destinations[0] = destinations[1] = nullptr;
 	numPatchCables = numUsablePatchCables = 0;
+	if (source_lifetime && !source_lifetime->alive())
+		return Error::BUG;
 	for (uint8_t index = 0; index < source_count; ++index) {
 		auto* cable = append_cable();
-		if (!cable
-		    || cable->clone_from(*source_cables[index], copyAutomation, reverseDirectionWithLength) != Error::NONE) {
+		if (source_lifetime && !source_lifetime->alive()) {
 			clear_cables(summary);
-			return Error::INSUFFICIENT_RAM;
+			return Error::BUG;
+		}
+		if (!cable
+		    || cable->clone_from(*source_cables[index], copyAutomation, reverseDirectionWithLength, source_lifetime)
+		           != Error::NONE) {
+			clear_cables(summary);
+			return source_lifetime && !source_lifetime->alive() ? Error::BUG : Error::INSUFFICIENT_RAM;
 		}
 	}
 	for (int32_t group = 0; group < 2; ++group) {
@@ -835,9 +844,9 @@ Error PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWit
 		} while (source_destinations[group][count - 1].sources);
 		destinations[group] =
 		    static_cast<Destination*>(GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * count));
-		if (!destinations[group]) {
+		if ((source_lifetime && !source_lifetime->alive()) || !destinations[group]) {
 			clear_cables(summary);
-			return Error::INSUFFICIENT_RAM;
+			return source_lifetime && !source_lifetime->alive() ? Error::BUG : Error::INSUFFICIENT_RAM;
 		}
 		memcpy(destinations[group], source_destinations[group], sizeof(Destination) * count);
 	}

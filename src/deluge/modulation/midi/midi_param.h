@@ -17,6 +17,10 @@
 
 #pragma once
 
+namespace deluge::lifetime {
+class lifetime_watch;
+}
+
 #include "modulation/automation/auto_param.h"
 
 class MIDIParam {
@@ -32,7 +36,8 @@ public:
 	void rebind_automation();
 	void release_automation();
 	void release_unautomated();
-	Error clone_automation(bool copy_automation, int32_t reverse_length);
+	Error clone_automation(bool copy_automation, int32_t reverse_length,
+	                       const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	Error read_from_file(Deserializer& reader, int32_t automation_limit);
 	void write_to_file(Serializer& writer);
 

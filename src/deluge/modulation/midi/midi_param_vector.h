@@ -17,6 +17,10 @@
 
 #pragma once
 
+namespace deluge::lifetime {
+class lifetime_watch;
+}
+
 #include "util/container/array/ordered_resizeable_array.h"
 
 class MIDIParam;
@@ -30,7 +34,8 @@ public:
 	const MIDIParam* getParamFromCC(int32_t cc) const;
 	void deleteAtKey(int32_t cc);
 	void clear();
-	Error clone_automation(bool copy_automation, int32_t reverse_length);
+	Error clone_automation(bool copy_automation, int32_t reverse_length,
+	                       const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	MIDIParam* getElement(int32_t i);
 	MIDIParam* getParamFromCC(int32_t cc);
 	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);

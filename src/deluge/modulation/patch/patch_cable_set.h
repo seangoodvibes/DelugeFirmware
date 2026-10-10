@@ -74,8 +74,8 @@ public:
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) override;
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override;
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                 ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary = nullptr,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) override;
 	ParamManagerForTimeline* getParamManager();
 
 	void writePatchCablesToFile(Serializer& writer, bool writeAutomation);

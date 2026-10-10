@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "modulation/automation/auto_param_pool.h"
 #include "util/fixedpoint.h"
+#include "util/lifetime.h"
 #include <cstring>
 #include <utility>
 
@@ -124,7 +125,10 @@ void PatchCable::rebind_automation() {
 		automation_->bind_current_value(current_value_);
 }
 
-Error PatchCable::clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length) {
+Error PatchCable::clone_from(const PatchCable& source, bool copy_automation, int32_t reverse_length,
+                             const deluge::lifetime::lifetime_watch* source_lifetime) {
+	if (source_lifetime && !source_lifetime->alive())
+		return Error::BUG;
 	initAmount(source.current_value_);
 	from = source.from;
 	polarity = source.polarity;
@@ -132,11 +136,15 @@ Error PatchCable::clone_from(const PatchCable& source, bool copy_automation, int
 	rangeAdjustmentPointer = source.rangeAdjustmentPointer;
 	if (copy_automation && source.is_automated()) {
 		auto* destination = get_auto_param(true);
+		if (source_lifetime && !source_lifetime->alive()) {
+			release_unautomated();
+			return Error::BUG;
+		}
 		if (!destination)
 			return Error::INSUFFICIENT_RAM;
 		memcpy(destination, source.automation_, sizeof(AutoParam));
 		rebind_automation();
-		auto error = destination->beenCloned(true, reverse_length);
+		auto error = destination->beenCloned(true, reverse_length, source_lifetime);
 		release_unautomated();
 		return error;
 	}

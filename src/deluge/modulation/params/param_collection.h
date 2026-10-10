@@ -36,6 +36,10 @@ class ModelStackWithParamId;
 class ModelStackWithParamCollection;
 class ParamCollectionSummary;
 
+namespace deluge::lifetime {
+class lifetime_watch;
+}
+
 class ParamCollection {
 public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
@@ -45,7 +49,8 @@ public:
 	// Implementations may clear flags for automation that could not be cloned.
 	// On error the clone must be safe to destroy without releasing source-owned storage.
 	virtual Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0,
-	                         ParamCollectionSummary* summary = nullptr) = 0;
+	                         ParamCollectionSummary* summary = nullptr,
+	                         const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) = 0;
 
 	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;

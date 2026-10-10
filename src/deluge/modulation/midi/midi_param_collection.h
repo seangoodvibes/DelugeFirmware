@@ -59,8 +59,8 @@ public:
 
 	bool has_current_value(int32_t param_id) const override;
 	int32_t get_current_value(int32_t param_id) const override;
-	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                 ParamCollectionSummary* summary = nullptr) override;
+	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary = nullptr,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr) override;
 	void sendMIDI(MIDISource source, int32_t channel, int32_t cc, int32_t newValue, int32_t midiOutputFilter);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
