@@ -620,9 +620,12 @@ bool InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(ModelStac
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
 	auto* const source_output = source_clip->output;
+	auto output_lifetime = source_output->watch_lifetime();
+	if (!output_lifetime.alive())
+		return false;
 	auto* const source_playback = currentPlaybackMode;
 	const auto context_matches = [&] {
-		return source_lifetime.alive() && deluge::gui::ui_session::current() == source_owner
+		return source_lifetime.alive() && output_lifetime.alive() && deluge::gui::ui_session::current() == source_owner
 		       && currentSong == source_song && getCurrentClip() == source_clip && source_clip->output == source_output
 		       && currentPlaybackMode == source_playback;
 	};

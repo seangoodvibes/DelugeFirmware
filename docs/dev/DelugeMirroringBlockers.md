@@ -2090,3 +2090,10 @@ Eight extracted destructor/deletion tests, an empty-watch test and two recording
 regressions run under ASan/UBSan. All 36 native suites and
 `./dbt build relwithdebinfo` pass. This protects already-acquired watches; stale
 long-lived references and callback-internal ownership remain open under L1/G1.
+
+Activation and MIDI Follow active-clip lookup now watch the source output before
+activation/availability callbacks and reject retiring outputs even when their
+clip is still active. Six sanitizer regressions cover output deletion,
+same-address reuse and retirement before entry. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Persistent reference acquisition remains a
+separate lifetime gap; these guards cover outputs known live at acquisition.

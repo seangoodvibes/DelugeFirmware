@@ -8,6 +8,8 @@ namespace midi_follow_context_test {
 namespace session = deluge::gui::ui_session;
 struct Clip;
 struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Output* next = nullptr;
 	Clip* active_clip = nullptr;
 	Clip* getActiveClip() { return active_clip; }
@@ -373,4 +375,34 @@ TEST(MidiFollowContext, retiring_active_clip_is_not_returned) {
 	audio.lifetime_source.retire();
 	ModelStack stack;
 	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+}
+
+TEST(MidiFollowContext, output_destroyed_during_activation_cancels_lookup) {
+	auto* target = new Output;
+	instrument.output = target;
+	target->active_clip = &instrument;
+	current_clips.active() = &instrument;
+	on_activation = [&] { delete target; };
+	ModelStack stack;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+}
+TEST(MidiFollowContext, output_reused_during_activation_is_not_returned) {
+	auto* target = new Output;
+	instrument.output = target;
+	current_clips.active() = &instrument;
+	on_activation = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->active_clip = &instrument;
+	};
+	ModelStack stack;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	delete target;
+}
+TEST(MidiFollowContext, retired_output_prevents_activation_lookup) {
+	current_clips.active() = &instrument;
+	output.lifetime_source.retire();
+	ModelStack stack;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	LONGS_EQUAL(0, activation_calls);
 }

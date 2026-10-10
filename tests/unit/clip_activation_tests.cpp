@@ -16,6 +16,8 @@ struct ModelStack {
 };
 static std::function<void()> on_available, on_activate;
 struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Clip* active_clip = nullptr;
 	int calls = 0;
 	bool activate = true;
@@ -176,6 +178,30 @@ TEST(ClipActivation, activation_callback_reusing_clip_address_is_not_success) {
 }
 TEST(ClipActivation, retiring_current_clip_is_not_activated) {
 	clip.lifetime_source.retire();
+	CHECK_FALSE(InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(&stack));
+	LONGS_EQUAL(0, output.calls);
+}
+
+TEST(ClipActivation, output_destroyed_during_availability_cancels_activation) {
+	auto* target = new Output;
+	clip.output = target;
+	on_available = [&] { delete target; };
+	CHECK_FALSE(InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(&stack));
+}
+TEST(ClipActivation, output_reused_during_activation_is_not_success) {
+	auto* target = new Output;
+	clip.output = target;
+	on_activate = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->active_clip = &clip;
+	};
+	CHECK_FALSE(InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(&stack));
+	delete target;
+}
+TEST(ClipActivation, retired_output_is_rejected_even_when_clip_is_active) {
+	output.active_clip = &clip;
+	output.lifetime_source.retire();
 	CHECK_FALSE(InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(&stack));
 	LONGS_EQUAL(0, output.calls);
 }

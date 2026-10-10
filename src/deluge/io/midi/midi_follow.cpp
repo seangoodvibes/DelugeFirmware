@@ -468,10 +468,13 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_song = currentSong;
 	auto* const source_output = source_clip->output;
+	auto output_lifetime = source_output->watch_lifetime();
+	if (!output_lifetime.alive())
+		return nullptr;
 	// Auditioning may activate this clip when its output is available.
 	InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-	if (!source_lifetime.alive() || deluge::gui::ui_session::current() != source_owner || currentSong != source_song
-	    || getCurrentClip() != source_clip || source_clip->output != source_output)
+	if (!source_lifetime.alive() || !output_lifetime.alive() || deluge::gui::ui_session::current() != source_owner
+	    || currentSong != source_song || getCurrentClip() != source_clip || source_clip->output != source_output)
 		return nullptr;
 	auto* const active_clip = source_output->getActiveClip();
 	if (!active_clip)
