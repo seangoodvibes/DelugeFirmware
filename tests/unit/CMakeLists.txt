@@ -462,7 +462,7 @@ target_sources(UnitTests PRIVATE rename_dialog_tests.cpp ${CMAKE_CURRENT_BINARY_
 set(ui_open_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/ui.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${ui_open_source} ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc "bool openUI" "void closeUI" "bool changeUIAtLevel" "bool changeUISideways" "void changeRootUI" "void setRootUILowLevel" "void uiNeedsRendering" "void clearPendingUIRendering" "void doAnyPendingGridRendering"
+        ${ui_open_source} ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc "bool openUI" "void closeUI" "bool changeUIAtLevel" "bool changeUISideways" "void changeRootUI" "void setRootUILowLevel" "void uiNeedsRendering" "void clearPendingUIRendering" "void doAnyPendingGridRendering" "void doAnyPendingOLEDRendering"
     DEPENDS ${ui_open_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ui_open_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/ui_open.inc)
 

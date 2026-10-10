@@ -1250,3 +1250,15 @@ side effects are not provided by these guards.
   `./dbt build relwithdebinfo` pass.
 - Hardware sends and object retention are not exercised by these fixtures. G1/L1
   remain open and independent mode stays disabled.
+
+### G1 progress — OLED rendering callback containment (2026-10-10)
+
+- OLED rendering validates active stacks, consumes the current request before
+  callbacks and preserves newly queued redraws. Owner/hierarchy changes stop the
+  pass before subsequent rendering or sending and queue a retry on the initiating
+  panel. Empty stacks defer rendering rather than sending an old UI image.
+- Five extracted-production fixture cases cover request preservation, owner/stack
+  changes, retry, layer coverage, clean sends and invalid stacks. Three regressions
+  failed before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
+- These tests mock display operations; physical display behavior and UI retention
+  remain G1/G2/L1 work. Independent mode remains disabled.

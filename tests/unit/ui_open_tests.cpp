@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_session.h"
+#include <algorithm>
 #include <array>
 #include <functional>
 namespace ui_open_test {
@@ -8,6 +9,14 @@ namespace deluge::gui {
 namespace ui_session = ::deluge::gui::ui_session;
 }
 struct UI {
+	bool oledShowsUIUnderneath = false;
+	int oled_renders = 0;
+	std::function<void()> on_oled;
+	void renderOLED(int&) {
+		++oled_renders;
+		if (on_oled)
+			on_oled();
+	}
 	UI* redirected = this;
 	bool success = true, main_needed = false, side_needed = false;
 	std::function<void()> on_main, on_side;
@@ -46,6 +55,7 @@ struct navigation_fixture {
 	static constexpr int capacity = 16;
 	std::array<UI*, capacity> hierarchy{};
 	int depth = 0;
+	bool oled_dirty = false;
 	uint32_t mode = 0;
 	uint32_t main_rows_dirty = 0, side_rows_dirty = 0;
 };
@@ -98,6 +108,24 @@ static void reassessGreyout() {
 		on_greyout();
 }
 } // namespace PadLEDs
+namespace OLED {
+static session::State<int> sends, clears, stops, canvases;
+static void clearMainImage() {
+	++clears.active();
+}
+static void stopScrollingAnimation() {
+	++stops.active();
+}
+static void sendMainImage() {
+	++sends.active();
+}
+static int& main_for_session() {
+	return canvases.active();
+}
+} // namespace OLED
+namespace deluge::hid::display {
+namespace OLED = ::ui_open_test::OLED;
+}
 #include "ui_open.inc"
 } // namespace ui_open_test
 using namespace ui_open_test;
@@ -107,6 +135,9 @@ TEST_GROUP(UIOpen) {
 		session::detail::active = session::Id::Local;
 		navigation_states = {};
 		redraws = {};
+		OLED::sends = {};
+		OLED::clears = {};
+		OLED::stops = {};
 		timer_unsets = {};
 		PadLEDs::on_greyout = {};
 		PadLEDs::on_main_send = {};
@@ -637,4 +668,65 @@ TEST(UIOpen, grid_sidebar_change_preserves_callback_requests) {
 	doAnyPendingGridRendering();
 	LONGS_EQUAL(6, navigation().side_rows_dirty);
 	LONGS_EQUAL(0, PadLEDs::side_sends.active());
+}
+
+TEST(UIOpen, oled_render_preserves_request_queued_by_callback) {
+	navigation().oled_dirty = true;
+	root.on_oled = [] { navigation().oled_dirty = true; };
+	doAnyPendingOLEDRendering();
+	CHECK(navigation().oled_dirty);
+}
+TEST(UIOpen, oled_render_does_not_send_into_changed_owner) {
+	navigation().oled_dirty = true;
+	root.on_oled = [] { session::detail::active = session::Id::Remote; };
+	doAnyPendingOLEDRendering();
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(0, OLED::sends.for_owner(session::Id::Remote));
+	CHECK(navigation().oled_dirty);
+}
+TEST(UIOpen, oled_render_stops_after_stack_change_and_retries) {
+	navigation().oled_dirty = true;
+	navigation().depth = 2;
+	navigation().hierarchy[1] = &menu;
+	menu.oledShowsUIUnderneath = true;
+	root.on_oled = [&] { navigation().hierarchy[1] = &replacement; };
+	doAnyPendingOLEDRendering();
+	LONGS_EQUAL(0, replacement.oled_renders);
+	LONGS_EQUAL(0, OLED::sends.active());
+	CHECK(navigation().oled_dirty);
+	root.on_oled = {};
+	doAnyPendingOLEDRendering();
+	LONGS_EQUAL(1, replacement.oled_renders);
+	LONGS_EQUAL(1, OLED::sends.active());
+	CHECK_FALSE(navigation().oled_dirty);
+}
+
+TEST(UIOpen, oled_render_handles_layers_and_clean_frame_sends) {
+	navigation().depth = 2;
+	navigation().hierarchy[1] = &menu;
+	navigation().oled_dirty = true;
+	menu.oledShowsUIUnderneath = true;
+	doAnyPendingOLEDRendering();
+	LONGS_EQUAL(1, root.oled_renders);
+	LONGS_EQUAL(1, menu.oled_renders);
+	LONGS_EQUAL(1, OLED::clears.active());
+	CHECK_FALSE(navigation().oled_dirty);
+	doAnyPendingOLEDRendering();
+	LONGS_EQUAL(2, OLED::sends.active());
+	LONGS_EQUAL(1, menu.oled_renders);
+	navigation().oled_dirty = true;
+	menu.oledShowsUIUnderneath = false;
+	doAnyPendingOLEDRendering();
+	LONGS_EQUAL(1, root.oled_renders);
+	LONGS_EQUAL(2, menu.oled_renders);
+}
+TEST(UIOpen, oled_render_defers_invalid_stacks_without_consuming_request) {
+	for (int depth : {-1, 0, navigation_fixture::capacity + 1, 2}) {
+		navigation().depth = depth;
+		navigation().oled_dirty = true;
+		doAnyPendingOLEDRendering();
+		CHECK(navigation().oled_dirty);
+	}
+	LONGS_EQUAL(0, OLED::clears.active());
+	LONGS_EQUAL(0, OLED::sends.active());
 }

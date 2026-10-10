@@ -547,22 +547,42 @@ void doAnyPendingGridRendering() {
 }
 
 void doAnyPendingOLEDRendering() {
-	if (navigation().oled_dirty) {
-		int32_t u = navigation().depth - 1;
-		while ((u > 0) && navigation().hierarchy[u]->oledShowsUIUnderneath) {
-			u--;
-		}
+	if (navigation().depth <= 0 || navigation().depth > navigation().capacity)
+		return;
+	for (int32_t level = 0; level < navigation().depth; ++level) {
+		if (!navigation().hierarchy[level])
+			return;
+	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto& source_navigation = navigation();
+	const auto expected_depth = source_navigation.depth;
+	const auto expected_hierarchy = source_navigation.hierarchy;
+	const auto context_matches = [&] {
+		if (deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
+		    && source_navigation.hierarchy == expected_hierarchy)
+			return true;
+		source_navigation.oled_dirty = true;
+		return false;
+	};
+	if (source_navigation.oled_dirty) {
+		int32_t level = expected_depth - 1;
+		while (level > 0 && expected_hierarchy[level]->oledShowsUIUnderneath)
+			--level;
 
+		// Consume this request before callbacks so newly queued redraws survive.
+		source_navigation.oled_dirty = false;
 		OLED::clearMainImage();
-		u = std::max(u, 0L);
-		for (; u < navigation().depth; u++) {
+		if (!context_matches())
+			return;
+		for (; level < expected_depth; ++level) {
 			OLED::stopScrollingAnimation();
-			navigation().hierarchy[u]->renderOLED(deluge::hid::display::OLED::main_for_session());
+			if (!context_matches())
+				return;
+			expected_hierarchy[level]->renderOLED(deluge::hid::display::OLED::main_for_session());
+			if (!context_matches())
+				return;
 		}
-
-		// Don't need to mark dirty because clearMainImage has already done that for us
-
-		navigation().oled_dirty = false;
 	}
 
 	OLED::sendMainImage();
