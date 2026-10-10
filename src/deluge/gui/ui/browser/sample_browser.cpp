@@ -1671,6 +1671,18 @@ allSorted:
 	return true;
 }
 
+static void release_multisample_import_samples(Sample** samples, int32_t sample_count) {
+	for (int32_t index = 0; index < sample_count; ++index) {
+		auto* sample = samples[index];
+#if ALPHA_OR_BETA_VERSION
+		if (sample->numReasonsToBeLoaded <= 0)
+			FREEZE_WITH_ERROR("E215");
+#endif
+		sample->removeReason("E393");
+	}
+	delugeDealloc(samples);
+}
+
 bool SampleBrowser::importFolderAsMultisamples() {
 
 	AudioEngine::stopAnyPreviewing();
@@ -1707,16 +1719,7 @@ doReturnFalse:
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
-			delugeDealloc(sortArea);
-			for (int32_t s = 0; s < numSamples; s++) {
-				Sample* thisSample = sortArea[s];
-#if ALPHA_OR_BETA_VERSION
-				if (thisSample->numReasonsToBeLoaded <= 0) {
-					FREEZE_WITH_ERROR("E215"); // I put this here to try and catch an E004 Luc got
-				}
-#endif
-				thisSample->removeReason("E393"); // Remove that temporary reason we added above
-			}
+			release_multisample_import_samples(sortArea, numSamples);
 			display->displayError(Error::INSUFFICIENT_RAM);
 			goto doReturnFalse;
 		}

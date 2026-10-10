@@ -3366,3 +3366,12 @@ the real default Voiced adapter. All 38 suites and RelWithDebInfo pass. This clo
 child-cancellation propagation in the Kit loop; the outer song hibernation/deletion
 transaction and recovery of cleanup already completed remain open. Independent mode
 stays disabled.
+
+The multisample import allocation-failure path no longer frees its sorting table
+before reading sample pointers from it. Cleanup releases the temporary Sample
+reasons first, then frees the table. ASan reproduced a heap-use-after-free with the
+old ordering; two regressions now verify release-before-free, exactly-once table
+cleanup and preservation of independently held references (including repeated
+entries). All 38 suites and RelWithDebInfo pass. This is a separate upstream-relevant
+memory-safety fix; broader import cancellation and preservation of already-replaced
+ranges remain R4/R5 work. Independent mode stays disabled.
