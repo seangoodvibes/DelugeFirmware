@@ -28,6 +28,7 @@ struct Song {
 	ParamManager* getBackedUpParamManagerPreferablyWithClip(SoundDrum*, void*) { return &params; }
 };
 struct NoteRow {
+	uint64_t undo_identity = 1;
 	ParamManager paramManager;
 	bool droning = false, sequenced = false;
 	bool isDroning(int) { return droning; }
@@ -68,9 +69,10 @@ struct InstrumentClip {
 		return result;
 	}
 	void expectEvent() { ++events; }
-	NoteRow row;
+	NoteRow* mapped_row = nullptr;
+	NoteRow* getNoteRowForDrum(Drum*) { return mapped_row; }
 	ModelStackWithNoteRow* getNoteRowForDrum(ModelStackWithTimelineCounter* stack, Drum*) {
-		return stack->addNoteRow(0, &row);
+		return stack->addNoteRow(0, mapped_row);
 	}
 };
 std::function<void()> on_note;
@@ -123,6 +125,7 @@ TEST_GROUP(kit_audition_lifetime) {
 		kit->member = &*drum;
 		kit->activeClip = &*clip;
 		clip->output = &*kit;
+		clip->mapped_row = &row;
 		notes = 0;
 	}
 	void teardown() override {
@@ -319,4 +322,39 @@ TEST(kit_audition_lifetime, stop_all_without_active_clip) {
 	kit->stopAnyAuditioning(&all);
 	LONGS_EQUAL(1, notes);
 	CHECK_FALSE(drum->auditioned);
+}
+
+TEST(kit_audition_lifetime, tail_query_rejects_removed_row) {
+	on_tails = [&] { clip->mapped_row = nullptr; };
+	begin();
+	LONGS_EQUAL(0, notes);
+	CHECK_FALSE(drum->auditioned);
+}
+TEST(kit_audition_lifetime, tail_query_rejects_reused_row_identity) {
+	on_tails = [&] { ++row.undo_identity; };
+	begin();
+	LONGS_EQUAL(0, notes);
+	CHECK_FALSE(drum->auditioned);
+}
+TEST(kit_audition_lifetime, tail_query_preserves_model_stack_retarget) {
+	NoteRow replacement;
+	on_tails = [&] { stack.row = &replacement; };
+	begin();
+	LONGS_EQUAL(0, notes);
+	POINTERS_EQUAL(&replacement, stack.row);
+}
+TEST(kit_audition_lifetime, tail_query_rejects_output_reassignment) {
+	Kit replacement;
+	on_tails = [&] { clip->output = &replacement; };
+	begin();
+	LONGS_EQUAL(0, notes);
+	CHECK_FALSE(drum->auditioned);
+}
+TEST(kit_audition_lifetime, audition_without_row_uses_live_backup_manager) {
+	stack.row = nullptr;
+	clip->mapped_row = nullptr;
+	drum->type = DrumType::SOUND;
+	begin();
+	LONGS_EQUAL(1, notes);
+	CHECK(drum->auditioned);
 }

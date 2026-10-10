@@ -2403,3 +2403,10 @@ points and the shared dispatch helper with model/arp doubles, including real hea
 deletion, bypass, one-shot and no-clip behavior. All 36 native suites and
 `./dbt build relwithdebinfo` pass. This protects these callers after generation;
 it does not establish safety inside arp generation or the tick/render batches.
+
+Audition startup now also re-resolves note-row identity and checks model-stack and
+output association after its tail query, before publishing audition state or
+rebuilding parameter context. Five additional regressions cover removed/reused
+rows, model-stack/output retargeting and a live no-row backup manager. All 36 native
+suites and `./dbt build relwithdebinfo` pass. Row/parameter changes inside callbacks
+still require their own contracts; these checks protect the audition caller.

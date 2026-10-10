@@ -2217,6 +2217,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	ParamManager* paramManagerForDrum = nullptr;
 
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	const auto row_identity = noteRow ? noteRow->undo_identity : 0;
 
 	// don't audition this note row if there is a drone note that is currently sounding
 	if (noteRow) {
@@ -2240,13 +2241,19 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 		}
 	}
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
-
 	bool allowing_note_tails = !audition_clip || ((InstrumentClip*)audition_clip)->allowNoteTails(modelStack);
 	if (!kit_lifetime.alive() || !drum_lifetime.alive() || (audition_clip && !clip_lifetime.alive())
-	    || activeClip != audition_clip || getDrumIndex(drum) < 0)
+	    || activeClip != audition_clip || (audition_clip && audition_clip->output != this) || getDrumIndex(drum) < 0)
 		return;
+	if (modelStack->getNoteRowAllowNull() != noteRow)
+		return;
+	if (audition_clip) {
+		auto* current_row = ((InstrumentClip*)audition_clip)->getNoteRowForDrum(drum);
+		if (current_row != noteRow || (current_row && current_row->undo_identity != row_identity))
+			return;
+	}
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
 
 	// Publish before dispatch so a nested note-off can clear this state without being overwritten.
 	if (allowing_note_tails) {
