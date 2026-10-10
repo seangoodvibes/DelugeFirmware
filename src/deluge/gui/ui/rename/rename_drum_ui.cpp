@@ -77,6 +77,7 @@ bool RenameDrumUI::trySetName(std::string_view name) {
 		return false;
 	}
 	auto* const source_song = currentSong;
+	auto* const source_clip = currentSong->getCurrentClip();
 	const auto source_owner = deluge::gui::ui_session::current();
 	try {
 		drum->drumName = name;
@@ -86,7 +87,7 @@ bool RenameDrumUI::trySetName(std::string_view name) {
 		// std::string preserves its old value on allocation failure. Report only
 		// while this panel still targets the same live drum after allocation.
 		if (deluge::gui::ui_session::current() == source_owner && currentSong == source_song
-		    && selected_drum_for_rename() == drum) {
+		    && selected_drum_for_rename() == drum && currentSong->getCurrentClip() == source_clip) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 		}
 		return false;

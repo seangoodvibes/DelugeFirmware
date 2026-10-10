@@ -728,3 +728,14 @@ TEST(RenameMidiTargets, unrelated_exception_propagates_without_marking_edited) {
 	CHECK_FALSE(instrument.editedByUser);
 	CHECK(display_instance.error == Error::NONE);
 }
+
+TEST(RenameDrumTargets, failed_allocation_after_clip_switch_does_not_report_into_new_clip) {
+	Clip other_clip;
+	other_clip.output = &kit;
+	song.sessionClips.entries.push_back(&other_clip);
+	drum_exception = ::deluge::exception::BAD_ALLOC;
+	on_drum_name_set = [&] { song.selected_clips.active() = &other_clip; };
+	CHECK_FALSE(menu.trySetName("replacement"));
+	CHECK(display_instance.error == Error::NONE);
+	STRCMP_EQUAL("original", drum.drumName.c_str());
+}

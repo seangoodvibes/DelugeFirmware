@@ -1216,3 +1216,13 @@ side effects are not provided by these guards.
 - Successful allocating writes still require object-lifetime protection. These
   checks contain stale error reporting; they do not pin objects during allocation.
   G1/L1/R4 remain open and independent mode stays disabled.
+
+### G1 / R4 progress — drum rename error clip ownership (2026-10-10)
+
+- Drum rename allocation errors now also require the initiating clip. Switching
+  clips while retaining the same kit/drum no longer reports the old operation's
+  error into the new clip context.
+- An extracted-production regression failed before the guard and passes afterward.
+  All 35 native suites and `./dbt build relwithdebinfo` pass. This does not add
+  allocation-spanning object retention; G1/L1/R4 remain open and independent mode
+  stays disabled.
