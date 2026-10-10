@@ -2962,6 +2962,13 @@ void PlaybackHandler::tapTempoButtonPress(bool useNormalTapTempoBehaviour) {
 // Returns whether the message has been used up by a command
 bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, int32_t note) {
 
+	auto* source_song = currentSong;
+	if (!source_song)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return false;
+	const auto source_owner = deluge::gui::ui_session::current();
 	bool foundAnything = false;
 
 	for (int32_t c = 0; c < kNumGlobalMIDICommands; c++) {
@@ -3031,6 +3038,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 
 			foundAnything = true;
 		}
+		if (!song_lifetime.alive() || currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
+			return foundAnything;
 	}
 
 	return foundAnything;
@@ -3073,68 +3082,87 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDICable& cable, int32_t channel
 }
 
 void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, int32_t program) {
-	// If user assigning MIDI commands, do that
+	if (channel < 0 || channel >= 16 || program < 0 || program > 127 || !currentSong)
+		return;
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (getCurrentUI()->pcReceivedForMidiLearn(cable, channel, program)) {}
-		else {
+		auto* ui = getCurrentUI();
+		const bool used = ui && ui->pcReceivedForMidiLearn(cable, channel, program);
+		if (!song_lifetime.alive() || currentSong != source_song || deluge::gui::ui_session::current() != source_owner)
+			return;
+		if (!used)
 			view_for_session().pcReceivedForMIDILearn(cable, channel, program);
-		}
 	}
-	else {
-		// we build ontop of the CC hack
+	else
 		offerNoteToLearnedThings(cable, true, channel + IS_A_PC, program);
-	}
 }
+
 bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_t channel, int32_t note) {
-
-	// Otherwise, enact the relevant MIDI command, if it can be found
-
-	bool foundAnything = false;
-
-	// Check global function commands - Off variant checks note off for momentary commands
-	if (on) {
-		foundAnything = tryGlobalMIDICommands(cable, channel, note);
-	}
-	else {
-		foundAnything = tryGlobalMIDICommandsOff(cable, channel, note);
-	}
-
-	// Go through all sections
-	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (currentSong->sections[s].launchMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
+	auto* source_song = currentSong;
+	if (!source_song)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return false;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return song_lifetime.alive() && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	bool found_any = on ? tryGlobalMIDICommands(cable, channel, note) : tryGlobalMIDICommandsOff(cable, channel, note);
+	if (!context_matches())
+		return found_any;
+	for (int32_t section = 0; section < kMaxNumSections; ++section) {
+		if (source_song->sections[section].launchMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
+			found_any = true;
 			if (on) {
 				if (arrangement.hasPlaybackActive()) {
 					switchToSession();
+					if (!context_matches())
+						return found_any;
 				}
-				session.armSection(s, kMIDIKeyInputLatency);
+				session.armSection(section, kMIDIKeyInputLatency);
+				if (!context_matches())
+					return found_any;
 			}
-			foundAnything = true;
 		}
 	}
-
-	// Go through all Clips in session only
-	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
-
-		// Mute action on Clip?
+	for (int32_t index = source_song->sessionClips.getNumElements() - 1; index >= 0; --index) {
+		if (index >= source_song->sessionClips.getNumElements())
+			return found_any;
+		auto* clip = source_song->sessionClips.getClipAtIndex(index);
+		if (!clip)
+			return found_any;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (!clip_lifetime.alive())
+			return found_any;
 		if (clip->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
+			found_any = true;
 			if (on) {
-
 				if (arrangement.hasPlaybackActive()) {
 					switchToSession();
+					if (!context_matches() || !clip_lifetime.alive()
+					    || index >= source_song->sessionClips.getNumElements()
+					    || source_song->sessionClips.getClipAtIndex(index) != clip)
+						return found_any;
 				}
-
-				// Beware - calling this might insert or delete a Clip!
-				session.toggleClipStatus(clip, &c, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
-
-				// use root UI in case this is called from performance view
+				// This operation may deliberately remove the clip and adjust the traversal index.
+				session.toggleClipStatus(clip, &index, Buttons::isShiftButtonPressed(), kMIDIKeyInputLatency);
+				if (!context_matches())
+					return found_any;
 				session_view_for_session().requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+				if (!context_matches() || index < 0)
+					return found_any;
 			}
-			foundAnything = true;
 		}
 	}
-
-	return foundAnything;
+	return found_any;
 }
 
 void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,

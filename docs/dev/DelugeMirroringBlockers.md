@@ -2976,3 +2976,13 @@ note-offs, recording flags and MIDI-learn fallback, and cover deletion and malfo
 input. All 36 suites and `./dbt build relwithdebinfo` pass. Learned-command traversal
 and individual command/output internals remain open; completed note delivery is not
 rolled back and cable lifetime/hardware acceptance remain unverified.
+
+Playback learned-command traversal now validates song lifetime and session ownership
+after global commands, section switches, clip toggles and rendering callbacks. Clip
+watches and current-slot checks protect switching, while deliberate clip deletion
+and index adjustment by toggleClipStatus remain supported. Program-change learning
+also validates before fallback. Twenty-one production-body sanitizer regressions
+cover live command ordering, deletion/reuse, traversal changes, learning and deferred
+undo scheduling. All 36 suites and `./dbt build relwithdebinfo` pass. Individual
+command internals, equal-size list reordering, recovery and hardware acceptance
+remain open; completed commands are retained and independent mode stays disabled.
