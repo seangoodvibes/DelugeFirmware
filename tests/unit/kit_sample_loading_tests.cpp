@@ -161,6 +161,7 @@ TEST(KitSampleLoading, normal_full_and_crucial_loads_finish_owned_directory) {
 TEST(KitSampleLoading, destroyed_kit_during_setup_does_not_begin_drum_scan) {
 	auto owner = std::make_unique<Kit>();
 	owner->firstDrum = &first;
+	first.kit = owner.get();
 	on_setup = [&] { owner.reset(); };
 	CHECK(owner->loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
 	LONGS_EQUAL(0, loads);
@@ -168,6 +169,7 @@ TEST(KitSampleLoading, destroyed_kit_during_setup_does_not_begin_drum_scan) {
 }
 TEST(KitSampleLoading, destroyed_drum_during_abort_check_is_not_loaded) {
 	auto drum = std::make_unique<Drum>();
+	drum->kit = &kit;
 	kit.firstDrum = drum.get();
 	on_abort = [&] {
 		kit.firstDrum = &second;
@@ -180,6 +182,7 @@ TEST(KitSampleLoading, destroyed_drum_during_abort_check_is_not_loaded) {
 TEST(KitSampleLoading, destroyed_kit_during_drum_load_does_not_continue) {
 	auto owner = std::make_unique<Kit>();
 	owner->firstDrum = &first;
+	first.kit = owner.get();
 	on_load = [&] { owner.reset(); };
 	CHECK(owner->loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
 	LONGS_EQUAL(1, loads);
@@ -224,6 +227,7 @@ TEST(KitSampleLoading, same_size_replaced_row_stops_crucial_scan) {
 }
 TEST(KitSampleLoading, destroyed_drum_stops_crucial_scan) {
 	auto drum = std::make_unique<Drum>();
+	drum->kit = &kit;
 	drum->next = &second;
 	kit.firstDrum = drum.get();
 	row.drum = drum.get();
@@ -328,6 +332,7 @@ TEST(KitSampleLoading, unavailable_row_identity_does_not_start_crucial_loading) 
 TEST(KitSampleLoading, destroyed_kit_during_idle_cleanup_does_not_scan_drums) {
 	auto owner = std::make_unique<Kit>();
 	owner->firstDrum = &first;
+	first.kit = owner.get();
 	on_idle = [&] { owner.reset(); };
 	owner->prepareForHibernationOrDeletion();
 	LONGS_EQUAL(0, hibernations);
@@ -409,4 +414,46 @@ TEST(KitSampleLoading, same_address_successor_replacement_cancels_inner_hibernat
 	successor->~Drum();
 	LONGS_EQUAL(1, hibernations);
 	LONGS_EQUAL(0, hibernation_publications);
+}
+
+TEST(KitSampleLoading, replaced_successor_cancels_full_loading_publication) {
+	on_load = [&] { first.next = nullptr; };
+	CHECK(kit.loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(KitSampleLoading, same_address_successor_replacement_cancels_full_loading) {
+	alignas(Drum) unsigned char storage[sizeof(Drum)];
+	auto* successor = new (storage) Drum;
+	successor->kit = &kit;
+	first.next = successor;
+	on_load = [&] {
+		successor->~Drum();
+		successor = new (storage) Drum;
+		successor->kit = &kit;
+	};
+	const auto error = kit.loadAllAudioFiles(true);
+	first.next = &second;
+	successor->~Drum();
+	CHECK(error == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(KitSampleLoading, changed_kit_binding_cancels_full_loading_publication) {
+	on_load = [&] { first.kit = nullptr; };
+	CHECK(kit.loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(KitSampleLoading, changed_kit_binding_cancels_crucial_loading_publication) {
+	on_load = [&] { first.kit = nullptr; };
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(KitSampleLoading, mismatched_kit_binding_rejects_entry_before_loading) {
+	first.kit = nullptr;
+	CHECK(kit.loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(0, loads);
 }

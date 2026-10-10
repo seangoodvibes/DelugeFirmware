@@ -417,7 +417,16 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 		AudioEngine::logAction("Kit::loadAllSamples");
 		for (Drum* drum = firstDrum; drum;) {
 			auto drum_lifetime = drum->watch_lifetime();
-			const auto drum_valid = [&] { return context_valid() && drum_lifetime.alive() && getDrumIndex(drum) >= 0; };
+			if (!drum_lifetime.alive()) {
+				error = Error::ABORTED_BY_USER;
+				break;
+			}
+			auto* next_drum = drum->next;
+			auto next_lifetime = next_drum ? next_drum->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+			const auto drum_valid = [&] {
+				return context_valid() && drum_lifetime.alive() && drum->kit == this && getDrumIndex(drum) >= 0
+				       && (!next_drum || next_lifetime.alive()) && drum->next == next_drum;
+			};
 			if (!drum_valid()) {
 				error = Error::ABORTED_BY_USER;
 				break;
@@ -433,7 +442,7 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 				error = Error::ABORTED_BY_USER;
 			if (error != Error::NONE)
 				break;
-			drum = drum->next;
+			drum = next_drum;
 		}
 	}
 	if (doingAlternatePath)
@@ -478,14 +487,14 @@ void Kit::loadCrucialAudioFilesOnly() {
 		if (getDrumIndex(drum) < 0)
 			break;
 		auto drum_lifetime = drum->watch_lifetime();
-		if (!drum_lifetime.alive())
+		if (!drum_lifetime.alive() || drum->kit != this)
 			break;
 		const auto row_count = source_clip->noteRows.getNumElements();
 		const auto row_identity = row->undo_identity;
 		if (!row_identity)
 			break;
 		const auto row_valid = [&] {
-			return context_valid() && drum_lifetime.alive() && getDrumIndex(drum) >= 0
+			return context_valid() && drum_lifetime.alive() && drum->kit == this && getDrumIndex(drum) >= 0
 			       && source_clip->noteRows.getNumElements() == row_count
 			       && source_clip->noteRows.getElement(index) == row && row->undo_identity == row_identity
 			       && row->drum == drum;

@@ -3375,3 +3375,11 @@ cleanup and preservation of independently held references (including repeated
 entries). All 38 suites and RelWithDebInfo pass. This is a separate upstream-relevant
 memory-safety fix; broader import cancellation and preservation of already-replaced
 ranges remain R4/R5 work. Independent mode stays disabled.
+
+Kit sample loading now requires each drum to retain its Kit association, and full
+loading watches the saved successor lifetime and link before accepting publication
+or advancing. Five regressions cover changed associations at entry/during loading,
+changed successors and successor replacement at the same address. All 38 native
+suites and RelWithDebInfo pass. These guards cancel stale loading; they do not
+roll back previously loaded drums or close the broader lifetime/recovery blockers.
+Independent mode remains disabled.
