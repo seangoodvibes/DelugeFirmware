@@ -1981,3 +1981,16 @@ results and changes to either song pointer, verifying no clip-field mutation or
 publication. All 35 native suites and `./dbt build relwithdebinfo` pass. Unexpected
 results are not destroyed because their ownership is unknown; this does not
 recover prior audio-instance edits or prove lifetime during callbacks.
+
+### R5 / L3 progress — repeat and publication failures in recording clones (2026-10-10)
+
+Recording cloning now checks repeat expansion and song insertion results. With
+unchanged song/panel/structural revisions and an unadopted clone, failure restores
+the source timeline and discards the unpublished clone. Song/history ownership,
+active-output adoption or a clip instance prevents disposal and duplicate
+publication. Five regressions exercise expansion/publication failure, failed and
+successful expansion callbacks adopting the clone, and structural invalidation
+on either panel. All 35 native suites and `./dbt build relwithdebinfo` pass.
+Cleanup is counted through a fixture, not a real destructor. Invalidation without
+notification/address reuse, cleanup after lost context, prior audio-instance
+edits and later playback callbacks remain open; R5/L3 are not closed.

@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui_navigation_state.h"
 #include <array>
 #include <functional>
 namespace recording_clone_test {
@@ -28,9 +29,21 @@ struct Output {
 	Clip* active = nullptr;
 	instances_fixture clipInstances;
 	Clip* getActiveClip() { return active; }
+	bool clipHasInstance(Clip* clip) {
+		for (auto& instance : clipInstances.values)
+			if (instance.clip == clip)
+				return true;
+		return false;
+	}
 	void setActiveClip(ModelStackWithTimelineCounter*, PgmChangeSend);
 };
 struct song_fixture {
+	int deletions = 0;
+	Clip* deleted_clip = nullptr;
+	void deleteClipObject(Clip* clip, bool, InstrumentRemoval) {
+		++deletions;
+		deleted_clip = clip;
+	}
 	Clip* owned_clip = nullptr;
 	bool contains_clip_for_undo(Clip* clip) { return clip == owned_clip || clip == arrangementOnlyClips.inserted; }
 	bool active = true;
@@ -38,11 +51,14 @@ struct song_fixture {
 	struct {
 		bool reserve_ok = true;
 		int inserts = 0;
+		Error insert_error = Error::NONE;
 		Clip* inserted = nullptr;
 		bool ensureEnoughSpaceAllocated(int) { return reserve_ok; }
-		void insertClipAtIndex(Clip* clip, int) {
+		Error insertClipAtIndex(Clip* clip, int) {
 			++inserts;
-			inserted = clip;
+			if (insert_error == Error::NONE)
+				inserted = clip;
+			return insert_error;
 		}
 	} arrangementOnlyClips;
 };
@@ -77,8 +93,13 @@ struct Clip {
 			on_clone(stack);
 		return clone_error;
 	}
-	void increaseLengthWithRepeats(ModelStackWithTimelineCounter*, int length, IndependentNoteRowLengthIncrease, bool) {
+	bool repeat_success = true;
+	std::function<void()> on_repeat;
+	bool increaseLengthWithRepeats(ModelStackWithTimelineCounter*, int length, IndependentNoteRowLengthIncrease, bool) {
 		new_length = length;
+		if (on_repeat)
+			on_repeat();
+		return repeat_success;
 	}
 	void expectNoFurtherTicks(song_fixture*, bool) { ++stop_calls; }
 	void setPos(ModelStackWithTimelineCounter*, int position, bool) { new_position = position; }
@@ -107,6 +128,8 @@ TEST_GROUP(RecordingClone) {
 	ModelStackWithTimelineCounter stack;
 	Error result = Error::BUG;
 	void setup() override {
+		deluge::gui::ui_session::navigation = {};
+		deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Local;
 		original.output = cloned.output = &output;
 		original.clone_target = &cloned;
 		output.active = &original;
@@ -244,6 +267,79 @@ TEST(RecordingClone, changed_song_during_clone_stops_publication) {
 		CHECK_FALSE(attempt_clone());
 		CHECK(result == Error::BUG);
 		LONGS_EQUAL(0, cloned.section);
+		LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+		LONGS_EQUAL(0, original.stop_calls);
+	}
+}
+
+TEST(RecordingClone, repeat_failure_discards_only_unpublished_clone) {
+	cloned.repeat_success = false;
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(1, song.deletions);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	POINTERS_EQUAL(&original, stack.clip);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	LONGS_EQUAL(0, original.stop_calls);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+}
+TEST(RecordingClone, publication_failure_discards_unpublished_clone_and_reports_error) {
+	song.arrangementOnlyClips.insert_error = Error::INSUFFICIENT_RAM;
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::INSUFFICIENT_RAM);
+	LONGS_EQUAL(1, song.deletions);
+	POINTERS_EQUAL(&cloned, song.deleted_clip);
+	POINTERS_EQUAL(&original, stack.clip);
+	LONGS_EQUAL(0, original.stop_calls);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+}
+TEST(RecordingClone, repeat_callback_adoption_prevents_clone_destruction) {
+	for (int adoption = 0; adoption < 3; ++adoption) {
+		song.owned_clip = nullptr;
+		output.active = &original;
+		output.clipInstances.values[1].clip = nullptr;
+		cloned.repeat_success = false;
+		cloned.on_repeat = [&] {
+			if (adoption == 0)
+				song.owned_clip = &cloned;
+			if (adoption == 1)
+				output.active = &cloned;
+			if (adoption == 2)
+				output.clipInstances.values[1].clip = &cloned;
+		};
+		CHECK_FALSE(attempt_clone());
+		LONGS_EQUAL(0, song.deletions);
+		LONGS_EQUAL(0, original.stop_calls);
+	}
+}
+TEST(RecordingClone, changed_structural_revision_prevents_unsafe_cleanup) {
+	namespace panels = deluge::gui::ui_session;
+	for (auto owner : {panels::Id::Local, panels::Id::Remote}) {
+		cloned.on_repeat = [owner] { panels::navigation.for_owner(owner).structural_refresh.request(); };
+		CHECK_FALSE(attempt_clone());
+		CHECK(result == Error::BUG);
+		LONGS_EQUAL(0, song.deletions);
+		LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+		LONGS_EQUAL(0, original.stop_calls);
+	}
+}
+
+TEST(RecordingClone, successful_repeat_callback_adoption_prevents_duplicate_publication) {
+	for (int adoption = 0; adoption < 3; ++adoption) {
+		song.owned_clip = nullptr;
+		output.active = &original;
+		output.clipInstances.values[1].clip = nullptr;
+		cloned.on_repeat = [&] {
+			if (adoption == 0)
+				song.owned_clip = &cloned;
+			if (adoption == 1)
+				output.active = &cloned;
+			if (adoption == 2)
+				output.clipInstances.values[1].clip = &cloned;
+		};
+		CHECK_FALSE(attempt_clone());
+		CHECK(result == Error::BUG);
+		LONGS_EQUAL(0, song.deletions);
 		LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
 		LONGS_EQUAL(0, original.stop_calls);
 	}

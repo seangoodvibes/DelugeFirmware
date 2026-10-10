@@ -1174,6 +1174,33 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			if (!newClip || newClip == this || source_song->contains_clip_for_undo(newClip))
 				return fail(Error::BUG);
 
+			auto* const clone_output = newClip->output;
+			const auto source_owner = deluge::gui::ui_session::current();
+			const auto revision = [](deluge::gui::ui_session::Id owner) {
+				return deluge::gui::ui_session::navigation.for_owner(owner).structural_refresh.revision();
+			};
+			const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
+			const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
+			const auto clone_context_matches = [&] {
+				return currentSong == source_song && modelStack->song == source_song
+				       && deluge::gui::ui_session::current() == source_owner
+				       && revision(deluge::gui::ui_session::Id::Local) == local_revision
+				       && revision(deluge::gui::ui_session::Id::Remote) == remote_revision
+				       && modelStack->getTimelineCounterAllowNull() == newClip;
+			};
+			const auto clone_is_unpublished = [&] {
+				return clone_context_matches() && !source_song->contains_clip_for_undo(newClip)
+				       && newClip->output == clone_output
+				       && (!clone_output
+				           || (clone_output->getActiveClip() != newClip && !clone_output->clipHasInstance(newClip)));
+			};
+			const auto discard_unpublished_clone = [&] {
+				if (clone_is_unpublished()) {
+					modelStack->setTimelineCounter(this);
+					source_song->deleteClipObject(newClip, false, InstrumentRemoval::NONE);
+				}
+			};
+
 			newClip->section = 255;
 
 			int32_t newLength = loopLength;
@@ -1181,12 +1208,22 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			if (type == ClipType::INSTRUMENT) {
 				newLength *= (repeatCount + 1);
 				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
-				newClip->increaseLengthWithRepeats(modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP,
-				                                   true);
+				const bool repeated = newClip->increaseLengthWithRepeats(
+				    modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP, true);
+				if (!repeated || !clone_is_unpublished()) {
+					discard_unpublished_clone();
+					return fail(Error::BUG);
+				}
 			}
 
 			// Add to Song
-			modelStack->song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Can't fail
+			const Error insert_error = source_song->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
+			if (insert_error != Error::NONE) {
+				discard_unpublished_clone();
+				return fail(insert_error);
+			}
+			if (!clone_context_matches())
+				return fail(Error::BUG);
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 
