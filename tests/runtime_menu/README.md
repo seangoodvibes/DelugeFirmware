@@ -13,3 +13,9 @@ The battery group includes the production menu header and real timer ownership.
 It covers independent sampling windows, re-entry, charging status, voltage bounds
 and owner-specific OLED redraw requests. Battery ADC acquisition and actual OLED
 pixel transport are not part of these fixtures.
+
+The runtime-setting cache group compiles `setting.cpp` and its production header.
+The fixture Selection base passes model revisions through the real shared-value
+cache. Cases cover changes made outside the menu, distinct menu instances,
+non-index stored values and preservation of a pending selection when an unrelated
+setting changes. This establishes reload on access, not an end-to-end repaint.

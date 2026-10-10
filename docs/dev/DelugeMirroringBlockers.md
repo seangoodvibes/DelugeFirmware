@@ -716,3 +716,20 @@ side effects are not provided by these guards.
   storage is a fixture; physical LED/input acceptance remains in G2.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
   open; independent mode stays disabled.
+
+### G1 progress — runtime settings changed outside their menu (2026-10-09)
+
+- Runtime-setting menus key their presentation cache to the live stored value.
+  Dependent changes (for example sticky Shift enabling the Shift LED setting),
+  loaders and another menu instance therefore reload on the next value access or
+  requested shared refresh, even without a commit on that particular menu object.
+  Unrelated settings do not invalidate a pending selection.
+- Four tests compile the production Setting header/implementation with the real
+  shared-value cache and a fixture Selection base. Three failed before the fix;
+  coverage includes both panel caches, distinct menu instances and stored values
+  that differ from option indices. Commits bind the cache to the new model value;
+  the round-trip test also caught a stale selection when another menu restored the
+  earlier setting. This does not itself request a repaint for
+  arbitrary external writes or establish end-to-end rendering.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
+  open and independent mode stays disabled.

@@ -19,14 +19,20 @@ inline std::string_view getView(String value) {
 }
 } // namespace l10n
 } // namespace deluge
-enum class RuntimeFeatureSettingType { DevSysexAllowed, ShowBatteryLevel };
+enum class RuntimeFeatureSettingType { DevSysexAllowed, ShowBatteryLevel, ShiftIsSticky, LightShiftLed };
+constexpr uint32_t RUNTIME_FEATURE_SETTING_MAX_OPTIONS = 2;
+struct RuntimeFeatureSettingOption {
+	int32_t value;
+	std::string_view displayName;
+};
 struct setting_fixture {
 	int32_t value = 0;
+	std::array<RuntimeFeatureSettingOption, 2> options{{{0, "Off"}, {1, "On"}}};
 	deluge::l10n::String displayName = deluge::l10n::String::name;
 };
 struct runtime_settings_fixture {
 	bool isOn(RuntimeFeatureSettingType) const { return true; }
-	std::array<setting_fixture, 1> settings;
+	std::array<setting_fixture, 4> settings;
 };
 inline runtime_settings_fixture runtimeFeatureSettings;
 inline std::vector<int32_t> noise_values;
@@ -49,15 +55,20 @@ public:
 	virtual deluge::vector<std::string_view> getOptions(OptType) = 0;
 	virtual std::string_view getName() const = 0;
 	virtual std::string_view getTitle() const = 0;
-	void setValue(int32_t value) { values.set(value); }
+	virtual bool isToggle() { return false; }
+	virtual bool shouldEnterSubmenu() { return true; }
+	void setValue(int32_t value) { values.set(value, model_value_revision()); }
 	int32_t getValue() {
-		return values.get([this] { readCurrentValue(); });
+		return values.get([this] { readCurrentValue(); }, model_value_revision());
 	}
 	void commit(int32_t value) {
 		setValue(value);
 		writeCurrentValue();
 		values.committed();
 	}
+
+protected:
+	virtual uint64_t model_value_revision() const { return 0; }
 };
 } // namespace deluge::gui::menu_item
 

@@ -24,6 +24,11 @@ namespace deluge::gui::menu_item::runtime_feature {
 Setting::Setting(RuntimeFeatureSettingType ty) : currentSettingIndex(static_cast<uint32_t>(ty)) {
 }
 
+uint64_t Setting::model_value_revision() const {
+	// Other settings and loaders can change this value without committing this menu.
+	return runtimeFeatureSettings.settings[currentSettingIndex].value;
+}
+
 void Setting::readCurrentValue() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].value
@@ -37,8 +42,12 @@ void Setting::readCurrentValue() {
 }
 
 void Setting::writeCurrentValue() {
+	const auto selected_option = getValue();
 	runtimeFeatureSettings.settings[currentSettingIndex].value =
-	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->getValue()].value;
+	    runtimeFeatureSettings.settings[currentSettingIndex].options[selected_option].value;
+	// Associate the committed selection with the new model value, including when
+	// another menu later restores the value that preceded this write.
+	setValue(selected_option);
 }
 
 deluge::vector<std::string_view> Setting::getOptions(OptType optType) {

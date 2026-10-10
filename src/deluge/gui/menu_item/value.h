@@ -58,7 +58,7 @@ public:
 
 protected:
 	virtual void writeCurrentValue() {}
-	// Only menus backed by live shared parameters opt into model revisions.
+	// Menus backed by live shared model state opt into model revisions.
 	virtual uint64_t model_value_revision() const { return 0; }
 
 	void value_committed() {
