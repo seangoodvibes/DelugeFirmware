@@ -220,7 +220,7 @@ public:
 	bool allNotesOff(ModelStackWithThreeMainThings* model_stack, ArpeggiatorBase* arpeggiator,
 	                 const deluge::lifetime::callback_validation* owner_validation);
 
-	bool noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode,
+	bool noteOffPostArpeggiator(ModelStackWithSoundFlags* model_stack, int32_t note_code,
 	                            const deluge::lifetime::callback_validation* owner_validation);
 	bool send_note_off_midi(ModelStackWithSoundFlags* model_stack, int32_t note_code,
 	                        const deluge::lifetime::callback_validation* owner_validation);

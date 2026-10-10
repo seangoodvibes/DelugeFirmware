@@ -1870,67 +1870,75 @@ bool Sound::send_note_off_midi(ModelStackWithSoundFlags* model_stack, int32_t no
 }
 
 // ALL_NOTES_OFF means stop any voice, regardless of its note code.
-bool Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode,
+bool Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* model_stack, int32_t note_code,
                                    const deluge::lifetime::callback_validation* owner_validation) {
-	if (!send_note_off_midi(modelStack, noteCode, owner_validation))
+	if (!send_note_off_midi(model_stack, note_code, owner_validation))
 		return false;
-
-	if (voices_.empty()) {
+	if (voices_.empty())
 		return true;
-	}
-
-	ArpeggiatorSettings* arpSettings = getArpSettings();
-
-	for (const ActiveVoice& voice : voices_) {
-		if ((voice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
-		    && voice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
-
-			// If we have actual arpeggiation, just switch off.
-			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
-				goto justSwitchOff;
-			}
-
-			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
-			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
-			    && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
-				                                 // Arpeggiator will be full of notes which
-				// might not be active anymore, cos we were keeping track of them for MPE purposes.
-				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
+	auto* arp_settings = getArpSettings();
+	auto* source_arp = getArp();
+	const auto revision = source_arp->instruction_revision();
+	const auto source_polyphony = polyphonic;
+	const auto source_mode = arp_settings ? arp_settings->mode : ArpMode::OFF;
+	const auto context_matches = [&] {
+		return (!owner_validation || owner_validation->valid()) && getArp() == source_arp
+		       && source_arp->instruction_revision() == revision && getArpSettings() == arp_settings
+		       && (!arp_settings || arp_settings->mode == source_mode) && polyphonic == source_polyphony;
+	};
+	const auto* storage = voices_.data();
+	const auto voice_count = voices_.size();
+	for (size_t index = 0; index < voice_count; ++index) {
+		auto* voice = voices_[index].get();
+		if (!voice)
+			return false;
+		auto voice_lifetime = voice->watch_lifetime();
+		if (!voice_lifetime.alive())
+			return false;
+		const auto voice_matches = [&] {
+			return context_matches() && voice_lifetime.alive() && voices_.data() == storage
+			       && voices_.size() == voice_count && voices_[index].get() == voice;
+		};
+		if ((voice->noteCodeAfterArpeggiation != note_code && note_code != ALL_NOTES_OFF)
+		    || voice->envelopes[0].state >= EnvelopeStage::RELEASE)
+			continue;
+		// With the arp disabled, mono/legato can return to the last held input note.
+		if (source_mode == ArpMode::OFF
+		    && (source_polyphony == PolyphonyMode::LEGATO || source_polyphony == PolyphonyMode::MONO) && !isDrum()) {
+			const bool allow_tails = allowNoteTails(model_stack);
+			if (!voice_matches())
+				return false;
+			if (allow_tails) {
+				auto* arpeggiator = &static_cast<SoundInstrument*>(this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
-					ArpNote* arpNote =
-					    (ArpNote*)arpeggiator->notes.getElementAddress(arpeggiator->notes.getNumElements() - 1);
-					int32_t newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
-
-					if (polyphonic == PolyphonyMode::LEGATO) {
-						voice->changeNoteCode(
-						    modelStack, newNoteCode, newNoteCode,
-						    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
-						    arpNote->mpeValues);
-						lastNoteCode = newNoteCode;
-						// I think we could just return here, too?
+					const auto note_count = arpeggiator->notes.getNumElements();
+					if (note_count <= 0)
+						return false;
+					auto* arp_note = static_cast<ArpNote*>(arpeggiator->notes.getElementAddress(note_count - 1));
+					if (!arp_note)
+						return false;
+					const auto new_note = arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+					const auto channel =
+					    arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)];
+					int16_t mpe_values[kNumExpressionDimensions];
+					std::copy_n(arp_note->mpeValues, kNumExpressionDimensions, mpe_values);
+					if (source_polyphony == PolyphonyMode::LEGATO) {
+						voice->changeNoteCode(model_stack, new_note, new_note, channel, mpe_values);
+						if (!voice_matches())
+							return false;
+						lastNoteCode = new_note;
+						continue;
 					}
-					else { // PolyphonyMode::MONO
-						noteOnPostArpeggiator(
-						    modelStack, newNoteCode, newNoteCode,
-						    arpeggiator->lastVelocity, // Interesting - I've made it keep the velocity of presumably the
-						                               // note we just switched off. I must have decided that sounded
-						                               // best? I think I vaguely remember.
-						    arpNote->mpeValues, // ... We take the MPE values from the "keypress" associated with the
-						                        // new note we'll sound, though.
-						    0, 0, 0, arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-						return true;
-					}
+					// Starting a mono voice may legitimately replace the current voice list.
+					noteOnPostArpeggiator(model_stack, new_note, new_note, arpeggiator->lastVelocity, mpe_values, 0, 0,
+					                      0, channel);
+					return context_matches();
 				}
-				else {
-					goto justSwitchOff;
-				}
-			}
-
-			else {
-justSwitchOff:
-				voice->noteOff(modelStack);
 			}
 		}
+		voice->noteOff(model_stack);
+		if (!voice_matches())
+			return false;
 	}
 	return true;
 }

@@ -2885,3 +2885,13 @@ run passed except a new kit fixture count corrected to include its three precedi
 kit events; both affected suites pass on rerun. `./dbt build relwithdebinfo` passes.
 Voice-release traversal/internals and raw arp mutations bypassing revision remain
 open; MIDI already sent is not rolled back. Independent mode remains disabled.
+
+Post-arp voice release now watches each voice and checks owner/arp/settings context
+and vector storage after release and legato callbacks. Mono/legato fallback copies
+MPE input before callbacks; mono permits its expected voice-list replacement while
+still validating ownership. Fourteen added production-body sanitizer regressions
+cover matching/released voices, deletion, vector changes, same-address reuse,
+settings changes, MIDI cancellation and mono/legato/one-shot behavior. All 36 suites
+and `./dbt build relwithdebinfo` pass. Voice/sample release and voice-start internals
+remain separate work; completed releases are retained, and unrelated equal-size
+voice-list edits are not comprehensively detected. Independent mode stays disabled.

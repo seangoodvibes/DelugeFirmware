@@ -93,7 +93,7 @@ class SessionRoutingContracts(unittest.TestCase):
         )[0]
         normalized = re.sub(r"\s+", " ", body)
         self.assertIn(
-            "if (!send_note_off_midi(modelStack, noteCode, owner_validation)) return false;",
+            "if (!send_note_off_midi(model_stack, note_code, owner_validation)) return false;",
             normalized,
         )
         self.assertLess(
