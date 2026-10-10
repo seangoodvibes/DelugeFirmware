@@ -521,3 +521,20 @@ side effects are not provided by these guards.
   acceptance remain outside this fixture. G1 remains open; independent mode stays
   disabled.
 - Validation: all 32 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — battery menu sampling and redraw routing (2026-10-09)
+
+- Battery menu sampling counters, prior readings and charging estimates now belong
+  to the active panel. Two timers cannot accelerate the four-tick measurement
+  window, and opening one menu cannot reset the other's window or charging result.
+  Re-entry clears that panel's stale estimate; both still read the host batteryMV.
+- OLED updates now request a redraw under the current UI owner instead of calling
+  the seven-segment-only scrolling-text path. Timer deadlines remain session-owned.
+- Six battery cases in `RuntimeMenuTests` compile the production menu header with
+  real timer/session storage. Four initial regressions reproduced cross-panel
+  sampling/re-entry interference and the missing OLED redraw. Coverage also checks
+  stale-status reset, stable voltage and percentage/full-status bounds. ADC input,
+  real OLED pixels and two-device acceptance remain untested here. G1 stays open;
+  independent mode remains disabled.
+- Validation: all 32 native CTest suites (including ten runtime/battery menu cases)
+  and `./dbt build relwithdebinfo` pass.

@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/ui_session.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -42,8 +43,7 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		// Store initial voltage to detect charging
-		lastBatteryMV = batteryMV;
-		voltageCheckCounter = 0;
+		session_states.active() = {batteryMV, 0, false};
 
 		drawValue();
 		// Start the timer for updates
@@ -51,21 +51,26 @@ public:
 	}
 
 	void drawValue() {
+		if (display->haveOLED()) {
+			renderUIsForOled();
+			return;
+		}
 		char buffer[50];
 		getBatteryString(buffer);
 		display->setScrollingText(buffer);
 	}
 
 	ActionResult timerCallback() override {
+		auto& state = session_states.active();
 		// Check if voltage is rising (charging detection)
-		voltageCheckCounter++;
-		if (voltageCheckCounter >= 4) { // Check every 2 seconds
-			int32_t voltageDiff = batteryMV - lastBatteryMV;
+		state.voltage_check_counter++;
+		if (state.voltage_check_counter >= 4) { // Check every 2 seconds
+			int32_t voltage_diff = batteryMV - state.last_battery_mv;
 			// Consider it charging if voltage rose by more than 5mV in 2 seconds
 			// This threshold may need tuning based on real hardware behavior
-			isCharging = (voltageDiff > 5);
-			lastBatteryMV = batteryMV;
-			voltageCheckCounter = 0;
+			state.is_charging = (voltage_diff > 5);
+			state.last_battery_mv = batteryMV;
+			state.voltage_check_counter = 0;
 		}
 
 		drawValue();
@@ -74,9 +79,12 @@ public:
 	}
 
 private:
-	uint16_t lastBatteryMV = 0;
-	uint8_t voltageCheckCounter = 0;
-	bool isCharging = false;
+	struct session_state {
+		uint16_t last_battery_mv = 0;
+		uint8_t voltage_check_counter = 0;
+		bool is_charging = false;
+	};
+	ui_session::State<session_state> session_states;
 
 	/**
 	 * Formats battery information into a string buffer.
@@ -104,7 +112,7 @@ private:
 		if (percentage >= 99) {
 			status = " FULL";
 		}
-		else if (isCharging) {
+		else if (session_states.active().is_charging) {
 			status = " CHG"; // Charging indicator
 		}
 
