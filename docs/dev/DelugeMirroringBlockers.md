@@ -487,3 +487,22 @@ side effects are not provided by these guards.
   tests, not animation-pixel or hardware acceptance tests. G1 remains open and
   independent mode remains disabled.
 - Validation: all 30 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — specific recording-source menu (2026-10-09)
+
+- Removed the singleton menu's cached edited-output pointer, source index and
+  output count. Entry, encoder input and drawing now resolve the current panel's
+  output and its live recording source. Reordering or adding tracks cannot leave
+  the menu pointing at an old list position; same-track panels share one value.
+- Source changes request a deferred peer shared-value refresh. The menu implements
+  that refresh for OLED and seven-segment displays without restarting navigation
+  or changing the source during rendering. Unchanged selections avoid rewriting
+  monitoring ownership. Missing song/clip/output and non-audio contexts are ignored.
+- `SourceMenuTests` includes the actual production menu header with lightweight
+  song/output/display fixtures. Three initial regressions fail against the old
+  header. Nine cases cover cross-panel editing, live source changes, list changes,
+  invalid/empty sources, filtering, extreme encoder offsets, context loss and
+  deferred peer redraw. The fixtures do not establish real monitoring-claim or
+  clip/output destruction safety; those remain under L1/L3. G1 stays open and
+  independent mode remains disabled.
+- Validation: all 31 native CTest suites and `./dbt build relwithdebinfo` pass.

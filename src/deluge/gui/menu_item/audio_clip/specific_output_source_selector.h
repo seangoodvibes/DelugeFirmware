@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/song/song.h"
@@ -28,49 +29,41 @@ public:
 	using MenuItem::MenuItem;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
-		numOutputs = currentSong->getNumOutputs();
-
-		Output* selectedOutput = audioOutputBeingEdited->getOutputRecordingFrom();
-		outputIndex = getRecordableOutputIndex(selectedOutput);
-		if (outputIndex < 0) {
-			// If the stored source was removed or became invalid, land on the first valid target instead.
-			outputIndex = getNextRecordableOutputIndex(-1, 1);
-			selectedOutput = getOutputFromSelectedIndex();
-			audioOutputBeingEdited->setOutputRecordingFrom(selectedOutput);
+		auto* const edited_output = edited_output_for_session();
+		if (!edited_output)
+			return;
+		if (recordable_output_index(edited_output->getOutputRecordingFrom()) < 0) {
+			// Resolve against the current song; another panel may have removed or reordered tracks.
+			const int32_t first_index = next_recordable_output_index(-1, 1);
+			set_recording_source(*edited_output,
+			                     first_index < 0 ? nullptr : currentSong->getOutputFromIndex(first_index));
 		}
-
-		if (outputIndex < 0) {
-			outputIndex = 0;
-		}
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawFor7seg(); // Probably not necessary either...
-		}
+		refresh_shared_value();
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		int32_t newOutputIndex = getNextRecordableOutputIndex(outputIndex, offset);
-		if (newOutputIndex < 0) {
+		auto* const edited_output = edited_output_for_session();
+		if (!edited_output)
 			return;
-		}
-		outputIndex = newOutputIndex;
-		auto newRecordingFrom = getOutputFromSelectedIndex();
-		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom);
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawFor7seg(); // Probably not necessary either...
-		}
+		const int32_t current_index = recordable_output_index(edited_output->getOutputRecordingFrom());
+		const int32_t next_index = next_recordable_output_index(current_index, offset);
+		if (next_index < 0)
+			return;
+		set_recording_source(*edited_output, currentSong->getOutputFromIndex(next_index));
+		refresh_shared_value();
 	}
+	void refresh_shared_value() override {
+		if (display->haveOLED())
+			renderUIsForOled();
+		else
+			drawFor7seg();
+	}
+
 	void drawPixelsForOled() override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main_for_session();
 
 		// track
-		Output* output = getOutputFromSelectedIndex();
+		Output* output = selected_output_for_session();
 		if (!output) {
 			canvas.drawStringCentred("No track", OLED_MAIN_TOPMOST_PIXEL + 21, kTextSpacingX, kTextSpacingY);
 			return;
@@ -110,78 +103,78 @@ public:
 	}
 
 	void drawFor7seg() {
-		Output* output = getOutputFromSelectedIndex();
+		Output* output = selected_output_for_session();
 		char const* text = output ? output->name.get() : "No track";
 		display->setScrollingText(text, 0);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
-		auto* output = getCurrentOutput();
-		return output and output->type == OutputType::AUDIO
-		       and ((AudioOutput*)output)->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;
+		auto* output = edited_output_for_session();
+		return output && output->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;
 	}
 
 	bool shouldEnterSubmenu() override { return true; }
 
-	AudioOutput* audioOutputBeingEdited{nullptr};
-	// this is the index that the output is recording from
-	int32_t outputIndex{0};
-	int32_t numOutputs{0};
-
 private:
-	bool canRecordFromOutput(Output* output) const { return audioOutputBeingEdited->canRecordFrom(output); }
+	void set_recording_source(AudioOutput& edited_output, Output* source) {
+		if (edited_output.getOutputRecordingFrom() == source)
+			return;
+		edited_output.setOutputRecordingFrom(source);
+		const auto peer =
+		    ui_session::current() == ui_session::Id::Local ? ui_session::Id::Remote : ui_session::Id::Local;
+		ui_session::navigation.for_owner(peer).shared_model_refresh.request();
+	}
 
-	int32_t getRecordableOutputIndex(Output* output) const {
-		if (!canRecordFromOutput(output)) {
+	AudioOutput* edited_output_for_session() const {
+		if (!currentSong || !currentSong->getCurrentClip())
+			return nullptr;
+		auto* output = getCurrentOutput();
+		return output && output->type == OutputType::AUDIO ? static_cast<AudioOutput*>(output) : nullptr;
+	}
+
+	int32_t recordable_output_index(Output* output) const {
+		auto* const edited_output = edited_output_for_session();
+		if (!edited_output || !output)
 			return -1;
-		}
-
-		// Only outputs still in the main song list are selectable; hibernated instruments should not display here.
 		int32_t index = 0;
-		for (Output* candidate = currentSong->firstOutput; candidate; candidate = candidate->next) {
-			if (candidate == output) {
-				return index;
-			}
-			index++;
+		for (Output* candidate = currentSong->firstOutput; candidate; candidate = candidate->next, ++index) {
+			// Check membership before inspecting a retained recording-source pointer.
+			if (candidate == output)
+				return edited_output->canRecordFrom(candidate) ? index : -1;
 		}
-
 		return -1;
 	}
 
-	Output* getOutputFromSelectedIndex() const {
-		Output* output = currentSong->getOutputFromIndex(outputIndex);
-		return canRecordFromOutput(output) ? output : nullptr;
+	Output* selected_output_for_session() const {
+		auto* const edited_output = edited_output_for_session();
+		if (!edited_output)
+			return nullptr;
+		auto* const source = edited_output->getOutputRecordingFrom();
+		return recordable_output_index(source) >= 0 ? source : nullptr;
 	}
 
-	int32_t getNextRecordableOutputIndex(int32_t startIndex, int32_t offset) const {
-		if (offset == 0) {
-			return getOutputFromSelectedIndex()
-			           ? outputIndex
-			           : getRecordableOutputIndex(audioOutputBeingEdited->getOutputRecordingFrom());
-		}
-
-		int32_t direction = offset > 0 ? 1 : -1;
-		int32_t steps = offset > 0 ? offset : -offset;
-		int32_t selectedIndex = startIndex;
-
-		for (int32_t step = 0; step < steps; step++) {
-			int32_t candidateIndex = selectedIndex;
-			// Walk the raw song indices, but stop only on rows the audio track can actually record from.
+	int32_t next_recordable_output_index(int32_t start_index, int32_t offset) const {
+		auto* const edited_output = edited_output_for_session();
+		if (!edited_output)
+			return -1;
+		const int32_t direction = offset > 0 ? 1 : -1;
+		// Widen before negation so even INT32_MIN is well-defined.
+		const uint32_t steps = offset > 0 ? offset : -static_cast<int64_t>(offset);
+		const int32_t output_count = currentSong->getNumOutputs();
+		int32_t selected_index = start_index;
+		for (uint32_t step = 0; step < steps; ++step) {
+			int32_t candidate_index = selected_index;
 			while (true) {
-				candidateIndex += direction;
-				if (candidateIndex < 0 || candidateIndex >= numOutputs) {
-					return selectedIndex;
-				}
-
-				Output* candidate = currentSong->getOutputFromIndex(candidateIndex);
-				if (canRecordFromOutput(candidate)) {
-					selectedIndex = candidateIndex;
+				candidate_index += direction;
+				if (candidate_index < 0 || candidate_index >= output_count)
+					return selected_index;
+				if (edited_output->canRecordFrom(currentSong->getOutputFromIndex(candidate_index))) {
+					selected_index = candidate_index;
 					break;
 				}
 			}
 		}
-
-		return selectedIndex;
+		return selected_index;
 	}
 };
 } // namespace deluge::gui::menu_item::audio_clip

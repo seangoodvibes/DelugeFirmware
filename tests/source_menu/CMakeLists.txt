@@ -1,0 +1,6 @@
+add_executable(SourceMenuTests source_menu_tests.cpp)
+set_target_properties(SourceMenuTests PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
+target_include_directories(SourceMenuTests PRIVATE mocks ../../src/deluge)
+target_compile_definitions(SourceMenuTests PRIVATE CPPUTEST_MEM_LEAK_DETECTION_DISABLED)
+target_link_libraries(SourceMenuTests PRIVATE CppUTest)
+add_test(NAME SourceMenuTests COMMAND SourceMenuTests)
