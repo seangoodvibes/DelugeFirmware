@@ -2937,3 +2937,12 @@ existing song teardown tests still cover cleanup behavior. All 36 suites and
 `./dbt build relwithdebinfo` pass. Other song consumers have not yet adopted these
 watches; this neither pins songs nor closes raw acquisition, callback internals or
 undo ownership/recovery blockers. Independent mode remains disabled.
+
+Song-level learned CC now validates the owning song watch, global-effectable/model-
+stack identity, session and knob storage/binding around lookup, notification and
+display callbacks. Display metadata is captured before parameter writes. Ten added
+production-body sanitizer regressions cover automation/performance display, owner
+and parameter deletion, same-address song replacement, rebinding and rejected
+contexts. All 36 suites and `./dbt build relwithdebinfo` pass. The enclosing playback
+MIDI dispatch still requires cancellation checks; lower parameter lookup/write
+internals and partial-write recovery remain open. Independent mode stays disabled.

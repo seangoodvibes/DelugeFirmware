@@ -1227,10 +1227,35 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(
 bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
     MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
     ModelStackWithThreeMainThings* modelStackWithThreeMainThings) {
+	if (!modelStackWithThreeMainThings || !modelStackWithThreeMainThings->song)
+		return false;
+	auto* source_song = modelStackWithThreeMainThings->song;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive() || &source_song->globalEffectable != this)
+		return false;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto* knob_storage = midi_knobs.data();
+	const auto knob_count = midi_knobs.size();
+	const auto context_matches = [&] {
+		return song_lifetime.alive() && currentSong == source_song && deluge::gui::ui_session::current() == source_owner
+		       && modelStackWithThreeMainThings->song == source_song
+		       && modelStackWithThreeMainThings->getTimelineCounterAllowNull() == source_song
+		       && modelStackWithThreeMainThings->modControllable == this
+		       && modelStackWithThreeMainThings->paramManager == &source_song->paramManager
+		       && midi_knobs.data() == knob_storage && midi_knobs.size() == knob_count;
+	};
+	if (!context_matches())
+		return false;
 	bool messageUsed = false;
 
 	// For each MIDI knob...
-	for (MIDIKnob& knob : midi_knobs) {
+	for (size_t knob_index = 0; knob_index < knob_count; ++knob_index) {
+		MIDIKnob& knob = midi_knobs[knob_index];
+		const auto descriptor = knob.paramDescriptor;
+		const auto knob_matches = [&] {
+			return context_matches() && midi_knobs[knob_index].paramDescriptor == descriptor
+			       && midi_knobs[knob_index].midiInput.equalsNoteOrCC(&cable, channel, ccNumber);
+		};
 
 		// If this is the knob...
 		if (knob.midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
@@ -1261,6 +1286,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 			}
 
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+			if (!knob_matches())
+				return messageUsed;
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
@@ -1291,24 +1318,30 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				int32_t newValue =
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
+				const auto display_param_id = modelStackWithParam->paramId;
+				const auto display_param_kind = modelStackWithParam->paramCollection->getParamKind();
 				// Set the new Parameter Value for the MIDI Learned Parameter
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
+				if (!knob_matches())
+					return messageUsed;
 
 				// check if you're currently editing the same learned param in automation view or
 				// performance view if so, you will need to refresh the automation editor grid or the
 				// performance view
 				RootUI* rootUI = getRootUI();
 				if (rootUI == &automation_view_for_session() || rootUI == &performance_view_for_session()) {
-					int32_t id = modelStackWithParam->paramId;
-					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 					if (rootUI == &automation_view_for_session()) {
-						automation_view_for_session().possiblyRefreshAutomationEditorGrid(nullptr, kind, id);
+						automation_view_for_session().possiblyRefreshAutomationEditorGrid(nullptr, display_param_kind,
+						                                                                  display_param_id);
 					}
 					else {
-						performance_view_for_session().possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+						performance_view_for_session().possiblyRefreshPerformanceViewDisplay(
+						    display_param_kind, display_param_id, newKnobPos);
 					}
+					if (!knob_matches())
+						return messageUsed;
 				}
 			}
 		}
