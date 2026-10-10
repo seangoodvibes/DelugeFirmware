@@ -102,6 +102,19 @@ class SessionRoutingContracts(unittest.TestCase):
             normalized,
         )
         self.assertNotIn("voice->render(", body)
+        self.assertIn(
+            "if (!process_render_modulation(paramManager, output.size(), sideChainHitPending, owner_validation)) return;",
+            normalized,
+        )
+        self.assertIn(
+            "if (!prepare_render_delay(delayWorkingState, shouldLimitDelayFeedback, owner_validation)) return;",
+            normalized,
+        )
+        self.assertIn(
+            "reassessRenderSkippingStatus(modelStackWithSoundFlags); "
+            "if (owner_validation && !owner_validation->valid()) return;",
+            normalized,
+        )
 
     def test_arp_instruction_mutators_invalidate_before_accessing_state(self):
         source = code_only((ROOT / "src/deluge/modulation/arpeggiator.cpp").read_text())

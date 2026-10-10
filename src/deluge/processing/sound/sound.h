@@ -324,6 +324,10 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
+	bool process_render_modulation(ParamManagerForTimeline* param_manager, uint32_t num_samples, int32_t sidechain_hit,
+	                               const deluge::lifetime::callback_validation* owner_validation);
+	bool prepare_render_delay(Delay::State& delay_state, bool limit_feedback,
+	                          const deluge::lifetime::callback_validation* owner_validation);
 	bool process_render_voices(ModelStackWithSoundFlags* model_stack, std::span<q31_t> sound_buffer, bool stereo,
 	                           bool apply_pan, bool do_lpf, bool do_hpf, int32_t pitch_adjust,
 	                           const deluge::lifetime::callback_validation* owner_validation);

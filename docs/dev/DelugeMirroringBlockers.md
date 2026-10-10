@@ -2796,3 +2796,13 @@ render wiring contract pass targeted suites, and `./dbt build relwithdebinfo` pa
 Same-address voice reconstruction, equal-size mutations that preserve the current
 slot, voice/destructor internals and other voice-list consumers remain open. This
 change does not establish hardware audio equivalence or timing.
+
+Sound render modulation and delay setup now validate ownership between global
+LFO, DX, sidechain, patching and delay callbacks. LFO/sidechain results publish only
+after validation; DX patch/type replacement cancels the sequence. The no-voice
+render reassessment also checks ownership before continuing. Eight production-body
+sanitizer regressions cover live/unchanged/unpatched paths, each modulation deletion
+boundary, rejected result publication, DX replacement, rejected entry and delay
+feedback/finalization. Wiring contracts cover renderer dispatch. All 36 suites and
+`./dbt build relwithdebinfo` pass. DSP callback internals, shared scratch buffers,
+voice identity reuse and hardware behavior remain unproven.

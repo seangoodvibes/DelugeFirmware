@@ -2561,6 +2561,79 @@ bool Sound::process_render_voices(ModelStackWithSoundFlags* model_stack, std::sp
 	return true;
 }
 
+bool Sound::process_render_modulation(ParamManagerForTimeline* param_manager, uint32_t num_samples,
+                                      int32_t sidechain_hit,
+                                      const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return false;
+	if (param_manager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
+		const auto source_index = util::to_underlying(PatchSource::LFO_GLOBAL_1);
+		const auto old_value = globalSourceValues[source_index];
+		const auto new_value = globalLFO1.render(num_samples, lfoConfig[LFO1_ID],
+		                                         getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
+		if (owner_validation && !owner_validation->valid())
+			return false;
+		globalSourceValues[source_index] = new_value;
+		sourcesChanged |= uint32_t(old_value != new_value) << source_index;
+	}
+	if (param_manager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
+		const auto source_index = util::to_underlying(PatchSource::LFO_GLOBAL_2);
+		const auto old_value = globalSourceValues[source_index];
+		const auto new_value = globalLFO3.render(num_samples, lfoConfig[LFO3_ID],
+		                                         getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
+		if (owner_validation && !owner_validation->valid())
+			return false;
+		globalSourceValues[source_index] = new_value;
+		sourcesChanged |= uint32_t(old_value != new_value) << source_index;
+	}
+	for (int32_t source_index = 0; source_index < kNumSources; ++source_index) {
+		auto* patch = sources[source_index].dxPatch;
+		if (sources[source_index].oscType == OscType::DX7 && patch) {
+			patch->computeLfo(num_samples);
+			if ((owner_validation && !owner_validation->valid()) || sources[source_index].dxPatch != patch
+			    || sources[source_index].oscType != OscType::DX7)
+				return false;
+		}
+	}
+	if (param_manager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
+		if (sidechain_hit) {
+			sidechain.registerHit(sidechain_hit);
+			if (owner_validation && !owner_validation->valid())
+				return false;
+		}
+		const auto source_index = util::to_underlying(PatchSource::SIDECHAIN);
+		const auto old_value = globalSourceValues[source_index];
+		const auto new_value = sidechain.render(
+		    num_samples, param_manager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		if (owner_validation && !owner_validation->valid())
+			return false;
+		globalSourceValues[source_index] = new_value;
+		sourcesChanged |= uint32_t(old_value != new_value) << source_index;
+	}
+	if (sourcesChanged) {
+		patcher.performPatching(sourcesChanged, *this, *param_manager);
+		if (owner_validation && !owner_validation->valid())
+			return false;
+	}
+	return true;
+}
+
+bool Sound::prepare_render_delay(Delay::State& delay_state, bool limit_feedback,
+                                 const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return false;
+	delay_state.delayFeedbackAmount = paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
+	if (limit_feedback)
+		delay_state.delayFeedbackAmount = std::min(delay_state.delayFeedbackAmount, (q31_t)(1 << 30) - (1 << 26));
+	delay_state.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
+	const auto time_per_tick_inverse = playbackHandler.getTimePerInternalTickInverse(true);
+	delay.setupWorkingState(delay_state, time_per_tick_inverse, !voices_.empty());
+	if (owner_validation && !owner_validation->valid())
+		return false;
+	delay_state.analog_saturation = 8;
+	return true;
+}
+
 void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                    int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
                    int32_t pitchAdjust, SampleRecorder* recorder,
@@ -2575,59 +2648,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
-	// Do global LFO
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
-		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_1);
-
-		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
-		// TODO: We don't really need to recompute phase increment unless rate, sync, or
-		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
-		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
-		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO1.render(
-		    output.size(), lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
-		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
-	}
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
-		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
-
-		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
-		// TODO: We don't really need to recompute phase increment unless rate, sync, or
-		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
-		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
-		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO3.render(
-		    output.size(), lfoConfig[LFO3_ID], getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
-		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
-	}
-
-	for (int s = 0; s < kNumSources; s++) {
-		if (sources[s].oscType == OscType::DX7 and sources[s].dxPatch) {
-			sources[s].dxPatch->computeLfo(output.size());
-		}
-	}
-
-	// Do sidechain
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
-		if (sideChainHitPending) {
-			sidechain.registerHit(sideChainHitPending);
-		}
-
-		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
-
-		int32_t old = globalSourceValues[patchSourceSidechainUnderlying];
-		globalSourceValues[patchSourceSidechainUnderlying] = sidechain.render(
-		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceSidechainUnderlying]);
-		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
-	}
-
-	// Perform the actual patching
-	if (sourcesChanged) {
-		patcher.performPatching(sourcesChanged, *this, *paramManager);
-	}
+	if (!process_render_modulation(paramManager, output.size(), sideChainHitPending, owner_validation))
+		return;
 
 	// Setup some reverb-related stuff
 	int32_t reverbSendAmount =
@@ -2641,17 +2663,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	                        owner_validation))
 		return;
 
-	// Setup delay
 	Delay::State delayWorkingState{};
-	delayWorkingState.delayFeedbackAmount = paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
-	if (shouldLimitDelayFeedback) {
-		delayWorkingState.delayFeedbackAmount =
-		    std::min(delayWorkingState.delayFeedbackAmount, (q31_t)(1 << 30) - (1 << 26));
-	}
-	delayWorkingState.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
-	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	delay.setupWorkingState(delayWorkingState, timePerTickInverse, !voices_.empty());
-	delayWorkingState.analog_saturation = 8;
+	if (!prepare_render_delay(delayWorkingState, shouldLimitDelayFeedback, owner_validation))
+		return;
 
 	// Render each voice into a local buffer here
 	bool voice_rendered_in_stereo = renderingVoicesInStereo(modelStackWithSoundFlags);
@@ -2723,6 +2737,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	else {
 		if (!delayWorkingState.doDelay) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
+			if (owner_validation && !owner_validation->valid())
+				return;
 		}
 
 		if (!voice_rendered_in_stereo) {
