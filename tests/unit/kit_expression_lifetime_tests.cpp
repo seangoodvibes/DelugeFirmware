@@ -38,10 +38,14 @@ struct midi_input {
 	bool equalsNoteOrCCAllowMPEMasterChannels(MIDICable*, int32_t, int32_t) { return match != MIDIMatchType::NO_MATCH; }
 };
 struct Kit;
+struct Drum;
+void dispatch(Kit*, Drum*);
 struct Drum {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	Drum* next = nullptr;
+	void killAllVoices() { dispatch(nullptr, this); }
+	void choke(void*) { dispatch(nullptr, this); }
 	midi_input midiInput;
 	midi_input muteMIDICommand{MIDIMatchType::NO_MATCH};
 	uint8_t lastMIDIChannelAuditioned = 0;
@@ -88,6 +92,8 @@ struct Kit {
 	Clip* activeClip = nullptr;
 	midi_input midiInput{MIDIMatchType::NO_MATCH};
 	int32_t getDrumIndex(Drum*);
+	void cutAllSound();
+	void choke();
 	bool receivedNoteForDrum(ModelStackWithTimelineCounter* stack, MIDICable&, bool, int32_t, int32_t, int32_t, bool,
 	                         bool*, Drum* drum) {
 		auto kit_watch = watch_lifetime();
@@ -130,6 +136,12 @@ void send(int mode, Kit& kit, InstrumentClip* clip, int32_t note_code = -1) {
 	MIDICable cable;
 	bool thru = false;
 	switch (mode) {
+	case 8:
+		kit.cutAllSound();
+		break;
+	case 9:
+		kit.choke();
+		break;
 	case 0:
 		kit.offerReceivedPitchBend(&stack, cable, 0, 0, 64, &thru);
 		break;
@@ -378,4 +390,72 @@ TEST(kit_expression_lifetime, note_offer_rejects_clip_assigned_to_another_output
 	f.clip.output = &other;
 	send(6, f.kit, &f.clip);
 	LONGS_EQUAL(0, dispatched);
+}
+
+TEST(kit_expression_lifetime, cut_and_choke_reach_all_live_drums) {
+	for (int mode : {8, 9}) {
+		fixture f;
+		dispatched = 0;
+		send(mode, f.kit, nullptr);
+		LONGS_EQUAL(2, dispatched);
+	}
+}
+TEST(kit_expression_lifetime, cut_and_choke_stop_after_drum_deletion) {
+	for (int mode : {8, 9}) {
+		fixture f;
+		dispatched = 0;
+		auto first = std::make_unique<Drum>();
+		first->next = &f.second;
+		f.kit.firstDrum = first.get();
+		on_dispatch = [&](Kit*, Drum*) { first.reset(); };
+		send(mode, f.kit, nullptr);
+		LONGS_EQUAL(1, dispatched);
+	}
+}
+TEST(kit_expression_lifetime, cut_and_choke_stop_after_kit_deletion) {
+	for (int mode : {8, 9}) {
+		fixture f;
+		dispatched = 0;
+		auto kit = std::make_unique<Kit>();
+		kit->firstDrum = &f.first;
+		on_dispatch = [&](Kit*, Drum*) { kit.reset(); };
+		send(mode, *kit, nullptr);
+		LONGS_EQUAL(1, dispatched);
+	}
+}
+TEST(kit_expression_lifetime, cut_and_choke_stop_after_live_detachment) {
+	for (int mode : {8, 9}) {
+		fixture f;
+		dispatched = 0;
+		on_dispatch = [&](Kit*, Drum*) { f.kit.firstDrum = &f.second; };
+		send(mode, f.kit, nullptr);
+		LONGS_EQUAL(1, dispatched);
+	}
+}
+TEST(kit_expression_lifetime, cut_and_choke_reject_same_address_replacement) {
+	for (int mode : {8, 9}) {
+		fixture f;
+		dispatched = 0;
+		on_dispatch = [&](Kit*, Drum*) {
+			std::destroy_at(&f.first);
+			std::construct_at(&f.first);
+			f.first.next = &f.second;
+		};
+		send(mode, f.kit, nullptr);
+		LONGS_EQUAL(1, dispatched);
+	}
+}
+TEST(kit_expression_lifetime, cut_and_choke_reject_retiring_owners) {
+	for (int mode : {8, 9}) {
+		for (bool retire_kit : {false, true}) {
+			fixture f;
+			dispatched = 0;
+			if (retire_kit)
+				f.kit.lifetime.retire();
+			else
+				f.first.lifetime.retire();
+			send(mode, f.kit, nullptr);
+			LONGS_EQUAL(0, dispatched);
+		}
+	}
 }

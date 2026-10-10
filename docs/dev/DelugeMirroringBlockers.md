@@ -2419,3 +2419,10 @@ covering real heap deletion, nested reset, retired entry, chords, glide note-off
 and live/idle cleanup. All 36 native suites and `./dbt build relwithdebinfo` pass.
 Owner-preserving replacement of an arp instruction and safety inside generation
 or output callbacks remain separate concerns; these tests do not simulate hardware.
+
+Kit-wide cut/choke loops now watch the kit and each current drum and check live
+membership before following the next link after a voice callback. Six paired
+sanitizer regressions execute both production loops and real membership lookup,
+covering live traversal, heap deletion, same-address replacement, detachment and
+retired entry. All 36 native suites and `./dbt build relwithdebinfo` pass. Voice
+callback internals and rendering-list traversal remain separate lifetime work.

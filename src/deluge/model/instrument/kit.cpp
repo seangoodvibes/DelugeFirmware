@@ -558,8 +558,16 @@ Drum* Kit::getDrumFromName(std::string_view name, bool onlyIfNoNoteRow) {
 }
 
 void Kit::cutAllSound() {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
 		thisDrum->killAllVoices();
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 
@@ -938,8 +946,16 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channe
 }
 
 void Kit::choke() {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
 		thisDrum->choke(nullptr);
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 
