@@ -247,7 +247,7 @@ public:
 	float calculateBPMForDisplay();
 
 private:
-	enum class incoming_midi_kind { cc, pitch_bend, aftertouch };
+	enum class incoming_midi_kind { cc, pitch_bend, aftertouch, note_on, note_off };
 	void dispatch_midi_message(MIDICable& cable, incoming_midi_kind kind, uint8_t channel, int32_t data1, int32_t data2,
 	                           bool is_mpe, bool* doing_midi_thru);
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);

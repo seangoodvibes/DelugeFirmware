@@ -3138,52 +3138,34 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 }
 
 void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
-                                          bool* doingMidiThru) {
-	// If user assigning/learning MIDI commands, do that
+                                          bool* doing_midi_thru) {
+	if (channel < 0 || channel >= 16 || note < 0 || note > 127 || velocity < 0 || velocity > 127 || !currentSong)
+		return;
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return song_lifetime.alive() && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	// Keep note-offs flowing while learning, so held notes can still be released.
 	if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
-		// Checks velocity to let note-offs pass through,
-		// so no risk of stuck note if they pressed learn while holding a note
-		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-
-		if (getCurrentUI()->noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity)) {}
-		else {
-			view_for_session().noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
-		}
+		const int32_t channel_or_zone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		auto* ui = getCurrentUI();
+		const bool used = ui && ui->noteOnReceivedForMidiLearn(cable, channel_or_zone, note, velocity);
+		if (!context_matches())
+			return;
+		if (!used)
+			view_for_session().noteOnReceivedForMidiLearn(cable, channel_or_zone, note, velocity);
 		return;
 	}
-
-	// Otherwise, enact the relevant MIDI command, if it can be found
-
-	if (offerNoteToLearnedThings(cable, on, channel, note)) {
+	if (offerNoteToLearnedThings(cable, on, channel, note) || !context_matches())
 		return;
-	}
-
-	bool shouldRecordNotesNowNow = shouldRecordNotesNow();
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
-	// See if note message received should be processed by midi follow mode
-	midiFollow.noteMessageReceived(cable, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
-	                               modelStack);
-
-	// Go through all Instruments...
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-
-		// Only send if not muted - but let note-offs through always, for safety
-		if (!on || currentSong->isOutputActiveInArrangement(thisOutput)) {
-
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
-			// Output is a MIDI instrument, kit, or melodic instrument
-			// Midi instruments will hand control to NonAudioInstrument which inherits from melodic
-			thisOutput->offerReceivedNote(modelStackWithTimelineCounter, cable, on, channel, note, velocity,
-			                              shouldRecordNotesNowNow
-			                                  && currentSong->isOutputActiveInArrangement(
-			                                      thisOutput), // Definitely don't record if muted in arrangement
-			                              doingMidiThru);
-		}
-	}
+	dispatch_midi_message(cable, on ? incoming_midi_kind::note_on : incoming_midi_kind::note_off, channel, note,
+	                      velocity, false, doing_midi_thru);
 }
 
 void PlaybackHandler::expectEvent() {
@@ -3339,6 +3321,8 @@ void PlaybackHandler::dispatch_midi_message(MIDICable& cable, incoming_midi_kind
 		return song_lifetime.alive() && currentSong == source_song && model_stack->song == source_song
 		       && deluge::gui::ui_session::current() == source_owner;
 	};
+	const bool is_note = kind == incoming_midi_kind::note_on || kind == incoming_midi_kind::note_off;
+	const bool should_record = is_note && shouldRecordNotesNow();
 	switch (kind) {
 	case incoming_midi_kind::cc:
 		midiFollow.midiCCReceived(cable, channel, data1, data2, doing_midi_thru, model_stack);
@@ -3348,6 +3332,11 @@ void PlaybackHandler::dispatch_midi_message(MIDICable& cable, incoming_midi_kind
 		break;
 	case incoming_midi_kind::aftertouch:
 		midiFollow.aftertouchReceived(cable, channel, data1, data2, doing_midi_thru, model_stack);
+		break;
+	case incoming_midi_kind::note_on:
+	case incoming_midi_kind::note_off:
+		midiFollow.noteMessageReceived(cable, kind == incoming_midi_kind::note_on, channel, data1, data2,
+		                               doing_midi_thru, should_record, model_stack);
 		break;
 	}
 	if (!context_matches())
@@ -3378,7 +3367,8 @@ void PlaybackHandler::dispatch_midi_message(MIDICable& cable, incoming_midi_kind
 		if (source_clip && (!source_lifetime.alive() || source_clip->output != output))
 			return;
 		const bool source_registered = source_clip && source_song->contains_clip_for_undo(source_clip);
-		if (kind != incoming_midi_kind::cc || source_clip) {
+		if ((kind != incoming_midi_kind::cc || source_clip)
+		    && (kind != incoming_midi_kind::note_on || source_song->isOutputActiveInArrangement(output))) {
 			auto* clip_stack = model_stack->addTimelineCounter(source_clip);
 			bool used_for_param = false;
 			if (!is_mpe && source_clip) {
@@ -3412,6 +3402,12 @@ void PlaybackHandler::dispatch_midi_message(MIDICable& cable, incoming_midi_kind
 				break;
 			case incoming_midi_kind::aftertouch:
 				output->offerReceivedAftertouch(clip_stack, cable, channel, data1, data2, doing_midi_thru);
+				break;
+			case incoming_midi_kind::note_on:
+			case incoming_midi_kind::note_off:
+				output->offerReceivedNote(clip_stack, cable, kind == incoming_midi_kind::note_on, channel, data1, data2,
+				                          should_record && source_song->isOutputActiveInArrangement(output),
+				                          doing_midi_thru);
 				break;
 			}
 			if (!output_matches() || (source_clip && !source_lifetime.alive())

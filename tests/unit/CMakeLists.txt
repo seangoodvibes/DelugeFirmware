@@ -1121,6 +1121,6 @@ set(playback_midi_dispatch_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/p
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/playback_midi_dispatch_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${playback_midi_dispatch_source} ${CMAKE_CURRENT_BINARY_DIR}/playback_midi_dispatch_lifetime.inc
-        PlaybackHandler::pitchBendReceived PlaybackHandler::midiCCReceived PlaybackHandler::aftertouchReceived PlaybackHandler::dispatch_midi_message
+        PlaybackHandler::pitchBendReceived PlaybackHandler::midiCCReceived PlaybackHandler::aftertouchReceived PlaybackHandler::noteMessageReceived PlaybackHandler::dispatch_midi_message
     DEPENDS ${playback_midi_dispatch_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE playback_midi_dispatch_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/playback_midi_dispatch_lifetime.inc)

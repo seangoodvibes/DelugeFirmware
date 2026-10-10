@@ -39,7 +39,8 @@ struct ModelStackWithTimelineCounter : ModelStack {
 };
 std::function<void()> on_ui, on_command, on_follow, on_song, on_learned, on_input;
 int ui_calls, command_calls, follow_calls, song_calls, learned_calls, input_calls, learn_calls;
-bool ui_used, command_used, parameter_used;
+bool ui_used, command_used, parameter_used, record_enabled;
+std::vector<bool> notes_on, note_recording;
 std::vector<Clip*> delivered_clips;
 struct ModControllableAudio {
 	void offerReceivedCCToLearnedParamsForSong(MIDICable&, int, int, int, void*) {
@@ -61,6 +62,7 @@ ModelStack* setupModelStackWithSong(char*, Song* song) {
 	return &dispatch_stack;
 }
 struct Output : Owner {
+	bool muted = false;
 	Output* next = nullptr;
 	Clip* active = nullptr;
 	Clip* getActiveClip() { return active; }
@@ -88,8 +90,18 @@ struct Output : Owner {
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* stack, MIDICable&, int, int, int, bool*) {
 		input(stack);
 	}
+	void offerReceivedNote(ModelStackWithTimelineCounter* stack, MIDICable&, bool on, int channel, int note,
+	                       int velocity, bool record, bool*) {
+		LONGS_EQUAL(2, channel);
+		LONGS_EQUAL(60, note);
+		LONGS_EQUAL(99, velocity);
+		notes_on.push_back(on);
+		note_recording.push_back(record);
+		input(stack);
+	}
 };
 struct Song : Owner {
+	bool isOutputActiveInArrangement(Output* output) { return !output->muted; }
 	Output* firstOutput = nullptr;
 	std::vector<Clip*> registered;
 	ModControllableAudio global;
@@ -112,7 +124,14 @@ struct Song : Owner {
 	}
 };
 Song* currentSong;
-struct UI {};
+struct UI {
+	bool noteOnReceivedForMidiLearn(MIDICable&, int, int, int) {
+		++ui_calls;
+		if (on_ui)
+			on_ui();
+		return ui_used;
+	}
+};
 struct Editor : UI {
 	bool midiCCReceived(MIDICable&, int, int, int) {
 		++ui_calls;
@@ -135,6 +154,7 @@ Editor& sound_editor_for_session() {
 	return editor;
 }
 struct View {
+	void noteOnReceivedForMidiLearn(MIDICable&, int, int, int) { ++learn_calls; }
 	void ccReceivedForMIDILearn(MIDICable&, int, int, int) { ++learn_calls; }
 } view;
 View& view_for_session() {
@@ -149,9 +169,12 @@ struct {
 	void midiCCReceived(MIDICable&, int, int, int, bool*, ModelStack*) { follow(); }
 	void pitchBendReceived(MIDICable&, int, int, int, bool*, ModelStack*) { follow(); }
 	void aftertouchReceived(MIDICable&, int, int, int, bool*, ModelStack*) { follow(); }
+	void noteMessageReceived(MIDICable&, bool, int, int, int, bool*, bool, ModelStack*) { follow(); }
 } midiFollow;
 struct PlaybackHandler {
-	enum class incoming_midi_kind { cc, pitch_bend, aftertouch };
+	enum class incoming_midi_kind { cc, pitch_bend, aftertouch, note_on, note_off };
+	bool shouldRecordNotesNow() { return record_enabled; }
+	void noteMessageReceived(MIDICable&, bool, int32_t, int32_t, int32_t, bool*);
 	void midiCCReceived(MIDICable&, uint8_t, uint8_t, uint8_t, bool*);
 	void pitchBendReceived(MIDICable&, uint8_t, uint8_t, uint8_t, bool*);
 	void aftertouchReceived(MIDICable&, int32_t, int32_t, int32_t, bool*);
@@ -177,6 +200,9 @@ TEST_GROUP(playback_midi_dispatch_lifetime) {
 		on_ui = on_command = on_follow = on_song = on_learned = on_input = {};
 		ui_calls = command_calls = follow_calls = song_calls = learned_calls = input_calls = learn_calls = 0;
 		ui_used = command_used = parameter_used = false;
+		record_enabled = true;
+		notes_on.clear();
+		note_recording.clear();
 		delivered_clips.clear();
 		song = std::make_unique<Song>();
 		first = std::make_unique<Output>();
@@ -211,6 +237,9 @@ TEST_GROUP(playback_midi_dispatch_lifetime) {
 			handler.pitchBendReceived(cable, 2, 0, 64, &thru);
 		else
 			handler.aftertouchReceived(cable, 2, 64, -1, &thru);
+	}
+	void note(bool on = true) {
+		handler.noteMessageReceived(cable, on, 2, 60, 99, &thru);
 	}
 };
 TEST(playback_midi_dispatch_lifetime, live_messages_preserve_follow_and_output_routes) {
@@ -410,5 +439,70 @@ TEST(playback_midi_dispatch_lifetime, unrelated_active_clip_change_cancels_raw_d
 	replacement.output = first.get();
 	on_learned = [&] { first->active = &replacement; };
 	send(1);
+	LONGS_EQUAL(0, input_calls);
+}
+
+TEST(playback_midi_dispatch_lifetime, note_on_respects_mute_but_note_off_reaches_all_outputs) {
+	first->muted = true;
+	note();
+	LONGS_EQUAL(1, input_calls);
+	CHECK(notes_on[0]);
+	CHECK(note_recording[0]);
+	POINTERS_EQUAL(second_clip.get(), delivered_clips[0]);
+	note(false);
+	LONGS_EQUAL(3, input_calls);
+	CHECK_FALSE(notes_on[1]);
+	CHECK_FALSE(note_recording[1]);
+	CHECK(note_recording[2]);
+}
+TEST(playback_midi_dispatch_lifetime, note_recording_disabled_is_preserved) {
+	record_enabled = false;
+	note();
+	LONGS_EQUAL(2, input_calls);
+	CHECK_FALSE(note_recording[0]);
+	CHECK_FALSE(note_recording[1]);
+}
+TEST(playback_midi_dispatch_lifetime, note_follow_deletion_cancels_fanout) {
+	on_follow = [&] { song.reset(); };
+	note();
+	LONGS_EQUAL(0, input_calls);
+}
+TEST(playback_midi_dispatch_lifetime, note_output_deletion_cancels_before_next_output) {
+	on_input = [&] { first.reset(); };
+	note(false);
+	LONGS_EQUAL(1, input_calls);
+}
+TEST(playback_midi_dispatch_lifetime, note_learn_deletion_stops_before_fallback) {
+	currentUIMode = UI_MODE_MIDI_LEARN;
+	current_ui = &editor;
+	on_ui = [&] { song.reset(); };
+	note();
+	LONGS_EQUAL(1, ui_calls);
+	LONGS_EQUAL(0, learn_calls);
+	LONGS_EQUAL(0, follow_calls);
+}
+TEST(playback_midi_dispatch_lifetime, note_learn_fallback_consumes_on_but_allows_off) {
+	currentUIMode = UI_MODE_MIDI_LEARN;
+	current_ui = &editor;
+	note();
+	LONGS_EQUAL(1, ui_calls);
+	LONGS_EQUAL(1, learn_calls);
+	LONGS_EQUAL(0, input_calls);
+	note(false);
+	LONGS_EQUAL(2, input_calls);
+	CHECK_FALSE(notes_on[0]);
+}
+TEST(playback_midi_dispatch_lifetime, note_command_deletion_cancels_follow) {
+	on_command = [&] { song.reset(); };
+	note();
+	LONGS_EQUAL(0, follow_calls);
+}
+TEST(playback_midi_dispatch_lifetime, malformed_note_input_is_rejected_before_routing) {
+	handler.noteMessageReceived(cable, true, -1, 60, 99, &thru);
+	handler.noteMessageReceived(cable, true, 16, 60, 99, &thru);
+	handler.noteMessageReceived(cable, true, 2, 128, 99, &thru);
+	handler.noteMessageReceived(cable, true, 2, 60, -1, &thru);
+	LONGS_EQUAL(0, command_calls);
+	LONGS_EQUAL(0, follow_calls);
 	LONGS_EQUAL(0, input_calls);
 }

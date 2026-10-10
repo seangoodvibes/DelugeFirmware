@@ -2968,3 +2968,11 @@ registration/active-clip changes. All 36 suites and `./dbt build relwithdebinfo`
 Note-on/off and learned-command internals still require checks; cable lifetime and
 hardware timing remain unverified. Completed deliveries are retained; independent
 mode stays disabled.
+
+Playback note-on/off now uses the shared guarded MIDI dispatcher, with song/session
+validation around MIDI-learn and learned-command callbacks. Eight added production-
+body sanitizer regressions preserve muted note-on filtering, always-delivered
+note-offs, recording flags and MIDI-learn fallback, and cover deletion and malformed
+input. All 36 suites and `./dbt build relwithdebinfo` pass. Learned-command traversal
+and individual command/output internals remain open; completed note delivery is not
+rolled back and cable lifetime/hardware acceptance remain unverified.
