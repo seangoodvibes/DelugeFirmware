@@ -52,12 +52,29 @@ std::string_view RenameClipUI::getCurrentName() const {
 bool RenameClipUI::trySetName(std::string_view name) {
 	if (!canRename())
 		return false;
+	auto* const source_song = currentSong;
+	auto* const source_clip = clip;
+	auto* const source_output = clip->output;
+	const auto source_owner = deluge::gui::ui_session::current();
+	String previous_name;
+	previous_name.set(&clip->name); // Shares existing storage without allocation.
+	String replacement_name;
+	const auto error = replacement_name.set(name);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
+	// Allocation can service callbacks. Validate before touching the retained clip again.
+	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song || clip != source_clip
+	    || !canRename() || clip->output != source_output || std::string_view(clip->name.get()) != previous_name.get()) {
+		return false;
+	}
 	// Don't allow duplicate names on clips of a single output.
-	Clip* other = clip->output->getClipFromName(name);
+	Clip* other = clip->output->getClipFromName(replacement_name.get());
 	if (other != nullptr && other != clip) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	clip->name.set(name);
+	clip->name.set(&replacement_name); // Non-allocating commit; failure leaves the old name intact.
 	return true;
 }

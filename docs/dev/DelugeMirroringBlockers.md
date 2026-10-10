@@ -978,3 +978,20 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. These entry checks
   do not establish allocator-callback lifetime or allocation-failure recovery.
   G1/L1 remain open and independent mode remains disabled.
+
+### G1 / R4 progress — clip rename allocation failure (2026-10-09)
+
+- Clip rename stages the replacement before committing through String's
+  non-allocating shared-storage setter. Failed allocation reports an error and
+  preserves the original name. The saved old name shares its existing storage;
+  only the replacement requires a new string allocation.
+- After allocation, rename rechecks song, target, output, owner, membership and
+  prior name before duplicate lookup and commit. Newer names and context changes
+  cancel the edit; duplicate checks use the current output after allocation.
+- Four added fixture-backed cases cover allocation failure/retry, clip departure,
+  newer names, and changed song/target/output/owner or newly introduced duplicates.
+  Three cases failed before the fix. The fixture models the destructive failure
+  of String::set; it does not run the firmware allocator or establish lifetime
+  pins, generation checks, or UI-stack recovery after arbitrary callbacks.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4/L1 remain open
+  and independent mode remains disabled.

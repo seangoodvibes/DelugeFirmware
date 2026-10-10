@@ -1,19 +1,29 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
 namespace rename_clip_test {
 namespace session = deluge::gui::ui_session;
+static Error next_error = Error::NONE;
+static std::function<void()> on_name_set;
 struct name_fixture {
 	std::string value = "original";
 	const char* get() const { return value.c_str(); }
+	void set(const name_fixture* other) { value = other->value; }
 	Error set(std::string_view name) {
+		value.clear();
+		if (on_name_set)
+			on_name_set();
+		if (next_error != Error::NONE)
+			return next_error;
 		value = name;
 		return Error::NONE;
 	}
 };
+using String = name_fixture;
 struct Clip;
 struct Output {
 	Output* next = nullptr;
@@ -39,6 +49,9 @@ struct Song {
 	bool contains_clip_for_undo(const Clip* clip);
 };
 static Song* currentSong;
+namespace deluge::gui {
+namespace ui_session = ::deluge::gui::ui_session;
+}
 namespace deluge::l10n {
 enum class String { STRING_FOR_DUPLICATE_NAMES };
 static const char* get(String) {
@@ -47,6 +60,8 @@ static const char* get(String) {
 } // namespace deluge::l10n
 struct display_fixture {
 	int popups = 0;
+	Error error = Error::NONE;
+	void displayError(Error value) { error = value; }
 	void displayPopup(const char*) { ++popups; }
 };
 static display_fixture display_instance;
@@ -75,8 +90,11 @@ TEST_GROUP(RenameClipTargets) {
 		clip.output = &output;
 		menu.clip = &clip;
 		display_instance = {};
+		next_error = Error::NONE;
+		on_name_set = {};
 	}
 	void teardown() override {
+		on_name_set = {};
 		currentSong = nullptr;
 		session::detail::active = session::Id::Local;
 	}
@@ -123,4 +141,60 @@ TEST(RenameClipTargets, missing_context_rejects_and_arrangement_reattachment_all
 	CHECK(menu.canRename());
 	CHECK(menu.trySetName("arrangement"));
 	STRCMP_EQUAL("arrangement", clip.name.get());
+}
+
+TEST(RenameClipTargets, allocation_failure_preserves_original_name_and_reports_error) {
+	next_error = Error::INSUFFICIENT_RAM;
+	CHECK_FALSE(menu.trySetName("replacement"));
+	STRCMP_EQUAL("original", clip.name.get());
+	CHECK(display_instance.error == Error::INSUFFICIENT_RAM);
+	next_error = Error::NONE;
+	CHECK(menu.trySetName("retry"));
+	STRCMP_EQUAL("retry", clip.name.get());
+}
+TEST(RenameClipTargets, allocation_callback_departure_cancels_commit) {
+	on_name_set = [&] { song.sessionClips.entries.clear(); };
+	CHECK_FALSE(menu.trySetName("replacement"));
+	STRCMP_EQUAL("original", clip.name.get());
+}
+TEST(RenameClipTargets, allocation_callback_newer_name_is_preserved) {
+	on_name_set = [&] { clip.name.value = "newer"; };
+	CHECK_FALSE(menu.trySetName("replacement"));
+	STRCMP_EQUAL("newer", clip.name.get());
+}
+TEST(RenameClipTargets, allocation_context_changes_and_new_duplicates_cancel_commit) {
+	Song replacement_song;
+	Output replacement_output;
+	output.next = &replacement_output;
+	other.output = &output;
+	song.sessionClips.entries.push_back(&other);
+	for (int scenario = 0; scenario < 5; ++scenario) {
+		currentSong = &song;
+		menu.clip = &clip;
+		clip.output = &output;
+		output.duplicate = nullptr;
+		session::detail::active = session::Id::Local;
+		on_name_set = [&] {
+			switch (scenario) {
+			case 0:
+				currentSong = &replacement_song;
+				break;
+			case 1:
+				menu.clip = &other;
+				break;
+			case 2:
+				clip.output = &replacement_output;
+				break;
+			case 3:
+				session::detail::active = session::Id::Remote;
+				break;
+			case 4:
+				output.duplicate = &other;
+				break;
+			}
+		};
+		CHECK_FALSE(menu.trySetName("replacement"));
+		STRCMP_EQUAL("original", clip.name.get());
+		STRCMP_EQUAL("original", other.name.get());
+	}
 }
