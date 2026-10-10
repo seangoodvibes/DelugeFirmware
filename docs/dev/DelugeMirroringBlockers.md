@@ -1649,3 +1649,14 @@ state. Three extracted-production tests cover missing clips/outputs, independent
 kit affect-entire state, audio/synth contexts and a mismatched kit clip. All 35
 native suites and `./dbt build relwithdebinfo` pass. Clip selection is a fixture
 here; these availability guards do not retain objects or establish device safety.
+
+### G1 / R4 progress — unavailable active-clip fallback (2026-10-10)
+
+MIDI Follow's active-clip fallback now returns no target when the current clip has
+no output, instead of returning that clip as if it were active. Two tests execute
+the production selector with missing output/active clip and verify explicit
+selection priority plus different panel selections. The missing-output regression
+failed before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
+The context tests now also execute this selector rather than stubbing it; explicit
+selection and output activity remain fixtures. This does not retain clip/output
+lifetimes across callbacks. Independent mode remains disabled.

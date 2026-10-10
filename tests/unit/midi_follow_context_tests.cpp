@@ -3,7 +3,10 @@
 #include "gui/ui/ui_session.h"
 namespace midi_follow_context_test {
 namespace session = deluge::gui::ui_session;
+struct Clip;
 struct Output {
+	Clip* active_clip = nullptr;
+	Clip* getActiveClip() { return active_clip; }
 	OutputType type = OutputType::SYNTH;
 };
 struct Clip {
@@ -15,9 +18,14 @@ struct InstrumentClip : Clip {
 	session::State<bool> affect_entire;
 	bool affect_entire_for_session() { return affect_entire.active(); }
 };
+static session::State<Clip*> current_clips;
+static Clip* getCurrentClip() {
+	return current_clips.active();
+}
 struct MidiFollow {
 	session::State<Clip*> clips;
-	Clip* getSelectedOrActiveClip() { return clips.active(); }
+	Clip* getSelectedClip() { return clips.active(); }
+	Clip* getSelectedOrActiveClip();
 	bool isGlobalEffectableContext();
 };
 #include "midi_follow_context.inc"
@@ -30,6 +38,7 @@ TEST_GROUP(MidiFollowContext) {
 	Clip audio;
 	void setup() override {
 		session::detail::active = session::Id::Local;
+		current_clips = {};
 		instrument.output = &output;
 		audio.output = &output;
 	}
@@ -68,4 +77,28 @@ TEST(MidiFollowContext, audio_is_global_synth_is_not_and_mismatched_kit_is_safe)
 	instrument.affect_entire.active() = true;
 	output.type = OutputType::SYNTH;
 	CHECK_FALSE(follow.isGlobalEffectableContext());
+}
+
+TEST(MidiFollowContext, fallback_without_output_or_active_clip_returns_no_target) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		current_clips.active() = &instrument;
+		instrument.output = nullptr;
+		POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+		instrument.output = &output;
+		POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+	}
+}
+TEST(MidiFollowContext, explicit_selection_wins_over_each_panels_active_clip_fallback) {
+	Clip active_clip;
+	output.active_clip = &active_clip;
+	current_clips.for_owner(session::Id::Local) = &instrument;
+	current_clips.for_owner(session::Id::Remote) = &instrument;
+	follow.clips.for_owner(session::Id::Local) = &audio;
+	POINTERS_EQUAL(&audio, follow.getSelectedOrActiveClip());
+	{
+		session::Scope scope(session::Id::Remote);
+		POINTERS_EQUAL(&active_clip, follow.getSelectedOrActiveClip());
+	}
+	POINTERS_EQUAL(&audio, follow.getSelectedOrActiveClip());
 }

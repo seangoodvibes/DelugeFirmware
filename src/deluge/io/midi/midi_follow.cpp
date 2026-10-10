@@ -403,9 +403,7 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 		clip = getCurrentClip();
 		if (clip) {
 			Output* output = clip->output;
-			if (output) {
-				clip = output->getActiveClip();
-			}
+			clip = output ? output->getActiveClip() : nullptr;
 		}
 	}
 
