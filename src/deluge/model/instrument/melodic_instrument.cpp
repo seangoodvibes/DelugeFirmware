@@ -633,12 +633,17 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackW
 // Big part of this function is that it can decide to call possiblyCloneForArrangementRecording().
 void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
                                                          ModelStackWithTimelineCounter* modelStack) {
+	if (!modelStack)
+		return;
 
 	int32_t modPos = 0;
 	int32_t modLength = 0;
 
 	if (modelStack->timelineCounterIsSet()) {
-		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+		Error clone_error = Error::NONE;
+		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack, &clone_error);
+		if (clone_error != Error::NONE)
+			return;
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
@@ -658,7 +663,7 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	ModelStackWithAutoParam* modelStackWithParam =
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
 
-	if (modelStackWithParam->autoParam) {
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		modelStackWithParam->autoParam->setValuePossiblyForRegion(
 		    newValue, modelStackWithParam, modPos, modLength,
 		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again

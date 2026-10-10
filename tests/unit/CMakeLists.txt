@@ -588,3 +588,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recording_clone.inc
         ${recording_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/recording_clone.inc Clip::possiblyCloneForArrangementRecording
     DEPENDS ${recording_clone_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE recording_clone_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/recording_clone.inc)
+
+set(midi_parameter_input_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/melodic_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_parameter_input.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_parameter_input.inc MelodicInstrument::processParamFromInputMIDIChannel
+    DEPENDS ${midi_parameter_input_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE midi_parameter_input_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_parameter_input.inc)

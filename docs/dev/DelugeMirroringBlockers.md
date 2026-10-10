@@ -1916,3 +1916,13 @@ new-instance position/length and sample handoff. All 35 native suites and
 `./dbt build relwithdebinfo` pass. Later clone/expansion/publication failures and
 callback lifetime still require recovery; this closes only pre-insertion extent
 mutation, not the entire clone transaction.
+
+### G1 / R5 progress — melodic MIDI parameter clone failures (2026-10-10)
+
+Melodic instrument parameter input now consumes the arrangement-clone error
+result, stopping before parameter-manager lookup or writes when cloning fails.
+Missing input/model parameter stacks are also rejected. Four production-body
+tests cover failed/successful/unnecessary cloning, unavailable targets and
+per-panel step editing against the resulting timeline. All 35 native suites and
+`./dbt build relwithdebinfo` pass. Other clone callers still need migration and
+live-expression fallback tests; callback lifetime remains unresolved.
