@@ -1926,3 +1926,13 @@ tests cover failed/successful/unnecessary cloning, unavailable targets and
 per-panel step editing against the resulting timeline. All 35 native suites and
 `./dbt build relwithdebinfo` pass. Other clone callers still need migration and
 live-expression fallback tests; callback lifetime remains unresolved.
+
+### G1 / R5 progress — learned MIDI mapping clone failures (2026-10-10)
+
+Learned clip CC and pitch-bend mappings consume clone errors and stop before
+parameter lookup/writes on failure. Matching messages remain reported as handled;
+missing model/parameter stacks are safe. Three production-body regressions cover
+both message types, failures, valid delivery, missing targets and unmatched
+mappings. All 35 native suites and `./dbt build relwithdebinfo` pass. Remaining
+clone callers include encoder lookup, note recording and expression recording;
+learned-mapping callback lifetime and container mutation remain separate gaps.

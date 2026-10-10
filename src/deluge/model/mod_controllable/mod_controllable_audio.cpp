@@ -1055,6 +1055,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
                                                                  uint8_t value,
                                                                  ModelStackWithTimelineCounter* modelStack,
                                                                  int32_t noteRowIndex) {
+	if (!modelStack)
+		return false;
+
 	bool messageUsed = false;
 
 	// For each MIDI knob...
@@ -1087,7 +1090,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 					isStepEditing = true;
 				}
 
-				timelineCounter->possiblyCloneForArrangementRecording(modelStack);
+				Error clone_error = Error::NONE;
+				timelineCounter->possiblyCloneForArrangementRecording(modelStack, &clone_error);
+				if (clone_error != Error::NONE)
+					return messageUsed;
 			}
 
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
@@ -1247,6 +1253,8 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
                                                                  uint8_t data2,
                                                                  ModelStackWithTimelineCounter* modelStack,
                                                                  int32_t noteRowIndex) {
+	if (!modelStack)
+		return false;
 
 	bool messageUsed = false;
 
@@ -1273,7 +1281,10 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 					modLength = view_for_session().modLength;
 				}
 
-				timelineCounter->possiblyCloneForArrangementRecording(modelStack);
+				Error clone_error = Error::NONE;
+				timelineCounter->possiblyCloneForArrangementRecording(modelStack, &clone_error);
+				if (clone_error != Error::NONE)
+					return messageUsed;
 			}
 
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
@@ -1283,7 +1294,7 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-			if (modelStackWithParam->autoParam) {
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 				uint32_t value14 = (uint32_t)data1 | ((uint32_t)data2 << 7);
 

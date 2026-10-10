@@ -595,3 +595,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_parameter_input.inc
         ${midi_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_parameter_input.inc MelodicInstrument::processParamFromInputMIDIChannel
     DEPENDS ${midi_parameter_input_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_parameter_input_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_parameter_input.inc)
+
+set(learned_parameter_input_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/mod_controllable/mod_controllable_audio.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/learned_parameter_input.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${learned_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/learned_parameter_input.inc ModControllableAudio::offerReceivedCCToLearnedParamsForClip ModControllableAudio::offerReceivedPitchBendToLearnedParams
+    DEPENDS ${learned_parameter_input_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/learned_parameter_input.inc)
