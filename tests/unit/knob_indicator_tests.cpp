@@ -14,6 +14,22 @@ namespace params {
 enum class Kind { NORMAL, PATCH_CABLE };
 }
 static std::function<void()> on_lookup, on_value;
+constexpr int NUM_LEVEL_INDICATORS = 2;
+static int lookup_calls = 0;
+struct root_fixture {
+	bool automation_editor = false;
+	int renders = 0;
+	bool inAutomationEditor() { return automation_editor; }
+	void displayAutomation() { ++renders; }
+};
+static root_fixture root, automation;
+static session::State<root_fixture*> roots;
+static root_fixture* getRootUI() {
+	return roots.active();
+}
+static root_fixture& automation_view_for_session() {
+	return automation;
+}
 static int song, replacement_song;
 static int* currentSong = &song;
 struct ModelStackWithAutoParam;
@@ -39,6 +55,7 @@ struct ModControllable {
 	int32_t fallback = -64;
 	template <class T>
 	ModelStackWithAutoParam* getParamFromModEncoder(uint8_t, T*, bool) {
+		++lookup_calls;
 		if (on_lookup)
 			on_lookup();
 		return result;
@@ -73,6 +90,14 @@ struct result {
 	bool bipolar = false;
 };
 static session::State<std::array<result, 2>> outputs;
+static session::State<std::array<bool, 2>> blinking;
+static session::State<int> clears;
+static bool isKnobIndicatorBlinking(int index) {
+	return blinking.active()[index];
+}
+static void clearKnobIndicatorLevels() {
+	++clears.active();
+}
 static void setKnobIndicatorLevel(uint8_t index, int32_t level, bool bipolar) {
 	auto& target = outputs.active()[index];
 	++target.calls;
@@ -84,6 +109,7 @@ struct View {
 	ModelStackWithAutoParam activeModControllableModelStack;
 	uint32_t modPos = 0;
 	void setKnobIndicatorLevel(uint8_t);
+	void setKnobIndicatorLevels();
 	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t);
 };
 static session::State<View> views;
@@ -91,6 +117,7 @@ static View& view_for_session() {
 	return views.active();
 }
 #include "knob_indicator.inc"
+#include "knob_indicator_batch.inc"
 } // namespace knob_indicator_test
 using namespace knob_indicator_test;
 TEST_GROUP(KnobIndicator) {
@@ -101,6 +128,13 @@ TEST_GROUP(KnobIndicator) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		views = {};
+		root = {};
+		automation = {};
+		lookup_calls = 0;
+		indicator_leds::blinking = {};
+		indicator_leds::clears = {};
+		roots.for_owner(session::Id::Local) = &root;
+		roots.for_owner(session::Id::Remote) = &root;
 		on_lookup = on_value = {};
 		currentSong = &song;
 		indicator_leds::outputs = {};
@@ -224,4 +258,56 @@ TEST(KnobIndicator, value_callback_owner_change_does_not_send_to_peer) {
 	CHECK(session::current() == session::Id::Local);
 	LONGS_EQUAL(0, indicator_leds::outputs.for_owner(session::Id::Remote)[0].calls);
 	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+}
+
+TEST(KnobIndicator, batch_stops_after_first_lookup_changes_context) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int scenario = 0; scenario < 5; ++scenario) {
+			auto& view = view_for_session();
+			view.activeModControllableModelStack = {};
+			view.activeModControllableModelStack.modControllable = &controllable;
+			view.modPos = 0;
+			roots.active() = &root;
+			currentSong = &song;
+			lookup_calls = 0;
+			on_lookup = [&] {
+				if (scenario == 0)
+					view.activeModControllableModelStack.paramManager = &song;
+				if (scenario == 1)
+					currentSong = &replacement_song;
+				if (scenario == 2)
+					view.activeModControllableModelStack.timeline = &song;
+				if (scenario == 3)
+					view.modPos = 48;
+				if (scenario == 4)
+					roots.active() = &automation;
+			};
+			view.setKnobIndicatorLevels();
+			LONGS_EQUAL(1, lookup_calls);
+			LONGS_EQUAL(0, indicator_leds::outputs.active()[1].calls);
+		}
+	}
+}
+
+TEST(KnobIndicator, batch_preserves_blinking_and_delegates_automation_display) {
+	indicator_leds::blinking.active()[0] = true;
+	view_for_session().setKnobIndicatorLevels();
+	LONGS_EQUAL(1, lookup_calls);
+	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
+	LONGS_EQUAL(1, indicator_leds::outputs.active()[1].calls);
+	roots.active() = &automation;
+	automation.automation_editor = true;
+	view_for_session().setKnobIndicatorLevels();
+	LONGS_EQUAL(1, automation.renders);
+	LONGS_EQUAL(1, lookup_calls);
+}
+TEST(KnobIndicator, batch_handles_missing_root_and_clears_missing_target) {
+	roots.active() = nullptr;
+	view_for_session().setKnobIndicatorLevels();
+	LONGS_EQUAL(0, lookup_calls);
+	roots.active() = &root;
+	view_for_session().activeModControllableModelStack.modControllable = nullptr;
+	view_for_session().setKnobIndicatorLevels();
+	LONGS_EQUAL(1, indicator_leds::clears.active());
 }

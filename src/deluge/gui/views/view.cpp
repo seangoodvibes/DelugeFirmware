@@ -1448,7 +1448,22 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 }
 
 void View::setKnobIndicatorLevels() {
-	if (!getRootUI()) {
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_root = getRootUI();
+	auto* const source_song = currentSong;
+	auto* const source_controllable = activeModControllableModelStack.modControllable;
+	auto* const source_manager = activeModControllableModelStack.paramManager;
+	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
+	const auto source_position = modPos;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && getRootUI() == source_root
+		       && currentSong == source_song && activeModControllableModelStack.modControllable == source_controllable
+		       && activeModControllableModelStack.paramManager == source_manager
+		       && activeModControllableModelStack.getTimelineCounterAllowNull() == source_timeline
+		       && modPos == source_position;
+	};
+	if (!source_root) {
 		return; // What's this?
 	}
 
@@ -1462,6 +1477,8 @@ void View::setKnobIndicatorLevels() {
 		for (int32_t whichModEncoder = 0; whichModEncoder < NUM_LEVEL_INDICATORS; whichModEncoder++) {
 			if (!indicator_leds::isKnobIndicatorBlinking(whichModEncoder)) {
 				setKnobIndicatorLevel(whichModEncoder);
+				if (!context_matches())
+					return;
 			}
 		}
 	}

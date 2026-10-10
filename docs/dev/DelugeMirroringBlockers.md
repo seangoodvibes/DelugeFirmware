@@ -1395,3 +1395,14 @@ side effects are not provided by these guards.
   parameter-lifecycle suite, and `./dbt build relwithdebinfo` pass.
 - These checks do not pin returned model/parameter objects or establish safety
   inside their methods. G1/L1 remain open; independent mode stays disabled.
+
+### G1 progress — knob indicator batch context (2026-10-10)
+
+- The two-indicator batch restores its owner and stops when a lookup changes its
+  root, song, controllable, manager, timeline or position. A changed selection is
+  not used to continue the old batch's second indicator.
+- Three extracted-batch tests cover five invalidations on both owners, blinking,
+  automation delegation and missing roots/targets. The manager-change regression
+  failed before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
+- Already emitted indicator updates are not rolled back. Callback-internal
+  retention remains L1 work; G1 stays open and independent mode stays disabled.
