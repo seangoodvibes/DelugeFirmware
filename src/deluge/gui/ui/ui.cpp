@@ -604,7 +604,22 @@ void doAnyPendingOLEDRendering() {
 void doAnyPendingUIRendering() {
 	if (deluge::hid::mirror::is_client())
 		return;
-	if (navigation().rendering) {
+	if (navigation().depth <= 0 || navigation().depth > navigation().capacity)
+		return;
+	for (int32_t level = 0; level < navigation().depth; ++level) {
+		if (!navigation().hierarchy[level])
+			return;
+	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto& source_navigation = navigation();
+	const auto expected_depth = source_navigation.depth;
+	const auto expected_hierarchy = source_navigation.hierarchy;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
+		       && source_navigation.hierarchy == expected_hierarchy;
+	};
+	if (source_navigation.rendering) {
 		return; // There's no point going in here multiple times inside each other
 	}
 
@@ -614,13 +629,23 @@ void doAnyPendingUIRendering() {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 	}
 
-	navigation().rendering = true;
+	if (!context_matches())
+		return;
+	source_navigation.rendering = true;
+	struct rendering_guard {
+		bool& flag;
+		~rendering_guard() { flag = false; }
+	} reset_rendering{source_navigation.rendering};
 
 	// Re-reading menu targets is deferred until storage has finished yielding.
 	// Each panel consumes its own notifications; this never switches UI owners.
 	if (!sdRoutineLock && !currentlyAccessingCard && navigation().depth > 0
 	    && navigation().shared_model_refresh.consume(deluge::modulation::automation::parameter_revision)) {
 		getCurrentUI()->refresh_shared_model();
+		if (!context_matches()) {
+			source_navigation.shared_model_refresh.request();
+			return;
+		}
 	}
 
 	const bool overview =
@@ -629,13 +654,17 @@ void doAnyPendingUIRendering() {
 	if (navigation().structural_refresh.consume(sdRoutineLock || currentlyAccessingCard, overview,
 	                                            currentUIMode == 0)) {
 		uiNeedsRendering(getCurrentUI());
+		if (!context_matches()) {
+			source_navigation.structural_refresh.request();
+			return;
+		}
 		renderUIsForOled();
 	}
 
 	doAnyPendingGridRendering();
+	if (!context_matches())
+		return;
 	doAnyPendingOLEDRendering();
-
-	navigation().rendering = false;
 }
 
 bool isUIModeActive(uint32_t uiMode) {

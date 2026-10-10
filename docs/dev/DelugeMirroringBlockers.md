@@ -1273,3 +1273,19 @@ side effects are not provided by these guards.
   before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
 - UI object retention and end-to-end routing remain open; independent mode stays
   disabled.
+
+### G1 progress — render-pass owner and cleanup containment (2026-10-10)
+
+- The render-pass wrapper validates its stack, retains the initiating owner and
+  clears that owner's reentrancy flag on every exit, including exception unwind.
+  A shared-model refresh that changes owner/hierarchy is requeued before stopping;
+  grid-induced stack changes defer the OLED stage.
+- Eight extracted-production tests cover refresh invalidation/retry, reentrancy,
+  exception cleanup, storage/backpressure deferral, Remote hardware-queue bypass,
+  client deferral and grid-to-OLED cancellation. Two regressions failed before the
+  fix. Refresh trackers and output-readiness routing use their production types;
+  hardware and UI callbacks are fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/L1 remain open and
+  independent mode stays disabled. Greyout visibility traversal and its caller's
+  post-query updates still need equivalent callback containment; stack equality
+  checks throughout this work do not detect transient ABA changes or pin objects.

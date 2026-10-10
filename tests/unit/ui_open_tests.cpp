@@ -1,4 +1,6 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/graphics_routing.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "gui/ui/ui_session.h"
 #include <algorithm>
 #include <array>
@@ -16,6 +18,13 @@ struct UI {
 		++oled_renders;
 		if (on_oled)
 			on_oled();
+	}
+	int refreshes = 0;
+	std::function<void()> on_refresh;
+	void refresh_shared_model() {
+		++refreshes;
+		if (on_refresh)
+			on_refresh();
 	}
 	UI* redirected = this;
 	bool success = true, main_needed = false, side_needed = false;
@@ -55,6 +64,9 @@ struct navigation_fixture {
 	static constexpr int capacity = 16;
 	std::array<UI*, capacity> hierarchy{};
 	int depth = 0;
+	bool rendering = false;
+	session::SharedModelRefresh shared_model_refresh;
+	session::StructuralRefresh structural_refresh;
 	bool oled_dirty = false;
 	uint32_t mode = 0;
 	uint32_t main_rows_dirty = 0, side_rows_dirty = 0;
@@ -126,14 +138,43 @@ static int& main_for_session() {
 namespace deluge::hid::display {
 namespace OLED = ::ui_open_test::OLED;
 }
+static bool sdRoutineLock = false, currentlyAccessingCard = false, client_mode = false;
+static int uart_space = 1000, uart_queries = 0;
+constexpr int UART_ITEM_PIC_PADS = 0, kNumBytesInMainPadRedraw = 10, kNumBytesInSidebarRedraw = 5;
+static int uartGetTxBufferSpace(int) {
+	++uart_queries;
+	return uart_space;
+}
+namespace deluge::hid::mirror {
+static bool is_client() {
+	return client_mode;
+}
+} // namespace deluge::hid::mirror
+namespace deluge::modulation::automation {
+static uint64_t parameter_revision = 0;
+}
+static UI overview_ui, arranger_ui;
+static UI& session_view_for_session() {
+	return overview_ui;
+}
+static UI& arranger_view_for_session() {
+	return arranger_ui;
+}
+void uiNeedsRendering(UI*, uint32_t = 0xffffffff, uint32_t = 0xffffffff);
 #include "ui_open.inc"
 } // namespace ui_open_test
 using namespace ui_open_test;
 TEST_GROUP(UIOpen) {
-	UI root, menu, replacement;
+	ui_open_test::UI root, menu, replacement;
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		navigation_states = {};
+		sdRoutineLock = currentlyAccessingCard = client_mode = false;
+		uart_space = 1000;
+		uart_queries = 0;
+		ui_open_test::deluge::modulation::automation::parameter_revision = 0;
+		overview_ui = {};
+		arranger_ui = {};
 		redraws = {};
 		OLED::sends = {};
 		OLED::clears = {};
@@ -265,7 +306,7 @@ TEST(UIOpen, valid_close_removes_target_and_descendants_on_initiating_owner) {
 TEST(UIOpen, absent_null_and_root_close_requests_leave_stack_untouched) {
 	navigation().hierarchy[1] = &menu;
 	navigation().depth = 2;
-	for (auto* target : {static_cast<UI*>(nullptr), &replacement, &root}) {
+	for (auto* target : {static_cast<ui_open_test::UI*>(nullptr), &replacement, &root}) {
 		closeUI(target);
 		LONGS_EQUAL(2, navigation().depth);
 		POINTERS_EQUAL(&menu, getCurrentUI());
@@ -516,7 +557,7 @@ TEST(UIOpen, low_level_root_installation_does_not_open_or_render) {
 
 TEST(UIOpen, missing_root_targets_and_invalid_depth_are_rejected) {
 	for (bool low_level : {false, true}) {
-		auto install = [&](UI* target) {
+		auto install = [&](ui_open_test::UI* target) {
 			if (low_level)
 				setRootUILowLevel(target);
 			else
@@ -776,4 +817,86 @@ TEST(UIOpen, root_swap_preserves_depth_change_during_resolution) {
 	swapOutRootUILowLevel(&menu);
 	LONGS_EQUAL(0, navigation().depth);
 	POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+}
+
+TEST(UIOpen, render_pass_clears_initiating_flag_after_refresh_changes_owner) {
+	navigation().shared_model_refresh.request();
+	root.on_refresh = [] { session::detail::active = session::Id::Remote; };
+	doAnyPendingUIRendering();
+	CHECK(session::current() == session::Id::Local);
+	CHECK_FALSE(navigation().rendering);
+	LONGS_EQUAL(0, OLED::sends.for_owner(session::Id::Remote));
+}
+TEST(UIOpen, render_pass_stops_after_refresh_changes_stack) {
+	navigation().shared_model_refresh.request();
+	navigation().oled_dirty = true;
+	root.on_refresh = [&] { navigation().hierarchy[0] = &replacement; };
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(0, replacement.oled_renders);
+	CHECK_FALSE(navigation().rendering);
+	CHECK(navigation().oled_dirty);
+}
+TEST(UIOpen, render_pass_reentrancy_is_suppressed) {
+	navigation().shared_model_refresh.request();
+	root.on_refresh = [] { doAnyPendingUIRendering(); };
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(1, root.refreshes);
+	LONGS_EQUAL(1, OLED::sends.active());
+	CHECK_FALSE(navigation().rendering);
+}
+
+TEST(UIOpen, render_pass_restores_flag_when_refresh_throws) {
+	navigation().shared_model_refresh.request();
+	root.on_refresh = [] { throw 7; };
+	bool caught = false;
+	try {
+		doAnyPendingUIRendering();
+	} catch (int error) {
+		caught = error == 7;
+	}
+	CHECK(caught);
+	CHECK_FALSE(navigation().rendering);
+	CHECK(session::current() == session::Id::Local);
+}
+TEST(UIOpen, render_pass_retries_refresh_for_changed_stack) {
+	navigation().shared_model_refresh.request();
+	root.on_refresh = [&] { navigation().hierarchy[0] = &replacement; };
+	doAnyPendingUIRendering();
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(1, replacement.refreshes);
+	CHECK_FALSE(navigation().rendering);
+}
+TEST(UIOpen, render_pass_defers_storage_refresh_and_local_output_backpressure) {
+	navigation().shared_model_refresh.request();
+	uart_space = 0;
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(0, root.refreshes);
+	CHECK_FALSE(navigation().rendering);
+	uart_space = 1000;
+	sdRoutineLock = true;
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(0, root.refreshes);
+	sdRoutineLock = false;
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(1, root.refreshes);
+}
+TEST(UIOpen, render_pass_remote_bypasses_hardware_capacity_and_client_defers) {
+	session::Scope scope(session::Id::Remote);
+	uart_space = 0;
+	client_mode = true;
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(0, OLED::sends.active());
+	client_mode = false;
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(0, uart_queries);
+	LONGS_EQUAL(1, OLED::sends.active());
+	CHECK_FALSE(navigation().rendering);
+}
+TEST(UIOpen, render_pass_skips_oled_after_grid_changes_stack) {
+	navigation().main_rows_dirty = 1;
+	navigation().oled_dirty = true;
+	root.on_main = [&] { navigation().hierarchy[0] = &replacement; };
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(0, replacement.oled_renders);
+	CHECK_FALSE(navigation().rendering);
 }
