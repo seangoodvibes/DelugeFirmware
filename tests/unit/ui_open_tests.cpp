@@ -730,3 +730,50 @@ TEST(UIOpen, oled_render_defers_invalid_stacks_without_consuming_request) {
 	LONGS_EQUAL(0, OLED::clears.active());
 	LONGS_EQUAL(0, OLED::sends.active());
 }
+
+TEST(UIOpen, root_swap_does_not_overwrite_peer_after_target_resolution) {
+	menu.on_resolve = [] { session::detail::active = session::Id::Remote; };
+	swapOutRootUILowLevel(&menu);
+	CHECK(session::current() == session::Id::Local);
+	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Remote).hierarchy[0]);
+	POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+}
+TEST(UIOpen, root_swap_preserves_navigation_changed_by_target_resolution) {
+	menu.on_resolve = [&] { navigation().hierarchy[0] = &replacement; };
+	swapOutRootUILowLevel(&menu);
+	POINTERS_EQUAL(&replacement, navigation().hierarchy[0]);
+}
+TEST(UIOpen, root_swap_keeps_overlays_and_avoids_opening_callbacks) {
+	session::Scope scope(session::Id::Remote);
+	navigation().depth = 2;
+	navigation().hierarchy[1] = &menu;
+	swapOutRootUILowLevel(&replacement);
+	POINTERS_EQUAL(&replacement, navigation().hierarchy[0]);
+	POINTERS_EQUAL(&menu, navigation().hierarchy[1]);
+	POINTERS_EQUAL(&root, navigation_states.for_owner(session::Id::Local).hierarchy[0]);
+	LONGS_EQUAL(2, navigation().depth);
+	LONGS_EQUAL(0, replacement.opens);
+	LONGS_EQUAL(0, redraws.active());
+}
+
+TEST(UIOpen, root_swap_rejects_missing_targets_and_invalid_stacks) {
+	swapOutRootUILowLevel(nullptr);
+	menu.redirected = nullptr;
+	swapOutRootUILowLevel(&menu);
+	POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+	menu.redirected = &menu;
+	int resolutions = 0;
+	menu.on_resolve = [&] { ++resolutions; };
+	for (int depth : {-1, 0, navigation_fixture::capacity + 1, 2}) {
+		navigation().depth = depth;
+		swapOutRootUILowLevel(&menu);
+		POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+	}
+	LONGS_EQUAL(0, resolutions);
+}
+TEST(UIOpen, root_swap_preserves_depth_change_during_resolution) {
+	menu.on_resolve = [] { navigation().depth = 0; };
+	swapOutRootUILowLevel(&menu);
+	LONGS_EQUAL(0, navigation().depth);
+	POINTERS_EQUAL(&root, navigation().hierarchy[0]);
+}

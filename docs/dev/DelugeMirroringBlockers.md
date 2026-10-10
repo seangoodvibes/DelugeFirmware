@@ -1262,3 +1262,14 @@ side effects are not provided by these guards.
   failed before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
 - These tests mock display operations; physical display behavior and UI retention
   remain G1/G2/L1 work. Independent mode remains disabled.
+
+### G1 progress — low-level root swap ownership (2026-10-10)
+
+- Root swaps used by automation/sound-editor navigation validate targets and active
+  stacks and recheck owner/hierarchy after target resolution. Callback navigation
+  is preserved; successful swaps retain overlays without opening or redrawing UIs.
+- Five extracted-production tests cover owner/hierarchy/depth changes, normal
+  Remote overlay preservation and missing/invalid targets. Two regressions failed
+  before the fix. All 35 native suites and `./dbt build relwithdebinfo` pass.
+- UI object retention and end-to-end routing remain open; independent mode stays
+  disabled.
