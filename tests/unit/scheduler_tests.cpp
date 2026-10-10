@@ -290,4 +290,58 @@ TEST(Scheduler, yield_with_lock) {
 	taskManager.start(0.002);
 	mock().checkExpectations();
 };
+
+TaskID local_ui_task;
+bool local_ui_ran = false;
+bool remote_ui_ran = false;
+bool remote_condition_ran = false;
+
+void local_ui_callback() {
+	CHECK(deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local);
+	local_ui_ran = true;
+	passMockTime(0.00002);
+}
+
+void remote_ui_callback() {
+	using namespace deluge::gui::ui_session;
+	CHECK(current() == Id::Remote);
+	taskManager.runTask(local_ui_task);
+	CHECK(current() == Id::Remote);
+	remote_ui_ran = true;
+	passMockTime(0.00002);
+}
+
+bool remote_ui_condition() {
+	CHECK(deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Remote);
+	remote_condition_ran = true;
+	return true;
+}
+
+TEST(Scheduler, ui_session_ownership_survives_nested_task_execution) {
+	using namespace deluge::gui::ui_session;
+	local_ui_ran = remote_ui_ran = false;
+	local_ui_task = addOnceTask(local_ui_callback, 0, 0, "local ui", RESOURCE_NONE);
+	TaskID remote;
+	{
+		Scope remote_owner(Id::Remote);
+		remote = addOnceTask(remote_ui_callback, 1, 0, "remote ui", RESOURCE_NONE);
+	}
+	taskManager.runTask(remote);
+	CHECK(local_ui_ran);
+	CHECK(remote_ui_ran);
+	CHECK(current() == Id::Local);
+}
+
+TEST(Scheduler, deferred_condition_keeps_its_ui_session) {
+	using namespace deluge::gui::ui_session;
+	remote_condition_ran = false;
+	{
+		Scope remote_owner(Id::Remote);
+		addConditionalTask(local_ui_callback, 0, remote_ui_condition, "remote condition", RESOURCE_NONE);
+	}
+	taskManager.checkConditionalTasks();
+	CHECK(remote_condition_ran);
+	CHECK(current() == Id::Local);
+}
+
 } // namespace
