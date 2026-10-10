@@ -878,3 +878,15 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. This validates output
   membership, not the retained current clip or same-address reuse. G1/L1 remain
   open and independent mode remains disabled.
+
+### G1 / L1 progress — recording-source submenu clip membership (2026-10-09)
+
+- The submenu validates the selected clip against the current song before calling
+  `getCurrentOutput`, which dereferences that clip. Session and arrangement-only
+  clips are accepted; departed clips reject entry, edits, relevance and rendering.
+- A regression failed before the fix and now covers both panel owners, no output
+  lookup on rejection, and arrangement-only reattachment. The test compiles the
+  production song-membership method against fixture clip lists.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. These are entry-point
+  checks, not callback-spanning pins or generation checks. G1/L1 remain open and
+  independent mode stays disabled.

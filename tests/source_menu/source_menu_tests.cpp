@@ -1,6 +1,9 @@
 #include "CppUTest/CommandLineTestRunner.h"
 #include "CppUTest/TestHarness.h"
 #include "gui/menu_item/audio_clip/specific_output_source_selector.h"
+
+#include "clip_membership.inc"
+
 using deluge::gui::menu_item::audio_clip::SpecificSourceOutputSelector;
 TEST_GROUP(SourceMenu) {
 	Song song;
@@ -195,6 +198,27 @@ TEST(SourceMenu, departed_editor_does_not_repair_its_recording_source) {
 	POINTERS_EQUAL(&departed_source, local_output.source);
 	LONGS_EQUAL(0, local_output.writes);
 	CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
+}
+TEST(SourceMenu, departed_clip_is_rejected_before_output_lookup) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		song.sessionClips.entries.clear();
+		song.arrangementOnlyClips.entries.clear();
+		output_lookups = 0;
+		menu.beginSession(nullptr);
+		menu.selectEncoderAction(1);
+		menu.drawFor7seg();
+		STRCMP_EQUAL("No track", drawn_text.active().c_str());
+		menu.drawPixelsForOled();
+		STRCMP_EQUAL("No track", drawn_text.active().c_str());
+		CHECK_FALSE(menu.isRelevant(nullptr, 0));
+		LONGS_EQUAL(0, output_lookups);
+		song.arrangementOnlyClips.entries = {&song.clip};
+		CHECK(menu.isRelevant(nullptr, 0));
+		menu.selectEncoderAction(1);
+		auto& output = owner == session::Id::Local ? local_output : remote_output;
+		LONGS_EQUAL(1, output.writes);
+	}
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

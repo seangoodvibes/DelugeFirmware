@@ -126,7 +126,7 @@ private:
 	}
 
 	AudioOutput* edited_output_for_session() const {
-		if (!currentSong || !currentSong->getCurrentClip())
+		if (!currentSong || !currentSong->contains_clip_for_undo(currentSong->getCurrentClip()))
 			return nullptr;
 		auto* const selected_output = getCurrentOutput();
 		// The other panel may have removed the editor's retained output.

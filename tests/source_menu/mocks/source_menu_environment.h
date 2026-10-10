@@ -35,9 +35,18 @@ struct AudioOutput : Output {
 		++writes;
 	}
 };
+struct Clip {};
+struct clip_list_fixture {
+	std::vector<Clip*> entries;
+	int32_t getNumElements() const { return entries.size(); }
+	Clip* getClipAtIndex(int32_t index) const { return entries[index]; }
+};
 struct Song {
+	Clip clip;
+	clip_list_fixture sessionClips{{&clip}}, arrangementOnlyClips;
+	bool contains_clip_for_undo(const Clip* clip);
 	bool has_clip = true;
-	void* getCurrentClip() { return has_clip ? this : nullptr; }
+	Clip* getCurrentClip() { return has_clip ? &clip : nullptr; }
 	Output* firstOutput = nullptr;
 	int getNumOutputs() {
 		int count = 0;
@@ -54,7 +63,9 @@ struct Song {
 };
 inline Song* currentSong;
 inline session::State<Output*> edited_outputs;
+inline int output_lookups = 0;
 inline Output* getCurrentOutput() {
+	++output_lookups;
 	return edited_outputs.active();
 }
 inline const char* getOutputTypeName(OutputType, int) {
