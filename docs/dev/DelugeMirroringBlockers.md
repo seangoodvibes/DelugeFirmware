@@ -2394,3 +2394,12 @@ call sites. Native validation passes (the new contract's assignment matcher was
 corrected to exclude equality comparisons), as does `./dbt build relwithdebinfo`.
 This closes post-dispatch status writes only: arp generation, row selection and
 subsequent tick/render traversal still require separate lifetime validation.
+
+Kit pre-arp note-on/off now validate drum membership before acquiring a watch and
+re-resolve the original note-row identity after tail queries and arp generation.
+Retired owners, removed/reused rows, detached drums and active-clip/output changes
+cancel dispatch. Thirteen sanitizer regressions execute both production entry
+points and the shared dispatch helper with model/arp doubles, including real heap
+deletion, bypass, one-shot and no-clip behavior. All 36 native suites and
+`./dbt build relwithdebinfo` pass. This protects these callers after generation;
+it does not establish safety inside arp generation or the tick/render batches.

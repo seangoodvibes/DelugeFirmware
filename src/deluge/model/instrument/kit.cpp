@@ -1311,6 +1311,18 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
                           int16_t const* mpeValues, int32_t fromMIDIChannel, uint32_t sampleSyncLength,
                           int32_t ticksLate, uint32_t samplesLate) {
+	if (!modelStack || !drum)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || getDrumIndex(drum) < 0)
+		return;
+	auto drum_lifetime = drum->watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	auto* arp_clip = static_cast<InstrumentClip*>(activeClip);
+	auto clip_lifetime = arp_clip ? arp_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (arp_clip && (!clip_lifetime.alive() || arp_clip->output != this))
+		return;
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction kitInstruction;
 	// Run everything by the Kit Arp...
@@ -1320,7 +1332,15 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		return;
 	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
-	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
+	if (drumIndex != -1 && thisNoteRow && thisNoteRow->drum == drum) {
+		const auto row_identity = thisNoteRow->undo_identity;
+		const auto row_matches = [&] {
+			if (!kit_lifetime.alive() || !drum_lifetime.alive() || !clip_lifetime.alive() || activeClip != arp_clip
+			    || arp_clip->output != this || getDrumIndex(drum) < 0)
+				return false;
+			auto* current_row = arp_clip->getNoteRowForDrum(drum);
+			return current_row == thisNoteRow && current_row && current_row->undo_identity == row_identity;
+		};
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
 			thisNoteRow->drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate,
@@ -1329,7 +1349,10 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		}
 		else if (thisNoteRow->drum->type == DrumType::SOUND) {
 			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-			if (!((SoundDrum*)thisNoteRow->drum)->allowNoteTails(modelStackWithSoundFlags, true)) {
+			const bool allowing_note_tails = ((SoundDrum*)drum)->allowNoteTails(modelStackWithSoundFlags, true);
+			if (!row_matches())
+				return;
+			if (!allowing_note_tails) {
 				// If sound doesn't allow note tails, it cannot be included in the kit arp, as it doesn't produce note
 				// offs and will get us stuck notes
 				thisNoteRow->drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate,
@@ -1340,6 +1363,8 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 
 		// If kit arp not bypassed, execute instruction
 		arpeggiator.noteOn(arpSettings, drumIndex, velocity, &kitInstruction, fromMIDIChannel, mpeValues);
+		if (!row_matches())
+			return;
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 			// Do row note on
 			dispatch_kit_arp_note_on(modelStack, thisNoteRow->drum, kitInstruction, sampleSyncLength, ticksLate,
@@ -1349,6 +1374,18 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 }
 
 void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t velocity) {
+	if (!modelStack || !drum)
+		return;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive() || getDrumIndex(drum) < 0)
+		return;
+	auto drum_lifetime = drum->watch_lifetime();
+	if (!drum_lifetime.alive())
+		return;
+	auto* arp_clip = static_cast<InstrumentClip*>(activeClip);
+	auto clip_lifetime = arp_clip ? arp_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (arp_clip && (!clip_lifetime.alive() || arp_clip->output != this))
+		return;
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction kitInstruction;
 	// Run everything by the Kit Arp...
@@ -1358,7 +1395,15 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 		return;
 	}
 	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
-	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
+	if (drumIndex != -1 && thisNoteRow && thisNoteRow->drum == drum) {
+		const auto row_identity = thisNoteRow->undo_identity;
+		const auto row_matches = [&] {
+			if (!kit_lifetime.alive() || !drum_lifetime.alive() || !clip_lifetime.alive() || activeClip != arp_clip
+			    || arp_clip->output != this || getDrumIndex(drum) < 0)
+				return false;
+			auto* current_row = arp_clip->getNoteRowForDrum(drum);
+			return current_row == thisNoteRow && current_row && current_row->undo_identity == row_identity;
+		};
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
 			// Forced to be excluded from kit arp
@@ -1370,7 +1415,10 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 		}
 		else if (thisNoteRow->drum->type == DrumType::SOUND) {
 			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-			if (!((SoundDrum*)thisNoteRow->drum)->allowNoteTails(modelStackWithSoundFlags, true)) {
+			const bool allowing_note_tails = ((SoundDrum*)drum)->allowNoteTails(modelStackWithSoundFlags, true);
+			if (!row_matches())
+				return;
+			if (!allowing_note_tails) {
 				// If sound doesn't allow note tails, it cannot be included in the kit arp, as it doesn't produce note
 				// offs and will get us stuck notes
 				// Just send the note directly to the drum
@@ -1384,6 +1432,8 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 
 		// If kit arp not bypassed, execute instruction
 		arpeggiator.noteOff(arpSettings, drumIndex, &kitInstruction);
+		if (!row_matches())
+			return;
 		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
 			// reset invertReverse for drum arpeggiator (done for every noteOff)
 			thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
