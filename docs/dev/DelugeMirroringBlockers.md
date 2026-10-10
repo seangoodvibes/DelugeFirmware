@@ -890,3 +890,16 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. These are entry-point
   checks, not callback-spanning pins or generation checks. G1/L1 remain open and
   independent mode stays disabled.
+
+### G1 / L1 progress — audio-source context-menu entry (2026-10-09)
+
+- Audio-source entry validates song/clip membership before output lookup and output
+  membership/type before casting. It opens the initiating panel's selector only
+  after successful setup. Invalid context leaves navigation unchanged.
+- Four production-entry tests cover valid separate panel selectors, departed
+  outputs/clips, missing song/clip and non-audio outputs. Two cases reproduced
+  failures before the fix. The real input selector and clip-membership body run;
+  output lookup and UI opening are fixtures.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime and
+  same-address replacement remain outside these entry guards; G1/L1 remain open
+  and independent mode stays disabled.

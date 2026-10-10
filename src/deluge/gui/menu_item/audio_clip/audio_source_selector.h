@@ -25,9 +25,20 @@ public:
 	using MenuItem::MenuItem;
 
 	MenuItem* selectButtonPress() override {
-		gui::context_menu::audio_input_selector_for_session().audioOutput = (AudioOutput*)getCurrentOutput();
-		gui::context_menu::audio_input_selector_for_session().setupAndCheckAvailability();
-		openUI(&gui::context_menu::audio_input_selector_for_session());
+		if (!currentSong || !currentSong->contains_clip_for_undo(currentSong->getCurrentClip()))
+			return NO_NAVIGATION;
+		auto* const selected_output = getCurrentOutput();
+		for (auto* output = currentSong->firstOutput; output; output = output->next) {
+			if (output != selected_output)
+				continue;
+			if (output->type != OutputType::AUDIO)
+				return NO_NAVIGATION;
+			auto& selector = gui::context_menu::audio_input_selector_for_session();
+			selector.audioOutput = static_cast<AudioOutput*>(output);
+			if (selector.setupAndCheckAvailability())
+				openUI(&selector);
+			break;
+		}
 		return NO_NAVIGATION;
 	}
 

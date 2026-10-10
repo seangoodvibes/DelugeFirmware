@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/menu_item/audio_clip/audio_source_selector.h"
 using deluge::gui::context_menu::AudioInputSelector;
 TEST_GROUP(AudioInputMenu) {
 	Song song;
@@ -296,4 +297,70 @@ TEST(AudioInputMenu, feedback_model_change_is_not_overwritten_by_pending_edit) {
 		CHECK(defaultAudioOutputInputChannel == AudioInputChannel::RIGHT);
 		CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
 	}
+}
+
+TEST_GROUP(AudioSourceEntry) {
+	Song song;
+	Clip clip;
+	AudioOutput local_output, remote_output;
+	deluge::gui::menu_item::audio_clip::AudioSourceSelector entry;
+	void setup() override {
+		session::detail::active = session::Id::Local;
+		currentSong = &song;
+		song.sessionClips.entries = {&clip};
+		song.selected_clips.for_owner(session::Id::Local) = &clip;
+		song.selected_clips.for_owner(session::Id::Remote) = &clip;
+		song.firstOutput = &local_output;
+		local_output.next = &remote_output;
+		selected_outputs.for_owner(session::Id::Local) = &local_output;
+		selected_outputs.for_owner(session::Id::Remote) = &remote_output;
+		opened_menus = {};
+		output_lookups = 0;
+	}
+	void teardown() override {
+		for (auto owner : {session::Id::Local, session::Id::Remote}) {
+			session::Scope scope(owner);
+			deluge::gui::context_menu::audio_input_selector_for_session().audioOutput = nullptr;
+		}
+		session::detail::active = session::Id::Local;
+		currentSong = nullptr;
+	}
+};
+TEST(AudioSourceEntry, valid_entry_opens_only_the_initiating_panels_selector) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		POINTERS_EQUAL(deluge::gui::menu_item::NO_NAVIGATION, entry.selectButtonPress());
+		auto& selector = deluge::gui::context_menu::audio_input_selector_for_session();
+		POINTERS_EQUAL(&selector, opened_menus.active());
+		POINTERS_EQUAL(selected_outputs.active(), selector.audioOutput);
+	}
+	CHECK(opened_menus.for_owner(session::Id::Local) != opened_menus.for_owner(session::Id::Remote));
+}
+TEST(AudioSourceEntry, unavailable_output_does_not_open_context_menu) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		song.firstOutput = nullptr;
+		entry.selectButtonPress();
+		POINTERS_EQUAL(nullptr, opened_menus.active());
+	}
+}
+TEST(AudioSourceEntry, departed_clip_is_rejected_before_output_lookup) {
+	song.sessionClips.entries.clear();
+	entry.selectButtonPress();
+	LONGS_EQUAL(0, output_lookups);
+	POINTERS_EQUAL(nullptr, opened_menus.active());
+}
+
+TEST(AudioSourceEntry, missing_song_clip_and_wrong_output_type_do_not_open) {
+	currentSong = nullptr;
+	entry.selectButtonPress();
+	LONGS_EQUAL(0, output_lookups);
+	currentSong = &song;
+	song.selected_clips.active() = nullptr;
+	entry.selectButtonPress();
+	LONGS_EQUAL(0, output_lookups);
+	song.selected_clips.active() = &clip;
+	local_output.type = OutputType::SYNTH;
+	entry.selectButtonPress();
+	POINTERS_EQUAL(nullptr, opened_menus.active());
 }

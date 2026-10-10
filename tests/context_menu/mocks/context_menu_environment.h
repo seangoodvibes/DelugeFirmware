@@ -40,6 +40,8 @@ struct clip_list_fixture {
 	Clip* getClipAtIndex(int32_t index) const { return entries[index]; }
 };
 struct Song {
+	session::State<Clip*> selected_clips;
+	Clip* getCurrentClip() { return selected_clips.active(); }
 	Output* firstOutput = nullptr;
 	clip_list_fixture sessionClips, arrangementOnlyClips;
 	bool contains_clip_for_undo(const Clip* clip);
@@ -141,4 +143,15 @@ inline session_view_fixture* getRootUI() {
 }
 inline session_view_fixture* getUIUpOneLevel() {
 	return &session_view_for_session();
+}
+
+inline session::State<Output*> selected_outputs;
+inline int output_lookups = 0;
+inline Output* getCurrentOutput() {
+	++output_lookups;
+	return selected_outputs.active();
+}
+inline session::State<deluge::gui::ContextMenu*> opened_menus;
+inline void openUI(deluge::gui::ContextMenu* menu) {
+	opened_menus.active() = menu;
 }

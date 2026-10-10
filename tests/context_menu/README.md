@@ -39,3 +39,8 @@ the channel, recording source and global default without publishing peer refresh
 Same-target callback cases verify newer launch-style, input-channel and recording-
 source values survive a pending encoder edit. This checks optimistic cancellation,
 not value ABA detection, real concurrent execution or hardware callback delivery.
+
+Audio-source entry tests compile the production menu-item header and input
+selector together. They verify independent owner routing and reject missing or
+departed clips/outputs and wrong output types before UI opening. Output lookup
+and UI opening are instrumented fixtures, not a full UI-stack integration test.
