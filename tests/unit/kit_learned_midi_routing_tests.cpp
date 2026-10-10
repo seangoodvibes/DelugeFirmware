@@ -32,10 +32,11 @@ struct InstrumentClip : Owner {
 		return index >= 0 && index < noteRows.getNumElements() ? noteRows.getElement(index) : nullptr;
 	}
 };
-int song;
-int* currentSong = &song;
+struct Song : Owner {};
+Song song;
+Song* currentSong = &song;
 struct ModelStackWithTimelineCounter {
-	int* song = currentSong;
+	Song* song = currentSong;
 	InstrumentClip* clip = nullptr;
 	bool timelineCounterIsSet() { return clip != nullptr; }
 	InstrumentClip* getTimelineCounter() { return clip; }
@@ -121,6 +122,8 @@ TEST_GROUP(kit_learned_midi_routing) {
 		clip->output = kit.get();
 		clip->noteRows.rows = {&first_row, &second_row};
 		kit->members = {first.get(), second.get()};
+		song.~Song();
+		new (&song) Song;
 		currentSong = &song;
 		stack = {};
 		stack.clip = clip.get();
@@ -226,7 +229,7 @@ TEST(kit_learned_midi_routing, session_change_cancels_next_delivery) {
 	LONGS_EQUAL(1, rows_received.size());
 }
 TEST(kit_learned_midi_routing, song_change_in_whole_handler_cancels_fanout) {
-	int replacement;
+	Song replacement;
 	on_whole = [&] { currentSong = &replacement; };
 	send(false);
 	LONGS_EQUAL(0, rows_received.size());
@@ -285,4 +288,18 @@ TEST(kit_learned_midi_routing, clipless_whole_kit_route_does_not_visit_rows) {
 	CHECK(bend());
 	LONGS_EQUAL(1, whole_calls);
 	LONGS_EQUAL(0, rows_received.size());
+}
+
+TEST(kit_learned_midi_routing, song_retirement_cancels_whole_kit_fanout) {
+	on_whole = [&] { song.lifetime.retire(); };
+	send(false);
+	LONGS_EQUAL(0, rows_received.size());
+}
+TEST(kit_learned_midi_routing, same_address_song_replacement_cancels_remaining_rows) {
+	on_drum = [&] {
+		song.~Song();
+		new (&song) Song;
+	};
+	send(true);
+	LONGS_EQUAL(1, rows_received.size());
 }

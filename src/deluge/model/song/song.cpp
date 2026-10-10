@@ -198,7 +198,12 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
+deluge::lifetime::lifetime_watch Song::watch_lifetime() const {
+	return deluge::lifetime::lifetime_watch{lifetime_};
+}
+
 Song::~Song() {
+	lifetime_.retire();
 
 	// Pop before destruction so membership checks cannot find a freed clip in a
 	// later audio callback. Removing from the end preserves capacity and avoids

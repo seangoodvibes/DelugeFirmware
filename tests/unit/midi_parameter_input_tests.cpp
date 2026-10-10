@@ -48,7 +48,9 @@ struct Clip : TimelineCounter, Owner {
 	NoteRow* find_note_row_from_id(int) { return nullptr; }
 };
 using InstrumentClip = Clip;
-void* currentSong = nullptr;
+struct Song : Owner {};
+Song song;
+Song* currentSong = &song;
 
 static Clip* getCurrentClip() {
 	return nullptr;
@@ -96,7 +98,7 @@ struct ModelStackWithNoteRow {
 };
 struct ModelStackWithTimelineCounter {
 	TimelineCounter* timeline = nullptr;
-	void* song = nullptr;
+	Song* song = currentSong;
 	ModelStackWithNoteRow row;
 	bool timelineCounterIsSet() { return timeline != nullptr; }
 	TimelineCounter* getTimelineCounter() { return timeline; }

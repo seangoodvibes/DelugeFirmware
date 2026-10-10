@@ -2927,3 +2927,13 @@ All 36 suites passed; after moving retired-target validation ahead of row lookup
 all three affected suites and `./dbt build relwithdebinfo` pass. Borrowed target
 acquisition, parameter lookup/write internals, clipless owner protection and song-level
 learned handlers remain open. Applied parameter writes are not rolled back.
+
+Song now exposes allocation-free lifetime watches and retires them at the start of
+its destructor, before audio servicing and clip/output cleanup. Learned kit/clip
+MIDI routes use song watches so retirement and same-address song reconstruction
+cancel work even if `currentSong` retains the same address. Seven added sanitizer
+regressions exercise the production destructor/accessor and route cancellation;
+existing song teardown tests still cover cleanup behavior. All 36 suites and
+`./dbt build relwithdebinfo` pass. Other song consumers have not yet adopted these
+watches; this neither pins songs nor closes raw acquisition, callback internals or
+undo ownership/recovery blockers. Independent mode remains disabled.

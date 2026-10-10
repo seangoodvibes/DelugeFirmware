@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
+#include "util/lifetime.h"
 #include <algorithm>
 #include <functional>
 #include <vector>
@@ -30,6 +31,7 @@ void routineWithClusterLoading() {
 }
 } // namespace AudioEngine
 struct Song {
+	deluge::lifetime::lifetime_source lifetime_;
 	ClipArray sessionClips, arrangementOnlyClips;
 	Output* firstOutput = nullptr;
 	Instrument* firstHibernatingInstrument = nullptr;

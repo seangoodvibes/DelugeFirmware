@@ -1072,9 +1072,15 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(
 	const auto knob_count = midi_knobs.size();
 	const auto source_owner = deluge::gui::ui_session::current();
 	auto* source_song = modelStack->song;
+	if (!source_song)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return false;
 	const auto context_matches = [&] {
-		return (!owner_validation || owner_validation->valid()) && (!source_clip || source_lifetime.alive())
-		       && (!source_output || output_lifetime.alive()) && (!source_clip || source_clip->output == source_output)
+		return song_lifetime.alive() && (!owner_validation || owner_validation->valid())
+		       && (!source_clip || source_lifetime.alive()) && (!source_output || output_lifetime.alive())
+		       && (!source_clip || source_clip->output == source_output)
 		       && deluge::gui::ui_session::current() == source_owner && currentSong == source_song
 		       && modelStack->song == source_song && midi_knobs.data() == knob_storage
 		       && midi_knobs.size() == knob_count;
@@ -1330,9 +1336,15 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(
 	const auto knob_count = midi_knobs.size();
 	const auto source_owner = deluge::gui::ui_session::current();
 	auto* source_song = modelStack->song;
+	if (!source_song)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return false;
 	const auto context_matches = [&] {
-		return (!owner_validation || owner_validation->valid()) && (!source_clip || source_lifetime.alive())
-		       && (!source_output || output_lifetime.alive()) && (!source_clip || source_clip->output == source_output)
+		return song_lifetime.alive() && (!owner_validation || owner_validation->valid())
+		       && (!source_clip || source_lifetime.alive()) && (!source_output || output_lifetime.alive())
+		       && (!source_clip || source_clip->output == source_output)
 		       && deluge::gui::ui_session::current() == source_owner && currentSong == source_song
 		       && modelStack->song == source_song && midi_knobs.data() == knob_storage
 		       && midi_knobs.size() == knob_count;

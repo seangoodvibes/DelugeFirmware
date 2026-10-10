@@ -1064,13 +1064,18 @@ bool Kit::dispatch_learned_midi(MIDICable& cable, uint8_t channel, uint8_t data1
 	if (!kit_lifetime.alive())
 		return false;
 	auto* source_song = model_stack->song;
+	if (!source_song)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	if (!song_lifetime.alive())
+		return false;
 	const auto source_owner = deluge::gui::ui_session::current();
 	auto* source_clip = static_cast<InstrumentClip*>(model_stack->getTimelineCounterAllowNull());
 	auto source_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	const auto context_matches = [&] {
-		return kit_lifetime.alive() && (!source_clip || source_lifetime.alive()) && currentSong == source_song
-		       && model_stack->song == source_song && deluge::gui::ui_session::current() == source_owner
-		       && (!source_clip || source_clip->output == this);
+		return song_lifetime.alive() && kit_lifetime.alive() && (!source_clip || source_lifetime.alive())
+		       && currentSong == source_song && model_stack->song == source_song
+		       && deluge::gui::ui_session::current() == source_owner && (!source_clip || source_clip->output == this);
 	};
 	if (!context_matches())
 		return false;

@@ -38,10 +38,11 @@ struct InstrumentClip : Clip {
 	NoteRow* row = nullptr;
 	NoteRow* find_note_row_from_id(int) { return row; }
 };
-int song;
-int* currentSong = &song;
+struct Song : Owner {};
+Song song;
+Song* currentSong = &song;
 struct ModelStackWithTimelineCounter {
-	int* song = currentSong;
+	Song* song = currentSong;
 	Clip* clip = nullptr;
 	bool timelineCounterIsSet() { return clip; }
 	Clip* getTimelineCounter() { return clip; }
@@ -151,6 +152,8 @@ TEST_GROUP(learned_param_lifetime) {
 		selected_clip = clip.get();
 		things.paramManager = &things.manager;
 		things.row = nullptr;
+		song.~Song();
+		new (&song) Song;
 		currentSong = &song;
 		stack = {};
 		stack.clip = clip.get();
@@ -314,4 +317,19 @@ TEST(learned_param_lifetime, retired_clone_target_is_rejected_before_lookup) {
 	CHECK(send());
 	LONGS_EQUAL(0, lookups);
 	LONGS_EQUAL(0, manager_lookups);
+}
+
+TEST(learned_param_lifetime, same_address_song_replacement_during_clone_cancels_lookup) {
+	on_clone = [&] {
+		song.~Song();
+		new (&song) Song;
+	};
+	CHECK(send());
+	LONGS_EQUAL(0, lookups);
+}
+TEST(learned_param_lifetime, song_retirement_during_write_cancels_display) {
+	on_write = [&] { song.lifetime.retire(); };
+	CHECK(send());
+	LONGS_EQUAL(1, writes);
+	LONGS_EQUAL(0, refreshes);
 }

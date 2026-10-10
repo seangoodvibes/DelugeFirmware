@@ -1103,3 +1103,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/learned_param_lifetime.inc
         ModControllableAudio::offerReceivedCCToLearnedParamsForClip ModControllableAudio::offerReceivedPitchBendToLearnedParams
     DEPENDS ${learned_param_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE learned_param_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/learned_param_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_owner_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${song_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/song_owner_lifetime.inc Song::~Song Song::watch_lifetime
+    DEPENDS ${song_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE song_owner_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/song_owner_lifetime.inc)

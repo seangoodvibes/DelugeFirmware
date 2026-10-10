@@ -41,6 +41,7 @@
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/container/retained_list.h"
 #include "util/d_string.h"
+#include "util/lifetime.h"
 
 class MidiCommand;
 class Clip;
@@ -108,6 +109,7 @@ class Song final : public TimelineCounter {
 public:
 	Song();
 	~Song() override;
+	deluge::lifetime::lifetime_watch watch_lifetime() const;
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t interval);
@@ -514,6 +516,7 @@ public:
 	ThresholdRecordingMode thresholdRecordingMode;
 
 private:
+	mutable deluge::lifetime::lifetime_source lifetime_;
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;
 	bool fillModeActive;
