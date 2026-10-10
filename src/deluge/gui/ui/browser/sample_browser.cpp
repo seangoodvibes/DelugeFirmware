@@ -2223,17 +2223,26 @@ skipNameStuff:
 		}
 	}
 
-	// Make NoteRows for all these new Drums
-	getCurrentKit()->resetDrumTempValues();
+	// Make NoteRows for all these new Drums in the initiating clip.
+	if (!context_valid())
+		return false;
+	kit->resetDrumTempValues();
+	if (!context_valid())
+		return false;
 	firstDrum->noteRowAssignedTemp = 1;
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;
 	getCurrentInstrumentClip()->assignDrumsToNoteRows(modelStack);
+	if (!context_valid())
+		return false;
 
-	getCurrentInstrument()->beenEdited();
-
-	exitAndNeverDeleteDrum();
+	kit->beenEdited();
 	uiNeedsRendering(&instrument_clip_view_for_session());
+	if (!context_valid())
+		return false;
 	display->removeWorkingAnimation();
+	if (!context_valid())
+		return false;
+	exitAndNeverDeleteDrum();
 	return true;
 }
 

@@ -23,7 +23,7 @@ int transpose_calls = 0, audio_publications = 0;
 bool reserve_success = true;
 bool replace_ranges_on_type_change = false;
 constexpr int CLUSTER_ENQUEUE = 0;
-std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load, on_parameter;
+std::function<void()> on_assignment, on_reserve, on_kill, on_audio, on_exit, on_folder_load, on_parameter, on_rows;
 int audio_calls = 0, directory_closes = 0;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
@@ -298,7 +298,11 @@ void FREEZE_WITH_ERROR(const char*) {
 struct Instrument;
 struct Clip : Lifetime {
 	Instrument* output = nullptr;
-	void assignDrumsToNoteRows(ModelStackWithTimelineCounter*) { ++row_assignments; }
+	void assignDrumsToNoteRows(ModelStackWithTimelineCounter*) {
+		++row_assignments;
+		if (on_rows)
+			on_rows();
+	}
 } clip;
 
 Clip* getCurrentInstrumentClip() {
@@ -372,7 +376,7 @@ TEST_GROUP(KitSampleImport) {
 		transpose_calls = audio_publications = 0;
 		reserve_success = true;
 		replace_ranges_on_type_change = false;
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		AudioEngine::audioRoutineLocked = false;
@@ -390,7 +394,7 @@ TEST_GROUP(KitSampleImport) {
 		editor.currentSource = &first_drum.sources[0];
 	}
 	void teardown() override {
-		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = {};
+		on_assignment = on_reserve = on_kill = on_audio = on_exit = on_folder_load = on_parameter = on_rows = {};
 		audio_calls = directory_closes = 0;
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 		for (auto* drum : kit.drums) {
@@ -824,4 +828,32 @@ TEST(KitSampleImport, kit_parameter_callback_range_change_cancels_assignment) {
 	CHECK_FALSE(browser.importFolderAsKit());
 	LONGS_EQUAL(0, assignment_calls);
 	LONGS_EQUAL(0, samples[0].numReasonsToBeLoaded);
+}
+
+TEST(KitSampleImport, kit_row_assignment_context_change_stops_publication) {
+	Instrument replacement_instrument;
+	Clip replacement_clip;
+	replacement_clip.output = &replacement_instrument;
+	on_rows = [&] { current_clip = &replacement_clip; };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, replacement_instrument.own_edits);
+	LONGS_EQUAL(0, exits);
+	LONGS_EQUAL(0, display_instance.removals);
+}
+TEST(KitSampleImport, kit_row_assignment_retirement_stops_publication) {
+	on_rows = [&] { kit.lifetime.retire(); };
+	CHECK_FALSE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, edits);
+	LONGS_EQUAL(0, redraws);
+	LONGS_EQUAL(0, exits);
+}
+TEST(KitSampleImport, kit_navigation_preserves_new_working_animation_and_render_state) {
+	on_exit = [&] {
+		display_instance.removals = 0;
+		redraws = 0;
+	};
+	CHECK_TRUE(browser.importFolderAsKit());
+	LONGS_EQUAL(0, display_instance.removals);
+	LONGS_EQUAL(0, redraws);
+	LONGS_EQUAL(1, kit.own_edits);
 }

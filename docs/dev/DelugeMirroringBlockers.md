@@ -3566,3 +3566,9 @@ conversion and parameter updates, rejecting remaining active voices before sampl
 replacement. Four regressions cover retirement, nested voices and range changes.
 All 38 suites and RelWithDebInfo pass. Later Drum construction, holder assignment
 and final publication callbacks remain separate protection work.
+
+Kit import validates its initiating context after row assignment and completes
+edit/render/animation publication before closing the browser. Three regressions
+cover changed clips, Kit retirement and navigation that starts a new animation.
+All 38 suites and RelWithDebInfo pass. These checks prevent stale continuation;
+they do not roll back rows or Drums already published before cancellation.
