@@ -1045,57 +1045,88 @@ void Kit::offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, ui
 	// NOTE: this call may change modelStack->timelineCounter etc!
 	ModControllableAudio::offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack);
 }
-void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                         ModelStackWithTimelineCounter* modelStack) {
-
-	// Do it for this whole Kit
-	// NOTE: this call may change modelStack->timelineCounter etc!
-	offerReceivedCCToModControllable(cable, channel, ccNumber, value, modelStack);
-
-	// Now do it for each NoteRow / Drum
-	// This is always actually true currently for calls to this function, but let's make this safe and future proof.
-	if (modelStack->timelineCounterIsSet()) {
-		InstrumentClip* clip =
-		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DrumType::SOUND) {
-				((SoundDrum*)thisDrum)
-				    ->offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack, i);
-			}
-		}
-	}
+void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t cc_number, uint8_t value,
+                                         ModelStackWithTimelineCounter* model_stack) {
+	dispatch_learned_midi(cable, channel, cc_number, value, model_stack, false);
 }
 
-// not updated for midi follow, this seems dumb and is just left for backwards compatibility
-/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
+// Legacy learned pitch bend remains supported alongside expression routing.
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-                                                ModelStackWithTimelineCounter* modelStack) {
+                                                ModelStackWithTimelineCounter* model_stack) {
+	return dispatch_learned_midi(cable, channel, data1, data2, model_stack, true);
+}
 
-	bool messageUsed;
-
-	// Do it for this whole Kit
-	messageUsed = ModControllableAudio::offerReceivedPitchBendToLearnedParams(
-	    cable, channel, data1, data2, modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
-
-	if (modelStack->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but
-		                                      // let's make this safe and future proof.
-		InstrumentClip* clip =
-		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DrumType::SOUND) {
-				if (((SoundDrum*)thisDrum)
-				        ->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack, i)) {
-					messageUsed = true;
-				}
-			}
-		}
+bool Kit::dispatch_learned_midi(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
+                                ModelStackWithTimelineCounter* model_stack, bool pitch_bend) {
+	if (!model_stack)
+		return false;
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return false;
+	auto* source_song = model_stack->song;
+	const auto source_owner = deluge::gui::ui_session::current();
+	auto* source_clip = static_cast<InstrumentClip*>(model_stack->getTimelineCounterAllowNull());
+	auto source_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto context_matches = [&] {
+		return kit_lifetime.alive() && (!source_clip || source_lifetime.alive()) && currentSong == source_song
+		       && model_stack->song == source_song && deluge::gui::ui_session::current() == source_owner
+		       && (!source_clip || source_clip->output == this);
+	};
+	if (!context_matches())
+		return false;
+	bool message_used = false;
+	// Arrangement recording may legitimately replace the stack's clip here or
+	// during a drum handler. Reacquire its rows after each successful callback.
+	if (pitch_bend) {
+		message_used =
+		    ModControllableAudio::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, model_stack);
 	}
-
-	return messageUsed;
+	else
+		offerReceivedCCToModControllable(cable, channel, data1, data2, model_stack);
+	if (!context_matches())
+		return message_used;
+	int32_t row_count = -1;
+	for (int32_t index = 0;; ++index) {
+		auto* clip = static_cast<InstrumentClip*>(model_stack->getTimelineCounterAllowNull());
+		if (!clip)
+			return message_used;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (!clip_lifetime.alive() || clip->output != this)
+			return message_used;
+		if (row_count < 0)
+			row_count = clip->noteRows.getNumElements();
+		if (clip->noteRows.getNumElements() != row_count || index >= row_count)
+			return message_used;
+		auto* row = clip->noteRows.getElement(index);
+		if (!row)
+			return message_used;
+		auto* drum = row->drum;
+		if (!drum)
+			continue;
+		if (getDrumIndex(drum) < 0)
+			return message_used;
+		auto drum_lifetime = drum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return message_used;
+		if (drum->type != DrumType::SOUND)
+			continue;
+		const auto row_identity = row->undo_identity;
+		auto* sound_drum = static_cast<SoundDrum*>(drum);
+		if (pitch_bend) {
+			message_used =
+			    sound_drum->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, model_stack, index)
+			    || message_used;
+		}
+		else
+			sound_drum->offerReceivedCCToLearnedParamsForClip(cable, channel, data1, data2, model_stack, index);
+		if (!context_matches() || !clip_lifetime.alive() || !drum_lifetime.alive() || clip->output != this
+		    || clip->noteRows.getNumElements() != row_count || getDrumIndex(drum) < 0)
+			return message_used;
+		auto* current_row = clip->find_note_row_from_id(index);
+		if (current_row != row || !current_row || current_row->undo_identity != row_identity
+		    || current_row->drum != drum)
+			return message_used;
+	}
 }
 
 void Kit::choke() {

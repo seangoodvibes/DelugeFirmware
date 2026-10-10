@@ -152,6 +152,8 @@ public:
 	Drum* selected_drum_for_session() const { return selected_drums.active(); }
 
 private:
+	bool dispatch_learned_midi(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
+	                           ModelStackWithTimelineCounter* model_stack, bool pitch_bend);
 	deluge::gui::ui_session::State<Drum*> selected_drums;
 
 public:

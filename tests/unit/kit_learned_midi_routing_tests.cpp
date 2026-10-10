@@ -66,6 +66,10 @@ struct SoundDrum : Drum {
 			on_drum();
 		return row_used;
 	}
+	void offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value,
+	                                           ModelStackWithTimelineCounter* stack, int row) {
+		offerReceivedPitchBendToLearnedParams(cable, channel, cc, value, stack, row);
+	}
 };
 struct Kit : Owner, ModControllableAudio {
 	std::vector<Drum*> members;
@@ -76,6 +80,12 @@ struct Kit : Owner, ModControllableAudio {
 		return -1;
 	}
 	bool offerReceivedPitchBendToLearnedParams(MIDICable&, uint8_t, uint8_t, uint8_t, ModelStackWithTimelineCounter*);
+	void offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value,
+	                                      ModelStackWithTimelineCounter* stack) {
+		ModControllableAudio::offerReceivedPitchBendToLearnedParams(cable, channel, cc, value, stack);
+	}
+	void offerReceivedCCToLearnedParams(MIDICable&, uint8_t, uint8_t, uint8_t, ModelStackWithTimelineCounter*);
+	bool dispatch_learned_midi(MIDICable&, uint8_t, uint8_t, uint8_t, ModelStackWithTimelineCounter*, bool);
 };
 #include "kit_learned_midi_routing.inc"
 } // namespace kit_learned_midi_routing_test
@@ -114,6 +124,12 @@ TEST_GROUP(kit_learned_midi_routing) {
 	bool bend() {
 		return kit->offerReceivedPitchBendToLearnedParams(cable, 2, 3, 64, &stack);
 	}
+	void send(bool pitch) {
+		if (pitch)
+			bend();
+		else
+			kit->offerReceivedCCToLearnedParams(cable, 2, 3, 64, &stack);
+	}
 };
 TEST(kit_learned_midi_routing, pitch_bend_supplies_each_sound_drums_row_index) {
 	row_used = true;
@@ -144,4 +160,115 @@ TEST(kit_learned_midi_routing, whole_kit_clone_retarget_routes_to_new_clip) {
 	LONGS_EQUAL(1, rows_received.size());
 	LONGS_EQUAL(0, rows_received[0]);
 	POINTERS_EQUAL(&clone, clips_received[0]);
+}
+
+TEST(kit_learned_midi_routing, both_routes_deliver_row_indices) {
+	for (bool pitch : {false, true}) {
+		rows_received.clear();
+		send(pitch);
+		LONGS_EQUAL(2, rows_received.size());
+		LONGS_EQUAL(0, rows_received[0]);
+		LONGS_EQUAL(1, rows_received[1]);
+	}
+}
+TEST(kit_learned_midi_routing, whole_callback_owner_deletion_stops_fanout) {
+	on_whole = [&] {
+		kit.reset();
+		clip.reset();
+		first.reset();
+		second.reset();
+	};
+	send(false);
+	LONGS_EQUAL(0, rows_received.size());
+}
+TEST(kit_learned_midi_routing, row_callback_owner_deletion_stops_fanout) {
+	on_drum = [&] {
+		kit.reset();
+		clip.reset();
+		first.reset();
+		second.reset();
+	};
+	send(true);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, row_replacement_cancels_next_delivery) {
+	on_drum = [&] { ++first_row.undo_identity; };
+	send(false);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, drum_detachment_cancels_next_delivery) {
+	on_drum = [&] { kit->members.clear(); };
+	send(true);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, row_count_change_cancels_next_delivery) {
+	on_drum = [&] { clip->noteRows.rows.pop_back(); };
+	send(false);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, session_change_cancels_next_delivery) {
+	on_drum = [] { deluge::gui::ui_session::detail::active = deluge::gui::ui_session::Id::Remote; };
+	send(true);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, song_change_in_whole_handler_cancels_fanout) {
+	int replacement;
+	on_whole = [&] { currentSong = &replacement; };
+	send(false);
+	LONGS_EQUAL(0, rows_received.size());
+}
+TEST(kit_learned_midi_routing, row_clone_retarget_routes_remaining_rows_to_clone) {
+	InstrumentClip clone;
+	clone.output = kit.get();
+	clone.noteRows.rows = {&first_row, &second_row};
+	on_drum = [&] { stack.clip = &clone; };
+	send(true);
+	LONGS_EQUAL(2, rows_received.size());
+	POINTERS_EQUAL(clip.get(), clips_received[0]);
+	POINTERS_EQUAL(&clone, clips_received[1]);
+}
+TEST(kit_learned_midi_routing, unrelated_output_retarget_is_rejected) {
+	InstrumentClip replacement;
+	on_drum = [&] { stack.clip = &replacement; };
+	send(false);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, used_prefix_is_preserved_on_cancellation) {
+	row_used = true;
+	on_drum = [&] { clip.reset(); };
+	CHECK(bend());
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, retired_source_and_null_stack_are_rejected) {
+	CHECK_FALSE(kit->offerReceivedPitchBendToLearnedParams(cable, 2, 3, 64, nullptr));
+	clip->lifetime.retire();
+	send(false);
+	LONGS_EQUAL(0, whole_calls);
+}
+
+TEST(kit_learned_midi_routing, whole_callback_clip_deletion_stops_before_reacquisition) {
+	on_whole = [&] { clip.reset(); };
+	send(true);
+	LONGS_EQUAL(0, rows_received.size());
+}
+TEST(kit_learned_midi_routing, row_callback_drum_deletion_stops_before_row_access) {
+	on_drum = [&] { first.reset(); };
+	send(false);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, same_address_drum_replacement_stops_fanout) {
+	on_drum = [&] {
+		auto* drum = first.get();
+		drum->~SoundDrum();
+		new (drum) SoundDrum;
+	};
+	send(true);
+	LONGS_EQUAL(1, rows_received.size());
+}
+TEST(kit_learned_midi_routing, clipless_whole_kit_route_does_not_visit_rows) {
+	stack.clip = nullptr;
+	whole_used = true;
+	CHECK(bend());
+	LONGS_EQUAL(1, whole_calls);
+	LONGS_EQUAL(0, rows_received.size());
 }

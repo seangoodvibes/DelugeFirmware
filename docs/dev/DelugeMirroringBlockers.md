@@ -2903,3 +2903,15 @@ message-used aggregation and whole-kit clone retargeting. All 36 suites and
 `./dbt build relwithdebinfo` pass. This standalone routing correction also applies
 to ordinary single-device use; callback lifetime protection for the fanout and
 learned-parameter handler internals remains open.
+
+Kit learned CC/pitch-bend fanout now shares lifetime/context validation for kit,
+source/current clips, current drum and row identity. It reacquires rows after
+legitimate arrangement-clone retargets and preserves the message-used prefix on
+cancellation. Sixteen added production-body sanitizer regressions cover both
+routes, whole/row deletion, same-address drum reuse, detachment, row/session/song
+changes, clone retargeting and clipless routing. All 36 suites and
+`./dbt build relwithdebinfo` pass; the four final boundary tests also pass in the
+affected suite. Learned-parameter handler internals remain open, including the
+contract that a retargeted model stack returns a live clip; unrelated equal-size
+row edits and partial parameter-write recovery are not comprehensively protected.
+Independent mode remains disabled.

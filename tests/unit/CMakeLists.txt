@@ -1092,6 +1092,6 @@ target_sources(ClipLifetimeTests PRIVATE sound_voice_release_lifetime_tests.cpp 
 set(kit_learned_midi_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/kit.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_learned_midi_routing.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${kit_learned_midi_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_learned_midi_routing.inc Kit::offerReceivedPitchBendToLearnedParams
+        ${kit_learned_midi_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_learned_midi_routing.inc Kit::offerReceivedPitchBendToLearnedParams Kit::offerReceivedCCToLearnedParams Kit::dispatch_learned_midi
     DEPENDS ${kit_learned_midi_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_learned_midi_routing_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_learned_midi_routing.inc)
