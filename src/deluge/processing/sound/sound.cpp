@@ -4892,8 +4892,11 @@ void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 }
 
 void Sound::prepareForHibernation() {
-	if (stop_rendering_for_hibernation())
-		detachSourcesFromAudioFiles();
+	try_prepare_for_hibernation();
+}
+
+bool Sound::try_prepare_for_hibernation(const deluge::lifetime::callback_validation* validation) {
+	return stop_rendering_for_hibernation(validation) && detachSourcesFromAudioFiles(validation);
 }
 
 // This can get called either for hibernation, or because a drum has no active note row.
@@ -4901,15 +4904,17 @@ void Sound::wontBeRenderedForAWhile() {
 	stop_rendering_for_hibernation();
 }
 
-bool Sound::stop_rendering_for_hibernation() {
+bool Sound::stop_rendering_for_hibernation(const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return false;
 	auto sound_lifetime = watch_sound_lifetime();
 	auto* source_song = currentSong;
 	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto context_valid = [&] {
-		return sound_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
-		       && deluge::gui::ui_session::current() == source_owner;
+		return sound_lifetime.alive() && (!validation || validation->valid()) && (!source_song || song_lifetime.alive())
+		       && currentSong == source_song && deluge::gui::ui_session::current() == source_owner;
 	};
 	if (!context_valid())
 		return false;
@@ -4929,14 +4934,19 @@ bool Sound::stop_rendering_for_hibernation() {
 	return true;
 }
 
-void Sound::detachSourcesFromAudioFiles() {
+bool Sound::detachSourcesFromAudioFiles(const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return false;
 	auto sound_lifetime = watch_sound_lifetime();
-	if (!sound_lifetime.alive())
-		return;
+	const auto context_valid = [&] { return sound_lifetime.alive() && (!validation || validation->valid()); };
+	if (!context_valid())
+		return false;
+	deluge::lifetime::callback_validation source_validation(context_valid);
 	for (int32_t index = 0; index < kNumSources; ++index) {
-		if (!sources[index].detachAllAudioFiles() || !sound_lifetime.alive())
-			return;
+		if (!sources[index].detachAllAudioFiles(&source_validation) || !context_valid())
+			return false;
 	}
+	return true;
 }
 
 void Sound::deleteMultiRange(int32_t s, int32_t r) {

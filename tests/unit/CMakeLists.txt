@@ -1269,6 +1269,12 @@ target_sources(ClipLifetimeTests PRIVATE multi_range_layout_tests.cpp ${CMAKE_CU
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_hibernation.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_hibernation.inc
-        Sound::prepareForHibernation Sound::wontBeRenderedForAWhile Sound::stop_rendering_for_hibernation
+        Sound::prepareForHibernation Sound::wontBeRenderedForAWhile Sound::stop_rendering_for_hibernation Sound::try_prepare_for_hibernation
     DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_hibernation_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_hibernation.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_hibernation.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_hibernation.inc Kit::prepareForHibernationOrDeletion
+    DEPENDS ${kit_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE voiced_hibernation_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_hibernation.inc)

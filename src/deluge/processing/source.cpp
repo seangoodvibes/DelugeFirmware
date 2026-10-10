@@ -103,7 +103,9 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 	       || (oscType == OscType::INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
 
-bool Source::detachAllAudioFiles() {
+bool Source::detachAllAudioFiles(const deluge::lifetime::callback_validation* caller_validation) {
+	if (caller_validation && !caller_validation->valid())
+		return false;
 	auto source_lifetime = watch_lifetime();
 	if (!source_lifetime.alive())
 		return false;
@@ -115,9 +117,10 @@ bool Source::detachAllAudioFiles() {
 	for (int32_t index = 0; index < range_count; ++index) {
 		auto* range = ranges.getElement(index);
 		const auto context_valid = [&] {
-			return source_lifetime.alive() && oscType == source_type
-			       && deluge::gui::ui_session::current() == source_owner && ranges.layout_revision() == range_revision
-			       && ranges.getNumElements() == range_count && ranges.getElement(index) == range;
+			return source_lifetime.alive() && (!caller_validation || caller_validation->valid())
+			       && oscType == source_type && deluge::gui::ui_session::current() == source_owner
+			       && ranges.layout_revision() == range_revision && ranges.getNumElements() == range_count
+			       && ranges.getElement(index) == range;
 		};
 		if (!(index & 7)) // Preserve audio servicing for multisampled sounds.
 			AudioEngine::routineWithClusterLoading();

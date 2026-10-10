@@ -1384,10 +1384,41 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 }
 
 void Kit::prepareForHibernationOrDeletion() {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* source_clip = activeClip;
+	auto clip_lifetime = source_clip ? source_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return kit_lifetime.alive() && (!source_clip || clip_lifetime.alive()) && activeClip == source_clip
+		       && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return;
 	ModControllableAudio::wontBeRenderedForAWhile();
-
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		thisDrum->prepareForHibernation();
+	if (!context_valid())
+		return;
+	for (Drum* drum = firstDrum; drum;) {
+		auto drum_lifetime = drum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+		auto* next_drum = drum->next;
+		auto next_lifetime = next_drum ? next_drum->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		const auto drum_valid = [&] {
+			return context_valid() && drum_lifetime.alive() && drum->kit == this && getDrumIndex(drum) >= 0
+			       && (!next_drum || next_lifetime.alive()) && drum->next == next_drum;
+		};
+		if (!drum_valid())
+			return;
+		deluge::lifetime::callback_validation validation(drum_valid);
+		if (!drum->try_prepare_for_hibernation(&validation) || !drum_valid())
+			return;
+		drum = next_drum;
 	}
 }
 

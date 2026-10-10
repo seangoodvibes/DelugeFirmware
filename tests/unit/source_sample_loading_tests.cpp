@@ -77,14 +77,14 @@ struct Source : Lifetime {
 		Range* getElement(int32_t index) { return entries.at(index); }
 	} ranges;
 	Error loadAllSamples(bool, const callback_validation* = nullptr);
-	bool detachAllAudioFiles();
+	bool detachAllAudioFiles(const callback_validation* = nullptr);
 	void setReversed(bool);
 };
 struct Sound : Lifetime {
 	auto watch_sound_lifetime() { return watch_lifetime(); }
 	Source sources[kNumSources];
 	Error loadAllAudioFiles(bool, const callback_validation* = nullptr);
-	void detachSourcesFromAudioFiles();
+	bool detachSourcesFromAudioFiles(const callback_validation* = nullptr);
 };
 struct {
 	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
@@ -453,4 +453,20 @@ TEST(SourceSampleLoading, retired_sound_rejects_generic_loading_and_detachment) 
 	instrument.detachSourcesFromAudioFiles();
 	LONGS_EQUAL(0, yields);
 	LONGS_EQUAL(0, detachments);
+}
+
+TEST(SourceSampleLoading, sound_detachment_propagates_caller_invalidation_into_source) {
+	bool valid = true;
+	auto check = [&] { return valid; };
+	callback_validation validation(check);
+	on_audio = [&] { valid = false; };
+	CHECK_FALSE(instrument.detachSourcesFromAudioFiles(&validation));
+	LONGS_EQUAL(0, detachments);
+}
+
+TEST(SourceSampleLoading, normal_sound_detachment_reports_completion_for_all_sources) {
+	CHECK(instrument.detachSourcesFromAudioFiles());
+	LONGS_EQUAL(2, detachments);
+	POINTERS_EQUAL(nullptr, first.holder.audioFile);
+	POINTERS_EQUAL(nullptr, second.holder.audioFile);
 }

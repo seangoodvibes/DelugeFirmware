@@ -3354,3 +3354,15 @@ No persistent lifetime fields are added to Sound. Already-completed effect clean
 is not rolled back; association changes with a surviving owner and cancellation
 propagation through the outer Kit hibernation loop remain separate work. Independent
 mode stays disabled.
+
+Hibernation now has a cancellable Voiced entry point, with the existing void hook
+retained. Sound propagates failure through render shutdown and every Source
+detachment. Kit passes Kit/clip/song/panel, drum membership/association and successor
+lifetime validation down that chain and stops when a child reports cancellation,
+even if its panel scope has already been restored. Seventeen regressions cover
+actual destruction, retirement, same-address successor reuse, changed membership/
+selection, child failure, validation forwarding and successful completion, including
+the real default Voiced adapter. All 38 suites and RelWithDebInfo pass. This closes
+child-cancellation propagation in the Kit loop; the outer song hibernation/deletion
+transaction and recovery of cleanup already completed remain open. Independent mode
+stays disabled.

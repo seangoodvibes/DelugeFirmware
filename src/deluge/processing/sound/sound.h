@@ -278,7 +278,7 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager);
 	virtual bool readTagFromFile(Deserializer& reader, char const* tagName) = 0;
-	void detachSourcesFromAudioFiles();
+	bool detachSourcesFromAudioFiles(const deluge::lifetime::callback_validation* validation = nullptr);
 
 	// Yup, inlining this helped a tiny bit.
 	[[gnu::always_inline]] int32_t getSmoothedPatchedParamValue(int32_t p, ParamManager& paramManager) const {
@@ -333,6 +333,7 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
+	bool try_prepare_for_hibernation(const deluge::lifetime::callback_validation* validation = nullptr) override;
 	bool process_render_modulation(ParamManagerForTimeline* param_manager, uint32_t num_samples, int32_t sidechain_hit,
 	                               const deluge::lifetime::callback_validation* owner_validation);
 	bool prepare_render_delay(Delay::State& delay_state, bool limit_feedback,
@@ -354,7 +355,7 @@ public:
 	ParamManagerType required_param_manager_type() const override { return ParamManagerType::SOUND; }
 
 private:
-	bool stop_rendering_for_hibernation();
+	bool stop_rendering_for_hibernation(const deluge::lifetime::callback_validation* validation = nullptr);
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);

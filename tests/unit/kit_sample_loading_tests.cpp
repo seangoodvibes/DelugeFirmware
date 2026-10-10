@@ -10,7 +10,9 @@ namespace kit_sample_loading_test {
 namespace session = deluge::gui::ui_session;
 enum class Error { NONE, ABORTED_BY_USER, FILE_NOT_FOUND };
 enum class AlternateLoadDirStatus { NONE_SET, MIGHT_EXIST };
-std::function<void()> on_setup, on_abort, on_load;
+std::function<void()> on_setup, on_abort, on_load, on_idle, on_hibernate;
+int hibernations = 0, hibernation_publications = 0;
+bool hibernation_success = true;
 int loads = 0, finishes = 0, setups = 0, publications = 0;
 Error setup_error = Error::NONE, load_error = Error::NONE;
 bool abort_requested = false;
@@ -20,7 +22,18 @@ struct Lifetime {
 };
 struct Song : Lifetime {};
 Song* currentSong = nullptr;
+struct Kit;
 struct Drum : Lifetime {
+	Kit* kit = nullptr;
+	bool try_prepare_for_hibernation(const deluge::lifetime::callback_validation* validation) {
+		++hibernations;
+		if (on_hibernate)
+			on_hibernate();
+		if (!hibernation_success || !validation->valid())
+			return false;
+		++hibernation_publications;
+		return true;
+	}
 	Drum* next = nullptr;
 	Error loadAllSamples(bool, const deluge::lifetime::callback_validation* validation = nullptr) {
 		++loads;
@@ -63,7 +76,13 @@ struct {
 		alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	}
 } audioFileManager;
-struct Kit : Lifetime {
+struct ModControllableAudio {
+	void wontBeRenderedForAWhile() {
+		if (on_idle)
+			on_idle();
+	}
+};
+struct Kit : Lifetime, ModControllableAudio {
 	Drum* firstDrum = nullptr;
 	InstrumentClip* activeClip = nullptr;
 	Error setupDefaultAudioFileDir() {
@@ -85,6 +104,7 @@ struct Kit : Lifetime {
 	}
 	Error loadAllAudioFiles(bool);
 	void loadCrucialAudioFilesOnly();
+	void prepareForHibernationOrDeletion();
 };
 bool shouldAbortLoading() {
 	if (on_abort)
@@ -95,6 +115,7 @@ namespace AudioEngine {
 void logAction(const char*) {
 }
 } // namespace AudioEngine
+#include "kit_hibernation.inc"
 #include "kit_sample_loading.inc"
 } // namespace kit_sample_loading_test
 using namespace kit_sample_loading_test;
@@ -108,12 +129,14 @@ TEST_GROUP(KitSampleLoading) {
 	void setup() override {
 		currentSong = &song;
 		session::detail::active = session::Id::Local;
-		on_setup = on_abort = on_load = {};
-		loads = finishes = setups = publications = 0;
+		on_setup = on_abort = on_load = on_idle = on_hibernate = {};
+		loads = finishes = setups = publications = hibernations = hibernation_publications = 0;
+		hibernation_success = true;
 		setup_error = load_error = Error::NONE;
 		abort_requested = false;
 		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 		kit.firstDrum = &first;
+		first.kit = second.kit = &kit;
 		first.next = &second;
 		kit.activeClip = &clip;
 		clip.output = &kit;
@@ -122,7 +145,7 @@ TEST_GROUP(KitSampleLoading) {
 		clip.noteRows.rows = {&row, &other_row};
 	}
 	void teardown() override {
-		on_setup = on_abort = on_load = {};
+		on_setup = on_abort = on_load = on_idle = on_hibernate = {};
 		currentSong = nullptr;
 		session::detail::active = session::Id::Local;
 	}
@@ -300,4 +323,90 @@ TEST(KitSampleLoading, unavailable_row_identity_does_not_start_crucial_loading) 
 	kit.loadCrucialAudioFilesOnly();
 	LONGS_EQUAL(0, loads);
 	LONGS_EQUAL(1, finishes);
+}
+
+TEST(KitSampleLoading, destroyed_kit_during_idle_cleanup_does_not_scan_drums) {
+	auto owner = std::make_unique<Kit>();
+	owner->firstDrum = &first;
+	on_idle = [&] { owner.reset(); };
+	owner->prepareForHibernationOrDeletion();
+	LONGS_EQUAL(0, hibernations);
+}
+TEST(KitSampleLoading, destroyed_drum_cancels_hibernation_before_following_next) {
+	auto drum = std::make_unique<Drum>();
+	drum->kit = &kit;
+	drum->next = &second;
+	kit.firstDrum = drum.get();
+	on_hibernate = [&] {
+		kit.firstDrum = &second;
+		drum.reset();
+	};
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+}
+TEST(KitSampleLoading, child_hibernation_cancellation_stops_remaining_drums) {
+	hibernation_success = false;
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+}
+TEST(KitSampleLoading, replaced_successor_cancels_inner_hibernation) {
+	on_hibernate = [&] { first.next = nullptr; };
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+}
+TEST(KitSampleLoading, changed_drum_kit_association_cancels_inner_hibernation) {
+	on_hibernate = [&] { first.kit = nullptr; };
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+}
+TEST(KitSampleLoading, changed_active_clip_cancels_inner_hibernation) {
+	on_hibernate = [&] { kit.activeClip = nullptr; };
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+}
+TEST(KitSampleLoading, changed_panel_cancels_hibernation_and_restores_owner) {
+	on_hibernate = [&] { session::detail::active = session::Id::Remote; };
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+	CHECK(session::current() == session::Id::Local);
+}
+TEST(KitSampleLoading, normal_kit_hibernation_visits_each_drum) {
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(2, hibernations);
+	LONGS_EQUAL(2, hibernation_publications);
+}
+
+TEST(KitSampleLoading, retired_song_cancels_inner_hibernation) {
+	on_hibernate = [&] { song.lifetime.retire(); };
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+}
+TEST(KitSampleLoading, retired_active_clip_cancels_inner_hibernation) {
+	on_hibernate = [&] { clip.lifetime.retire(); };
+	kit.prepareForHibernationOrDeletion();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
+}
+TEST(KitSampleLoading, same_address_successor_replacement_cancels_inner_hibernation) {
+	alignas(Drum) unsigned char storage[sizeof(Drum)];
+	auto* successor = new (storage) Drum;
+	successor->kit = &kit;
+	first.next = successor;
+	on_hibernate = [&] {
+		successor->~Drum();
+		successor = new (storage) Drum;
+		successor->kit = &kit;
+	};
+	kit.prepareForHibernationOrDeletion();
+	first.next = &second;
+	successor->~Drum();
+	LONGS_EQUAL(1, hibernations);
+	LONGS_EQUAL(0, hibernation_publications);
 }

@@ -9,6 +9,7 @@ namespace session = deluge::gui::ui_session;
 constexpr bool ALPHA_OR_BETA_VERSION = true;
 int effects = 0, kills = 0, arp_resets = 0, reassessments = 0, detachments = 0, freezes = 0;
 std::function<void()> on_effects, on_kill, on_reassess;
+bool detachment_success = true;
 struct Song {
 	deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
@@ -45,10 +46,16 @@ struct Sound : ModControllableAudio {
 		if (on_reassess)
 			on_reassess();
 	}
-	void detachSourcesFromAudioFiles() { ++detachments; }
+	bool detachSourcesFromAudioFiles(const deluge::lifetime::callback_validation* validation = nullptr) {
+		if (validation && !validation->valid())
+			return false;
+		++detachments;
+		return detachment_success;
+	}
 	void prepareForHibernation();
 	void wontBeRenderedForAWhile();
-	bool stop_rendering_for_hibernation();
+	bool stop_rendering_for_hibernation(const deluge::lifetime::callback_validation* = nullptr);
+	bool try_prepare_for_hibernation(const deluge::lifetime::callback_validation* = nullptr);
 };
 void FREEZE_WITH_ERROR(const char*) {
 	++freezes;
@@ -63,6 +70,7 @@ TEST_GROUP(SoundHibernation) {
 		currentSong = &song;
 		session::detail::active = session::Id::Local;
 		effects = kills = arp_resets = reassessments = detachments = freezes = 0;
+		detachment_success = true;
 		on_effects = on_kill = on_reassess = {};
 	}
 	void teardown() override {
@@ -140,4 +148,19 @@ TEST(SoundHibernation, nested_voices_cancel_hibernation_before_arp_reset_and_det
 	LONGS_EQUAL(0, arp_resets);
 	LONGS_EQUAL(0, reassessments);
 	LONGS_EQUAL(0, detachments);
+}
+
+TEST(SoundHibernation, caller_cancellation_stops_hibernation_before_later_stages) {
+	bool valid = true;
+	auto check = [&] { return valid; };
+	deluge::lifetime::callback_validation validation(check);
+	on_kill = [&] { valid = false; };
+	CHECK_FALSE(sound.try_prepare_for_hibernation(&validation));
+	LONGS_EQUAL(0, arp_resets);
+	LONGS_EQUAL(0, detachments);
+}
+TEST(SoundHibernation, detachment_failure_is_reported_to_outer_owner) {
+	detachment_success = false;
+	CHECK_FALSE(sound.try_prepare_for_hibernation());
+	LONGS_EQUAL(1, detachments);
 }

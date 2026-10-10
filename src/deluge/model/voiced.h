@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "util/lifetime.h"
 
 class ModelStackWithSoundFlags;
 
@@ -25,4 +26,10 @@ struct Voiced {
 	virtual void killAllVoices() = 0;
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
 	virtual void prepareForHibernation() {}
+	virtual bool try_prepare_for_hibernation(const deluge::lifetime::callback_validation* validation = nullptr) {
+		if (validation && !validation->valid())
+			return false;
+		prepareForHibernation();
+		return !validation || validation->valid();
+	}
 };
