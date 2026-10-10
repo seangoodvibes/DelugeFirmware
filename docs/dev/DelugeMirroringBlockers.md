@@ -1660,3 +1660,13 @@ failed before the fix. All 35 native suites and `./dbt build relwithdebinfo` pas
 The context tests now also execute this selector rather than stubbing it; explicit
 selection and output activity remain fixtures. This does not retain clip/output
 lifetimes across callbacks. Independent mode remains disabled.
+
+### G1 / R4 progress — performance clip selection without a song (2026-10-10)
+
+Performance-view MIDI selection now checks song availability before reading the
+panel's arrangement position. Three new tests cover missing song/arrangement
+context, session/arranger/automation/clip routing on both panels, and simultaneous
+different panel contexts. Existing context tests now execute the production
+selected-clip function too. All 35 native suites and `./dbt build relwithdebinfo`
+pass. Individual view selection providers remain fixtures; callback lifetime and
+physical routing acceptance remain open.

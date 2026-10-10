@@ -433,7 +433,7 @@ Clip* MidiFollow::getSelectedClip() {
 		break;
 	case UIType::PERFORMANCE:
 		// if you're in the arranger performance view, check if you're holding audition pad
-		if (currentSong->last_clip_instance_entered_start_pos_for_session() != -1) {
+		if (currentSong && currentSong->last_clip_instance_entered_start_pos_for_session() != -1) {
 			clip = arranger_view_for_session().getClipForSelection();
 		}
 		break;
