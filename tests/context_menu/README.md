@@ -35,3 +35,7 @@ or protection against same-address reuse.
 Audio encoder callback cases cover departed outputs on both panels, retargeting
 to another live output, and changed song/owner context. Rejected attempts preserve
 the channel, recording source and global default without publishing peer refresh.
+
+Same-target callback cases verify newer launch-style, input-channel and recording-
+source values survive a pending encoder edit. This checks optimistic cancellation,
+not value ABA detection, real concurrent execution or hardware callback delivery.

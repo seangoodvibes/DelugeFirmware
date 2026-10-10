@@ -183,6 +183,13 @@ TEST(LaunchStyleMenu, display_callback_changing_song_or_owner_cancels_edit) {
 		CHECK(clip.launchStyle == LaunchStyle::DEFAULT);
 	}
 }
+TEST(LaunchStyleMenu, feedback_model_change_is_not_overwritten_by_pending_edit) {
+	display_instance.oled = false;
+	on_text = [&] { clip.launchStyle = LaunchStyle::ONCE; };
+	local_menu.selectEncoderAction(1);
+	CHECK(clip.launchStyle == LaunchStyle::ONCE);
+	CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
+}
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
 }

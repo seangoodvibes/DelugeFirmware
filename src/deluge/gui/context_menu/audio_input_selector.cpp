@@ -193,7 +193,8 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
 	// Seven-segment feedback can service callbacks before the routing write.
 	if (ui_session::current() != source_owner || currentSong != source_song || audioOutput != source_output
-	    || !has_current_output()) {
+	    || !has_current_output() || source_output->inputChannel != previous_channel
+	    || source_output->getOutputRecordingFrom() != previous_source) {
 		return;
 	}
 

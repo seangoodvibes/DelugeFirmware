@@ -60,15 +60,15 @@ void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
 	auto* const source_song = currentSong;
 	auto* const source_clip = clip;
 	const auto source_owner = ui_session::current();
+	const auto previous_style = source_clip->launchStyle;
 	const auto target_is_current = [&] {
 		return ui_session::current() == source_owner && currentSong == source_song && clip == source_clip
-		       && has_current_clip();
+		       && has_current_clip() && source_clip->launchStyle == previous_style;
 	};
 	// The other panel may have committed before its deferred refresh was serviced.
 	refresh_shared_model();
 	if (!target_is_current())
 		return;
-	const auto previous_style = source_clip->launchStyle;
 	ContextMenu::selectEncoderAction(offset);
 	// Seven-segment feedback can service callbacks before the model write.
 	if (!target_is_current())

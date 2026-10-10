@@ -854,3 +854,15 @@ side effects are not provided by these guards.
   protection is implied.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. G1/L1/R4 remain open
   and independent mode remains disabled.
+
+### G1 / R4 progress — preserve model changes during encoder feedback (2026-10-09)
+
+- Launch-style and audio-input encoder edits also compare their captured model
+  values after feedback, once context and membership checks succeed. A changed
+  launch style, input channel or recording source cancels the pending write,
+  preserving the newer value without publishing a spurious peer refresh.
+- Two regression cases failed before the fix. Audio cases independently exercise
+  channel and source changes and verify no monitoring assignment or default change.
+  These comparisons do not detect value ABA or substitute for object generations.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 and the broader
+  lifetime/recovery blockers remain open; independent mode stays disabled.

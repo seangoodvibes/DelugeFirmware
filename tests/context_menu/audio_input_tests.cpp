@@ -277,3 +277,23 @@ TEST(AudioInputMenu, feedback_changing_song_or_owner_cancels_edit) {
 		CHECK(output.inputChannel == AudioInputChannel::NONE);
 	}
 }
+TEST(AudioInputMenu, feedback_model_change_is_not_overwritten_by_pending_edit) {
+	display_instance.oled = false;
+	for (bool change_channel : {false, true}) {
+		output.inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		output.source = &first;
+		defaultAudioOutputInputChannel = AudioInputChannel::RIGHT;
+		on_text = [&] {
+			if (change_channel)
+				output.inputChannel = AudioInputChannel::LEFT;
+			else
+				output.source = &second;
+		};
+		local_menu.selectEncoderAction(-1);
+		CHECK(output.inputChannel == (change_channel ? AudioInputChannel::LEFT : AudioInputChannel::SPECIFIC_OUTPUT));
+		POINTERS_EQUAL(change_channel ? &first : &second, output.source);
+		LONGS_EQUAL(0, output.assignments);
+		CHECK(defaultAudioOutputInputChannel == AudioInputChannel::RIGHT);
+		CHECK_FALSE(session::navigation.for_owner(session::Id::Remote).shared_model_refresh.consume(0));
+	}
+}
