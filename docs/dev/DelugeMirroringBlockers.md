@@ -1421,3 +1421,15 @@ side effects are not provided by these guards.
 - Value retrieval and MIDI transmission are fixtures. Already applied parameter
   values are not rolled back; no callback-internal target retention is established.
   G1/L1/R4 remain open and independent mode stays disabled.
+
+### G1 progress — modulation target selection follow-up work (2026-10-10)
+
+- Selection without a timeline restores its initiating owner and revalidates song,
+  root, model and region after LED/indicator/sidebar callbacks before continuing
+  to MIDI feedback. Callback replacement selections are preserved.
+- Five extracted-selection tests cover song/owner changes, replacement models,
+  sidebar invalidation and normal updates. The song-change regression performed
+  stale indicator lookups before the fix. All 35 native suites and
+  `./dbt build relwithdebinfo` pass.
+- These guards do not roll back emitted LEDs or retain model objects inside
+  callbacks. G1/L1 remain open and independent mode stays disabled.

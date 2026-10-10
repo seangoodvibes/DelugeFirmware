@@ -1918,6 +1918,20 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 
 void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
                                                           ParamManager* paramManager) {
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_root = getRootUI();
+	const auto source_position = modPos;
+	const auto source_length = modLength;
+	const auto source_note_row = modNoteRowId;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && getRootUI() == source_root && activeModControllableModelStack.modControllable == modControllable
+		       && activeModControllableModelStack.paramManager == paramManager
+		       && !activeModControllableModelStack.getTimelineCounterAllowNull() && modPos == source_position
+		       && modLength == source_length && modNoteRowId == source_note_row;
+	};
 
 	pretendModKnobsUntouchedForAWhile(); // Why again?
 
@@ -1926,12 +1940,18 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	    ->addOtherTwoThingsButNoNoteRow(modControllable, paramManager);
 
 	setModLedStates();
+	if (!context_matches())
+		return;
 	setKnobIndicatorLevels();
+	if (!context_matches())
+		return;
 
 	// refresh sidebar if VU meter previously rendered is still showing and we're in session / arranger / performance
 	// view / arranger automation view this could happen when you're turning affect entire off or selecting a clip
 	if (renderedVUMeter && !rootUIIsClipMinderScreen()) {
 		uiNeedsRendering(getRootUI(), 0);
+		if (!context_matches())
+			return;
 	}
 
 	// midi follow and midi feedback enabled

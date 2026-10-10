@@ -13,7 +13,7 @@ constexpr int kKnobPosOffset = 64, kMaxKnobPos = 128, UI_MODE_STUTTERING = 1;
 namespace params {
 enum class Kind { NORMAL, PATCH_CABLE };
 }
-static std::function<void()> on_lookup, on_value, on_grab;
+static std::function<void()> on_lookup, on_value, on_grab, on_mod_leds, on_redraw;
 constexpr int NUM_LEVEL_INDICATORS = 2;
 static int lookup_calls = 0;
 struct root_fixture {
@@ -77,6 +77,14 @@ struct ModControllable {
 };
 using ModControllableAudio = ModControllable;
 struct ModelStackWithAutoParam {
+	ModelStackWithAutoParam* addTimelineCounter(void* value) {
+		timeline = value;
+		return this;
+	}
+	void addOtherTwoThingsButNoNoteRow(ModControllable* target, ParamManager* manager) {
+		modControllable = target;
+		paramManager = manager;
+	}
 	ParamManager* paramManager = nullptr;
 	void* timeline = nullptr;
 	int* song = nullptr;
@@ -87,6 +95,19 @@ struct ModelStackWithAutoParam {
 	ParamCollection* paramCollection = nullptr;
 	int32_t paramId = 0;
 };
+static ModelStackWithAutoParam* setupModelStackWithSong(ModelStackWithAutoParam* stack, int* song) {
+	stack->song = song;
+	return stack;
+}
+static bool rootUIIsClipMinderScreen() {
+	return false;
+}
+static int redraw_calls = 0;
+static void uiNeedsRendering(root_fixture*, int) {
+	++redraw_calls;
+	if (on_redraw)
+		on_redraw();
+}
 static bool bipolar = false, quantized = false, stuttering = false;
 static bool isParamBipolar(params::Kind, int32_t) {
 	return bipolar;
@@ -130,10 +151,16 @@ static struct {
 constexpr int kNoSelection = -1;
 struct View {
 	int feedback_calls = 0;
+	bool renderedVUMeter = false;
+	void setModLedStates() {
+		if (on_mod_leds)
+			on_mod_leds();
+	}
+	void setActiveModControllableWithoutTimelineCounter(ModControllable*, ParamManager*);
 	uint32_t modLength = 0;
 	int32_t modNoteRowId = 0;
 	void pretendModKnobsUntouchedForAWhile() {}
-	void sendMidiFollowFeedback(ModelStackWithAutoParam*, int32_t, bool) { ++feedback_calls; }
+	void sendMidiFollowFeedback(ModelStackWithAutoParam* = nullptr, int32_t = 0, bool = false) { ++feedback_calls; }
 	void setModRegion(uint32_t, uint32_t, int32_t);
 	ModelStackWithAutoParam activeModControllableModelStack;
 	uint32_t modPos = 0;
@@ -165,7 +192,8 @@ TEST_GROUP(KnobIndicator) {
 		indicator_leds::clears = {};
 		roots.for_owner(session::Id::Local) = &root;
 		roots.for_owner(session::Id::Remote) = &root;
-		on_lookup = on_value = on_grab = {};
+		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = {};
+		redraw_calls = 0;
 		currentSong = &song;
 		playbackHandler.active = false;
 		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
@@ -177,7 +205,8 @@ TEST_GROUP(KnobIndicator) {
 			views.for_owner(owner).activeModControllableModelStack.modControllable = &controllable;
 	}
 	void teardown() override {
-		on_lookup = on_value = on_grab = {};
+		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = {};
+		redraw_calls = 0;
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -415,4 +444,58 @@ TEST(KnobIndicator, changed_region_length_cancels_pending_indicator_batch) {
 	LONGS_EQUAL(1, lookup_calls);
 	LONGS_EQUAL(0, indicator_leds::outputs.active()[0].calls);
 	LONGS_EQUAL(0, indicator_leds::outputs.active()[1].calls);
+}
+
+TEST(KnobIndicator, target_selection_stops_after_led_callback_changes_context) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		auto& view = view_for_session();
+		view.renderedVUMeter = true;
+		on_mod_leds = [] { currentSong = &replacement_song; };
+		currentSong = &song;
+		view.setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
+		LONGS_EQUAL(0, lookup_calls);
+		LONGS_EQUAL(0, redraw_calls);
+		LONGS_EQUAL(0, view.feedback_calls);
+	}
+}
+TEST(KnobIndicator, target_selection_updates_normal_indicators_sidebar_and_feedback) {
+	auto& view = view_for_session();
+	view.renderedVUMeter = true;
+	view.setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
+	POINTERS_EQUAL(&controllable, view.activeModControllableModelStack.modControllable);
+	POINTERS_EQUAL(&manager, view.activeModControllableModelStack.paramManager);
+	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.timeline);
+	LONGS_EQUAL(2, lookup_calls);
+	LONGS_EQUAL(1, redraw_calls);
+	LONGS_EQUAL(1, view.feedback_calls);
+}
+
+TEST(KnobIndicator, target_selection_owner_change_restores_caller_without_peer_feedback) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		on_mod_leds = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		view_for_session().setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, view_for_session().feedback_calls);
+		LONGS_EQUAL(0, lookup_calls);
+	}
+}
+TEST(KnobIndicator, target_selection_cancels_feedback_after_sidebar_context_change) {
+	auto& view = view_for_session();
+	view.renderedVUMeter = true;
+	on_redraw = [&] { view.modNoteRowId = 99; };
+	view.setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
+	LONGS_EQUAL(1, redraw_calls);
+	LONGS_EQUAL(0, view.feedback_calls);
+	LONGS_EQUAL(99, view.modNoteRowId);
+}
+TEST(KnobIndicator, target_selection_preserves_replacement_model_during_indicator_lookup) {
+	auto& view = view_for_session();
+	on_lookup = [&] { view.activeModControllableModelStack.modControllable = nullptr; };
+	view.setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
+	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.modControllable);
+	LONGS_EQUAL(0, view.feedback_calls);
 }
