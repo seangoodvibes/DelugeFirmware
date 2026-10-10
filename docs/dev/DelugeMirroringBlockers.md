@@ -3383,3 +3383,11 @@ changed successors and successor replacement at the same address. All 38 native
 suites and RelWithDebInfo pass. These guards cancel stale loading; they do not
 roll back previously loaded drums or close the broader lifetime/recovery blockers.
 Independent mode remains disabled.
+
+Range deletion preserves an audio-routine lock already held by its caller instead
+of unconditionally clearing it after reclamation. Two extracted-production tests
+verify the pre-held and initially unlocked cases, including locking during both
+destruction and array deletion; the pre-held case fails against the previous code.
+All 38 suites and RelWithDebInfo pass. This addresses the lock invariant only;
+owner/range invalidation during voice cleanup and caller cancellation remain open.
+Independent mode remains disabled.

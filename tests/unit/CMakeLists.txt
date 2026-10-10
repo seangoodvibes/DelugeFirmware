@@ -1285,3 +1285,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multisample_import_cleanup
         ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/multisample_import_cleanup.inc release_multisample_import_samples
     DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE multisample_import_cleanup_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/multisample_import_cleanup.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc Sound::deleteMultiRange
+    DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sound_range_deletion_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_range_deletion.inc)
