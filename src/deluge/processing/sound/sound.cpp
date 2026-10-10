@@ -4474,9 +4474,13 @@ int16_t Sound::getMinOscTranspose() {
 }
 
 Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation) {
+	if (validation && !validation->valid())
+		return Error::ABORTED_BY_USER;
+	auto sound_lifetime = watch_sound_lifetime();
 	const auto loading_revision = audioFileManager.loading_context_revision();
 	const auto context_valid = [&] {
-		return (!validation || validation->valid()) && audioFileManager.loading_context_revision() == loading_revision;
+		return sound_lifetime.alive() && (!validation || validation->valid())
+		       && audioFileManager.loading_context_revision() == loading_revision;
 	};
 	deluge::lifetime::callback_validation source_validation(context_valid);
 	if (!context_valid())
@@ -4888,32 +4892,49 @@ void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 }
 
 void Sound::prepareForHibernation() {
-	wontBeRenderedForAWhile();
-	detachSourcesFromAudioFiles();
+	if (stop_rendering_for_hibernation())
+		detachSourcesFromAudioFiles();
 }
 
-// This can get called either for hibernation, or because drum now has no active noteRow
+// This can get called either for hibernation, or because a drum has no active note row.
 void Sound::wontBeRenderedForAWhile() {
+	stop_rendering_for_hibernation();
+}
+
+bool Sound::stop_rendering_for_hibernation() {
+	auto sound_lifetime = watch_sound_lifetime();
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return sound_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return false;
 	ModControllableAudio::wontBeRenderedForAWhile();
-
-	killAllVoices(); // Can't remember if this is always necessary, but it is when this is called from
-	                 // Instrumentclip::detachFromInstrument()
-
-	getArp()->reset(); // Surely this shouldn't be quite necessary?
+	if (!context_valid())
+		return false;
+	killAllVoices();
+	if (!context_valid() || hasActiveVoices())
+		return false;
+	getArp()->reset();
 	sidechain.status = EnvelopeStage::OFF;
-
-	// Tell it to just cut the MODFX tail - we needa change status urgently!
 	reassessRenderSkippingStatus(nullptr, true);
-
-	// If it still thinks it's meant to be rendering, we did something wrong
-	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {
+	if (!context_valid())
+		return false;
+	if (ALPHA_OR_BETA_VERSION && !skippingRendering)
 		FREEZE_WITH_ERROR("E322");
-	}
+	return true;
 }
 
 void Sound::detachSourcesFromAudioFiles() {
-	for (int32_t s = 0; s < kNumSources; s++) {
-		if (!sources[s].detachAllAudioFiles())
+	auto sound_lifetime = watch_sound_lifetime();
+	if (!sound_lifetime.alive())
+		return;
+	for (int32_t index = 0; index < kNumSources; ++index) {
+		if (!sources[index].detachAllAudioFiles() || !sound_lifetime.alive())
 			return;
 	}
 }

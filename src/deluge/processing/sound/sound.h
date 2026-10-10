@@ -74,6 +74,8 @@ public:
 
 	Sound();
 	~Sound() override { std::erase(AudioEngine::sounds, this); }
+	// Base construction/destruction has no active concrete owner.
+	virtual deluge::lifetime::lifetime_watch watch_sound_lifetime() const { return {}; }
 
 	Patcher patcher;
 
@@ -352,6 +354,7 @@ public:
 	ParamManagerType required_param_manager_type() const override { return ParamManagerType::SOUND; }
 
 private:
+	bool stop_rendering_for_hibernation();
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);

@@ -3341,3 +3341,16 @@ NoteRow's existing identity instead of adding another array revision or changing
 NoteRowVector. All 38 suites and RelWithDebInfo pass. This closes this loading
 path's same-address replacement case, not row destruction/partial-edit recovery
 or other retained row consumers. Independent mode stays disabled.
+
+Generic Sound operations now obtain a stack lifetime watch from the concrete
+Instrument/Drum owner; the base implementation is inactive during base construction/
+destruction. Loading and detachment reject retired owners. Hibernation stops after
+owner/song/panel invalidation and before resetting arpeggiation or detaching samples
+if voice cleanup leaves active voices. Eleven additional sanitizer regressions cover
+actual destruction at cleanup boundaries, retirement, panel/song changes, direct
+generic loading, nested voices and normal cleanup. The panel-cancellation regression
+fails against the previous implementation. All 38 suites and RelWithDebInfo pass.
+No persistent lifetime fields are added to Sound. Already-completed effect cleanup
+is not rolled back; association changes with a surviving owner and cancellation
+propagation through the outer Kit hibernation loop remain separate work. Independent
+mode stays disabled.

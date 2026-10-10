@@ -32,6 +32,7 @@ public:
 
 	SoundDrum() : Drum(DrumType::SOUND) {}
 	~SoundDrum() override;
+	deluge::lifetime::lifetime_watch watch_sound_lifetime() const override { return Drum::watch_lifetime(); }
 
 	using Sound::allowNoteTails;
 	using Sound::anyNoteIsOn;

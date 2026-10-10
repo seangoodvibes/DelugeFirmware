@@ -1265,3 +1265,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multi_range_layout.inc
         MultiRangeArray::ensureEnoughSpaceAllocated MultiRangeArray::swapStateWith
     DEPENDS ${multi_range_layout_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE multi_range_layout_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/multi_range_layout.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_hibernation.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_hibernation.inc
+        Sound::prepareForHibernation Sound::wontBeRenderedForAWhile Sound::stop_rendering_for_hibernation
+    DEPENDS ${sound_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sound_hibernation_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_hibernation.inc)

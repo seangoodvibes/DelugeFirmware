@@ -80,7 +80,8 @@ struct Source : Lifetime {
 	bool detachAllAudioFiles();
 	void setReversed(bool);
 };
-struct Sound {
+struct Sound : Lifetime {
+	auto watch_sound_lifetime() { return watch_lifetime(); }
 	Source sources[kNumSources];
 	Error loadAllAudioFiles(bool, const callback_validation* = nullptr);
 	void detachSourcesFromAudioFiles();
@@ -101,10 +102,10 @@ struct {
 		alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	}
 } audioFileManager;
-struct SoundDrum : Sound, Lifetime {
+struct SoundDrum : Sound {
 	Error loadAllSamples(bool, const callback_validation* = nullptr);
 };
-struct SoundInstrument : Sound, Lifetime {
+struct SoundInstrument : Sound {
 	Error loadAllAudioFiles(bool);
 	Error setupDefaultAudioFileDir() {
 		if (on_setup)
@@ -436,5 +437,20 @@ TEST(SourceSampleLoading, identical_range_address_does_not_hide_reverse_layout_c
 TEST(SourceSampleLoading, identical_range_address_does_not_hide_detachment_layout_changes) {
 	on_audio = [&] { ++instrument.sources[0].ranges.revision; };
 	CHECK_FALSE(instrument.sources[0].detachAllAudioFiles());
+	LONGS_EQUAL(0, detachments);
+}
+
+TEST(SourceSampleLoading, generic_sound_loading_rejects_destroyed_owner_without_caller_predicate) {
+	auto owner = std::make_unique<Sound>();
+	owner->sources[0].ranges.entries = {&first};
+	on_load = [&] { owner.reset(); };
+	CHECK(owner->loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(0, publications);
+}
+TEST(SourceSampleLoading, retired_sound_rejects_generic_loading_and_detachment) {
+	instrument.lifetime.retire();
+	CHECK(instrument.Sound::loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	instrument.detachSourcesFromAudioFiles();
+	LONGS_EQUAL(0, yields);
 	LONGS_EQUAL(0, detachments);
 }

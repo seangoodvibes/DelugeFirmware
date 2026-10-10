@@ -31,6 +31,7 @@ class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
 	~SoundInstrument() override;
+	deluge::lifetime::lifetime_watch watch_sound_lifetime() const override { return Output::watch_lifetime(); }
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void killAllVoices() override;
