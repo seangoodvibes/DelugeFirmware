@@ -1774,3 +1774,14 @@ incompatible-output dispatch and boundary notes for all melodic output types,
 including retention/release. All 35 native suites and
 `./dbt build relwithdebinfo` pass. The instruments are fixtures; retained-note
 lifetime and callback invalidation after dispatch remain unresolved.
+
+### G1 / L1 progress — retained-note publication before callbacks (2026-10-10)
+
+Note-on retention is now published before instrument delivery, allowing
+`removeClip`/song cleanup during delivery to remove it permanently. Matching
+note-off retention is cleared before delivery so a nested note-on is not erased
+by outer completion; unrelated targets are preserved. Three tests cover the
+reproduced callback-cleanup overwrite, nested note-on during note-off and unrelated
+note-off completion. All 35 native suites and `./dbt build relwithdebinfo` pass.
+This closes these publication-order cases without retaining objects or undoing
+instrument effects. Broader callback lifetime and routing remain open.

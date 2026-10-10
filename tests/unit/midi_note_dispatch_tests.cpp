@@ -2,6 +2,7 @@
 #include "definitions_cxx.hpp"
 #include <array>
 #include <climits>
+#include <functional>
 namespace midi_note_dispatch_test {
 enum class MIDIMatchType { CHANNEL };
 struct MIDICable {};
@@ -21,6 +22,7 @@ struct Clip {
 using InstrumentClip = Clip;
 static int sends = 0, last_note = -1;
 static bool last_on = false, last_record = false;
+static std::function<void()> on_note;
 struct Kit : Output {
 	void receivedNoteForKit(ModelStackWithTimelineCounter*, MIDICable&, bool on, int, int note, int, bool record, bool*,
 	                        InstrumentClip*) {
@@ -28,6 +30,8 @@ struct Kit : Output {
 		last_note = note;
 		last_on = on;
 		last_record = record;
+		if (on_note)
+			on_note();
 	}
 };
 struct MelodicInstrument : Output {
@@ -37,6 +41,8 @@ struct MelodicInstrument : Output {
 		last_note = note;
 		last_on = on;
 		last_record = record;
+		if (on_note)
+			on_note();
 	}
 };
 static struct {
@@ -50,6 +56,8 @@ static song_fixture song;
 static song_fixture* currentSong = &song;
 static Clip* clipForLastNoteReceived[kMaxMIDIValue + 1]{};
 struct MidiFollow {
+	void clearStoredClips();
+	void removeClip(Clip*);
 	Output* sendNoteToClip(MIDICable&, Clip*, MIDIMatchType, bool, int32_t, int32_t, int32_t, bool*, bool, ModelStack*,
 	                       bool);
 };
@@ -68,6 +76,7 @@ TEST_GROUP(MidiNoteDispatch) {
 		                             remember);
 	}
 	void setup() override {
+		on_note = {};
 		clip.output = &output;
 		song.active = true;
 		currentSong = &song;
@@ -76,6 +85,9 @@ TEST_GROUP(MidiNoteDispatch) {
 		last_on = last_record = false;
 		for (auto& target : clipForLastNoteReceived)
 			target = nullptr;
+	}
+	void teardown() override {
+		on_note = {};
 	}
 };
 TEST(MidiNoteDispatch, invalid_notes_and_missing_inputs_do_not_send) {
@@ -143,4 +155,38 @@ TEST(MidiNoteDispatch, supported_melodic_types_deliver_boundary_notes_and_releas
 		}
 	}
 	LONGS_EQUAL(12, sends);
+}
+
+TEST(MidiNoteDispatch, callback_cleanup_is_not_overwritten_by_note_on_completion) {
+	for (bool remove_only : {false, true}) {
+		on_note = [&] {
+			if (remove_only)
+				follow.removeClip(&clip);
+			else
+				follow.clearStoredClips();
+		};
+		send(true);
+		POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
+	}
+}
+TEST(MidiNoteDispatch, nested_note_on_survives_outer_note_off_completion) {
+	Clip replacement;
+	replacement.output = &output;
+	send(true);
+	bool nested = false;
+	on_note = [&] {
+		if (nested)
+			return;
+		nested = true;
+		follow.sendNoteToClip(cable, &replacement, MIDIMatchType::CHANNEL, true, 0, 60, 100, &thru, true, &stack, true);
+	};
+	send(false);
+	POINTERS_EQUAL(&replacement, clipForLastNoteReceived[60]);
+}
+TEST(MidiNoteDispatch, unrelated_note_off_does_not_clear_newer_target) {
+	Clip replacement;
+	replacement.output = &output;
+	clipForLastNoteReceived[60] = &replacement;
+	send(false);
+	POINTERS_EQUAL(&replacement, clipForLastNoteReceived[60]);
 }

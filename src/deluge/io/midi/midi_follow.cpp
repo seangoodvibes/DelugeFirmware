@@ -734,6 +734,15 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
 		if (modelStackWithTimelineCounter) {
 			// Definitely don't record if muted in arrangement
 			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
+			// Publish before dispatch so callback cleanup and nested note events take precedence.
+			if (updateClipForLastNoteReceived) {
+				if (on) {
+					clipForLastNoteReceived[note] = clip;
+				}
+				else if (clipForLastNoteReceived[note] == clip) {
+					clipForLastNoteReceived[note] = nullptr;
+				}
+			}
 			if (clip->output->type == OutputType::KIT) {
 				auto kit = (Kit*)clip->output;
 				kit->receivedNoteForKit(modelStackWithTimelineCounter, cable, on, channel,
@@ -744,17 +753,6 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
 				MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 				melodicInstrument->receivedNote(modelStackWithTimelineCounter, cable, on, channel, match, note,
 				                                velocity, shouldRecordNotes, doingMidiThru);
-			}
-			// don't update if we're sending note to a specific track
-			if (updateClipForLastNoteReceived) {
-				if (on) {
-					clipForLastNoteReceived[note] = clip;
-				}
-				else {
-					if (note >= 0 && note <= 127) {
-						clipForLastNoteReceived[note] = nullptr;
-					}
-				}
 			}
 		}
 	}

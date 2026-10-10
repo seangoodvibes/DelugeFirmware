@@ -559,6 +559,6 @@ target_sources(UnitTests PRIVATE clip_activation_tests.cpp ${CMAKE_CURRENT_BINAR
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_note_dispatch.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_note_dispatch.inc MidiFollow::sendNoteToClip
+        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_note_dispatch.inc MidiFollow::sendNoteToClip MidiFollow::clearStoredClips MidiFollow::removeClip
     DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_note_dispatch_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_note_dispatch.inc)
