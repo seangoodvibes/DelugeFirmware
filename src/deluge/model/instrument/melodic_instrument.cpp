@@ -177,8 +177,11 @@ recordingEarly:
 						// If Clip is active, nice and easy - we know we can record to it
 						if (currentSong->isClipActive(instrumentClip)) {
 doRecord:
+							Error clone_error = Error::NONE;
 							instrumentClip->possiblyCloneForArrangementRecording(
-							    modelStack); // Will have to re-get modelStackWithNoteRow after this call
+							    modelStack, &clone_error); // Will have to re-get modelStackWithNoteRow after this call
+							if (clone_error != Error::NONE)
+								goto justAuditionNote;
 							instrumentClip =
 							    (InstrumentClip*)
 							        modelStack->getTimelineCounter(); // Re-get it, cos it might have changed

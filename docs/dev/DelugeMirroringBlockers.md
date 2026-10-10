@@ -1957,3 +1957,16 @@ failure; smoothing is active during fallback and cleared afterward. All 35
 native suites and `./dbt build relwithdebinfo` pass. Note-on recording is now the
 remaining pair of clone callers without explicit error handling. Object lifetime
 inside clone/row/sound callbacks remains open.
+
+### G1 / R5 progress — note-on clone failure and caller migration (2026-10-10)
+
+Melodic and kit note-on handling now skip recording when arrangement cloning
+fails while preserving audition and note-off delivery. Four production-body
+regressions cover failures without original-note edits/history acquisition,
+successful clone recording, existing arrangement clips and nonrecording input.
+All 35 native suites and `./dbt build relwithdebinfo` pass. A source audit confirms
+all nine production call sites now request/check the clone error result (MIDI
+Follow, encoder lookup, melodic note/parameter/expression, kit note, drum
+expression, learned CC and learned pitch bend). **Caller error-result migration
+is complete**, but failures ignored inside the clone operation, partial instance
+edits, clone ownership and callback lifetime still keep R5/L1 open.

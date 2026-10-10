@@ -1458,12 +1458,16 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 		// Firstly, if recording session to arranger...
 		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 
-			instrumentClip->possiblyCloneForArrangementRecording(modelStack);
-
-			instrumentClip = (InstrumentClip*)modelStack->getTimelineCounter(); // Re-get it, cos it might have changed
-
-			if (instrumentClip->isArrangementOnlyClip()) {
-				shouldRecordNoteOn = true;
+			Error clone_error = Error::NONE;
+			instrumentClip->possiblyCloneForArrangementRecording(modelStack, &clone_error);
+			if (clone_error != Error::NONE) {
+				shouldRecordNoteOn = false;
+			}
+			else {
+				instrumentClip = (InstrumentClip*)modelStack->getTimelineCounter(); // Re-get after cloning.
+				if (instrumentClip->isArrangementOnlyClip()) {
+					shouldRecordNoteOn = true;
+				}
 			}
 		}
 

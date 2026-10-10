@@ -619,3 +619,14 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recordi
         ${midi_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc MelodicInstrument::polyphonicExpressionEventPossiblyToRecord
     DEPENDS ${midi_parameter_input_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE expression_recording_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/drum_expression_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc)
+
+set(kit_note_recording_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/kit.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc MelodicInstrument::receivedNote
+    DEPENDS ${midi_parameter_input_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_note_recording_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc Kit::receivedNoteForDrum
+    DEPENDS ${kit_note_recording_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE note_recording_clone_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc)
