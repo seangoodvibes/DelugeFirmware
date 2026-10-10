@@ -3166,3 +3166,13 @@ before the fix. All 38 suites and the RelWithDebInfo build pass. Multi-control
 release sweeps and the outer physical-input continuation still need auditing;
 this is single-event cancellation, not complete held-input recovery. Independent
 mode stays disabled.
+
+Loaded-song UI setup now validates the current song's lifetime and initiating
+panel/UI around lazy view access, root installation and opening. Cancelled root
+installation cannot open the previous UI, and invalidated opening cannot queue a
+redraw. Six regressions use the real setup/navigation methods with fixtures for
+all six root choices, same-address reuse, failed resolution, owner/UI/client
+changes and null/retired/noncurrent entry. Three failed before the fix. All 38
+suites and the RelWithDebInfo build pass. The caller's broader load/clear transaction
+and already-published root recovery remain separate concerns. Independent mode
+stays disabled.

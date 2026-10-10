@@ -11,7 +11,23 @@ namespace ui_open_test {
 namespace deluge {
 namespace lifetime = ::deluge::lifetime;
 }
+enum class ClipType { INSTRUMENT, AUDIO };
+struct Clip {
+	ClipType type = ClipType::INSTRUMENT;
+	bool automation = false;
+	bool on_automation_clip_view_for_session() { return automation; }
+};
+struct InstrumentClip : Clip {
+	bool keyboard = false;
+	bool on_keyboard_screen_for_session() { return keyboard; }
+};
 struct Song {
+	Clip* clip = nullptr;
+	bool inClipMinderViewOnLoad = false;
+	int32_t last_instance = -1;
+	Clip* getCurrentClip() { return clip; }
+	int32_t last_clip_instance_entered_start_pos_for_session() { return last_instance; }
+
 	::deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return ::deluge::lifetime::lifetime_watch(lifetime); }
 };
@@ -174,6 +190,7 @@ static int uartGetTxBufferSpace(int) {
 	++uart_queries;
 	return uart_space;
 }
+namespace hid = deluge::hid;
 namespace deluge::hid::mirror {
 static bool is_client() {
 	return client_mode;
@@ -183,13 +200,38 @@ namespace deluge::modulation::automation {
 static uint64_t parameter_revision = 0;
 }
 static UI overview_ui, arranger_ui;
+static UI instrument_ui, automation_ui, keyboard_ui, audio_ui;
+static std::function<void()> on_view_access;
+static UI& instrument_clip_view_for_session() {
+	if (on_view_access)
+		on_view_access();
+	return instrument_ui;
+}
+static UI& automation_view_for_session() {
+	if (on_view_access)
+		on_view_access();
+	return automation_ui;
+}
+static UI& keyboard_screen_for_session() {
+	if (on_view_access)
+		on_view_access();
+	return keyboard_ui;
+}
+static UI& audio_clip_view_for_session() {
+	if (on_view_access)
+		on_view_access();
+	return audio_ui;
+}
+
 static UI& session_view_for_session() {
 	return overview_ui;
 }
 static UI& arranger_view_for_session() {
 	return arranger_ui;
 }
+void setRootUILowLevel(UI*);
 void uiNeedsRendering(UI*, uint32_t = 0xffffffff, uint32_t = 0xffffffff);
+#include "loaded_song_ui.inc"
 #include "ui_open.inc"
 namespace greyout_effects {
 static session::State<uint32_t> cols, rows, start_time;
@@ -234,6 +276,14 @@ TEST_GROUP(UIOpen) {
 		session::detail::active = session::Id::Local;
 		navigation_states = {};
 		currentSong = &song;
+		song.clip = nullptr;
+		song.inClipMinderViewOnLoad = false;
+		song.last_instance = -1;
+		instrument_ui = {};
+		automation_ui = {};
+		keyboard_ui = {};
+		audio_ui = {};
+		on_view_access = {};
 		greyout_effects::cols = {};
 		greyout_effects::rows = {};
 		greyout_effects::direction = {};
@@ -247,6 +297,8 @@ TEST_GROUP(UIOpen) {
 		ui_open_test::deluge::modulation::automation::parameter_revision = 0;
 		overview_ui = {};
 		arranger_ui = {};
+		for (auto* target : {&overview_ui, &arranger_ui, &instrument_ui, &automation_ui, &keyboard_ui, &audio_ui})
+			target->redirected = target;
 		redraws = {};
 		OLED::sends = {};
 		OLED::clears = {};
@@ -266,6 +318,8 @@ TEST_GROUP(UIOpen) {
 		}
 	}
 	void teardown() override {
+		on_view_access = {};
+		song.clip = nullptr;
 		currentSong = &song;
 		PadLEDs::on_greyout = {};
 		PadLEDs::on_main_send = {};
@@ -1449,4 +1503,109 @@ TEST(UIOpen, no_song_context_can_query_and_render) {
 	LONGS_EQUAL(1, PadLEDs::side_sends.active());
 	LONGS_EQUAL(1, OLED::sends.active());
 	CHECK_FALSE(navigation().oled_dirty);
+}
+
+TEST(UIOpen, loaded_song_root_setup_cancellation_does_not_open_old_or_replacement_ui) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int boundary = 0; boundary < 3; ++boundary) {
+			navigation().depth = 1;
+			navigation().hierarchy[0] = &root;
+			overview_ui = {};
+			overview_ui.redirected = &overview_ui;
+			PadLEDs::on_greyout = {};
+			if (boundary == 0)
+				overview_ui.redirected = nullptr;
+			else if (boundary == 1)
+				overview_ui.on_resolve = [] {
+					song.~Song();
+					new (&song) Song;
+				};
+			else
+				PadLEDs::on_greyout = [] {
+					song.~Song();
+					new (&song) Song;
+				};
+			setUIForLoadedSong(&song);
+			LONGS_EQUAL(0, root.opens);
+			LONGS_EQUAL(0, overview_ui.opens);
+			LONGS_EQUAL(0, redraws.active());
+		}
+	}
+}
+
+TEST(UIOpen, loaded_song_open_invalidation_does_not_schedule_redraw) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int invalidation = 0; invalidation < 3; ++invalidation) {
+			overview_ui.on_open = [=, this] {
+				if (invalidation == 0) {
+					song.~Song();
+					new (&song) Song;
+				}
+				else if (invalidation == 1)
+					navigation().hierarchy[0] = &replacement;
+				else
+					session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+			};
+			setUIForLoadedSong(&song);
+			CHECK(session::current() == owner);
+			LONGS_EQUAL(0, redraws.for_owner(session::Id::Local));
+			LONGS_EQUAL(0, redraws.for_owner(session::Id::Remote));
+		}
+	}
+}
+
+TEST(UIOpen, loaded_song_view_construction_song_reuse_does_not_install_root) {
+	InstrumentClip clip;
+	song.clip = &clip;
+	song.inClipMinderViewOnLoad = true;
+	on_view_access = [] {
+		song.~Song();
+		new (&song) Song;
+	};
+	setUIForLoadedSong(&song);
+	POINTERS_EQUAL(&root, getCurrentUI());
+	LONGS_EQUAL(0, instrument_ui.opens);
+}
+
+TEST(UIOpen, loaded_song_selects_and_opens_each_supported_root) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int selection = 0; selection < 6; ++selection) {
+			InstrumentClip clip;
+			song.clip = selection < 4 ? &clip : nullptr;
+			song.inClipMinderViewOnLoad = true;
+			song.last_instance = selection == 4 ? 0 : -1;
+			clip.automation = selection == 0;
+			clip.keyboard = selection == 1;
+			clip.type = selection == 3 ? ClipType::AUDIO : ClipType::INSTRUMENT;
+			ui_open_test::UI* targets[] = {&automation_ui, &keyboard_ui, &instrument_ui,
+			                               &audio_ui,      &arranger_ui, &overview_ui};
+			auto* target = targets[selection];
+			const int previous_opens = target->opens;
+			setUIForLoadedSong(&song);
+			POINTERS_EQUAL(target, getCurrentUI());
+			LONGS_EQUAL(previous_opens + 1, target->opens);
+		}
+	}
+}
+
+TEST(UIOpen, loaded_song_rejects_null_retired_and_noncurrent_song) {
+	Song other_song;
+	setUIForLoadedSong(nullptr);
+	setUIForLoadedSong(&other_song);
+	other_song.lifetime.retire();
+	currentSong = &other_song;
+	setUIForLoadedSong(&other_song);
+	POINTERS_EQUAL(&root, getCurrentUI());
+	LONGS_EQUAL(0, overview_ui.opens);
+	LONGS_EQUAL(0, redraws.active());
+}
+
+TEST(UIOpen, loaded_song_client_takeover_during_open_skips_redraw) {
+	overview_ui.on_open = [] { client_mode = true; };
+	setUIForLoadedSong(&song);
+	LONGS_EQUAL(1, overview_ui.opens);
+	LONGS_EQUAL(0, redraws.active());
 }

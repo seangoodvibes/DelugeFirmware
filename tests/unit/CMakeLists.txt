@@ -1137,3 +1137,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/global_midi_command_lifeti
         ${playback_midi_dispatch_source} ${CMAKE_CURRENT_BINARY_DIR}/global_midi_command_lifetime.inc PlaybackHandler::tryGlobalMIDICommands
     DEPENDS ${playback_midi_dispatch_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE global_midi_command_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/global_midi_command_lifetime.inc)
+
+set(loaded_song_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/deluge.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/loaded_song_ui.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${loaded_song_source} ${CMAKE_CURRENT_BINARY_DIR}/loaded_song_ui.inc setUIForLoadedSong
+    DEPENDS ${loaded_song_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/loaded_song_ui.inc)

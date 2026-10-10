@@ -347,6 +347,19 @@ void readButtonsAndPadsOnce() {
 
 void setUIForLoadedSong(Song* song) {
 
+	if (!song || currentSong != song)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto song_watch = song->watch_lifetime();
+	auto* const source_ui = getCurrentUI();
+	const auto context_valid = [&](UI* expected_ui) {
+		return song_watch.alive() && currentSong == song && deluge::gui::ui_session::current() == source_owner
+		       && getCurrentUI() == expected_ui && !hid::mirror::is_client();
+	};
+	if (!context_valid(source_ui))
+		return;
+
 	UI* newUI;
 	Clip* currentClip = song->getCurrentClip();
 	// If in a Clip-minder view
@@ -377,9 +390,15 @@ void setUIForLoadedSong(Song* song) {
 		}
 	}
 
+	if (!context_valid(source_ui))
+		return;
 	setRootUILowLevel(newUI);
+	if (!context_valid(newUI))
+		return;
 
-	getCurrentUI()->opened();
+	newUI->opened();
+	if (!context_valid(newUI))
+		return;
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
