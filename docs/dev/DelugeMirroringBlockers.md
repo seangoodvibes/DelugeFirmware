@@ -917,3 +917,14 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime,
   reclamation and same-address reuse remain unproven; G1/L1 stay open and
   independent mode remains disabled.
+
+### G1 / R4 progress — deferred new-clip pad input (2026-10-09)
+
+- New Clip Type preserves its menu when Session View defers pad input outside the
+  SD routine. The retry can return to the same menu instead of a prematurely
+  closed UI; successful handling retains the existing transition and closure.
+- A regression failed before the fix and now exercises deferral and successful
+  retry on both owners. It compiles the production input methods; Session View
+  result delivery and UI closure are fixtures, not hardware replay validation.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 remain open and
+  independent mode remains disabled.

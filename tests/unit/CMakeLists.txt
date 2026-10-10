@@ -420,3 +420,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/community_settings_reset.i
         ${community_reset_source} ${CMAKE_CURRENT_BINARY_DIR}/community_settings_reset.inc RuntimeFeatureSettings::factoryReset
     DEPENDS ${community_reset_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/community_settings_reset.inc)
+
+set(new_clip_type_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/context_menu/clip_settings/new_clip_type.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/new_clip_type_input.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${new_clip_type_source} ${CMAKE_CURRENT_BINARY_DIR}/new_clip_type_input.inc
+        NewClipType::acceptCurrentOption NewClipType::padAction NewClipType::buttonAction
+    DEPENDS ${new_clip_type_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE new_clip_type_input_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/new_clip_type_input.inc)

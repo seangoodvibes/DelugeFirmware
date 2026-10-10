@@ -156,6 +156,8 @@ bool NewClipType::acceptCurrentOption() {
 }
 ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
 	ActionResult result = session_view_for_session().padAction(x, y, on); // let the grid handle this
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+		return result;
 
 	display->setNextTransitionDirection(-1);
 	close();
