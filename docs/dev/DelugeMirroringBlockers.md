@@ -649,3 +649,15 @@ side effects are not provided by these guards.
   resumed graphics. This protects dispatch boundaries, not retained objects inside
   callbacks. G1/L1 remain open and independent mode remains disabled.
 - Validation: all 35 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — deferred timer wraparound regression coverage (2026-10-09)
+
+- Two additional production-dispatch tests verify distinct Local/Remote deadlines
+  across sample-clock wrap, exact-deadline behavior and a Remote timer deferred
+  without navigation then serviced after wrap. Servicing Remote leaves the Local
+  deadline intact. All 35 native CTest suites pass; this piece changes tests only.
+- The fixtures service each empty bank at their simulated start time. A separate
+  remaining timing audit is needed for banks left unserviced for more than half
+  the 32-bit clock range: a stale cached next-event deadline can then compare as
+  future. These tests do not establish safety for that interval. G1 remains open;
+  independent mode stays disabled.

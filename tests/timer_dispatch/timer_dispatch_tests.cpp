@@ -317,6 +317,63 @@ TEST(TimerDispatch, local_callback_closing_navigation_preserves_hardware_service
 	CHECK_FALSE(manager.isTimerSet(TimerName::BACK_MENU_EXIT));
 	CHECK(manager.isTimerSet(TimerName::GRAPHICS_ROUTINE));
 }
+TEST(TimerDispatch, deadlines_across_clock_wrap_stay_with_their_panel) {
+	AudioEngine::audioSampleTimer = UINT32_MAX - 10;
+	manager.routine(); // Service the empty bank at the simulated pre-wrap time.
+	manager.setTimerSamples(TimerName::OLED_CONSOLE, 5);
+	{
+		session::Scope owner(session::Id::Remote);
+		manager.routine(); // Service the empty bank at the simulated pre-wrap time.
+		manager.setTimerSamples(TimerName::OLED_CONSOLE, 20);
+	}
+	AudioEngine::audioSampleTimer = UINT32_MAX - 5;
+	manager.routine();
+	LONGS_EQUAL(0, console_calls);
+	++AudioEngine::audioSampleTimer;
+	manager.routine();
+	LONGS_EQUAL(1, console_calls);
+	{
+		session::Scope owner(session::Id::Remote);
+		manager.routine();
+		LONGS_EQUAL(1, console_calls);
+		CHECK(manager.isTimerSet(TimerName::OLED_CONSOLE));
+		AudioEngine::audioSampleTimer = 9;
+		manager.routine();
+		LONGS_EQUAL(1, console_calls);
+		AudioEngine::audioSampleTimer = 10;
+		manager.routine();
+		LONGS_EQUAL(2, console_calls);
+		CHECK_FALSE(manager.isTimerSet(TimerName::OLED_CONSOLE));
+	}
+	manager.routine();
+	LONGS_EQUAL(2, console_calls);
+}
+TEST(TimerDispatch, deferred_remote_timer_survives_clock_wrap_without_rearming_local_timer) {
+	AudioEngine::audioSampleTimer = UINT32_MAX - 10;
+	manager.routine(); // Service the empty bank at the simulated pre-wrap time.
+	manager.setTimerSamples(TimerName::OLED_CONSOLE, 30);
+	{
+		session::Scope owner(session::Id::Remote);
+		manager.routine(); // Service the empty bank at the simulated pre-wrap time.
+		manager.setTimerSamples(TimerName::OLED_CONSOLE, 5);
+		current_uis.active() = nullptr;
+		AudioEngine::audioSampleTimer = UINT32_MAX - 4;
+		manager.routine();
+		CHECK(manager.isTimerSet(TimerName::OLED_CONSOLE));
+		LONGS_EQUAL(UINT32_MAX - 5, manager.getTimer(TimerName::OLED_CONSOLE).triggerTime);
+		AudioEngine::audioSampleTimer = 0;
+		current_uis.active() = &ui;
+		manager.routine();
+		LONGS_EQUAL(1, console_calls);
+		CHECK_FALSE(manager.isTimerSet(TimerName::OLED_CONSOLE));
+	}
+	manager.routine();
+	LONGS_EQUAL(1, console_calls);
+	LONGS_EQUAL(19, manager.getTimer(TimerName::OLED_CONSOLE).triggerTime);
+	AudioEngine::audioSampleTimer = 20;
+	manager.routine();
+	LONGS_EQUAL(2, console_calls);
+}
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);
 }

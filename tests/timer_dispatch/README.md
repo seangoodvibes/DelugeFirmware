@@ -17,3 +17,8 @@ pin and does not detect destruction followed by same-address replacement.
 Local navigation-loss cases cover UI-specific, exit, root-note flash and graphics
 callbacks. Hardware input servicing continues, expired one-shot callbacks are
 consumed, and periodic graphics service resumes when navigation returns.
+
+Wraparound cases service both empty banks at the simulated starting time, then
+check exact-deadline behavior, distinct panel deadlines and Remote deferral across
+UINT32 wrap. They do not simulate an unserviced bank idle for more than half the
+32-bit clock range; signed deadline comparisons require a separate audit there.
