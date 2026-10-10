@@ -1303,3 +1303,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multisample_folder_import.
         ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/multisample_folder_import.inc SampleBrowser::importFolderAsMultisamples
     DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/multisample_folder_import.inc)
+
+set(sample_pitch_tuning_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/sample/sample_holder_for_voice.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sample_pitch_tuning.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sample_pitch_tuning_source} ${CMAKE_CURRENT_BINARY_DIR}/sample_pitch_tuning.inc SampleHolderForVoice::setTransposeAccordingToSamplePitch
+    DEPENDS ${sample_pitch_tuning_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sample_pitch_tuning_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sample_pitch_tuning.inc)

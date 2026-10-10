@@ -3475,3 +3475,11 @@ Five regressions cover clip/output changes, missing clip entry and both navigati
 side effects; the two navigation cases fail against the previous function. All
 38 suites and RelWithDebInfo pass. Inner folder loading and broader post-commit
 parameter recovery remain open; independent mode stays disabled.
+
+Sample tuning now accepts the single-note range's MIDI note as an integer rather
+than bool. Notes above zero previously collapsed to 1, preventing the intended
+small-detuning correction at their actual note. Five extracted-production tuning
+regressions cover matching/different notes, tolerance, octave minimization and
+invalid pitch; the matching-note case fails before the type fix. All 38 suites
+and RelWithDebInfo pass. This is an upstream-relevant tuning correction, separate
+from import lifetime/recovery and shared pitch-metadata handling.
