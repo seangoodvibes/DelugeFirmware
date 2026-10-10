@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_session.h"
+#include <functional>
 namespace midi_follow_context_test {
 namespace session = deluge::gui::ui_session;
 struct Clip;
@@ -51,8 +52,20 @@ struct song_fixture {
 };
 static song_fixture song;
 static song_fixture* currentSong = &song;
+struct ModelStack {};
+static std::function<void()> on_activation;
+static int activation_calls = 0;
+struct InstrumentClipMinder {
+	static bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack*) {
+		++activation_calls;
+		if (on_activation)
+			on_activation();
+		return true;
+	}
+};
 struct MidiFollow {
 	Clip* getSelectedClip();
+	Clip* getActiveClip(ModelStack*);
 	const size_t getTrackCount() const;
 	Output* getTrackFromIndex(uint32_t, uint32_t);
 	Clip* getSelectedOrActiveClip();
@@ -68,6 +81,8 @@ TEST_GROUP(MidiFollowContext) {
 	Clip audio;
 	void setup() override {
 		session::detail::active = session::Id::Local;
+		on_activation = {};
+		activation_calls = 0;
 		current_clips = {};
 		selected_clips = {};
 		arranger_clips = {};
@@ -81,6 +96,7 @@ TEST_GROUP(MidiFollowContext) {
 		audio.output = &output;
 	}
 	void teardown() override {
+		on_activation = {};
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -210,4 +226,57 @@ TEST(MidiFollowContext, track_lookup_reverses_active_outputs_and_skips_inactive_
 	POINTERS_EQUAL(&output, follow.getTrackFromIndex(1, 2));
 	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(2, 2));
 	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(UINT32_MAX, 2));
+}
+
+TEST(MidiFollowContext, activation_cannot_return_target_after_song_replacement) {
+	ModelStack stack;
+	current_clips.active() = &instrument;
+	output.active_clip = &instrument;
+	on_activation = [] { currentSong = nullptr; };
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+}
+TEST(MidiFollowContext, activation_owner_change_restores_panel_without_target) {
+	ModelStack stack;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		current_clips.active() = &instrument;
+		output.active_clip = &instrument;
+		on_activation = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+		CHECK(session::current() == owner);
+	}
+}
+TEST(MidiFollowContext, activation_rejects_replaced_clip_or_output) {
+	ModelStack stack;
+	Output replacement;
+	replacement.active_clip = &audio;
+	for (bool replace_output : {false, true}) {
+		current_clips.active() = &instrument;
+		instrument.output = &output;
+		output.active_clip = &instrument;
+		on_activation = [&] {
+			if (replace_output)
+				instrument.output = &replacement;
+			else
+				current_clips.active() = &audio;
+		};
+		POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	}
+}
+TEST(MidiFollowContext, activation_requires_targets_and_returns_normal_active_clip) {
+	ModelStack stack;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	current_clips.active() = &audio;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	current_clips.active() = &instrument;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(nullptr));
+	instrument.output = nullptr;
+	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
+	LONGS_EQUAL(0, activation_calls);
+	instrument.output = &output;
+	output.active_clip = &instrument;
+	POINTERS_EQUAL(&instrument, follow.getActiveClip(&stack));
+	LONGS_EQUAL(1, activation_calls);
 }

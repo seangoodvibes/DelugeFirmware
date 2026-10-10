@@ -1680,3 +1680,14 @@ and reverse ordering while skipping inactive outputs. All 35 native suites and
 `./dbt build relwithdebinfo` pass. The output list/activity are fixtures; this does
 not establish lifetime protection during shared output mutations or two-device
 acceptance. Independent mode remains disabled.
+
+### G1 / R4 progress — MIDI activation follow-up context (2026-10-10)
+
+MIDI Follow now validates model-stack availability and captures the source panel,
+song, clip and output before asking the clip minder to activate an instrument.
+It rejects changed contexts before resolving the active clip and restores panel
+scope. Four extracted-production tests cover the reproduced song-change result,
+both owners, clip/output replacement, missing targets and normal activation.
+All 35 native suites and `./dbt build relwithdebinfo` pass. The activation callback
+is a fixture here; identity checks do not retain objects, detect address reuse or
+roll back activation already performed. Independent mode remains disabled.

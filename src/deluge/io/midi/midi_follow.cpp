@@ -18,6 +18,7 @@
 #include "io/midi/midi_follow.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/ui_session.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -455,17 +456,19 @@ Clip* MidiFollow::getSelectedClip() {
 /// special case for note and performance data where you want to let notes,
 /// midi modulation sources (e.g. mod wheel), and MPE through to the active clip
 Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
-	// If you have an output for which no clip is active,
-	// when auditioning a clip for that output,
-	// the active clip for that output should be set to the current clip.
-	Clip* currentClip = getCurrentClip();
-	if (currentClip && (currentClip->type == ClipType::INSTRUMENT)) {
-		if (currentClip->output) {
-			InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-			return currentClip->output->getActiveClip();
-		}
-	}
-	return nullptr;
+	auto* const source_clip = getCurrentClip();
+	if (!modelStack || !source_clip || source_clip->type != ClipType::INSTRUMENT || !source_clip->output)
+		return nullptr;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_output = source_clip->output;
+	// Auditioning may activate this clip when its output is available.
+	InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song
+	    || getCurrentClip() != source_clip || source_clip->output != source_output)
+		return nullptr;
+	return source_output->getActiveClip();
 }
 
 /// used to forward midi messages to specific tracks
