@@ -1537,3 +1537,13 @@ preservation when a clip is selected, disabling the meter and render-lock cleanu
 All 35 native suites and `./dbt build relwithdebinfo` pass. Meter level calculation
 and pixel rendering are fixtures here; this coverage establishes selection and
 control flow, not hardware output or general callback lifetime safety.
+
+### G1 / R4 progress — incomplete MIDI feedback parameter mappings (2026-10-10)
+
+View MIDI feedback now rejects a supplied automation parameter without its
+parameter collection, instead of dereferencing the missing collection. Four
+extracted-production tests cover partial mappings on both owners, valid CC/value
+routing, disabled/song/unmapped cases and the existing no-parameter fallback.
+All 35 native suites and `./dbt build relwithdebinfo` pass. MIDI transport is a
+fixture in these tests; they do not establish physical cable filtering or lifetime
+retention. Independent mode remains disabled.

@@ -523,3 +523,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mod_led.inc
         ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/mod_led.inc View::setModLedStates
     DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE mod_led_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/mod_led.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc View::sendMidiFollowFeedback
+    DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE midi_feedback_view_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc)

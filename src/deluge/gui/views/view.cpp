@@ -1784,6 +1784,8 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		// check if we're dealing with a clip context param (don't send feedback for song params)
 		if (isClipContext()) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				if (!modelStackWithParam->paramCollection)
+					return;
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
 				if (ccNumber != MIDI_CC_NONE) {
