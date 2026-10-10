@@ -1045,3 +1045,15 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Callback lifetime and
   full UI-stack recovery remain outside this change; G1/R4 remain open and
   independent mode stays disabled.
+
+### G1 / R4 progress — rename submission closure routing (2026-10-09)
+
+- After a successful rename callback, the shared dialog verifies that its panel
+  owner and current UI still match before calling exitUI. Changed context no
+  longer closes a replacement UI or exits on the other panel.
+- Four extracted-production cases cover changed UI on both owners, changed owner,
+  success/failure closure on Remote without Local closure, and prohibited empty
+  input. The two callback-change cases failed before the fix. Commit callbacks and
+  UI closure are fixtures; actual UI-stack recovery and lifetime are not proved.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4 remain open and
+  independent mode stays disabled.

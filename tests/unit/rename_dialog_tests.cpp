@@ -103,3 +103,34 @@ TEST(RenameDialog, unavailable_or_failed_base_open_does_not_draw) {
 	LONGS_EQUAL(0, panels.active().draws);
 	LONGS_EQUAL(0, panels.active().keys);
 }
+TEST(RenameDialog, changed_ui_during_commit_does_not_exit) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		menu.on_commit = [] { panels.active().current_ui = nullptr; };
+		menu.enterKeyPress();
+		LONGS_EQUAL(1, panels.active().commits);
+		LONGS_EQUAL(0, panels.active().exits);
+	}
+}
+TEST(RenameDialog, changed_owner_during_commit_does_not_exit_either_panel) {
+	menu.on_commit = [] { session::detail::active = session::Id::Remote; };
+	menu.enterKeyPress();
+	LONGS_EQUAL(0, panels.for_owner(session::Id::Local).exits);
+	LONGS_EQUAL(0, panels.for_owner(session::Id::Remote).exits);
+}
+TEST(RenameDialog, only_successful_commit_exits_the_initiating_panel) {
+	session::Scope scope(session::Id::Remote);
+	menu.commit_result = false;
+	menu.enterKeyPress();
+	LONGS_EQUAL(0, panels.active().exits);
+	menu.commit_result = true;
+	menu.enterKeyPress();
+	LONGS_EQUAL(1, panels.active().exits);
+	LONGS_EQUAL(0, panels.for_owner(session::Id::Local).exits);
+}
+TEST(RenameDialog, prohibited_empty_name_does_not_commit_or_exit) {
+	menu.allow_empty = false;
+	menu.enterKeyPress();
+	LONGS_EQUAL(0, panels.active().commits);
+	LONGS_EQUAL(0, panels.active().exits);
+}

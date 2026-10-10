@@ -49,7 +49,9 @@ void RenameUI::enterKeyPress() {
 	if (entered_text_for_session().isEmpty() && !allowEmpty()) {
 		return;
 	}
-	if (trySetName(entered_text_for_session().get())) {
+	const auto source_owner = deluge::gui::ui_session::current();
+	if (trySetName(entered_text_for_session().get()) && deluge::gui::ui_session::current() == source_owner
+	    && getCurrentUI() == this) {
 		exitUI();
 	}
 }
