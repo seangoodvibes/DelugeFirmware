@@ -1691,3 +1691,15 @@ both owners, clip/output replacement, missing targets and normal activation.
 All 35 native suites and `./dbt build relwithdebinfo` pass. The activation callback
 is a fixture here; identity checks do not retain objects, detect address reuse or
 roll back activation already performed. Independent mode remains disabled.
+
+### G1 / R4 progress — clip-minder activation context (2026-10-10)
+
+The shared clip activation helper now checks inputs, preserves panel scope and
+validates song, selection, output and playback mode across output-availability and
+activation calls. It reports success only if the clip is active after completion.
+Six extracted-production tests cover missing/unavailable inputs, successful and
+already-active cases, declined activation, song/owner changes and selection,
+output or playback replacement at both boundaries. All 35 native suites and
+`./dbt build relwithdebinfo` pass. Playback and output callbacks are fixtures;
+checks do not retain objects or roll back activation already applied. Lifetime
+and recovery blockers remain open, and independent mode stays disabled.

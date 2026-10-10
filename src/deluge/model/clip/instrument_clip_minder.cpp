@@ -28,6 +28,7 @@
 #include "gui/ui/save/save_midi_device_definition_ui.h"
 #include "gui/ui/save/save_pattern_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui_session.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -609,14 +610,23 @@ void InstrumentClipMinder::displayCurrentScaleName() {
 
 // Returns whether currentClip is now active on Output / Instrument
 bool InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack) {
-	bool clipIsActiveOnInstrument = (getCurrentInstrumentClip()->isActiveOnOutput());
-
-	if (!clipIsActiveOnInstrument) {
-		if (currentPlaybackMode->isOutputAvailable(getCurrentOutput())) {
-			getCurrentOutput()->setActiveClip(modelStack->addTimelineCounter(getCurrentInstrumentClip()));
-			clipIsActiveOnInstrument = true;
-		}
-	}
-
-	return clipIsActiveOnInstrument;
+	auto* const source_clip = getCurrentClip();
+	if (!modelStack || !source_clip || source_clip->type != ClipType::INSTRUMENT || !source_clip->output)
+		return false;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_output = source_clip->output;
+	auto* const source_playback = currentPlaybackMode;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && getCurrentClip() == source_clip && source_clip->output == source_output
+		       && currentPlaybackMode == source_playback;
+	};
+	if (source_clip->isActiveOnOutput())
+		return true;
+	if (!source_playback || !source_playback->isOutputAvailable(source_output) || !context_matches())
+		return false;
+	source_output->setActiveClip(modelStack->addTimelineCounter(source_clip));
+	return context_matches() && source_clip->isActiveOnOutput();
 }

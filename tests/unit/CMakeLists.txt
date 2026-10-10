@@ -549,3 +549,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc
         ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc MidiFollow::isGlobalEffectableContext MidiFollow::getSelectedOrActiveClip MidiFollow::getSelectedClip MidiFollow::getTrackCount MidiFollow::getTrackFromIndex MidiFollow::getActiveClip
     DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_follow_context_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc)
+
+set(clip_activation_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/instrument_clip_minder.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_activation.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${clip_activation_source} ${CMAKE_CURRENT_BINARY_DIR}/clip_activation.inc InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible
+    DEPENDS ${clip_activation_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE clip_activation_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/clip_activation.inc)
