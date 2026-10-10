@@ -2561,3 +2561,12 @@ change. All 36 native suites and `./dbt build relwithdebinfo` pass. Acquisition
 still assumes the render list contains live pointers; changes deeper in a list,
 parameter-collection identity and callback internals remain open. Timing overhead
 still needs hardware measurement.
+
+Inner kit rendering now rejects missing backup parameters and revalidates the
+rendered row identity/drum mapping or backup-manager association after sound
+rendering. Parameter ticking also detects row drum reassignment. Four sanitizer
+regressions cover row deletion, missing/deleted backup managers and reassignment.
+The test fixture resets backup association between cases. All 36 native suites
+and `./dbt build relwithdebinfo` pass. These are boundary checks, not protection
+inside sound rendering or collection ticking; same-address backup replacement
+still needs identity tracking.

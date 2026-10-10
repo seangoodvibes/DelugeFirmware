@@ -649,6 +649,11 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 			drumParamManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL);
 		}
 
+		if (!drumParamManager) {
+			return rendered;
+		}
+		const auto row_identity = thisNoteRow ? thisNoteRow->undo_identity : 0;
+
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(note_row_index, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
@@ -657,6 +662,16 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
 		if (!traversal_matches()) {
+			return rendered;
+		}
+		if (routed_clip) {
+			auto* current_row = static_cast<InstrumentClip*>(routed_clip)->find_note_row_from_id(note_row_index);
+			if (current_row != thisNoteRow || !current_row || current_row->undo_identity != row_identity
+			    || current_row->drum != thisDrum) {
+				return rendered;
+			}
+		}
+		else if (source_song->getBackedUpParamManagerPreferablyWithClip(soundDrum, nullptr) != drumParamManager) {
 			return rendered;
 		}
 	}
@@ -692,13 +707,15 @@ yesTickParamManager:
 					        ->addOtherTwoThings((SoundDrum*)thisNoteRow->drum, &thisNoteRow->paramManager);
 					const auto row_identity = thisNoteRow->undo_identity;
 					const auto row_count = noteRows->getNumElements();
-					auto drum_lifetime = thisNoteRow->drum->watch_lifetime();
+					auto* routed_drum = thisNoteRow->drum;
+					auto drum_lifetime = routed_drum->watch_lifetime();
 					if (!drum_lifetime.alive()) {
 						return rendered;
 					}
 					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
 					if (!context_matches() || !drum_lifetime.alive() || noteRows->getNumElements() != row_count
-					    || noteRows->getElement(i) != thisNoteRow || thisNoteRow->undo_identity != row_identity) {
+					    || noteRows->getElement(i) != thisNoteRow || thisNoteRow->undo_identity != row_identity
+					    || thisNoteRow->drum != routed_drum) {
 						return rendered;
 					}
 					continue;

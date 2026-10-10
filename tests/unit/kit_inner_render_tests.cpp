@@ -52,6 +52,9 @@ struct InstrumentClip {
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	Kit* output = nullptr;
 	NoteRowVector noteRows;
+	NoteRow* find_note_row_from_id(int index) {
+		return index >= 0 && index < noteRows.getNumElements() ? noteRows.getElement(index) : nullptr;
+	}
 	NoteRow* getNoteRowForDrum(Drum* drum, int* index) {
 		for (int i = 0; i < noteRows.getNumElements(); ++i) {
 			if (noteRows.getElement(i)->drum == drum) {
@@ -76,7 +79,8 @@ struct SoundDrum : Drum {
 	}
 };
 struct Song {
-	ParamManager* getBackedUpParamManagerPreferablyWithClip(SoundDrum*, void*) { return &backup; }
+	ParamManager* backup_manager = &backup;
+	ParamManager* getBackedUpParamManagerPreferablyWithClip(SoundDrum*, void*) { return backup_manager; }
 } song;
 Song* currentSong = &song;
 struct ModelStackWithTimelineCounter {
@@ -117,6 +121,7 @@ on_render = {};
 on_kill = {};
 on_tick = {};
 currentSong = &song;
+song.backup_manager = &backup;
 }
 void teardown() override {
 	on_render = {};
@@ -285,6 +290,72 @@ TEST(kit_inner_render, same_address_row_identity_change_stops_parameter_iteratio
 	kit.activeClip = &clip;
 	clip.output = &kit;
 	on_tick = [&] { ++row.undo_identity; };
+	ModelStackWithTimelineCounter stack;
+	stack.clip = &clip;
+	StereoSample samples[1];
+	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
+	LONGS_EQUAL(1, tick_calls);
+}
+
+TEST(kit_inner_render, row_deletion_during_sound_render_stops_before_next_drum) {
+	Kit kit;
+	InstrumentClip clip;
+	SoundDrum first, last;
+	NoteRow first_row;
+	auto last_row = std::make_unique<NoteRow>();
+	first_row.drum = &first;
+	last_row->drum = &last;
+	clip.noteRows.rows = {&first_row, last_row.get()};
+	clip.output = &kit;
+	kit.activeClip = &clip;
+	kit.drumsWithRenderingActive.drums = {&first, &last};
+	on_render = [&] {
+		clip.noteRows.rows.pop_back();
+		last_row.reset();
+	};
+	ModelStackWithTimelineCounter stack;
+	stack.clip = &clip;
+	StereoSample samples[1];
+	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
+	LONGS_EQUAL(1, render_calls);
+}
+TEST(kit_inner_render, missing_backup_manager_does_not_render) {
+	Kit kit;
+	SoundDrum drum;
+	kit.drumsWithRenderingActive.drums = {&drum};
+	song.backup_manager = nullptr;
+	ModelStackWithTimelineCounter stack;
+	StereoSample samples[1];
+	CHECK_FALSE(kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, false, 0, 0, 0));
+	LONGS_EQUAL(0, render_calls);
+}
+TEST(kit_inner_render, backup_manager_destruction_cancels_remaining_drums) {
+	Kit kit;
+	SoundDrum first, last;
+	kit.drumsWithRenderingActive.drums = {&first, &last};
+	auto manager = std::make_unique<ParamManager>();
+	song.backup_manager = manager.get();
+	on_render = [&] {
+		song.backup_manager = nullptr;
+		manager.reset();
+	};
+	ModelStackWithTimelineCounter stack;
+	StereoSample samples[1];
+	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, false, 0, 0, 0);
+	LONGS_EQUAL(1, render_calls);
+}
+TEST(kit_inner_render, row_drum_reassignment_stops_parameter_ticks) {
+	Kit kit;
+	InstrumentClip clip;
+	SoundDrum first, replacement;
+	NoteRow row, next;
+	row.drum = next.drum = &first;
+	row.paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+	next.paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+	clip.noteRows.rows = {&row, &next};
+	kit.activeClip = &clip;
+	clip.output = &kit;
+	on_tick = [&] { row.drum = &replacement; };
 	ModelStackWithTimelineCounter stack;
 	stack.clip = &clip;
 	StereoSample samples[1];
