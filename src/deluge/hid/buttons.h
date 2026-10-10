@@ -56,6 +56,7 @@ struct State {
 	bool shiftCurrentlyPressed = false;
 	bool shiftCurrentlyStuck = false;
 	bool shiftHasChangedSinceLastCheck = false;
+	bool shift_led_enabled = false;
 	bool considerShiftReleaseForSticky = false;
 	bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]{};
 };

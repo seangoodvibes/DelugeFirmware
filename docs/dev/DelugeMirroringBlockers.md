@@ -749,3 +749,16 @@ side effects are not provided by these guards.
   were reproduced before their fixes. Physical LED acceptance remains in G2.
 - Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. G1 remains
   open and independent mode stays disabled.
+
+### G1 progress — Shift LED setting transitions without input (2026-10-09)
+
+- Each panel now remembers whether Shift LED feedback was enabled at its last
+  service. A shared setting transition updates that panel's LED even without a
+  new button event: enable reflects the current hold and disable turns it off.
+  Repeated service does not emit redundant updates or alter held-button state.
+- A new production-helper test reproduced the missing enable update and covers
+  both panel banks, disable and repeated service. Startup-reset coverage also
+  checks that Remote feedback state resets without changing Local feedback state.
+- Validation: all 35 native suites and `./dbt build relwithdebinfo` pass. This is
+  service-time synchronization; physical device acceptance remains in G2. G1 stays
+  open and independent mode remains disabled.

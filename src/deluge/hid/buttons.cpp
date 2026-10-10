@@ -300,10 +300,14 @@ bool shiftHasChanged() {
 }
 
 void update_shift_led() {
-	if (shiftHasChanged()
-	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
-		indicator_leds::setLedState(indicator_leds::LED::SHIFT, isShiftButtonPressed());
+	const bool changed = shiftHasChanged();
+	const bool enabled =
+	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On;
+	// A shared setting edit need not generate a button event on either panel.
+	if ((enabled && changed) || enabled != state().shift_led_enabled) {
+		indicator_leds::setLedState(indicator_leds::LED::SHIFT, enabled && isShiftButtonPressed());
 	}
+	state().shift_led_enabled = enabled;
 }
 
 // Correct any misunderstandings

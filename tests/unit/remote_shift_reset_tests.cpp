@@ -43,6 +43,7 @@ TEST(RemoteShiftReset, startup_clears_all_remote_button_holds_and_release_action
 		panel->timeRecordButtonPressed = 101;
 		panel->timeShiftButtonPressed = 202;
 		panel->shiftCurrentlyPressed = panel->shiftCurrentlyStuck = true;
+		panel->shift_led_enabled = true;
 		panel->considerShiftReleaseForSticky = true;
 		for (auto& column : panel->buttonStates)
 			for (auto& pressed : column)
@@ -61,6 +62,7 @@ TEST(RemoteShiftReset, startup_clears_all_remote_button_holds_and_release_action
 	CHECK_FALSE(remote.shiftCurrentlyPressed);
 	CHECK_FALSE(remote.shiftCurrentlyStuck);
 	CHECK_FALSE(remote.considerShiftReleaseForSticky);
+	CHECK_FALSE(remote.shift_led_enabled);
 	CHECK_TRUE(remote.shiftHasChangedSinceLastCheck);
 	for (auto& column : remote.buttonStates)
 		for (auto pressed : column)
@@ -73,6 +75,7 @@ TEST(RemoteShiftReset, startup_clears_all_remote_button_holds_and_release_action
 	CHECK_TRUE(local.shiftCurrentlyPressed);
 	CHECK_TRUE(local.shiftCurrentlyStuck);
 	CHECK_TRUE(local.considerShiftReleaseForSticky);
+	CHECK_TRUE(local.shift_led_enabled);
 	CHECK_FALSE(local.shiftHasChangedSinceLastCheck);
 	for (auto& column : local.buttonStates)
 		for (auto pressed : column)
@@ -176,6 +179,7 @@ void setLedState(LED, bool value) {
 namespace Buttons {
 using ::Buttons::isShiftButtonPressed;
 using ::Buttons::shiftHasChanged;
+using ::Buttons::state;
 #include "shift_led_feedback.inc"
 } // namespace Buttons
 } // namespace shift_feedback_test
@@ -221,4 +225,36 @@ TEST(RemoteShiftReset, disabled_shift_feedback_does_not_write_either_panel_led) 
 		CHECK_FALSE(Buttons::state().shiftHasChangedSinceLastCheck);
 		Buttons::state() = {};
 	}
+}
+
+TEST(RemoteShiftReset, shared_shift_led_setting_changes_apply_without_a_button_event) {
+	namespace feedback = shift_feedback_test;
+	namespace session = deluge::gui::ui_session;
+	Buttons::button_states = {};
+	feedback::indicator_leds::writes = {};
+	feedback::indicator_leds::lit = {};
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		Buttons::state().shiftCurrentlyPressed = true;
+	}
+	feedback::runtimeFeatureSettings.light = 1;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		feedback::Buttons::update_shift_led();
+		CHECK_TRUE(feedback::indicator_leds::lit.active());
+		LONGS_EQUAL(1, feedback::indicator_leds::writes.active());
+		feedback::Buttons::update_shift_led();
+		LONGS_EQUAL(1, feedback::indicator_leds::writes.active());
+	}
+	feedback::runtimeFeatureSettings.light = 0;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		feedback::Buttons::update_shift_led();
+		CHECK_FALSE(feedback::indicator_leds::lit.active());
+		LONGS_EQUAL(2, feedback::indicator_leds::writes.active());
+		CHECK_TRUE(Buttons::state().shiftCurrentlyPressed);
+		feedback::Buttons::update_shift_led();
+		LONGS_EQUAL(2, feedback::indicator_leds::writes.active());
+	}
+	Buttons::button_states = {};
 }
