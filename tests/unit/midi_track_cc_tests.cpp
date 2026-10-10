@@ -456,3 +456,16 @@ TEST(MidiTrackCC, outputless_selected_clip_does_not_dereference_output) {
 	LONGS_EQUAL(1, follow.parameter_calls);
 	LONGS_EQUAL(0, instrument_calls);
 }
+
+TEST(MidiTrackCC, retiring_clip_rejects_selected_and_track_expression) {
+	clip.lifetime_source.retire();
+	for (bool selected : {false, true})
+		send_expression(selected, &stack, &output);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, retiring_output_rejects_selected_and_track_expression) {
+	output.lifetime_source.retire();
+	for (bool selected : {false, true})
+		send_expression(selected, &stack, &output);
+	LONGS_EQUAL(0, instrument_calls);
+}

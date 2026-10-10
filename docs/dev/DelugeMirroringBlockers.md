@@ -2129,3 +2129,10 @@ bodies, covering selective clearing, destructor ordering and reassignment before
 later destruction. All 36 native suites and `./dbt build relwithdebinfo` pass.
 This closes that retained-note acquisition gap; it does not cover other stored
 clip/output references or repair stale song ownership lists.
+
+Pitch-bend and aftertouch dispatch reject retiring clips and outputs for both
+selected and specific-track delivery. Two sanitizer regressions exercise all
+four paths with retiring clip/output targets. All 36 native suites and
+`./dbt build relwithdebinfo` pass. This addresses reentrant dispatch during
+retirement; it does not validate a pointer whose storage was already reclaimed
+before entry or prove safety inside instrument expression callbacks.

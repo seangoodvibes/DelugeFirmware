@@ -1578,7 +1578,15 @@ Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, u
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (clip && clip->output) {
+		if (!clip)
+			return nullptr;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (!clip_lifetime.alive())
+			return nullptr;
+		if (clip->output) {
+			auto output_lifetime = clip->output->watch_lifetime();
+			if (!output_lifetime.alive())
+				return nullptr;
 			selected_track = clip->output;
 
 			// ensure output is a kit or melodic instrument
@@ -1615,11 +1623,17 @@ void MidiFollow::pitchBendReceivedForSpecificTrack(MIDICable& cable, uint8_t cha
 	if (!currentSong || !modelStack || !specific_track)
 		return;
 
+	auto output_lifetime = specific_track->watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
 	MIDIMatchType match = checkMidiFollowMatchForSpecificTrack(cable, channel, specific_track_index);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
-		if (clip && clip->output == specific_track && clip->type == ClipType::INSTRUMENT) {
+		if (!clip)
+			return;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (clip_lifetime.alive() && clip->output == specific_track && clip->type == ClipType::INSTRUMENT) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -1699,7 +1713,15 @@ Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, 
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (clip && clip->output) {
+		if (!clip)
+			return nullptr;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (!clip_lifetime.alive())
+			return nullptr;
+		if (clip->output) {
+			auto output_lifetime = clip->output->watch_lifetime();
+			if (!output_lifetime.alive())
+				return nullptr;
 			selected_track = clip->output;
 
 			// ensure output is a kit or melodic instrument
@@ -1736,11 +1758,17 @@ void MidiFollow::aftertouchReceivedForSpecificTrack(MIDICable& cable, int32_t ch
 	if (!currentSong || !modelStack || !specific_track)
 		return;
 
+	auto output_lifetime = specific_track->watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
 	MIDIMatchType match = checkMidiFollowMatchForSpecificTrack(cable, channel, specific_track_index);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain active clip for specific track
 		Clip* clip = specific_track->getActiveClip();
-		if (clip && clip->output == specific_track && clip->type == ClipType::INSTRUMENT) {
+		if (!clip)
+			return;
+		auto clip_lifetime = clip->watch_lifetime();
+		if (clip_lifetime.alive() && clip->output == specific_track && clip->type == ClipType::INSTRUMENT) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
