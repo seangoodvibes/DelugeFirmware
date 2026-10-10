@@ -1433,3 +1433,17 @@ side effects are not provided by these guards.
   `./dbt build relwithdebinfo` pass.
 - These guards do not roll back emitted LEDs or retain model objects inside
   callbacks. G1/L1 remain open and independent mode stays disabled.
+
+### G1 progress — timeline modulation target selection (2026-10-10)
+
+- Timeline selection validates the original song/root/region/model after recording
+  target resolution, before replacing the active model. It restores owner context
+  and stops after activation or rendering callbacks invalidate the selection.
+- Six extracted-selection tests cover resolution/activation changes, both owners,
+  nested model replacement, null resolution and normal feedback preferences. The
+  song-change test activated a stale target before the fix. All 35 native suites
+  and `./dbt build relwithdebinfo` pass.
+- A getter that replaces model fields while retaining the same timeline cannot
+  generally be distinguished from its intended result here. Callback-internal
+  lifetime and rollback remain open; G1/L1 remain open and independent mode stays
+  disabled.

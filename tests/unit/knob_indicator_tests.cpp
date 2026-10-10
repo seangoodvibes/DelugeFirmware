@@ -13,7 +13,7 @@ constexpr int kKnobPosOffset = 64, kMaxKnobPos = 128, UI_MODE_STUTTERING = 1;
 namespace params {
 enum class Kind { NORMAL, PATCH_CABLE };
 }
-static std::function<void()> on_lookup, on_value, on_grab, on_mod_leds, on_redraw;
+static std::function<void()> on_lookup, on_value, on_grab, on_mod_leds, on_redraw, on_resolve, on_activate;
 constexpr int NUM_LEVEL_INDICATORS = 2;
 static int lookup_calls = 0;
 struct root_fixture {
@@ -95,6 +95,24 @@ struct ModelStackWithAutoParam {
 	ParamCollection* paramCollection = nullptr;
 	int32_t paramId = 0;
 };
+using ModelStackWithTimelineCounter = ModelStackWithAutoParam;
+struct TimelineCounter {
+	TimelineCounter* redirected = this;
+	ModControllable* target = nullptr;
+	ParamManager* manager = nullptr;
+	int activations = 0;
+	TimelineCounter* getTimelineCounterToRecordTo() {
+		if (on_resolve)
+			on_resolve();
+		return redirected;
+	}
+	void getActiveModControllable(ModelStackWithTimelineCounter* stack) {
+		++activations;
+		stack->addOtherTwoThingsButNoNoteRow(target, manager);
+		if (on_activate)
+			on_activate();
+	}
+};
 static ModelStackWithAutoParam* setupModelStackWithSong(ModelStackWithAutoParam* stack, int* song) {
 	stack->song = song;
 	return stack;
@@ -157,6 +175,7 @@ struct View {
 			on_mod_leds();
 	}
 	void setActiveModControllableWithoutTimelineCounter(ModControllable*, ParamManager*);
+	void setActiveModControllableTimelineCounter(TimelineCounter*, bool);
 	uint32_t modLength = 0;
 	int32_t modNoteRowId = 0;
 	void pretendModKnobsUntouchedForAWhile() {}
@@ -192,7 +211,7 @@ TEST_GROUP(KnobIndicator) {
 		indicator_leds::clears = {};
 		roots.for_owner(session::Id::Local) = &root;
 		roots.for_owner(session::Id::Remote) = &root;
-		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = {};
+		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = on_resolve = on_activate = {};
 		redraw_calls = 0;
 		currentSong = &song;
 		playbackHandler.active = false;
@@ -205,7 +224,7 @@ TEST_GROUP(KnobIndicator) {
 			views.for_owner(owner).activeModControllableModelStack.modControllable = &controllable;
 	}
 	void teardown() override {
-		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = {};
+		on_lookup = on_value = on_grab = on_mod_leds = on_redraw = on_resolve = on_activate = {};
 		redraw_calls = 0;
 		session::detail::active = session::Id::Local;
 	}
@@ -498,4 +517,74 @@ TEST(KnobIndicator, target_selection_preserves_replacement_model_during_indicato
 	view.setActiveModControllableWithoutTimelineCounter(&controllable, &manager);
 	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.modControllable);
 	LONGS_EQUAL(0, view.feedback_calls);
+}
+
+TEST(KnobIndicator, timeline_selection_preserves_context_changed_during_resolution) {
+	TimelineCounter counter;
+	counter.target = &controllable;
+	counter.manager = &manager;
+	auto& view = view_for_session();
+	on_resolve = [] { currentSong = &replacement_song; };
+	view.setActiveModControllableTimelineCounter(&counter, true);
+	LONGS_EQUAL(0, counter.activations);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, view.feedback_calls);
+	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.timeline);
+}
+TEST(KnobIndicator, timeline_selection_uses_resolved_target_and_feedback_preference) {
+	TimelineCounter requested, resolved;
+	requested.redirected = &resolved;
+	resolved.target = &controllable;
+	resolved.manager = &manager;
+	auto& view = view_for_session();
+	view.setActiveModControllableTimelineCounter(&requested, false);
+	POINTERS_EQUAL(&resolved, view.activeModControllableModelStack.timeline);
+	POINTERS_EQUAL(&manager, view.activeModControllableModelStack.paramManager);
+	LONGS_EQUAL(0, requested.activations);
+	LONGS_EQUAL(1, resolved.activations);
+	LONGS_EQUAL(0, view.feedback_calls);
+	view.setActiveModControllableTimelineCounter(&requested, true);
+	LONGS_EQUAL(1, view.feedback_calls);
+}
+
+TEST(KnobIndicator, timeline_resolution_owner_change_restores_both_panel_callers) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		TimelineCounter counter;
+		on_resolve = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		view_for_session().setActiveModControllableTimelineCounter(&counter, true);
+		CHECK(session::current() == owner);
+		LONGS_EQUAL(0, counter.activations);
+		LONGS_EQUAL(0, view_for_session().feedback_calls);
+	}
+}
+TEST(KnobIndicator, timeline_activation_context_change_stops_followup_rendering) {
+	TimelineCounter counter;
+	counter.target = &controllable;
+	counter.manager = &manager;
+	on_activate = [] { currentSong = &replacement_song; };
+	view_for_session().setActiveModControllableTimelineCounter(&counter, true);
+	LONGS_EQUAL(1, counter.activations);
+	LONGS_EQUAL(0, lookup_calls);
+	LONGS_EQUAL(0, view_for_session().feedback_calls);
+}
+TEST(KnobIndicator, timeline_selection_preserves_nested_selection_during_resolution) {
+	TimelineCounter counter;
+	auto& view = view_for_session();
+	on_resolve = [&] { view.activeModControllableModelStack.modControllable = nullptr; };
+	view.setActiveModControllableTimelineCounter(&counter, true);
+	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.modControllable);
+	LONGS_EQUAL(0, counter.activations);
+}
+TEST(KnobIndicator, timeline_null_resolution_clears_target_without_dereference) {
+	TimelineCounter counter;
+	counter.redirected = nullptr;
+	auto& view = view_for_session();
+	view.setActiveModControllableTimelineCounter(&counter, false);
+	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.timeline);
+	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.modControllable);
+	POINTERS_EQUAL(nullptr, view.activeModControllableModelStack.paramManager);
+	LONGS_EQUAL(1, indicator_leds::clears.active());
 }

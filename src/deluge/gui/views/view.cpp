@@ -1884,9 +1884,28 @@ void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][
 }
 
 void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter, bool shouldSendMidiFeedback) {
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_root = getRootUI();
+	auto* const previous_controllable = activeModControllableModelStack.modControllable;
+	auto* const previous_manager = activeModControllableModelStack.paramManager;
+	auto* const previous_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
+	const auto source_position = modPos;
+	const auto source_length = modLength;
+	const auto source_note_row = modNoteRowId;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song
+		       && getRootUI() == source_root && modPos == source_position && modLength == source_length
+		       && modNoteRowId == source_note_row;
+	};
 	if (timelineCounter) {
 		timelineCounter = timelineCounter->getTimelineCounterToRecordTo();
 	}
+	if (!context_matches() || activeModControllableModelStack.modControllable != previous_controllable
+	    || activeModControllableModelStack.paramManager != previous_manager
+	    || activeModControllableModelStack.getTimelineCounterAllowNull() != previous_timeline)
+		return;
 	pretendModKnobsUntouchedForAWhile();
 
 	ModelStackWithTimelineCounter* modelStack =
@@ -1900,13 +1919,28 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
 	}
 
+	if (!context_matches() || activeModControllableModelStack.getTimelineCounterAllowNull() != timelineCounter)
+		return;
+	auto* const selected_controllable = activeModControllableModelStack.modControllable;
+	auto* const selected_manager = activeModControllableModelStack.paramManager;
+	const auto selection_matches = [&] {
+		return context_matches() && activeModControllableModelStack.getTimelineCounterAllowNull() == timelineCounter
+		       && activeModControllableModelStack.modControllable == selected_controllable
+		       && activeModControllableModelStack.paramManager == selected_manager;
+	};
 	setModLedStates();
+	if (!selection_matches())
+		return;
 	setKnobIndicatorLevels();
+	if (!selection_matches())
+		return;
 
 	// refresh sidebar if VU meter previously rendered is still showing and we're in session / arranger / performance
 	// view / arranger automation view this could happen when you're turning affect entire off or selecting a clip
 	if (renderedVUMeter && !rootUIIsClipMinderScreen()) {
 		uiNeedsRendering(getRootUI(), 0);
+		if (!selection_matches())
+			return;
 	}
 
 	// midi follow and midi feedback enabled
