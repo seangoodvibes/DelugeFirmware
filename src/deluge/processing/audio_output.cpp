@@ -59,6 +59,7 @@ AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 }
 
 AudioOutput::~AudioOutput() {
+	retire_lifetime();
 	releaseMonitoringClaim();
 }
 

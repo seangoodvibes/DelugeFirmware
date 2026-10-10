@@ -498,3 +498,7 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 	}
 	return false;
 }
+
+SoundInstrument::~SoundInstrument() {
+	retire_lifetime();
+}

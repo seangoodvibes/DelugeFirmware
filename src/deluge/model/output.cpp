@@ -45,6 +45,7 @@ Output::Output(OutputType newType) : type(newType) {
 }
 
 Output::~Output() {
+	retire_lifetime();
 	removeRecorder();
 	// if another output is recording this one, we need to tell the other output to clear the pointer since we don't
 	// exist

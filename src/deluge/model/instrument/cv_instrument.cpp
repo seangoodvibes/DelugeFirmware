@@ -186,3 +186,7 @@ void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
 void CVInstrument::setCV2Mode(CVMode mode) {
 	cvmode[1] = mode;
 }
+
+CVInstrument::~CVInstrument() {
+	retire_lifetime();
+}

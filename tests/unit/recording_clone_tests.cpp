@@ -41,6 +41,8 @@ struct instances_fixture {
 	}
 };
 struct Output {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
 	Clip* active = nullptr;
 	std::function<void()> on_activate;
 	instances_fixture clipInstances;
@@ -541,4 +543,32 @@ TEST(RecordingClone, retiring_source_cannot_start_another_clone) {
 	CHECK_FALSE(attempt_clone());
 	CHECK(result == Error::BUG);
 	LONGS_EQUAL(0, original.clone_calls);
+}
+
+TEST(RecordingClone, destroyed_output_cancels_without_clip_or_registry_changes) {
+	auto* target = new Output;
+	target->active = &original;
+	target->clipInstances.values[0].clip = &original;
+	original.output = cloned.output = target;
+	original.on_clone = [&](ModelStackWithTimelineCounter*) { delete target; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	LONGS_EQUAL(0, cloned.resume_calls);
+}
+TEST(RecordingClone, replaced_output_address_does_not_resume_old_work) {
+	auto* target = new Output;
+	target->active = &original;
+	target->clipInstances.values[0].clip = &original;
+	original.output = cloned.output = target;
+	original.on_clone = [&](ModelStackWithTimelineCounter*) {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->active = &original;
+		target->clipInstances.values[0].clip = &original;
+	};
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	delete target;
 }

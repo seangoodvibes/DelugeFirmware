@@ -1301,3 +1301,7 @@ void MIDIInstrument::setNameForCC(int32_t cc, std::string_view name) {
 			entry->second = name;
 	}
 }
+
+MIDIInstrument::~MIDIInstrument() {
+	retire_lifetime();
+}

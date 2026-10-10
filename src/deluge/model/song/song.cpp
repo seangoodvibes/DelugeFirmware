@@ -3391,6 +3391,7 @@ void Song::deleteOutputThatIsInMainList(
     bool stopAnyAuditioningFirst // Usually true, but if deleting while loading a Song due to invalid data, we don't
                                  // want this, and it'd cause an error.
 ) {
+	output->retire_lifetime();
 
 	removeOutputFromMainList(output, stopAnyAuditioningFirst);
 
@@ -3641,6 +3642,7 @@ void Song::clearRecordingFromReferencesTo(Output* output) {
 }
 
 void Song::deleteOutput(Output* output) {
+	output->retire_lifetime();
 	undo_detached_outputs.release(output);
 	clearRecordingFromReferencesTo(output);
 	for (int y = 0; y < 8; y++) {

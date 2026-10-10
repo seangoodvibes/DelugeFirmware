@@ -26,6 +26,7 @@ private:
 // references the source, so querying or destroying it never reads freed memory.
 class lifetime_watch final {
 public:
+	lifetime_watch() = default;
 	explicit lifetime_watch(lifetime_source& source) {
 		if (source.retiring_)
 			return;

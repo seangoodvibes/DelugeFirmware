@@ -2080,3 +2080,13 @@ same-address replacement and retiring targets. These run under ASan/UBSan;
 all 36 native suites and `./dbt build relwithdebinfo` pass. Output lifetime and
 long-lived UI selection references still need their own protection; this change
 covers clip lifetime after acquisition at these activation boundaries.
+
+Output lifetime cancellation now uses the same allocation-free watch mechanism.
+All five concrete output destructors retire before cleanup, and song deletion
+retires before registry/audition cleanup. Hibernation does not retire an output.
+Recording cloning watches both source and result outputs, rejecting destruction
+or same-address replacement without relying on clip destruction or UI revisions.
+Eight extracted destructor/deletion tests, an empty-watch test and two recording
+regressions run under ASan/UBSan. All 36 native suites and
+`./dbt build relwithdebinfo` pass. This protects already-acquired watches; stale
+long-lived references and callback-internal ownership remain open under L1/G1.

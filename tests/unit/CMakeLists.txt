@@ -672,3 +672,53 @@ target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/clip_retain
 target_sources(ClipLifetimeTests PRIVATE midi_feedback_sweep_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc)
 target_sources(ClipLifetimeTests PRIVATE clip_activation_tests.cpp midi_follow_context_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/clip_activation.inc ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc)
+
+set(output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/output.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/output_lifetime.inc Output::~Output
+    DEPENDS ${output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/output_lifetime.inc)
+
+set(audio_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/audio_output.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_output_lifetime.inc AudioOutput::~AudioOutput
+    DEPENDS ${audio_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/audio_output_lifetime.inc)
+
+set(sound_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/processing/sound/sound_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_output_lifetime.inc SoundInstrument::~SoundInstrument
+    DEPENDS ${sound_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/sound_output_lifetime.inc)
+
+set(midi_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/midi_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_output_lifetime.inc MIDIInstrument::~MIDIInstrument
+    DEPENDS ${midi_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/midi_output_lifetime.inc)
+
+set(cv_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/cv_instrument.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cv_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${cv_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/cv_output_lifetime.inc CVInstrument::~CVInstrument
+    DEPENDS ${cv_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cv_output_lifetime.inc)
+target_sources(ClipLifetimeTests PRIVATE output_destruction_lifetime_tests.cpp)
+
+set(kit_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/kit.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_output_lifetime.inc Kit::~Kit
+    DEPENDS ${kit_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/kit_output_lifetime.inc)
+
+set(song_output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/song/song.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_output_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${song_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/song_output_lifetime.inc Song::deleteOutput Song::deleteOutputThatIsInMainList
+    DEPENDS ${song_output_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/song_output_lifetime.inc)

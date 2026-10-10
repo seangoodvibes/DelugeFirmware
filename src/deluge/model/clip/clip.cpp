@@ -1118,6 +1118,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 	if (!source_lifetime.alive() || !modelStack || !modelStack->song || currentSong != modelStack->song || !output)
 		return fail(Error::BUG);
 
+	auto* const source_output = output;
+	auto output_lifetime = source_output->watch_lifetime();
+	if (!output_lifetime.alive())
+		return fail(Error::BUG);
 	auto* const source_song = modelStack->song;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
@@ -1127,7 +1131,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
 	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
 	const auto context_matches = [&] {
-		return source_lifetime.alive() && currentSong == source_song && modelStack->song == source_song
+		return source_lifetime.alive() && output_lifetime.alive() && output == source_output
+		       && currentSong == source_song && modelStack->song == source_song
 		       && deluge::gui::ui_session::current() == source_owner
 		       && revision(deluge::gui::ui_session::Id::Local) == local_revision
 		       && revision(deluge::gui::ui_session::Id::Remote) == remote_revision;
@@ -1162,7 +1167,6 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
 			if (!clipInstance || clipInstance->clip != this)
 				return fail(Error::BUG);
-			auto* const source_output = output;
 			const ClipInstance original_instance = *clipInstance;
 			const int32_t original_index = clipInstanceI;
 			const int32_t original_count = source_output->clipInstances.getNumElements();
@@ -1237,8 +1241,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			if (!clone_lifetime.alive())
 				return fail(Error::BUG);
 			auto* const clone_output = newClip->output;
+			auto clone_output_lifetime =
+			    clone_output ? clone_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 			const auto clone_context_matches = [&] {
-				return context_matches() && clone_lifetime.alive()
+				return context_matches() && clone_lifetime.alive() && (!clone_output || clone_output_lifetime.alive())
 				       && modelStack->getTimelineCounterAllowNull() == newClip;
 			};
 			const auto clone_is_unpublished = [&] {

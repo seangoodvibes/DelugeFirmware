@@ -23,6 +23,7 @@
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
 #include "util/d_string.h"
+#include "util/lifetime.h"
 #include <cstdint>
 
 class InstrumentClip;
@@ -82,6 +83,10 @@ class Output {
 public:
 	Output(OutputType newType);
 	virtual ~Output();
+	[[nodiscard]] deluge::lifetime::lifetime_watch watch_lifetime() const {
+		return deluge::lifetime::lifetime_watch{lifetime_source_};
+	}
+	void retire_lifetime() { lifetime_source_.retire(); }
 	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                           char const* dirPath) = 0;
 
@@ -227,6 +232,9 @@ public:
 	virtual void clearRecordingFrom() {}
 	/// Which output this one records from, or nullptr. Only audio outputs ever record from another output.
 	virtual Output* getOutputRecordingFrom() { return nullptr; }
+
+private:
+	mutable deluge::lifetime::lifetime_source lifetime_source_;
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;

@@ -58,6 +58,7 @@ Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)
 }
 
 Kit::~Kit() {
+	retire_lifetime();
 	// Audio servicing below can yield before each drum is destroyed.
 	for (auto owner : {deluge::gui::ui_session::Id::Local, deluge::gui::ui_session::Id::Remote}) {
 		auto& selected = selected_drums.for_owner(owner);

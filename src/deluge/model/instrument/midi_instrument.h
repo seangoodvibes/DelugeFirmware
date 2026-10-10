@@ -38,6 +38,7 @@ struct MPEOutputMemberChannel {
 class MIDIInstrument final : public NonAudioInstrument {
 public:
 	MIDIInstrument();
+	~MIDIInstrument() override;
 
 	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) override;
 

@@ -31,6 +31,7 @@ constexpr int32_t kNumCVInstrumentChannels = both + 1;
 class CVInstrument final : public NonAudioInstrument {
 public:
 	CVInstrument();
+	~CVInstrument() override;
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) override;
 	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity, int32_t noteIndex) override;
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,

@@ -62,3 +62,8 @@ TEST(LifetimeWatch, retirement_reports_only_the_first_transition) {
 	CHECK(source.retire());
 	CHECK_FALSE(source.retire());
 }
+
+TEST(LifetimeWatch, empty_watch_is_not_alive) {
+	lifetime_watch watch;
+	CHECK_FALSE(watch.alive());
+}
