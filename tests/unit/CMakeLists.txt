@@ -503,3 +503,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/output_clip_leds.inc
         ${output_clip_led_source} ${CMAKE_CURRENT_BINARY_DIR}/output_clip_leds.inc "static void set_output_clip_led_states"
     DEPENDS ${output_clip_led_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE output_clip_led_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/output_clip_leds.inc)
+
+set(knob_indicator_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/views/view_knob_indicator.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/knob_indicator.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${knob_indicator_source} ${CMAKE_CURRENT_BINARY_DIR}/knob_indicator.inc
+        View::setKnobIndicatorLevel View::convertPatchCableKnobPosToIndicatorLevel
+    DEPENDS ${knob_indicator_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE knob_indicator_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/knob_indicator.inc)

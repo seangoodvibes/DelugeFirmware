@@ -1371,3 +1371,15 @@ side effects are not provided by these guards.
 - All 35 native suites pass. This tests/documentation-only change follows the
   production revision validated with `./dbt build relwithdebinfo`. G1/L1 and
   hardware acceptance remain open; independent mode remains disabled.
+
+### G1 / R4 progress — unavailable knob indicator parameters (2026-10-10)
+
+- Missing modulation targets/mappings no longer dereference null pointers. A
+  missing plain parameter has a deterministic off level instead of an uninitialized
+  value. Missing collections and fallback targets are handled without dereference.
+- Six extracted-renderer tests cover these cases, both-owner output routing,
+  current/automated values, nonexistent/patch defaults, stutter and patch scaling.
+  Model collaborators and LEDs are fixtures; unsafe pre-fix null cases were not run.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. Callback-spanning
+  target lifetime remains separate; G1/L1/R4 remain open and independent mode stays
+  disabled.

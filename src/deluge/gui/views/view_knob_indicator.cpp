@@ -31,18 +31,23 @@ using namespace deluge;
 using namespace gui;
 
 void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
+	if (!activeModControllableModelStack.modControllable)
+		return;
 	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
 	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).
 	ModelStackWithAutoParam* modelStackWithParam =
 	    activeModControllableModelStack.modControllable->getParamFromModEncoder(
 	        whichModEncoder, &activeModControllableModelStack, false);
 
-	int32_t knobPos;
+	if (!modelStackWithParam)
+		return;
+
+	int32_t knobPos = 0; // An unavailable plain parameter leaves the indicator off.
 	bool isBipolar = false;
 
-	if (modelStackWithParam->autoParam
-	    || (modelStackWithParam->paramCollection
-	        && modelStackWithParam->paramCollection->has_current_value(modelStackWithParam->paramId))) {
+	if (modelStackWithParam->paramCollection
+	    && (modelStackWithParam->autoParam
+	        || modelStackWithParam->paramCollection->has_current_value(modelStackWithParam->paramId))) {
 		int32_t value = modelStackWithParam->autoParam
 		                    ? modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam)
 		                    : modelStackWithParam->paramCollection->get_current_value(modelStackWithParam->paramId);
@@ -86,9 +91,11 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	}
 	else {
 		if (modelStackWithParam->paramId == 255) {
-			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
-			                                                                              modelStackWithParam);
-			knobPos += kKnobPosOffset;
+			if (modelStackWithParam->modControllable) {
+				knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+				                                                                              modelStackWithParam);
+				knobPos += kKnobPosOffset;
+			}
 		}
 		// is it not just a param? then its a patch cable
 		else if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
