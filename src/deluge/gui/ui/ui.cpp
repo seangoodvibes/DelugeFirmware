@@ -84,6 +84,10 @@ std::optional<std::pair<uint32_t, uint32_t>> getUIGreyoutColsAndRows() {
 		if (!navigation().hierarchy[level])
 			return std::nullopt;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return std::nullopt;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto expected_depth = navigation().depth;
@@ -92,7 +96,8 @@ std::optional<std::pair<uint32_t, uint32_t>> getUIGreyoutColsAndRows() {
 	uint32_t rows = 0;
 	for (int32_t u = navigation().depth - 1; u >= 0; u--) {
 		bool useThis = navigation().hierarchy[u]->getGreyoutColsAndRows(&cols, &rows);
-		if (deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
+		if ((source_song && !song_watch.alive()) || currentSong != source_song
+		    || deluge::gui::ui_session::current() != source_owner || navigation().depth != expected_depth
 		    || navigation().hierarchy != expected_hierarchy)
 			return std::nullopt;
 		if (useThis) {
@@ -492,12 +497,17 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 		if (!navigation().hierarchy[level])
 			return;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	const auto expected_depth = navigation().depth;
 	const auto expected_hierarchy = navigation().hierarchy;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && navigation().depth == expected_depth
 		       && navigation().hierarchy == expected_hierarchy;
 	};
 
@@ -531,12 +541,18 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 }
 
 void doAnyPendingGridRendering() {
+	if (deluge::hid::mirror::is_client())
+		return;
 	if (navigation().depth <= 0 || navigation().depth > navigation().capacity)
 		return;
 	for (int32_t level = 0; level < navigation().depth; ++level) {
 		if (!navigation().hierarchy[level])
 			return;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto& source_navigation = navigation();
@@ -545,7 +561,8 @@ void doAnyPendingGridRendering() {
 	const auto requested_main_rows = source_navigation.main_rows_dirty;
 	const auto requested_side_rows = source_navigation.side_rows_dirty;
 	const auto context_matches = [&] {
-		if (deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
+		if ((!source_song || song_watch.alive()) && currentSong == source_song && !deluge::hid::mirror::is_client()
+		    && deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
 		    && source_navigation.hierarchy == expected_hierarchy)
 			return true;
 		// Retry on the initiating panel without dropping redraws queued by callbacks.
@@ -609,19 +626,26 @@ void doAnyPendingGridRendering() {
 }
 
 void doAnyPendingOLEDRendering() {
+	if (deluge::hid::mirror::is_client())
+		return;
 	if (navigation().depth <= 0 || navigation().depth > navigation().capacity)
 		return;
 	for (int32_t level = 0; level < navigation().depth; ++level) {
 		if (!navigation().hierarchy[level])
 			return;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto& source_navigation = navigation();
 	const auto expected_depth = source_navigation.depth;
 	const auto expected_hierarchy = source_navigation.hierarchy;
 	const auto context_matches = [&] {
-		if (deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
+		if ((!source_song || song_watch.alive()) && currentSong == source_song && !deluge::hid::mirror::is_client()
+		    && deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
 		    && source_navigation.hierarchy == expected_hierarchy)
 			return true;
 		source_navigation.oled_dirty = true;
@@ -659,13 +683,18 @@ void doAnyPendingUIRendering() {
 		if (!navigation().hierarchy[level])
 			return;
 	}
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_song && !song_watch.alive())
+		return;
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto& source_navigation = navigation();
 	const auto expected_depth = source_navigation.depth;
 	const auto expected_hierarchy = source_navigation.hierarchy;
 	const auto context_matches = [&] {
-		return deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
+		return (!source_song || song_watch.alive()) && currentSong == source_song && !deluge::hid::mirror::is_client()
+		       && deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
 		       && source_navigation.hierarchy == expected_hierarchy;
 	};
 	if (source_navigation.rendering) {

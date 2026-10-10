@@ -3146,3 +3146,13 @@ Already-published navigation is preserved on cancellation rather than rolled bac
 against a changed song; reconciling that partial transition remains R4. UI-object
 lifetime and rendering entry points are still separate audit work. Independent
 mode remains disabled.
+
+Greyout queries, redraw requests and grid/OLED rendering now watch optional song
+lifetime through callbacks. Cancelled passes reject stale masks and stop further
+layer queries/publication; grid/OLED requests remain pending. Direct rendering and
+continuations also reject client takeover. Ten UIOpen regressions cover greyout,
+redraw visibility, image clear/scroll/render/send boundaries, shared refresh,
+retired entry and no-song success. Six failed before the fix. All 38 suites and the
+RelWithDebInfo build pass. Already-transmitted pixels cannot be rolled back; these
+checks do not pin UI/model targets inside callbacks or close recovery/hardware
+gates. Independent mode stays disabled.

@@ -1258,3 +1258,195 @@ TEST(UIOpen, no_song_navigation_still_opens_closes_and_changes_root) {
 		POINTERS_EQUAL(&replacement, getCurrentUI());
 	}
 }
+
+TEST(UIOpen, greyout_song_reuse_rejects_result_and_stops_lower_layer_query) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (bool used : {false, true}) {
+			navigation().depth = 2;
+			navigation().hierarchy[1] = &menu;
+			menu.greyout_used = used;
+			int lower_queries = 0;
+			root.on_greyout_query = [&] { ++lower_queries; };
+			menu.on_greyout_query = [] {
+				song.~Song();
+				new (&song) Song;
+			};
+			CHECK_FALSE(getUIGreyoutColsAndRows().has_value());
+			LONGS_EQUAL(0, lower_queries);
+		}
+	}
+}
+
+TEST(UIOpen, render_request_song_reuse_does_not_query_sidebar_or_dirty_old_target) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		navigation().depth = 2;
+		navigation().hierarchy[1] = &menu;
+		menu.renders = 0;
+		menu.on_main = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		uiNeedsRendering(&root, 1, 2);
+		LONGS_EQUAL(1, menu.renders);
+		LONGS_EQUAL(0, navigation().main_rows_dirty);
+		LONGS_EQUAL(0, navigation().side_rows_dirty);
+	}
+}
+
+TEST(UIOpen, grid_song_reuse_or_takeover_stops_publication_and_preserves_redraw) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (bool takeover : {false, true}) {
+			client_mode = false;
+			root.renders = 0;
+			root.main_needed = true;
+			navigation().main_rows_dirty = 1;
+			navigation().side_rows_dirty = 2;
+			root.on_main = [=] {
+				if (takeover)
+					client_mode = true;
+				else {
+					song.~Song();
+					new (&song) Song;
+				}
+			};
+			doAnyPendingGridRendering();
+			LONGS_EQUAL(1, root.renders);
+			LONGS_EQUAL(0, PadLEDs::main_sends.active());
+			LONGS_EQUAL(0, PadLEDs::side_sends.active());
+			LONGS_EQUAL(1, navigation().main_rows_dirty);
+			LONGS_EQUAL(2, navigation().side_rows_dirty);
+		}
+	}
+}
+
+TEST(UIOpen, oled_song_reuse_stops_each_render_boundary_and_preserves_redraw) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (int boundary = 0; boundary < 3; ++boundary) {
+			root.oled_renders = 0;
+			root.on_oled = {};
+			OLED::on_clear = OLED::on_stop = {};
+			navigation().oled_dirty = true;
+			auto reuse_song = [] {
+				song.~Song();
+				new (&song) Song;
+			};
+			if (boundary == 0)
+				OLED::on_clear = reuse_song;
+			else if (boundary == 1)
+				OLED::on_stop = reuse_song;
+			else
+				root.on_oled = reuse_song;
+			doAnyPendingOLEDRendering();
+			LONGS_EQUAL(boundary == 2 ? 1 : 0, root.oled_renders);
+			LONGS_EQUAL(0, OLED::sends.active());
+			CHECK(navigation().oled_dirty);
+		}
+	}
+}
+
+TEST(UIOpen, song_reuse_during_shared_refresh_cancels_render_and_keeps_refresh_pending) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		navigation().shared_model_refresh.request();
+		navigation().main_rows_dirty = 1;
+		navigation().oled_dirty = true;
+		root.on_refresh = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		doAnyPendingUIRendering();
+		CHECK_FALSE(navigation().rendering);
+		LONGS_EQUAL(0, root.renders);
+		LONGS_EQUAL(0, root.oled_renders);
+		CHECK(navigation().shared_model_refresh.consume(0));
+	}
+}
+
+TEST(UIOpen, retired_song_rejects_render_entry_points_without_consuming_requests) {
+	Song retired_song;
+	retired_song.lifetime.retire();
+	currentSong = &retired_song;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		navigation().main_rows_dirty = 1;
+		navigation().side_rows_dirty = 2;
+		navigation().oled_dirty = true;
+		CHECK_FALSE(getUIGreyoutColsAndRows().has_value());
+		uiNeedsRendering(&root, 4, 8);
+		doAnyPendingGridRendering();
+		doAnyPendingOLEDRendering();
+		doAnyPendingUIRendering();
+		LONGS_EQUAL(0, root.renders);
+		LONGS_EQUAL(0, root.oled_renders);
+		LONGS_EQUAL(0, OLED::sends.active());
+		LONGS_EQUAL(1, navigation().main_rows_dirty);
+		LONGS_EQUAL(2, navigation().side_rows_dirty);
+		CHECK(navigation().oled_dirty);
+	}
+}
+
+TEST(UIOpen, grid_send_song_reuse_stops_sidebar_and_outer_oled_render) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		root.renders = 0;
+		root.main_needed = true;
+		navigation().main_rows_dirty = 1;
+		navigation().side_rows_dirty = 2;
+		navigation().oled_dirty = true;
+		PadLEDs::on_main_send = [] {
+			song.~Song();
+			new (&song) Song;
+		};
+		doAnyPendingUIRendering();
+		LONGS_EQUAL(1, root.renders);
+		LONGS_EQUAL(1, PadLEDs::main_sends.active());
+		LONGS_EQUAL(0, PadLEDs::side_sends.active());
+		LONGS_EQUAL(0, root.oled_renders);
+		CHECK(navigation().oled_dirty);
+		CHECK_FALSE(navigation().rendering);
+	}
+}
+
+TEST(UIOpen, oled_takeover_does_not_publish_local_image_over_mirror_frame) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		client_mode = false;
+		navigation().oled_dirty = true;
+		root.on_oled = [] { client_mode = true; };
+		doAnyPendingOLEDRendering();
+		LONGS_EQUAL(0, OLED::sends.active());
+		CHECK(navigation().oled_dirty);
+	}
+}
+
+TEST(UIOpen, client_direct_render_entry_preserves_pending_requests) {
+	client_mode = true;
+	navigation().main_rows_dirty = 1;
+	navigation().side_rows_dirty = 2;
+	navigation().oled_dirty = true;
+	doAnyPendingGridRendering();
+	doAnyPendingOLEDRendering();
+	LONGS_EQUAL(0, root.renders);
+	LONGS_EQUAL(0, OLED::clears.active());
+	LONGS_EQUAL(0, OLED::sends.active());
+	LONGS_EQUAL(1, navigation().main_rows_dirty);
+	LONGS_EQUAL(2, navigation().side_rows_dirty);
+	CHECK(navigation().oled_dirty);
+}
+
+TEST(UIOpen, no_song_context_can_query_and_render) {
+	currentSong = nullptr;
+	root.main_needed = root.side_needed = root.greyout_used = true;
+	CHECK(getUIGreyoutColsAndRows().has_value());
+	uiNeedsRendering(&root, 1, 2);
+	navigation().oled_dirty = true;
+	doAnyPendingUIRendering();
+	LONGS_EQUAL(1, PadLEDs::main_sends.active());
+	LONGS_EQUAL(1, PadLEDs::side_sends.active());
+	LONGS_EQUAL(1, OLED::sends.active());
+	CHECK_FALSE(navigation().oled_dirty);
+}
