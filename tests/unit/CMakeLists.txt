@@ -1062,3 +1062,10 @@ target_sources(ClipLifetimeTests PRIVATE sound_expression_output_lifetime_tests.
     ${CMAKE_CURRENT_BINARY_DIR}/sound_expression_output_lifetime.inc
     ${CMAKE_CURRENT_BINARY_DIR}/sound_instrument_expression_lifetime.inc
     ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_expression_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_drum_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.inc
+        SoundDrum::noteOn
+    DEPENDS ${sound_drum_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sound_drum_choke_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.inc)

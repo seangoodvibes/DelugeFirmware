@@ -2825,3 +2825,12 @@ freed arp storage, routing changes, invalid entry and disabled MIDI. All 36 suit
 and `./dbt build relwithdebinfo` pass. Voice expression setters are scalar-only and
 were not given synthetic callback boundaries. Direct arp writes bypassing revision,
 borrowed-pointer acquisition and downstream MIDI internals remain open.
+
+Sound-drum note-on now snapshots MPE values before kit choking and revalidates
+drum/kit/clip lifetime, membership, row identity, model-stack, song/panel, mode and
+arp revision before starting the note. Six production-body sanitizer regressions
+cover stable copied MPE, deletion of each owner, ten context/row changes, normal
+polyphonic/standalone paths, null MPE/final-callback deletion and rejected entry.
+All 36 suites and `./dbt build relwithdebinfo` pass. Sound note-on internals and
+borrowed parameter-manager acquisition remain separate boundaries; choking already
+performed on other drums is not rolled back.
