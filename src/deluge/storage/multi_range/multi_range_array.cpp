@@ -56,19 +56,20 @@ MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 	return range;
 }
 
-Error MultiRangeArray::changeType(int32_t newSize, const deluge::lifetime::callback_validation* validation) {
+Error MultiRangeArray::changeType(int32_t new_size, MultiRangeArray& retired_ranges,
+                                  const deluge::lifetime::callback_validation* validation) {
 	if (validation && !validation->valid())
 		return Error::ABORTED_BY_USER;
 	const auto expected_layout = ++layout_revision_;
 
 	if (!numElements) {
-		elementSize = newSize;
+		elementSize = new_size;
 		return Error::NONE;
 	}
 
-	MultiRangeArray newArray;
-	newArray.elementSize = newSize;
-	Error error = newArray.insertAtIndex(0, numElements);
+	MultiRangeArray new_array;
+	new_array.elementSize = new_size;
+	Error error = new_array.insertAtIndex(0, numElements);
 	// The detached allocation may yield and invalidate the original owner or storage.
 	if ((validation && !validation->valid()) || layout_revision_ != expected_layout)
 		return Error::ABORTED_BY_USER;
@@ -78,29 +79,25 @@ Error MultiRangeArray::changeType(int32_t newSize, const deluge::lifetime::callb
 
 	// We're changing range types, but want to preserve their topNotes.
 	for (int32_t i = 0; i < numElements; i++) {
-		MultiRange* oldRange = (MultiRange*)getElementAddress(i);
-		void* newMemory = newArray.getElementAddress(i);
+		MultiRange* old_range = (MultiRange*)getElementAddress(i);
+		void* new_memory = new_array.getElementAddress(i);
 
-		MultiRange* newRange;
+		MultiRange* new_range;
 
-		if (newSize == sizeof(MultisampleRange)) {
-			newRange = new (newMemory) MultisampleRange();
+		if (new_size == sizeof(MultisampleRange)) {
+			new_range = new (new_memory) MultisampleRange();
 		}
 		else {
-			newRange = new (newMemory) MultiWaveTableRange();
+			new_range = new (new_memory) MultiWaveTableRange();
 		}
 
-		newRange->topNote = oldRange->topNote;
-
-		oldRange->~MultiRange(); // Always have to do this manually - the Array doesn't otherwise take care of
-		                         // destructing these.
+		new_range->topNote = old_range->topNote;
 	}
 
-	empty();
-
-	elementSize = newSize;
-
-	swapStateWith(&newArray);
+	// Publish storage without destroying holders. The caller must publish its type
+	// and editor state before releasing these detached old ranges.
+	swapStateWith(&new_array);
+	retired_ranges.swapStateWith(&new_array);
 	return Error::NONE;
 }
 

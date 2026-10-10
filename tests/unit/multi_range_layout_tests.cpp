@@ -64,7 +64,7 @@ struct MultiRangeArray : OrderedResizeableArray {
 	explicit MultiRangeArray(int32_t size = sizeof(MultisampleRange)) : OrderedResizeableArray(size) {}
 	MultiRange* getElement(int32_t);
 	MultiRange* insertMultiRange(int32_t);
-	Error changeType(int32_t, const deluge::lifetime::callback_validation* = nullptr);
+	Error changeType(int32_t, MultiRangeArray&, const deluge::lifetime::callback_validation* = nullptr);
 	Error insertAtIndex(int32_t, int32_t = 1, void* = nullptr);
 	void deleteAtIndex(int32_t, int32_t = 1, bool = true);
 	bool ensureEnoughSpaceAllocated(int32_t);
@@ -79,7 +79,7 @@ struct MultiRangeArray : OrderedResizeableArray {
 } // namespace multi_range_layout_test
 namespace layout_test = multi_range_layout_test;
 TEST_GROUP(MultiRangeLayout) {
-	layout_test::MultiRangeArray first, second;
+	layout_test::MultiRangeArray first, second, retired;
 	void setup() override {
 		layout_test::fail_allocation = false;
 		layout_test::on_allocate = {};
@@ -88,6 +88,7 @@ TEST_GROUP(MultiRangeLayout) {
 		layout_test::on_allocate = {};
 		first.destroy_ranges();
 		second.destroy_ranges();
+		retired.destroy_ranges();
 	}
 };
 TEST(MultiRangeLayout, delete_and_reinsert_at_same_address_invalidates_identity) {
@@ -130,7 +131,7 @@ TEST(MultiRangeLayout, type_conversion_preserves_keys_and_changes_revision) {
 	first.insertMultiRange(0)->topNote = 60;
 	first.insertMultiRange(1)->topNote = 72;
 	const auto revision = first.layout_revision_;
-	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange)) == layout_test::Error::NONE);
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), retired) == layout_test::Error::NONE);
 	CHECK(first.layout_revision_ != revision);
 	LONGS_EQUAL(sizeof(layout_test::MultiWaveTableRange), first.elementSize);
 	LONGS_EQUAL(60, first.getElement(0)->topNote);
@@ -141,7 +142,7 @@ TEST(MultiRangeLayout, failed_conversion_preserves_original_and_invalidates_watc
 	original->topNote = 60;
 	const auto revision = first.layout_revision_;
 	layout_test::fail_allocation = true;
-	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange)) == layout_test::Error::INSUFFICIENT_RAM);
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), retired) == layout_test::Error::INSUFFICIENT_RAM);
 	CHECK(first.layout_revision_ != revision);
 	POINTERS_EQUAL(original, first.getElement(0));
 	LONGS_EQUAL(60, first.getElement(0)->topNote);
@@ -149,7 +150,7 @@ TEST(MultiRangeLayout, failed_conversion_preserves_original_and_invalidates_watc
 }
 TEST(MultiRangeLayout, empty_type_change_invalidates_revision) {
 	const auto revision = first.layout_revision_;
-	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange)) == layout_test::Error::NONE);
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), retired) == layout_test::Error::NONE);
 	CHECK(first.layout_revision_ != revision);
 	LONGS_EQUAL(0, first.numElements);
 }
@@ -157,7 +158,7 @@ TEST(MultiRangeLayout, empty_type_change_invalidates_revision) {
 TEST(MultiRangeLayout, swapping_different_range_types_moves_stride_with_storage) {
 	first.insertMultiRange(0);
 	auto* sample_second = first.insertMultiRange(1);
-	CHECK(second.changeType(sizeof(layout_test::MultiWaveTableRange)) == layout_test::Error::NONE);
+	CHECK(second.changeType(sizeof(layout_test::MultiWaveTableRange), retired) == layout_test::Error::NONE);
 	second.insertMultiRange(0);
 	auto* wave_second = second.insertMultiRange(1);
 	first.swapStateWith(&second);
@@ -177,7 +178,7 @@ TEST(MultiRangeLayout, conversion_rejects_cancelled_entry_without_touching_range
 	const auto revision = first.layout_revision_;
 	const auto context_valid = [] { return false; };
 	deluge::lifetime::callback_validation validation(context_valid);
-	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), &validation)
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), retired, &validation)
 	      == layout_test::Error::ABORTED_BY_USER);
 	POINTERS_EQUAL(original, first.getElement(0));
 	LONGS_EQUAL(revision, first.layout_revision_);
@@ -188,7 +189,7 @@ TEST(MultiRangeLayout, conversion_allocation_cancellation_preserves_original) {
 	const auto context_valid = [&] { return valid; };
 	deluge::lifetime::callback_validation validation(context_valid);
 	layout_test::on_allocate = [&] { valid = false; };
-	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), &validation)
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), retired, &validation)
 	      == layout_test::Error::ABORTED_BY_USER);
 	POINTERS_EQUAL(original, first.getElement(0));
 	LONGS_EQUAL(sizeof(layout_test::MultisampleRange), first.elementSize);
@@ -196,7 +197,7 @@ TEST(MultiRangeLayout, conversion_allocation_cancellation_preserves_original) {
 TEST(MultiRangeLayout, conversion_nested_layout_change_aborts_even_without_caller_validation) {
 	auto* original = first.insertMultiRange(0);
 	layout_test::on_allocate = [&] { ++first.layout_revision_; };
-	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange)) == layout_test::Error::ABORTED_BY_USER);
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), retired) == layout_test::Error::ABORTED_BY_USER);
 	POINTERS_EQUAL(original, first.getElement(0));
 }
 TEST(MultiRangeLayout, conversion_owner_destruction_during_allocation_stops_old_storage_access) {
@@ -214,7 +215,18 @@ TEST(MultiRangeLayout, conversion_owner_destruction_during_allocation_stops_old_
 	const auto context_valid = [&] { return owner_watch.alive(); };
 	deluge::lifetime::callback_validation validation(context_valid);
 	layout_test::on_allocate = [&] { owner.reset(); };
-	CHECK(owner->ranges.changeType(sizeof(layout_test::MultiWaveTableRange), &validation)
+	CHECK(owner->ranges.changeType(sizeof(layout_test::MultiWaveTableRange), retired, &validation)
 	      == layout_test::Error::ABORTED_BY_USER);
 	CHECK_FALSE(owner_watch.alive());
+}
+
+TEST(MultiRangeLayout, successful_conversion_transfers_original_storage_for_caller_cleanup) {
+	auto* original = first.insertMultiRange(0);
+	original->topNote = 81;
+	CHECK(first.changeType(sizeof(layout_test::MultiWaveTableRange), retired) == layout_test::Error::NONE);
+	POINTERS_EQUAL(original, retired.getElement(0));
+	LONGS_EQUAL(sizeof(layout_test::MultisampleRange), retired.elementSize);
+	LONGS_EQUAL(sizeof(layout_test::MultiWaveTableRange), first.elementSize);
+	LONGS_EQUAL(81, first.getElement(0)->topNote);
+	LONGS_EQUAL(81, retired.getElement(0)->topNote);
 }

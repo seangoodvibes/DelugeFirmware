@@ -3607,3 +3607,13 @@ cancelled entry, allocation cancellation, nested layout changes, actual owner
 destruction and Source fallback suppression. All 38 suites and RelWithDebInfo pass.
 Old-range destruction during conversion and allocation-failure recovery remain
 open; this change only closes the pre-copy allocation boundary.
+
+Successful range conversion transfers old storage to an empty caller-owned table
+instead of destroying ranges while they remain attached to Source. Source publishes
+its oscillator type and selected range before releasing old holders, and scoped
+cleanup finishes detached ranges even if a release destroys Source. Five new
+regressions cover transferred storage, callback-visible type/editor consistency,
+Source destruction, nested type changes and multi-range cleanup after destruction.
+All 38 suites and RelWithDebInfo pass. This reuses existing conversion allocations
+and adds no audio-buffer copies. Allocation-failure fallback, invalid selected-range
+recovery and callers of cancelled type changes remain open.

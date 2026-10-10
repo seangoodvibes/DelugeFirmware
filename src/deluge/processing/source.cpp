@@ -29,6 +29,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/finally.h"
 #include "util/functions.h"
 #include <cstring>
 
@@ -337,8 +338,17 @@ possiblyDeleteRanges:
 		if (ranges.element_size() != multiRangeSize) {
 
 doChangeType:
+			MultiRangeArray retired_ranges;
+			int32_t retired_index = 0;
+			const auto clean_retired_ranges = [&] {
+				while (retired_index < retired_ranges.getNumElements()) {
+					auto* retired_range = retired_ranges.getElement(retired_index++);
+					retired_range->~MultiRange();
+				}
+			};
+			auto retired_cleanup = util::finally(clean_retired_ranges);
 			deluge::lifetime::callback_validation validation(context_valid);
-			Error error = ranges.changeType(multiRangeSize, &validation);
+			Error error = ranges.changeType(multiRangeSize, retired_ranges, &validation);
 			if (!context_valid() || error == Error::ABORTED_BY_USER)
 				return;
 			if (error != Error::NONE) {
@@ -364,6 +374,10 @@ doChangeType:
 				editor.currentMultiRange =
 				    static_cast<MultiRange*>(ranges.getElementAddress(editor.currentMultiRangeIndex));
 			}
+			const auto published_layout = ranges.layout_revision();
+			clean_retired_ranges();
+			if (!context_valid() || ranges.layout_revision() != published_layout)
+				return;
 		}
 	}
 	else if (newType == OscType::WAVETABLE) {

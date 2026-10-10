@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_session.h"
+#include "util/finally.h"
 #include "util/lifetime.h"
 #include <functional>
 #include <memory>
@@ -8,8 +9,26 @@ namespace source_type_change_test {
 namespace session = deluge::gui::ui_session;
 enum class Error { NONE, INSUFFICIENT_RAM, ABORTED_BY_USER };
 enum class OscType { SQUARE, SAMPLE, WAVETABLE, DX7 };
+std::function<void()> on_retire;
+int retirements = 0;
 struct MultiRange {
+	~MultiRange() {
+		++retirements;
+		if (on_retire)
+			on_retire();
+	}
 } range, old_range;
+struct MultiRangeArray {
+	int count = 0;
+	alignas(MultiRange) unsigned char storage[2 * sizeof(MultiRange)];
+	int getNumElements() const { return count; }
+	MultiRange* getElement(int index) { return reinterpret_cast<MultiRange*>(storage + index * sizeof(MultiRange)); }
+	void add_retired_ranges(int range_count) {
+		for (int index = 0; index < range_count; ++index)
+			new (storage + index * sizeof(MultiRange)) MultiRange;
+		count = range_count;
+	}
+};
 struct MultisampleRange {
 	int value;
 };
@@ -25,6 +44,8 @@ struct Source {
 	OscType oscType = OscType::SQUARE;
 	struct {
 		int32_t elementSize = 1, count = 1;
+		unsigned revision = 0;
+		unsigned layout_revision() const { return revision; }
 		int32_t element_size() const { return elementSize; }
 		int32_t getNumElements() { return count; }
 		void* getElementAddress(int32_t) { return &range; }
@@ -32,13 +53,17 @@ struct Source {
 			++clears;
 			count = 0;
 		}
-		Error changeType(int32_t size, const deluge::lifetime::callback_validation* validation) {
+		Error changeType(int32_t size, MultiRangeArray& retired_ranges,
+		                 const deluge::lifetime::callback_validation* validation) {
 			++changes;
 			if (!validation->valid() || cancel_change)
 				return Error::ABORTED_BY_USER;
 			const auto error = fail_first_change && changes == 1 ? Error::INSUFFICIENT_RAM : Error::NONE;
-			if (error == Error::NONE)
+			if (error == Error::NONE) {
 				elementSize = size;
+				if (count)
+					retired_ranges.add_retired_ranges(count);
+			}
 			if (on_change)
 				on_change();
 			return error;
@@ -78,12 +103,12 @@ TEST_GROUP(SourceTypeChange) {
 		editors[0] = {};
 		editors[1] = {};
 		editors[0].currentSource = &source;
-		on_change = on_cleanup = on_create = {};
-		changes = cleanups = creates = clears = dx_creates = 0;
+		on_change = on_cleanup = on_create = on_retire = {};
+		changes = cleanups = creates = clears = dx_creates = retirements = 0;
 		fail_first_change = cancel_change = false;
 	}
 	void teardown() override {
-		on_change = on_cleanup = on_create = {};
+		on_change = on_cleanup = on_create = on_retire = {};
 		session::detail::active = session::Id::Local;
 	}
 };
@@ -177,4 +202,37 @@ TEST(SourceTypeChange, cancelled_conversion_does_not_destroy_original_ranges_or_
 	LONGS_EQUAL(0, creates);
 	LONGS_EQUAL(1, source.ranges.count);
 	CHECK(source.oscType == OscType::SQUARE);
+}
+
+TEST(SourceTypeChange, old_range_cleanup_observes_published_type_and_selected_range) {
+	editors[0].currentMultiRangeIndex = 0;
+	on_retire = [&] {
+		CHECK(source.oscType == OscType::SAMPLE);
+		POINTERS_EQUAL(&range, editors[0].currentMultiRange);
+	};
+	source.setOscType(OscType::SAMPLE);
+	LONGS_EQUAL(1, retirements);
+}
+TEST(SourceTypeChange, old_range_cleanup_can_destroy_source_without_stale_continuation) {
+	auto owner = std::make_unique<Source>();
+	on_retire = [&] { owner.reset(); };
+	owner->setOscType(OscType::SAMPLE);
+	CHECK(owner == nullptr);
+	LONGS_EQUAL(1, retirements);
+}
+TEST(SourceTypeChange, old_range_cleanup_nested_type_change_is_preserved) {
+	on_retire = [&] { source.oscType = OscType::DX7; };
+	source.setOscType(OscType::SAMPLE);
+	CHECK(source.oscType == OscType::DX7);
+	LONGS_EQUAL(1, retirements);
+	LONGS_EQUAL(0, dx_creates);
+}
+
+TEST(SourceTypeChange, detached_cleanup_finishes_all_old_ranges_after_source_destruction) {
+	auto owner = std::make_unique<Source>();
+	owner->ranges.count = 2;
+	on_retire = [&] { owner.reset(); };
+	owner->setOscType(OscType::SAMPLE);
+	CHECK(owner == nullptr);
+	LONGS_EQUAL(2, retirements);
 }
