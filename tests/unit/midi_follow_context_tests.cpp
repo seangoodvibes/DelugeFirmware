@@ -406,3 +406,56 @@ TEST(MidiFollowContext, retired_output_prevents_activation_lookup) {
 	POINTERS_EQUAL(nullptr, follow.getActiveClip(&stack));
 	LONGS_EQUAL(0, activation_calls);
 }
+
+TEST(MidiFollowContext, retired_selected_clip_is_not_a_parameter_target) {
+	current_clips.active() = &instrument;
+	selected_clips.active() = &instrument;
+	output.active_clip = &instrument;
+	instrument.lifetime_source.retire();
+	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+}
+TEST(MidiFollowContext, retired_output_is_not_a_parameter_target) {
+	current_clips.active() = &instrument;
+	selected_clips.active() = &instrument;
+	output.active_clip = &instrument;
+	output.lifetime_source.retire();
+	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+}
+TEST(MidiFollowContext, retired_active_clip_is_not_a_fallback_target) {
+	current_clips.active() = &instrument;
+	output.active_clip = &audio;
+	audio.lifetime_source.retire();
+	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+}
+TEST(MidiFollowContext, track_enumeration_skips_retiring_outputs) {
+	Output live_output;
+	Clip live_clip;
+	live_clip.output = &live_output;
+	live_output.active_clip = &live_clip;
+	song.firstOutput = &output;
+	output.next = &live_output;
+	output.active_clip = &instrument;
+	output.lifetime_source.retire();
+	LONGS_EQUAL(1, follow.getTrackCount());
+	POINTERS_EQUAL(&live_output, follow.getTrackFromIndex(0, 1));
+}
+TEST(MidiFollowContext, track_enumeration_skips_retiring_clips) {
+	song.firstOutput = &output;
+	output.active_clip = &instrument;
+	instrument.lifetime_source.retire();
+	LONGS_EQUAL(0, follow.getTrackCount());
+	POINTERS_EQUAL(nullptr, follow.getTrackFromIndex(0, 1));
+}
+
+TEST(MidiFollowContext, retiring_fallback_source_is_rejected_before_active_lookup) {
+	current_clips.active() = &instrument;
+	output.active_clip = &audio;
+	instrument.lifetime_source.retire();
+	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+}
+TEST(MidiFollowContext, retiring_fallback_output_is_rejected_before_active_lookup) {
+	current_clips.active() = &instrument;
+	output.active_clip = &audio;
+	output.lifetime_source.retire();
+	POINTERS_EQUAL(nullptr, follow.getSelectedOrActiveClip());
+}

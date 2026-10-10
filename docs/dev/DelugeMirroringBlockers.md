@@ -2136,3 +2136,9 @@ four paths with retiring clip/output targets. All 36 native suites and
 `./dbt build relwithdebinfo` pass. This addresses reentrant dispatch during
 retirement; it does not validate a pointer whose storage was already reclaimed
 before entry or prove safety inside instrument expression callbacks.
+
+MIDI Follow selection/fallback lookup and track enumeration now exclude retiring
+clips and outputs. Seven sanitizer regressions cover selected targets, fallback
+source/active targets and track filtering. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Lookup still requires live storage at entry;
+long-lived reference ownership remains part of L1.

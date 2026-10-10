@@ -403,14 +403,31 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 	if (!clip) {
 		clip = getCurrentClip();
 		if (clip) {
+			auto source_lifetime = clip->watch_lifetime();
+			if (!source_lifetime.alive())
+				return nullptr;
 			Output* output = clip->output;
-			clip = output ? output->getActiveClip() : nullptr;
+			if (!output)
+				return nullptr;
+			auto output_lifetime = output->watch_lifetime();
+			if (!output_lifetime.alive())
+				return nullptr;
+			clip = output->getActiveClip();
+			auto active_lifetime = clip ? clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+			if (clip && !active_lifetime.alive())
+				return nullptr;
 			if (clip && clip->output != output)
 				return nullptr;
 		}
 	}
 
-	return clip && clip->output ? clip : nullptr;
+	if (!clip)
+		return nullptr;
+	auto clip_lifetime = clip->watch_lifetime();
+	if (!clip_lifetime.alive() || !clip->output)
+		return nullptr;
+	auto output_lifetime = clip->output->watch_lifetime();
+	return output_lifetime.alive() ? clip : nullptr;
 }
 
 /// see if you are pressing and holding a clip in arranger view, song row view, song grid view
@@ -490,8 +507,10 @@ const size_t MidiFollow::getTrackCount() const {
 	size_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		auto* const active_clip = currentTrack->getActiveClip();
-		if (active_clip && active_clip->output == currentTrack) {
+		auto output_lifetime = currentTrack->watch_lifetime();
+		auto* const active_clip = output_lifetime.alive() ? currentTrack->getActiveClip() : nullptr;
+		auto clip_lifetime = active_clip ? active_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		if (clip_lifetime.alive() && active_clip->output == currentTrack) {
 			++count;
 		}
 		currentTrack = currentTrack->next;
@@ -507,8 +526,10 @@ Output* MidiFollow::getTrackFromIndex(uint32_t track_index, uint32_t maxTrack) {
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		auto* const active_clip = currentTrack->getActiveClip();
-		if (active_clip && active_clip->output == currentTrack) {
+		auto output_lifetime = currentTrack->watch_lifetime();
+		auto* const active_clip = output_lifetime.alive() ? currentTrack->getActiveClip() : nullptr;
+		auto clip_lifetime = active_clip ? active_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		if (clip_lifetime.alive() && active_clip->output == currentTrack) {
 			if (((maxTrack - 1) - count) == track_index) {
 				return currentTrack;
 			}
