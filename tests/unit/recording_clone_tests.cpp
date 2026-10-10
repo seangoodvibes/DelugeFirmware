@@ -572,3 +572,25 @@ TEST(RecordingClone, replaced_output_address_does_not_resume_old_work) {
 	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
 	delete target;
 }
+
+TEST(RecordingClone, retiring_existing_recording_target_does_not_retarget_or_clone) {
+	cloned.beingRecordedFromClip = &original;
+	output.active = &cloned;
+	cloned.retire_lifetime();
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&original, stack.clip);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}
+TEST(RecordingClone, reassigned_existing_recording_target_does_not_retarget_or_clone) {
+	Output other_output;
+	cloned.beingRecordedFromClip = &original;
+	cloned.output = &other_output;
+	output.active = &cloned;
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&original, stack.clip);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}

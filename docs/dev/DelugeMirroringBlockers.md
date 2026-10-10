@@ -2152,3 +2152,9 @@ backup callbacks and no retirement for song-owned clips. All 36 native suites
 and `./dbt build relwithdebinfo` pass. Hibernation and reversible detachment do not
 call these retirement entry points. Reentrant ownership changes inside cleanup
 still require the broader L1/L2 contract.
+
+Arrangement-recording target reuse now verifies the existing active clip is live
+and still attached to the source output before retargeting the model stack.
+Two sanitizer regressions reject retiring/reassigned recording targets without
+cloning or publishing another clip; the existing normal-reuse test still passes.
+All 36 native suites and `./dbt build relwithdebinfo` pass.

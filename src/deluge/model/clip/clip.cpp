@@ -1141,8 +1141,12 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && playbackHandler.isEitherClockActive()
 	    && !isArrangementOnlyClip() && modelStack->song->isClipActive(this)) {
 
-		if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {
-			modelStack->setTimelineCounter(output->getActiveClip());
+		auto* const active_clip = source_output->getActiveClip();
+		auto active_lifetime = active_clip ? active_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		if (active_clip && (!active_lifetime.alive() || active_clip->output != source_output))
+			return fail(Error::BUG);
+		if (active_clip && active_clip->beingRecordedFromClip == this) {
+			modelStack->setTimelineCounter(active_clip);
 		}
 
 		else {
