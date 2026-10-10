@@ -2120,3 +2120,12 @@ activation from reacquiring a deleted target after the inner edit cancels.
 Output-less selected contexts avoid a null dereference. Five sanitizer regressions
 cover separate current/selected targets, deletion, output address reuse and the
 output-less case. All 36 native suites and `./dbt build relwithdebinfo` pass.
+
+Output retirement now clears MIDI Follow's retained notes for surviving clips
+that still reference that output. Cleanup runs only on the first retirement,
+before recorder/member callbacks, and leaves other outputs' retained notes alone.
+Three sanitizer tests execute the real output retirement and retained-note cleanup
+bodies, covering selective clearing, destructor ordering and reassignment before
+later destruction. All 36 native suites and `./dbt build relwithdebinfo` pass.
+This closes that retained-note acquisition gap; it does not cover other stored
+clip/output references or repair stale song ownership lists.

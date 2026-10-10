@@ -17,7 +17,7 @@ struct Output {
 	Output* outputRecordingThisOutput = nullptr;
 	virtual ~Output();
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source_}; }
-	void retire_lifetime() { lifetime_source_.retire(); }
+	void retire_lifetime();
 	void removeRecorder() {
 		if (on_cleanup)
 			on_cleanup();
@@ -35,6 +35,15 @@ struct Output {
 			on_cleanup();
 	}
 };
+struct Clip {
+	Output* output = nullptr;
+};
+static Clip* clipForLastNoteReceived[128]{};
+struct MidiFollow {
+	void remove_output(Output*);
+};
+static MidiFollow midiFollow;
+#include "output_retained_notes.inc"
 struct AudioOutput : Output {
 	~AudioOutput() override;
 	void releaseMonitoringClaim() {
@@ -126,7 +135,12 @@ void check_retirement() {
 }
 } // namespace output_destruction_lifetime_test
 using namespace output_destruction_lifetime_test;
-TEST_GROUP(OutputDestructionLifetime){void teardown() override{on_cleanup = {};
+TEST_GROUP(OutputDestructionLifetime){void setup() override{for (auto& clip : clipForLastNoteReceived) clip = nullptr;
+}
+void teardown() override {
+	on_cleanup = {};
+	for (auto& clip : clipForLastNoteReceived)
+		clip = nullptr;
 }
 }
 ;
@@ -164,4 +178,40 @@ TEST(OutputDestructionLifetime, main_list_deletion_retires_before_audition_clean
 	on_cleanup = [&] { CHECK_FALSE(watch.alive()); };
 	song.deleteOutputThatIsInMainList(output, true);
 	CHECK_FALSE(watch.alive());
+}
+
+TEST(OutputDestructionLifetime, retirement_clears_only_notes_for_its_output) {
+	Clip target, other;
+	Output output, other_output;
+	target.output = &output;
+	other.output = &other_output;
+	clipForLastNoteReceived[0] = &target;
+	clipForLastNoteReceived[127] = &target;
+	clipForLastNoteReceived[60] = &other;
+	output.retire_lifetime();
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[0]);
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[127]);
+	POINTERS_EQUAL(&other, clipForLastNoteReceived[60]);
+}
+TEST(OutputDestructionLifetime, deletion_clears_retained_notes_before_cleanup_callback) {
+	Clip target;
+	auto* output = new AudioOutput;
+	target.output = output;
+	clipForLastNoteReceived[60] = &target;
+	on_cleanup = [&] { POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]); };
+	delete output;
+	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
+}
+TEST(OutputDestructionLifetime, later_destructor_does_not_clear_reassigned_notes) {
+	Clip target;
+	Output other_output;
+	auto* output = new Output;
+	target.output = output;
+	clipForLastNoteReceived[60] = &target;
+	output->retire_lifetime();
+	target.output = &other_output;
+	clipForLastNoteReceived[60] = &target;
+	delete output;
+	POINTERS_EQUAL(&target, clipForLastNoteReceived[60]);
+	clipForLastNoteReceived[60] = nullptr;
 }

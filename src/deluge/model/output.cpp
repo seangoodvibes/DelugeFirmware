@@ -17,6 +17,7 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -42,6 +43,11 @@ Output::Output(OutputType newType) : type(newType) {
 	armedForRecording = false;
 
 	modKnobMode = 1;
+}
+
+void Output::retire_lifetime() {
+	if (lifetime_source_.retire())
+		midiFollow.remove_output(this);
 }
 
 Output::~Output() {

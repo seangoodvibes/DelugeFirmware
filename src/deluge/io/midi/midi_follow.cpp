@@ -627,6 +627,13 @@ void MidiFollow::removeClip(Clip* clip) {
 	}
 }
 
+void MidiFollow::remove_output(Output* output) {
+	for (auto& clip : clipForLastNoteReceived) {
+		if (clip && clip->output == output)
+			clip = nullptr;
+	}
+}
+
 /// called from playback handler
 /// determines whether a note message received is midi follow relevant
 /// and should be routed to the active context or a specific track for further processing

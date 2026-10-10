@@ -25,6 +25,7 @@
 #include <array>
 #include <cstdint>
 
+class Output;
 class AudioClip;
 class InstrumentClip;
 class Clip;
@@ -61,6 +62,7 @@ public:
 
 	void clearStoredClips();
 	void removeClip(Clip* clip);
+	void remove_output(Output* output);
 
 	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);

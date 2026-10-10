@@ -676,7 +676,7 @@ target_sources(ClipLifetimeTests PRIVATE clip_activation_tests.cpp midi_follow_c
 set(output_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/output.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/output_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/output_lifetime.inc Output::~Output
+        ${output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/output_lifetime.inc Output::~Output Output::retire_lifetime
     DEPENDS ${output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/output_lifetime.inc)
 
@@ -722,3 +722,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/song_output_lifetime.inc
         ${song_output_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/song_output_lifetime.inc Song::deleteOutput Song::deleteOutputThatIsInMainList
     DEPENDS ${song_output_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/song_output_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/output_retained_notes.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/output_retained_notes.inc MidiFollow::remove_output
+    DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/output_retained_notes.inc)

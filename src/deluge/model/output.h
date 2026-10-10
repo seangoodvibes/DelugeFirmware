@@ -86,7 +86,7 @@ public:
 	[[nodiscard]] deluge::lifetime::lifetime_watch watch_lifetime() const {
 		return deluge::lifetime::lifetime_watch{lifetime_source_};
 	}
-	void retire_lifetime() { lifetime_source_.retire(); }
+	void retire_lifetime();
 	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                           char const* dirPath) = 0;
 
