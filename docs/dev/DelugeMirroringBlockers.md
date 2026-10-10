@@ -1237,3 +1237,16 @@ side effects are not provided by these guards.
 - This contains requests at callback boundaries; it does not pin UI objects or
   detect transient stack changes restored before return. G1/L1 remain open and
   independent mode remains disabled.
+
+### G1 progress — grid rendering callback containment (2026-10-10)
+
+- Grid rendering validates the stack, restores the initiating owner and stops after
+  render/send callbacks change owner or hierarchy. Original rows are requeued on
+  that owner without overwriting callback-generated requests; already sent rows
+  may be sent again during retry.
+- Six extracted-production fixture cases cover main/sidebar invalidation, retry,
+  send-boundary owner changes, request preservation and invalid/animation deferral.
+  Two regressions failed before the fix. All 35 native suites and
+  `./dbt build relwithdebinfo` pass.
+- Hardware sends and object retention are not exercised by these fixtures. G1/L1
+  remain open and independent mode stays disabled.

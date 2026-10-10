@@ -54,6 +54,8 @@ static navigation_fixture& navigation() {
 	return navigation_states.active();
 }
 #define currentUIMode navigation().mode
+constexpr uint32_t UI_MODE_HORIZONTAL_SCROLL = 1u << 29;
+constexpr uint32_t UI_MODE_HORIZONTAL_ZOOM = 2;
 constexpr uint32_t UI_MODE_HOLDING_ARRANGEMENT_ROW = 42; // gui/ui/ui.h
 static UI* getCurrentUI() {
 	return navigation().depth ? navigation().hierarchy[navigation().depth - 1] : nullptr;
@@ -559,4 +561,80 @@ TEST(UIOpen, sidebar_visibility_change_stops_render_request) {
 	CHECK(session::current() == session::Id::Local);
 	LONGS_EQUAL(0, navigation_states.for_owner(session::Id::Remote).side_rows_dirty);
 	LONGS_EQUAL(0, navigation().side_rows_dirty);
+}
+
+TEST(UIOpen, grid_render_stops_before_sending_after_owner_change) {
+	navigation().main_rows_dirty = 1;
+	navigation().side_rows_dirty = 2;
+	root.main_needed = root.side_needed = true;
+	root.on_main = [] { session::detail::active = session::Id::Remote; };
+	doAnyPendingGridRendering();
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(0, PadLEDs::main_sends.for_owner(session::Id::Remote));
+	LONGS_EQUAL(1, root.renders);
+	LONGS_EQUAL(1, navigation().main_rows_dirty);
+	LONGS_EQUAL(2, navigation().side_rows_dirty);
+}
+TEST(UIOpen, grid_render_retries_after_stack_changes) {
+	navigation().main_rows_dirty = 1;
+	root.main_needed = true;
+	root.on_main = [&] { navigation().hierarchy[0] = &replacement; };
+	doAnyPendingGridRendering();
+	LONGS_EQUAL(0, PadLEDs::main_sends.active());
+	LONGS_EQUAL(1, navigation().main_rows_dirty);
+	replacement.main_needed = true;
+	doAnyPendingGridRendering();
+	LONGS_EQUAL(1, PadLEDs::main_sends.active());
+	LONGS_EQUAL(0, navigation().main_rows_dirty);
+}
+TEST(UIOpen, grid_render_preserves_new_requests_and_normal_sends) {
+	navigation().main_rows_dirty = 1;
+	navigation().side_rows_dirty = 2;
+	root.main_needed = root.side_needed = true;
+	root.on_main = [] { navigation().main_rows_dirty = 4; };
+	doAnyPendingGridRendering();
+	LONGS_EQUAL(4, navigation().main_rows_dirty);
+	LONGS_EQUAL(0, PadLEDs::main_sends.active());
+	LONGS_EQUAL(1, PadLEDs::side_sends.active());
+	root.on_main = {};
+	doAnyPendingGridRendering();
+	LONGS_EQUAL(1, PadLEDs::main_sends.active());
+}
+
+TEST(UIOpen, grid_render_stops_after_main_send_changes_context) {
+	navigation().main_rows_dirty = 1;
+	navigation().side_rows_dirty = 2;
+	root.main_needed = root.side_needed = true;
+	PadLEDs::on_main_send = [] { session::detail::active = session::Id::Remote; };
+	doAnyPendingGridRendering();
+	CHECK(session::current() == session::Id::Local);
+	LONGS_EQUAL(1, root.renders);
+	LONGS_EQUAL(0, PadLEDs::side_sends.for_owner(session::Id::Remote));
+	LONGS_EQUAL(2, navigation().side_rows_dirty);
+}
+TEST(UIOpen, grid_render_defers_invalid_stacks_and_animation_modes) {
+	for (int depth : {-1, 0, navigation_fixture::capacity + 1, 2}) {
+		navigation().depth = depth;
+		navigation().main_rows_dirty = 1;
+		doAnyPendingGridRendering();
+		LONGS_EQUAL(1, navigation().main_rows_dirty);
+	}
+	navigation().depth = 1;
+	for (auto mode : {UI_MODE_HORIZONTAL_SCROLL, UI_MODE_HORIZONTAL_ZOOM}) {
+		navigation().mode = mode;
+		doAnyPendingGridRendering();
+		LONGS_EQUAL(1, navigation().main_rows_dirty);
+	}
+	LONGS_EQUAL(0, root.renders);
+}
+TEST(UIOpen, grid_sidebar_change_preserves_callback_requests) {
+	navigation().side_rows_dirty = 2;
+	root.side_needed = true;
+	root.on_side = [&] {
+		navigation().side_rows_dirty = 4;
+		navigation().hierarchy[0] = &replacement;
+	};
+	doAnyPendingGridRendering();
+	LONGS_EQUAL(6, navigation().side_rows_dirty);
+	LONGS_EQUAL(0, PadLEDs::side_sends.active());
 }

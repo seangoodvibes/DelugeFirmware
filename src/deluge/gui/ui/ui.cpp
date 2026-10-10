@@ -469,6 +469,28 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 }
 
 void doAnyPendingGridRendering() {
+	if (navigation().depth <= 0 || navigation().depth > navigation().capacity)
+		return;
+	for (int32_t level = 0; level < navigation().depth; ++level) {
+		if (!navigation().hierarchy[level])
+			return;
+	}
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto& source_navigation = navigation();
+	const auto expected_depth = source_navigation.depth;
+	const auto expected_hierarchy = source_navigation.hierarchy;
+	const auto requested_main_rows = source_navigation.main_rows_dirty;
+	const auto requested_side_rows = source_navigation.side_rows_dirty;
+	const auto context_matches = [&] {
+		if (deluge::gui::ui_session::current() == source_owner && source_navigation.depth == expected_depth
+		    && source_navigation.hierarchy == expected_hierarchy)
+			return true;
+		// Retry on the initiating panel without dropping redraws queued by callbacks.
+		source_navigation.main_rows_dirty |= requested_main_rows;
+		source_navigation.side_rows_dirty |= requested_side_rows;
+		return false;
+	};
 
 	if (!navigation().main_rows_dirty && !navigation().side_rows_dirty) {
 		return;
@@ -495,9 +517,13 @@ void doAnyPendingGridRendering() {
 		if (mainRowsNow) {
 			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image_for_session(),
 			                                     PadLEDs::occupancy_mask_for_session());
+			if (!context_matches())
+				return;
 			if (usedUp) {
 				if (!navigation().main_rows_dirty) {
 					PadLEDs::sendOutMainPadColours();
+					if (!context_matches())
+						return;
 				}
 				mainRowsNow = 0;
 			}
@@ -506,9 +532,13 @@ void doAnyPendingGridRendering() {
 		if (sideRowsNow) {
 			bool usedUp =
 			    thisUI->renderSidebar(sideRowsNow, PadLEDs::image_for_session(), PadLEDs::occupancy_mask_for_session());
+			if (!context_matches())
+				return;
 			if (usedUp) {
 				if (!navigation().side_rows_dirty) {
 					PadLEDs::sendOutSidebarColours();
+					if (!context_matches())
+						return;
 				}
 				sideRowsNow = 0;
 			}
