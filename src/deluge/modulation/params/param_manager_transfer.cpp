@@ -10,8 +10,12 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	}
 #endif
 
+	// Preserve upstream self-transfer semantics before releasing destination ownership.
+	if (other == this)
+		return;
+
 #if ALPHA_OR_BETA_VERSION
-	if (other == this || !other->has_valid_layout() || !has_valid_layout()) {
+	if (!other->has_valid_layout() || !has_valid_layout()) {
 		FREEZE_WITH_ERROR("PM0E");
 	}
 #endif

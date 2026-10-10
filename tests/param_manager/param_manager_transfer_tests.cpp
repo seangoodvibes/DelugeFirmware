@@ -222,6 +222,15 @@ int main() {
 			}
 		}
 	}
+	{
+		ParamManager manager;
+		check(manager.setupUnpatched() == Error::NONE, "Self-transfer setup must succeed");
+		auto* retained = manager.getUnpatchedParamSet();
+		manager.stealParamCollectionsFrom(&manager);
+		check(manager.getUnpatchedParamSet() == retained, "Self-transfer must retain owned collections");
+		check(manager.has_valid_layout(), "Self-transfer must retain valid layout");
+	}
+	check(allocations.empty(), "Self-transfer must not leak");
 #if ALPHA_OR_BETA_VERSION
 	{
 		ParamManager source, destination;
@@ -235,7 +244,7 @@ int main() {
 			check(froze, "Invalid transfer must diagnose before touching ownership");
 		};
 		expectFreeze([&] { destination.stealParamCollectionsFrom(nullptr); }, "PM0B");
-		expectFreeze([&] { destination.stealParamCollectionsFrom(&destination); }, "PM0E");
+
 		expectFreeze([&] { destination.cloneParamCollectionsFrom(nullptr, true); }, "PM0F");
 		source.expressionParamSetOffset = 255;
 		expectFreeze([&] { destination.stealParamCollectionsFrom(&source); }, "PM0E");
