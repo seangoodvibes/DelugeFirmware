@@ -740,3 +740,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_clone_lifetime.inc
         ${audio_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_clone_lifetime.inc AudioClip::clone
     DEPENDS ${audio_destruction_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE audio_clone_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/audio_clone_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_recording_rollover.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_recording_rollover.inc AudioClip::posReachedEnd
+    DEPENDS ${audio_destruction_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE audio_recording_rollover_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/audio_recording_rollover.inc)

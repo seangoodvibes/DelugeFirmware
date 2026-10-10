@@ -2206,3 +2206,15 @@ existing Song/Clip timeline distinction rather than RTTI, which firmware disable
 All 36 native suites and `./dbt build relwithdebinfo` pass. Source lifetime inside
 parameter/sample copying and sample-path allocation-error propagation remain
 open; outer checks alone do not prove those internals safe.
+
+Audio arrangement rollover now watches current/source/copy/output lifetimes,
+revalidates after base/reservation/clone callbacks, and delays shortening the
+original instance or clearing its source link until both reserved insertions
+succeed. Instance insertion failure removes the just-published song slot and
+cleans up only the unowned copy. Activation/position callbacks are checked before
+further work. Twenty-two sanitizer regressions execute the real rollover body
+with model/clone doubles, including relocation, allocation/publication failure,
+real deletion, adoption and callback edits. All 36 native suites and
+`./dbt build relwithdebinfo` pass. Cancellation after activation preserves the
+published prefix; full recovery and callback-internal parameter ownership remain
+open. No original clip is deleted on clone/publication failure.

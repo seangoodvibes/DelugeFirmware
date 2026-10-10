@@ -897,68 +897,140 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 
 // May change the TimelineCounter in the modelStack if new Clip got created
 void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
-
-	if (!isEmpty()) {}
+	if (!modelStack || !modelStack->song || modelStack->getTimelineCounterAllowNull() != this)
+		return;
+	auto self_lifetime = watch_lifetime();
+	if (!self_lifetime.alive() || !output)
+		return;
+	auto* const source_output = output;
+	auto output_lifetime = source_output->watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* const source_song = modelStack->song;
+	auto* const active_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_matches = [&] {
+		return self_lifetime.alive() && output_lifetime.alive() && output == source_output
+		       && modelStack->song == source_song && currentSong == active_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
 
 	Clip::posReachedEnd(modelStack);
+	if (!context_matches() || modelStack->getTimelineCounterAllowNull() != this
+	    || playbackHandler.recording != RecordingMode::ARRANGEMENT || !isArrangementOnlyClip())
+		return;
+	auto* const recording_source = beingRecordedFromClip;
+	if (!recording_source || recording_source == this)
+		return;
+	auto recording_source_lifetime = recording_source->watch_lifetime();
+	const int32_t source_length = loopLength;
+	const auto source_matches = [&] {
+		return context_matches() && recording_source_lifetime.alive() && recording_source->output == source_output
+		       && beingRecordedFromClip == recording_source && source_output->getActiveClip() == this
+		       && loopLength == source_length;
+	};
+	if (!source_matches() || source_length <= 0 || source_length > kMaxSequenceLength)
+		return;
 
-	// If recording from session to arranger...
-	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
+	const bool clips_reserved = source_song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1);
+	if (!source_matches() || modelStack->getTimelineCounterAllowNull() != this || !clips_reserved)
+		return;
+	const bool instances_reserved = source_output->clipInstances.ensureEnoughSpaceAllocated(1);
+	if (!source_matches() || modelStack->getTimelineCounterAllowNull() != this || !instances_reserved)
+		return;
 
-		D_PRINTLN("");
-		D_PRINTLN("AudioClip::posReachedEnd, at pos:  %d", playbackHandler.getActualArrangementRecordPos());
+	const int32_t record_pos = playbackHandler.getActualArrangementRecordPos();
+	if (record_pos < 0 || record_pos > kMaxSequenceLength - source_length)
+		return;
+	const int32_t instance_index = source_output->clipInstances.search(record_pos, LESS);
+	if (instance_index < 0)
+		return;
+	auto* instance = source_output->clipInstances.getElement(instance_index);
+	if (!instance || instance->clip != this || instance->pos < 0 || instance->pos >= record_pos)
+		return;
+	const ClipInstance original_instance = *instance;
+	const int32_t instance_count = source_output->clipInstances.getNumElements();
+	const auto instance_matches = [&] {
+		if (!source_matches() || source_output->clipInstances.getNumElements() != instance_count)
+			return false;
+		auto* current_instance = source_output->clipInstances.getElement(instance_index);
+		return current_instance && current_instance->clip == this && current_instance->pos == original_instance.pos
+		       && current_instance->length == original_instance.length;
+	};
 
-		if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-			return;
+	const Error clone_error = recording_source->clone(modelStack);
+	if (clone_error != Error::NONE || !context_matches())
+		return;
+	auto* const new_clip = static_cast<Clip*>(modelStack->getTimelineCounterAllowNull());
+	if (!new_clip || new_clip == this || new_clip == recording_source || source_song->contains_clip_for_undo(new_clip))
+		return;
+	auto clone_lifetime = new_clip->watch_lifetime();
+	const auto copy_is_unpublished = [&] {
+		return context_matches() && clone_lifetime.alive() && modelStack->getTimelineCounterAllowNull() == new_clip
+		       && new_clip->output == source_output && !source_song->contains_clip_for_undo(new_clip)
+		       && source_output->getActiveClip() != new_clip && !source_output->clipHasInstance(new_clip);
+	};
+	const auto discard_copy = [&] {
+		if (copy_is_unpublished()) {
+			modelStack->setTimelineCounter(this);
+			source_song->deleteClipObject(new_clip, false, InstrumentRemoval::NONE);
 		}
-		if (!output->clipInstances.ensureEnoughSpaceAllocated(1)) {
-			return;
-		}
-
-		int32_t arrangementRecordPos = playbackHandler.getActualArrangementRecordPos();
-
-		// Get that current clipInstance being recorded to
-		int32_t clipInstanceI = output->clipInstances.search(arrangementRecordPos, LESS);
-		if (clipInstanceI >= 0) {
-			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
-
-			// Close it off
-			clipInstance->length = arrangementRecordPos - clipInstance->pos;
-		}
-
-		Error error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
-		if (error != Error::NONE) {
-			return;
-		}
-
-		Clip* newClip = (Clip*)modelStack->getTimelineCounter();
-
-		newClip->beingRecordedFromClip = beingRecordedFromClip;
-		beingRecordedFromClip = nullptr;
-
-		newClip->section = 255;
-
-		modelStack->song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Can't fail - checked above
-
-		clipInstanceI++;
-
-		error = output->clipInstances.insertAtIndex(clipInstanceI); // Shouldn't be able to fail...
-		if (error != Error::NONE) {
-			return;
-		}
-
-		ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
-		clipInstance->clip = newClip;
-		clipInstance->pos = arrangementRecordPos;
-		clipInstance->length = loopLength;
-
-		newClip->activeIfNoSolo = false; // And now, we want it to actually be false
-		output->setActiveClip(modelStack, PgmChangeSend::NEVER);
-
-		newClip->setPos(modelStack, 0, false); // Tell it to *not* use "live pos"
-
-		newClip->paramManager.getUnpatchedParamSet()->copyOverridingFrom(paramManager.getUnpatchedParamSet());
+	};
+	if (!source_matches() || !copy_is_unpublished() || !instance_matches()) {
+		discard_copy();
+		return;
 	}
+
+	// Both insertions use reserved storage. No callback may observe a partial transition.
+	Error error = source_song->arrangementOnlyClips.insert_at_index_without_allocation(0);
+	if (error != Error::NONE) {
+		discard_copy();
+		return;
+	}
+	source_song->arrangementOnlyClips.setPointerAtIndex(new_clip, 0);
+	error = source_output->clipInstances.insert_at_index_without_allocation(instance_index + 1);
+	if (error != Error::NONE) {
+		source_song->arrangementOnlyClips.delete_at_index_preserving_capacity(0);
+		discard_copy();
+		return;
+	}
+	source_output->clipInstances.getElement(instance_index)->length = record_pos - original_instance.pos;
+	auto* next_instance = source_output->clipInstances.getElement(instance_index + 1);
+	next_instance->clip = new_clip;
+	next_instance->pos = record_pos;
+	next_instance->length = source_length;
+	new_clip->beingRecordedFromClip = recording_source;
+	beingRecordedFromClip = nullptr;
+	new_clip->section = 255;
+	new_clip->activeIfNoSolo = false;
+
+	const auto published_matches = [&] {
+		if (!context_matches() || !clone_lifetime.alive() || !recording_source_lifetime.alive()
+		    || modelStack->getTimelineCounterAllowNull() != new_clip || new_clip->output != source_output
+		    || !source_song->contains_clip_for_undo(new_clip) || source_output->getActiveClip() != new_clip
+		    || source_output->clipInstances.getNumElements() != instance_count + 1 || beingRecordedFromClip != nullptr
+		    || new_clip->beingRecordedFromClip != recording_source || recording_source->output != source_output
+		    || loopLength != source_length)
+			return false;
+		auto* previous_instance = source_output->clipInstances.getElement(instance_index);
+		if (!previous_instance || previous_instance->clip != this || previous_instance->pos != original_instance.pos
+		    || previous_instance->length != record_pos - original_instance.pos)
+			return false;
+		auto* current_instance = source_output->clipInstances.getElement(instance_index + 1);
+		return current_instance && current_instance->clip == new_clip && current_instance->pos == record_pos
+		       && current_instance->length == source_length;
+	};
+	source_output->setActiveClip(modelStack, PgmChangeSend::NEVER);
+	if (!published_matches())
+		return;
+	new_clip->setPos(modelStack, 0, false);
+	if (!published_matches())
+		return;
+	auto* target_parameters = new_clip->paramManager.getUnpatchedParamSet();
+	auto* source_parameters = paramManager.getUnpatchedParamSet();
+	if (target_parameters && source_parameters)
+		target_parameters->copyOverridingFrom(source_parameters);
 }
 
 // Can assume there always was an old Output to begin with
