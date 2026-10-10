@@ -247,6 +247,7 @@ struct View {
 	bool renderedVUMeter = false;
 	bool displayVUMeter = false;
 	void modButtonAction(uint8_t, bool);
+	int32_t getModKnobMode();
 	void setModLedStates() {
 		if (on_mod_leds)
 			on_mod_leds();
@@ -1008,4 +1009,36 @@ TEST(KnobIndicator, mod_button_mode_lookup_cannot_redirect_press) {
 		LONGS_EQUAL(0, controllable.mode);
 	}
 	controllable.on_mode = {};
+}
+
+TEST(KnobIndicator, mod_mode_lookup_rejects_replaced_controller) {
+	auto& view = view_for_session();
+	controllable.mode = 3;
+	controllable.on_mode = [&] { view.activeModControllableModelStack.modControllable = nullptr; };
+	LONGS_EQUAL(-1, view.getModKnobMode());
+	controllable.on_mode = {};
+}
+TEST(KnobIndicator, mod_mode_lookup_restores_owner_and_rejects_changed_song) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		controllable.mode = 3;
+		controllable.on_mode = [owner] {
+			session::detail::active = owner == session::Id::Local ? session::Id::Remote : session::Id::Local;
+		};
+		LONGS_EQUAL(-1, view_for_session().getModKnobMode());
+		CHECK(session::current() == owner);
+		currentSong = &song;
+		controllable.on_mode = [] { currentSong = &replacement_song; };
+		LONGS_EQUAL(-1, view_for_session().getModKnobMode());
+		controllable.on_mode = {};
+	}
+}
+TEST(KnobIndicator, mod_mode_lookup_preserves_normal_and_missing_modes) {
+	auto& view = view_for_session();
+	controllable.mode = 3;
+	LONGS_EQUAL(3, view.getModKnobMode());
+	controllable.missing_mode = true;
+	LONGS_EQUAL(-1, view.getModKnobMode());
+	view.activeModControllableModelStack.modControllable = nullptr;
+	LONGS_EQUAL(-1, view.getModKnobMode());
 }

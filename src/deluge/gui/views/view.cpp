@@ -1739,14 +1739,21 @@ void View::setModLedStates() {
 }
 
 int32_t View::getModKnobMode() {
-	int32_t modKnobMode = -1;
-	if (activeModControllableModelStack.modControllable) {
-		uint8_t* modKnobModePointer = activeModControllableModelStack.modControllable->getModKnobMode();
-		if (modKnobModePointer) {
-			modKnobMode = *modKnobModePointer;
-		}
-	}
-	return modKnobMode;
+	auto* const source_controllable = activeModControllableModelStack.modControllable;
+	if (!source_controllable)
+		return -1;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto* const source_manager = activeModControllableModelStack.paramManager;
+	auto* const source_timeline = activeModControllableModelStack.getTimelineCounterAllowNull();
+	auto* const source_mode = source_controllable->getModKnobMode();
+	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song
+	    || activeModControllableModelStack.modControllable != source_controllable
+	    || activeModControllableModelStack.paramManager != source_manager
+	    || activeModControllableModelStack.getTimelineCounterAllowNull() != source_timeline || !source_mode)
+		return -1;
+	return *source_mode;
 }
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {

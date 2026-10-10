@@ -1517,3 +1517,13 @@ per-panel automation/affect state across session, arranger and keyboard views.
 All 35 native suites and `./dbt build relwithdebinfo` pass. Model and hardware
 services are fixtures; these guards do not retain objects or prove device
 acceptance. Independent mode remains disabled.
+
+### G1 progress — modulation mode lookup context (2026-10-10)
+
+The view mode getter validates owner, song and modulation target after the virtual
+controller lookup, before dereferencing its returned mode pointer. It restores the
+source owner and returns no selection for changed or unavailable targets. Three
+extracted-production tests cover controller replacement (failed before the fix),
+owner/song changes on both panels, and normal/missing mode storage. All 35 native
+suites and `./dbt build relwithdebinfo` pass. Pointer identity checks do not retain
+objects or detect address reuse; lifetime protection remains open.
