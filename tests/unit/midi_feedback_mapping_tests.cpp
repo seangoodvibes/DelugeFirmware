@@ -52,7 +52,18 @@ struct cable_fixture {
 	void writeReferenceToFile(Serializer&, char const*) {}
 };
 using MIDICable = cable_fixture;
+enum class MIDIMatchType { NO_MATCH, CHANNEL, MPE_MASTER };
 struct channel_fixture {
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	int match_calls = 0;
+	MIDICable* matched_cable = nullptr;
+	uint8_t matched_channel = 0;
+	MIDIMatchType checkMatch(MIDICable* cable, uint8_t channel) {
+		++match_calls;
+		matched_cable = cable;
+		matched_channel = channel;
+		return match;
+	}
 	uint8_t channelOrZone = MIDI_CHANNEL_NONE;
 	cable_fixture* cable = nullptr;
 };
@@ -73,6 +84,8 @@ struct MidiFollow {
 	size_t getChannelTypesForFeedback(FeedbackChannelTypes&);
 	bool addChannelTypeForFeedback(FeedbackChannelTypes&, size_t&, MIDIFollowChannelType);
 	bool global_context = false;
+	MIDIMatchType checkMidiFollowMatch(MIDICable&, uint8_t);
+	MIDIMatchType checkMidiFollowMatchForSpecificTrack(MIDICable&, uint8_t, int32_t);
 	void writeDefaultMappingsToFile(Serializer&);
 	char const* getNameFromChannelType(MIDIFollowChannelType) { return "a"; }
 	void writeSpecificChannelSettingsToFile(Serializer&, MIDIFollowChannelType);
@@ -369,4 +382,42 @@ TEST(MidiFeedbackMapping, disabled_and_unconfigured_modes_clear_previous_targets
 		for (auto target : targets)
 			CHECK(target == MIDIFollowChannelType::NONE);
 	}
+}
+
+TEST(MidiFeedbackMapping, invalid_track_match_does_not_alias_regular_follow_channel) {
+	MIDICable cable;
+	for (auto& entry : midiEngine.midiFollowChannelType)
+		entry.match = MIDIMatchType::CHANNEL;
+	for (int index : {-1, -3, INT_MIN, kNumMIDIFollowChannelTrackTypes, INT_MAX}) {
+		CHECK(follow.checkMidiFollowMatchForSpecificTrack(cable, 4, index) == MIDIMatchType::NO_MATCH);
+	}
+	for (auto& entry : midiEngine.midiFollowChannelType)
+		LONGS_EQUAL(0, entry.match_calls);
+}
+TEST(MidiFeedbackMapping, track_matching_passes_cable_channel_and_preserves_match_kind) {
+	MIDICable cable;
+	for (int index : {0, kNumMIDIFollowChannelTrackTypes - 1}) {
+		auto& entry = midiEngine.midiFollowChannelType[kNumMIDIFollowChannelTypes + index];
+		entry.match = MIDIMatchType::MPE_MASTER;
+		CHECK(follow.checkMidiFollowMatchForSpecificTrack(cable, 15, index) == MIDIMatchType::MPE_MASTER);
+		POINTERS_EQUAL(&cable, entry.matched_cable);
+		LONGS_EQUAL(15, entry.matched_channel);
+		LONGS_EQUAL(1, entry.match_calls);
+	}
+}
+TEST(MidiFeedbackMapping, regular_matching_stops_at_first_match_and_excludes_tracks) {
+	MIDICable cable;
+	midiEngine.midiFollowChannelType[1].match = MIDIMatchType::CHANNEL;
+	midiEngine.midiFollowChannelType[2].match = MIDIMatchType::MPE_MASTER;
+	CHECK(follow.checkMidiFollowMatch(cable, 2) == MIDIMatchType::CHANNEL);
+	LONGS_EQUAL(1, midiEngine.midiFollowChannelType[0].match_calls);
+	LONGS_EQUAL(1, midiEngine.midiFollowChannelType[1].match_calls);
+	LONGS_EQUAL(0, midiEngine.midiFollowChannelType[2].match_calls);
+	for (auto& entry : midiEngine.midiFollowChannelType) {
+		entry.match_calls = 0;
+		entry.match = MIDIMatchType::NO_MATCH;
+	}
+	midiEngine.midiFollowChannelType[3].match = MIDIMatchType::CHANNEL;
+	CHECK(follow.checkMidiFollowMatch(cable, 2) == MIDIMatchType::NO_MATCH);
+	LONGS_EQUAL(0, midiEngine.midiFollowChannelType[3].match_calls);
 }

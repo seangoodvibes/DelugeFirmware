@@ -1743,3 +1743,14 @@ unconfigured/disabled settings. All 35 native suites pass; production code is
 unchanged from the preceding successful RelWithDebInfo build. Track selection and
 MIDI engine configuration remain fixtures, and actual SysEx-only peer filtering
 and physical output are outside this test suite.
+
+### G1 / R4 progress — track matcher index validation (2026-10-10)
+
+Track-specific MIDI matching now validates the signed track index before adding
+the A/B/C offset. This prevents negative indices aliasing regular Follow channels
+and avoids overflow for extreme indices. Three extracted-production tests cover
+the reproduced alias, invalid extremes, Track 1/16, cable/channel forwarding, MPE
+match preservation and regular-channel first-match priority. All 35 native suites
+and `./dbt build relwithdebinfo` pass. Learned-device matching is a fixture; these
+tests establish dispatch/index behavior, not physical input acceptance or lifetime
+safety. Independent mode remains disabled.

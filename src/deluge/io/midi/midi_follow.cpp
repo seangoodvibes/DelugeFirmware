@@ -1502,6 +1502,8 @@ MIDIMatchType MidiFollow::checkMidiFollowMatch(MIDICable& cable, uint8_t channel
 /// used with midi follow channels for specific tracks 1-16
 MIDIMatchType MidiFollow::checkMidiFollowMatchForSpecificTrack(MIDICable& cable, uint8_t channel,
                                                                int32_t specific_track_index) {
+	if (specific_track_index < 0 || specific_track_index >= kNumMIDIFollowChannelTrackTypes)
+		return MIDIMatchType::NO_MATCH;
 	MIDIMatchType m = MIDIMatchType::NO_MATCH;
 	auto i = kNumMIDIFollowChannelTypes + specific_track_index;
 	if (i < kNumMIDIFollowChannelTypesIncludingTracks) {

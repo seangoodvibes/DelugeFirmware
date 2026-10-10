@@ -540,7 +540,7 @@ target_sources(UnitTests PRIVATE vu_render_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}
 set(midi_feedback_mapping_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/io/midi/midi_follow.cpp)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_mapping.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_mapping.inc MidiFollow::getCCFromParam MidiFollow::readDefaultMappingsFromFile MidiFollow::readSpecificChannelSettingsFromFile MidiFollow::writeSpecificChannelSettingsToFile MidiFollow::writeDefaultMappingsToFile MidiFollow::addChannelTypeForFeedback MidiFollow::getChannelTypesForFeedback
+        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_mapping.inc MidiFollow::getCCFromParam MidiFollow::readDefaultMappingsFromFile MidiFollow::readSpecificChannelSettingsFromFile MidiFollow::writeSpecificChannelSettingsToFile MidiFollow::writeDefaultMappingsToFile MidiFollow::addChannelTypeForFeedback MidiFollow::getChannelTypesForFeedback MidiFollow::checkMidiFollowMatch MidiFollow::checkMidiFollowMatchForSpecificTrack
     DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_feedback_mapping_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_mapping.inc)
 
