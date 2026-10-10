@@ -3539,3 +3539,9 @@ sort allocation, pitch detection and caller UI recovery. All 38 suites and
 RelWithDebInfo pass. The checks stop continuation at these boundaries; they do not
 roll back pitch caches or establish safety inside every lower-level callback. Kit
 import still needs its own caller-context propagation.
+
+Folder loading now honors allocation errors while appending the directory separator
+and filename. It stops before asking the file manager to load a truncated path and
+releases any previously collected references. Two whole-loader regressions fail
+against the old ignored-return-value paths and verify no incorrect file request or
+returned table. All 38 suites and RelWithDebInfo pass.

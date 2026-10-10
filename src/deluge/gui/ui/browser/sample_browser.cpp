@@ -1307,7 +1307,11 @@ removeReasonsFromSamplesAndGetOut:
 	filePath.set(&dirToLoad);
 	int32_t dirWithSlashLength = filePath.getLength();
 	if (dirWithSlashLength) {
-		filePath.concatenateAtPos("/", dirWithSlashLength);
+		error = filePath.concatenateAtPos("/", dirWithSlashLength);
+		if (error != Error::NONE) {
+			folder_directory.close();
+			goto removeReasonsFromSamplesAndGetOut;
+		}
 		dirWithSlashLength++;
 	}
 
@@ -1357,7 +1361,11 @@ removeReasonsFromSamplesAndGetOut:
 			}
 		}
 
-		filePath.concatenateAtPos(file_info.fname, dirWithSlashLength);
+		error = filePath.concatenateAtPos(file_info.fname, dirWithSlashLength);
+		if (error != Error::NONE) {
+			folder_directory.close();
+			goto removeReasonsFromSamplesAndGetOut;
+		}
 		if (!context_valid())
 			return false;
 

@@ -21,6 +21,7 @@ enum class AudioFileType { SAMPLE };
 constexpr int MIDI_NOTE_ERROR = -1000, AM_DIR = 16;
 std::function<void()> on_audio, on_append, on_pitch, on_sort_allocation, on_file_load;
 int fail_owned_slot = -1;
+int append_calls = 0, fail_append = -1;
 bool fail_sort_allocation = false;
 std::vector<std::string> requested_paths;
 int read_failure_after = -1;
@@ -29,11 +30,14 @@ struct String {
 	void set(const String* other) { value = other->value; }
 	const char* get() const { return value.c_str(); }
 	int32_t getLength() const { return value.size(); }
-	void concatenateAtPos(const char* text, int32_t position) {
+	Error concatenateAtPos(const char* text, int32_t position) {
+		if (++append_calls == fail_append)
+			return Error::INSUFFICIENT_RAM;
 		value.resize(position);
 		if (on_append)
 			on_append();
 		value += text;
+		return Error::NONE;
 	}
 };
 struct FileItem {
@@ -196,6 +200,8 @@ TEST_GROUP(FolderSampleLoading) {
 		display_instance = {};
 		on_audio = on_append = on_pitch = on_sort_allocation = on_file_load = {};
 		fail_owned_slot = -1;
+		append_calls = 0;
+		fail_append = -1;
 		fail_sort_allocation = false;
 		requested_paths.clear();
 	}
@@ -205,6 +211,8 @@ TEST_GROUP(FolderSampleLoading) {
 		selected_file.reset();
 		on_audio = on_append = on_pitch = on_sort_allocation = on_file_load = {};
 		fail_owned_slot = -1;
+		append_calls = 0;
+		fail_append = -1;
 		fail_sort_allocation = false;
 		requested_paths.clear();
 	}
@@ -431,4 +439,25 @@ TEST(FolderSampleLoading, cancellation_during_pitch_detection_does_not_publish_s
 	CHECK(table == nullptr);
 	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
 	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+}
+
+TEST(FolderSampleLoading, directory_separator_allocation_failure_does_not_load_a_truncated_path) {
+	fail_append = 1;
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	CHECK(requested_paths.empty());
+	CHECK(table == nullptr);
+	CHECK_TRUE(display_instance.last_error == Error::INSUFFICIENT_RAM);
+}
+TEST(FolderSampleLoading, filename_allocation_failure_releases_prior_samples_without_loading_wrong_file) {
+	fail_append = 3;
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	LONGS_EQUAL(1, requested_paths.size());
+	CHECK(table == nullptr);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+	CHECK_TRUE(display_instance.last_error == Error::INSUFFICIENT_RAM);
 }
