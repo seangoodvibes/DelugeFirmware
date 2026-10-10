@@ -855,6 +855,16 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber,
                                                           uint8_t ccValue, bool* doingMidiThru,
                                                           ModelStack* modelStack) {
+	if (!currentSong || !modelStack || ccNumber > kMaxMIDIValue || ccValue > kMaxMIDIValue)
+		return nullptr;
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_current_clip = getCurrentClip();
+	const auto context_matches = [&] {
+		return currentSong == source_song && deluge::gui::ui_session::current() == source_owner
+		       && getCurrentClip() == source_current_clip;
+	};
 	Output* selected_track = nullptr;
 
 	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
@@ -899,10 +909,14 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 				}
 			}
 		}
+		if (!context_matches())
+			return nullptr;
 		// for these cc's, always use the active clip for the output selected
 		clip = getActiveClip(modelStack);
+		if (!context_matches())
+			return nullptr;
 		// these cc's are only relevant for instrument clips
-		if (clip && clip->type == ClipType::INSTRUMENT) {
+		if (clip && clip->output && clip->type == ClipType::INSTRUMENT) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
@@ -910,7 +924,8 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 					kit->receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, ccValue,
 					                      doingMidiThru, clip);
 				}
-				else {
+				else if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
+				         || clip->output->type == OutputType::CV) {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 					melodicInstrument->receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber,
 					                              ccValue, doingMidiThru);
@@ -918,7 +933,7 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 			}
 		}
 	}
-	return selected_track;
+	return context_matches() ? selected_track : nullptr;
 }
 
 /// determines whether a midi cc received is midi follow relevant

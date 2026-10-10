@@ -23,6 +23,10 @@ struct Clip {
 	Output* output = nullptr;
 	ClipType type = ClipType::INSTRUMENT;
 };
+static Clip* current_clip = nullptr;
+static Clip* getCurrentClip() {
+	return current_clip;
+}
 static int instrument_calls = 0;
 struct Kit : Output {
 	template <class... Args>
@@ -65,6 +69,19 @@ static struct {
 } midiEngine;
 struct MidiFollow {
 	int parameter_calls = 0;
+	int activation_calls = 0;
+	Clip* selected_clip = nullptr;
+	Clip* active_clip = nullptr;
+	std::function<void()> on_activation;
+	MIDIMatchType checkMidiFollowMatch(MIDICable&, uint8_t) { return match; }
+	Clip* getSelectedOrActiveClip() { return selected_clip; }
+	Clip* getActiveClip(ModelStack*) {
+		++activation_calls;
+		if (on_activation)
+			on_activation();
+		return active_clip;
+	}
+	Output* midiCCReceivedForSelectedOrActiveClip(MIDICable&, uint8_t, uint8_t, uint8_t, bool*, ModelStack*);
 	bool feedback = false;
 	MIDIMatchType match = MIDIMatchType::CHANNEL;
 	uint32_t timeLastCCSent[kMaxMIDIValue + 1]{};
@@ -91,12 +108,18 @@ TEST_GROUP(MidiTrackCC) {
 	void send(int cc = 7, int value = 100) {
 		follow.midiCCReceivedForSpecificTrack(cable, 0, cc, value, &thru, &stack, &output, 0);
 	}
+	Output* send_selected(int cc = 7, int value = 100) {
+		return follow.midiCCReceivedForSelectedOrActiveClip(cable, 0, cc, value, &thru, &stack);
+	}
 	void setup() override {
 		panels::detail::active = panels::Id::Local;
 		currentSong = &song;
 		song.firstOutput = &output;
 		output.active_clip = &clip;
 		clip.output = &output;
+		current_clip = &clip;
+		follow.selected_clip = &clip;
+		follow.active_clip = &clip;
 		instrument_calls = 0;
 		session = {};
 		midiEngine = {};
@@ -205,4 +228,46 @@ TEST(MidiTrackCC, detached_or_mismatched_track_targets_do_not_receive_cc) {
 	follow.midiCCReceivedForSpecificTrack(cable, 0, 7, 100, &thru, &stack, nullptr, 0);
 	LONGS_EQUAL(0, follow.parameter_calls);
 	LONGS_EQUAL(0, instrument_calls);
+}
+
+TEST(MidiTrackCC, selected_parameter_context_change_prevents_activation) {
+	for (int change = 0; change < 3; ++change) {
+		currentSong = &song;
+		current_clip = &clip;
+		follow.on_parameter = [&] {
+			if (change == 0)
+				currentSong = nullptr;
+			if (change == 1)
+				current_clip = nullptr;
+			if (change == 2)
+				panels::detail::active = panels::Id::Remote;
+		};
+		POINTERS_EQUAL(nullptr, send_selected());
+		LONGS_EQUAL(0, follow.activation_calls);
+		LONGS_EQUAL(0, instrument_calls);
+		CHECK(panels::current() == panels::Id::Local);
+	}
+}
+TEST(MidiTrackCC, selected_activation_context_change_prevents_instrument_delivery) {
+	follow.on_activation = [&] { current_clip = nullptr; };
+	POINTERS_EQUAL(nullptr, send_selected());
+	LONGS_EQUAL(1, follow.parameter_calls);
+	LONGS_EQUAL(1, follow.activation_calls);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, selected_and_active_clips_can_differ) {
+	Clip active_clip;
+	active_clip.output = &output;
+	follow.active_clip = &active_clip;
+	POINTERS_EQUAL(&output, send_selected());
+	LONGS_EQUAL(1, follow.parameter_calls);
+	LONGS_EQUAL(1, instrument_calls);
+}
+TEST(MidiTrackCC, selected_invalid_input_does_not_activate) {
+	send_selected(128);
+	send_selected(7, 128);
+	currentSong = nullptr;
+	send_selected();
+	LONGS_EQUAL(0, follow.parameter_calls);
+	LONGS_EQUAL(0, follow.activation_calls);
 }

@@ -1828,3 +1828,14 @@ internal/MIDI/CV routing, mute/solo, unavailable targets and feedback filtering.
 All 35 native suites and `./dbt build relwithdebinfo` pass. Real deletion is limited
 to fixture objects; firmware destructor behavior, address reuse and lifetime
 inside parameter/instrument callbacks remain open.
+
+### G1 progress — selected CC context boundaries (2026-10-10)
+
+Selected CC routing now validates input bounds and the song/model stack before
+processing. It checks song, panel and current-clip identity after parameter
+handling and activation, and only reports the selected output while that context
+remains current. Instrument casts exclude unsupported output types. Four native
+regressions cover parameter/activation context changes, distinct selected and
+active clips, and invalid inputs. All 35 native suites and
+`./dbt build relwithdebinfo` pass. Identity checks do not protect against address
+reuse or destruction inside callbacks; those remain L1 work.
