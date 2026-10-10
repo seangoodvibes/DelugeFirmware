@@ -608,3 +608,14 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mod_encoder_lookup.inc
         ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/mod_encoder_lookup.inc View::getModelStackWithParam
     DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE mod_encoder_lookup_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/mod_encoder_lookup.inc)
+
+set(drum_expression_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/drum/drum.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/drum_expression_recording.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${drum_expression_source} ${CMAKE_CURRENT_BINARY_DIR}/drum_expression_recording.inc Drum::expressionEventPossiblyToRecord
+    DEPENDS ${drum_expression_source} ../support/extract_functions.py VERBATIM)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_parameter_input_source} ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc MelodicInstrument::polyphonicExpressionEventPossiblyToRecord
+    DEPENDS ${midi_parameter_input_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE expression_recording_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/drum_expression_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/melodic_expression_recording.inc)

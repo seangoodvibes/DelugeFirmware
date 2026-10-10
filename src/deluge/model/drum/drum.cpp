@@ -108,9 +108,11 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
-	if (modelStack
-	        ->timelineCounterIsSet()) { // && playbackHandler.isEitherClockActive() && playbackHandler.recording) {
-		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+	if (modelStack && modelStack->timelineCounterIsSet()) {
+		Error clone_error = Error::NONE;
+		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack, &clone_error);
+		if (clone_error != Error::NONE)
+			goto justSend;
 
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    ((InstrumentClip*)modelStack->getTimelineCounter())->getNoteRowForDrum(modelStack, this);

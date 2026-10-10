@@ -1946,3 +1946,14 @@ unnecessary cloning, absent timelines and absent controllables. All 35 native
 suites and `./dbt build relwithdebinfo` pass. This does not establish lifetime
 safety across note-tail/clone/refresh callbacks; expression and note-recording
 clone callers still need failure handling.
+
+### G1 / R5 progress — live expression after arrangement-clone failure (2026-10-10)
+
+Drum and melodic expression recording now consume clone errors and fall back to
+live expression without recording into the original clip. Missing model stacks
+also take the live path. Four production-body tests cover failed cloning,
+recording into successful clones, unavailable timelines and row-recording
+failure; smoothing is active during fallback and cleared afterward. All 35
+native suites and `./dbt build relwithdebinfo` pass. Note-on recording is now the
+remaining pair of clone callers without explicit error handling. Object lifetime
+inside clone/row/sound callbacks remains open.
