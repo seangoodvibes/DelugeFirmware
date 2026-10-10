@@ -52,12 +52,28 @@ std::string_view RenameOutputUI::getCurrentName() const {
 bool RenameOutputUI::trySetName(std::string_view name) {
 	if (!canRename())
 		return false;
+	auto* const source_song = currentSong;
+	auto* const source_output = output;
+	const auto source_owner = deluge::gui::ui_session::current();
+	String previous_name;
+	previous_name.set(&output->name); // Shares existing storage without allocation.
+	String replacement_name;
+	const auto error = replacement_name.set(name);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
+	// Allocation can service callbacks. Revalidate before accessing the retained output.
+	if (deluge::gui::ui_session::current() != source_owner || currentSong != source_song || output != source_output
+	    || !canRename() || std::string_view(output->name.get()) != previous_name.get()) {
+		return false;
+	}
 	// Duplicate names not allowed for audio outputs.
-	void* other = currentSong->getAudioOutputFromName(name);
+	void* other = currentSong->getAudioOutputFromName(replacement_name.get());
 	if (other != nullptr && other != output) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	output->name.set(name);
+	output->name.set(&replacement_name); // Non-allocating commit.
 	return true;
 }

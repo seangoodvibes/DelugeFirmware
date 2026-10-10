@@ -271,3 +271,49 @@ TEST(RenameOutputTargets, missing_context_rejects_and_reattachment_allows_rename
 	CHECK(menu.trySetName("reattached"));
 	STRCMP_EQUAL("reattached", output.name.get());
 }
+TEST(RenameOutputTargets, allocation_failure_preserves_name_and_allows_retry) {
+	next_error = Error::INSUFFICIENT_RAM;
+	CHECK_FALSE(menu.trySetName("replacement"));
+	STRCMP_EQUAL("original", output.name.get());
+	CHECK(display_instance.error == Error::INSUFFICIENT_RAM);
+	next_error = Error::NONE;
+	CHECK(menu.trySetName("retry"));
+	STRCMP_EQUAL("retry", output.name.get());
+}
+TEST(RenameOutputTargets, allocation_callback_newer_name_is_preserved) {
+	on_name_set = [&] { output.name.value = "newer"; };
+	CHECK_FALSE(menu.trySetName("replacement"));
+	STRCMP_EQUAL("newer", output.name.get());
+}
+TEST(RenameOutputTargets, allocation_context_changes_cancel_commit) {
+	Song replacement_song;
+	for (int scenario = 0; scenario < 5; ++scenario) {
+		currentSong = &song;
+		song.firstOutput = &output;
+		song.duplicate_output = nullptr;
+		menu.output = &output;
+		session::detail::active = session::Id::Local;
+		on_name_set = [&] {
+			switch (scenario) {
+			case 0:
+				currentSong = &replacement_song;
+				break;
+			case 1:
+				menu.output = &other;
+				break;
+			case 2:
+				song.firstOutput = &other;
+				break;
+			case 3:
+				session::detail::active = session::Id::Remote;
+				break;
+			case 4:
+				song.duplicate_output = &other;
+				break;
+			}
+		};
+		CHECK_FALSE(menu.trySetName("replacement"));
+		STRCMP_EQUAL("original", output.name.get());
+		STRCMP_EQUAL("original", other.name.get());
+	}
+}

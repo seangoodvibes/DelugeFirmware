@@ -1007,3 +1007,16 @@ side effects are not provided by these guards.
 - All 35 native suites and `./dbt build relwithdebinfo` pass. Allocation recovery,
   callback lifetime and same-address replacement are not established by these
   entry guards. G1/L1 remain open and independent mode stays disabled.
+
+### G1 / R4 progress — track rename allocation recovery (2026-10-09)
+
+- Track rename stages its replacement name before a non-allocating commit. It
+  reports allocation failure without discarding the original name and revalidates
+  song, output, owner, membership and prior name after allocation. Duplicate lookup
+  runs against the current song after those checks.
+- Three added cases failed before the fix: failure/retry, a newer name, and callback
+  changes to song/target/membership/owner or duplicates. Name allocation and
+  callbacks are fixtures; actual allocator pressure, object pins and same-address
+  replacement are not established by these tests.
+- All 35 native suites and `./dbt build relwithdebinfo` pass. G1/R4/L1 remain open
+  and independent mode stays disabled.
