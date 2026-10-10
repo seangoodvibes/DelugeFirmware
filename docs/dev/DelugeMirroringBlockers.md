@@ -2259,3 +2259,12 @@ destination state on cancellation. All 36 native suites and
 `./dbt build relwithdebinfo` pass. These checks do not establish collection identity
 across same-address reuse or protect borrowed automation inside collection cloning;
 those lifetime boundaries remain open.
+
+ResizeableArray clone entry points now accept an optional source lifetime watch.
+Allocation checks retirement before inspecting source fields or copying borrowed
+storage; shallow-copy cancellation detaches source storage without freeing it.
+Five native sanitizer regressions exercise real source destruction, expired
+entry, shallow normalization and independent successful copies. All 36 native
+suites and `./dbt build relwithdebinfo` pass. This supplies the guarded storage
+primitive; callers must propagate the watch through collection/node cloning.
+Destination lifetime and unguarded callers remain separate ownership contracts.

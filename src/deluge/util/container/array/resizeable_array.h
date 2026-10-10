@@ -25,13 +25,17 @@
 
 #define RESIZEABLE_ARRAY_DO_LOCKS (ALPHA_OR_BETA_VERSION)
 
+namespace deluge::lifetime {
+class lifetime_watch;
+}
+
 class ResizeableArray {
 public:
 	ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,
 	                int32_t newNumExtrarSpacesToAllocate = 15);
 	~ResizeableArray();
 	void init();
-	bool cloneFrom(ResizeableArray const* other);
+	bool cloneFrom(ResizeableArray const* other, const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	void empty();
 	void swapStateWith(ResizeableArray* other);
 	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true);
@@ -46,7 +50,7 @@ public:
 	Error insert_at_index_without_allocation(int32_t i, int32_t numToInsert = 1);
 	void swapElements(int32_t i1, int32_t i2);
 	void repositionElement(int32_t iFrom, int32_t iTo);
-	Error beenCloned();
+	Error beenCloned(const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	void setMemory(void* newMemory, int32_t newMemorySize);
 	void setStaticMemory(void* newMemory, int32_t newMemorySize);
 
@@ -88,7 +92,8 @@ private:
 	void copyToNewMemory(void* newMemory, uint32_t destinationIndex, void* source, uint32_t numElementsToCopy,
 	                     uint32_t newMemorySize, uint32_t newMemoryStartIndex);
 	Error copyElementsFromOldMemory(void* otherMemory, int32_t otherMemorySize, int32_t otherMemoryStart,
-	                                const ResizeableArray* source = nullptr);
+	                                const ResizeableArray* source = nullptr,
+	                                const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 
 	void moveElementsRightNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 	void moveElementsLeftNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);

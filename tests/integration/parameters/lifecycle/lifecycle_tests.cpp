@@ -4551,3 +4551,68 @@ TEST(parameter_lifecycle, ignored_expression_change_does_not_cancel_main_collect
 	CHECK(destination.manager.getExpressionParamSet() == nullptr);
 	LONGS_EQUAL(99, destination.set().getValue(31));
 }
+
+TEST(parameter_lifecycle, guarded_array_clone_preserves_destination_when_source_is_destroyed) {
+	ResizeableArray destination(sizeof(int32_t));
+	CHECK(destination.insertAtIndex(0) == Error::NONE);
+	*static_cast<int32_t*>(destination.getElementAddress(0)) = 42;
+	const auto baseline = parameter_test::outstanding_allocations();
+	auto source = std::make_unique<ResizeableArray>(sizeof(int32_t));
+	CHECK(source->insertAtIndex(0) == Error::NONE);
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	parameter_test::on_allocation = [&] {
+		lifetime.retire();
+		source.reset();
+	};
+	CHECK_FALSE(destination.cloneFrom(source.get(), &watch));
+	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	LONGS_EQUAL(baseline, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, guarded_shallow_array_clone_detaches_destroyed_source_storage) {
+	auto source = std::make_unique<ResizeableArray>(sizeof(int32_t));
+	CHECK(source->insertAtIndex(0) == Error::NONE);
+	ResizeableArray destination = *source;
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	parameter_test::on_allocation = [&] {
+		lifetime.retire();
+		source.reset();
+	};
+	CHECK(destination.beenCloned(&watch) == Error::BUG);
+	LONGS_EQUAL(0, destination.getNumElements());
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, expired_array_guard_rejects_source_without_reading_it) {
+	ResizeableArray destination(sizeof(int32_t));
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	lifetime.retire();
+	CHECK_FALSE(destination.cloneFrom(nullptr, &watch));
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, expired_shallow_array_guard_normalizes_borrowed_storage) {
+	auto source = std::make_unique<ResizeableArray>(sizeof(int32_t));
+	CHECK(source->insertAtIndex(0) == Error::NONE);
+	ResizeableArray destination = *source;
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	lifetime.retire();
+	source.reset();
+	CHECK(destination.beenCloned(&watch) == Error::BUG);
+	LONGS_EQUAL(0, destination.getNumElements());
+	LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+}
+TEST(parameter_lifecycle, live_array_guard_copies_independent_storage) {
+	ResizeableArray source(sizeof(int32_t)), destination(sizeof(int32_t));
+	CHECK(source.insertAtIndex(0) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 42;
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	CHECK(destination.cloneFrom(&source, &watch));
+	ResizeableArray shallow = source;
+	CHECK(shallow.beenCloned(&watch) == Error::NONE);
+	*static_cast<int32_t*>(source.getElementAddress(0)) = 99;
+	LONGS_EQUAL(42, *static_cast<int32_t*>(destination.getElementAddress(0)));
+	LONGS_EQUAL(42, *static_cast<int32_t*>(shallow.getElementAddress(0)));
+}

@@ -24,6 +24,7 @@
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
+#include "util/lifetime.h"
 #include <string.h>
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
@@ -109,7 +110,7 @@ void ResizeableArray::empty() {
 }
 
 // Returns error
-Error ResizeableArray::beenCloned() {
+Error ResizeableArray::beenCloned(const deluge::lifetime::lifetime_watch* source_lifetime) {
 
 	LOCK_ENTRY
 
@@ -123,7 +124,7 @@ Error ResizeableArray::beenCloned() {
 	memorySize = 0;
 	memoryStart = 0;
 	staticMemoryAllocationSize = 0;
-	if (!elementSize || numElements < 0
+	if ((source_lifetime && !source_lifetime->alive()) || !elementSize || numElements < 0
 	    || (numElements
 	        && (!source_memory || source_size < numElements || source_start < 0 || source_start >= source_size
 	            || (uint64_t(numElements) + 1) * elementSize > INT32_MAX
@@ -133,16 +134,16 @@ Error ResizeableArray::beenCloned() {
 		return Error::BUG;
 	}
 
-	Error error = copyElementsFromOldMemory(source_memory, source_size, source_start);
+	Error error = copyElementsFromOldMemory(source_memory, source_size, source_start, nullptr, source_lifetime);
 
 	LOCK_EXIT
 
 	return error;
 }
 
-bool ResizeableArray::cloneFrom(ResizeableArray const* other) {
+bool ResizeableArray::cloneFrom(ResizeableArray const* other, const deluge::lifetime::lifetime_watch* source_lifetime) {
 
-	if (!other)
+	if ((source_lifetime && !source_lifetime->alive()) || !other)
 		return false;
 	if (other != this && memoryAllocationStart && memoryAllocationStart == other->memoryAllocationStart) {
 		// A memberwise copy borrows the source allocation. Detach it before
@@ -170,7 +171,8 @@ bool ResizeableArray::cloneFrom(ResizeableArray const* other) {
 	const uint32_t previous_element_size = elementSize;
 	ResizeableArray replacement(elementSize, maxNumEmptySpacesToKeep, numExtraSpacesToAllocate);
 	replacement.numElements = other->numElements;
-	Error error = replacement.copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart, other);
+	Error error = replacement.copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart, other,
+	                                                    source_lifetime);
 	if (error != Error::NONE)
 		return false;
 	// Allocation may service callbacks. Preserve a callback's destination
@@ -185,7 +187,8 @@ bool ResizeableArray::cloneFrom(ResizeableArray const* other) {
 
 // Returns error
 Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int32_t otherMemorySize,
-                                                 int32_t otherMemoryStart, const ResizeableArray* source) {
+                                                 int32_t otherMemoryStart, const ResizeableArray* source,
+                                                 const deluge::lifetime::lifetime_watch* source_lifetime) {
 
 	const int32_t source_count = numElements;
 	const uint32_t source_element_size = elementSize;
@@ -208,10 +211,11 @@ Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory,
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		if (source
-		    && (source->memory != otherMemory || source->memorySize != otherMemorySize
-		        || source->memoryStart != otherMemoryStart || source->numElements != source_count
-		        || source->elementSize != source_element_size)) {
+		if ((source_lifetime && !source_lifetime->alive())
+		    || (source
+		        && (source->memory != otherMemory || source->memorySize != otherMemorySize
+		            || source->memoryStart != otherMemoryStart || source->numElements != source_count
+		            || source->elementSize != source_element_size))) {
 			delugeDealloc(memory);
 			memory = nullptr;
 			memoryAllocationStart = nullptr;
