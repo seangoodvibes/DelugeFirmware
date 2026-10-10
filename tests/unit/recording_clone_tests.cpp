@@ -1,8 +1,10 @@
 #include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui_navigation_state.h"
+#include "util/lifetime.h"
 #include <array>
 #include <functional>
+#include <memory>
 namespace recording_clone_test {
 enum class RecordingMode { OFF, ARRANGEMENT };
 constexpr int LESS = -1;
@@ -90,6 +92,9 @@ struct ModelStackWithTimelineCounter {
 	void setTimelineCounter(Clip* target) { clip = target; }
 };
 struct Clip {
+	mutable deluge::lifetime::lifetime_source lifetime_source;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime_source}; }
+	void retire_lifetime() { lifetime_source.retire(); }
 	Output* output = nullptr;
 	Clip* beingRecordedFromClip = nullptr;
 	Clip* clone_target = nullptr;
@@ -109,9 +114,11 @@ struct Clip {
 		++clone_calls;
 		if (clone_error == Error::NONE)
 			stack->clip = clone_target;
-		if (on_clone)
-			on_clone(stack);
-		return clone_error;
+		const auto result = clone_error;
+		auto callback = on_clone;
+		if (callback)
+			callback(stack);
+		return result;
 	}
 	bool repeat_success = true;
 	std::function<void()> on_repeat;
@@ -489,4 +496,49 @@ TEST(RecordingClone, unrelated_arrangement_instance_is_never_replaced) {
 	CHECK(result == Error::BUG);
 	LONGS_EQUAL(0, original.clone_calls);
 	POINTERS_EQUAL(&cloned, output.clipInstances.values[0].clip);
+}
+
+TEST(RecordingClone, destroyed_unselected_clone_cancels_without_registry_notification) {
+	auto* target = new AudioClip;
+	target->output = &output;
+	original.clone_target = target;
+	original.on_stop = [&] { delete target; };
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+	LONGS_EQUAL(0, song.deletions);
+}
+TEST(RecordingClone, reused_clone_address_does_not_resume_replacement) {
+	auto* target = new AudioClip;
+	target->output = &output;
+	original.clone_target = target;
+	original.on_stop = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+		target->output = &output;
+	};
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, target->resume_calls);
+	LONGS_EQUAL(-1, target->new_position);
+	delete target;
+}
+TEST(RecordingClone, destroyed_source_cancels_after_clone_callback) {
+	auto* source = new AudioClip;
+	source->output = &output;
+	source->clone_target = &cloned;
+	stack.clip = source;
+	output.active = source;
+	output.clipInstances.values[0].clip = source;
+	source->on_clone = [&](ModelStackWithTimelineCounter*) { delete source; };
+	CHECK_FALSE(source->possiblyCloneForArrangementRecording(&stack, &result));
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+	LONGS_EQUAL(0, cloned.resume_calls);
+}
+TEST(RecordingClone, retiring_source_cannot_start_another_clone) {
+	original.retire_lifetime();
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, original.clone_calls);
 }

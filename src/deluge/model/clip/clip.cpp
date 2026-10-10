@@ -76,6 +76,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 }
 
 Clip::~Clip() {
+	retire_lifetime();
 	// Direct destruction must clear both panels' non-owning selection references.
 	// currentSong is null during deleteOldSongBeforeLoadingNew().
 	if (currentSong) {
@@ -817,6 +818,7 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
                                  InstrumentRemoval instrumentRemovalInstruction) {
+	retire_lifetime();
 
 	Output* oldOutput =
 	    output; // There won't be an Instrument if the song is being deleted because it wasn't completely loaded
@@ -1106,7 +1108,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			*clone_error = error;
 		return false;
 	};
-	if (!modelStack || !modelStack->song || currentSong != modelStack->song || !output)
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive() || !modelStack || !modelStack->song || currentSong != modelStack->song || !output)
 		return fail(Error::BUG);
 
 	auto* const source_song = modelStack->song;
@@ -1118,7 +1121,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 	const auto local_revision = revision(deluge::gui::ui_session::Id::Local);
 	const auto remote_revision = revision(deluge::gui::ui_session::Id::Remote);
 	const auto context_matches = [&] {
-		return currentSong == source_song && modelStack->song == source_song
+		return source_lifetime.alive() && currentSong == source_song && modelStack->song == source_song
 		       && deluge::gui::ui_session::current() == source_owner
 		       && revision(deluge::gui::ui_session::Id::Local) == local_revision
 		       && revision(deluge::gui::ui_session::Id::Remote) == remote_revision;
@@ -1224,9 +1227,13 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				return fail(Error::BUG);
 			}
 
+			auto clone_lifetime = newClip->watch_lifetime();
+			if (!clone_lifetime.alive())
+				return fail(Error::BUG);
 			auto* const clone_output = newClip->output;
 			const auto clone_context_matches = [&] {
-				return context_matches() && modelStack->getTimelineCounterAllowNull() == newClip;
+				return context_matches() && clone_lifetime.alive()
+				       && modelStack->getTimelineCounterAllowNull() == newClip;
 			};
 			const auto clone_is_unpublished = [&] {
 				return clone_context_matches() && !source_song->contains_clip_for_undo(newClip)

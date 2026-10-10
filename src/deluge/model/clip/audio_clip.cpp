@@ -65,6 +65,7 @@ AudioClip::AudioClip() : Clip(ClipType::AUDIO) {
 }
 
 AudioClip::~AudioClip() {
+	retire_lifetime();
 	if (recorder) {
 		FREEZE_WITH_ERROR("E278");
 	}

@@ -30,6 +30,7 @@
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "util/d_string.h"
+#include "util/lifetime.h"
 #include <cstdint>
 
 class Song;
@@ -49,6 +50,10 @@ class Clip : public TimelineCounter {
 public:
 	Clip(ClipType newType);
 	~Clip() override;
+	[[nodiscard]] deluge::lifetime::lifetime_watch watch_lifetime() const {
+		return deluge::lifetime::lifetime_watch{lifetime_source_};
+	}
+	void retire_lifetime() { lifetime_source_.retire(); }
 	bool cancelAnyArming();
 	int32_t getMaxZoom();
 	virtual int32_t getMaxLength();
@@ -261,6 +266,9 @@ public:
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
 	String name;
+
+private:
+	mutable deluge::lifetime::lifetime_source lifetime_source_;
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the

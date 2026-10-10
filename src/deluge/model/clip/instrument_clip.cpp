@@ -112,6 +112,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 // You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()
 // Will call audio routine!!! Necessary to avoid voice cuts, especially when switching song
 InstrumentClip::~InstrumentClip() {
+	retire_lifetime();
 
 	// Note: it's possible that we might be currentlyRecordingLinearly if we're being destructed because of a song-swap.
 	// That's ok. Whereas, for AudioClips, it's made sure that all linear recording is stopped first

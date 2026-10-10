@@ -630,3 +630,34 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc
         ${kit_note_recording_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc Kit::receivedNoteForDrum
     DEPENDS ${kit_note_recording_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE note_recording_clone_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/melodic_note_recording.inc ${CMAKE_CURRENT_BINARY_DIR}/kit_note_recording.inc)
+target_sources(UnitTests PRIVATE lifetime_tests.cpp)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clip_destruction_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${recording_clone_source} ${CMAKE_CURRENT_BINARY_DIR}/clip_destruction_lifetime.inc Clip::~Clip Clip::prepareForDestruction
+    DEPENDS ${recording_clone_source} ../support/extract_functions.py VERBATIM)
+set(instrument_destruction_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/instrument_clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/instrument_destruction_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${instrument_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/instrument_destruction_lifetime.inc InstrumentClip::~InstrumentClip
+    DEPENDS ${instrument_destruction_source} ../support/extract_functions.py VERBATIM)
+set(audio_destruction_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/clip/audio_clip.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/audio_destruction_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${audio_destruction_source} ${CMAKE_CURRENT_BINARY_DIR}/audio_destruction_lifetime.inc AudioClip::~AudioClip
+    DEPENDS ${audio_destruction_source} ../support/extract_functions.py VERBATIM)
+add_executable(ClipLifetimeTests RunAllTests.cpp lifetime_tests.cpp recording_clone_tests.cpp
+    clip_destruction_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/recording_clone.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/clip_destruction_lifetime.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/instrument_destruction_lifetime.inc
+    ${CMAKE_CURRENT_BINARY_DIR}/audio_destruction_lifetime.inc)
+target_include_directories(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ../../src ../../src/deluge)
+target_compile_features(ClipLifetimeTests PRIVATE cxx_std_23)
+target_link_libraries(ClipLifetimeTests PRIVATE CppUTestExt)
+option(clip_lifetime_test_sanitizers "Check clip lifetime cancellation with address/undefined sanitizers" ON)
+if(clip_lifetime_test_sanitizers AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(ClipLifetimeTests PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+    target_link_options(ClipLifetimeTests PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME ClipLifetimeTests COMMAND ClipLifetimeTests)
+add_dependencies(UnitTests ClipLifetimeTests)

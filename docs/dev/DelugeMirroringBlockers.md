@@ -26,11 +26,13 @@ in size, and audit items may reveal additional work.
 
 ### L1 — Detached objects and callback lifetime protection
 
-- [ ] **Open — confirmed gap.** Membership, identity and UI-revision checks cover
-  selected boundaries, but do not retain detached clips, initially unregistered
-  outputs, drums, samples, actions or consequences through all yielding callbacks.
-  Same-address replacement and destruction without notification are not generally
-  covered by pointer equality.
+- [ ] **Open — confirmed gap.** Allocation-free clip lifetime watches now cancel
+  recording-clone work after retirement/destruction, including detached clips and
+  same-address reuse. They signal cancellation rather than retaining objects.
+  Other saved clip references, outputs, drums, samples, actions and consequences
+  still lack comprehensive protection through callbacks. Checks after a callback
+  do not establish safety inside that callback; pointer equality remains
+  insufficient for targets without lifetime watches.
 - **Where:** clip/consequence restoration; shared model mutation; retained UI,
   model-stack and action targets. Start with
   [`consequence_clip_existence.cpp`](../../src/deluge/model/consequence/consequence_clip_existence.cpp),
@@ -182,7 +184,7 @@ audits or test infrastructure.
 
 Current baseline: native coverage includes undo, kit restoration, song cleanup,
 parameter lifecycle, clone and mirror runtime suites. Changes validated on 2026-10-10 passed all
-35 CTest suites and `./dbt build relwithdebinfo`. These results cover tested paths;
+36 CTest suites and `./dbt build relwithdebinfo`. These results cover tested paths;
 they do not close the open items above or replace hardware validation.
 
 For each closure, append: **ID; implementation commit/PR; test names and results;
@@ -2020,3 +2022,26 @@ five added cases now pass, along with all 35 native suites and
 The tests use instance/cleanup fixtures; the capacity-preserving deletion primitive
 has existing native lifecycle coverage. Lost-context rollback, later playback
 prefix recovery, unnotified mutation and general object retention remain open.
+
+
+### L1 progress — allocation-free clip lifetime cancellation (2026-10-10)
+
+Clips now expose non-owning lifetime watches. Retirement invalidates existing
+watches and rejects new ones without allocating, reading freed storage or relying
+on selection membership/address equality. Preparation and derived/base destructor
+entry retire the clip before cleanup callbacks. Recording cloning watches both
+the source and new clip before following saved references after callbacks.
+
+Four primitive tests cover unlinking, retirement, observer/source destruction
+order and address reuse. Four recording-clone regressions perform actual fixture
+object deletion/reconstruction without registry updates. Four extracted production
+preparation/destructor tests verify retirement precedes parameter/selection cleanup
+and still occurs without a current song. The new `ClipLifetimeTests` target passes
+with AddressSanitizer and UndefinedBehaviorSanitizer enabled; all 36 native suites
+and `./dbt build relwithdebinfo` pass.
+
+This adds a small per-clip watcher list and stack-local watches, not heap snapshots
+or deferred reclamation. It assumes serialized/reentrant firmware callbacks and
+requires a live object when acquiring a watch. It does not make callback internals
+safe, protect outputs/songs/other model types, or cover every saved clip reference.
+Those migrations and ownership/recovery decisions remain L1 work.
