@@ -3432,3 +3432,12 @@ implementation; allocation cases verify the earlier scoped cleanup on actual
 import exits. All 38 suites and RelWithDebInfo pass. Dependency doubles model
 allocation and holder outcomes; these tests do not establish lifetime safety inside
 the real callbacks or rollback of already published drums/parameters.
+
+Multisample import now stops when sample assignment reports cancellation, releasing
+remaining temporary references before returning and avoiding transpose/range
+follow-up and final UI publication. Six added whole-function tests cover first and
+later cancellation, duplicate/invalid pitches, reservation failure and successful
+import; both cancellation cases fail against the previous function. Earlier
+cleanup fixes are now also exercised through the complete multisample import
+function. All 38 suites and RelWithDebInfo pass. Already modified ranges are not
+rolled back, and the holder's internal callback-lifetime contract remains separate.

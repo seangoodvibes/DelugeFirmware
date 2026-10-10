@@ -1867,8 +1867,11 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(
-		    thisSample, sound_editor_for_session().currentSource->sampleControls.isCurrentlyReversed(), true);
+		if (!range->sampleHolder.setAudioFile(
+		        thisSample, sound_editor_for_session().currentSource->sampleControls.isCurrentlyReversed(), true)) {
+			release_multisample_import_samples(sortArea, numSamples);
+			return false;
+		}
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);

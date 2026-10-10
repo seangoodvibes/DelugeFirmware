@@ -1297,3 +1297,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_import.inc
         ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_import.inc SampleBrowser::importFolderAsKit
     DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_sample_import_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_import.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multisample_folder_import.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${multisample_import_cleanup_source} ${CMAKE_CURRENT_BINARY_DIR}/multisample_folder_import.inc SampleBrowser::importFolderAsMultisamples
+    DEPENDS ${multisample_import_cleanup_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/multisample_folder_import.inc)
