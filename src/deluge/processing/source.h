@@ -33,6 +33,9 @@ class Source {
 public:
 	Source();
 	~Source();
+	[[nodiscard]] deluge::lifetime::lifetime_watch watch_lifetime() const {
+		return deluge::lifetime::lifetime_watch(lifetime_source_);
+	}
 
 	SampleControls sampleControls;
 
@@ -72,5 +75,6 @@ public:
 	DxPatch* ensureDxPatch();
 
 private:
+	mutable deluge::lifetime::lifetime_source lifetime_source_;
 	void destructAllMultiRanges();
 };

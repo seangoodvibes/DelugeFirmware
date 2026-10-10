@@ -3285,3 +3285,14 @@ All 38 suites and RelWithDebInfo pass. No range buffer is copied or newly alloca
 The caller's oscillator-type transition still needs its own lifetime/recovery
 contract, and same-address range replacement during loading remains open.
 Independent mode stays disabled.
+
+Fixed-address Source objects now have allocation-free lifetime watches and retire
+them before destructor callbacks. Source::loadAllSamples watches itself as well as
+any caller predicate, so direct calls reject retirement, destruction and same-address
+Source reuse without relying on Sound/Kit validation. Five additional sanitizer
+regressions cover those cases, lookup cancellation and real Source destructor
+retirement ordering; retired-entry loading failed against the previous body. All
+38 suites, the restored final ClipLifetimeTests run and RelWithDebInfo pass. Sources
+are not raw-relocated range objects; no watch is embedded in MultiRange storage.
+Other Source methods, caller-side type-change recovery and range-identity tracking
+remain separate work. Independent mode stays disabled.

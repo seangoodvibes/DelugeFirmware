@@ -1233,3 +1233,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_range_teardown.inc
         ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_range_teardown.inc Source::destructAllMultiRanges
     DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE source_range_teardown_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/source_range_teardown.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/source_destruction.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${source_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/source_destruction.inc Source::~Source
+    DEPENDS ${source_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/source_destruction.inc)

@@ -37,7 +37,7 @@ struct Range {
 	Holder holder;
 	Holder* getAudioFileHolder() { return &holder; }
 };
-struct Source {
+struct Source : Lifetime {
 	OscType oscType = OscType::SAMPLE;
 	struct {
 		bool reversed = false;
@@ -252,4 +252,40 @@ TEST(SourceSampleLoading, standalone_drum_rejects_newer_directory_context) {
 	on_load = [&] { ++audioFileManager.revision; };
 	CHECK(drum.loadAllSamples(true) == Error::ABORTED_BY_USER);
 	LONGS_EQUAL(0, publications);
+}
+
+TEST(SourceSampleLoading, direct_source_loading_cancels_after_source_destruction) {
+	auto source = std::make_unique<Source>();
+	source->ranges.entries = {&first};
+	on_audio = [&] { source.reset(); };
+	CHECK(source->loadAllSamples(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(0, loads);
+}
+TEST(SourceSampleLoading, direct_source_lookup_rejects_destroyed_source_publication) {
+	auto source = std::make_unique<Source>();
+	source->ranges.entries = {&first};
+	on_load = [&] { source.reset(); };
+	CHECK(source->loadAllSamples(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(SourceSampleLoading, retired_source_does_not_begin_loading) {
+	instrument.sources[0].lifetime.retire();
+	CHECK(instrument.sources[0].loadAllSamples(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(0, yields);
+}
+
+TEST(SourceSampleLoading, direct_source_loading_rejects_same_address_replacement) {
+	alignas(Source) unsigned char storage[sizeof(Source)];
+	auto* source = new (storage) Source;
+	source->ranges.entries = {&first};
+	on_audio = [&] {
+		source->~Source();
+		source = new (storage) Source;
+		source->ranges.entries = {&second};
+	};
+	const auto error = source->loadAllSamples(true);
+	source->~Source();
+	CHECK(error == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(0, loads);
 }

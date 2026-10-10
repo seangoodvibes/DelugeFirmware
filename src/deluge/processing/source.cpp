@@ -48,6 +48,7 @@ Source::Source() {
 }
 
 Source::~Source() {
+	lifetime_source_.retire();
 	// destruct dxPatch if it was allocated
 	if (dxPatch != nullptr) {
 		dxPatch->~DxPatch();
@@ -115,13 +116,16 @@ void Source::detachAllAudioFiles() {
 Error Source::loadAllSamples(bool mayActuallyReadFiles, const deluge::lifetime::callback_validation* validation) {
 	if (validation && !validation->valid())
 		return Error::ABORTED_BY_USER;
+	auto source_lifetime = watch_lifetime();
+	if (!source_lifetime.alive())
+		return Error::ABORTED_BY_USER;
 	const auto source_type = oscType;
 	const auto reversed = sampleControls.isCurrentlyReversed();
 	const auto range_count = ranges.getNumElements();
 	for (int32_t index = 0; index < range_count; ++index) {
 		auto* range = ranges.getElement(index);
 		const auto context_valid = [&] {
-			return (!validation || validation->valid()) && oscType == source_type
+			return source_lifetime.alive() && (!validation || validation->valid()) && oscType == source_type
 			       && sampleControls.isCurrentlyReversed() == reversed && ranges.getNumElements() == range_count
 			       && ranges.getElement(index) == range;
 		};

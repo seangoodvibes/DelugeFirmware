@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "util/lifetime.h"
 #include <functional>
 #include <memory>
 #include <vector>
@@ -23,10 +24,16 @@ struct MultiRangeArray {
 		std::swap(storage_stride, other->storage_stride);
 	}
 };
+struct DxPatch {};
+void delugeDealloc(void* memory) {
+	::operator delete(memory);
+}
 struct Source {
+	deluge::lifetime::lifetime_source lifetime_source_;
+	DxPatch* dxPatch = nullptr;
 	MultiRangeArray ranges;
 	void destructAllMultiRanges();
-	~Source() { destructAllMultiRanges(); }
+	~Source();
 };
 namespace AudioEngine {
 void logAction(const char*) {
@@ -37,6 +44,7 @@ void routineWithClusterLoading() {
 		on_audio();
 }
 } // namespace AudioEngine
+#include "source_destruction.inc"
 #include "source_range_teardown.inc"
 } // namespace source_range_teardown_test
 using namespace source_range_teardown_test;
@@ -103,4 +111,16 @@ TEST(SourceRangeTeardown, empty_source_does_not_service_audio) {
 	source.destructAllMultiRanges();
 	LONGS_EQUAL(0, yields);
 	LONGS_EQUAL(0, destroyed);
+}
+
+TEST(SourceRangeTeardown, destruction_retires_source_before_audio_callbacks) {
+	auto source = std::make_unique<Source>();
+	source->ranges.entries = {create_range()};
+	deluge::lifetime::lifetime_watch watch(source->lifetime_source_);
+	bool callback_observed_retirement = false;
+	on_audio = [&] { callback_observed_retirement = !watch.alive(); };
+	source.reset();
+	CHECK(callback_observed_retirement);
+	CHECK_FALSE(watch.alive());
+	LONGS_EQUAL(1, destroyed);
 }
