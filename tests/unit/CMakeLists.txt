@@ -1012,3 +1012,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_render_arp_lifetime.
         Sound::process_postarp_notes Sound::process_render_arp
     DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_render_arp_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_render_arp_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_render_effects_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${sound_render_arp_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_render_effects_lifetime.inc
+        Sound::process_render_effects
+    DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE sound_render_effects_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_render_effects_lifetime.inc)

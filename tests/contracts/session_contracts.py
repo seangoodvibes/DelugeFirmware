@@ -90,6 +90,12 @@ class SessionRoutingContracts(unittest.TestCase):
             normalized,
         )
         self.assertNotIn("process_postarp_notes(", body)
+        self.assertIn(
+            "process_render_effects(modelStackWithSoundFlags, sound_stereo, output, reverbBuffer, "
+            "delayWorkingState, reverbSendAmount, recorder, owner_validation);",
+            normalized,
+        )
+        self.assertNotIn("processFX(", body)
 
     def test_arp_instruction_mutators_invalidate_before_accessing_state(self):
         source = code_only((ROOT / "src/deluge/modulation/arpeggiator.cpp").read_text())

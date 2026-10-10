@@ -2441,6 +2441,80 @@ bool Sound::process_render_arp(ModelStackWithSoundFlags* model_stack, UnpatchedP
 	return instruction_validation.valid();
 }
 
+void Sound::process_render_effects(ModelStackWithSoundFlags* model_stack, std::span<StereoSample> sound_buffer,
+                                   std::span<StereoSample> output, int32_t* reverb_buffer, Delay::State& delay_state,
+                                   int32_t reverb_send_amount, SampleRecorder* recorder,
+                                   const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return;
+	auto* param_manager = model_stack->paramManager;
+	int32_t post_fx_volume = paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
+	int32_t post_reverb_volume = paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
+
+	if (postReverbVolumeLastTime == -1) {
+		postReverbVolumeLastTime = post_reverb_volume;
+	}
+
+	int32_t mod_fx_depth = paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
+	int32_t mod_fx_rate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
+
+	processSRRAndBitcrushing(sound_buffer, &post_fx_volume, param_manager);
+	if (owner_validation && !owner_validation->valid())
+		return;
+	processFX(sound_buffer, modFXType_, mod_fx_rate, mod_fx_depth, delay_state, &post_fx_volume, param_manager,
+	          !voices_.empty(), reverb_send_amount >> 1);
+	if (owner_validation && !owner_validation->valid())
+		return;
+	processStutter(sound_buffer, param_manager);
+	if (owner_validation && !owner_validation->valid())
+		return;
+
+	processReverbSendAndVolume(sound_buffer, reverb_buffer, post_fx_volume, post_reverb_volume, reverb_send_amount, 0,
+	                           true);
+	if (owner_validation && !owner_validation->valid())
+		return;
+
+	q31_t comp_threshold = param_manager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(comp_threshold);
+	if (comp_threshold > 0) {
+		compressor.renderVolNeutral(sound_buffer, post_fx_volume);
+	}
+	else {
+		compressor.reset();
+	}
+
+	if (owner_validation && !owner_validation->valid())
+		return;
+
+	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
+		recorder->feedAudio(sound_buffer, true, 2);
+		if (owner_validation && !owner_validation->valid())
+			return;
+	}
+
+	// add the sound to the output, i.e. output = output + sound
+	std::ranges::transform(output, sound_buffer, output.begin(), std::plus{});
+
+	postReverbVolumeLastTime = post_reverb_volume;
+
+	sourcesChanged = 0;
+	expressionSourcesChangedAtSynthLevel.reset();
+	for (int i = 0; i < kNumSources; i++) {
+		sources[i].dxPatchChanged = false;
+	}
+
+	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon may
+	// have changed state just now.
+	if (!delay.repeatsUntilAbandon || startSkippingRenderingAtTime) {
+		reassessRenderSkippingStatus(model_stack);
+		if (owner_validation && !owner_validation->valid())
+			return;
+	}
+
+	doParamLPF(output.size(), model_stack);
+}
+
 void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                    int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
                    int32_t pitchAdjust, SampleRecorder* recorder,
@@ -2622,55 +2696,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		}
 	}
 
-	int32_t postFXVolume = paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
-	int32_t postReverbVolume = paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
-
-	if (postReverbVolumeLastTime == -1) {
-		postReverbVolumeLastTime = postReverbVolume;
-	}
-
-	int32_t modFXDepth = paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
-	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
-
-	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
-	processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
-	          !voices_.empty(), reverbSendAmount >> 1);
-	processStutter(sound_stereo, paramManager);
-
-	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
-
-	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold);
-	if (compThreshold > 0) {
-		compressor.renderVolNeutral(sound_stereo, postFXVolume);
-	}
-	else {
-		compressor.reset();
-	}
-
-	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio(sound_stereo, true, 2);
-	}
-
-	// add the sound to the output, i.e. output = output + sound
-	std::ranges::transform(output, sound_stereo, output.begin(), std::plus{});
-
-	postReverbVolumeLastTime = postReverbVolume;
-
-	sourcesChanged = 0;
-	expressionSourcesChangedAtSynthLevel.reset();
-	for (int i = 0; i < kNumSources; i++) {
-		sources[i].dxPatchChanged = false;
-	}
-
-	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon may
-	// have changed state just now.
-	if (!delay.repeatsUntilAbandon || startSkippingRenderingAtTime) {
-		reassessRenderSkippingStatus(modelStackWithSoundFlags);
-	}
-
-	doParamLPF(output.size(), modelStackWithSoundFlags);
+	process_render_effects(modelStackWithSoundFlags, sound_stereo, output, reverbBuffer, delayWorkingState,
+	                       reverbSendAmount, recorder, owner_validation);
 }
 
 // This is virtual, and gets extended by drums!

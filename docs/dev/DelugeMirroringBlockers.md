@@ -2775,3 +2775,13 @@ collection and model-stack replacement; a source contract verifies render uses t
 guarded helper. All 36 suites and `./dbt build relwithdebinfo` pass. Sound LFO/
 patching, delay, voice and effects internals remain separate audit work, along with
 same-address raw replacement and hardware timing/stack validation.
+
+Sound render's effects tail now validates caller ownership after bitcrushing,
+effects, stutter, reverb/volume processing, compression, recorder feed and render
+reassessment before later work. Seven production-body sanitizer regressions cover
+all eight callback stages, cancelled output/state publication, rejected entry,
+recorder state and compressor/delay branches. A source contract verifies renderer
+wiring. All 36 suites and `./dbt build relwithdebinfo` pass. Earlier effect/reverb/
+recorder work is not rolled back; initialization may retain its prefix. Voice
+traversal, pre-arp patching/delay stages, helper internals and nested use of shared
+render buffers remain open.
