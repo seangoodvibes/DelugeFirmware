@@ -1009,7 +1009,7 @@ set(sound_render_arp_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/delug
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_render_arp_lifetime.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
         ${sound_render_arp_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/sound_render_arp_lifetime.inc
-        Sound::process_postarp_notes Sound::process_render_arp Sound::noteOn Sound::noteOff
+        Sound::process_postarp_notes Sound::process_render_arp Sound::noteOn Sound::noteOff Sound::allNotesOff
     DEPENDS ${sound_render_arp_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_render_arp_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_render_arp_lifetime.inc)
 
@@ -1069,3 +1069,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.
         SoundDrum::noteOn SoundDrum::noteOff SoundDrum::dispatch_note SoundDrum::killAllVoices
     DEPENDS ${sound_drum_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE sound_drum_choke_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/sound_drum_choke_lifetime.inc)
+
+set(arp_mode_change_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/menu_item/arpeggiator/mode_change.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/arp_mode_change_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${arp_mode_change_source} ${CMAKE_CURRENT_BINARY_DIR}/arp_mode_change_lifetime.inc apply_mode_change
+    DEPENDS ${arp_mode_change_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE arp_mode_change_lifetime_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/arp_mode_change_lifetime.inc)

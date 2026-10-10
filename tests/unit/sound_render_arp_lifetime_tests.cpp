@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 namespace sound_render_arp_lifetime_test {
+constexpr int ALL_NOTES_OFF = -32768;
 constexpr int ARP_MAX_INSTRUCTION_NOTES = 3, ARP_NOTE_NONE = -1, kNumExpressionDimensions = 3;
 enum class ArpMode { OFF, ON };
 enum class ArpNoteStatus { OFF, PENDING, PLAYING };
@@ -58,7 +59,7 @@ struct ArpReturnInstruction {
 	int noteCodeOffPostArp[3]{64, ARP_NOTE_NONE, ARP_NOTE_NONE};
 };
 std::function<void()> on_generation, on_off, on_start, on_rewind, on_reassess;
-int reassessments = 0;
+int reassessments = 0, resets = 0;
 int generated = 0, pending = 0, stopped = 0, started = 0, voice_budget = 3;
 namespace AudioEngine {
 bool allowedToStartVoice() {
@@ -69,6 +70,10 @@ struct Arpeggiator {
 	std::unique_ptr<ArpNote> note = std::make_unique<ArpNote>();
 	uint64_t revision = 0;
 	uint64_t instruction_revision() const { return revision; }
+	void reset() {
+		++revision;
+		++resets;
+	}
 	void generate(ArpReturnInstruction* instruction) {
 		++revision;
 		instruction->arpNoteOn = note.get();
@@ -117,6 +122,7 @@ struct Sound {
 	             const deluge::lifetime::callback_validation*);
 	void noteOn(ModelStackWithThreeMainThings*, Arpeggiator*, int32_t, const int16_t*, uint32_t, int32_t, uint32_t,
 	            int32_t, int32_t, const deluge::lifetime::callback_validation*);
+	bool allNotesOff(ModelStackWithThreeMainThings*, ArpeggiatorBase*, const deluge::lifetime::callback_validation*);
 	bool invertReversed = false;
 	void noteOffPostArpeggiator(ModelStackWithSoundFlags*, int) {
 		++stopped;
@@ -145,7 +151,7 @@ TEST_GROUP(sound_render_arp_lifetime) {
 	void reset() {
 		sound = std::make_unique<Sound>();
 		on_generation = on_off = on_start = on_rewind = on_reassess = {};
-		generated = pending = stopped = started = reassessments = 0;
+		generated = pending = stopped = started = reassessments = resets = 0;
 		voice_budget = 3;
 	}
 	void setup() override {
@@ -334,4 +340,38 @@ TEST(sound_render_arp_lifetime, direct_note_off_stack_retargeting_stops_old_batc
 	sound->noteOff(&model_stack, &sound->arp, 50, nullptr);
 	LONGS_EQUAL(1, stopped);
 	LONGS_EQUAL(0, reassessments);
+}
+
+TEST(sound_render_arp_lifetime, all_notes_off_resets_only_after_successful_release) {
+	ModelStackWithThreeMainThings model_stack;
+	CHECK(sound->allNotesOff(&model_stack, &sound->arp, nullptr));
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(1, resets);
+}
+TEST(sound_render_arp_lifetime, all_notes_off_preserves_replacement_instruction) {
+	ModelStackWithThreeMainThings model_stack;
+	on_off = [&] { ++sound->arp.revision; };
+	CHECK_FALSE(sound->allNotesOff(&model_stack, &sound->arp, nullptr));
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, resets);
+}
+TEST(sound_render_arp_lifetime, all_notes_off_owner_deletion_skips_reset) {
+	ModelStackWithThreeMainThings model_stack;
+	deluge::lifetime::lifetime_watch watch{sound->lifetime};
+	const auto valid = [&] { return watch.alive(); };
+	const deluge::lifetime::callback_validation validation{valid};
+	on_off = [&] { sound.reset(); };
+	CHECK_FALSE(sound->allNotesOff(&model_stack, &sound->arp, &validation));
+	LONGS_EQUAL(1, stopped);
+	LONGS_EQUAL(0, resets);
+}
+TEST(sound_render_arp_lifetime, all_notes_off_rejected_entry_does_not_release_or_reset) {
+	ModelStackWithThreeMainThings model_stack;
+	const auto valid = [] { return false; };
+	const deluge::lifetime::callback_validation validation{valid};
+	CHECK_FALSE(sound->allNotesOff(&model_stack, &sound->arp, &validation));
+	CHECK_FALSE(sound->allNotesOff(nullptr, &sound->arp, nullptr));
+	CHECK_FALSE(sound->allNotesOff(&model_stack, nullptr, nullptr));
+	LONGS_EQUAL(0, stopped);
+	LONGS_EQUAL(0, resets);
 }

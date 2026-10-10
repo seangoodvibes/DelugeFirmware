@@ -1789,14 +1789,19 @@ void Sound::send_polyphonic_expression_midi(int32_t new_value, int32_t expressio
 	}
 }
 
-void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
-	// Reset invertReversed flag so all voices get its reverse settings back to normal
+bool Sound::allNotesOff(ModelStackWithThreeMainThings* model_stack, ArpeggiatorBase* arpeggiator,
+                        const deluge::lifetime::callback_validation* owner_validation) {
+	if ((owner_validation && !owner_validation->valid()) || !model_stack || !arpeggiator) {
+		return false;
+	}
+	const auto revision = arpeggiator->instruction_revision();
 	invertReversed = false;
-
-	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-	noteOffPostArpeggiator(modelStackWithSoundFlags, ALL_NOTES_OFF);
-
+	noteOffPostArpeggiator(model_stack->addSoundFlags(), ALL_NOTES_OFF);
+	if ((owner_validation && !owner_validation->valid()) || arpeggiator->instruction_revision() != revision) {
+		return false;
+	}
 	arpeggiator->reset();
+	return true;
 }
 
 // noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode

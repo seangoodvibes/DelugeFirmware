@@ -2862,3 +2862,14 @@ regressions cover release/destructor deletion, vector and same-address replaceme
 rejected entry, caller propagation and reset suppression. All 36 suites and
 `./dbt build relwithdebinfo` pass. Destructor/voice-release internals and all-notes-off
 menu callers still require separate checks; completed releases are retained.
+
+Arp mode/preset menus now share a guarded application path. Clip/output/drum
+watches and editor/session/parameter context checks cancel settings writes after
+note-stop or render-reassessment callbacks. Sound all-notes-off reports cancellation
+and avoids resetting replacement arp instructions. Twenty-two added production-body
+sanitizer regressions cover successful synth/kit edits, inactive clips, deletion,
+retargeting, rejected entry and reset suppression; routing contracts follow the
+shared implementation and check both menu callers. All 36 suites and
+`./dbt build relwithdebinfo` pass. Inner MIDI/voice-release callbacks and propagation
+of partial cancellation from void kit/drum/MIDI stop APIs remain open; completed
+note releases are not rolled back. Independent mode remains disabled.

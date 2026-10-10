@@ -217,7 +217,8 @@ public:
 	            const deluge::lifetime::callback_validation* owner_validation = nullptr);
 	void noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
 	             const deluge::lifetime::callback_validation* owner_validation = nullptr);
-	void allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator);
+	bool allNotesOff(ModelStackWithThreeMainThings* model_stack, ArpeggiatorBase* arpeggiator,
+	                 const deluge::lifetime::callback_validation* owner_validation);
 
 	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = -32768);
 	void noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,

@@ -16,6 +16,12 @@ MANIFEST = json.loads(Path(__file__).with_name("squash_coverage.json").read_text
 # The parameter branch moved implementations into separately tested units.
 # Keep original audit requirements attached to both halves of each move.
 SOURCE_RELOCATIONS = {
+    "src/deluge/gui/menu_item/arpeggiator/mode.h": [
+        "src/deluge/gui/menu_item/arpeggiator/mode_change.cpp"
+    ],
+    "src/deluge/gui/menu_item/arpeggiator/preset_mode.h": [
+        "src/deluge/gui/menu_item/arpeggiator/mode_change.cpp"
+    ],
     "src/deluge/model/instrument/kit.cpp": [
         "src/deluge/model/instrument/kit_param_lookup.cpp"
     ],
@@ -80,6 +86,15 @@ def violations(text, entry):
 
 
 class SessionRoutingContracts(unittest.TestCase):
+    def test_arp_menus_use_guarded_mode_change(self):
+        for filename in ("mode.h", "preset_mode.h"):
+            source = code_only(
+                (ROOT / "src/deluge/gui/menu_item/arpeggiator" / filename).read_text()
+            )
+            self.assertIn("apply_mode_change(", source)
+            self.assertNotIn("allNotesOff(", source)
+            self.assertNotIn("cutAllSound(", source)
+
     def test_sound_render_uses_guarded_arp_dispatch(self):
         source = code_only((ROOT / "src/deluge/processing/sound/sound.cpp").read_text())
         body = source.split("void Sound::render(", 1)[1].split("\nvoid Sound::", 1)[0]
