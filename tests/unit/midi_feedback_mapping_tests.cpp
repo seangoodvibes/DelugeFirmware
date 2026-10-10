@@ -250,3 +250,35 @@ TEST(MidiFeedbackMapping, global_only_and_unpatched_sound_mappings_survive_save)
 	STRCMP_EQUAL("sound", writer.entries[1].first);
 	LONGS_EQUAL(127, writer.entries[1].second);
 }
+
+TEST(MidiFeedbackMapping, repeated_parameter_releases_previous_incoming_cc) {
+	Deserializer reader;
+	reader.entries = {{"patched", 7}, {"patched", 9}, {"global", 10}, {"global", 11}};
+	follow.readDefaultMappingsFromFile(reader);
+	LONGS_EQUAL(param_id_none, follow.ccToSoundParam[7]);
+	LONGS_EQUAL(1, follow.ccToSoundParam[9]);
+	LONGS_EQUAL(9, follow.soundParamToCC[1]);
+	LONGS_EQUAL(param_id_none, follow.ccToGlobalParam[10]);
+	LONGS_EQUAL(1, follow.ccToGlobalParam[11]);
+	LONGS_EQUAL(11, follow.globalParamToCC[1]);
+}
+TEST(MidiFeedbackMapping, reassigned_cc_releases_previous_feedback_parameter) {
+	Deserializer reader;
+	reader.entries = {{"patched", 7}, {"sound", 7}, {"global", 9}, {"shared", 9}};
+	follow.readDefaultMappingsFromFile(reader);
+	LONGS_EQUAL(MIDI_CC_NONE, follow.soundParamToCC[1]);
+	LONGS_EQUAL(params::UNPATCHED_START + 1, follow.ccToSoundParam[7]);
+	LONGS_EQUAL(7, follow.soundParamToCC[params::UNPATCHED_START + 1]);
+	LONGS_EQUAL(MIDI_CC_NONE, follow.globalParamToCC[1]);
+	LONGS_EQUAL(2, follow.ccToGlobalParam[9]);
+	LONGS_EQUAL(9, follow.globalParamToCC[2]);
+}
+TEST(MidiFeedbackMapping, repeated_identical_entries_and_invalid_replacement_preserve_mapping) {
+	Deserializer reader;
+	reader.entries = {{"shared", 127}, {"shared", 127}, {"shared", -1}};
+	follow.readDefaultMappingsFromFile(reader);
+	LONGS_EQUAL(127, follow.soundParamToCC[params::UNPATCHED_START + 2]);
+	LONGS_EQUAL(127, follow.globalParamToCC[2]);
+	LONGS_EQUAL(params::UNPATCHED_START + 2, follow.ccToSoundParam[127]);
+	LONGS_EQUAL(2, follow.ccToGlobalParam[127]);
+}

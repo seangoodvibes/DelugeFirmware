@@ -1629,3 +1629,14 @@ global mapping (reproduced before the fix), shared-name deduplication, global-on
 and unpatched sound entries, including CC endpoints and save/load. All 35 native
 suites and `./dbt build relwithdebinfo` pass. Parameter names and serialization
 are fixtures; filesystem/device acceptance remains outstanding.
+
+### G1 / R4 progress — consistent duplicate MIDI mapping replacement (2026-10-10)
+
+Defaults loading now removes superseded incoming-CC and feedback entries before
+publishing each valid replacement. The last valid entry wins within each sound or
+global mapping table. Three regressions cover changing a parameter's CC (failed
+before the fix), assigning an occupied CC to another parameter, repeated identical
+entries and invalid replacement values. All 35 native suites and
+`./dbt build relwithdebinfo` pass. This establishes consistency of the two mapping
+directions in the tested loading paths; it is not general shared-object recovery
+or physical MIDI acceptance.
