@@ -36,6 +36,7 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include <limits>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -1159,8 +1160,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			// Find the ClipInstance which we expect to have already been created
-			int32_t clipInstanceI =
-			    output->clipInstances.search(playbackHandler.getActualArrangementRecordPos() + 1, LESS);
+			const int32_t record_pos = playbackHandler.getActualArrangementRecordPos();
+			if (record_pos == std::numeric_limits<int32_t>::max())
+				return fail(Error::BUG);
+			int32_t clipInstanceI = output->clipInstances.search(record_pos + 1, LESS);
 
 			// If it can't be found (should be impossible), we'll just get out and leave everything the same, so at
 			// least nothing will crash
@@ -1200,7 +1203,13 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 				if (repeatCount >= 1) {
 
-					int32_t oldClipInstancePos = clipInstance->pos;
+					const int64_t repeated_length = static_cast<int64_t>(repeatCount) * loopLength;
+					const int64_t split_pos = static_cast<int64_t>(clipInstance->pos) + repeated_length;
+					if (loopLength <= 0 || repeated_length > kMaxSequenceLength || split_pos < 0
+					    || split_pos > static_cast<int64_t>(kMaxSequenceLength) - loopLength)
+						return fail(Error::BUG);
+					split_length = static_cast<int32_t>(repeated_length);
+					split_tail_length = loopLength;
 
 					// And then we'll need a new ClipInstance for this new instance that we're gonna record some
 					// automation on
@@ -1214,14 +1223,12 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					}
 
 					// Insertion can fail or relocate storage. Publish the shorter original only after success.
-					output->clipInstances.getElement(clipInstanceI - 1)->length = repeatCount * loopLength;
+					output->clipInstances.getElement(clipInstanceI - 1)->length = split_length;
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
 
-					clipInstance->pos = oldClipInstancePos + repeatCount * loopLength;
-					clipInstance->length = loopLength;
+					clipInstance->pos = static_cast<int32_t>(split_pos);
+					clipInstance->length = split_tail_length;
 					clipInstance->clip = this;
-					split_length = repeatCount * loopLength;
-					split_tail_length = loopLength;
 					audio_split = true;
 				}
 			}

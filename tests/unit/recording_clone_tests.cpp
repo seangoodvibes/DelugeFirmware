@@ -4,6 +4,7 @@
 #include "util/lifetime.h"
 #include <array>
 #include <functional>
+#include <limits>
 #include <memory>
 namespace recording_clone_test {
 enum class RecordingMode { OFF, ARRANGEMENT };
@@ -159,7 +160,8 @@ static struct {
 	RecordingMode recording = RecordingMode::ARRANGEMENT;
 	bool clock = true;
 	bool isEitherClockActive() { return clock; }
-	int getActualArrangementRecordPos() { return 0; }
+	int32_t record_pos = 0;
+	int getActualArrangementRecordPos() { return record_pos; }
 } playbackHandler;
 #include "recording_clone.inc"
 } // namespace recording_clone_test
@@ -593,4 +595,53 @@ TEST(RecordingClone, reassigned_existing_recording_target_does_not_retarget_or_c
 	POINTERS_EQUAL(&original, stack.clip);
 	LONGS_EQUAL(0, original.clone_calls);
 	LONGS_EQUAL(0, song.arrangementOnlyClips.inserts);
+}
+
+TEST(RecordingClone, maximum_record_position_does_not_overflow_search_key) {
+	playbackHandler.record_pos = std::numeric_limits<int32_t>::max();
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+}
+TEST(RecordingClone, excessive_audio_repeat_span_preserves_original_instance) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = std::numeric_limits<int32_t>::max();
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(64, output.clipInstances.values[0].length);
+	POINTERS_EQUAL(&original, output.clipInstances.values[0].clip);
+}
+TEST(RecordingClone, audio_split_end_beyond_sequence_limit_preserves_original_instance) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.values[0].pos = kMaxSequenceLength - original.loopLength;
+	CHECK_FALSE(attempt_clone());
+	CHECK(result == Error::BUG);
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	LONGS_EQUAL(0, original.clone_calls);
+	LONGS_EQUAL(64, output.clipInstances.values[0].length);
+}
+TEST(RecordingClone, audio_split_at_sequence_limit_is_valid) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	output.clipInstances.values[0].pos = kMaxSequenceLength - 2 * original.loopLength;
+	CHECK(attempt_clone());
+	CHECK(result == Error::NONE);
+	LONGS_EQUAL(kMaxSequenceLength - original.loopLength, output.clipInstances.values[1].pos);
+	LONGS_EQUAL(original.loopLength, output.clipInstances.values[1].length);
+}
+TEST(RecordingClone, nonpositive_audio_loop_length_does_not_publish_split) {
+	original.type = ClipType::AUDIO;
+	original.repeatCount = 1;
+	for (int32_t length : {0, -1, std::numeric_limits<int32_t>::min()}) {
+		original.loopLength = length;
+		CHECK_FALSE(attempt_clone());
+		CHECK(result == Error::BUG);
+	}
+	LONGS_EQUAL(0, output.clipInstances.inserts);
+	LONGS_EQUAL(0, original.clone_calls);
 }

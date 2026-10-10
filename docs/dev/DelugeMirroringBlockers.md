@@ -2158,3 +2158,11 @@ and still attached to the source output before retargeting the model stack.
 Two sanitizer regressions reject retiring/reassigned recording targets without
 cloning or publishing another clip; the existing normal-reuse test still passes.
 All 36 native suites and `./dbt build relwithdebinfo` pass.
+
+Recording clone search/split preparation now rejects an overflowing search key,
+nonpositive audio loop length, excessive repeat span and an audio split extending
+past the sequence limit. Repeat/span arithmetic uses 64 bits and validated split
+values are retained across insertion. Five sanitizer regressions verify failures
+leave the original instance untouched and the exact sequence-end boundary still
+works. All 36 native suites and `./dbt build relwithdebinfo` pass. Instrument
+expansion and playback-position arithmetic are the next checks in this path.
