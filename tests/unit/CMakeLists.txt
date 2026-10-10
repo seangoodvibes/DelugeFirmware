@@ -526,6 +526,6 @@ target_sources(UnitTests PRIVATE mod_led_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/m
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
-        ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc View::sendMidiFollowFeedback
+        ${view_startup_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc View::sendMidiFollowFeedback View::notifyParamAutomationOccurred
     DEPENDS ${view_startup_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_feedback_view_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_view.inc)

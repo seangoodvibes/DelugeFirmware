@@ -1757,6 +1757,8 @@ int32_t View::getModKnobMode() {
 }
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
+	if (!paramManager)
+		return;
 	if (paramManager == activeModControllableModelStack.paramManager
 	    || (getCurrentUI() == &sound_editor_for_session()
 	        && paramManager == sound_editor_for_session().currentParamManager)) {

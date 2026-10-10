@@ -1547,3 +1547,13 @@ routing, disabled/song/unmapped cases and the existing no-parameter fallback.
 All 35 native suites and `./dbt build relwithdebinfo` pass. MIDI transport is a
 fixture in these tests; they do not establish physical cable filtering or lifetime
 retention. Independent mode remains disabled.
+
+### G1 progress — automation notification target availability (2026-10-10)
+
+Null parameter-manager notifications no longer match an unbound view or editor
+and schedule display/feedback timers. Three extracted-production tests cover that
+case on both panels, matching only the visible editor's manager, unrelated
+managers, timer coalescing, promotion of pending level refreshes and resetting the
+flag when a new display timer is scheduled. All 35 native suites and
+`./dbt build relwithdebinfo` pass. Timers are fixtures in this suite; notification
+broadcast between panels and real transport are not established by these tests.

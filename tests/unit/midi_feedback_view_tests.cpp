@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/ui_session.h"
+#include <array>
 #include <cstdint>
 namespace midi_feedback_view_test {
 namespace session = ::deluge::gui::ui_session;
@@ -42,7 +43,40 @@ struct feedback_fixture {
 	}
 };
 static feedback_fixture midiFollow;
+struct ParamManager {};
+struct editor_fixture {
+	ParamManager* currentParamManager = nullptr;
+};
+static session::State<editor_fixture> editors;
+static session::State<editor_fixture*> current_uis;
+static editor_fixture& sound_editor_for_session() {
+	return editors.active();
+}
+static editor_fixture* getCurrentUI() {
+	return current_uis.active();
+}
+enum class TimerName { DISPLAY_AUTOMATION, SEND_MIDI_FEEDBACK_FOR_AUTOMATION };
+struct timer_fixture {
+	struct state {
+		bool set = false;
+		int calls = 0, delay = 0;
+	};
+	session::State<std::array<state, 2>> timers;
+	bool isTimerSet(TimerName name) { return timers.active()[static_cast<int>(name)].set; }
+	void setTimer(TimerName name, int delay) {
+		auto& target = timers.active()[static_cast<int>(name)];
+		target.set = true;
+		++target.calls;
+		target.delay = delay;
+	}
+};
+static timer_fixture uiTimerManager;
 struct View {
+	struct {
+		ParamManager* paramManager = nullptr;
+	} activeModControllableModelStack;
+	bool pendingParamAutomationUpdatesModLevels = false;
+	void notifyParamAutomationOccurred(ParamManager*, bool);
 	bool clip_context = true;
 	bool isClipContext() { return clip_context; }
 	void sendMidiFollowFeedback(ModelStackWithAutoParam*, int32_t, bool);
@@ -58,6 +92,9 @@ TEST_GROUP(MidiFeedbackView) {
 	void setup() override {
 		session::detail::active = session::Id::Local;
 		midiFollow = {};
+		editors = {};
+		current_uis = {};
+		uiTimerManager = {};
 		stack.autoParam = &param;
 		stack.paramCollection = &collection;
 		stack.paramId = 11;
@@ -110,4 +147,48 @@ TEST(MidiFeedbackView, absent_parameter_preserves_automation_fallback) {
 	LONGS_EQUAL(2, midiFollow.outputs.active().fallback);
 	CHECK_FALSE(midiFollow.outputs.active().automation);
 	LONGS_EQUAL(0, midiFollow.lookups);
+}
+
+TEST(MidiFeedbackView, null_notification_does_not_match_unbound_view_or_editor) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		current_uis.active() = &editors.active();
+		view.notifyParamAutomationOccurred(nullptr, true);
+		for (auto& timer : uiTimerManager.timers.active())
+			LONGS_EQUAL(0, timer.calls);
+		CHECK_FALSE(view.pendingParamAutomationUpdatesModLevels);
+	}
+}
+TEST(MidiFeedbackView, automation_notifications_coalesce_and_promote_level_updates) {
+	ParamManager manager;
+	view.activeModControllableModelStack.paramManager = &manager;
+	view.notifyParamAutomationOccurred(&manager, false);
+	CHECK_FALSE(view.pendingParamAutomationUpdatesModLevels);
+	view.notifyParamAutomationOccurred(&manager, true);
+	view.notifyParamAutomationOccurred(&manager, false);
+	CHECK(view.pendingParamAutomationUpdatesModLevels);
+	for (auto& timer : uiTimerManager.timers.active()) {
+		LONGS_EQUAL(1, timer.calls);
+		LONGS_EQUAL(25, timer.delay);
+	}
+	uiTimerManager.timers.active()[0].set = false;
+	view.notifyParamAutomationOccurred(&manager, false);
+	CHECK_FALSE(view.pendingParamAutomationUpdatesModLevels);
+	LONGS_EQUAL(2, uiTimerManager.timers.active()[0].calls);
+	LONGS_EQUAL(1, uiTimerManager.timers.active()[1].calls);
+}
+TEST(MidiFeedbackView, only_visible_editor_manager_schedules_its_panel) {
+	ParamManager manager, unrelated;
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		editors.active().currentParamManager = &manager;
+		view.notifyParamAutomationOccurred(&manager, true);
+		LONGS_EQUAL(0, uiTimerManager.timers.active()[0].calls);
+		current_uis.active() = &editors.active();
+		view.notifyParamAutomationOccurred(&unrelated, true);
+		LONGS_EQUAL(0, uiTimerManager.timers.active()[0].calls);
+		view.notifyParamAutomationOccurred(&manager, true);
+		LONGS_EQUAL(1, uiTimerManager.timers.active()[0].calls);
+		LONGS_EQUAL(1, uiTimerManager.timers.active()[1].calls);
+	}
 }
