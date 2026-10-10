@@ -3176,3 +3176,14 @@ changes and null/retired/noncurrent entry. Three failed before the fix. All 38
 suites and the RelWithDebInfo build pass. The caller's broader load/clear transaction
 and already-published root recovery remain separate concerns. Independent mode
 stays disabled.
+
+The physical PIC input reader now retains song/panel/UI context through mirror
+routing, pad/button dispatch and the pad-to-button release-sweep boundary. Stale
+continuations cannot replay an edge or update Shift feedback. Shift use is marked
+before a pad callback so normal navigation consumes it without overwriting modifier
+state established by that callback. Seven regressions exercise the real reader with
+UART/transport doubles, including valid storage retry, mirror consumption, no-song
+protocol handling and restoration of a suspended Remote caller. Three failures
+reproduced before the fix. All 38 suites and the RelWithDebInfo build pass. Internal
+multi-control release sweeps and recovery of remaining holds are still open; no
+hardware PIC/USB acceptance is implied. Independent mode stays disabled.

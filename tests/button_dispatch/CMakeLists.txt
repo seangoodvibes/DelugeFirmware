@@ -17,3 +17,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pad_dispatch.inc
         ${matrix_source} ${CMAKE_CURRENT_BINARY_DIR}/pad_dispatch.inc MatrixDriver::padAction MatrixDriver::isPadPressed
     DEPENDS ${matrix_source} ../support/extract_functions.py VERBATIM)
 target_sources(ButtonDispatchTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/pad_dispatch.inc)
+
+set(physical_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/deluge.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/physical_dispatch.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${physical_source} ${CMAKE_CURRENT_BINARY_DIR}/physical_dispatch.inc "bool readButtonsAndPads"
+    DEPENDS ${physical_source} ../support/extract_functions.py VERBATIM)
+target_sources(ButtonDispatchTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/physical_dispatch.inc)

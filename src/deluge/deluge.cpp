@@ -249,6 +249,14 @@ bool isShortPress(uint32_t pressTime) {
 bool readButtonsAndPads() {
 	// PIC events belong to the physical panel, including when a Remote operation yields here.
 	deluge::gui::ui_session::Scope hardware_scope(deluge::gui::ui_session::Id::Local);
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* const source_ui = getCurrentUI();
+	const auto context_valid = [&] {
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == deluge::gui::ui_session::Id::Local
+		       && getCurrentUI() == source_ui && !hid::mirror::is_client();
+	};
 
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
 		usbInitializationPeriodComplete = 1;
@@ -284,6 +292,8 @@ bool readButtonsAndPads() {
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 			if (hid::mirror::local_input(util::to_underlying(value), thisPadPressIsOn != 0))
 				return true;
+			if (!context_valid())
+				return true;
 
 			ActionResult result;
 			if (Pad::isPad(util::to_underlying(value))) {
@@ -291,16 +301,21 @@ bool readButtonsAndPads() {
 				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
-				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
+				// Mark this press before the callback can replace song or modifier state.
 				if (thisPadPressIsOn) {
 					Buttons::ignoreCurrentShiftForSticky();
 				}
+				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
+				if (!context_valid())
+					return true;
 			}
 			else {
 				auto b = deluge::hid::Button(value);
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
+			if (!context_valid())
+				return true;
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
 				D_PRINTLN("putCharBack ---------");
@@ -325,7 +340,11 @@ bool readButtonsAndPads() {
 				return false;
 			}
 			if (!hid::mirror::local_all_released()) {
+				if (!context_valid())
+					return true;
 				matrixDriver.noPressesHappening(sdRoutineLock);
+				if (!context_valid())
+					return true;
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
@@ -334,7 +353,7 @@ bool readButtonsAndPads() {
 		}
 	}
 
-	if (!hid::mirror::is_client() && !sdRoutineLock) {
+	if (context_valid() && !sdRoutineLock) {
 		Buttons::update_shift_led();
 	}
 
