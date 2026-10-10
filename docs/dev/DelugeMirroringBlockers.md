@@ -3112,3 +3112,15 @@ playback/stopped service, and unchanged-context success. The new failure cases
 reproduced before the fix. All 36 suites and the RelWithDebInfo build pass. These
 checks cover timer continuation, not nested callback cancellation or cable/object
 lifetime within MIDI transmission. Independent mode remains disabled.
+
+The shared encoder dispatcher now retains its song/panel/UI context across each
+handler, rejects retired/missing contexts before consuming ticks, and stops after
+song reuse, navigation replacement, owner changes or client takeover. Invalidated
+handlers cannot restore card-routine retries or overwrite mod input state; later
+ticks remain pending. Seven new EncoderDispatch regressions compile the production
+dispatcher with real encoder counters/banks and lifetime watches, covering both
+panels, vertical/horizontal retry, mod continuation, no-song menus and SD deferral.
+Three cases failed before the fix. All 37 suites and the RelWithDebInfo build pass.
+This covers the shared dispatch boundary, not handler-internal object ownership,
+same-UI navigation revisions or nested cancellation propagation. G1/L1 remain open;
+independent mode remains disabled.

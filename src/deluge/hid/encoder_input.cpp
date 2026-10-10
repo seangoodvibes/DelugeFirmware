@@ -89,6 +89,19 @@ bool interpret_encoder_bank(DetentedEncoder* const* funcPtrs, ContinuousEncoder*
 		return false;
 	}
 
+	const auto source_owner = gui::ui_session::current();
+	gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	auto* const source_ui = getCurrentUI();
+	const auto context_valid = [&] {
+		return (!source_song || song_watch.alive()) && currentSong == source_song
+		       && gui::ui_session::current() == source_owner && source_ui && getCurrentUI() == source_ui
+		       && !deluge::hid::mirror::is_client();
+	};
+	if (!context_valid())
+		return false;
+
 	skipActioning |= sdRoutineLock; // if the "sd routine" is yielding then always defer actioning encoders
 	bool anything = false;
 
@@ -112,6 +125,8 @@ bool interpret_encoder_bank(DetentedEncoder* const* funcPtrs, ContinuousEncoder*
 #endif
 
 	for (int32_t e = 0; e < (int32_t)kNumFunctionEncoders; e++) {
+		if (!context_valid())
+			return anything;
 		// 0=scrollY 1=scrollX 2=tempo 3=select
 		bool isScrollY = (e == 0);
 		if (!isScrollY) {
@@ -147,7 +162,7 @@ bool interpret_encoder_bank(DetentedEncoder* const* funcPtrs, ContinuousEncoder*
 				// getting here during the SD routine. Ok so we'll leave it that way, in addition to me having made all
 				// the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
-				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				if (context_valid() && result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					input_state().waiting_for_card_routine_end |= (1 << e);
 					fe.restore(detentDelta); // Put it back for next time
 				}
@@ -200,6 +215,8 @@ checkResult:
 	if (!skipActioning || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		// Mod knobs
 		for (int32_t e = 0; e < 2; e++) {
+			if (!context_valid())
+				return anything;
 			// 0=mod0 (lower gold), 1=mod1 (upper gold)
 			auto& encoder = *mod_ptrs[e];
 
@@ -215,6 +232,8 @@ checkResult:
 
 					getCurrentUI()->modEncoderAction(e, offset_accelerated);
 
+					if (!context_valid())
+						return anything;
 					input_state().initial_turn_direction[e] = 0;
 				}
 
@@ -226,7 +245,7 @@ checkResult:
 		}
 	}
 
-	if (anything) {
+	if (anything && context_valid()) {
 		deluge::hid::display::Screensaver::noteActivity();
 	}
 
