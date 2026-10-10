@@ -3093,3 +3093,12 @@ parameter lifecycle target links the extracted production Song accessor used by
 the real indicator renderer. All 36 suites and the RelWithDebInfo build pass.
 Live-song child-object/parameter ownership and whole timer-batch cancellation remain
 open; these checks preserve existing no-song contexts. Independent mode stays disabled.
+
+Timer dispatch now watches its initiating song for the whole batch, stopping after
+replacement/retirement (including same-address reuse) while retaining later timer
+deadlines. UI/back-menu retries and graphics rearming reject invalidated song
+contexts; graphics also rejects client takeover. Four regressions exercise both
+panels, retired entry, preserved pending work and valid no-song service. All 36
+suites and the RelWithDebInfo build pass. This closes the whole timer-batch song
+cancellation gap; live-song child ownership, recovery and hardware acceptance
+remain open. Independent mode stays disabled.

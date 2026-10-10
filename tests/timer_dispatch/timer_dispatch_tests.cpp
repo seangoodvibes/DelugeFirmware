@@ -705,3 +705,93 @@ TEST(TimerDispatch, automation_timer_song_reuse_during_render_skips_menu_read) {
 	LONGS_EQUAL(1, automation_calls);
 	LONGS_EQUAL(0, menu_reads);
 }
+
+TEST(TimerDispatch, song_invalidation_cancels_retry_and_defers_remaining_batch) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (auto name : {TimerName::UI_SPECIFIC, TimerName::BACK_MENU_EXIT}) {
+			for (int invalidation = 0; invalidation < 3; ++invalidation) {
+				Song source_song;
+				currentSong = &source_song;
+				UITimerManager timers;
+				timers.setTimerSamples(name, -1);
+				timers.setTimerSamples(TimerName::OLED_CONSOLE, -1);
+				on_timer = on_exit = [&] {
+					if (invalidation == 0)
+						currentSong = &replacement_song;
+					else if (invalidation == 1)
+						source_song.lifetime.retire();
+					else {
+						source_song.~Song();
+						new (&source_song) Song;
+					}
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				};
+				const int previous_calls = console_calls;
+				timers.routine();
+				CHECK_FALSE(timers.isTimerSet(name));
+				LONGS_EQUAL(previous_calls, console_calls);
+				CHECK(timers.isTimerSet(TimerName::OLED_CONSOLE));
+				LONGS_EQUAL(999, timers.getTimer(TimerName::OLED_CONSOLE).triggerTime);
+				on_timer = on_exit = {};
+				currentSong = &original_song;
+				timers.routine();
+				LONGS_EQUAL(previous_calls + 1, console_calls);
+			}
+		}
+	}
+}
+
+TEST(TimerDispatch, retired_song_defers_entire_timer_batch) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		Song source_song;
+		source_song.lifetime.retire();
+		currentSong = &source_song;
+		UITimerManager timers;
+		timers.setTimerSamples(TimerName::BACK_MENU_EXIT, -1);
+		timers.routine();
+		LONGS_EQUAL(0, exit_calls);
+		CHECK(timers.isTimerSet(TimerName::BACK_MENU_EXIT));
+		currentSong = &original_song;
+	}
+}
+
+TEST(TimerDispatch, no_song_context_preserves_timer_retry_and_hardware_service) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		currentSong = nullptr;
+		UITimerManager timers;
+		timers.setTimerSamples(TimerName::UI_SPECIFIC, -1);
+		timers.setTimerSamples(TimerName::OLED_CONSOLE, -1);
+		on_timer = [] { return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; };
+		const int previous_calls = console_calls;
+		timers.routine();
+		CHECK(timers.isTimerSet(TimerName::UI_SPECIFIC));
+		LONGS_EQUAL(previous_calls + 1, console_calls);
+	}
+	currentSong = &original_song;
+}
+
+TEST(TimerDispatch, graphics_invalidated_context_does_not_rearm_timer) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (bool takeover : {false, true}) {
+			UITimerManager timers;
+			currentSong = &original_song;
+			deluge::hid::mirror::client = false;
+			timers.setTimerSamples(TimerName::GRAPHICS_ROUTINE, -1);
+			on_graphics = [=] {
+				if (takeover)
+					deluge::hid::mirror::client = true;
+				else {
+					original_song.~Song();
+					new (&original_song) Song;
+				}
+			};
+			timers.routine();
+			CHECK_FALSE(timers.isTimerSet(TimerName::GRAPHICS_ROUTINE));
+		}
+	}
+	deluge::hid::mirror::client = false;
+}

@@ -74,15 +74,19 @@ void UITimerManager::routine() {
 		return;
 	}
 
+	auto* const source_song = currentSong;
+	auto song_watch = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto song_context_valid = [&] { return (!source_song || song_watch.alive()) && currentSong == source_song; };
+
 	int32_t timeTilNextEvent = (uint32_t)(bank.next_event - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) {
 		return;
 	}
 
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
-		// A callback may start client takeover or leave its initiating panel.
+		// A callback may retire its song, start client takeover or leave its panel.
 		// Preserve later timers for resume; the next pass services the OLED handshake.
-		if (deluge::hid::mirror::is_client() || deluge::gui::ui_session::current() != owner)
+		if (!song_context_valid() || deluge::hid::mirror::is_client() || deluge::gui::ui_session::current() != owner)
 			break;
 		// Remote callbacks may close navigation before later timers in this pass.
 		// Leave those timers pending for teardown or a valid subsequent service.
@@ -184,7 +188,7 @@ void UITimerManager::routine() {
 						break;
 					}
 					ActionResult result = source_ui->timerCallback();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && song_context_valid()
 					    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui) {
 						timer.active = true; // Come back soon and try again.
 					}
@@ -196,7 +200,7 @@ void UITimerManager::routine() {
 						break;
 					}
 					ActionResult result = source_ui->exitUI();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && song_context_valid()
 					    && deluge::gui::ui_session::current() == owner && getCurrentUI() == source_ui) {
 						timer.active = true;
 					}
@@ -275,7 +279,8 @@ void UITimerManager::routine() {
 					    })) {
 						getCurrentUI()->graphicsRoutine();
 					}
-					if (deluge::gui::ui_session::current() == owner)
+					if (song_context_valid() && !deluge::hid::mirror::is_client()
+					    && deluge::gui::ui_session::current() == owner)
 						setTimer(TimerName::GRAPHICS_ROUTINE, 15);
 					break;
 
