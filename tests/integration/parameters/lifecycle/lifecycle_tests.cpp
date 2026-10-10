@@ -4761,3 +4761,86 @@ TEST(parameter_lifecycle, guarded_patch_collection_clone_survives_source_deletio
 		}
 	});
 }
+
+TEST(parameter_lifecycle, guarded_shallow_manager_clone_detaches_expired_original_collections) {
+	auto source = std::make_unique<fixture>();
+	source->add_node(31, 4, 99);
+	CHECK(source->manager.ensureExpressionParamSetExists());
+	ParamManagerForTimeline destination;
+	memcpy(&destination, &source->manager, sizeof(destination));
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	lifetime.retire();
+	source.reset();
+	CHECK(destination.beenCloned(0, &watch) == Error::BUG);
+	for (auto& summary : destination.summaries)
+		POINTERS_EQUAL(nullptr, summary.paramCollection);
+	CHECK(destination.has_valid_layout());
+}
+TEST(parameter_lifecycle, guarded_shallow_manager_clone_normalizes_after_source_deletion_at_each_allocation) {
+	for (int32_t reverse_length : {0, 32}) {
+		bool reached_success = false;
+		for (int allocation_index = 0; allocation_index < 20 && !reached_success; ++allocation_index) {
+			auto_param_pool::get().clear_unused();
+			{
+				auto source = std::make_unique<fixture>();
+				source->add_node(31, 4, 99);
+				source->add_node(32, 8, 123);
+				CHECK(source->manager.ensureExpressionParamSetExists());
+				ParamManagerForTimeline destination;
+				memcpy(&destination, &source->manager, sizeof(destination));
+				deluge::lifetime::lifetime_source lifetime;
+				deluge::lifetime::lifetime_watch watch{lifetime};
+				int allocation_count = 0;
+				std::function<void()> callback = [&] {
+					if (allocation_count++ == allocation_index) {
+						lifetime.retire();
+						source.reset();
+					}
+					else
+						parameter_test::on_allocation = callback;
+				};
+				parameter_test::on_allocation = callback;
+				auto error = destination.beenCloned(reverse_length, &watch);
+				parameter_test::on_allocation = nullptr;
+				if (!watch.alive()) {
+					CHECK(error == Error::BUG);
+					for (auto& summary : destination.summaries)
+						POINTERS_EQUAL(nullptr, summary.paramCollection);
+				}
+				else {
+					CHECK(error == Error::NONE);
+					reached_success = true;
+					CHECK(allocation_index > 2);
+					check_node(*destination.getUnpatchedParamSet()->getParam(31), 0, reverse_length ? 28 : 4, 99,
+					           false);
+				}
+				CHECK(destination.has_valid_layout());
+			}
+			LONGS_EQUAL(0, auto_param_pool::get().active_count());
+			auto_param_pool::get().clear_unused();
+			LONGS_EQUAL(0, parameter_test::outstanding_allocations());
+		}
+		CHECK(reached_success);
+	}
+}
+TEST(parameter_lifecycle, shallow_clone_retirement_preserves_callback_replacement_layout) {
+	auto source = std::make_unique<fixture>();
+	ParamManagerForTimeline destination;
+	memcpy(&destination, &source->manager, sizeof(destination));
+	deluge::lifetime::lifetime_source lifetime;
+	deluge::lifetime::lifetime_watch watch{lifetime};
+	parameter_test::on_allocation = [&] {
+		lifetime.retire();
+		// Detach borrowed entries before giving the copy a different, owned layout.
+		for (auto& summary : destination.summaries)
+			summary = {0};
+		destination.expressionParamSetOffset = 0;
+		parameter_test::allow_midi_params = true;
+		CHECK(destination.setupMIDI() == Error::NONE);
+		source.reset();
+	};
+	CHECK(destination.beenCloned(0, &watch) == Error::BUG);
+	CHECK(destination.getMIDIParamCollection() != nullptr);
+	CHECK(destination.has_valid_layout());
+}

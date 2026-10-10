@@ -2289,3 +2289,12 @@ allocation/pool balance. All 36 native suites and `./dbt build relwithdebinfo` p
 This protects owner-retirement paths through these clone implementations; source
 collection/parameter edits while the owner remains alive, shallow note-row clone
 integration and destination lifetime still need their own protection.
+
+Shallow ParamManager normalization now accepts the original owner's watch and
+forgets unchanged borrowed entries after retirement, including an already-expired
+source. It preserves a callback's different replacement layout. Native sanitizer
+tests cover expired input, source deletion at every allocation in normal/reverse
+clones and callback layout replacement, with pool/allocation accounting. All 36
+native suites and `./dbt build relwithdebinfo` pass. The unpublished shallow
+destination must remain alive; this does not establish same-address collection
+identity or finish note-row integration.

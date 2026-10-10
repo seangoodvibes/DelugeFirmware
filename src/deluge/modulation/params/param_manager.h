@@ -154,7 +154,10 @@ public:
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,
 	                                int32_t reverseDirectionWithLength = 0,
 	                                const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
-	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
+	// The shallow destination must remain alive throughout normalization. The optional
+	// watch belongs to the original owner whose collections this copy borrows.
+	Error beenCloned(int32_t reverseDirectionWithLength = 0,
+	                 const deluge::lifetime::lifetime_watch* source_lifetime = nullptr);
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	void destructMainParamCollections(); // Preserve expression values, automation and bend ranges.

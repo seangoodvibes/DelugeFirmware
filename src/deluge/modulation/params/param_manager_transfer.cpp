@@ -250,6 +250,24 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 }
 
 // This is only called once - for NoteRows after cloning an InstrumentClip.
-Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
-	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
+Error ParamManager::beenCloned(int32_t reverseDirectionWithLength,
+                               const deluge::lifetime::lifetime_watch* source_lifetime) {
+	ParamCollection* borrowed_collections[PARAM_COLLECTIONS_STORAGE_NUM];
+	for (int32_t index = 0; index < PARAM_COLLECTIONS_STORAGE_NUM; ++index)
+		borrowed_collections[index] = summaries[index].paramCollection;
+	const int32_t borrowed_expression_offset = expressionParamSetOffset;
+	auto error = cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength, source_lifetime);
+	if (error != Error::NONE && source_lifetime && !source_lifetime->alive()) {
+		// This object is the surviving shallow copy, not the retired original owner.
+		// Preserve a callback's replacement layout instead of clearing its collections.
+		bool still_borrowed = expressionParamSetOffset == borrowed_expression_offset;
+		for (int32_t index = 0; index < PARAM_COLLECTIONS_STORAGE_NUM; ++index)
+			still_borrowed = still_borrowed && summaries[index].paramCollection == borrowed_collections[index];
+		if (still_borrowed) {
+			for (auto& summary : summaries)
+				summary = {0};
+			expressionParamSetOffset = 0;
+		}
+	}
+	return error;
 }
