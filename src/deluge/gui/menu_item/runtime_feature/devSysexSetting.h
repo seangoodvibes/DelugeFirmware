@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/menu_item/selection.h"
+#include "gui/ui/ui_session.h"
 #include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
@@ -35,7 +36,10 @@ public:
 private:
 	friend class Settings;
 	uint32_t currentSettingIndex;
-	int32_t onValue;
-	char on_val[14];
+	struct session_state {
+		int32_t on_value = 0;
+		char on_label[14] = "on - ********";
+	};
+	ui_session::State<session_state> session_states;
 };
 } // namespace deluge::gui::menu_item::runtime_feature

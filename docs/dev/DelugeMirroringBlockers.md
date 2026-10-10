@@ -506,3 +506,18 @@ side effects are not provided by these guards.
   clip/output destruction safety; those remain under L1/L3. G1 stays open and
   independent mode remains disabled.
 - Validation: all 31 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — developer SysEx menu drafts and labels (2026-10-09)
+
+- Pending enable codes and option-label buffers now belong to each panel. Opening
+  or drawing the menu on the other panel cannot replace the code being offered
+  or alter a previously returned option string. The committed setting stays shared.
+- Option generation resolves invalidated shared values before formatting the code,
+  including selection paths that request options before reading the selected value.
+- `RuntimeMenuTests` compiles the real menu with production session/cache state.
+  Regressions reproduced overwritten pending codes, overwritten retained labels
+  and stale options after a peer commit. Four tests now cover these cases and
+  shared enable/disable refresh. Base-menu commit dispatch and hardware/SysEx
+  acceptance remain outside this fixture. G1 remains open; independent mode stays
+  disabled.
+- Validation: all 32 native CTest suites and `./dbt build relwithdebinfo` pass.

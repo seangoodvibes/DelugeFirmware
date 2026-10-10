@@ -40,3 +40,5 @@ add_subdirectory(arrangement_clone)
 add_subdirectory(instrument_clone)
 
 add_subdirectory(source_menu)
+
+add_subdirectory(runtime_menu)

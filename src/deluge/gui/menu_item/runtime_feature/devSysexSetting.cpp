@@ -23,26 +23,25 @@
 
 namespace deluge::gui::menu_item::runtime_feature {
 
-DevSysexSetting::DevSysexSetting(RuntimeFeatureSettingType ty)
-    : currentSettingIndex(static_cast<uint32_t>(ty)), on_val("on - ********") {
+DevSysexSetting::DevSysexSetting(RuntimeFeatureSettingType ty) : currentSettingIndex(static_cast<uint32_t>(ty)) {
 }
 
 void DevSysexSetting::readCurrentValue() {
 	int32_t rawValue = runtimeFeatureSettings.settings[currentSettingIndex].value;
 	setValue(rawValue != 0);
 	if (rawValue != 0) {
-		onValue = rawValue;
+		session_states.active().on_value = rawValue;
 	}
 	else {
 		do {
-			onValue = getNoise() & 0x7FFFFFFF;
-		} while (onValue == 0);
+			session_states.active().on_value = getNoise() & 0x7FFFFFFF;
+		} while (session_states.active().on_value == 0);
 	}
 }
 
 void DevSysexSetting::writeCurrentValue() {
 	if (this->getValue()) {
-		runtimeFeatureSettings.settings[currentSettingIndex].value = onValue;
+		runtimeFeatureSettings.settings[currentSettingIndex].value = session_states.active().on_value;
 	}
 	else {
 		runtimeFeatureSettings.settings[currentSettingIndex].value = 0;
@@ -51,10 +50,13 @@ void DevSysexSetting::writeCurrentValue() {
 
 deluge::vector<std::string_view> DevSysexSetting::getOptions(OptType optType) {
 	(void)optType;
-	intToHex(onValue, &on_val[5]);
+	// Selection can request labels before the value; resolve peer commits first.
+	(void)getValue();
+	auto& state = session_states.active();
+	intToHex(state.on_value, &state.on_label[5]);
 	return {
 	    l10n::get(l10n::String::STRING_FOR_OFF),
-	    on_val,
+	    state.on_label,
 	};
 }
 
