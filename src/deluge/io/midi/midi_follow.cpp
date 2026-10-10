@@ -569,13 +569,13 @@ int32_t MidiFollow::getCCFromParam(params::Kind paramKind, int32_t paramID) {
 bool MidiFollow::isGlobalEffectableContext() {
 	// obtain clip for active context (for params that's only for the active mod controllable stack)
 	Clip* clip = getSelectedOrActiveClip();
-	if (clip != nullptr) {
+	if (clip && clip->output) {
 		// audio clips are always global effectable
 		if (clip->output->type == OutputType::AUDIO) {
 			return true;
 		}
 		// kits may be global effectable depending on affect entire status
-		else if (clip->output->type == OutputType::KIT) {
+		else if (clip->output->type == OutputType::KIT && clip->type == ClipType::INSTRUMENT) {
 			bool affectEntire = ((InstrumentClip*)clip)->affect_entire_for_session();
 			// if affect entire is enabled, then midi follow controls global effectable params
 			if (affectEntire) {

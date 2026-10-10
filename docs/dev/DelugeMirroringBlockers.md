@@ -1640,3 +1640,12 @@ entries and invalid replacement values. All 35 native suites and
 `./dbt build relwithdebinfo` pass. This establishes consistency of the two mapping
 directions in the tested loading paths; it is not general shared-object recovery
 or physical MIDI acceptance.
+
+### G1 / R4 progress — missing MIDI Follow context outputs (2026-10-10)
+
+Global-effectable context detection now requires a clip output before inspecting
+its type, and verifies instrument clip type before accessing kit affect-entire
+state. Three extracted-production tests cover missing clips/outputs, independent
+kit affect-entire state, audio/synth contexts and a mismatched kit clip. All 35
+native suites and `./dbt build relwithdebinfo` pass. Clip selection is a fixture
+here; these availability guards do not retain objects or establish device safety.

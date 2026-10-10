@@ -543,3 +543,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_mapping.inc
         ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_mapping.inc MidiFollow::getCCFromParam MidiFollow::readDefaultMappingsFromFile MidiFollow::readSpecificChannelSettingsFromFile MidiFollow::writeSpecificChannelSettingsToFile MidiFollow::writeDefaultMappingsToFile
     DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_feedback_mapping_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_mapping.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc MidiFollow::isGlobalEffectableContext
+    DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE midi_follow_context_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_follow_context.inc)
