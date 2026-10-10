@@ -3251,3 +3251,14 @@ identify same-address range replacement or supply Kit/row association validation
 inside a surviving SoundDrum, and legacy unvalidated Source callers still require
 an owner contract. Nested alternate-directory ownership is also still open.
 Independent mode stays disabled.
+
+Kit now passes its drum-membership and crucial-row context predicates through
+Drum/SoundDrum into the existing Source/holder validation chain. A surviving drum
+cannot publish a newly loaded result after detachment, active-clip replacement,
+or row reassignment. Five additional regressions cover caller cancellation,
+invalid entry, detachment and row/clip changes; the three Kit publication cases
+failed against the previous implementation. All 38 suites and RelWithDebInfo pass.
+This closes the specific missing Kit-to-drum predicate propagation described above,
+not the broader L1/R4 blockers: same-address row/range replacement, unvalidated
+legacy entry points and nested alternate-directory ownership still need work.
+Independent mode remains disabled.

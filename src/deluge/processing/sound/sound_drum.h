@@ -47,7 +47,8 @@ public:
 
 	void setupPatchingForAllParamManagers(Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
-	Error loadAllSamples(bool mayActuallyReadFiles) override;
+	Error loadAllSamples(bool mayActuallyReadFiles,
+	                     const deluge::lifetime::callback_validation* validation = nullptr) override;
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
 	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
 	std::string getDrumName() override;

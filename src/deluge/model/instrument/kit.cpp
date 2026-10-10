@@ -424,7 +424,8 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 				error = Error::ABORTED_BY_USER;
 				break;
 			}
-			error = drum->loadAllSamples(mayActuallyReadFiles);
+			deluge::lifetime::callback_validation drum_validation(drum_valid);
+			error = drum->loadAllSamples(mayActuallyReadFiles, &drum_validation);
 			if (!drum_valid())
 				error = Error::ABORTED_BY_USER;
 			if (error != Error::NONE)
@@ -474,10 +475,14 @@ void Kit::loadCrucialAudioFilesOnly() {
 		if (!drum_lifetime.alive())
 			break;
 		const auto row_count = source_clip->noteRows.getNumElements();
-		const auto error = drum->loadAllSamples(true);
-		if (error == Error::ABORTED_BY_USER || !context_valid() || !drum_lifetime.alive() || getDrumIndex(drum) < 0
-		    || source_clip->noteRows.getNumElements() != row_count || source_clip->noteRows.getElement(index) != row
-		    || row->drum != drum)
+		const auto row_valid = [&] {
+			return context_valid() && drum_lifetime.alive() && getDrumIndex(drum) >= 0
+			       && source_clip->noteRows.getNumElements() == row_count
+			       && source_clip->noteRows.getElement(index) == row && row->drum == drum;
+		};
+		deluge::lifetime::callback_validation row_validation(row_valid);
+		const auto error = drum->loadAllSamples(true, &row_validation);
+		if (error == Error::ABORTED_BY_USER || !row_valid())
 			break;
 	}
 	if (doingAlternatePath)

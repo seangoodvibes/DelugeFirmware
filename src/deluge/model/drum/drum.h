@@ -77,7 +77,10 @@ public:
 	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 
-	virtual Error loadAllSamples(bool mayActuallyReadFiles) { return Error::NONE; }
+	virtual Error loadAllSamples(bool mayActuallyReadFiles,
+	                             const deluge::lifetime::callback_validation* validation = nullptr) {
+		return validation && !validation->valid() ? Error::ABORTED_BY_USER : Error::NONE;
+	}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
 	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) = 0;

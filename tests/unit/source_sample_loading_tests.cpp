@@ -62,7 +62,7 @@ struct {
 	}
 } audioFileManager;
 struct SoundDrum : Sound, Lifetime {
-	Error loadAllSamples(bool);
+	Error loadAllSamples(bool, const callback_validation* = nullptr);
 };
 struct SoundInstrument : Sound, Lifetime {
 	Error loadAllAudioFiles(bool);
@@ -204,4 +204,26 @@ TEST(SourceSampleLoading, no_song_cached_loading_preserves_existing_directory) {
 	CHECK(instrument.loadAllAudioFiles(false) == Error::NONE);
 	LONGS_EQUAL(2, loads);
 	LONGS_EQUAL(0, finishes);
+}
+
+TEST(SourceSampleLoading, caller_cancellation_reaches_holder_before_publication) {
+	SoundDrum drum;
+	drum.sources[0].ranges.entries = {&first};
+	bool valid = true;
+	auto check = [&] { return valid; };
+	callback_validation validation(check);
+	on_load = [&] { valid = false; };
+	CHECK(drum.loadAllSamples(true, &validation) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(SourceSampleLoading, invalid_caller_does_not_start_drum_loading) {
+	SoundDrum drum;
+	drum.sources[0].ranges.entries = {&first};
+	bool valid = false;
+	auto check = [&] { return valid; };
+	callback_validation validation(check);
+	CHECK(drum.loadAllSamples(true, &validation) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(0, yields);
+	LONGS_EQUAL(0, loads);
 }

@@ -10,7 +10,7 @@ namespace session = deluge::gui::ui_session;
 enum class Error { NONE, ABORTED_BY_USER, FILE_NOT_FOUND };
 enum class AlternateLoadDirStatus { NONE_SET, MIGHT_EXIST };
 std::function<void()> on_setup, on_abort, on_load;
-int loads = 0, finishes = 0, setups = 0;
+int loads = 0, finishes = 0, setups = 0, publications = 0;
 Error setup_error = Error::NONE, load_error = Error::NONE;
 bool abort_requested = false;
 struct Lifetime {
@@ -21,10 +21,13 @@ struct Song : Lifetime {};
 Song* currentSong = nullptr;
 struct Drum : Lifetime {
 	Drum* next = nullptr;
-	Error loadAllSamples(bool) {
+	Error loadAllSamples(bool, const deluge::lifetime::callback_validation* validation = nullptr) {
 		++loads;
 		if (on_load)
 			on_load();
+		if (validation && !validation->valid())
+			return Error::ABORTED_BY_USER;
+		++publications;
 		return load_error;
 	}
 };
@@ -93,7 +96,7 @@ TEST_GROUP(KitSampleLoading) {
 		currentSong = &song;
 		session::detail::active = session::Id::Local;
 		on_setup = on_abort = on_load = {};
-		loads = finishes = setups = 0;
+		loads = finishes = setups = publications = 0;
 		setup_error = load_error = Error::NONE;
 		abort_requested = false;
 		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
@@ -230,4 +233,23 @@ TEST(KitSampleLoading, crucial_cancellation_does_not_continue_to_another_drum) {
 	kit.loadCrucialAudioFilesOnly();
 	LONGS_EQUAL(1, loads);
 	LONGS_EQUAL(1, finishes);
+}
+
+TEST(KitSampleLoading, detached_drum_cancels_inner_publication) {
+	on_load = [&] { kit.firstDrum = &second; };
+	CHECK(kit.loadAllAudioFiles(true) == Error::ABORTED_BY_USER);
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(KitSampleLoading, reassigned_row_cancels_inner_publication) {
+	on_load = [&] { row.drum = &second; };
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
+}
+TEST(KitSampleLoading, changed_active_clip_cancels_inner_publication) {
+	on_load = [&] { kit.activeClip = nullptr; };
+	kit.loadCrucialAudioFilesOnly();
+	LONGS_EQUAL(1, loads);
+	LONGS_EQUAL(0, publications);
 }
