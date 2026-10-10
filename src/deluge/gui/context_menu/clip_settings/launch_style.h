@@ -18,6 +18,7 @@ class LaunchStyleMenu final : public ContextMenu {
 public:
 	LaunchStyleMenu() = default;
 	void selectEncoderAction(int8_t offset) override;
+	void refresh_shared_model() override;
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
 

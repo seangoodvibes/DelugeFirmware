@@ -580,3 +580,16 @@ side effects are not provided by these guards.
   retry. All 243 mirror runtime cases pass. G1 remains open; independent mode is
   still disabled.
 - Validation: all 33 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 progress — shared launch-style context menus (2026-10-09)
+
+- Launch-style encoder edits now resolve the clip's live value before applying the
+  turn, even before a pending peer refresh is serviced. Actual changes request a
+  deferred peer refresh; OLED and seven-segment menus update without resetting UI
+  mode or reopening navigation. Different-clip panels keep their own selection.
+- Six `ContextMenuTests` cases compile the real launch-style implementation and
+  base encoder/draw methods with real session/refresh storage. Three regressions
+  reproduced stale edits and missing peer refresh. Other cases cover unchanged
+  OLED boundaries and absent targets. Fixtures do not establish retained clip
+  lifetime through callbacks; G1/L1 remain open and independent mode is disabled.
+- Validation: all 34 native CTest suites and `./dbt build relwithdebinfo` pass.

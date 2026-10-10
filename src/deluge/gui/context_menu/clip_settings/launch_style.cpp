@@ -4,6 +4,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/ui_navigation_state.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
 #include <cstddef>
@@ -36,6 +37,8 @@ std::span<char const*> LaunchStyleMenu::getOptions() {
 }
 
 bool LaunchStyleMenu::setupAndCheckAvailability() {
+	if (!clip)
+		return false;
 	currentUIMode = UI_MODE_NONE;
 	this->currentOption = static_cast<int32_t>(clip->launchStyle);
 
@@ -47,8 +50,29 @@ bool LaunchStyleMenu::setupAndCheckAvailability() {
 }
 
 void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
+	if (!clip)
+		return;
+	// The other panel may have committed before its deferred refresh was serviced.
+	refresh_shared_model();
+	const auto previous_style = clip->launchStyle;
 	ContextMenu::selectEncoderAction(offset);
-	clip->launchStyle = static_cast<LaunchStyle>(this->currentOption);
+	clip->launchStyle = static_cast<LaunchStyle>(currentOption);
+	if (clip->launchStyle != previous_style) {
+		const auto peer =
+		    ui_session::current() == ui_session::Id::Local ? ui_session::Id::Remote : ui_session::Id::Local;
+		ui_session::navigation.for_owner(peer).shared_model_refresh.request();
+	}
+}
+
+void LaunchStyleMenu::refresh_shared_model() {
+	if (!clip || currentOption == static_cast<int32_t>(clip->launchStyle))
+		return;
+	currentOption = static_cast<int32_t>(clip->launchStyle);
+	scrollPos = currentOption;
+	if (display->haveOLED())
+		renderUIsForOled();
+	else
+		drawCurrentOption();
 }
 
 } // namespace deluge::gui::context_menu::clip_settings

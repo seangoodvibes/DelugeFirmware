@@ -44,3 +44,5 @@ add_subdirectory(source_menu)
 add_subdirectory(runtime_menu)
 
 add_subdirectory(display_swap)
+
+add_subdirectory(context_menu)
