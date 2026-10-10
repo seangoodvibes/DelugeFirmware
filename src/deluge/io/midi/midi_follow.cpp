@@ -1164,12 +1164,14 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	auto song_watch = source_song->watch_lifetime();
 	if (!song_watch.alive())
 		return;
+	const bool source_registered = source_song->contains_clip_for_undo(source_clip);
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_current_clip = getCurrentClip();
 	const auto context_matches = [&] {
 		return song_watch.alive() && source_clip_lifetime.alive() && (!source_output || source_output_lifetime.alive())
 		       && source_clip->output == source_output && currentSong == source_song
+		       && (!source_registered || source_song->contains_clip_for_undo(source_clip))
 		       && deluge::gui::ui_session::current() == source_owner && getCurrentClip() == source_current_clip;
 	};
 
@@ -1200,7 +1202,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			clip = static_cast<Clip*>(modelStackWithTimelineCounter.getTimelineCounterAllowNull());
 	}
 
-	if (!clip)
+	if (!clip || (clip != source_clip && !source_song->contains_clip_for_undo(clip)))
 		return;
 	auto target_lifetime = clip->watch_lifetime();
 	if (!target_lifetime.alive())
@@ -1210,7 +1212,8 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	auto target_output_lifetime = target_output ? target_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	const auto target_matches = [&] {
 		return target_lifetime.alive() && (!target_output || target_output_lifetime.alive())
-		       && clip->output == target_output && context_matches();
+		       && clip->output == target_output && context_matches()
+		       && (clip == source_clip || source_song->contains_clip_for_undo(clip));
 	};
 	if (!target_matches())
 		return;

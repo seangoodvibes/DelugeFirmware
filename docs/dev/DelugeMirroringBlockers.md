@@ -3023,3 +3023,12 @@ cover detached targets, freed unregistered pointers and retired song entry; the
 live kit fixture now explicitly registers its output. All 36 suites and the
 RelWithDebInfo build pass. Registry unlink-before-destruction remains a prerequisite;
 this does not close general raw-pointer acquisition or lower expression internals.
+
+MIDI-follow CC arrangement-clone retargets now require song registration before
+watch acquisition and during subsequent parameter/display checks. Initially
+registered source clips must remain registered; unchanged detached sources keep
+their existing watch-based path. Four regressions cover freed replacement pointers
+and registration removal during cloning, lookup and writing; existing live clone
+tests pass with explicit registration. All 36 suites and the RelWithDebInfo build
+pass. This depends on registry unlink-before-destruction and does not close other
+acquisition paths or partial-write recovery. Independent mode remains disabled.

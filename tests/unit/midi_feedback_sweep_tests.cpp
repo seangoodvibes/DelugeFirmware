@@ -76,6 +76,8 @@ static Clip* getCurrentClip() {
 	return current_clip;
 }
 struct song_fixture {
+	const Clip* registered_clip = nullptr;
+	bool contains_clip_for_undo(const Clip* target) { return target && target == registered_clip; }
 	deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 };
@@ -198,6 +200,7 @@ TEST_GROUP(MidiFeedbackSweep) {
 		clone_result = false;
 		clone_error = Error::NONE;
 		currentSong = &song;
+		song.registered_clip = nullptr;
 		current_clip = &clip;
 	}
 	void teardown() override {
@@ -243,6 +246,7 @@ TEST(MidiFeedbackSweep, missing_collection_or_song_does_not_send) {
 TEST(MidiFeedbackSweep, sending_stops_sweep_after_context_changes) {
 	for (int change = 0; change < 3; ++change) {
 		currentSong = &song;
+		song.registered_clip = nullptr;
 		current_clip = &clip;
 		follow.sends = follow.lookups = 0;
 		follow.on_send = [&] {
@@ -284,7 +288,10 @@ TEST(MidiFeedbackSweep, absent_targets_and_unlearned_parameters_do_not_send) {
 TEST(MidiFeedbackSweep, incoming_cc_uses_arrangement_clone_for_parameter_lookup) {
 	Clip cloned_clip;
 	clone_result = true;
-	on_clone = [&](ModelStackWithTimelineCounter* model_stack) { model_stack->timeline = &cloned_clip; };
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) {
+		model_stack->timeline = &cloned_clip;
+		song.registered_clip = &cloned_clip;
+	};
 	receive();
 	POINTERS_EQUAL(&cloned_clip, follow.lookup_clip);
 	LONGS_EQUAL(1, follow.parameter.writes);
@@ -302,6 +309,7 @@ TEST(MidiFeedbackSweep, unlearned_or_invalid_cc_does_not_clone) {
 TEST(MidiFeedbackSweep, incoming_cc_stops_when_clone_changes_context) {
 	for (int change = 0; change < 3; ++change) {
 		currentSong = &song;
+		song.registered_clip = nullptr;
 		current_clip = &clip;
 		on_clone = [&](ModelStackWithTimelineCounter*) {
 			if (change == 0)
@@ -359,6 +367,7 @@ TEST(MidiFeedbackSweep, incoming_cc_changed_write_context_suppresses_display) {
 	midiEngine.midiFollowDisplayParam = true;
 	for (int change = 0; change < 3; ++change) {
 		currentSong = &song;
+		song.registered_clip = nullptr;
 		current_clip = &clip;
 		follow.parameter.on_write = [&] {
 			if (change == 0)
@@ -409,7 +418,10 @@ TEST(MidiFeedbackSweep, destroyed_incoming_target_stops_before_parameter_write) 
 TEST(MidiFeedbackSweep, destroyed_recording_clone_stops_post_write_display) {
 	auto* target = new Clip;
 	clone_result = true;
-	on_clone = [&](ModelStackWithTimelineCounter* model_stack) { model_stack->timeline = target; };
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) {
+		model_stack->timeline = target;
+		song.registered_clip = target;
+	};
 	midiEngine.midiFollowDisplayParam = true;
 	follow.parameter.on_write = [&] { delete target; };
 	receive();
@@ -474,7 +486,10 @@ TEST(MidiFeedbackSweep, recording_clone_output_destroyed_during_write_suppresses
 	Clip target;
 	target.output = new Output;
 	clone_result = true;
-	on_clone = [&](ModelStackWithTimelineCounter* model_stack) { model_stack->timeline = &target; };
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) {
+		model_stack->timeline = &target;
+		song.registered_clip = &target;
+	};
 	midiEngine.midiFollowDisplayParam = true;
 	follow.parameter.on_write = [&] { delete target.output; };
 	receive();
@@ -565,4 +580,46 @@ TEST(MidiFeedbackSweep, retired_song_rejects_feedback_and_incoming_cc) {
 	LONGS_EQUAL(0, follow.sends);
 	LONGS_EQUAL(0, follow.parameter.writes);
 	currentSong = &song;
+}
+
+TEST(MidiFeedbackSweep, freed_unregistered_clone_is_rejected_before_watch_acquisition) {
+	auto* target = new Clip;
+	delete target;
+	clone_result = true;
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) { model_stack->timeline = target; };
+	receive();
+	LONGS_EQUAL(0, follow.lookups);
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, source_unregistration_during_clone_cancels_lookup) {
+	song.registered_clip = &clip;
+	on_clone = [&](ModelStackWithTimelineCounter*) { song.registered_clip = nullptr; };
+	receive();
+	LONGS_EQUAL(0, follow.lookups);
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, replacement_unregistration_during_lookup_cancels_write) {
+	Clip target;
+	clone_result = true;
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) {
+		model_stack->timeline = &target;
+		song.registered_clip = &target;
+	};
+	follow.on_lookup = [&] { song.registered_clip = nullptr; };
+	receive();
+	LONGS_EQUAL(1, follow.lookups);
+	LONGS_EQUAL(0, follow.parameter.writes);
+}
+TEST(MidiFeedbackSweep, replacement_unregistration_during_write_suppresses_popup) {
+	Clip target;
+	clone_result = true;
+	on_clone = [&](ModelStackWithTimelineCounter* model_stack) {
+		model_stack->timeline = &target;
+		song.registered_clip = &target;
+	};
+	midiEngine.midiFollowDisplayParam = true;
+	follow.parameter.on_write = [&] { song.registered_clip = nullptr; };
+	receive();
+	LONGS_EQUAL(1, follow.parameter.writes);
+	LONGS_EQUAL(0, view_for_session().popup_calls);
 }
