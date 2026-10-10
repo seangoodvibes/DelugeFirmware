@@ -1849,3 +1849,13 @@ outputs. Four production-body tests exercise both message types, supported
 instruments including kits, audio exclusion, missing context and mismatched
 associations. All 35 native suites and `./dbt build relwithdebinfo` pass.
 This validates dispatch entry conditions, not callback lifetime or address reuse.
+
+### G1 progress — MIDI feedback sweep cancellation (2026-10-10)
+
+Feedback sweeps require a current song and stop when song, panel or current-clip
+identity changes between mappings or during parameter lookup. Incomplete
+parameter stacks without a collection are skipped. Six production-body tests
+cover ordinary/automation feedback, per-panel step-edit positions, unavailable
+targets/parameters, incomplete stacks and callback context changes. All 35 native
+suites and `./dbt build relwithdebinfo` pass. Parameter and sending services are
+fixtures; cancellation between iterations is not object retention or rollback.

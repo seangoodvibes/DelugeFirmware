@@ -1269,6 +1269,17 @@ size_t MidiFollow::getChannelTypesForFeedback(FeedbackChannelTypes& feedbackChan
 /// 3) checks what parameters have been learned and obtains the model stack for those params
 /// 4) sends midi feedback of the current parameter value to the cc numbers learned to those parameters
 void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation) {
+	if (!currentSong)
+		return;
+	auto* const source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_current_clip = getCurrentClip();
+	const auto context_matches = [&] {
+		return currentSong == source_song && deluge::gui::ui_session::current() == source_owner
+		       && getCurrentClip() == source_current_clip;
+	};
+
 	FeedbackChannelTypes feedbackChannelTypes;
 	size_t numChannelTypes = getChannelTypesForFeedback(feedbackChannelTypes);
 	if (numChannelTypes == 0) {
@@ -1316,13 +1327,17 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 
 		// loop through all params to see if any parameters have been learned
 		for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
+			if (!context_matches())
+				return;
 			uint8_t soundParamId = ccToSoundParam[ccNumber];
 			uint8_t globalParamId = ccToGlobalParam[ccNumber];
 			// obtain the model stack for the parameter that has been learned
 			ModelStackWithAutoParam* modelStackWithParam =
 			    getModelStackWithParam(modelStackWithTimelineCounter, clip, soundParamId, globalParamId, false);
+			if (!context_matches())
+				return;
 			// check that model stack is valid
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if (modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->paramCollection) {
 				if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
 					int32_t currentValue;
 					// obtain current value of the learned parameter

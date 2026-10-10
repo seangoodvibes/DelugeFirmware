@@ -575,3 +575,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_track_cc.inc
         ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_track_cc.inc MidiFollow::midiCCReceivedForSpecificTrack MidiFollow::midiCCReceivedForSelectedOrActiveClip MidiFollow::pitchBendReceivedForSpecificTrack MidiFollow::aftertouchReceivedForSpecificTrack MidiFollow::pitchBendReceivedForSelectedOrActiveClip MidiFollow::aftertouchReceivedForSelectedOrActiveClip
     DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
 target_sources(UnitTests PRIVATE midi_track_cc_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_track_cc.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${midi_feedback_mapping_source} ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback
+    DEPENDS ${midi_feedback_mapping_source} ../support/extract_functions.py VERBATIM)
+target_sources(UnitTests PRIVATE midi_feedback_sweep_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/midi_feedback_sweep.inc)
