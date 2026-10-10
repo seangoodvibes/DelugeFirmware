@@ -8,3 +8,8 @@ The cases cover absent Remote navigation, navigation closed during a callback,
 preservation of pending timers, replacement screens, Local hardware timers and
 the client OLED hardware handshake. These tests do not establish lifetime safety
 inside individual callbacks or whole-session teardown/reclamation.
+
+Retry cases cover both UI-specific and exit timers on both panels: a departed UI
+cannot implicitly rearm its old event, normal retries remain active, and a new UI's
+explicitly scheduled deadline is preserved. Pointer comparison is not a lifetime
+pin and does not detect destruction followed by same-address replacement.

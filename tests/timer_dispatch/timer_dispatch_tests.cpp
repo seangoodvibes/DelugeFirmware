@@ -13,14 +13,14 @@ constexpr int UART_ITEM_PIC_PADS = 0, kNumBytesInColUpdateMessage = 1;
 int uartGetTxBufferSpace(int) {
 	return 1000;
 }
-std::function<ActionResult()> on_timer;
+std::function<ActionResult()> on_timer, on_exit;
 int console_calls = 0, graphics_calls = 0, exit_calls = 0, hardware_calls = 0;
 struct UI {
 	virtual ~UI() = default;
 	virtual ActionResult timerCallback() { return on_timer ? on_timer() : ActionResult::DEALT_WITH; }
 	virtual ActionResult exitUI() {
 		++exit_calls;
-		return ActionResult::DEALT_WITH;
+		return on_exit ? on_exit() : ActionResult::DEALT_WITH;
 	}
 	UIType getUIContextType() { return UIType::INSTRUMENT_CLIP; }
 	void graphicsRoutine() { ++graphics_calls; }
@@ -131,12 +131,12 @@ TEST_GROUP(TimerDispatch) {
 		current_uis.for_owner(session::Id::Local) = &ui;
 		current_uis.for_owner(session::Id::Remote) = &ui;
 		console_calls = graphics_calls = exit_calls = hardware_calls = 0;
-		on_timer = {};
+		on_timer = on_exit = {};
 		deluge::hid::mirror::client = false;
 		AudioEngine::audioSampleTimer = 1000;
 	}
 	void teardown() override {
-		on_timer = {};
+		on_timer = on_exit = {};
 		session::detail::active = session::Id::Local;
 	}
 	void due(TimerName name) {
@@ -224,6 +224,59 @@ TEST(TimerDispatch, replacement_remote_ui_can_receive_subsequent_timers) {
 	CHECK_FALSE(manager.isTimerSet(TimerName::BACK_MENU_EXIT));
 	CHECK(manager.isTimerSet(TimerName::GRAPHICS_ROUTINE));
 	current_uis.active() = &ui;
+}
+TEST(TimerDispatch, departed_ui_cannot_rearm_its_retry_on_either_panel) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (auto name : {TimerName::UI_SPECIFIC, TimerName::BACK_MENU_EXIT}) {
+			for (bool replace : {false, true}) {
+				UITimerManager timers;
+				UI replacement_ui;
+				current_uis.active() = &ui;
+				timers.setTimerSamples(name, -1);
+				on_timer = on_exit = [&] {
+					current_uis.active() = replace ? &replacement_ui : nullptr;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				};
+				timers.routine();
+				CHECK_FALSE(timers.isTimerSet(name));
+			}
+		}
+		current_uis.active() = &ui;
+	}
+}
+TEST(TimerDispatch, retry_keeps_original_ui_timer_armed) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (auto name : {TimerName::UI_SPECIFIC, TimerName::BACK_MENU_EXIT}) {
+			UITimerManager timers;
+			timers.setTimerSamples(name, -1);
+			on_timer = on_exit = [] { return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; };
+			timers.routine();
+			CHECK(timers.isTimerSet(name));
+			LONGS_EQUAL(999, timers.getTimer(name).triggerTime);
+		}
+	}
+}
+TEST(TimerDispatch, replacement_ui_explicit_timer_keeps_its_new_deadline) {
+	for (auto owner : {session::Id::Local, session::Id::Remote}) {
+		session::Scope scope(owner);
+		for (auto name : {TimerName::UI_SPECIFIC, TimerName::BACK_MENU_EXIT}) {
+			UITimerManager timers;
+			UI replacement_ui;
+			current_uis.active() = &ui;
+			timers.setTimerSamples(name, -1);
+			on_timer = on_exit = [&] {
+				current_uis.active() = &replacement_ui;
+				timers.setTimerSamples(name, 50);
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			};
+			timers.routine();
+			CHECK(timers.isTimerSet(name));
+			LONGS_EQUAL(1050, timers.getTimer(name).triggerTime);
+		}
+		current_uis.active() = &ui;
+	}
 }
 int main(int argc, char** argv) {
 	return CommandLineTestRunner::RunAllTests(argc, argv);

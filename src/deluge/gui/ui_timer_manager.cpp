@@ -174,15 +174,17 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::UI_SPECIFIC: {
-					ActionResult result = getCurrentUI()->timerCallback();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+					auto* const source_ui = getCurrentUI();
+					ActionResult result = source_ui->timerCallback();
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && getCurrentUI() == source_ui) {
 						timer.active = true; // Come back soon and try again.
 					}
 					break;
 				}
 				case TimerName::BACK_MENU_EXIT: {
-					ActionResult result = getCurrentUI()->exitUI();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+					auto* const source_ui = getCurrentUI();
+					ActionResult result = source_ui->exitUI();
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE && getCurrentUI() == source_ui) {
 						timer.active = true;
 					}
 					break;

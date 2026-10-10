@@ -625,3 +625,16 @@ side effects are not provided by these guards.
   whole-session timer cancellation remain separate concerns. G1/L1 stay open and
   independent mode remains disabled.
 - Validation: all 35 native CTest suites and `./dbt build relwithdebinfo` pass.
+
+### G1 / R4 progress — timer retries after UI replacement (2026-10-09)
+
+- UI-specific and back/exit timer callbacks only rearm their implicit retry while
+  the original UI remains current. Closing or replacing that UI no longer schedules
+  its expired event for a different screen. An explicit timer scheduled by the new
+  UI remains active with its own deadline; this change does not cancel that timer.
+- Three added `TimerDispatchTests` cases cover both timer types, both panels,
+  removal/replacement, unchanged-UI retries and explicit replacement deadlines.
+  The departed-UI case failed before the fix. This is callback-result containment,
+  not a lifetime pin or protection against same-address replacement. G1/R4/L1 remain
+  open and independent mode stays disabled.
+- Validation: all 35 native CTest suites and `./dbt build relwithdebinfo` pass.
