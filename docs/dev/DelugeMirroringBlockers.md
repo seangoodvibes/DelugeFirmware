@@ -1764,3 +1764,13 @@ muted note-on suppression, kit translation, track-specific dispatch and audio-cl
 exclusion. All 35 native suites and `./dbt build relwithdebinfo` pass. Instrument
 callbacks are fixtures; this does not address retained-note lifetime after
 callbacks, rollback, or physical note delivery. Independent mode stays disabled.
+
+### G1 / R4 progress — note-dispatch output type checks (2026-10-10)
+
+Instrument note dispatch now requires kit, synth, MIDI-out or CV output type before
+casting. Other outputs are returned for duplicate-route suppression without
+instrument dispatch or note retention. Two new tests cover the reproduced
+incompatible-output dispatch and boundary notes for all melodic output types,
+including retention/release. All 35 native suites and
+`./dbt build relwithdebinfo` pass. The instruments are fixtures; retained-note
+lifetime and callback invalidation after dispatch remain unresolved.

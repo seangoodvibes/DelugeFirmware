@@ -723,8 +723,10 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
 		selected_track = clip->output;
 
 		// ensure output is a kit or melodic instrument
-		if (clip->type != ClipType::INSTRUMENT) {
-			// if it's an audio clip, return the track so it can be skipped by specific track processing
+		if (clip->type != ClipType::INSTRUMENT
+		    || (selected_track->type != OutputType::KIT && selected_track->type != OutputType::SYNTH
+		        && selected_track->type != OutputType::MIDI_OUT && selected_track->type != OutputType::CV)) {
+			// Return the output so specific-track processing does not offer the same target again.
 			return selected_track;
 		}
 

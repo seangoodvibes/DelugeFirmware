@@ -122,3 +122,25 @@ TEST(MidiNoteDispatch, audio_clip_returns_output_without_instrument_dispatch) {
 	LONGS_EQUAL(0, sends);
 	POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
 }
+
+TEST(MidiNoteDispatch, incompatible_output_types_are_not_cast_to_instruments) {
+	for (auto type : {OutputType::AUDIO, OutputType::NONE}) {
+		output.type = type;
+		POINTERS_EQUAL(&output, send(true));
+		LONGS_EQUAL(0, sends);
+		POINTERS_EQUAL(nullptr, clipForLastNoteReceived[60]);
+	}
+}
+TEST(MidiNoteDispatch, supported_melodic_types_deliver_boundary_notes_and_release_retention) {
+	for (auto type : {OutputType::SYNTH, OutputType::MIDI_OUT, OutputType::CV}) {
+		output.type = type;
+		for (int note : {0, kMaxMIDIValue}) {
+			POINTERS_EQUAL(&output, send(true, note));
+			LONGS_EQUAL(note, last_note);
+			POINTERS_EQUAL(&clip, clipForLastNoteReceived[note]);
+			POINTERS_EQUAL(&output, send(false, note));
+			POINTERS_EQUAL(nullptr, clipForLastNoteReceived[note]);
+		}
+	}
+	LONGS_EQUAL(12, sends);
+}
