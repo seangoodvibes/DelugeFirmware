@@ -2551,3 +2551,13 @@ tick callbacks. Regression sweeps destroy both owners at each boundary and check
 that clip retargeting cannot tick a replacement clip. All 36 native suites and
 `./dbt build relwithdebinfo` pass. This stops traversal on owner invalidation;
 mutations of drum/row lists while those owners survive remain separate work.
+
+Inner kit render traversal now watches the current and next drum and rechecks the
+next index after callbacks, preserving normal self-removal of a finished drum.
+Parameter ticking checks drum lifetime, row count, pointer and identity before
+continuing. Five sanitizer regressions cover self-removal, current/next drum
+destruction, next-entry replacement, row removal and same-address row identity
+change. All 36 native suites and `./dbt build relwithdebinfo` pass. Acquisition
+still assumes the render list contains live pointers; changes deeper in a list,
+parameter-collection identity and callback internals remain open. Timing overhead
+still needs hardware measurement.

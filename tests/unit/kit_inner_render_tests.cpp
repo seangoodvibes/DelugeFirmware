@@ -18,6 +18,8 @@ constexpr int UNPATCHED_SOUND_MAX_NUM = 32;
 struct StereoSample {};
 enum class DrumType { SOUND };
 struct Drum {
+	mutable deluge::lifetime::lifetime_source lifetime;
+	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	DrumType type = DrumType::SOUND;
 };
 struct ModelStackWithThreeMainThings {};
@@ -35,6 +37,7 @@ struct ParamManager {
 	}
 } backup;
 struct NoteRow {
+	uint64_t undo_identity = 1;
 	Drum* drum = nullptr;
 	ParamManager paramManager;
 };
@@ -202,4 +205,89 @@ TEST(kit_inner_render, retarget_during_render_does_not_tick_replacement_clip) {
 	StereoSample samples[1];
 	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
 	LONGS_EQUAL(0, tick_calls);
+}
+
+TEST(kit_inner_render, finished_drum_can_remove_itself_and_rendering_continues) {
+	Kit kit;
+	SoundDrum first, last;
+	kit.drumsWithRenderingActive.drums = {&first, &last};
+	on_render = [&] { kit.drumsWithRenderingActive.drums.pop_back(); };
+	ModelStackWithTimelineCounter stack;
+	StereoSample samples[1];
+	CHECK(kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, false, 0, 0, 0));
+	LONGS_EQUAL(2, render_calls);
+}
+TEST(kit_inner_render, destruction_of_current_or_next_drum_cancels_rendering) {
+	for (bool delete_current : {false, true}) {
+		Kit kit;
+		auto first = std::make_unique<SoundDrum>();
+		auto last = std::make_unique<SoundDrum>();
+		kit.drumsWithRenderingActive.drums = {first.get(), last.get()};
+		render_calls = 0;
+		on_render = [&] {
+			if (delete_current) {
+				kit.drumsWithRenderingActive.drums.pop_back();
+				last.reset();
+			}
+			else {
+				kit.drumsWithRenderingActive.drums.erase(kit.drumsWithRenderingActive.drums.begin());
+				first.reset();
+			}
+		};
+		ModelStackWithTimelineCounter stack;
+		StereoSample samples[1];
+		kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, false, 0, 0, 0);
+		LONGS_EQUAL(1, render_calls);
+		on_render = {};
+	}
+}
+TEST(kit_inner_render, row_removal_during_parameter_tick_cancels_iteration) {
+	Kit kit;
+	InstrumentClip clip;
+	SoundDrum drum;
+	auto row = std::make_unique<NoteRow>();
+	NoteRow next;
+	row->drum = next.drum = &drum;
+	row->paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+	next.paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+	clip.noteRows.rows = {row.get(), &next};
+	kit.activeClip = &clip;
+	clip.output = &kit;
+	on_tick = [&] {
+		clip.noteRows.rows.erase(clip.noteRows.rows.begin());
+		row.reset();
+	};
+	ModelStackWithTimelineCounter stack;
+	stack.clip = &clip;
+	StereoSample samples[1];
+	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
+	LONGS_EQUAL(1, tick_calls);
+}
+TEST(kit_inner_render, replacing_next_render_entry_cancels_without_rendering_replacement) {
+	Kit kit;
+	SoundDrum first, last, replacement;
+	kit.drumsWithRenderingActive.drums = {&first, &last};
+	on_render = [&] { kit.drumsWithRenderingActive.drums[0] = &replacement; };
+	ModelStackWithTimelineCounter stack;
+	StereoSample samples[1];
+	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, false, 0, 0, 0);
+	LONGS_EQUAL(1, render_calls);
+}
+TEST(kit_inner_render, same_address_row_identity_change_stops_parameter_iteration) {
+	Kit kit;
+	InstrumentClip clip;
+	SoundDrum drum;
+	NoteRow row, next;
+	row.drum = next.drum = &drum;
+	row.paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+	next.paramManager.summaries[1].whichParamsAreInterpolating[0] = 1;
+	clip.noteRows.rows = {&row, &next};
+	kit.activeClip = &clip;
+	clip.output = &kit;
+	on_tick = [&] { ++row.undo_identity; };
+	ModelStackWithTimelineCounter stack;
+	stack.clip = &clip;
+	StereoSample samples[1];
+	kit.renderGlobalEffectableForClip(&stack, samples, nullptr, nullptr, 0, 0, false, true, 0, 0, 0);
+	LONGS_EQUAL(1, tick_calls);
 }

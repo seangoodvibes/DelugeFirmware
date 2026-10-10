@@ -602,6 +602,18 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 	// Render Drums. Traverse backwards, in case one stops rendering (removing itself from the list) as we render it
 	for (int32_t d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
 		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		auto* next_drum = d > 0 ? (Drum*)drumsWithRenderingActive.getKeyAtIndex(d - 1) : nullptr;
+		auto next_lifetime = next_drum ? next_drum->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		const auto traversal_matches = [&] {
+			return context_matches() && drum_lifetime.alive()
+			       && (!next_drum
+			           || (next_lifetime.alive() && drumsWithRenderingActive.getNumElements() >= d
+			               && (Drum*)drumsWithRenderingActive.getKeyAtIndex(d - 1) == next_drum));
+		};
+		if (!traversal_matches()) {
+			return rendered;
+		}
 
 		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
 			FREEZE_WITH_ERROR("E253");
@@ -625,7 +637,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 			// This used to be E255
 			if (!thisNoteRow) {
 				soundDrum->killAllVoices();
-				if (!context_matches()) {
+				if (!traversal_matches()) {
 					return rendered;
 				}
 				continue;
@@ -644,7 +656,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
-		if (!context_matches()) {
+		if (!traversal_matches()) {
 			return rendered;
 		}
 	}
@@ -678,8 +690,15 @@ yesTickParamManager:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addNoteRow(i, thisNoteRow)
 					        ->addOtherTwoThings((SoundDrum*)thisNoteRow->drum, &thisNoteRow->paramManager);
+					const auto row_identity = thisNoteRow->undo_identity;
+					const auto row_count = noteRows->getNumElements();
+					auto drum_lifetime = thisNoteRow->drum->watch_lifetime();
+					if (!drum_lifetime.alive()) {
+						return rendered;
+					}
 					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
-					if (!context_matches()) {
+					if (!context_matches() || !drum_lifetime.alive() || noteRows->getNumElements() != row_count
+					    || noteRows->getElement(i) != thisNoteRow || thisNoteRow->undo_identity != row_identity) {
 						return rendered;
 					}
 					continue;
