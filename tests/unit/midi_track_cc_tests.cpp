@@ -409,3 +409,50 @@ TEST(MidiTrackCC, retired_track_does_not_receive_cc) {
 	LONGS_EQUAL(0, follow.parameter_calls);
 	LONGS_EQUAL(0, instrument_calls);
 }
+
+TEST(MidiTrackCC, selected_clip_destroyed_by_parameter_callback_prevents_activation) {
+	auto* target = new Clip;
+	target->output = &output;
+	follow.selected_clip = target;
+	follow.on_parameter = [&] { delete target; };
+	POINTERS_EQUAL(nullptr, send_selected());
+	LONGS_EQUAL(0, follow.activation_calls);
+	LONGS_EQUAL(0, instrument_calls);
+}
+TEST(MidiTrackCC, current_clip_destroyed_by_parameter_callback_prevents_activation) {
+	auto* target = new Clip;
+	target->output = &output;
+	current_clip = target;
+	follow.on_parameter = [&] { delete target; };
+	POINTERS_EQUAL(nullptr, send_selected());
+	LONGS_EQUAL(0, follow.activation_calls);
+}
+TEST(MidiTrackCC, selected_output_destroyed_by_parameter_callback_prevents_activation) {
+	auto* target = new MelodicInstrument;
+	Clip selected;
+	selected.output = target;
+	follow.selected_clip = &selected;
+	follow.on_parameter = [&] { delete target; };
+	POINTERS_EQUAL(nullptr, send_selected());
+	LONGS_EQUAL(0, follow.activation_calls);
+}
+TEST(MidiTrackCC, current_output_reused_by_parameter_callback_prevents_activation) {
+	auto* target = new MelodicInstrument;
+	Clip current;
+	current.output = target;
+	current_clip = &current;
+	follow.on_parameter = [&] {
+		std::destroy_at(target);
+		target = std::construct_at(target);
+	};
+	POINTERS_EQUAL(nullptr, send_selected());
+	LONGS_EQUAL(0, follow.activation_calls);
+	delete target;
+}
+TEST(MidiTrackCC, outputless_selected_clip_does_not_dereference_output) {
+	clip.output = nullptr;
+	follow.active_clip = nullptr;
+	POINTERS_EQUAL(nullptr, send_selected());
+	LONGS_EQUAL(1, follow.parameter_calls);
+	LONGS_EQUAL(0, instrument_calls);
+}

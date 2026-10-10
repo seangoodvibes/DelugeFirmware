@@ -2113,3 +2113,10 @@ cover deletion, address reuse, reassignment and retiring outputs, including a
 recording clone whose output dies during its parameter write. All 36 native
 suites and `./dbt build relwithdebinfo` pass. Parameter collection lifetime inside
 lookup/write callbacks remains separately open.
+
+Selected-clip CC routing now watches both the current and selected clip/output
+pairs through parameter handling and activation. This prevents follow-up
+activation from reacquiring a deleted target after the inner edit cancels.
+Output-less selected contexts avoid a null dereference. Five sanitizer regressions
+cover separate current/selected targets, deletion, output address reuse and the
+output-less case. All 36 native suites and `./dbt build relwithdebinfo` pass.

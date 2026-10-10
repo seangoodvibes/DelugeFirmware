@@ -883,9 +883,19 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 	const auto source_owner = deluge::gui::ui_session::current();
 	deluge::gui::ui_session::Scope owner_scope(source_owner);
 	auto* const source_current_clip = getCurrentClip();
+	auto current_lifetime =
+	    source_current_clip ? source_current_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (source_current_clip && !current_lifetime.alive())
+		return nullptr;
+	auto* const current_output = source_current_clip ? source_current_clip->output : nullptr;
+	auto current_output_lifetime =
+	    current_output ? current_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (current_output && !current_output_lifetime.alive())
+		return nullptr;
 	const auto context_matches = [&] {
-		return currentSong == source_song && deluge::gui::ui_session::current() == source_owner
-		       && getCurrentClip() == source_current_clip;
+		return (!source_current_clip || (current_lifetime.alive() && source_current_clip->output == current_output))
+		       && (!current_output || current_output_lifetime.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getCurrentClip() == source_current_clip;
 	};
 	Output* selected_track = nullptr;
 
@@ -893,10 +903,22 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = getSelectedOrActiveClip();
+		auto* const selected_clip = clip;
+		auto selected_lifetime = clip ? clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		if (clip && !selected_lifetime.alive())
+			return nullptr;
+		auto* const selected_output = clip ? clip->output : nullptr;
+		auto output_lifetime = selected_output ? selected_output->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+		const auto selected_matches = [&] {
+			return (!selected_clip || (selected_lifetime.alive() && selected_clip->output == selected_output))
+			       && (!selected_output || output_lifetime.alive()) && context_matches();
+		};
+		if (!selected_matches())
+			return nullptr;
 
 		bool isMIDIClip = false;
 		bool isCVClip = false;
-		if (clip) {
+		if (clip && selected_output) {
 			if (clip->output->type == OutputType::MIDI_OUT) {
 				isMIDIClip = true;
 			}
@@ -931,11 +953,11 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 				}
 			}
 		}
-		if (!context_matches())
+		if (!selected_matches())
 			return nullptr;
 		// for these cc's, always use the active clip for the output selected
 		clip = getActiveClip(modelStack);
-		if (!context_matches())
+		if (!selected_matches())
 			return nullptr;
 		// these cc's are only relevant for instrument clips
 		if (clip && clip->output && clip->type == ClipType::INSTRUMENT) {
@@ -954,8 +976,9 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 				}
 			}
 		}
+		return selected_matches() ? selected_track : nullptr;
 	}
-	return context_matches() ? selected_track : nullptr;
+	return nullptr;
 }
 
 /// determines whether a midi cc received is midi follow relevant
