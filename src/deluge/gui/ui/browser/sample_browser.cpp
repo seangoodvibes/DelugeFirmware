@@ -1313,9 +1313,13 @@ removeReasonsFromSamplesAndGetOut:
 		FatFS::FileInfo file_info;
 
 		/* Read a directory item */
-		std::tie(file_info, thisFilePointer) = D_TRY_CATCH(folder_directory.read_and_get_filepointer(), error, {
-			break; // break on error
-		});
+		auto directory_entry = folder_directory.read_and_get_filepointer();
+		if (!directory_entry.has_value()) {
+			folder_directory.close();
+			error = Error::SD_CARD;
+			goto removeReasonsFromSamplesAndGetOut;
+		}
+		std::tie(file_info, thisFilePointer) = directory_entry.value();
 
 		if (file_info.fname[0] == 0) {
 			break; // Break on end of dir

@@ -19,6 +19,7 @@ enum class AudioFileType { SAMPLE };
 constexpr int MIDI_NOTE_ERROR = -1000, AM_DIR = 16;
 std::function<void()> on_audio, on_append;
 std::vector<std::string> requested_paths;
+int read_failure_after = -1;
 struct String {
 	std::string value;
 	void set(const String* other) { value = other->value; }
@@ -65,6 +66,8 @@ struct Directory {
 	std::vector<std::string> entries;
 	static Result<Directory> open(const char*) { return {Directory{0, false, directory_entries}}; }
 	Result<std::pair<FileInfo, FilePointer>> read_and_get_filepointer() {
+		if (static_cast<int>(position) == read_failure_after)
+			return {{}, false};
 		FileInfo info;
 		if (!closed && position < entries.size())
 			std::strncpy(info.fname, entries[position++].c_str(), sizeof(info.fname) - 1);
@@ -107,7 +110,8 @@ void routineWithClusterLoading() {
 }
 } // namespace AudioEngine
 struct Display {
-	void displayError(Error) {}
+	Error last_error = Error::NONE;
+	void displayError(Error error) { last_error = error; }
 } display_instance;
 auto* display = &display_instance;
 struct GeneralMemoryAllocator {
@@ -156,6 +160,8 @@ TEST_GROUP(FolderSampleLoading) {
 		directory_entries = {"orig-kick.wav", "orig-snare.wav"};
 		loaded_samples = {&first, &second};
 		audioFileManager.next_sample = 0;
+		read_failure_after = -1;
+		display_instance = {};
 		on_audio = on_append = {};
 		requested_paths.clear();
 	}
@@ -234,4 +240,26 @@ TEST(FolderSampleLoading, nested_filename_buffer_changes_do_not_replace_current_
 	LONGS_EQUAL(2, count);
 	STRCMP_EQUAL("/samples/orig-kick.wav", requested_paths[0].c_str());
 	STRCMP_EQUAL("/samples/orig-snare.wav", requested_paths[1].c_str());
+}
+
+TEST(FolderSampleLoading, directory_read_failure_rejects_partial_sample_list_and_releases_references) {
+	read_failure_after = 1;
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	CHECK(table == nullptr);
+	LONGS_EQUAL(0, count);
+	LONGS_EQUAL(0, first.numReasonsToBeLoaded);
+	LONGS_EQUAL(0, second.numReasonsToBeLoaded);
+	CHECK_FALSE(first.partOfFolderBeingLoaded);
+	CHECK_TRUE(display_instance.last_error == Error::SD_CARD);
+}
+TEST(FolderSampleLoading, initial_directory_read_failure_does_not_allocate_or_publish_samples) {
+	read_failure_after = 0;
+	int32_t count = 0, prefix = 0;
+	bool single_cycle = true;
+	CHECK_FALSE(browser.loadAllSamplesInFolder(false, &count, &table, &single_cycle, &prefix));
+	CHECK(table == nullptr);
+	LONGS_EQUAL(0, audioFileManager.next_sample);
+	CHECK_TRUE(display_instance.last_error == Error::SD_CARD);
 }

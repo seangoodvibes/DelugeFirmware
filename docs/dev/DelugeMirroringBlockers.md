@@ -3510,3 +3510,11 @@ filename-buffer replacement and unrelated-directory cleanup; both loader cases
 fail against the previous function. All 38 suites and RelWithDebInfo pass. Shared
 Sample per-folder ownership marks and directory-read failure handling remain
 separate recovery work; this does not establish nested import safety.
+
+Directory-read failures now abort folder loading, close the owned cursor and
+release samples collected so far instead of returning a partial list as success.
+Two whole-loader regressions cover failure before the first item and after a
+loaded item; both fail against the previous function and verify no output table,
+released temporary references and SD-card error reporting. All 38 suites and
+RelWithDebInfo pass. Nested import ownership still depends on shared Sample marks
+and remains separate work.
