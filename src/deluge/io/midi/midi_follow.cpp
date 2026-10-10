@@ -623,10 +623,22 @@ void MidiFollow::removeClip(Clip* clip) {
 /// and should be routed to the active context or a specific track for further processing
 void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
                                      bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
+	if (!modelStack || !currentSong)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+	};
+
 	// first try to process note received through regular midi follow channels (A/B/C) against the selected / active
 	// clip
 	Output* selected_track = noteMessageReceivedForSelectedOrActiveClip(
 	    cable, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow, modelStack);
+
+	if (!context_matches())
+		return;
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -646,6 +658,8 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 				noteMessageReceivedForSpecificTrack(cable, on, channel, note, velocity, doingMidiThru,
 				                                    shouldRecordNotesNowNow, modelStack, track, track_index);
 			}
+			if (!context_matches())
+				return;
 		}
 	}
 }
@@ -764,9 +778,21 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
 /// and should be routed to the active context or a specific track for further processing
 void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
                                 bool* doingMidiThru, ModelStack* modelStack) {
+	if (!modelStack || !currentSong)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+	};
+
 	// first try to process cc received through regular midi follow channels (A/B/C) against the selected / active clip
 	Output* selected_track =
 	    midiCCReceivedForSelectedOrActiveClip(cable, channel, ccNumber, ccValue, doingMidiThru, modelStack);
+
+	if (!context_matches())
+		return;
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -786,6 +812,8 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 				midiCCReceivedForSpecificTrack(cable, channel, ccNumber, ccValue, doingMidiThru, modelStack, track,
 				                               track_index);
 			}
+			if (!context_matches())
+				return;
 		}
 	}
 }
@@ -1292,10 +1320,22 @@ void MidiFollow::sendCCForMidiFollowFeedback(MIDIFollowChannelType feedbackChann
 /// and should be routed to the active context or a specific track for further processing
 void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
                                    ModelStack* modelStack) {
+	if (!modelStack || !currentSong)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+	};
+
 	// first try to process pitch bend received through regular midi follow channels (A/B/C) against the selected /
 	// active clip
 	Output* selected_track =
 	    pitchBendReceivedForSelectedOrActiveClip(cable, channel, data1, data2, doingMidiThru, modelStack);
+
+	if (!context_matches())
+		return;
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -1315,6 +1355,8 @@ void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t da
 				pitchBendReceivedForSpecificTrack(cable, channel, data1, data2, doingMidiThru, modelStack, track,
 				                                  track_index);
 			}
+			if (!context_matches())
+				return;
 		}
 	}
 }
@@ -1391,10 +1433,22 @@ void MidiFollow::pitchBendReceivedForSpecificTrack(MIDICable& cable, uint8_t cha
 /// and should be routed to the active context or a specific track for further processing
 void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
                                     bool* doingMidiThru, ModelStack* modelStack) {
+	if (!modelStack || !currentSong)
+		return;
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* const source_song = currentSong;
+	const auto context_matches = [&] {
+		return deluge::gui::ui_session::current() == source_owner && currentSong == source_song;
+	};
+
 	// first try to process after touch received through regular midi follow channels (A/B/C) against the selected /
 	// active clip
 	Output* selected_track =
 	    aftertouchReceivedForSelectedOrActiveClip(cable, channel, value, noteCode, doingMidiThru, modelStack);
+
+	if (!context_matches())
+		return;
 
 	// logic for forwarding message to specific track
 	// get number of tracks
@@ -1414,6 +1468,8 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 				aftertouchReceivedForSpecificTrack(cable, channel, value, noteCode, doingMidiThru, modelStack, track,
 				                                   track_index);
 			}
+			if (!context_matches())
+				return;
 		}
 	}
 }

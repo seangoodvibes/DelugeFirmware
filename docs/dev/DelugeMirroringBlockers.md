@@ -1785,3 +1785,14 @@ reproduced callback-cleanup overwrite, nested note-on during note-off and unrela
 note-off completion. All 35 native suites and `./dbt build relwithdebinfo` pass.
 This closes these publication-order cases without retaining objects or undoing
 instrument effects. Broader callback lifetime and routing remain open.
+
+### G1 / R4 progress — MIDI event routing batch context (2026-10-10)
+
+Note, CC, pitch-bend and aftertouch routing now reject missing song/model-stack
+inputs and check song/panel context after selected-target delivery and each track
+delivery. A changed context stops subsequent tracks and restores panel scope.
+Four tests exercise all four production batch methods, including song changes,
+both panels, valid selected/missing-track suppression and the 16-track cap.
+All 35 native suites and `./dbt build relwithdebinfo` pass. Individual delivery
+callbacks and enumeration are fixtures; this does not protect objects inside
+callbacks or roll back events already delivered.
