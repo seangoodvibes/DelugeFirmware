@@ -96,6 +96,12 @@ class SessionRoutingContracts(unittest.TestCase):
             normalized,
         )
         self.assertNotIn("processFX(", body)
+        self.assertIn(
+            "if (!process_render_voices(modelStackWithSoundFlags, sound_mono, voice_rendered_in_stereo, "
+            "applyingPanAtVoiceLevel, doLPF, doHPF, pitchAdjust, owner_validation)) return;",
+            normalized,
+        )
+        self.assertNotIn("voice->render(", body)
 
     def test_arp_instruction_mutators_invalidate_before_accessing_state(self):
         source = code_only((ROOT / "src/deluge/modulation/arpeggiator.cpp").read_text())

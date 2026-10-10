@@ -2515,6 +2515,52 @@ void Sound::process_render_effects(ModelStackWithSoundFlags* model_stack, std::s
 	doParamLPF(output.size(), model_stack);
 }
 
+bool Sound::process_render_voices(ModelStackWithSoundFlags* model_stack, std::span<q31_t> sound_buffer, bool stereo,
+                                  bool apply_pan, bool do_lpf, bool do_hpf, int32_t pitch_adjust,
+                                  const deluge::lifetime::callback_validation* owner_validation) {
+	if (owner_validation && !owner_validation->valid())
+		return false;
+	const auto* voice_storage = voices_.data();
+	const auto voice_count = voices_.size();
+	for (size_t index = 0; index < voice_count; ++index) {
+		auto* voice = voices_[index].get();
+		if (!voice)
+			return false;
+		const auto context_matches = [&] {
+			return (!owner_validation || owner_validation->valid()) && voices_.data() == voice_storage
+			       && voices_.size() == voice_count && voices_[index].get() == voice;
+		};
+		const bool still_going = voice->render(model_stack, sound_buffer.data(), sound_buffer.size(), stereo, apply_pan,
+		                                       sourcesChanged, do_lpf, do_hpf, pitch_adjust);
+		if (!context_matches())
+			return false;
+		if (!still_going) {
+			checkVoiceExists(voices_[index], "E201");
+			freeActiveVoice(voices_[index], model_stack, false);
+			if (!context_matches())
+				return false;
+		}
+	}
+	for (size_t index = 0; index < voices_.size();) {
+		if (!voices_[index])
+			return false;
+		if (!voices_[index]->shouldBeDeleted()) {
+			++index;
+			continue;
+		}
+		// Detach before destruction: a voice destructor may call back into this sound.
+		auto retired_voice = std::move(voices_[index]);
+		voices_.erase(voices_.begin() + index);
+		const auto* remaining_storage = voices_.data();
+		const auto remaining_count = voices_.size();
+		retired_voice.reset();
+		if ((owner_validation && !owner_validation->valid()) || voices_.data() != remaining_storage
+		    || voices_.size() != remaining_count)
+			return false;
+	}
+	return true;
+}
+
 void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                    int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
                    int32_t pitchAdjust, SampleRecorder* recorder,
@@ -2639,19 +2685,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
-		for (auto it = voices_.begin(); it != voices_.end();) {
-			ActiveVoice& voice = *it;
-
-			bool stillGoing =
-			    voice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
-			if (!stillGoing) {
-				this->checkVoiceExists(voice, "E201");
-				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
-			}
-			++it;
-		}
-		std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
+		if (!process_render_voices(modelStackWithSoundFlags, sound_mono, voice_rendered_in_stereo,
+		                           applyingPanAtVoiceLevel, doLPF, doHPF, pitchAdjust, owner_validation))
+			return;
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;

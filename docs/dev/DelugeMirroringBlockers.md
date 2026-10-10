@@ -2785,3 +2785,14 @@ wiring. All 36 suites and `./dbt build relwithdebinfo` pass. Earlier effect/reve
 recorder work is not rolled back; initialization may retain its prefix. Voice
 traversal, pre-arp patching/delay stages, helper internals and nested use of shared
 render buffers remain open.
+
+Sound voice rendering now checks caller lifetime plus voice-vector storage, count
+and current pointer after each render/release callback. Finished voices are detached
+before destruction, with validation before continuing cleanup. Eleven production-
+body sanitizer regressions cover normal cleanup, empty/retired entry, deletion,
+erase/replacement/reallocation, context changes, null slots and destructor-driven
+owner/container changes. All 36 suites passed; the final null-slot regression and
+render wiring contract pass targeted suites, and `./dbt build relwithdebinfo` passes.
+Same-address voice reconstruction, equal-size mutations that preserve the current
+slot, voice/destructor internals and other voice-list consumers remain open. This
+change does not establish hardware audio equivalence or timing.

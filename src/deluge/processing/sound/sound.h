@@ -324,6 +324,9 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
+	bool process_render_voices(ModelStackWithSoundFlags* model_stack, std::span<q31_t> sound_buffer, bool stereo,
+	                           bool apply_pan, bool do_lpf, bool do_hpf, int32_t pitch_adjust,
+	                           const deluge::lifetime::callback_validation* owner_validation);
 	void process_render_effects(ModelStackWithSoundFlags* model_stack, std::span<StereoSample> sound_buffer,
 	                            std::span<StereoSample> output, int32_t* reverb_buffer, Delay::State& delay_state,
 	                            int32_t reverb_send_amount, SampleRecorder* recorder,
