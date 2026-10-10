@@ -1196,28 +1196,45 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 }
 
 void MIDIInstrument::allNotesOff() {
-	int32_t channel = getChannel();
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return;
+	auto* routed_clip = activeClip;
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
+		return;
+	const auto source_channel = getChannel();
+	auto* source_song = currentSong;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto lower_zone_end = MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
+	const auto upper_zone_end = MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
 	arpeggiator.reset();
-
-	// If no MPE, nice and simple
+	if (!output_lifetime.alive() || (routed_clip && !clip_lifetime.alive()))
+		return;
+	const auto revision = arpeggiator.instruction_revision();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
+		       && (!routed_clip || routed_clip->output == this) && getChannel() == source_channel
+		       && currentSong == source_song && deluge::gui::ui_session::current() == source_owner
+		       && MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput == lower_zone_end
+		       && MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput == upper_zone_end
+		       && arpeggiator.instruction_revision() == revision;
+	};
+	if (!context_matches())
+		return;
 	if (!sendsToMPE()) {
-		midiEngine.sendAllNotesOff(this, channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendAllNotesOff(this, source_channel, kMIDIOutputFilterNoMPE);
+		return;
 	}
-
-	// Otherwise, got to send message on all MPE member channels. At least I think that's right. The MPE spec talks
-	// about sending "all *sounds* off" on just the master channel, but doesn't mention all *notes* off.
-	else {
-		// We'll send on the master channel as well as the member channels.
-		int32_t lowestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
-		                                  ? 0
-		                                  : MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
-		int32_t highestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
-		                                   ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
-		                                   : 15;
-
-		for (int32_t c = lowestMemberChannel; c <= highestMemberChannel; c++) {
-			midiEngine.sendAllNotesOff(this, c, channel);
-		}
+	// Include the master channel as well as the configured member channels.
+	const int32_t lowest_channel = source_channel == MIDI_CHANNEL_MPE_LOWER_ZONE ? 0 : upper_zone_end;
+	const int32_t highest_channel = source_channel == MIDI_CHANNEL_MPE_LOWER_ZONE ? lower_zone_end : 15;
+	if (lowest_channel < 0 || highest_channel >= 16 || lowest_channel > highest_channel)
+		return;
+	for (int32_t channel = lowest_channel; channel <= highest_channel; ++channel) {
+		midiEngine.sendAllNotesOff(this, channel, source_channel);
+		if (!context_matches())
+			return;
 	}
 }
 

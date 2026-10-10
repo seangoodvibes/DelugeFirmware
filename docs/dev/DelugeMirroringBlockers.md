@@ -2682,3 +2682,11 @@ shared-channel averaging, internal/mono routes and stable values. All 36 suites
 and `./dbt build relwithdebinfo` pass. Sent events/cache writes remain a prefix;
 MPE averaging/collapse internals and other MIDI output batches remain separate
 work, as do direct state writes bypassing arp revision invalidation.
+
+MIDI all-notes-off now watches output/clip lifetime and validates song/panel,
+channel/zone configuration and arp revision after each channel output. It includes
+the master channel, bounds the zone and preserves replacement events on nested
+callbacks. Six sanitizer regressions cover both zones, mono/clipless behavior,
+deletion, event/configuration replacement and retired/invalid entry. All 36 native
+suites and `./dbt build relwithdebinfo` pass. A cancelled sweep can have already
+sent a prefix; downstream transport/hardware delivery is not rolled back.

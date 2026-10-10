@@ -45,7 +45,14 @@ using ArpeggiatorSettings = decltype(InstrumentClip::arpSettings);
 std::function<void()> on_output;
 int outputs = 0, notes = 0, combines = 0, last_note_velocity = 0;
 int pitch_value = 0, slide_value = 0, pressure_value = 0;
+std::vector<int> all_off_channels;
 struct {
+	void sendAllNotesOff(MIDIInstrument*, int channel, int) {
+		all_off_channels.push_back(channel);
+		++outputs;
+		if (on_output)
+			on_output();
+	}
 	void sendPitchBend(MIDIInstrument*, int, int value, int) {
 		pitch_value = value;
 		++outputs;
@@ -84,6 +91,10 @@ struct MIDIInstrument {
 	struct {
 		uint64_t revision = 0;
 		uint64_t instruction_revision() const { return revision; }
+		void reset() {
+			++revision;
+			notes.entries.clear();
+		}
 		struct {
 			std::vector<ArpNote*> entries;
 			int getNumElements() const { return entries.size(); }
@@ -108,6 +119,7 @@ struct MIDIInstrument {
 	}
 	bool outputAllMPEValuesOnMemberChannel(const int16_t*, int32_t);
 	void noteOnPostArp(int32_t, ArpNote*, int32_t);
+	void allNotesOff();
 	void noteOffPostArp(int32_t, int32_t, int32_t, int32_t);
 };
 #include "midi_mpe_output_lifetime.inc"
@@ -125,6 +137,7 @@ TEST_GROUP(midi_mpe_output_lifetime) {
 		clip->output = instrument.get();
 		instrument->arpeggiator.notes.entries = {note.get()};
 		on_output = {};
+		all_off_channels.clear();
 		outputs = notes = combines = 0;
 		pitch_value = slide_value = pressure_value = 0;
 		currentSong = &song;
@@ -287,4 +300,59 @@ TEST(midi_mpe_output_lifetime, collapse_setting_change_does_not_start_new_cleanu
 	instrument->noteOffPostArp(60, 1, 64, 0);
 	LONGS_EQUAL(1, notes);
 	LONGS_EQUAL(0, combines);
+}
+
+TEST(midi_mpe_output_lifetime, all_notes_off_covers_master_and_both_zone_ranges) {
+	for (int master : {16, 17}) {
+		reset();
+		instrument->channel = master;
+		instrument->allNotesOff();
+		LONGS_EQUAL(2, all_off_channels.size());
+		LONGS_EQUAL(master == 16 ? 0 : 14, all_off_channels[0]);
+		LONGS_EQUAL(master == 16 ? 1 : 15, all_off_channels[1]);
+	}
+}
+TEST(midi_mpe_output_lifetime, all_notes_off_owner_destruction_stops_channel_sweep) {
+	on_output = [&] {
+		note.reset();
+		clip.reset();
+		instrument.reset();
+	};
+	instrument->allNotesOff();
+	LONGS_EQUAL(1, all_off_channels.size());
+}
+TEST(midi_mpe_output_lifetime, all_notes_off_preserves_nested_replacement_event) {
+	on_output = [&] { ++instrument->arpeggiator.revision; };
+	instrument->allNotesOff();
+	LONGS_EQUAL(1, all_off_channels.size());
+}
+TEST(midi_mpe_output_lifetime, all_notes_off_zone_and_channel_changes_cancel_sweep) {
+	for (bool change_zone : {false, true}) {
+		reset();
+		on_output = [&] {
+			if (change_zone)
+				++MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
+			else
+				++instrument->channel;
+		};
+		instrument->allNotesOff();
+		LONGS_EQUAL(1, all_off_channels.size());
+	}
+}
+TEST(midi_mpe_output_lifetime, all_notes_off_rejects_invalid_zone_and_retired_entry) {
+	MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 16;
+	instrument->allNotesOff();
+	LONGS_EQUAL(0, all_off_channels.size());
+	instrument->lifetime.retire();
+	const auto revision = instrument->arpeggiator.revision;
+	instrument->allNotesOff();
+	CHECK(instrument->arpeggiator.revision == revision);
+}
+TEST(midi_mpe_output_lifetime, clipless_mono_all_notes_off_still_sends_once) {
+	instrument->activeClip = nullptr;
+	instrument->mpe = false;
+	instrument->channel = 3;
+	instrument->allNotesOff();
+	LONGS_EQUAL(1, all_off_channels.size());
+	LONGS_EQUAL(3, all_off_channels[0]);
 }
