@@ -2716,3 +2716,14 @@ unset-field combinations, deletion at every boundary, routing/program changes,
 retired/missing/wrong-type outputs and sending from an inactive clip. All 36 suites
 and `./dbt build relwithdebinfo` pass. The sequence may emit a prefix on cancellation;
 clip activation callers and transport delivery remain separate boundaries.
+
+MIDI clip activation now watches target/output lifetime and revalidates clip,
+model-stack, song/panel and channel after base activation and program output.
+Deactivation uses a cancellation-reporting note sweep and stops expression resets
+after owner/context loss or a replacement arp event. Nine production-body sanitizer
+regressions cover live activation/deactivation, program suppression, base/program/
+expression deletion, stack retargeting, cancelled sweeps and invalid targets.
+All 36 suites and `./dbt build relwithdebinfo` pass. The return value still describes
+the base clip change, not transactional success; completed changes are retained.
+Base/helper internals, bend-range arithmetic and other activation routes remain
+separate review work.

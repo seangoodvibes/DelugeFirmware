@@ -11,6 +11,8 @@ namespace midi_mpe_output_lifetime_test {
 constexpr int ARP_MAX_INSTRUCTION_NOTES = 3, kNumExpressionDimensions = 3;
 constexpr int MIDI_CHANNEL_MPE_LOWER_ZONE = 16, MIDI_CHANNEL_NONE = 255, kMIDIOutputFilterNoMPE = -1;
 constexpr int X_PITCH_BEND = 0, Y_SLIDE_TIMBRE = 1, Z_PRESSURE = 2;
+constexpr int BEND_RANGE_MAIN = 0, BEND_RANGE_FINGER_LEVEL = 1;
+enum class PgmChangeSend { NEVER, ALWAYS };
 enum class ArpMode { OFF, ON };
 enum class MIDICharacteristic { NOTE, CHANNEL };
 namespace util {
@@ -38,6 +40,14 @@ struct InstrumentClip {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
 	MIDIInstrument* output = nullptr;
+	int midiPGM = 0, midiSub = 0, midiBank = 0;
+	struct expression_set {
+		int bendRanges[2]{2, 48};
+	};
+	struct {
+		expression_set expression;
+		expression_set* getExpressionParamSet() { return &expression; }
+	} paramManager;
 	struct {
 		ArpMode mode = ArpMode::OFF;
 	} arpSettings;
@@ -86,10 +96,27 @@ struct {
 			on_output();
 	}
 } midiEngine;
-struct MIDIInstrument {
+struct ModelStackWithTimelineCounter {
+	int* song = currentSong;
+	InstrumentClip* clip = nullptr;
+	InstrumentClip* getTimelineCounter() { return clip; }
+};
+std::function<void()> on_activate;
+int programs = 0, expressions = 0;
+struct NonAudioInstrument {
+	InstrumentClip* activeClip = nullptr;
+	bool setActiveClip(ModelStackWithTimelineCounter* stack, PgmChangeSend) {
+		auto* target = stack ? stack->clip : nullptr;
+		bool changed = !stack || target != activeClip;
+		activeClip = target;
+		if (on_activate)
+			on_activate();
+		return changed;
+	}
+};
+struct MIDIInstrument : NonAudioInstrument {
 	mutable deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() const { return deluge::lifetime::lifetime_watch{lifetime}; }
-	InstrumentClip* activeClip = nullptr;
 	int channel = MIDI_CHANNEL_MPE_LOWER_ZONE, outputMPEY = 74;
 	bool mpe = true, internal = false, collapseAftertouch = false, collapseMPE = false;
 	int getChannel() const { return channel; }
@@ -128,6 +155,20 @@ struct MIDIInstrument {
 	void noteOnPostArp(int32_t, ArpNote*, int32_t);
 	ArpeggiatorSettings* getArpSettings() { return activeClip ? &activeClip->arpSettings : nullptr; }
 	void polyphonicExpressionEventPostArpeggiator(int32_t, int32_t, int32_t, ArpNote*, int32_t);
+	int cachedBendRanges[2]{}, lastCombinedPolyExpression[3]{11, 22, 33};
+	float ratio = 0;
+	void sendMIDIPGM() {
+		++programs;
+		if (on_output)
+			on_output();
+	}
+	void sendMonophonicExpressionEvent(int) {
+		++expressions;
+		if (on_output)
+			on_output();
+	}
+	bool setActiveClip(ModelStackWithTimelineCounter*, PgmChangeSend);
+	bool stop_all_notes();
 	void allNotesOff();
 	void noteOffPostArp(int32_t, int32_t, int32_t, int32_t);
 };
@@ -145,7 +186,8 @@ TEST_GROUP(midi_mpe_output_lifetime) {
 		instrument->activeClip = clip.get();
 		clip->output = instrument.get();
 		instrument->arpeggiator.notes.entries = {note.get()};
-		on_output = {};
+		on_output = on_activate = {};
+		programs = expressions = 0;
 		all_off_channels.clear();
 		outputs = notes = combines = 0;
 		pitch_value = slide_value = pressure_value = 0;
@@ -156,7 +198,7 @@ TEST_GROUP(midi_mpe_output_lifetime) {
 		reset();
 	}
 	void teardown() override {
-		on_output = {};
+		on_output = on_activate = {};
 		currentSong = &song;
 	}
 	void send() {
@@ -426,4 +468,99 @@ TEST(midi_mpe_output_lifetime, expression_preserves_mono_and_internal_routing_wi
 	instrument->internal = true;
 	instrument->polyphonicExpressionEventPostArpeggiator(0, 60, 0, nullptr, 0);
 	LONGS_EQUAL(1, combines);
+}
+
+TEST(midi_mpe_output_lifetime, activation_sends_changed_program_and_caches_bend_ranges) {
+	InstrumentClip next;
+	next.output = instrument.get();
+	next.midiPGM = 9;
+	ModelStackWithTimelineCounter stack{currentSong, &next};
+	CHECK(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
+	LONGS_EQUAL(1, programs);
+	LONGS_EQUAL(48, instrument->cachedBendRanges[1]);
+	DOUBLES_EQUAL(24, instrument->ratio, 0.001);
+	CHECK_FALSE(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
+	LONGS_EQUAL(1, programs);
+}
+TEST(midi_mpe_output_lifetime, activation_respects_program_suppression) {
+	InstrumentClip next;
+	next.output = instrument.get();
+	next.midiPGM = 9;
+	ModelStackWithTimelineCounter stack{currentSong, &next};
+	CHECK(instrument->setActiveClip(&stack, PgmChangeSend::NEVER));
+	LONGS_EQUAL(0, programs);
+}
+TEST(midi_mpe_output_lifetime, activation_stops_after_base_or_program_callback_deletion) {
+	for (int boundary = 0; boundary < 2; ++boundary) {
+		reset();
+		auto next = std::make_unique<InstrumentClip>();
+		next->output = instrument.get();
+		next->midiPGM = 9;
+		ModelStackWithTimelineCounter stack{currentSong, next.get()};
+		auto destroy = [&] {
+			instrument.reset();
+			clip.reset();
+			next.reset();
+		};
+		if (boundary == 0)
+			on_activate = destroy;
+		else
+			on_output = destroy;
+		CHECK(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
+		LONGS_EQUAL(boundary, programs);
+	}
+}
+TEST(midi_mpe_output_lifetime, activation_does_not_cache_after_stack_retargeting) {
+	InstrumentClip next;
+	next.output = instrument.get();
+	next.midiPGM = 9;
+	ModelStackWithTimelineCounter stack{currentSong, &next};
+	on_output = [&] { stack.clip = nullptr; };
+	CHECK(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
+	LONGS_EQUAL(0, instrument->cachedBendRanges[1]);
+}
+TEST(midi_mpe_output_lifetime, deactivation_stops_expression_reset_after_cancelled_note_sweep) {
+	on_output = [&] { ++instrument->arpeggiator.revision; };
+	CHECK(instrument->setActiveClip(nullptr, PgmChangeSend::NEVER));
+	LONGS_EQUAL(1, outputs);
+	LONGS_EQUAL(0, expressions);
+	LONGS_EQUAL(11, instrument->lastCombinedPolyExpression[0]);
+}
+TEST(midi_mpe_output_lifetime, deactivation_resets_expression_after_successful_sweep) {
+	CHECK(instrument->setActiveClip(nullptr, PgmChangeSend::NEVER));
+	LONGS_EQUAL(2, outputs);
+	LONGS_EQUAL(3, expressions);
+	for (int value : instrument->lastCombinedPolyExpression)
+		LONGS_EQUAL(0, value);
+}
+TEST(midi_mpe_output_lifetime, deactivation_stops_after_each_expression_callback_deletes_owner) {
+	for (int boundary = 1; boundary <= 3; ++boundary) {
+		reset();
+		on_output = [&] {
+			if (expressions == boundary)
+				instrument.reset();
+		};
+		CHECK(instrument->setActiveClip(nullptr, PgmChangeSend::NEVER));
+		LONGS_EQUAL(boundary, expressions);
+	}
+}
+TEST(midi_mpe_output_lifetime, deactivation_preserves_expression_suffix_after_new_event) {
+	on_output = [&] {
+		if (expressions == 1)
+			++instrument->arpeggiator.revision;
+	};
+	CHECK(instrument->setActiveClip(nullptr, PgmChangeSend::NEVER));
+	LONGS_EQUAL(1, expressions);
+	LONGS_EQUAL(22, instrument->lastCombinedPolyExpression[1]);
+}
+TEST(midi_mpe_output_lifetime, activation_rejects_invalid_or_retired_target) {
+	ModelStackWithTimelineCounter stack;
+	CHECK_FALSE(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
+	InstrumentClip next;
+	stack.clip = &next;
+	CHECK_FALSE(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
+	next.output = instrument.get();
+	next.lifetime.retire();
+	CHECK_FALSE(instrument->setActiveClip(&stack, PgmChangeSend::ALWAYS));
+	POINTERS_EQUAL(clip.get(), instrument->activeClip);
 }

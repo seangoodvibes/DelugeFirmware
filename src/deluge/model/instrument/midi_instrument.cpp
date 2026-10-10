@@ -279,44 +279,63 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 }
 
 bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
-	bool shouldSendPGMs;
-	if (modelStack) {
-		InstrumentClip* newInstrumentClip = (InstrumentClip*)modelStack->getTimelineCounter();
-		InstrumentClip* oldInstrumentClip = (InstrumentClip*)activeClip;
-
-		shouldSendPGMs = (maySendMIDIPGMs != PgmChangeSend::NEVER && activeClip && activeClip != newInstrumentClip
-		                  && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
-		                      || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
-		                      || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));
-	}
-	else {
-		shouldSendPGMs = false;
-	}
-	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
-
-	if (shouldSendPGMs) {
+	auto output_lifetime = watch_lifetime();
+	if (!output_lifetime.alive())
+		return false;
+	auto* new_clip = modelStack ? static_cast<InstrumentClip*>(modelStack->getTimelineCounter()) : nullptr;
+	if (modelStack && !new_clip)
+		return false;
+	auto new_clip_lifetime = new_clip ? new_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (new_clip && (!new_clip_lifetime.alive() || new_clip->output != this))
+		return false;
+	auto* old_clip = static_cast<InstrumentClip*>(activeClip);
+	auto old_clip_lifetime = old_clip ? old_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (old_clip && (!old_clip_lifetime.alive() || old_clip->output != this))
+		return false;
+	const bool send_program = new_clip && old_clip && new_clip != old_clip && maySendMIDIPGMs != PgmChangeSend::NEVER
+	                          && (new_clip->midiPGM != old_clip->midiPGM || new_clip->midiSub != old_clip->midiSub
+	                              || new_clip->midiBank != old_clip->midiBank);
+	auto* source_song = currentSong;
+	auto* stack_song = modelStack ? modelStack->song : nullptr;
+	const auto source_owner = deluge::gui::ui_session::current();
+	const auto source_channel = getChannel();
+	const auto context_matches = [&] {
+		return output_lifetime.alive() && (!new_clip || new_clip_lifetime.alive()) && activeClip == new_clip
+		       && (!new_clip || new_clip->output == this) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner && getChannel() == source_channel
+		       && (!modelStack || (modelStack->song == stack_song && modelStack->getTimelineCounter() == new_clip));
+	};
+	const bool clip_changed = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
+	if (!context_matches())
+		return clip_changed;
+	const auto revision = arpeggiator.instruction_revision();
+	if (send_program) {
 		sendMIDIPGM();
+		if (!context_matches() || arpeggiator.instruction_revision() != revision)
+			return clip_changed;
 	}
-	if (clipChanged) {
-		if (modelStack) {
-			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-			if (expressionParams) {
-				cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
-				cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+	if (clip_changed) {
+		if (new_clip) {
+			auto* expression_params = new_clip->paramManager.getExpressionParamSet();
+			if (expression_params) {
+				cachedBendRanges[BEND_RANGE_MAIN] = expression_params->bendRanges[BEND_RANGE_MAIN];
+				cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expression_params->bendRanges[BEND_RANGE_FINGER_LEVEL];
 				ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
 			}
 		}
 		else {
-			allNotesOff();
-			for (int i = 0; i < kNumExpressionDimensions; i++) {
-				lastCombinedPolyExpression[i] = 0;
-				sendMonophonicExpressionEvent(i);
+			if (!stop_all_notes() || !context_matches())
+				return clip_changed;
+			const auto reset_revision = arpeggiator.instruction_revision();
+			for (int32_t dimension = 0; dimension < kNumExpressionDimensions; ++dimension) {
+				lastCombinedPolyExpression[dimension] = 0;
+				sendMonophonicExpressionEvent(dimension);
+				if (!context_matches() || arpeggiator.instruction_revision() != reset_revision)
+					return clip_changed;
 			}
 		}
 	}
-
-	return clipChanged;
+	return clip_changed;
 }
 
 void MIDIInstrument::sendMIDIPGM() {
@@ -1196,13 +1215,17 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 }
 
 void MIDIInstrument::allNotesOff() {
+	stop_all_notes();
+}
+
+bool MIDIInstrument::stop_all_notes() {
 	auto output_lifetime = watch_lifetime();
 	if (!output_lifetime.alive())
-		return;
+		return false;
 	auto* routed_clip = activeClip;
 	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
 	if (routed_clip && (!clip_lifetime.alive() || routed_clip->output != this))
-		return;
+		return false;
 	const auto source_channel = getChannel();
 	auto* source_song = currentSong;
 	const auto source_owner = deluge::gui::ui_session::current();
@@ -1210,7 +1233,7 @@ void MIDIInstrument::allNotesOff() {
 	const auto upper_zone_end = MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
 	arpeggiator.reset();
 	if (!output_lifetime.alive() || (routed_clip && !clip_lifetime.alive()))
-		return;
+		return false;
 	const auto revision = arpeggiator.instruction_revision();
 	const auto context_matches = [&] {
 		return output_lifetime.alive() && (!routed_clip || clip_lifetime.alive()) && activeClip == routed_clip
@@ -1221,21 +1244,22 @@ void MIDIInstrument::allNotesOff() {
 		       && arpeggiator.instruction_revision() == revision;
 	};
 	if (!context_matches())
-		return;
+		return false;
 	if (!sendsToMPE()) {
 		midiEngine.sendAllNotesOff(this, source_channel, kMIDIOutputFilterNoMPE);
-		return;
+		return context_matches();
 	}
 	// Include the master channel as well as the configured member channels.
 	const int32_t lowest_channel = source_channel == MIDI_CHANNEL_MPE_LOWER_ZONE ? 0 : upper_zone_end;
 	const int32_t highest_channel = source_channel == MIDI_CHANNEL_MPE_LOWER_ZONE ? lower_zone_end : 15;
 	if (lowest_channel < 0 || highest_channel >= 16 || lowest_channel > highest_channel)
-		return;
+		return false;
 	for (int32_t channel = lowest_channel; channel <= highest_channel; ++channel) {
 		midiEngine.sendAllNotesOff(this, channel, source_channel);
 		if (!context_matches())
-			return;
+			return false;
 	}
+	return true;
 }
 
 uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};

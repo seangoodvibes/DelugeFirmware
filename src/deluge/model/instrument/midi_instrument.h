@@ -158,6 +158,7 @@ protected:
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
 private:
+	bool stop_all_notes();
 	void sendMonophonicExpressionEvent(int32_t expressionDimension);
 	void combineMPEtoMono(int32_t value32, int32_t expressionDimension);
 	bool outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
