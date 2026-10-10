@@ -800,3 +800,13 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_destruction_life
     DEPENDS ${gate_drum_destruction_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/gate_drum_destruction_lifetime.inc)
 target_sources(ClipLifetimeTests PRIVATE drum_destruction_lifetime_tests.cpp)
+
+set(kit_expression_lifetime_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/kit.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_expression_lifetime.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_expression_lifetime_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_expression_lifetime.inc
+        Kit::getDrumIndex Kit::offerReceivedPitchBend Kit::offerReceivedCC Kit::offerReceivedAftertouch
+        Kit::receivedPitchBendForKit Kit::receivedCCForKit Kit::receivedAftertouchForKit
+    DEPENDS ${kit_expression_lifetime_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_expression_lifetime_tests.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/kit_expression_lifetime.inc)

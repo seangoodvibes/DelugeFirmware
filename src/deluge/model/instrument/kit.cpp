@@ -1673,6 +1673,14 @@ void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWith
 
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(modelStackWithTimelineCounter->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && !clip_lifetime.alive())
+		return;
+
 	InstrumentClip* instrumentClip =
 	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
 	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
@@ -1682,8 +1690,16 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(&cable, channel);
 		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel, doingMidiThru);
+
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || (routed_clip && !clip_lifetime.alive())
+		    || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 
@@ -1715,6 +1731,14 @@ void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimel
 }
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(modelStackWithTimelineCounter->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && !clip_lifetime.alive())
+		return;
+
 	InstrumentClip* instrumentClip =
 	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
 	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
@@ -1731,11 +1755,19 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(&cable, channel);
 		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
 			// this will make sure that the channel matches the drums last received one
 			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 		}
+
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || (routed_clip && !clip_lifetime.alive())
+		    || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 /// find the drum matching the noteCode, counting up from 0
@@ -1761,9 +1793,24 @@ Drum* Kit::getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode) {
 void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                   MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
                                   bool* doingMidiThru) {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(modelStackWithTimelineCounter->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && !clip_lifetime.alive())
+		return;
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+
 		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel, doingMidiThru);
+
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || (routed_clip && !clip_lifetime.alive())
+		    || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 
@@ -1784,6 +1831,14 @@ void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDICabl
 void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                            MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
                            Clip* clip) {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(modelStackWithTimelineCounter->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && !clip_lifetime.alive())
+		return;
+
 	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
 		return;
 	}
@@ -1794,29 +1849,60 @@ void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimeline
 		return;
 	}
 
-	Kit* kit = (Kit*)clip->output;
+	if (!clip || clip->output != this)
+		return;
+	Kit* kit = this;
 	Drum* firstDrum = kit->getDrumFromIndex(0);
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+
 		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || (routed_clip && !clip_lifetime.alive())
+		    || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 
 void Kit::receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                    MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
                                    bool* doingMidiThru) {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(modelStackWithTimelineCounter->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && !clip_lifetime.alive())
+		return;
+
 	// Channel pressure message...
 	if (noteCode == -1) {
 		Drum* firstDrum = getDrumFromIndex(0);
 		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			auto drum_lifetime = thisDrum->watch_lifetime();
+			if (!drum_lifetime.alive())
+				return;
+
 			int32_t level = BEND_RANGE_FINGER_LEVEL;
 			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+
+			if (!kit_lifetime.alive() || !drum_lifetime.alive() || (routed_clip && !clip_lifetime.alive())
+			    || getDrumIndex(thisDrum) < 0)
+				return;
 		}
 	}
 	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
 	else {
+		if (!activeClip)
+			return;
 		Drum* thisDrum = getDrumFromNoteCode((InstrumentClip*)activeClip, noteCode);
-		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
+		if (thisDrum && getDrumIndex(thisDrum) >= 0) {
+			auto drum_lifetime = thisDrum->watch_lifetime();
+			if (!drum_lifetime.alive() || channel != thisDrum->lastMIDIChannelAuditioned)
+				return;
 			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel, value);
 		}
 	}
@@ -1848,6 +1934,13 @@ void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWit
 // note). This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                   int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* routed_clip = static_cast<InstrumentClip*>(modelStackWithTimelineCounter->getTimelineCounterAllowNull());
+	auto clip_lifetime = routed_clip ? routed_clip->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	if (routed_clip && !clip_lifetime.alive())
+		return;
 
 	InstrumentClip* instrumentClip =
 	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
@@ -1858,6 +1951,10 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		auto drum_lifetime = thisDrum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			return;
+
 		int32_t level = BEND_RANGE_FINGER_LEVEL;
 		if (noteCode == -1) { // Channel pressure message...
 			MIDIMatchType match = thisDrum->midiInput.checkMatch(&cable, channel);
@@ -1874,6 +1971,10 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 				                          value);
 			}
 		}
+
+		if (!kit_lifetime.alive() || !drum_lifetime.alive() || (routed_clip && !clip_lifetime.alive())
+		    || getDrumIndex(thisDrum) < 0)
+			return;
 	}
 }
 

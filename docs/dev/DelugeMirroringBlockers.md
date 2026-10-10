@@ -2333,3 +2333,14 @@ run in the sanitizer lifetime target. All 36 native suites and
 `./dbt build relwithdebinfo` pass. Early deletion cleanup, linked-list dispatch
 continuations, retained drum acquisition and note-row drum ownership still need
 separate checks; adding watches does not make those paths safe automatically.
+
+Six kit expression dispatch routes now watch the kit, routed clip and current
+drum, and confirm that the drum is still linked before following its next pointer.
+They stop on retirement/destruction or live detachment. Kit-wide CC rejects a
+missing/mismatched clip; polyphonic aftertouch rejects missing context and
+unlinked/retiring drum targets. Nine sanitizer tests execute all six production
+route bodies and the real membership lookup with callback/model doubles, covering
+normal dispatch, deletion, address reuse, detachment and owner retirement. All 36
+native suites and `./dbt build relwithdebinfo` pass. Note-on/off and audition
+internals remain separate routing work; membership checks and end-to-end timing
+still require the two-device hardware validation in G2.
