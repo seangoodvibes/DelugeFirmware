@@ -388,60 +388,100 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 
 // Returns true if more loading needed later
 Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
-
-	Error error = Error::NONE;
-
+	auto kit_lifetime = watch_lifetime();
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return kit_lifetime.alive() && (!source_song || song_lifetime.alive()) && currentSong == source_song
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return Error::ABORTED_BY_USER;
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
+		auto error = setupDefaultAudioFileDir();
+		if (error != Error::NONE)
 			return error;
+	}
+	Error error = Error::NONE;
+	if (!context_valid()) {
+		error = Error::ABORTED_BY_USER;
+	}
+	else {
+		AudioEngine::logAction("Kit::loadAllSamples");
+		for (Drum* drum = firstDrum; drum;) {
+			auto drum_lifetime = drum->watch_lifetime();
+			const auto drum_valid = [&] { return context_valid() && drum_lifetime.alive() && getDrumIndex(drum) >= 0; };
+			if (!drum_valid()) {
+				error = Error::ABORTED_BY_USER;
+				break;
+			}
+			const bool aborted = mayActuallyReadFiles && shouldAbortLoading();
+			if (!drum_valid() || aborted) {
+				error = Error::ABORTED_BY_USER;
+				break;
+			}
+			error = drum->loadAllSamples(mayActuallyReadFiles);
+			if (!drum_valid())
+				error = Error::ABORTED_BY_USER;
+			if (error != Error::NONE)
+				break;
+			drum = drum->next;
 		}
 	}
-
-	AudioEngine::logAction("Kit::loadAllSamples");
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			error = Error::ABORTED_BY_USER;
-			goto getOut;
-		}
-		error = thisDrum->loadAllSamples(mayActuallyReadFiles);
-		if (error != Error::NONE) {
-			goto getOut;
-		}
-	}
-
-getOut:
-	if (doingAlternatePath) {
+	if (doingAlternatePath)
 		audioFileManager.thingFinishedLoading();
-	}
-
 	return error;
 }
 
-// Caller must check that there is an activeClip.
 void Kit::loadCrucialAudioFilesOnly() {
-
+	auto kit_lifetime = watch_lifetime();
+	if (!kit_lifetime.alive())
+		return;
+	auto* source_clip = static_cast<InstrumentClip*>(activeClip);
+	if (!source_clip)
+		return;
+	auto clip_lifetime = source_clip->watch_lifetime();
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	const auto context_valid = [&] {
+		return kit_lifetime.alive() && clip_lifetime.alive() && (!source_song || song_lifetime.alive())
+		       && currentSong == source_song && activeClip == source_clip && source_clip->output == this
+		       && deluge::gui::ui_session::current() == source_owner;
+	};
+	if (!context_valid())
+		return;
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
+		auto error = setupDefaultAudioFileDir();
+		if (error != Error::NONE)
 			return;
-		}
 	}
-
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
-	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
-		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
-			thisNoteRow->drum->loadAllSamples(true); // Why don't we deal with the error?
-		}
+	for (int32_t index = 0; context_valid() && index < source_clip->noteRows.getNumElements(); ++index) {
+		auto* row = source_clip->noteRows.getElement(index);
+		auto* drum = row->drum;
+		if (row->muted || row->hasNoNotes() || !drum)
+			continue;
+		if (getDrumIndex(drum) < 0)
+			break;
+		auto drum_lifetime = drum->watch_lifetime();
+		if (!drum_lifetime.alive())
+			break;
+		const auto row_count = source_clip->noteRows.getNumElements();
+		drum->loadAllSamples(true);
+		if (!context_valid() || !drum_lifetime.alive() || getDrumIndex(drum) < 0
+		    || source_clip->noteRows.getNumElements() != row_count || source_clip->noteRows.getElement(index) != row
+		    || row->drum != drum)
+			break;
 	}
-
-	if (doingAlternatePath) {
+	if (doingAlternatePath)
 		audioFileManager.thingFinishedLoading();
-	}
 }
 
 void Kit::addDrum(Drum* newDrum) {

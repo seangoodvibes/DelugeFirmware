@@ -1187,3 +1187,11 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/voice_sample_assignment.in
 target_sources(ClipLifetimeTests PRIVATE sample_assignment_tests.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/audio_file_assignment.inc ${CMAKE_CURRENT_BINARY_DIR}/sample_assignment.inc
     ${CMAKE_CURRENT_BINARY_DIR}/clip_sample_assignment.inc ${CMAKE_CURRENT_BINARY_DIR}/voice_sample_assignment.inc)
+
+set(kit_sample_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/model/instrument/kit.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_loading.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${kit_sample_source} ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_loading.inc
+        Kit::loadAllAudioFiles Kit::loadCrucialAudioFilesOnly
+    DEPENDS ${kit_sample_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE kit_sample_loading_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_sample_loading.inc)

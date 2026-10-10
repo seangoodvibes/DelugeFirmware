@@ -3227,3 +3227,14 @@ ClipLifetimeTests, and the RelWithDebInfo build passes. Already-published sample
 clusters remain holder-owned on later cancellation; this is not transaction rollback.
 No sample buffers are duplicated. Source/Drum/Kit validator propagation and legacy
 callers without explicit lifetime contracts remain open. Independent mode stays disabled.
+
+Kit full/crucial sample-loading traversal now validates Kit, current Song, panel,
+Drum membership/lifetime and active Clip context after callbacks. Crucial loading
+also checks row count, row position and drum assignment before continuing. Thirteen
+sanitizer regressions cover actual Kit/Drum/Clip destruction, detached drums, changed
+rows, context retirement, filtering and existing directory/error behavior. The
+detached-drum regression failed against the previous implementation. All 38 native
+suites and RelWithDebInfo pass. Same-address row replacement, nested alternate-path
+ownership, and cancellation inside Source/Drum loading remain separate audit work;
+these traversal checks do not establish those inner contracts. Independent mode
+stays disabled.
