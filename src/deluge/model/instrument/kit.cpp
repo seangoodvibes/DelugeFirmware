@@ -1235,6 +1235,10 @@ ModControllable* Kit::toModControllable() {
 
 // newName must be allowed to be edited by this function
 Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
+	auto kit_lifetime = watch_lifetime();
+	const auto source_owner = deluge::gui::ui_session::current();
+	if (!kit_lifetime.alive())
+		return Error::ABORTED_BY_USER;
 
 	D_PRINTLN("making unique newName:");
 
@@ -1244,6 +1248,8 @@ Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
 		Error error = name->concatenateAtPos(numberString, originalLength);
+		if (!kit_lifetime.alive() || deluge::gui::ui_session::current() != source_owner)
+			return Error::ABORTED_BY_USER;
 		if (error != Error::NONE) {
 			return error;
 		}

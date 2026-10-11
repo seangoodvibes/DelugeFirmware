@@ -3729,3 +3729,11 @@ normal naming, Kit retirement, removed Drums and allocation errors. All 38 nativ
 suites and RelWithDebInfo pass. Remaining entry work includes callbacks inside
 makeDrumNameUnique itself, PadLED/setup boundaries and post-start UI feedback and
 recovery; this does not close the whole opened() audit.
+
+Kit::makeDrumNameUnique now watches the Kit and initiating panel across each suffix
+append before scanning Drum names. It returns ABORTED_BY_USER after retirement or
+panel changes, including destruction/reconstruction at the same address. Six
+extracted-production tests cover collisions, append failure, actual destruction,
+address reuse, changed panel and already-retired entry. All 38 native suites and
+RelWithDebInfo pass. This closes the internal Kit naming-loop subcase noted above;
+callers still own cancellation recovery and the lifetime of their supplied String.
