@@ -26,10 +26,18 @@ struct SampleRecorder {
 struct RecorderConfig {
 	bool value;
 };
-std::function<void()> on_allocate, on_discard;
+std::function<void()> on_allocate, on_discard, on_blink;
+enum class IndicatorLED { RECORD };
+namespace indicator_leds {
+void blinkLed(IndicatorLED, int, int) {
+	if (on_blink)
+		on_blink();
+}
+} // namespace indicator_leds
 int allocations = 0, discards = 0, errors = 0;
 bool fail_allocation = false;
 namespace AudioEngine {
+bool bypassCulling = false;
 SampleRecorder* getNewRecorder(int, AudioRecordingFolder, AudioInputChannel, bool, bool, int, bool, void*,
                                RecorderConfig) {
 	++allocations;
@@ -53,10 +61,13 @@ struct AudioRecorder {
 	static SampleRecorder* recorder;
 	static AudioInputChannel recordingSource;
 	bool setupRecordingToFile(AudioInputChannel, int32_t, AudioRecordingFolder, bool, bool);
+	bool beginOutputRecording(AudioRecordingFolder, AudioInputChannel, bool, bool);
 };
 SampleRecorder* AudioRecorder::recorder = nullptr;
 AudioInputChannel AudioRecorder::recordingSource = AudioInputChannel::NONE;
 #include "recording_setup.inc"
+
+#include "output_recording_start.inc"
 } // namespace recording_setup_test
 using namespace recording_setup_test;
 TEST_GROUP(RecordingSetup) {
@@ -67,9 +78,10 @@ TEST_GROUP(RecordingSetup) {
 	}
 	void setup() override {
 		recording_session = {};
-		on_allocate = on_discard = {};
+		on_allocate = on_discard = on_blink = {};
 		allocations = discards = errors = 0;
 		fail_allocation = false;
+		AudioEngine::bypassCulling = false;
 		currentSong = &song;
 		active_ui = &screen;
 		AudioRecorder::recorder = nullptr;
@@ -77,7 +89,7 @@ TEST_GROUP(RecordingSetup) {
 		deluge::gui::ui_session::detail::active = Id::Local;
 	}
 	void teardown() override {
-		on_allocate = on_discard = {};
+		on_allocate = on_discard = on_blink = {};
 		delete AudioRecorder::recorder;
 		AudioRecorder::recorder = nullptr;
 		recording_session.release();
@@ -158,4 +170,38 @@ TEST(RecordingSetup, live_recorder_is_preserved_even_if_reservation_is_missing) 
 	CHECK_FALSE(start());
 	POINTERS_EQUAL(original, AudioRecorder::recorder);
 	LONGS_EQUAL(0, allocations);
+}
+
+TEST(RecordingSetup, failed_output_start_does_not_change_culling_state) {
+	fail_allocation = true;
+	CHECK_FALSE(ui.beginOutputRecording(AudioRecordingFolder::RECORD, AudioInputChannel::OUTPUT, false, true));
+	CHECK_FALSE(AudioEngine::bypassCulling);
+}
+TEST(RecordingSetup, output_start_publishes_audio_state_before_led_callback) {
+	on_blink = [&] { CHECK_TRUE(AudioEngine::bypassCulling); };
+	CHECK_TRUE(ui.beginOutputRecording(AudioRecordingFolder::RECORD, AudioInputChannel::OUTPUT, false, false));
+	CHECK_FALSE(AudioRecorder::recorder->allowNormalization);
+	CHECK(AudioRecorder::recordingSource == AudioInputChannel::OUTPUT);
+}
+TEST(RecordingSetup, output_start_preserves_culling_change_from_led_callback) {
+	on_blink = [&] { AudioEngine::bypassCulling = false; };
+	CHECK_TRUE(ui.beginOutputRecording(AudioRecordingFolder::RECORD, AudioInputChannel::OUTPUT, false, true));
+	CHECK_FALSE(AudioEngine::bypassCulling);
+}
+TEST(RecordingSetup, output_start_reports_cancellation_when_led_callback_finishes_recorder) {
+	on_blink = [&] {
+		delete AudioRecorder::recorder;
+		AudioRecorder::recorder = nullptr;
+		AudioRecorder::recordingSource = AudioInputChannel::NONE;
+		recording_session.release();
+	};
+	CHECK_FALSE(ui.beginOutputRecording(AudioRecordingFolder::RECORD, AudioInputChannel::OUTPUT, false, true));
+}
+TEST(RecordingSetup, output_start_reports_replacement_even_when_recorder_address_is_unchanged) {
+	on_blink = [&] {
+		recording_session.release();
+		CHECK_TRUE(recording_session.acquire());
+	};
+	CHECK_FALSE(ui.beginOutputRecording(AudioRecordingFolder::RECORD, AudioInputChannel::OUTPUT, false, true));
+	CHECK_TRUE(recording_session.active());
 }

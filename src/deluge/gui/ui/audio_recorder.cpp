@@ -256,18 +256,16 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 
 bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInputChannel channel, bool writeLoopPoints,
                                          bool shouldNormalize) {
-	bool success = setupRecordingToFile(channel, 2, folder, writeLoopPoints, shouldNormalize);
-
-	if (success) {
-		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
-	}
-
-	// Rohan: Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
-	// via an audition pad. But I'd more expect it to happen after the first render-window, which this
-	// won't help. Anyway, I suppose this can't do any harm here.
+	if (!setupRecordingToFile(channel, 2, folder, writeLoopPoints, shouldNormalize))
+		return false;
+	const auto source_revision = recording_session.revision();
+	auto* source_recorder = recorder;
+	// Publish recording-related audio state before LED callbacks can replace the session.
+	// This only applies when a recorder was actually started.
 	AudioEngine::bypassCulling = true;
-
-	return success;
+	indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
+	return recording_session.active() && !recording_session.finishing()
+	       && recording_session.revision() == source_revision && recorder == source_recorder;
 }
 
 void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {

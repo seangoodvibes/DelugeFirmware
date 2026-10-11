@@ -3673,3 +3673,19 @@ same-address session replacement, callback completion, finishing sessions and
 changed panel ownership. All 38 suites and RelWithDebInfo pass. Internal lifetime
 behavior within endSyncedRecording and same-UI animation replacement remain
 separate audit work.
+
+Output recording changes bypassCulling only after successful setup and before LED
+callbacks, preserving later callback changes. Its return value now reflects session
+replacement/completion during LED feedback. Five regressions cover setup failure,
+publication order/configuration, callback culling changes, completion and same-
+address session replacement. All 38 suites and RelWithDebInfo pass. Existing callers
+ignore the return value and still need their own continuation review.
+
+Recorder follow-up audit remains open: opened() retains Drum/Kit pointers across
+name allocation and publishes UI state after callbacks; RecordingTarget stores
+raw model identities plus a structural revision rather than retaining lifetime
+watches throughout recording; an ongoing recording whose UI departs lacks an
+explicit recovery policy. Audio-engine recorder construction and synced-stop
+internals also need review. The completion-time watches added above cannot detect
+an original model object that was destroyed and reconstructed at the same address
+before those watches were acquired. Independent mode remains disabled.
