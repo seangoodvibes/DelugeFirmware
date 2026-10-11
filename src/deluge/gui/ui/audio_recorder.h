@@ -58,7 +58,7 @@ public:
 
 private:
 	deluge::gui::ui_session::RecordingTarget target;
-	void finishRecording();
+	bool finishRecording();
 	bool try_assign_recorded_sample(Sample* sample);
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
 	                          bool writeLoopPoints = false, bool shouldNormalize = true);

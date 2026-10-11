@@ -295,7 +295,7 @@ void AudioRecorder::slowRoutine() {
 void AudioRecorder::process() {
 	using namespace deluge::gui::ui_session;
 	Scope owner(recording_session.owner());
-	if (!recording_session.active() || recorder == nullptr) {
+	if (!recording_session.active() || recording_session.finishing() || recorder == nullptr) {
 		return;
 	}
 	// Completion and UI state always belong to the panel that started recording.
@@ -303,25 +303,52 @@ void AudioRecorder::process() {
 		audio_recorder_for_session().process();
 		return;
 	}
+	const auto source_owner = recording_session.owner();
+	const auto source_revision = recording_session.revision();
+	auto* source_recorder = recorder;
+	auto* source_ui = getCurrentUI();
+	const auto recording_current = [&] {
+		return recording_session.active() && !recording_session.finishing() && recording_session.owner() == source_owner
+		       && recording_session.revision() == source_revision && recorder == source_recorder;
+	};
+	const auto ui_current = [&] { return current() == source_owner && getCurrentUI() == source_ui; };
 	while (true) {
+		if (!recording_current())
+			return;
 		{
 			Scope hardware(Id::Local);
 			AudioEngine::routineWithClusterLoading();
+			if (!recording_current())
+				return;
 
 			uiTimerManager.routine();
+			if (!recording_current())
+				return;
 
 			if (display->haveOLED()) {
 				oledRoutine();
+				if (!recording_current())
+					return;
 			}
 			PIC::flush();
+			if (!recording_current())
+				return;
 
 			readButtonsAndPads();
+			if (!recording_current())
+				return;
 
 			AudioEngine::slowRoutine();
+			if (!recording_current())
+				return;
 			deluge::hid::mirror::transport_routine();
+			if (!recording_current())
+				return;
 		}
 		if (recording_session.owner() == Id::Remote) {
 			uiTimerManager.routine();
+			if (!recording_current())
+				return;
 		}
 
 		// If recording has finished...
@@ -329,17 +356,19 @@ void AudioRecorder::process() {
 
 			if (recorder->status == RecorderStatus::ABORTED || recorder->hadCardError) {}
 
-			else if (target
-			         == RecordingTarget{currentSong, sound_editor_for_session().currentSound,
-			                            sound_editor_for_session().currentSource,
-			                            sound_editor_for_session().currentMultiRange,
-			                            navigation.active().structural_refresh.revision()}) {
+			else if (ui_current()
+			         && target
+			                == RecordingTarget{currentSong, sound_editor_for_session().currentSound,
+			                                   sound_editor_for_session().currentSource,
+			                                   sound_editor_for_session().currentMultiRange,
+			                                   navigation.active().structural_refresh.revision()}) {
 				// Attachment also validates the destination across voice cleanup and conversion.
 				try_assign_recorded_sample(recorder->sample);
 			}
-			finishRecording();
-
-			close();
+			if (!recording_current() || !finishRecording())
+				return;
+			if (ui_current() && !recording_session.active())
+				close();
 			return;
 		}
 
@@ -348,11 +377,12 @@ void AudioRecorder::process() {
 			if (recorder->recordingClippedRecently) {
 				recorder->recordingClippedRecently = false;
 
-				if (!display->hasPopup()) {
+				if (ui_current() && !display->hasPopup()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
-			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
+			else if (ui_current() && !updatedRecordingStatus
+			         && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
 				if (display->have7SEG()) {
 					display->setText("REC", false, 255, true);
 				}
@@ -362,18 +392,20 @@ void AudioRecorder::process() {
 					                                                                 kTextBigSizeY);
 					deluge::hid::display::OLED::sendMainImage();
 				}
+				if (!recording_current() || !ui_current())
+					return;
 				updatedRecordingStatus = true;
 			}
 		}
 	}
 }
 
-// Returns error code
-void AudioRecorder::finishRecording() {
+// Returns whether this recording completed without being superseded.
+bool AudioRecorder::finishRecording() {
 	const auto source_owner = recording_session.owner();
 	deluge::gui::ui_session::Scope owner(source_owner);
 	if (!recorder || !recording_session.begin_finish())
-		return;
+		return false;
 	const auto finishing_revision = recording_session.revision();
 	auto* source_ui = getCurrentUI();
 	auto* source_song = currentSong;
@@ -385,11 +417,13 @@ void AudioRecorder::finishRecording() {
 	finished_recorder->pointerHeldElsewhere = false;
 	AudioEngine::discardRecorder(finished_recorder);
 	if (recording_session.revision() != finishing_revision)
-		return;
+		return false;
 	if (deluge::gui::ui_session::current() == source_owner && getCurrentUI() == source_ui && currentSong == source_song)
 		display->removeLoadingAnimation();
-	if (recording_session.revision() == finishing_revision)
-		recording_session.release();
+	if (recording_session.revision() != finishing_revision)
+		return false;
+	recording_session.release();
+	return true;
 }
 
 ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {

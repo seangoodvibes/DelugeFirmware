@@ -3645,3 +3645,14 @@ reentrant destruction/display, changed UI/song, replacement sessions, allocation
 reservation and session revisions. All 38 suites and RelWithDebInfo pass. UI
 identity checks do not tokenise animation ownership; process-loop continuation
 and setup allocation publication still require their own revision checks.
+
+The recorder process loop validates session revision and recorder identity after
+each service callback, including the remote timer pass, and after sample attachment.
+Completion reports supersession so old processing cannot finish or close a newer
+recording. Eight extracted-loop regressions cover normal completion, destruction
+at all seven hardware-service boundaries, same-address session replacement,
+attachment replacement, departed UI, completion navigation/new recording and
+remote-timer destruction. Completion tests also assert its returned status. All
+38 suites and RelWithDebInfo pass. An ongoing recording whose UI departs still
+needs an explicit navigation/recovery policy; full recording-entry protection
+and same-UI animation ownership remain open.

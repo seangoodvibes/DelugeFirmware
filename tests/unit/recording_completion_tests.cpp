@@ -21,7 +21,7 @@ struct SampleRecorder {
 struct AudioRecorder {
 	static SampleRecorder* recorder;
 	static AudioInputChannel recordingSource;
-	void finishRecording();
+	bool finishRecording();
 };
 SampleRecorder* AudioRecorder::recorder = nullptr;
 AudioInputChannel AudioRecorder::recordingSource = AudioInputChannel::NONE;
@@ -67,13 +67,13 @@ TEST_GROUP(RecordingCompletion) {
 	}
 };
 TEST(RecordingCompletion, completion_detaches_recorder_and_releases_session_once) {
-	ui.finishRecording();
+	CHECK_TRUE(ui.finishRecording());
 	POINTERS_EQUAL(nullptr, AudioRecorder::recorder);
 	CHECK(AudioRecorder::recordingSource == AudioInputChannel::NONE);
 	CHECK_FALSE(recording_session.active());
 	LONGS_EQUAL(1, discards);
 	LONGS_EQUAL(1, removals);
-	ui.finishRecording();
+	CHECK_FALSE(ui.finishRecording());
 	LONGS_EQUAL(1, discards);
 	LONGS_EQUAL(1, removals);
 }
@@ -120,7 +120,7 @@ TEST(RecordingCompletion, replacement_session_is_not_released_by_old_cleanup) {
 		AudioRecorder::recorder = new SampleRecorder;
 		AudioRecorder::recordingSource = AudioInputChannel::INPUT;
 	};
-	ui.finishRecording();
+	CHECK_FALSE(ui.finishRecording());
 	CHECK_TRUE(recording_session.active());
 	CHECK(AudioRecorder::recorder != nullptr);
 	LONGS_EQUAL(0, removals);
