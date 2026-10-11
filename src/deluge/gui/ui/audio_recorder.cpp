@@ -45,6 +45,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include "util/exceptions.h"
 #include "util/finally.h"
 #include <string.h>
 
@@ -219,42 +220,62 @@ bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-bool AudioRecorder::opened() {
-	// Reject competing UI entry even while recorder allocation is yielding.
-	if (recording_session.active()) {
+bool AudioRecorder::prepare_recording_target() {
+	if (recording_session.active() || !capture_recording_target())
 		return false;
-	}
-	updatedRecordingStatus = false;
-	if (!capture_recording_target())
-		return false;
-
+	const auto source_revision = recording_session.revision();
+	auto* source_ui = getCurrentUI();
+	const auto context_valid = [&] {
+		return !recording_session.active() && recording_session.revision() == source_revision
+		       && getCurrentUI() == source_ui && recording_target_current();
+	};
 	actionLogger.deleteAllLogs();
-
-	// If we're already recording (probably the output) then no!
-	if (recordingSource > AudioInputChannel::NONE) {
+	if (!context_valid() || recordingSource > AudioInputChannel::NONE)
 		return false;
-	}
 
-	// If recording for a Drum, set the name of the Drum
 	if (getCurrentOutputType() == OutputType::KIT) {
-		Kit* kit = getCurrentKit();
-		SoundDrum* drum = (SoundDrum*)sound_editor_for_session().currentSound;
-		String newName;
-
-		Error error = newName.set("REC");
+		auto* source_kit = getCurrentKit();
+		auto* source_drum = static_cast<SoundDrum*>(sound_editor_for_session().currentSound);
+		const auto drum_valid = [&] {
+			return context_valid() && source_kit == target_output_ && source_drum->kit == source_kit
+			       && source_kit->getDrumIndex(source_drum) >= 0;
+		};
+		if (!drum_valid())
+			return false;
+		String new_name;
+		auto error = new_name.set("REC");
+		if (!drum_valid())
+			return false;
+		if (error == Error::NONE)
+			error = source_kit->makeDrumNameUnique(&new_name, 1);
+		if (!drum_valid())
+			return false;
 		if (error != Error::NONE) {
-gotError:
 			display->displayError(error);
 			return false;
 		}
-
-		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error != Error::NONE) {
-			goto gotError;
+		// Allocate the replacement away from the Drum, then publish without callbacks.
+		std::string staged_name;
+		try {
+			staged_name = new_name.get();
+		} catch (deluge::exception error) {
+			if (error != deluge::exception::BAD_ALLOC)
+				throw;
+			if (drum_valid())
+				display->displayError(Error::INSUFFICIENT_RAM);
+			return false;
 		}
-
-		drum->drumName = newName.get();
+		if (!drum_valid())
+			return false;
+		source_drum->drumName.swap(staged_name);
 	}
+	return context_valid();
+}
+
+bool AudioRecorder::opened() {
+	updatedRecordingStatus = false;
+	if (!prepare_recording_target())
+		return false;
 
 	PadLEDs::clearTickSquares(true);
 

@@ -3719,3 +3719,13 @@ cover empty-source recording, allocation failure, navigation during allocation a
 rejecting a stale selection. All 38 native suites and RelWithDebInfo pass. This
 preserves recording into oscillators without existing sample ranges; it does not
 provide transactional rollback of oscillator conversion or a newly allocated range.
+
+Recording entry now revalidates the retained target, UI and session revision after
+undo-log deletion and each Kit-name preparation callback. It checks Drum membership
+before accessing the Kit, stages the std::string replacement away from the Drum,
+and publishes with swap only after revalidation. Eight production-helper regressions
+cover cleanup retirement/navigation, transient competing sessions, occupied entry,
+normal naming, Kit retirement, removed Drums and allocation errors. All 38 native
+suites and RelWithDebInfo pass. Remaining entry work includes callbacks inside
+makeDrumNameUnique itself, PadLED/setup boundaries and post-start UI feedback and
+recovery; this does not close the whole opened() audit.

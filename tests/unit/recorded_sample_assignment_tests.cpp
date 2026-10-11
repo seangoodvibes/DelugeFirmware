@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/recording_session.h"
 #include "gui/ui/ui_session.h"
+#include "util/exceptions.h"
 #include "util/finally.h"
 #include "util/lifetime.h"
 #include <functional>
@@ -10,6 +11,7 @@
 namespace recorded_sample_assignment_test {
 namespace deluge {
 namespace lifetime = ::deluge::lifetime;
+using ::deluge::exception;
 namespace gui::ui_session {
 using ::deluge::gui::ui_session::current;
 using ::deluge::gui::ui_session::RecordingTarget;
@@ -34,9 +36,33 @@ struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
 };
+enum class Error { NONE, INSUFFICIENT_RAM };
+std::function<void()> on_logs, on_name, on_unique_name;
+Error name_error = Error::NONE;
+int log_deletions = 0, unique_names = 0, errors = 0;
+::deluge::gui::ui_session::RecordingSession recording_session;
+enum class AudioInputChannel { NONE, INPUT };
+AudioInputChannel recordingSource = AudioInputChannel::NONE;
+struct ActionLogger {
+	void deleteAllLogs() {
+		++log_deletions;
+		if (on_logs)
+			on_logs();
+	}
+} actionLogger;
+struct Display {
+	void displayError(Error) { ++errors; }
+} display_instance;
+auto* display = &display_instance;
 struct String {
 	int value = 9;
 	void set(const String* other) { value = other->value; }
+	Error set(const char*) {
+		if (on_name)
+			on_name();
+		return name_error;
+	}
+	const char* get() { return "REC1"; }
 };
 struct Sample {
 	String filePath;
@@ -101,7 +127,10 @@ struct Source : Lifetime {
 			on_type();
 	}
 };
+struct Kit;
 struct Sound : Lifetime {
+	Kit* kit = nullptr;
+	std::string drumName = "Original";
 	Source sources[kNumSources];
 	bool voices = false;
 	~Sound() { lifetime.retire(); }
@@ -113,6 +142,26 @@ struct Sound : Lifetime {
 	}
 	bool hasActiveVoices() const { return voices; }
 };
+using SoundDrum = Sound;
+struct Kit : Sound {
+	bool contains_drum = true;
+	int getDrumIndex(Sound*) { return contains_drum ? 0 : -1; }
+	Error makeDrumNameUnique(String*, int) {
+		++unique_names;
+		if (on_unique_name)
+			on_unique_name();
+		return name_error;
+	}
+};
+enum class OutputType { SYNTH, KIT };
+OutputType output_type = OutputType::SYNTH;
+Kit* active_kit = nullptr;
+OutputType getCurrentOutputType() {
+	return output_type;
+}
+Kit* getCurrentKit() {
+	return active_kit;
+}
 struct Clip : Lifetime {
 	Sound* output = nullptr;
 };
@@ -145,12 +194,15 @@ struct AudioRecorder {
 	uint32_t target_range_layout_ = 0;
 	::deluge::gui::ui_session::Id target_owner_ = ::deluge::gui::ui_session::Id::Local;
 	bool capture_recording_target();
+	bool prepare_recording_target();
 	bool recording_target_current() const;
 	bool try_assign_recorded_sample(Sample* sample);
 };
 #include "recorded_sample_assignment.inc"
 
 #include "recording_target_lifetime.inc"
+
+#include "recording_prepare.inc"
 } // namespace recorded_sample_assignment_test
 using namespace recorded_sample_assignment_test;
 TEST_GROUP(RecordedSampleAssignment) {
@@ -163,6 +215,13 @@ TEST_GROUP(RecordedSampleAssignment) {
 		on_kill = on_type = on_assignment = on_first_range = {};
 		assignments = type_changes = kills = 0;
 		cancel_assignment = fail_first_range = false;
+		on_logs = on_name = on_unique_name = {};
+		name_error = Error::NONE;
+		log_deletions = unique_names = errors = 0;
+		recording_session = {};
+		recordingSource = AudioInputChannel::NONE;
+		output_type = OutputType::SYNTH;
+		active_kit = nullptr;
 		currentSong = &song;
 		song.clip = &clip;
 		clip.output = &sound;
@@ -172,6 +231,8 @@ TEST_GROUP(RecordedSampleAssignment) {
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 	}
 	void teardown() override {
+		on_logs = on_name = on_unique_name = {};
+		recording_session.release();
 		on_kill = on_type = on_assignment = on_first_range = {};
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 	}
@@ -345,4 +406,67 @@ TEST(RecordedSampleAssignment, empty_source_with_stale_range_selection_is_reject
 	CHECK_FALSE(recorder.capture_recording_target());
 	CHECK_FALSE(recorder.try_assign_recorded_sample(&sample));
 	LONGS_EQUAL(0, type_changes);
+}
+
+TEST(RecordedSampleAssignment, preparation_stops_after_log_cleanup_retires_target) {
+	on_logs = [&] { sound.lifetime.retire(); };
+	CHECK_FALSE(recorder.prepare_recording_target());
+	LONGS_EQUAL(1, log_deletions);
+	LONGS_EQUAL(0, unique_names);
+}
+TEST(RecordedSampleAssignment, preparation_rejects_session_started_and_finished_during_log_cleanup) {
+	on_logs = [&] {
+		CHECK_TRUE(recording_session.acquire());
+		recording_session.release();
+	};
+	CHECK_FALSE(recorder.prepare_recording_target());
+}
+TEST(RecordedSampleAssignment, preparation_rejects_navigation_during_log_cleanup) {
+	int other_screen;
+	on_logs = [&] { active_ui = &other_screen; };
+	CHECK_FALSE(recorder.prepare_recording_target());
+}
+TEST(RecordedSampleAssignment, occupied_session_does_not_delete_logs) {
+	CHECK_TRUE(recording_session.acquire());
+	CHECK_FALSE(recorder.prepare_recording_target());
+	LONGS_EQUAL(0, log_deletions);
+}
+TEST(RecordedSampleAssignment, kit_preparation_publishes_name_after_validation) {
+	Kit kit;
+	active_kit = sound.kit = &kit;
+	clip.output = &kit;
+	output_type = OutputType::KIT;
+	CHECK_TRUE(recorder.prepare_recording_target());
+	STRCMP_EQUAL("REC1", sound.drumName.c_str());
+	LONGS_EQUAL(1, unique_names);
+}
+TEST(RecordedSampleAssignment, name_allocation_retirement_does_not_call_kit) {
+	Kit kit;
+	active_kit = sound.kit = &kit;
+	clip.output = &kit;
+	output_type = OutputType::KIT;
+	on_name = [&] { kit.lifetime.retire(); };
+	CHECK_FALSE(recorder.prepare_recording_target());
+	LONGS_EQUAL(0, unique_names);
+	STRCMP_EQUAL("Original", sound.drumName.c_str());
+}
+TEST(RecordedSampleAssignment, unique_name_callback_removed_drum_preserves_original_name) {
+	Kit kit;
+	active_kit = sound.kit = &kit;
+	clip.output = &kit;
+	output_type = OutputType::KIT;
+	on_unique_name = [&] { kit.contains_drum = false; };
+	CHECK_FALSE(recorder.prepare_recording_target());
+	STRCMP_EQUAL("Original", sound.drumName.c_str());
+}
+TEST(RecordedSampleAssignment, kit_name_allocation_failure_preserves_original_name) {
+	Kit kit;
+	active_kit = sound.kit = &kit;
+	clip.output = &kit;
+	output_type = OutputType::KIT;
+	name_error = Error::INSUFFICIENT_RAM;
+	CHECK_FALSE(recorder.prepare_recording_target());
+	LONGS_EQUAL(1, errors);
+	LONGS_EQUAL(0, unique_names);
+	STRCMP_EQUAL("Original", sound.drumName.c_str());
 }
