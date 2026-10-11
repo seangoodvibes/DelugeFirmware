@@ -75,7 +75,14 @@ void service() {
 }
 struct AudioRecorder {
 	bool updatedRecordingStatus = false;
+	bool target_valid = true;
 	RecordingTarget target;
+	bool recording_target_current() const {
+		return target_valid
+		       && target
+		              == RecordingTarget{currentSong, editor.currentSound, editor.currentSource,
+		                                 editor.currentMultiRange, 0};
+	}
 	bool try_assign_recorded_sample(int*) {
 		++attachments;
 		if (on_attachment)
@@ -243,4 +250,12 @@ TEST(RecordingProcess, remote_timer_completion_stops_before_recorder_access) {
 	LONGS_EQUAL(8, services);
 	LONGS_EQUAL(0, finishes);
 	CHECK(::deluge::gui::ui_session::current() == Id::Remote);
+}
+
+TEST(RecordingProcess, retired_target_with_matching_addresses_is_not_attached) {
+	ui.target_valid = false;
+	ui.process();
+	LONGS_EQUAL(0, attachments);
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(1, closes);
 }

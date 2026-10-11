@@ -68,6 +68,16 @@ public:
 		source.first_ = this;
 	}
 
+	// Attach this stable-address observer to the same live source. This does not
+	// copy or move intrusive links, and remains valid after the other watch ends.
+	void observe(const lifetime_watch& other) {
+		if (this == &other)
+			return;
+		reset();
+		if (other.source_)
+			reset(*other.source_);
+	}
+
 	lifetime_watch(const lifetime_watch&) = delete;
 	lifetime_watch& operator=(const lifetime_watch&) = delete;
 	lifetime_watch(lifetime_watch&&) = delete;

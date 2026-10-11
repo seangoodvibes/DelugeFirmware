@@ -1,15 +1,18 @@
 #include "CppUTest/TestHarness.h"
+#include "gui/ui/recording_session.h"
 #include "gui/ui/ui_session.h"
 #include "util/finally.h"
 #include "util/lifetime.h"
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace recorded_sample_assignment_test {
 namespace deluge {
 namespace lifetime = ::deluge::lifetime;
 namespace gui::ui_session {
 using ::deluge::gui::ui_session::current;
+using ::deluge::gui::ui_session::RecordingTarget;
 using ::deluge::gui::ui_session::Scope;
 struct Navigation {
 	struct State {
@@ -102,7 +105,7 @@ struct Sound : Lifetime {
 	bool hasActiveVoices() const { return voices; }
 };
 struct Clip : Lifetime {
-	void* output = nullptr;
+	Sound* output = nullptr;
 };
 struct Song : Lifetime {
 	Clip* clip = nullptr;
@@ -124,9 +127,21 @@ void* getCurrentUI() {
 	return active_ui;
 }
 struct AudioRecorder {
+	deluge::gui::ui_session::RecordingTarget target;
+	deluge::lifetime::lifetime_watch target_song_lifetime_, target_clip_lifetime_, target_output_lifetime_;
+	deluge::lifetime::lifetime_watch target_sound_lifetime_, target_source_lifetime_;
+	Clip* target_clip_ = nullptr;
+	Sound* target_output_ = nullptr;
+	int32_t target_source_index_ = -1, target_range_index_ = -1;
+	uint32_t target_range_layout_ = 0;
+	::deluge::gui::ui_session::Id target_owner_ = ::deluge::gui::ui_session::Id::Local;
+	bool capture_recording_target();
+	bool recording_target_current() const;
 	bool try_assign_recorded_sample(Sample* sample);
 };
 #include "recorded_sample_assignment.inc"
+
+#include "recording_target_lifetime.inc"
 } // namespace recorded_sample_assignment_test
 using namespace recorded_sample_assignment_test;
 TEST_GROUP(RecordedSampleAssignment) {
@@ -221,4 +236,70 @@ TEST(RecordedSampleAssignment, invalid_range_rejects_entry_without_voice_cleanup
 	CHECK_FALSE(recorder.try_assign_recorded_sample(&sample));
 	LONGS_EQUAL(0, kills);
 	LONGS_EQUAL(1, sample.reasons);
+}
+
+TEST(RecordedSampleAssignment, captured_recording_target_keeps_independent_lifetime_observers) {
+	CHECK_TRUE(recorder.capture_recording_target());
+	CHECK_TRUE(recorder.recording_target_current());
+	sound.sources[0].lifetime.retire();
+	CHECK_FALSE(recorder.recording_target_current());
+}
+TEST(RecordedSampleAssignment, reconstructed_song_at_same_address_does_not_revive_recording_target) {
+	std::optional<Song> owner(std::in_place);
+	owner->clip = &clip;
+	currentSong = &*owner;
+	CHECK_TRUE(recorder.capture_recording_target());
+	auto* original = currentSong;
+	owner.reset();
+	owner.emplace();
+	owner->clip = &clip;
+	currentSong = &*owner;
+	POINTERS_EQUAL(original, currentSong);
+	CHECK_FALSE(recorder.recording_target_current());
+}
+TEST(RecordedSampleAssignment, reconstructed_clip_at_same_address_does_not_revive_recording_target) {
+	std::optional<Clip> owner(std::in_place);
+	owner->output = &sound;
+	song.clip = &*owner;
+	CHECK_TRUE(recorder.capture_recording_target());
+	auto* original = song.clip;
+	owner.reset();
+	owner.emplace();
+	owner->output = &sound;
+	song.clip = &*owner;
+	POINTERS_EQUAL(original, song.clip);
+	CHECK_FALSE(recorder.recording_target_current());
+}
+TEST(RecordedSampleAssignment, retired_output_cancels_recording_target_even_when_sound_remains_alive) {
+	Sound output;
+	clip.output = &output;
+	CHECK_TRUE(recorder.capture_recording_target());
+	output.lifetime.retire();
+	CHECK_FALSE(recorder.recording_target_current());
+}
+TEST(RecordedSampleAssignment, changed_range_layout_cancels_long_lived_recording_target) {
+	CHECK_TRUE(recorder.capture_recording_target());
+	++sound.sources[0].ranges.revision;
+	CHECK_FALSE(recorder.recording_target_current());
+}
+TEST(RecordedSampleAssignment, changed_panel_cannot_use_another_panels_recording_target) {
+	CHECK_TRUE(recorder.capture_recording_target());
+	::deluge::gui::ui_session::Scope remote(::deluge::gui::ui_session::Id::Remote);
+	CHECK_FALSE(recorder.recording_target_current());
+}
+TEST(RecordedSampleAssignment, failed_target_capture_clears_previous_watches) {
+	CHECK_TRUE(recorder.capture_recording_target());
+	currentSong = nullptr;
+	CHECK_FALSE(recorder.capture_recording_target());
+	currentSong = &song;
+	CHECK_FALSE(recorder.recording_target_current());
+}
+TEST(RecordedSampleAssignment, capturing_new_recording_replaces_previous_target_observers) {
+	CHECK_TRUE(recorder.capture_recording_target());
+	Song replacement;
+	replacement.clip = &clip;
+	currentSong = &replacement;
+	CHECK_TRUE(recorder.capture_recording_target());
+	song.lifetime.retire();
+	CHECK_TRUE(recorder.recording_target_current());
 }

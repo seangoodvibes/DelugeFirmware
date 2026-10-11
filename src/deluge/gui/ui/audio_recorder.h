@@ -21,6 +21,7 @@
 #include "gui/ui/recording_session.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
+#include "util/lifetime.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -28,6 +29,8 @@ extern "C" {
 
 class SampleRecorder;
 class Sample;
+class Clip;
+class Output;
 
 class AudioRecorder final : public UI {
 public:
@@ -58,6 +61,15 @@ public:
 
 private:
 	deluge::gui::ui_session::RecordingTarget target;
+	deluge::lifetime::lifetime_watch target_song_lifetime_, target_clip_lifetime_, target_output_lifetime_;
+	deluge::lifetime::lifetime_watch target_sound_lifetime_, target_source_lifetime_;
+	Clip* target_clip_ = nullptr;
+	Output* target_output_ = nullptr;
+	int32_t target_source_index_ = -1, target_range_index_ = -1;
+	uint32_t target_range_layout_ = 0;
+	deluge::gui::ui_session::Id target_owner_ = deluge::gui::ui_session::Id::Local;
+	bool capture_recording_target();
+	bool recording_target_current() const;
 	bool finishRecording();
 	bool try_assign_recorded_sample(Sample* sample);
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,

@@ -68,6 +68,67 @@ extern "C" {
 void oledRoutine();
 }
 
+bool AudioRecorder::capture_recording_target() {
+	target_song_lifetime_.reset();
+	target_clip_lifetime_.reset();
+	target_output_lifetime_.reset();
+	target_sound_lifetime_.reset();
+	target_source_lifetime_.reset();
+	target = {};
+	target_clip_ = nullptr;
+	target_output_ = nullptr;
+	auto* source_song = currentSong;
+	auto* selected_sound = sound_editor_for_session().currentSound;
+	const auto source_index = sound_editor_for_session().currentSourceIndex;
+	if (!source_song || !selected_sound || source_index < 0 || source_index >= kNumSources)
+		return false;
+	target_song_lifetime_.observe(source_song->watch_lifetime());
+	target_sound_lifetime_.observe(selected_sound->watch_sound_lifetime());
+	if (!target_song_lifetime_.alive() || !target_sound_lifetime_.alive())
+		return false;
+	target_clip_ = source_song->getCurrentClip();
+	if (!target_clip_)
+		return false;
+	target_clip_lifetime_.observe(target_clip_->watch_lifetime());
+	if (!target_clip_lifetime_.alive() || !target_clip_->output)
+		return false;
+	target_output_ = target_clip_->output;
+	target_output_lifetime_.observe(target_output_->watch_lifetime());
+	auto* selected_source = &selected_sound->sources[source_index];
+	target_source_lifetime_.observe(selected_source->watch_lifetime());
+	if (!target_output_lifetime_.alive() || !target_source_lifetime_.alive()
+	    || sound_editor_for_session().currentSource != selected_source)
+		return false;
+	const auto range_index = sound_editor_for_session().currentMultiRangeIndex;
+	if (range_index < 0 || range_index >= selected_source->ranges.getNumElements())
+		return false;
+	auto* selected_range = selected_source->ranges.getElement(range_index);
+	if (sound_editor_for_session().currentMultiRange != selected_range)
+		return false;
+	target_source_index_ = source_index;
+	target_range_index_ = range_index;
+	target_range_layout_ = selected_source->ranges.layout_revision();
+	target_owner_ = deluge::gui::ui_session::current();
+	target = {source_song, selected_sound, selected_source, selected_range,
+	          deluge::gui::ui_session::navigation.active().structural_refresh.revision()};
+	return true;
+}
+
+bool AudioRecorder::recording_target_current() const {
+	if (!target_song_lifetime_.alive() || !target_clip_lifetime_.alive() || !target_output_lifetime_.alive()
+	    || !target_sound_lifetime_.alive() || !target_source_lifetime_.alive())
+		return false;
+	auto* selected_source = sound_editor_for_session().currentSource;
+	return deluge::gui::ui_session::current() == target_owner_ && currentSong == target.song
+	       && currentSong->getCurrentClip() == target_clip_ && target_clip_->output == target_output_
+	       && sound_editor_for_session().currentSound == target.sound && selected_source == target.source
+	       && sound_editor_for_session().currentMultiRange == target.range
+	       && sound_editor_for_session().currentSourceIndex == target_source_index_
+	       && sound_editor_for_session().currentMultiRangeIndex == target_range_index_
+	       && selected_source->ranges.layout_revision() == target_range_layout_
+	       && deluge::gui::ui_session::navigation.active().structural_refresh.revision() == target.revision;
+}
+
 bool AudioRecorder::try_assign_recorded_sample(Sample* sample) {
 	auto* source_song = currentSong;
 	auto* selected_sound = sound_editor_for_session().currentSound;
@@ -148,9 +209,8 @@ bool AudioRecorder::opened() {
 		return false;
 	}
 	updatedRecordingStatus = false;
-	target = {currentSong, sound_editor_for_session().currentSound, sound_editor_for_session().currentSource,
-	          sound_editor_for_session().currentMultiRange,
-	          deluge::gui::ui_session::navigation.active().structural_refresh.revision()};
+	if (!capture_recording_target())
+		return false;
 
 	actionLogger.deleteAllLogs();
 
@@ -378,12 +438,7 @@ void AudioRecorder::process() {
 
 			if (recorder->status == RecorderStatus::ABORTED || recorder->hadCardError) {}
 
-			else if (ui_current()
-			         && target
-			                == RecordingTarget{currentSong, sound_editor_for_session().currentSound,
-			                                   sound_editor_for_session().currentSource,
-			                                   sound_editor_for_session().currentMultiRange,
-			                                   navigation.active().structural_refresh.revision()}) {
+			else if (ui_current() && recording_target_current()) {
 				// Attachment also validates the destination across voice cleanup and conversion.
 				try_assign_recorded_sample(recorder->sample);
 			}

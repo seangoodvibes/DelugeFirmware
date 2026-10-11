@@ -3689,3 +3689,15 @@ explicit recovery policy. Audio-engine recorder construction and synced-stop
 internals also need review. The completion-time watches added above cannot detect
 an original model object that was destroyed and reconstructed at the same address
 before those watches were acquired. Independent mode remains disabled.
+
+Recording targets now retain independent, allocation-free lifetime watches for the
+original Song, Clip, Output, Sound and Source from entry through completion. Target
+validation also checks the original panel, Clip/output association, Source/range
+indices and range layout revision before attaching the sample. Same-address Song
+or Clip reconstruction cannot revive an expired target. Eight helper regressions,
+four intrusive-observer regressions and one process regression cover capture,
+retirement, rebinding, layout/panel changes and skipping attachment while still
+finishing the original recording. All 38 native suites and RelWithDebInfo pass.
+These watches cancel stale work; they do not retain model objects. This closes the
+long-lived raw-target subcase above, not the remaining opened(), model-membership,
+departed-UI, engine-internal or animation-ownership audits.

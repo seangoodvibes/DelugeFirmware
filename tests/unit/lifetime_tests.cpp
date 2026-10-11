@@ -102,3 +102,39 @@ TEST(LifetimeWatch, rebinding_after_destruction_rejects_retired_sources) {
 	watch.reset(*source);
 	CHECK_FALSE(watch.alive());
 }
+
+TEST(LifetimeWatch, stable_observer_survives_temporary_watch_destruction) {
+	lifetime_source source;
+	lifetime_watch retained;
+	retained.observe(lifetime_watch(source));
+	CHECK_TRUE(retained.alive());
+	source.retire();
+	CHECK_FALSE(retained.alive());
+}
+TEST(LifetimeWatch, observing_another_source_unlinks_previous_source) {
+	lifetime_source first, second;
+	lifetime_watch retained(first), other(second);
+	retained.observe(other);
+	first.retire();
+	CHECK_TRUE(retained.alive());
+	second.retire();
+	CHECK_FALSE(retained.alive());
+}
+TEST(LifetimeWatch, observing_inactive_watch_clears_old_observation) {
+	lifetime_source source;
+	lifetime_watch retained(source), inactive;
+	retained.observe(inactive);
+	CHECK_FALSE(retained.alive());
+	source.retire();
+}
+TEST(LifetimeWatch, self_observation_keeps_intrusive_links_valid) {
+	lifetime_source source;
+	lifetime_watch first(source), second(source);
+	first.observe(first);
+	CHECK_TRUE(first.alive());
+	first.observe(second);
+	second.reset();
+	CHECK_TRUE(first.alive());
+	source.retire();
+	CHECK_FALSE(first.alive());
+}
