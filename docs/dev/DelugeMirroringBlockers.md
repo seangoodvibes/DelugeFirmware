@@ -3665,3 +3665,11 @@ during allocation/cleanup, competing entry, changed panel and an existing record
 without a reservation. All 38 suites and RelWithDebInfo pass. This guards publication
 at the factory boundary; callbacks inside the recorder factory and outer opened()/
 output-recording UI publication still need their own lifetime/recovery audit.
+
+Recording stop requests now retain recorder/session identity across the loading
+animation callback and recheck capture status before calling endSyncedRecording.
+Six regressions cover latency/repeated stop, actual recorder destruction,
+same-address session replacement, callback completion, finishing sessions and
+changed panel ownership. All 38 suites and RelWithDebInfo pass. Internal lifetime
+behavior within endSyncedRecording and same-UI animation replacement remain
+separate audit work.

@@ -14,18 +14,31 @@ void* getCurrentUI() {
 }
 enum class AudioInputChannel { NONE, INPUT };
 std::function<void()> on_discard, on_display;
-int discards = 0, removals = 0;
+int discards = 0, removals = 0, stop_requests = 0, stop_latency = 0, animations = 0;
+enum class RecorderStatus { CAPTURING_DATA, COMPLETE };
 struct SampleRecorder {
 	bool pointerHeldElsewhere = true;
+	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
+	void endSyncedRecording(int latency) {
+		++stop_requests;
+		stop_latency = latency;
+		status = RecorderStatus::COMPLETE;
+	}
 };
 struct AudioRecorder {
 	static SampleRecorder* recorder;
 	static AudioInputChannel recordingSource;
 	bool finishRecording();
+	void endRecordingSoon(int32_t buttonLatency);
 };
 SampleRecorder* AudioRecorder::recorder = nullptr;
 AudioInputChannel AudioRecorder::recordingSource = AudioInputChannel::NONE;
 struct Display {
+	void displayLoadingAnimationText(const char*) {
+		++animations;
+		if (on_display)
+			on_display();
+	}
 	void removeLoadingAnimation() {
 		++removals;
 		if (on_display)
@@ -43,6 +56,8 @@ void discardRecorder(SampleRecorder* recorder) {
 }
 } // namespace AudioEngine
 #include "recording_completion.inc"
+
+#include "recording_stop.inc"
 } // namespace recording_completion_test
 using namespace recording_completion_test;
 TEST_GROUP(RecordingCompletion) {
@@ -50,7 +65,7 @@ TEST_GROUP(RecordingCompletion) {
 	void setup() override {
 		recording_session = {};
 		on_discard = on_display = {};
-		discards = removals = 0;
+		discards = removals = stop_requests = stop_latency = animations = 0;
 		currentSong = &song;
 		active_ui = &screen;
 		deluge::gui::ui_session::detail::active = Id::Local;
@@ -142,4 +157,48 @@ TEST(RecordingCompletion, session_revision_distinguishes_reused_owner_and_finish
 	CHECK_TRUE(recording_session.acquire());
 	CHECK_FALSE(recording_session.finishing());
 	CHECK(first_revision != recording_session.revision());
+}
+
+TEST(RecordingCompletion, stop_request_preserves_latency_and_ignores_repeated_stop) {
+	ui.endRecordingSoon(123);
+	LONGS_EQUAL(1, stop_requests);
+	LONGS_EQUAL(123, stop_latency);
+	ui.endRecordingSoon(456);
+	LONGS_EQUAL(1, stop_requests);
+	LONGS_EQUAL(1, animations);
+}
+TEST(RecordingCompletion, stop_display_callback_can_destroy_recorder_without_stale_access) {
+	on_display = [&] {
+		delete AudioRecorder::recorder;
+		AudioRecorder::recorder = nullptr;
+		recording_session.release();
+	};
+	ui.endRecordingSoon(123);
+	LONGS_EQUAL(0, stop_requests);
+}
+TEST(RecordingCompletion, stop_display_callback_does_not_stop_replacement_at_same_address) {
+	on_display = [&] {
+		recording_session.release();
+		CHECK_TRUE(recording_session.acquire());
+	};
+	ui.endRecordingSoon(123);
+	LONGS_EQUAL(0, stop_requests);
+	CHECK(AudioRecorder::recorder->status == RecorderStatus::CAPTURING_DATA);
+}
+TEST(RecordingCompletion, stop_display_callback_completion_is_not_stopped_again) {
+	on_display = [&] { AudioRecorder::recorder->status = RecorderStatus::COMPLETE; };
+	ui.endRecordingSoon(123);
+	LONGS_EQUAL(0, stop_requests);
+}
+TEST(RecordingCompletion, finishing_session_rejects_stop_before_display) {
+	CHECK_TRUE(recording_session.begin_finish());
+	ui.endRecordingSoon(123);
+	LONGS_EQUAL(0, animations);
+	LONGS_EQUAL(0, stop_requests);
+}
+TEST(RecordingCompletion, stop_display_changed_panel_cancels_and_restores_owner) {
+	on_display = [&] { deluge::gui::ui_session::detail::active = Id::Remote; };
+	ui.endRecordingSoon(123);
+	LONGS_EQUAL(0, stop_requests);
+	CHECK(deluge::gui::ui_session::current() == Id::Local);
 }

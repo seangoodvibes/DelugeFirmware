@@ -271,13 +271,21 @@ bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInput
 }
 
 void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
-	deluge::gui::ui_session::Scope owner(recording_session.owner());
-
-	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
-	if (recorder && recorder->status == RecorderStatus::CAPTURING_DATA) {
-		display->displayLoadingAnimationText("Working");
-		recorder->endSyncedRecording(buttonLatency);
-	}
+	const auto source_owner = recording_session.owner();
+	deluge::gui::ui_session::Scope owner(source_owner);
+	auto* source_recorder = recorder;
+	const auto source_revision = recording_session.revision();
+	const auto context_valid = [&] {
+		return recording_session.active() && !recording_session.finishing()
+		       && recording_session.revision() == source_revision && recording_session.owner() == source_owner
+		       && deluge::gui::ui_session::current() == source_owner && recorder == source_recorder;
+	};
+	if (!source_recorder || !context_valid() || source_recorder->status != RecorderStatus::CAPTURING_DATA)
+		return;
+	display->displayLoadingAnimationText("Working");
+	if (!context_valid() || source_recorder->status != RecorderStatus::CAPTURING_DATA)
+		return;
+	source_recorder->endSyncedRecording(buttonLatency);
 }
 
 void AudioRecorder::slowRoutine() {
