@@ -58,12 +58,21 @@ struct Editor {
 Editor& sound_editor_for_session() {
 	return editor;
 }
-enum class RecorderStatus { CAPTURING_DATA, COMPLETE, ABORTED };
+enum class RecorderStatus { CAPTURING_DATA, CAPTURING_DATA_WAITING_TO_STOP, COMPLETE, ABORTED };
+std::function<void()> on_stop;
+int stop_requests = 0;
 struct SampleRecorder {
 	RecorderStatus status = RecorderStatus::COMPLETE;
 	bool hadCardError = false, recordingClippedRecently = false;
 	int numSamplesCaptured = 0, minThresholdMargin = 1;
 	int* sample = &song;
+	void endSyncedRecording(int latency) {
+		LONGS_EQUAL(0, latency);
+		++stop_requests;
+		status = RecorderStatus::COMPLETE;
+		if (on_stop)
+			on_stop();
+	}
 };
 SampleRecorder* recorder = nullptr;
 std::function<void()> on_service, on_attachment, on_finish;
@@ -146,8 +155,8 @@ using namespace recording_process_test;
 TEST_GROUP(RecordingProcess) {
 	AudioRecorder ui;
 	void setup() override {
-		on_service = on_attachment = on_finish = {};
-		services = attachments = finishes = closes = animation_cleanups = 0;
+		on_service = on_attachment = on_finish = on_stop = {};
+		services = attachments = finishes = closes = animation_cleanups = stop_requests = 0;
 		recording_session = {};
 		::deluge::gui::ui_session::detail::active = Id::Local;
 		CHECK_TRUE(recording_session.acquire());
@@ -159,7 +168,7 @@ TEST_GROUP(RecordingProcess) {
 		ui.target = {currentSong, nullptr, nullptr, nullptr, 0};
 	}
 	void teardown() override {
-		on_service = on_attachment = on_finish = {};
+		on_service = on_attachment = on_finish = on_stop = {};
 		delete recorder;
 		recorder = nullptr;
 		recording_session.release();
@@ -277,4 +286,59 @@ TEST(RecordingProcess, original_ui_completion_requests_animation_cleanup) {
 	ui.process();
 	LONGS_EQUAL(1, finishes);
 	LONGS_EQUAL(1, animation_cleanups);
+}
+
+TEST(RecordingProcess, navigation_before_process_does_not_adopt_destination_ui) {
+	active_ui = &screen;
+	ui.process();
+	LONGS_EQUAL(0, attachments);
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(0, closes);
+	LONGS_EQUAL(0, animation_cleanups);
+}
+TEST(RecordingProcess, navigation_stops_capture_and_finishes_without_attaching) {
+	recorder->status = RecorderStatus::CAPTURING_DATA;
+	on_service = [&] { active_ui = &screen; };
+	ui.process();
+	LONGS_EQUAL(1, stop_requests);
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(0, attachments);
+	LONGS_EQUAL(0, closes);
+	LONGS_EQUAL(0, animation_cleanups);
+}
+TEST(RecordingProcess, lost_target_stops_capture_and_releases_recording) {
+	recorder->status = RecorderStatus::CAPTURING_DATA;
+	ui.target_valid = false;
+	ui.process();
+	LONGS_EQUAL(1, stop_requests);
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(0, attachments);
+	LONGS_EQUAL(1, closes);
+}
+TEST(RecordingProcess, stop_callback_replacement_session_is_not_finished) {
+	recorder->status = RecorderStatus::CAPTURING_DATA;
+	ui.target_valid = false;
+	on_stop = [&] {
+		recording_session.release();
+		CHECK_TRUE(recording_session.acquire());
+	};
+	ui.process();
+	LONGS_EQUAL(1, stop_requests);
+	LONGS_EQUAL(0, finishes);
+	CHECK_TRUE(recording_session.active());
+}
+
+TEST(RecordingProcess, navigation_stop_waits_for_completion_without_repeating_stop) {
+	recorder->status = RecorderStatus::CAPTURING_DATA;
+	ui.target_valid = false;
+	on_stop = [&] { recorder->status = RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP; };
+	on_service = [&] {
+		if (services == 14)
+			recorder->status = RecorderStatus::COMPLETE;
+	};
+	ui.process();
+	LONGS_EQUAL(1, stop_requests);
+	LONGS_EQUAL(14, services);
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(0, attachments);
 }

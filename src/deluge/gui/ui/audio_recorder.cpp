@@ -451,7 +451,7 @@ void AudioRecorder::process() {
 	const auto source_owner = recording_session.owner();
 	const auto source_revision = recording_session.revision();
 	auto* source_recorder = recorder;
-	auto* source_ui = getCurrentUI();
+	auto* source_ui = this;
 	const auto recording_current = [&] {
 		return recording_session.active() && !recording_session.finishing() && recording_session.owner() == source_owner
 		       && recording_session.revision() == source_revision && recorder == source_recorder;
@@ -492,6 +492,15 @@ void AudioRecorder::process() {
 		}
 		if (recording_session.owner() == Id::Remote) {
 			uiTimerManager.routine();
+			if (!recording_current())
+				return;
+		}
+
+		// Navigation or target retirement must not leave an inaccessible recording capturing forever.
+		// Stop normally so captured audio can finish writing, without showing feedback on another UI.
+		if ((!ui_current() || !recording_target_current()) && recorder->status == RecorderStatus::CAPTURING_DATA
+		    && !recorder->hadCardError) {
+			recorder->endSyncedRecording(0);
 			if (!recording_current())
 				return;
 		}

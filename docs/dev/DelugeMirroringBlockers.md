@@ -3755,3 +3755,15 @@ boundaries and normal animation cleanup. All 38 native suites and RelWithDebInfo
 pass. This protects a different UI's animation; replacement animations on the same
 UI still require explicit animation ownership, and ongoing-navigation policy remains
 open.
+
+The recording processing loop now treats the recorder UI itself as its destination,
+rather than adopting whichever screen happens to be active when process() starts.
+If that UI or the retained model target is lost during capture, it requests a
+normal stop without displaying feedback, continues servicing pending writes, and
+skips attachment while the destination is invalid. It rechecks session identity
+after the stop callback and never repeats the stop once capture is waiting to end.
+Five regressions cover pre-entry navigation, capture-time navigation, retired
+targets, replacement sessions and delayed completion. All 38 native suites and
+RelWithDebInfo pass. This defines recovery at the processing-loop boundary; engine
+stop/write internals, same-UI replacement animations, and post-start opened()
+feedback still require their own audit. Independent mode remains disabled.
