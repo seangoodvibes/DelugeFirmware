@@ -3656,3 +3656,12 @@ remote-timer destruction. Completion tests also assert its returned status. All
 38 suites and RelWithDebInfo pass. An ongoing recording whose UI departs still
 needs an explicit navigation/recovery policy; full recording-entry protection
 and same-UI animation ownership remain open.
+
+Recorder setup retains the new recorder locally across allocation, validates its
+reserved session and Song/UI/panel before publication, and discards cancelled
+results without releasing or overwriting replacement sessions. Nine regressions
+cover success, allocation failure, changed UI, actual Song destruction, replacement
+during allocation/cleanup, competing entry, changed panel and an existing recorder
+without a reservation. All 38 suites and RelWithDebInfo pass. This guards publication
+at the factory boundary; callbacks inside the recorder factory and outer opened()/
+output-recording UI publication still need their own lifetime/recovery audit.

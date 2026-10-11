@@ -217,24 +217,40 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
                                          AudioRecordingFolder folderID, bool writeLoopPoints, bool shouldNormalize) {
-
-	if (!recording_session.acquire()) {
+	if (recorder || !recording_session.acquire())
+		return false;
+	const auto source_owner = recording_session.owner();
+	deluge::gui::ui_session::Scope owner(source_owner);
+	const auto source_revision = recording_session.revision();
+	auto* source_ui = getCurrentUI();
+	auto* source_song = currentSong;
+	auto song_lifetime = source_song ? source_song->watch_lifetime() : deluge::lifetime::lifetime_watch{};
+	const auto context_valid = [&] {
+		return recording_session.active() && !recording_session.finishing()
+		       && recording_session.revision() == source_revision && recording_session.owner() == source_owner
+		       && deluge::gui::ui_session::current() == source_owner && getCurrentUI() == source_ui
+		       && currentSong == source_song && (!source_song || song_lifetime.alive()) && recorder == nullptr;
+	};
+	auto* new_recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
+	                                                 kInternalButtonPressLatency, false, nullptr, {false});
+	if (!context_valid()) {
+		if (new_recorder) {
+			new_recorder->pointerHeldElsewhere = false;
+			AudioEngine::discardRecorder(new_recorder);
+		}
+		if (recording_session.revision() == source_revision)
+			recording_session.release();
 		return false;
 	}
-
-	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
-	                                       kInternalButtonPressLatency, false, nullptr, {false});
-	if (!recorder) {
+	if (!new_recorder) {
 		recording_session.release();
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
 	}
-
-	recorder->allowFileAlterationAfter = true;
-	recorder->allowNormalization = shouldNormalize;
-
-	recordingSource = newMode; // This sets recording to begin happening even as the file is created, below
-
+	new_recorder->allowFileAlterationAfter = true;
+	new_recorder->allowNormalization = shouldNormalize;
+	recorder = new_recorder;
+	recordingSource = newMode;
 	return true;
 }
 
