@@ -67,7 +67,7 @@ struct SampleRecorder {
 };
 SampleRecorder* recorder = nullptr;
 std::function<void()> on_service, on_attachment, on_finish;
-int services = 0, attachments = 0, finishes = 0, closes = 0;
+int services = 0, attachments = 0, finishes = 0, closes = 0, animation_cleanups = 0;
 void service() {
 	++services;
 	if (on_service)
@@ -89,8 +89,9 @@ struct AudioRecorder {
 			on_attachment();
 		return true;
 	}
-	bool finishRecording() {
+	bool finishRecording(bool remove_animation = true) {
 		++finishes;
+		animation_cleanups += remove_animation;
 		delete recorder;
 		recorder = nullptr;
 		recording_session.release();
@@ -146,7 +147,7 @@ TEST_GROUP(RecordingProcess) {
 	AudioRecorder ui;
 	void setup() override {
 		on_service = on_attachment = on_finish = {};
-		services = attachments = finishes = closes = 0;
+		services = attachments = finishes = closes = animation_cleanups = 0;
 		recording_session = {};
 		::deluge::gui::ui_session::detail::active = Id::Local;
 		CHECK_TRUE(recording_session.acquire());
@@ -258,4 +259,22 @@ TEST(RecordingProcess, retired_target_with_matching_addresses_is_not_attached) {
 	LONGS_EQUAL(0, attachments);
 	LONGS_EQUAL(1, finishes);
 	LONGS_EQUAL(1, closes);
+}
+
+TEST(RecordingProcess, departed_ui_completion_preserves_unrelated_loading_animation) {
+	on_service = [&] { active_ui = &screen; };
+	ui.process();
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(0, animation_cleanups);
+}
+TEST(RecordingProcess, attachment_navigation_preserves_destination_loading_animation) {
+	on_attachment = [&] { active_ui = &screen; };
+	ui.process();
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(0, animation_cleanups);
+}
+TEST(RecordingProcess, original_ui_completion_requests_animation_cleanup) {
+	ui.process();
+	LONGS_EQUAL(1, finishes);
+	LONGS_EQUAL(1, animation_cleanups);
 }

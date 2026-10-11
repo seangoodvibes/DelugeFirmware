@@ -53,7 +53,7 @@ struct SampleRecorder {
 struct AudioRecorder {
 	static SampleRecorder* recorder;
 	static AudioInputChannel recordingSource;
-	bool finishRecording();
+	bool finishRecording(bool remove_animation = true);
 	void endRecordingSoon(int32_t buttonLatency);
 	void slowRoutine();
 };
@@ -275,4 +275,12 @@ TEST(RecordingCompletion, slow_routine_defers_cleanup_under_storage_locks_or_mir
 	ui.slowRoutine();
 	LONGS_EQUAL(0, led_updates);
 	LONGS_EQUAL(0, discards);
+}
+
+TEST(RecordingCompletion, silent_completion_releases_recorder_without_touching_animation) {
+	CHECK_TRUE(ui.finishRecording(false));
+	LONGS_EQUAL(1, discards);
+	LONGS_EQUAL(0, removals);
+	CHECK_FALSE(recording_session.active());
+	POINTERS_EQUAL(nullptr, AudioRecorder::recorder);
 }

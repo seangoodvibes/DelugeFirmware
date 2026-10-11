@@ -72,7 +72,7 @@ private:
 	bool prepare_recording_target();
 	bool start_prepared_recording();
 	bool recording_target_current() const;
-	bool finishRecording();
+	bool finishRecording(bool remove_animation = true);
 	bool try_assign_recorded_sample(Sample* sample);
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
 	                          bool writeLoopPoints = false, bool shouldNormalize = true);

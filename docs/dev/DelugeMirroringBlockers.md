@@ -3746,3 +3746,12 @@ UI. Five production-helper tests cover ordinary start, target/UI changes, a tran
 competing session and allocation-time target replacement. All 38 native suites and
 RelWithDebInfo pass. Post-start feedback, animation ownership and ongoing-recording
 navigation recovery remain separate work.
+
+Recorder completion can now release its session without removing a loading
+animation. The processing loop suppresses animation cleanup after navigation,
+including navigation during sample attachment; cancelled pre-feedback setup also
+uses silent completion. Four regressions cover silent cleanup, both departure
+boundaries and normal animation cleanup. All 38 native suites and RelWithDebInfo
+pass. This protects a different UI's animation; replacement animations on the same
+UI still require explicit animation ownership, and ongoing-navigation policy remains
+open.

@@ -70,7 +70,7 @@ struct AudioRecorder {
 	bool target_valid = true;
 	bool recording_target_current() const { return target_valid; }
 	bool start_prepared_recording();
-	bool finishRecording() {
+	bool finishRecording(bool = true) {
 		recorder->pointerHeldElsewhere = false;
 		AudioEngine::discardRecorder(recorder);
 		recorder = nullptr;

@@ -290,7 +290,7 @@ bool AudioRecorder::start_prepared_recording() {
 		return false;
 	// Setup guards the session, Song and UI; also retain the original selected model.
 	if (!recording_target_current()) {
-		finishRecording();
+		finishRecording(false);
 		return false;
 	}
 	return true;
@@ -505,7 +505,7 @@ void AudioRecorder::process() {
 				// Attachment also validates the destination across voice cleanup and conversion.
 				try_assign_recorded_sample(recorder->sample);
 			}
-			if (!recording_current() || !finishRecording())
+			if (!recording_current() || !finishRecording(ui_current()))
 				return;
 			if (ui_current() && !recording_session.active())
 				close();
@@ -541,7 +541,7 @@ void AudioRecorder::process() {
 }
 
 // Returns whether this recording completed without being superseded.
-bool AudioRecorder::finishRecording() {
+bool AudioRecorder::finishRecording(bool remove_animation) {
 	const auto source_owner = recording_session.owner();
 	deluge::gui::ui_session::Scope owner(source_owner);
 	if (!recorder || !recording_session.begin_finish())
@@ -558,7 +558,8 @@ bool AudioRecorder::finishRecording() {
 	AudioEngine::discardRecorder(finished_recorder);
 	if (recording_session.revision() != finishing_revision)
 		return false;
-	if (deluge::gui::ui_session::current() == source_owner && getCurrentUI() == source_ui && currentSong == source_song)
+	if (remove_animation && deluge::gui::ui_session::current() == source_owner && getCurrentUI() == source_ui
+	    && currentSong == source_song)
 		display->removeLoadingAnimation();
 	if (recording_session.revision() != finishing_revision)
 		return false;
