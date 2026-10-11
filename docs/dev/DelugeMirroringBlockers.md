@@ -3701,3 +3701,12 @@ finishing the original recording. All 38 native suites and RelWithDebInfo pass.
 These watches cancel stale work; they do not retain model objects. This closes the
 long-lived raw-target subcase above, not the remaining opened(), model-membership,
 departed-UI, engine-internal or animation-ownership audits.
+
+The internal-recording slow routine now saves recorder/session identity before LED
+feedback and rechecks it before finishing. An LED callback that finishes the old
+recording or starts a new session (even at the same recorder address) cannot cause
+the old continuation to discard the replacement. Four extracted-production
+regressions cover normal completion, session replacement, actual destruction and
+storage-lock/mirror-client deferral. All 38 native suites and RelWithDebInfo pass.
+This closes the slow-routine continuation subcase; it does not change recorder
+factory internals or the outstanding recording-entry and UI recovery policies.

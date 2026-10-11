@@ -2,6 +2,14 @@
 #include "gui/ui/recording_session.h"
 #include <functional>
 namespace recording_completion_test {
+extern bool mirror_client;
+}
+namespace deluge::hid::mirror {
+bool is_client() {
+	return recording_completion_test::mirror_client;
+}
+} // namespace deluge::hid::mirror
+namespace recording_completion_test {
 using deluge::gui::ui_session::Id;
 using deluge::gui::ui_session::RecordingSession;
 RecordingSession recording_session;
@@ -12,7 +20,24 @@ void* active_ui = &screen;
 void* getCurrentUI() {
 	return active_ui;
 }
-enum class AudioInputChannel { NONE, INPUT };
+enum class AudioInputChannel { NONE, INPUT, INTERNAL };
+constexpr auto AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInputChannel::INTERNAL;
+bool sdRoutineLock = false, currentlyAccessingCard = false, mirror_client = false;
+int freezes = 0, led_updates = 0;
+#define FREEZE_WITH_ERROR(code) (++freezes)
+enum class IndicatorLED { RECORD };
+enum class RecordingMode { OFF, NORMAL };
+struct PlaybackHandler {
+	RecordingMode recording = RecordingMode::OFF;
+} playbackHandler;
+std::function<void()> on_led;
+namespace indicator_leds {
+void setLedState(IndicatorLED, bool) {
+	++led_updates;
+	if (on_led)
+		on_led();
+}
+} // namespace indicator_leds
 std::function<void()> on_discard, on_display;
 int discards = 0, removals = 0, stop_requests = 0, stop_latency = 0, animations = 0;
 enum class RecorderStatus { CAPTURING_DATA, COMPLETE };
@@ -30,6 +55,7 @@ struct AudioRecorder {
 	static AudioInputChannel recordingSource;
 	bool finishRecording();
 	void endRecordingSoon(int32_t buttonLatency);
+	void slowRoutine();
 };
 SampleRecorder* AudioRecorder::recorder = nullptr;
 AudioInputChannel AudioRecorder::recordingSource = AudioInputChannel::NONE;
@@ -58,13 +84,18 @@ void discardRecorder(SampleRecorder* recorder) {
 #include "recording_completion.inc"
 
 #include "recording_stop.inc"
+
+#include "recording_slow.inc"
+#undef FREEZE_WITH_ERROR
 } // namespace recording_completion_test
 using namespace recording_completion_test;
 TEST_GROUP(RecordingCompletion) {
 	AudioRecorder ui;
 	void setup() override {
 		recording_session = {};
-		on_discard = on_display = {};
+		sdRoutineLock = currentlyAccessingCard = mirror_client = false;
+		freezes = led_updates = 0;
+		on_discard = on_display = on_led = {};
 		discards = removals = stop_requests = stop_latency = animations = 0;
 		currentSong = &song;
 		active_ui = &screen;
@@ -74,7 +105,7 @@ TEST_GROUP(RecordingCompletion) {
 		AudioRecorder::recordingSource = AudioInputChannel::INPUT;
 	}
 	void teardown() override {
-		on_discard = on_display = {};
+		on_discard = on_display = on_led = {};
 		delete AudioRecorder::recorder;
 		AudioRecorder::recorder = nullptr;
 		recording_session.release();
@@ -201,4 +232,47 @@ TEST(RecordingCompletion, stop_display_changed_panel_cancels_and_restores_owner)
 	ui.endRecordingSoon(123);
 	LONGS_EQUAL(0, stop_requests);
 	CHECK(deluge::gui::ui_session::current() == Id::Local);
+}
+
+TEST(RecordingCompletion, slow_routine_finishes_completed_internal_recording) {
+	AudioRecorder::recordingSource = AudioInputChannel::INTERNAL;
+	AudioRecorder::recorder->status = RecorderStatus::COMPLETE;
+	ui.slowRoutine();
+	LONGS_EQUAL(1, led_updates);
+	LONGS_EQUAL(1, discards);
+	CHECK_FALSE(recording_session.active());
+}
+TEST(RecordingCompletion, slow_routine_preserves_replacement_started_by_led_callback) {
+	AudioRecorder::recordingSource = AudioInputChannel::INTERNAL;
+	AudioRecorder::recorder->status = RecorderStatus::COMPLETE;
+	on_led = [&] {
+		recording_session.release();
+		CHECK_TRUE(recording_session.acquire());
+	};
+	ui.slowRoutine();
+	LONGS_EQUAL(0, discards);
+	CHECK_TRUE(recording_session.active());
+	CHECK(AudioRecorder::recorder != nullptr);
+}
+TEST(RecordingCompletion, slow_routine_stops_after_led_callback_destroys_recorder) {
+	AudioRecorder::recordingSource = AudioInputChannel::INTERNAL;
+	AudioRecorder::recorder->status = RecorderStatus::COMPLETE;
+	on_led = [&] { ui.finishRecording(); };
+	ui.slowRoutine();
+	LONGS_EQUAL(1, discards);
+	LONGS_EQUAL(1, removals);
+}
+TEST(RecordingCompletion, slow_routine_defers_cleanup_under_storage_locks_or_mirror_client) {
+	AudioRecorder::recordingSource = AudioInputChannel::INTERNAL;
+	AudioRecorder::recorder->status = RecorderStatus::COMPLETE;
+	sdRoutineLock = true;
+	ui.slowRoutine();
+	sdRoutineLock = false;
+	currentlyAccessingCard = true;
+	ui.slowRoutine();
+	currentlyAccessingCard = false;
+	mirror_client = true;
+	ui.slowRoutine();
+	LONGS_EQUAL(0, led_updates);
+	LONGS_EQUAL(0, discards);
 }

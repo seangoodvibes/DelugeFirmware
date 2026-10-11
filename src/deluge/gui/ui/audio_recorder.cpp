@@ -368,7 +368,12 @@ void AudioRecorder::slowRoutine() {
 			return;
 		}
 		if (recorder->status >= RecorderStatus::COMPLETE) {
+			auto* source_recorder = recorder;
+			const auto session_revision = recording_session.revision();
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
+			if (!recording_session.active() || recording_session.finishing()
+			    || recording_session.revision() != session_revision || recorder != source_recorder)
+				return;
 			finishRecording();
 		}
 	}

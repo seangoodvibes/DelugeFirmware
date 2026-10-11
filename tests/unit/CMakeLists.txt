@@ -1373,3 +1373,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recording_target_lifetime.
         AudioRecorder::capture_recording_target AudioRecorder::recording_target_current
     DEPENDS ${recorded_sample_assignment_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/recording_target_lifetime.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recording_slow.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${recorded_sample_assignment_source} ${CMAKE_CURRENT_BINARY_DIR}/recording_slow.inc AudioRecorder::slowRoutine
+    DEPENDS ${recorded_sample_assignment_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/recording_slow.inc)
