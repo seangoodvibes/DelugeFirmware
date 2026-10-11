@@ -45,6 +45,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include "util/finally.h"
 #include <string.h>
 
 namespace {
@@ -65,6 +66,75 @@ extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
 
 void oledRoutine();
+}
+
+bool AudioRecorder::try_assign_recorded_sample(Sample* sample) {
+	auto* source_song = currentSong;
+	auto* selected_sound = sound_editor_for_session().currentSound;
+	const auto source_index = sound_editor_for_session().currentSourceIndex;
+	if (!sample || !source_song || !selected_sound || source_index < 0 || source_index >= kNumSources)
+		return false;
+	auto song_lifetime = source_song->watch_lifetime();
+	auto sound_lifetime = selected_sound->watch_sound_lifetime();
+	if (!song_lifetime.alive() || !sound_lifetime.alive())
+		return false;
+	auto* source_clip = source_song->getCurrentClip();
+	if (!source_clip)
+		return false;
+	auto clip_lifetime = source_clip->watch_lifetime();
+	if (!clip_lifetime.alive())
+		return false;
+	auto* source_output = source_clip->output;
+	auto* selected_source = &selected_sound->sources[source_index];
+	auto source_lifetime = selected_source->watch_lifetime();
+	const auto source_owner = deluge::gui::ui_session::current();
+	deluge::gui::ui_session::Scope owner_scope(source_owner);
+	auto* source_ui = getCurrentUI();
+	const auto structure_revision = deluge::gui::ui_session::navigation.active().structural_refresh.revision();
+	const auto range_index = sound_editor_for_session().currentMultiRangeIndex;
+	const auto context_valid = [&] {
+		return song_lifetime.alive() && sound_lifetime.alive() && clip_lifetime.alive() && source_lifetime.alive()
+		       && currentSong == source_song && source_song->getCurrentClip() == source_clip
+		       && source_clip->output == source_output && deluge::gui::ui_session::current() == source_owner
+		       && getCurrentUI() == source_ui
+		       && deluge::gui::ui_session::navigation.active().structural_refresh.revision() == structure_revision
+		       && sound_editor_for_session().currentSound == selected_sound
+		       && sound_editor_for_session().currentSource == selected_source
+		       && sound_editor_for_session().currentSourceIndex == source_index
+		       && sound_editor_for_session().currentMultiRangeIndex == range_index;
+	};
+	if (!context_valid() || range_index < 0 || range_index >= selected_source->ranges.getNumElements()
+	    || sound_editor_for_session().currentMultiRange != selected_source->ranges.getElement(range_index))
+		return false;
+	sample->addReason();
+	auto sample_cleanup = util::finally([sample] { sample->removeReason("recorded sample attachment"); });
+	const auto initial_layout = selected_source->ranges.layout_revision();
+	const auto initial_type = selected_source->oscType;
+	selected_sound->killAllVoices();
+	if (!context_valid() || selected_sound->hasActiveVoices()
+	    || selected_source->ranges.layout_revision() != initial_layout || selected_source->oscType != initial_type)
+		return false;
+	selected_source->setOscType(OscType::SAMPLE);
+	if (!context_valid() || selected_source->oscType != OscType::SAMPLE || selected_sound->hasActiveVoices()
+	    || range_index >= selected_source->ranges.getNumElements())
+		return false;
+	auto* selected_range = selected_source->ranges.getElement(range_index);
+	const auto assigned_layout = selected_source->ranges.layout_revision();
+	const auto reversed = selected_source->sampleControls.isCurrentlyReversed();
+	const auto assignment_valid = [&] {
+		return context_valid() && selected_source->ranges.layout_revision() == assigned_layout
+		       && selected_source->oscType == OscType::SAMPLE && !selected_sound->hasActiveVoices()
+		       && selected_source->sampleControls.isCurrentlyReversed() == reversed
+		       && sound_editor_for_session().currentMultiRange == selected_range;
+	};
+	if (!assignment_valid())
+		return false;
+	auto* holder = selected_range->getAudioFileHolder();
+	holder->filePath.set(&sample->filePath);
+	if (!assignment_valid())
+		return false;
+	deluge::lifetime::callback_validation validation(assignment_valid);
+	return holder->setAudioFile(sample, reversed, true, CLUSTER_ENQUEUE, &validation) && assignment_valid();
 }
 
 bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -264,14 +334,8 @@ void AudioRecorder::process() {
 			                            sound_editor_for_session().currentSource,
 			                            sound_editor_for_session().currentMultiRange,
 			                            navigation.active().structural_refresh.revision()}) {
-				// Attach only if the original destination is still selected and uninvalidated.
-				sound_editor_for_session().currentSound->killAllVoices();
-				sound_editor_for_session().currentSource->setOscType(OscType::SAMPLE);
-				sound_editor_for_session().currentMultiRange->getAudioFileHolder()->filePath.set(
-				    &recorder->sample->filePath);
-				sound_editor_for_session().currentMultiRange->getAudioFileHolder()->setAudioFile(
-				    recorder->sample, sound_editor_for_session().currentSource->sampleControls.isCurrentlyReversed(),
-				    true);
+				// Attachment also validates the destination across voice cleanup and conversion.
+				try_assign_recorded_sample(recorder->sample);
 			}
 			finishRecording();
 

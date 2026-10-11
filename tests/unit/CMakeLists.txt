@@ -1329,3 +1329,10 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/osc_type_menu_write.inc
         ${osc_type_menu_source} ${CMAKE_CURRENT_BINARY_DIR}/osc_type_menu_write.inc Type::writeCurrentValue
     DEPENDS ${osc_type_menu_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE osc_type_menu_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/osc_type_menu_write.inc)
+
+set(recorded_sample_assignment_source ${CMAKE_CURRENT_SOURCE_DIR}/../../src/deluge/gui/ui/audio_recorder.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recorded_sample_assignment.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${recorded_sample_assignment_source} ${CMAKE_CURRENT_BINARY_DIR}/recorded_sample_assignment.inc AudioRecorder::try_assign_recorded_sample
+    DEPENDS ${recorded_sample_assignment_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE recorded_sample_assignment_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/recorded_sample_assignment.inc)

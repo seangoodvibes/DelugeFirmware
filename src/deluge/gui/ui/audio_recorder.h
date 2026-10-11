@@ -27,6 +27,7 @@ extern "C" {
 }
 
 class SampleRecorder;
+class Sample;
 
 class AudioRecorder final : public UI {
 public:
@@ -58,6 +59,7 @@ public:
 private:
 	deluge::gui::ui_session::RecordingTarget target;
 	void finishRecording();
+	bool try_assign_recorded_sample(Sample* sample);
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
 	                          bool writeLoopPoints = false, bool shouldNormalize = true);
 };

@@ -3626,3 +3626,13 @@ actual Sound destruction, voices, layout changes, cancelled conversion, Song
 retirement, panel changes and invalid source indices. All 38 suites and
 RelWithDebInfo pass. Audio-recorder, slicer and direct browser type-change callers
 still require equivalent continuation checks; independent mode remains disabled.
+
+Recorded-sample attachment now validates the initiating Song, Clip, Sound, Source,
+panel, structural revision and selected range across voice cleanup and oscillator
+conversion. It pins the Sample during callbacks and forwards validation into holder
+assignment. Eleven regressions cover successful ownership transfer, selection
+changes, actual Sound destruction, actual range replacement, stale selection,
+Song retirement, structural invalidation, active voices, rejected assignment and
+invalid range entry. All 38 suites and RelWithDebInfo pass. Recorder shutdown,
+process-loop continuation, allocation entry and UI-close recovery remain separate
+work; this does not roll back a converted oscillator or a changed holder path.
