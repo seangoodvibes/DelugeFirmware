@@ -1392,3 +1392,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kit_unique_name.inc
         ${CMAKE_CURRENT_BINARY_DIR}/kit_unique_name.inc Kit::makeDrumNameUnique
     DEPENDS ../../src/deluge/model/instrument/kit.cpp ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE kit_unique_name_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/kit_unique_name.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recording_prepared_start.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${recorded_sample_assignment_source} ${CMAKE_CURRENT_BINARY_DIR}/recording_prepared_start.inc AudioRecorder::start_prepared_recording
+    DEPENDS ${recorded_sample_assignment_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/recording_prepared_start.inc)

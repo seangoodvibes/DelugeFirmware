@@ -3737,3 +3737,12 @@ extracted-production tests cover collisions, append failure, actual destruction,
 address reuse, changed panel and already-retired entry. All 38 native suites and
 RelWithDebInfo pass. This closes the internal Kit naming-loop subcase noted above;
 callers still own cancellation recovery and the lifetime of their supplied String.
+
+Recorder entry now validates its original target, UI and session revision before
+and after clearing tick squares. It also rechecks the selected model after recorder
+allocation and finishes the new recorder if that target changed, before showing
+recording feedback. Failed starts return without cancelling auditioning on a later
+UI. Five production-helper tests cover ordinary start, target/UI changes, a transient
+competing session and allocation-time target replacement. All 38 native suites and
+RelWithDebInfo pass. Post-start feedback, animation ownership and ongoing-recording
+navigation recovery remain separate work.

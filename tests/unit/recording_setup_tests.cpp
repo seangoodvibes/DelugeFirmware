@@ -16,7 +16,7 @@ void* active_ui = &screen;
 void* getCurrentUI() {
 	return active_ui;
 }
-enum class AudioInputChannel { NONE, INPUT, OUTPUT };
+enum class AudioInputChannel { NONE, INPUT, OUTPUT, STEREO, LEFT };
 enum class AudioRecordingFolder { RECORD };
 enum class Error { INSUFFICIENT_RAM };
 constexpr int kInternalButtonPressLatency = 1;
@@ -26,7 +26,7 @@ struct SampleRecorder {
 struct RecorderConfig {
 	bool value;
 };
-std::function<void()> on_allocate, on_discard, on_blink;
+std::function<void()> on_allocate, on_discard, on_blink, on_clear;
 enum class IndicatorLED { RECORD };
 namespace indicator_leds {
 void blinkLed(IndicatorLED, int, int) {
@@ -36,7 +36,14 @@ void blinkLed(IndicatorLED, int, int) {
 } // namespace indicator_leds
 int allocations = 0, discards = 0, errors = 0;
 bool fail_allocation = false;
+namespace PadLEDs {
+void clearTickSquares(bool) {
+	if (on_clear)
+		on_clear();
+}
+} // namespace PadLEDs
 namespace AudioEngine {
+bool micPluggedIn = false, lineInPluggedIn = false;
 bool bypassCulling = false;
 SampleRecorder* getNewRecorder(int, AudioRecordingFolder, AudioInputChannel, bool, bool, int, bool, void*,
                                RecorderConfig) {
@@ -60,7 +67,18 @@ auto* display = &display_instance;
 struct AudioRecorder {
 	static SampleRecorder* recorder;
 	static AudioInputChannel recordingSource;
-	bool setupRecordingToFile(AudioInputChannel, int32_t, AudioRecordingFolder, bool, bool);
+	bool target_valid = true;
+	bool recording_target_current() const { return target_valid; }
+	bool start_prepared_recording();
+	bool finishRecording() {
+		recorder->pointerHeldElsewhere = false;
+		AudioEngine::discardRecorder(recorder);
+		recorder = nullptr;
+		recordingSource = AudioInputChannel::NONE;
+		recording_session.release();
+		return true;
+	}
+	bool setupRecordingToFile(AudioInputChannel, int32_t, AudioRecordingFolder, bool = false, bool = false);
 	bool beginOutputRecording(AudioRecordingFolder, AudioInputChannel, bool, bool);
 };
 SampleRecorder* AudioRecorder::recorder = nullptr;
@@ -68,6 +86,8 @@ AudioInputChannel AudioRecorder::recordingSource = AudioInputChannel::NONE;
 #include "recording_setup.inc"
 
 #include "output_recording_start.inc"
+
+#include "recording_prepared_start.inc"
 } // namespace recording_setup_test
 using namespace recording_setup_test;
 TEST_GROUP(RecordingSetup) {
@@ -78,7 +98,7 @@ TEST_GROUP(RecordingSetup) {
 	}
 	void setup() override {
 		recording_session = {};
-		on_allocate = on_discard = on_blink = {};
+		on_allocate = on_discard = on_blink = on_clear = {};
 		allocations = discards = errors = 0;
 		fail_allocation = false;
 		AudioEngine::bypassCulling = false;
@@ -89,7 +109,7 @@ TEST_GROUP(RecordingSetup) {
 		deluge::gui::ui_session::detail::active = Id::Local;
 	}
 	void teardown() override {
-		on_allocate = on_discard = on_blink = {};
+		on_allocate = on_discard = on_blink = on_clear = {};
 		delete AudioRecorder::recorder;
 		AudioRecorder::recorder = nullptr;
 		recording_session.release();
@@ -204,4 +224,39 @@ TEST(RecordingSetup, output_start_reports_replacement_even_when_recorder_address
 	};
 	CHECK_FALSE(ui.beginOutputRecording(AudioRecordingFolder::RECORD, AudioInputChannel::OUTPUT, false, true));
 	CHECK_TRUE(recording_session.active());
+}
+
+TEST(RecordingSetup, prepared_recording_starts_for_original_target) {
+	CHECK_TRUE(ui.start_prepared_recording());
+	LONGS_EQUAL(1, allocations);
+	CHECK(AudioRecorder::recordingSource == AudioInputChannel::LEFT);
+}
+TEST(RecordingSetup, pad_callback_target_change_prevents_allocation) {
+	on_clear = [&] { ui.target_valid = false; };
+	CHECK_FALSE(ui.start_prepared_recording());
+	LONGS_EQUAL(0, allocations);
+	CHECK_FALSE(recording_session.active());
+}
+TEST(RecordingSetup, pad_callback_navigation_prevents_allocation) {
+	int replacement;
+	on_clear = [&] { active_ui = &replacement; };
+	CHECK_FALSE(ui.start_prepared_recording());
+	LONGS_EQUAL(0, allocations);
+}
+TEST(RecordingSetup, pad_callback_transient_session_prevents_allocation) {
+	on_clear = [&] {
+		CHECK_TRUE(recording_session.acquire());
+		recording_session.release();
+	};
+	CHECK_FALSE(ui.start_prepared_recording());
+	LONGS_EQUAL(0, allocations);
+}
+TEST(RecordingSetup, target_change_during_allocation_discards_new_recorder) {
+	on_allocate = [&] { ui.target_valid = false; };
+	CHECK_FALSE(ui.start_prepared_recording());
+	LONGS_EQUAL(1, allocations);
+	LONGS_EQUAL(1, discards);
+	POINTERS_EQUAL(nullptr, AudioRecorder::recorder);
+	CHECK_FALSE(recording_session.active());
+	CHECK(AudioRecorder::recordingSource == AudioInputChannel::NONE);
 }

@@ -272,17 +272,38 @@ bool AudioRecorder::prepare_recording_target() {
 	return context_valid();
 }
 
+bool AudioRecorder::start_prepared_recording() {
+	const auto source_revision = recording_session.revision();
+	auto* source_ui = getCurrentUI();
+	const auto context_valid = [&] {
+		return !recording_session.active() && recording_session.revision() == source_revision
+		       && getCurrentUI() == source_ui && recording_target_current();
+	};
+	if (!context_valid())
+		return false;
+	PadLEDs::clearTickSquares(true);
+	if (!context_valid())
+		return false;
+	const bool in_stereo = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
+	if (!setupRecordingToFile(in_stereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, in_stereo ? 2 : 1,
+	                          AudioRecordingFolder::RECORD))
+		return false;
+	// Setup guards the session, Song and UI; also retain the original selected model.
+	if (!recording_target_current()) {
+		finishRecording();
+		return false;
+	}
+	return true;
+}
+
 bool AudioRecorder::opened() {
 	updatedRecordingStatus = false;
 	if (!prepare_recording_target())
 		return false;
 
-	PadLEDs::clearTickSquares(true);
-
-	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
-	int32_t newNumChannels = inStereo ? 2 : 1;
-	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
-	                                    AudioRecordingFolder::RECORD);
+	bool success = start_prepared_recording();
+	if (!success)
+		return false;
 	if (success) {
 		sound_editor_for_session().setupShortcutBlink(sound_editor_for_session().currentSourceIndex, 4, 0);
 		sound_editor_for_session().blinkShortcut();

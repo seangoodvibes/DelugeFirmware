@@ -70,6 +70,7 @@ private:
 	deluge::gui::ui_session::Id target_owner_ = deluge::gui::ui_session::Id::Local;
 	bool capture_recording_target();
 	bool prepare_recording_target();
+	bool start_prepared_recording();
 	bool recording_target_current() const;
 	bool finishRecording();
 	bool try_assign_recorded_sample(Sample* sample);
