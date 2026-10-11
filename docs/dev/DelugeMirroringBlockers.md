@@ -3710,3 +3710,12 @@ regressions cover normal completion, session replacement, actual destruction and
 storage-lock/mirror-client deferral. All 38 native suites and RelWithDebInfo pass.
 This closes the slow-routine continuation subcase; it does not change recorder
 factory internals or the outstanding recording-entry and UI recovery policies.
+
+Recording target validation now accepts a genuinely empty oscillator range table
+with index zero and no selected range. Sample attachment creates the first range
+when conversion did not create one, then revalidates the model/UI, oscillator type,
+voices and range identity before publishing the editor selection. Four regressions
+cover empty-source recording, allocation failure, navigation during allocation and
+rejecting a stale selection. All 38 native suites and RelWithDebInfo pass. This
+preserves recording into oscillators without existing sample ranges; it does not
+provide transactional rollback of oscillator conversion or a newly allocated range.

@@ -27,9 +27,9 @@ struct Navigation {
 } // namespace deluge
 constexpr int kNumSources = 2, CLUSTER_ENQUEUE = 1;
 enum class OscType { SAMPLE, WAVETABLE };
-std::function<void()> on_kill, on_type, on_assignment;
+std::function<void()> on_kill, on_type, on_assignment, on_first_range;
 int assignments = 0, type_changes = 0, kills = 0;
-bool cancel_assignment = false;
+bool cancel_assignment = false, fail_first_range = false;
 struct Lifetime {
 	deluge::lifetime::lifetime_source lifetime;
 	auto watch_lifetime() { return deluge::lifetime::lifetime_watch(lifetime); }
@@ -68,6 +68,7 @@ struct MultiRange {
 	Holder holder;
 	Holder* getAudioFileHolder() { return &holder; }
 };
+using MultisampleRange = MultiRange;
 struct Source : Lifetime {
 	OscType oscType = OscType::SAMPLE;
 	struct Ranges {
@@ -85,6 +86,14 @@ struct Source : Lifetime {
 		bool reversed = false;
 		bool isCurrentlyReversed() const { return reversed; }
 	} sampleControls;
+	MultiRange* getOrCreateFirstRange() {
+		if (on_first_range)
+			on_first_range();
+		if (fail_first_range)
+			return nullptr;
+		ranges.replace();
+		return ranges.getElement(0);
+	}
 	void setOscType(OscType value) {
 		++type_changes;
 		oscType = value;
@@ -151,9 +160,9 @@ TEST_GROUP(RecordedSampleAssignment) {
 	Song song;
 	AudioRecorder recorder;
 	void setup() override {
-		on_kill = on_type = on_assignment = {};
+		on_kill = on_type = on_assignment = on_first_range = {};
 		assignments = type_changes = kills = 0;
-		cancel_assignment = false;
+		cancel_assignment = fail_first_range = false;
 		currentSong = &song;
 		song.clip = &clip;
 		clip.output = &sound;
@@ -163,7 +172,7 @@ TEST_GROUP(RecordedSampleAssignment) {
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 	}
 	void teardown() override {
-		on_kill = on_type = on_assignment = {};
+		on_kill = on_type = on_assignment = on_first_range = {};
 		::deluge::gui::ui_session::detail::active = ::deluge::gui::ui_session::Id::Local;
 	}
 };
@@ -302,4 +311,38 @@ TEST(RecordedSampleAssignment, capturing_new_recording_replaces_previous_target_
 	CHECK_TRUE(recorder.capture_recording_target());
 	song.lifetime.retire();
 	CHECK_TRUE(recorder.recording_target_current());
+}
+
+TEST(RecordedSampleAssignment, empty_source_is_a_valid_recording_target) {
+	sound.sources[0].ranges.range.reset();
+	editor.currentMultiRange = nullptr;
+	CHECK_TRUE(recorder.capture_recording_target());
+	CHECK_TRUE(recorder.recording_target_current());
+	CHECK_TRUE(recorder.try_assign_recorded_sample(&sample));
+	LONGS_EQUAL(1, assignments);
+	POINTERS_EQUAL(sound.sources[0].ranges.getElement(0), editor.currentMultiRange);
+}
+TEST(RecordedSampleAssignment, empty_source_allocation_failure_does_not_attach_sample) {
+	sound.sources[0].ranges.range.reset();
+	editor.currentMultiRange = nullptr;
+	fail_first_range = true;
+	CHECK_FALSE(recorder.try_assign_recorded_sample(&sample));
+	LONGS_EQUAL(0, assignments);
+	LONGS_EQUAL(1, sample.reasons);
+	POINTERS_EQUAL(nullptr, editor.currentMultiRange);
+}
+TEST(RecordedSampleAssignment, first_range_allocation_navigation_cannot_publish_editor_selection) {
+	sound.sources[0].ranges.range.reset();
+	editor.currentMultiRange = nullptr;
+	on_first_range = [&] { currentSong = nullptr; };
+	CHECK_FALSE(recorder.try_assign_recorded_sample(&sample));
+	LONGS_EQUAL(0, assignments);
+	LONGS_EQUAL(1, sample.reasons);
+	POINTERS_EQUAL(nullptr, editor.currentMultiRange);
+}
+TEST(RecordedSampleAssignment, empty_source_with_stale_range_selection_is_rejected) {
+	sound.sources[0].ranges.range.reset();
+	CHECK_FALSE(recorder.capture_recording_target());
+	CHECK_FALSE(recorder.try_assign_recorded_sample(&sample));
+	LONGS_EQUAL(0, type_changes);
 }

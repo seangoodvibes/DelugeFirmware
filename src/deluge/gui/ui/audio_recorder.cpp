@@ -100,9 +100,10 @@ bool AudioRecorder::capture_recording_target() {
 	    || sound_editor_for_session().currentSource != selected_source)
 		return false;
 	const auto range_index = sound_editor_for_session().currentMultiRangeIndex;
-	if (range_index < 0 || range_index >= selected_source->ranges.getNumElements())
+	const auto range_count = selected_source->ranges.getNumElements();
+	if (range_index < 0 || (range_count ? range_index >= range_count : range_index != 0))
 		return false;
-	auto* selected_range = selected_source->ranges.getElement(range_index);
+	auto* selected_range = range_count ? selected_source->ranges.getElement(range_index) : nullptr;
 	if (sound_editor_for_session().currentMultiRange != selected_range)
 		return false;
 	target_source_index_ = source_index;
@@ -164,8 +165,12 @@ bool AudioRecorder::try_assign_recorded_sample(Sample* sample) {
 		       && sound_editor_for_session().currentSourceIndex == source_index
 		       && sound_editor_for_session().currentMultiRangeIndex == range_index;
 	};
-	if (!context_valid() || range_index < 0 || range_index >= selected_source->ranges.getNumElements()
-	    || sound_editor_for_session().currentMultiRange != selected_source->ranges.getElement(range_index))
+	if (!context_valid())
+		return false;
+	const auto initial_range_count = selected_source->ranges.getNumElements();
+	if (range_index < 0 || (initial_range_count ? range_index >= initial_range_count : range_index != 0)
+	    || sound_editor_for_session().currentMultiRange
+	           != (initial_range_count ? selected_source->ranges.getElement(range_index) : nullptr))
 		return false;
 	sample->addReason();
 	auto sample_cleanup = util::finally([sample] { sample->removeReason("recorded sample attachment"); });
@@ -176,8 +181,19 @@ bool AudioRecorder::try_assign_recorded_sample(Sample* sample) {
 	    || selected_source->ranges.layout_revision() != initial_layout || selected_source->oscType != initial_type)
 		return false;
 	selected_source->setOscType(OscType::SAMPLE);
-	if (!context_valid() || selected_source->oscType != OscType::SAMPLE || selected_sound->hasActiveVoices()
-	    || range_index >= selected_source->ranges.getNumElements())
+	if (!context_valid() || selected_source->oscType != OscType::SAMPLE || selected_sound->hasActiveVoices())
+		return false;
+	if (!selected_source->ranges.getNumElements()) {
+		auto* expected_range = sound_editor_for_session().currentMultiRange;
+		auto* first_range = selected_source->getOrCreateFirstRange();
+		if (!context_valid() || selected_source->oscType != OscType::SAMPLE || selected_sound->hasActiveVoices()
+		    || !first_range || selected_source->ranges.getNumElements() != 1
+		    || selected_source->ranges.getElement(0) != first_range
+		    || sound_editor_for_session().currentMultiRange != expected_range)
+			return false;
+		sound_editor_for_session().currentMultiRange = static_cast<MultisampleRange*>(first_range);
+	}
+	if (range_index >= selected_source->ranges.getNumElements())
 		return false;
 	auto* selected_range = selected_source->ranges.getElement(range_index);
 	const auto assigned_layout = selected_source->ranges.layout_revision();
