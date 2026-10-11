@@ -3636,3 +3636,12 @@ Song retirement, structural invalidation, active voices, rejected assignment and
 invalid range entry. All 38 suites and RelWithDebInfo pass. Recorder shutdown,
 process-loop continuation, allocation entry and UI-close recovery remain separate
 work; this does not roll back a converted oscillator or a changed holder path.
+
+Recorder completion now detaches the shared pointer/source before destructor
+callbacks and retains its recording reservation through cleanup and animation
+removal. Session revisions distinguish replacement recordings and a finishing
+state rejects repeated completion. Eight regressions cover repeated finish,
+reentrant destruction/display, changed UI/song, replacement sessions, allocation
+reservation and session revisions. All 38 suites and RelWithDebInfo pass. UI
+identity checks do not tokenise animation ownership; process-loop continuation
+and setup allocation publication still require their own revision checks.

@@ -370,15 +370,26 @@ void AudioRecorder::process() {
 
 // Returns error code
 void AudioRecorder::finishRecording() {
-	deluge::gui::ui_session::Scope owner(recording_session.owner());
-	recorder->pointerHeldElsewhere = false;
-
-	AudioEngine::discardRecorder(recorder);
-
+	const auto source_owner = recording_session.owner();
+	deluge::gui::ui_session::Scope owner(source_owner);
+	if (!recorder || !recording_session.begin_finish())
+		return;
+	const auto finishing_revision = recording_session.revision();
+	auto* source_ui = getCurrentUI();
+	auto* source_song = currentSong;
+	auto* finished_recorder = recorder;
+	// Detach shared state before releasing a recorder whose destructor can yield.
+	// Keep the reservation until all cleanup and display callbacks have completed.
 	recorder = nullptr;
 	recordingSource = AudioInputChannel::NONE;
-	display->removeLoadingAnimation();
-	recording_session.release();
+	finished_recorder->pointerHeldElsewhere = false;
+	AudioEngine::discardRecorder(finished_recorder);
+	if (recording_session.revision() != finishing_revision)
+		return;
+	if (deluge::gui::ui_session::current() == source_owner && getCurrentUI() == source_ui && currentSong == source_song)
+		display->removeLoadingAnimation();
+	if (recording_session.revision() == finishing_revision)
+		recording_session.release();
 }
 
 ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {

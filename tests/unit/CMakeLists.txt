@@ -1336,3 +1336,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recorded_sample_assignment
         ${recorded_sample_assignment_source} ${CMAKE_CURRENT_BINARY_DIR}/recorded_sample_assignment.inc AudioRecorder::try_assign_recorded_sample
     DEPENDS ${recorded_sample_assignment_source} ../support/extract_functions.py VERBATIM)
 target_sources(ClipLifetimeTests PRIVATE recorded_sample_assignment_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/recorded_sample_assignment.inc)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/recording_completion.inc
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../support/extract_functions.py
+        ${recorded_sample_assignment_source} ${CMAKE_CURRENT_BINARY_DIR}/recording_completion.inc AudioRecorder::finishRecording
+    DEPENDS ${recorded_sample_assignment_source} ../support/extract_functions.py VERBATIM)
+target_sources(ClipLifetimeTests PRIVATE recording_completion_tests.cpp ${CMAKE_CURRENT_BINARY_DIR}/recording_completion.inc)

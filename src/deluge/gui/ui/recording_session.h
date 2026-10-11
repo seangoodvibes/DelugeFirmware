@@ -24,15 +24,32 @@ public:
 		}
 		owner_ = current();
 		active_ = true;
+		++revision_;
 		return true;
 	}
-	void release() { active_ = false; }
+	bool begin_finish() {
+		if (!active_ || finishing_)
+			return false;
+		finishing_ = true;
+		++revision_;
+		return true;
+	}
+	void release() {
+		if (active_)
+			++revision_;
+		active_ = false;
+		finishing_ = false;
+	}
+	uint64_t revision() const { return revision_; }
+	bool finishing() const { return finishing_; }
 	Id owner() const { return owner_; }
 	bool active() const { return active_; }
 
 private:
 	Id owner_ = Id::Local;
 	bool active_ = false;
+	bool finishing_ = false;
+	uint64_t revision_ = 0;
 };
 
 } // namespace deluge::gui::ui_session
