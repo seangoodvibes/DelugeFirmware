@@ -28,10 +28,10 @@ Opens or closes the Automation View Editor for the selected parameter while in a
 #COMMUNITY #AUTOMATION_PARAMETER #AUTOMATION_VELOCITY
 
 ```shortcut
-press(ENTIRE), hold(SHIFT) + press(CLIP), hold(AUDITION) + press(CLIP)
+hold(SHIFT) + press(CLIP)
 ```
 
-Returns to Automation Overview from Automation Editor or Note Velocity Editor.
+Returns to Automation Overview without changing Affect Entire.
 
 # Clear Automation in Automation View
 
@@ -48,20 +48,20 @@ Clears all automations in the selected context
 #COMMUNITY #AUTOMATION_PARAMETER
 
 ```shortcut
-hold(SHIFT) + press(GRID_LIT)
+hold(SHIFT) + press(AUTOMATION_INTERPOLATION)
 ```
 
-Toggles interpolation in Automation View.
+Hold Shift and press the leftmost pad in the second row from the top. Toggles interpolation regardless of whether that pad is lit.
 
 # Toggle Automation View Pad Selection Mode
 
 #COMMUNITY #AUTOMATION_PARAMETER
 
 ```shortcut
-hold(SHIFT) + press(GRID_UNLIT)
+hold(SHIFT) + press(AUTOMATION_PAD_SELECTION)
 ```
 
-Toggles pad selection mode in Automation View.
+Hold Shift and press the top-left grid pad. Toggles pad selection mode regardless of whether that pad is lit.
 
 # Enter Step Automation
 
@@ -102,3 +102,33 @@ hold(GRID), turn(PARAMETER)
 ```
 
 Press grid pad(s) to select step or range of steps and turn gold knobs to adjust step automation
+
+# Return to Automation Overview with Audition
+
+#COMMUNITY #AUTOMATION_PARAMETER #AUTOMATION_VELOCITY
+
+```shortcut
+hold(AUDITION) + press(CLIP)
+```
+
+Alternative to Shift + Clip: hold an audition pad and press Clip.
+
+# Return to Automation Overview with Song
+
+#COMMUNITY #AUTOMATION_PARAMETER #AUTOMATION_VELOCITY
+
+```shortcut
+hold(SHIFT) + press(SONG)
+```
+
+Returns to Automation Overview, including when editing arranger automation.
+
+# Shift Selected Parameter Automation Horizontally
+
+#COMMUNITY #AUTOMATION_PARAMETER
+
+```shortcut
+hold(Y) + turn(X)
+```
+
+In the parameter automation editor, shifts the selected parameter automation left or right by steps at the current zoom level.

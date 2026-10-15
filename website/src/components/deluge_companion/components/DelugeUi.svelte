@@ -114,6 +114,7 @@
     />
     <g class="fill-neutral-300" class:highlight={isHighlighted("dc-audition")}>
       <rect
+        class:highlight={isHighlighted("dc-session-grid-launch")}
         transform="translate(23.798 -59.052)"
         x="238.14"
         y="134.46"
@@ -121,6 +122,7 @@
         height="9.2604"
       />
       <rect
+        class:highlight={isHighlighted("dc-session-grid-edit")}
         transform="translate(23.798 -59.052)"
         x="238.14"
         y="149.01"

@@ -3,9 +3,9 @@ capability-order: 3
 sub-capability: Playback Mode (Session)
 sub-capability-order: 2
 
-# Create clip (empty row / grid pad)
+# Create clip (Session Row View)
 
-#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW #SESSION_GRID
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW
 
 ```shortcut
 press(GRID_UNLIT)
@@ -13,9 +13,9 @@ press(GRID_UNLIT)
 
 Creates the clip and enters clip view. You can create unlimited clips. Scroll up or down in session row view to view more rows.
 
-# Enter clip (non-empty row / grid pad)
+# Enter clip (Session Row View)
 
-#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW #SESSION_GRID
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW
 
 ```shortcut
 press(GRID_LIT)
@@ -33,7 +33,7 @@ Enters the clip to view or edit it. Return to song mode with the Song button.
 
 # Launch clip - queue
 
-#OFFICIAL #SESSION
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW
 
 ```shortcut
 press(LAUNCH)
@@ -43,7 +43,7 @@ Queues the clip to stop or start at the next loop.
 
 # Launch clip - immediately
 
-#OFFICIAL #SESSION
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW
 
 ```shortcut
 hold(SHIFT) + press(LAUNCH)
@@ -115,7 +115,7 @@ Cannot undo delete.
 
 # Solo clip - queue
 
-#OFFICIAL #SESSION
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW
 
 ```shortcut
 hold(X) + press(LAUNCH)
@@ -125,7 +125,7 @@ The soloed clip turns blue and other mute pads dim. You can solo more than one c
 
 # Solo clip - immediately
 
-#OFFICIAL #SESSION
+#OFFICIAL #COMMUNITY #SESSION #SESSION_ROW
 
 ```shortcut
 hold(SHIFT) + hold(X) + press(LAUNCH)
@@ -234,3 +234,83 @@ hold(SONG) + turn(SELECT)
 ```
 
 Changes session view layout between rows and grid.
+
+# Create Clip in Session Grid Edit Mode
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+press(GRID_UNLIT)
+```
+
+In blue Edit mode, tap an empty slot on an existing track or the next unused track column to create and enter a clip. In green Launch mode, empty-pad behavior depends on settings: it can stop/disarm a track or create a clip, including starting recording.
+
+# Enter Clip in Session Grid Edit Mode
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+press(GRID_LIT)
+```
+
+In blue Edit mode, briefly press and release a clip pad to enter it. In green Launch mode, a short press launches or stops the clip instead.
+
+# Use Session Grid Launch Mode
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+hold(SESSION_GRID_LAUNCH)
+```
+
+Hold the green pad at the top of the rightmost sidebar column while operating clip pads. Release to return to the selected/default mode. With mode selection enabled in settings, a tap selects this mode persistently.
+
+# Use Session Grid Edit Mode
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+hold(SESSION_GRID_EDIT)
+```
+
+Hold the blue pad, second from the top of the rightmost sidebar column, while operating clip pads. Release to return to the selected/default mode. With mode selection enabled in settings, a tap selects this mode persistently.
+
+# Launch or Stop Grid Clip - Queued
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+press(GRID_LIT)
+```
+
+In green Launch mode, tap the clip pad to queue its start or stop. With green selection enabled, a short press acts on release; holding the pad selects the clip.
+
+# Launch or Stop Grid Clip - Immediately
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+hold(SHIFT) + press(GRID_LIT)
+```
+
+In green Launch mode, starts or stops the clip immediately.
+
+# Solo Grid Clip - Queued
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+hold(X) + press(GRID_LIT)
+```
+
+In green Launch mode, hold the horizontal encoder and tap a clip pad to queue solo/unsolo.
+
+# Solo Grid Clip - Immediately
+
+#COMMUNITY #SESSION #SESSION_GRID
+
+```shortcut
+hold(SHIFT) + hold(X) + press(GRID_LIT)
+```
+
+In green Launch mode, immediately solos or unsolos the clip.

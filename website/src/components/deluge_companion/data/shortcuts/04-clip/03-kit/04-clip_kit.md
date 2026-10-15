@@ -208,3 +208,33 @@ hold(SHIFT) + press(AUDITION)
 ```
 
 The row is selected and the instrument or sample name flashes on the LCD, but no note sounds. You can then modify parameters, change presets, and so on.
+
+# Save Kit or Drum Pattern
+
+#COMMUNITY #KIT
+
+```shortcut
+hold(SAVE) + press(X)
+```
+
+Opens the pattern browser. Enable Affect Entire for a whole-kit pattern, or disable it and select a drum for a single-row pattern.
+
+# Load Kit or Drum Pattern
+
+#COMMUNITY #KIT
+
+```shortcut
+hold(LOAD) + press(X)
+```
+
+Opens the pattern browser. Enable Affect Entire for a whole-kit pattern, or disable it and select a drum for a single-row pattern. Loading stops playback.
+
+# Load Kit or Drum Pattern without Overwriting Notes
+
+#COMMUNITY #KIT
+
+```shortcut
+hold(LOAD) + hold(CROSS) + press(X)
+```
+
+Opens the pattern browser. Enable Affect Entire for a whole-kit pattern, or disable it and select a drum for a single-row pattern. Loading stops playback. This loading mode preserves existing notes.

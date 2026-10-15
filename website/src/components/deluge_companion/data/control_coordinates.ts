@@ -373,6 +373,11 @@ export const controlCoordinates: Partial<Record<Control, Coordinate[]>> = {
   [Control.VELOCITY_PATCH_SOURCE]: [{ x: 15, y: 1 }],
   [Control.NAME]: [{ x: 11, y: 5 }],
 
+  [Control.AUTOMATION_INTERPOLATION]: [{ x: 0, y: 6 }],
+  [Control.AUTOMATION_PAD_SELECTION]: [{ x: 0, y: 7 }],
+  [Control.SESSION_GRID_LAUNCH]: [{ x: 17, y: 7 }],
+  [Control.SESSION_GRID_EDIT]: [{ x: 17, y: 6 }],
+
   // ========== External/Fallback ==========
   [Control.EXTERNAL]: [],
   [Control.MENU]: [],

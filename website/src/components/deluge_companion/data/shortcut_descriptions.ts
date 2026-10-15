@@ -34,6 +34,14 @@ export const shortcutActionDescriptions: Record<
 
 export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.NONE]: "control",
+  [Control.AUTOMATION_INTERPOLATION]:
+    "leftmost grid pad in the second row from the top",
+  [Control.AUTOMATION_PAD_SELECTION]: "top-left grid pad",
+  [Control.SESSION_GRID_LAUNCH]:
+    "green Launch mode pad at the top of the rightmost sidebar column",
+  [Control.SESSION_GRID_EDIT]:
+    "blue Edit mode pad second from the top of the rightmost sidebar column",
+
   [Control.MENU]: "Menu",
   [Control.RECORD]: "Record button",
   [Control.PLAY]: "Play button",

@@ -68,9 +68,33 @@ export enum Control {
   VOICE_POLYPHONY,
   QWERTY,
   MENU,
+  AUTOMATION_INTERPOLATION,
+  AUTOMATION_PAD_SELECTION,
+  SESSION_GRID_LAUNCH,
+  SESSION_GRID_EDIT,
 }
 
 export const controlDescriptions: ControlDescriptions = {
+  [Control.SESSION_GRID_EDIT]: {
+    title: "Grid Edit mode pad",
+    type: ControlType.grid,
+    classes: ["dc-session-grid-edit"],
+  },
+  [Control.SESSION_GRID_LAUNCH]: {
+    title: "Grid Launch mode pad",
+    type: ControlType.grid,
+    classes: ["dc-session-grid-launch"],
+  },
+  [Control.AUTOMATION_PAD_SELECTION]: {
+    title: "Pad selection pad",
+    type: ControlType.grid,
+    classes: ["dc-grid-1-1"],
+  },
+  [Control.AUTOMATION_INTERPOLATION]: {
+    title: "Interpolation pad",
+    type: ControlType.grid,
+    classes: ["dc-grid-2-1"],
+  },
   [Control.NONE]: {
     title: "-",
     type: ControlType.none,

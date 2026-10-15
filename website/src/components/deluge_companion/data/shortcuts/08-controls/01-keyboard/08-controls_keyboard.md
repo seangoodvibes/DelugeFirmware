@@ -63,15 +63,15 @@ hold(GRID) + turn(X)
 
 Changes voicing for all chords in the selected row.
 
-# Keyboard scale / root
+# Cycle Keyboard Scale
 
-#OFFICIAL #KEYBOARD #SYNTH #MIDI #CV
+#OFFICIAL #COMMUNITY #KEYBOARD #SYNTH #MIDI #CV
 
 ```shortcut
 hold(SCALE) + press(SELECT)
 ```
 
-Changes keyboard scale or root from keyboard view.
+With scale mode enabled, hold Scale and press Select to cycle scales.
 
 # Keyboard note offset
 
@@ -82,3 +82,13 @@ hold(SHIFT) + turn(X)
 ```
 
 Changes keyboard note offset.
+
+# Change Keyboard Root Note
+
+#COMMUNITY #KEYBOARD #SYNTH #MIDI #CV
+
+```shortcut
+hold(SCALE) + turn(SELECT)
+```
+
+With scale mode enabled, hold Scale and turn Select to change the root note.

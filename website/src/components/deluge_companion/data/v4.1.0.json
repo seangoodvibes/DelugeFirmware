@@ -3293,7 +3293,7 @@
     "description": "Press the Cross-screen button."
   },
   {
-    "name": "Create clip (empty row / grid pad)",
+    "name": "Create clip (Session Row View)",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -3305,7 +3305,7 @@
         "control": 37
       }
     ],
-    "views": [2, 3, 4],
+    "views": [2, 3],
     "firmware": [0, 1],
     "paragraphs": [
       {
@@ -3319,7 +3319,7 @@
     "description": "Press the Unlit grid pad."
   },
   {
-    "name": "Enter clip (non-empty row / grid pad)",
+    "name": "Enter clip (Session Row View)",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -3331,7 +3331,7 @@
         "control": 38
       }
     ],
-    "views": [2, 3, 4],
+    "views": [2, 3],
     "firmware": [0, 1],
     "paragraphs": [],
     "description": "Press the Lit grid pad."
@@ -3375,8 +3375,8 @@
         "control": 40
       }
     ],
-    "views": [2],
-    "firmware": [0],
+    "views": [2, 3],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -3409,8 +3409,8 @@
         ]
       }
     ],
-    "views": [2],
-    "firmware": [0],
+    "views": [2, 3],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -3641,8 +3641,8 @@
         ]
       }
     ],
-    "views": [2],
-    "firmware": [0],
+    "views": [2, 3],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -3679,8 +3679,8 @@
         ]
       }
     ],
-    "views": [2],
-    "firmware": [0],
+    "views": [2, 3],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -4025,6 +4025,242 @@
       }
     ],
     "description": "Hold the Song button, turn the Select (Settings) encoder."
+  },
+  {
+    "name": "Create Clip in Session Grid Edit Mode",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 37
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In blue Edit mode, tap an empty slot on an existing track or the next unused track column to create and enter a clip. In green Launch mode, empty-pad behavior depends on settings: it can stop/disarm a track or create a clip, including starting recording."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Unlit grid pad."
+  },
+  {
+    "name": "Enter Clip in Session Grid Edit Mode",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 38
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In blue Edit mode, briefly press and release a clip pad to enter it. In green Launch mode, a short press launches or stops the clip instead."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Lit grid pad."
+  },
+  {
+    "name": "Use Session Grid Launch Mode",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 1,
+        "control": 59
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Hold the green pad at the top of the rightmost sidebar column while operating clip pads. Release to return to the selected/default mode. With mode selection enabled in settings, a tap selects this mode persistently."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the green Launch mode pad at the top of the rightmost sidebar column."
+  },
+  {
+    "name": "Use Session Grid Edit Mode",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 1,
+        "control": 60
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Hold the blue pad, second from the top of the rightmost sidebar column, while operating clip pads. Release to return to the selected/default mode. With mode selection enabled in settings, a tap selects this mode persistently."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the blue Edit mode pad second from the top of the rightmost sidebar column."
+  },
+  {
+    "name": "Launch or Stop Grid Clip - Queued",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 38
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In green Launch mode, tap the clip pad to queue its start or stop. With green selection enabled, a short press acts on release; holding the pad selects the clip."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Lit grid pad."
+  },
+  {
+    "name": "Launch or Stop Grid Clip - Immediately",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 38
+          }
+        ]
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In green Launch mode, starts or stops the clip immediately."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Lit grid pad."
+  },
+  {
+    "name": "Solo Grid Clip - Queued",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 32
+          },
+          {
+            "action": 0,
+            "control": 38
+          }
+        ]
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In green Launch mode, hold the horizontal encoder and tap a clip pad to queue solo/unsolo."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Lit grid pad."
+  },
+  {
+    "name": "Solo Grid Clip - Immediately",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 32
+          },
+          {
+            "action": 0,
+            "control": 38
+          }
+        ]
+      }
+    ],
+    "views": [2, 4],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In green Launch mode, immediately solos or unsolos the clip."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, hold the Horizontal (Left/Right) encoder, press the Lit grid pad."
   },
   {
     "name": "Create new audio clip in session view (press empty pad)",
@@ -5268,12 +5504,16 @@
     "subSubCapabilityOrder": 2,
     "steps": [
       {
-        "action": 0,
-        "control": 6
-      },
-      {
-        "action": 2,
-        "control": 45
+        "substeps": [
+          {
+            "action": 1,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 45
+          }
+        ]
       }
     ],
     "views": [11],
@@ -5287,7 +5527,7 @@
         ]
       }
     ],
-    "description": "Press the Save (Delete) button. Turn the parameter encoders."
+    "description": "Hold the Save (Delete) button, press the parameter encoders."
   },
   {
     "name": "Load MIDI CC Labels from File",
@@ -5301,12 +5541,16 @@
     "subSubCapabilityOrder": 2,
     "steps": [
       {
-        "action": 0,
-        "control": 3
-      },
-      {
-        "action": 2,
-        "control": 45
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 45
+          }
+        ]
       }
     ],
     "views": [11],
@@ -5320,7 +5564,7 @@
         ]
       }
     ],
-    "description": "Press the Load (New) button. Turn the parameter encoders."
+    "description": "Hold the Load (New) button, press the parameter encoders."
   },
   {
     "name": "Unlink MIDI Device Definition",
@@ -6251,6 +6495,112 @@
     "description": "Hold the Shift button, press the Audition / Section button for row."
   },
   {
+    "name": "Save Kit or Drum Pattern",
+    "capability": "04-clip_kit",
+    "capabilityParentId": "CLIP",
+    "capabilityOrder": 5,
+    "subCapabilityTitle": "Clip (Kit)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 32
+          }
+        ]
+      }
+    ],
+    "views": [10],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens the pattern browser. Enable Affect Entire for a whole-kit pattern, or disable it and select a drum for a single-row pattern."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Save (Delete) button, press the Horizontal (Left/Right) encoder."
+  },
+  {
+    "name": "Load Kit or Drum Pattern",
+    "capability": "04-clip_kit",
+    "capabilityParentId": "CLIP",
+    "capabilityOrder": 5,
+    "subCapabilityTitle": "Clip (Kit)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 32
+          }
+        ]
+      }
+    ],
+    "views": [10],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens the pattern browser. Enable Affect Entire for a whole-kit pattern, or disable it and select a drum for a single-row pattern. Loading stops playback."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Load (New) button, press the Horizontal (Left/Right) encoder."
+  },
+  {
+    "name": "Load Kit or Drum Pattern without Overwriting Notes",
+    "capability": "04-clip_kit",
+    "capabilityParentId": "CLIP",
+    "capabilityOrder": 5,
+    "subCapabilityTitle": "Clip (Kit)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 1,
+            "control": 15
+          },
+          {
+            "action": 0,
+            "control": 32
+          }
+        ]
+      }
+    ],
+    "views": [10],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Opens the pattern browser. Enable Affect Entire for a whole-kit pattern, or disable it and select a drum for a single-row pattern. Loading stops playback. This loading mode preserves existing notes."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Load (New) button, hold the Cross-screen button, press the Horizontal (Left/Right) encoder."
+  },
+  {
     "name": "Clear notes / audio file and automation",
     "capability": "05-sequencing_clip",
     "capabilityParentId": "SEQUENCING",
@@ -6472,12 +6822,12 @@
       }
     ],
     "views": [9, 10, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
           {
-            "text": "Multiple notes can be selected. New notes default to the last velocity setting. Default velocity is 64, with a range of 0-127."
+            "text": "Multiple notes can be selected. New notes default to the last velocity setting. Default velocity is 64, with a range of 1-127."
           }
         ]
       }
@@ -6598,7 +6948,7 @@
       }
     ],
     "views": [9, 10, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -6636,7 +6986,7 @@
       }
     ],
     "views": [9, 10, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -6888,7 +7238,7 @@
       }
     ],
     "views": [9, 10, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [],
     "description": "Hold the Lit grid pad, hold the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
   },
@@ -6986,12 +7336,12 @@
       }
     ],
     "views": [9, 10, 11, 12, 15, 18],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
           {
-            "text": "Changes the length of the currently selected note row."
+            "text": "Hold the row's audition pad and turn the horizontal encoder to change its length in Instrument Clip View or Note Velocity Automation View."
           }
         ]
       }
@@ -7013,7 +7363,7 @@
             "control": 39
           },
           {
-            "action": 0,
+            "action": 1,
             "control": 32
           },
           {
@@ -7024,7 +7374,7 @@
       }
     ],
     "views": [9, 10, 11, 12, 15, 18],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -7034,7 +7384,7 @@
         ]
       }
     ],
-    "description": "Hold the Audition / Section button for row, press the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
+    "description": "Hold the Audition / Section button for row, hold the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Quantize / humanize",
@@ -7197,40 +7547,6 @@
       }
     ],
     "description": "Hold the Audition / Section button for row, turn the Select (Settings) encoder."
-  },
-  {
-    "name": "Note Row Velocity",
-    "capability": "05-sequencing_note",
-    "capabilityParentId": "SEQUENCING",
-    "capabilityOrder": 6,
-    "subCapabilityTitle": "Sequencing (Note)",
-    "subCapabilityOrder": 2,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 39
-          },
-          {
-            "action": 2,
-            "control": 32
-          }
-        ]
-      }
-    ],
-    "views": [9, 10, 11, 12, 15, 18],
-    "firmware": [1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Adjusts the selected note row's velocity. All note's in the note row will be set with the same value."
-          }
-        ]
-      }
-    ],
-    "description": "Hold the Audition / Section button for row, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Edit Note Row Fill",
@@ -7619,7 +7935,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 6
           },
           {
@@ -7640,7 +7956,7 @@
         ]
       }
     ],
-    "description": "Press the Save (Delete) button, press the Horizontal (Left/Right) encoder."
+    "description": "Hold the Save (Delete) button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Load Melodic Pattern",
@@ -7653,7 +7969,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 3
           },
           {
@@ -7674,7 +7990,7 @@
         ]
       }
     ],
-    "description": "Press the Load (New) button, press the Horizontal (Left/Right) encoder."
+    "description": "Hold the Load (New) button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Load Melodic Pattern without Overwriting Notes",
@@ -7687,11 +8003,11 @@
       {
         "substeps": [
           {
-            "action": 0,
-            "control": 6
+            "action": 1,
+            "control": 3
           },
           {
-            "action": 0,
+            "action": 1,
             "control": 15
           },
           {
@@ -7707,12 +8023,12 @@
       {
         "spans": [
           {
-            "text": "Loads a pattern into the clipboard without replacing the existing notes."
+            "text": "Opens the pattern browser in non-overwriting mode. Browse and load a pattern while preserving existing notes."
           }
         ]
       }
     ],
-    "description": "Press the Save (Delete) button, press the Cross-screen button, press the Horizontal (Left/Right) encoder."
+    "description": "Hold the Load (New) button, hold the Cross-screen button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Load Melodic Pattern without Scaling",
@@ -7725,11 +8041,11 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 3
           },
           {
-            "action": 0,
+            "action": 1,
             "control": 28
           },
           {
@@ -7745,12 +8061,12 @@
       {
         "spans": [
           {
-            "text": "Loads a pattern without scaling the original file."
+            "text": "Loads a pattern at its original timing rather than scaling it to the visible screen. This mode clears the current clip and adjusts its length to the pattern."
           }
         ]
       }
     ],
-    "description": "Press the Load (New) button, press the Scale button, press the Horizontal (Left/Right) encoder."
+    "description": "Hold the Load (New) button, hold the Scale button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Paste Loaded Pattern",
@@ -7767,7 +8083,7 @@
             "control": 4
           },
           {
-            "action": 0,
+            "action": 1,
             "control": 9
           },
           {
@@ -7788,7 +8104,7 @@
         ]
       }
     ],
-    "description": "Hold the Shift button, press the Learn / Input button, press the Horizontal (Left/Right) encoder."
+    "description": "Hold the Shift button, hold the Learn / Input button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Gentle Paste Loaded Pattern",
@@ -7805,7 +8121,7 @@
             "control": 4
           },
           {
-            "action": 0,
+            "action": 1,
             "control": 15
           },
           {
@@ -7826,7 +8142,7 @@
         ]
       }
     ],
-    "description": "Hold the Shift button, press the Cross-screen button, press the Horizontal (Left/Right) encoder."
+    "description": "Hold the Shift button, hold the Cross-screen button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Toggle Randomizer Lock",
@@ -7993,6 +8309,40 @@
     "description": "Hold the Shift button, hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
+    "name": "Trigger Song Macro from Instrument Clip View",
+    "capability": "05-sequencing_note",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Note)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 31
+          },
+          {
+            "action": 0,
+            "control": 40
+          }
+        ]
+      }
+    ],
+    "views": [6, 9, 10, 11, 12],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Hold Song and press then release a pad in the mute column to trigger its assigned song macro. The macro activates on pad release. Holding Song briefly reveals the macro colors."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Song button, press the Mute / Launch button for row."
+  },
+  {
     "name": "Enter Automation View",
     "capability": "05-sequencing_automation",
     "capabilityParentId": "SEQUENCING",
@@ -8053,26 +8403,10 @@
     "subCapabilityOrder": 3,
     "steps": [
       {
-        "action": 0,
-        "control": 16
-      },
-      {
         "substeps": [
           {
             "action": 1,
             "control": 4
-          },
-          {
-            "action": 0,
-            "control": 10
-          }
-        ]
-      },
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 39
           },
           {
             "action": 0,
@@ -8087,12 +8421,12 @@
       {
         "spans": [
           {
-            "text": "Returns to Automation Overview from Automation Editor or Note Velocity Editor."
+            "text": "Returns to Automation Overview without changing Affect Entire."
           }
         ]
       }
     ],
-    "description": "Press the Affect Entire button. Hold the Shift button, press the Clip button. Hold the Audition / Section button for row, press the Clip button."
+    "description": "Hold the Shift button, press the Clip button."
   },
   {
     "name": "Clear Automation in Automation View",
@@ -8144,7 +8478,7 @@
           },
           {
             "action": 0,
-            "control": 38
+            "control": 57
           }
         ]
       }
@@ -8155,12 +8489,12 @@
       {
         "spans": [
           {
-            "text": "Toggles interpolation in Automation View."
+            "text": "Hold Shift and press the leftmost pad in the second row from the top. Toggles interpolation regardless of whether that pad is lit."
           }
         ]
       }
     ],
-    "description": "Hold the Shift button, press the Lit grid pad."
+    "description": "Hold the Shift button, press the leftmost grid pad in the second row from the top."
   },
   {
     "name": "Toggle Automation View Pad Selection Mode",
@@ -8178,7 +8512,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 58
           }
         ]
       }
@@ -8189,12 +8523,12 @@
       {
         "spans": [
           {
-            "text": "Toggles pad selection mode in Automation View."
+            "text": "Hold Shift and press the top-left grid pad. Toggles pad selection mode regardless of whether that pad is lit."
           }
         ]
       }
     ],
-    "description": "Hold the Shift button, press the Unlit grid pad."
+    "description": "Hold the Shift button, press the top-left grid pad."
   },
   {
     "name": "Enter Step Automation",
@@ -8319,6 +8653,108 @@
       }
     ],
     "description": "Hold the Grid pad (lit or unlit). Turn the parameter encoders."
+  },
+  {
+    "name": "Return to Automation Overview with Audition",
+    "capability": "05-sequencing_automation",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Automation)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 39
+          },
+          {
+            "action": 0,
+            "control": 10
+          }
+        ]
+      }
+    ],
+    "views": [17, 18],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Alternative to Shift + Clip: hold an audition pad and press Clip."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Audition / Section button for row, press the Clip button."
+  },
+  {
+    "name": "Return to Automation Overview with Song",
+    "capability": "05-sequencing_automation",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Automation)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 31
+          }
+        ]
+      }
+    ],
+    "views": [17, 18],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Returns to Automation Overview, including when editing arranger automation."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Song button."
+  },
+  {
+    "name": "Shift Selected Parameter Automation Horizontally",
+    "capability": "05-sequencing_automation",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Automation)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 33
+          },
+          {
+            "action": 2,
+            "control": 32
+          }
+        ]
+      }
+    ],
+    "views": [17],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In the parameter automation editor, shifts the selected parameter automation left or right by steps at the current zoom level."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Resample / record all audio output (begin instantly)",
@@ -9451,7 +9887,7 @@
     "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder."
   },
   {
-    "name": "Keyboard scale / root",
+    "name": "Cycle Keyboard Scale",
     "capability": "08-controls_keyboard",
     "capabilityParentId": "CONTROLS",
     "capabilityOrder": 9,
@@ -9472,12 +9908,12 @@
       }
     ],
     "views": [14, 9, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
           {
-            "text": "Changes keyboard scale or root from keyboard view."
+            "text": "With scale mode enabled, hold Scale and press Select to cycle scales."
           }
         ]
       }
@@ -9517,6 +9953,40 @@
       }
     ],
     "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder."
+  },
+  {
+    "name": "Change Keyboard Root Note",
+    "capability": "08-controls_keyboard",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Keyboard)",
+    "subCapabilityOrder": 1,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 28
+          },
+          {
+            "action": 2,
+            "control": 34
+          }
+        ]
+      }
+    ],
+    "views": [14, 9, 11, 12],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "With scale mode enabled, hold Scale and turn Select to change the root note."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Scale button, turn the Select (Settings) encoder."
   },
   {
     "name": "Assign gold dial control of parameters - first select parameter",

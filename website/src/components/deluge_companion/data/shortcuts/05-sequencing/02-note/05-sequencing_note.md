@@ -35,13 +35,13 @@ Adjusts selected note's repeats.
 
 # Edit note velocity
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(GRID_LIT) + turn(X)
 ```
 
-Multiple notes can be selected. New notes default to the last velocity setting. Default velocity is 64, with a range of 0-127.
+Multiple notes can be selected. New notes default to the last velocity setting. Default velocity is 64, with a range of 1-127.
 
 # Edit Note Probability or Iterance
 
@@ -84,7 +84,7 @@ Community: A note can have both note probability and note iterance set.
 
 # Copy notes
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(LEARN) + press(X)
@@ -94,7 +94,7 @@ Copy applies to all notes in the vertical columns at the current zoom level, inc
 
 # Paste notes
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + hold(LEARN) + press(X)
@@ -166,7 +166,7 @@ hold(AUDITION) + hold(LAUNCH) + turn(Y)
 
 # Nudge individual note horizontally
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(GRID_LIT) + hold(X) + turn(X)
@@ -194,20 +194,20 @@ Adds or removes Euclidean events / notes in the selected row.
 
 # Euclidean - adjust selected note row length
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
 ```shortcut
 hold(AUDITION) + turn(X)
 ```
 
-Changes the length of the currently selected note row.
+Hold the row's audition pad and turn the horizontal encoder to change its length in Instrument Clip View or Note Velocity Automation View.
 
 # Euclidean - rotate selected note row events or notes
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
 ```shortcut
-hold(AUDITION) + press(X) + turn(X)
+hold(AUDITION) + hold(X) + turn(X)
 ```
 
 Rotates the selected note row horizontally.
@@ -269,16 +269,6 @@ Community: A note row can have both note probability and note iterance set.
 - Hold audition pad and turn the select encoder left to enter note probability editing mode.
 - Hold audition pad and turn the select encoder right to enter note iterance editing mode.
 ```
-
-# Note Row Velocity
-
-#COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
-
-```shortcut
-hold(AUDITION) + turn(X)
-```
-
-Adjusts the selected note row's velocity. All note's in the note row will be set with the same value.
 
 # Edit Note Row Fill
 
@@ -401,7 +391,7 @@ hold(X) + press(Y) + turn(Y)
 #COMMUNITY #SYNTH #MIDI #CV
 
 ```shortcut
-press(SAVE) + press(X)
+hold(SAVE) + press(X)
 ```
 
 Saves the current melodic pattern to a pattern file.
@@ -411,7 +401,7 @@ Saves the current melodic pattern to a pattern file.
 #COMMUNITY #SYNTH #MIDI #CV
 
 ```shortcut
-press(LOAD) + press(X)
+hold(LOAD) + press(X)
 ```
 
 Loads a melodic pattern from a pattern file.
@@ -421,27 +411,27 @@ Loads a melodic pattern from a pattern file.
 #COMMUNITY #SYNTH #MIDI #CV
 
 ```shortcut
-press(SAVE) + press(CROSS) + press(X)
+hold(LOAD) + hold(CROSS) + press(X)
 ```
 
-Loads a pattern into the clipboard without replacing the existing notes.
+Opens the pattern browser in non-overwriting mode. Browse and load a pattern while preserving existing notes.
 
 # Load Melodic Pattern without Scaling
 
 #COMMUNITY #SYNTH #MIDI #CV
 
 ```shortcut
-press(LOAD) + press(SCALE) + press(X)
+hold(LOAD) + hold(SCALE) + press(X)
 ```
 
-Loads a pattern without scaling the original file.
+Loads a pattern at its original timing rather than scaling it to the visible screen. This mode clears the current clip and adjusts its length to the pattern.
 
 # Paste Loaded Pattern
 
 #COMMUNITY #SYNTH #MIDI #CV #KIT
 
 ```shortcut
-hold(SHIFT) + press(LEARN) + press(X)
+hold(SHIFT) + hold(LEARN) + press(X)
 ```
 
 Pastes a loaded pattern from the clipboard.
@@ -451,7 +441,7 @@ Pastes a loaded pattern from the clipboard.
 #COMMUNITY #SYNTH #MIDI #CV #KIT
 
 ```shortcut
-hold(SHIFT) + press(CROSS) + press(X)
+hold(SHIFT) + hold(CROSS) + press(X)
 ```
 
 Gentle-pastes a loaded pattern from the clipboard.
@@ -503,3 +493,13 @@ hold(SHIFT) + hold(Y) + turn(Y)
 ```shortcut
 hold(SHIFT) + hold(Y) + turn(Y)
 ```
+
+# Trigger Song Macro from Instrument Clip View
+
+#COMMUNITY #CLIP_INSTRUMENT #SYNTH #KIT #MIDI #CV
+
+```shortcut
+hold(SONG) + press(LAUNCH)
+```
+
+Hold Song and press then release a pad in the mute column to trigger its assigned song macro. The macro activates on pad release. Holding Song briefly reveals the macro colors.

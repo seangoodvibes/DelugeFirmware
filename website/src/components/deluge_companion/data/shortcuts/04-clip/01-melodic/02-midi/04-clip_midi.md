@@ -80,7 +80,7 @@ Saves renamed MIDI CC labels into the current MIDI preset.
 #COMMUNITY #MIDI
 
 ```shortcut
-press(SAVE), turn(PARAMETER)
+hold(SAVE) + press(PARAMETER)
 ```
 
 Writes the current MIDI CC labels to a MIDI device definition file.
@@ -90,7 +90,7 @@ Writes the current MIDI CC labels to a MIDI device definition file.
 #COMMUNITY #MIDI
 
 ```shortcut
-press(LOAD), turn(PARAMETER)
+hold(LOAD) + press(PARAMETER)
 ```
 
 Loads MIDI CC labels from a MIDI device definition file.
