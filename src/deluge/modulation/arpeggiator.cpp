@@ -337,6 +337,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// This is here so that "stealing" a note being edited can then replace its MPE data during
 	// editing. Kind of a hacky solution, but it works for now.
 	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
+	arp_note->sampleSyncLength = instruction->sampleSyncLengthOn;
 
 	// If we're an arpeggiator...
 	if (!arpIsOff(settings)) {
@@ -382,7 +383,6 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			}
 			instruction->invertReversed = isPlayReverseForCurrentStep;
 			instruction->arpNoteOn = arp_note;
-			arp_note->sampleSyncLength = instruction->sampleSyncLengthOn;
 		}
 	}
 }
