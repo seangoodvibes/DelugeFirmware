@@ -776,7 +776,7 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
 					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
-					                          0, 0);
+					                          kitInstruction.ticksLateOn, kitInstruction.samplesLateOn);
 					kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 				}
 			}
@@ -1208,8 +1208,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
 				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
 				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
-				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
-				                          0);
+				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
+				                          kitInstruction.ticksLateOn, kitInstruction.samplesLateOn);
 				// no check needed - will be held by the drum's own arp if it can't start immediately
 				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 			}
@@ -1319,6 +1319,9 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		}
 
 		// If kit arp not bypassed, execute instruction
+		kitInstruction.sampleSyncLengthOn = sampleSyncLength;
+		kitInstruction.ticksLateOn = ticksLate;
+		kitInstruction.samplesLateOn = samplesLate;
 		arpeggiator.noteOn(arpSettings, drumIndex, velocity, &kitInstruction, fromMIDIChannel, mpeValues);
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 			// Set the invertReverse flag for the drum arpeggiator

@@ -176,8 +176,13 @@ struct ArpNote {
 	int16_t mpeValues[kNumExpressionDimensions]{};
 	uint8_t velocity{0};
 	uint8_t baseVelocity{0};
-	// Keep the stretch length with the note when its voice start is deferred to a later render.
+	// Note-on timing, kept with the note so that if its voice start gets deferred to a later render (see
+	// AudioEngine::allowedToStartVoice()) it can still start as if it had been on time
 	uint32_t sampleSyncLength{0};
+	uint32_t samplesLate{0};
+	uint32_t samplesLateMeasuredAt{0}; // AudioEngine::audioSampleTimer when samplesLate applied
+	int32_t syncStartTick{
+	    0}; // lastSwungTickActioned - ticksLate, i.e. the tick Voice::noteOn() syncs STRETCH samples to
 
 	// For note-ons
 	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
@@ -193,6 +198,8 @@ class ArpReturnInstruction {
 public:
 	ArpReturnInstruction() {
 		sampleSyncLengthOn = 0;
+		ticksLateOn = 0;
+		samplesLateOn = 0;
 		invertReversed = false;
 		arpNoteOn = nullptr;
 		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
@@ -205,6 +212,8 @@ public:
 	// notes are still playing (e.g. for mono note priority)
 	uint32_t sampleSyncLengthOn; // This defaults to zero, or may be overwritten by the caller to the Arp - and then
 	                             // the Arp itself may override that.
+	int32_t ticksLateOn;         // Set by the caller to the Arp, and restored by it for a deferred note
+	uint32_t samplesLateOn;      // Set by the caller to the Arp, and restored by it for a deferred note
 
 	// If set to true by the arpeggiator, the reverse SAMPLE flag will be inverted for the next voices to be played
 	// and restored back to normal afterwards

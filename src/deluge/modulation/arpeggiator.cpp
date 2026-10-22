@@ -23,6 +23,7 @@
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 #include <cstdint>
@@ -36,6 +37,33 @@
 #define ARP_PRINTLN(...)
 #endif
 namespace params = deluge::modulation::params;
+
+namespace {
+
+void storeNoteOnTiming(ArpNote& note, const ArpReturnInstruction& instruction) {
+	note.sampleSyncLength = instruction.sampleSyncLengthOn;
+	note.samplesLate = instruction.samplesLateOn;
+	note.samplesLateMeasuredAt = AudioEngine::audioSampleTimer;
+	note.syncStartTick = static_cast<int32_t>(playbackHandler.lastSwungTickActioned) - instruction.ticksLateOn;
+}
+
+// For a note whose voice start was deferred, work out how late it now is, so it lines up with where it should have
+// started. Voice::noteOn() takes ticksLate relative to lastSwungTickActioned, so this gives it back the same sync
+// start tick. samplesLate is only carried forward if the note was already starting mid-note: making it non-zero
+// otherwise would cut off the attack, which would sound worse than starting a render late.
+void restoreNoteOnTiming(const ArpNote& note, ArpReturnInstruction& instruction) {
+	instruction.sampleSyncLengthOn = note.sampleSyncLength;
+
+	int32_t ticksLate = static_cast<int32_t>(playbackHandler.lastSwungTickActioned) - note.syncStartTick;
+	instruction.ticksLateOn = std::max<int32_t>(ticksLate, 0); // Negative if playback restarted in the meantime
+
+	instruction.samplesLateOn = 0;
+	if (note.samplesLate != 0) {
+		instruction.samplesLateOn = note.samplesLate + (AudioEngine::audioSampleTimer - note.samplesLateMeasuredAt);
+	}
+}
+
+} // namespace
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 
@@ -218,7 +246,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 			instruction->invertReversed =
 			    invertReversedFromKitArp ? !isPlayReverseForCurrentStep : isPlayReverseForCurrentStep;
 			instruction->arpNoteOn = &active_note;
-			active_note.sampleSyncLength = instruction->sampleSyncLengthOn;
+			storeNoteOnTiming(active_note, *instruction);
 		}
 	}
 }
@@ -337,7 +365,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// This is here so that "stealing" a note being edited can then replace its MPE data during
 	// editing. Kind of a hacky solution, but it works for now.
 	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
-	arp_note->sampleSyncLength = instruction->sampleSyncLengthOn;
+	storeNoteOnTiming(*arp_note, *instruction);
 
 	// If we're an arpeggiator...
 	if (!arpIsOff(settings)) {
@@ -494,7 +522,7 @@ bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnIns
 				    arp_note->noteStatus[0] == ArpNoteStatus::PENDING) {
 					if (arp_note->isStartablePending()) {
 						instruction->arpNoteOn = arp_note;
-						instruction->sampleSyncLengthOn = arp_note->sampleSyncLength;
+						restoreNoteOnTiming(*arp_note, *instruction);
 						ARP_PRINTLN("found a pending a live note, starting it");
 						// arp note status will be marked playing after it is started
 						return true;
@@ -882,7 +910,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 		instruction->invertReversed = invertReversedFromKitArp ? !shouldPlayReverseNote : shouldPlayReverseNote;
 		instruction->arpNoteOn = &active_note;
-		active_note.sampleSyncLength = instruction->sampleSyncLengthOn;
+		storeNoteOnTiming(active_note, *instruction);
 
 		// If this is going to be a glide note, we need to flag it (not compatible with ratchets)
 		if (isPlayGlideForCurrentStep && !isRatcheting) {
@@ -1450,7 +1478,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		instruction->invertReversed = shouldPlayReverseNote;
 		active_note = *arpNote;
 		instruction->arpNoteOn = &active_note;
-		active_note.sampleSyncLength = instruction->sampleSyncLengthOn;
+		storeNoteOnTiming(active_note, *instruction);
 
 		// If this is going to be a glide note, we need to flag it (not compatible with ratchets)
 		if (isPlayGlideForCurrentStep && !isRatcheting) {
@@ -1470,7 +1498,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
 		instruction->arpNoteOn = &active_note;
-		instruction->sampleSyncLengthOn = active_note.sampleSyncLength;
+		restoreNoteOnTiming(active_note, *instruction);
 		return true;
 	}
 	instruction->arpNoteOn = nullptr;

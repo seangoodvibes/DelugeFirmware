@@ -1532,6 +1532,8 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	ArpReturnInstruction instruction;
 	instruction.sampleSyncLengthOn = sampleSyncLength;
+	instruction.ticksLateOn = ticksLate;
+	instruction.samplesLateOn = samplesLate;
 
 	// We used to not have to worry about the arpeggiator if one-shot samples etc. But now that we support MPE, we do
 	// need to keep track of all sounding notes, even one-shot ones, and the "arpeggiator" is where this is stored.
@@ -2374,7 +2376,8 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 			    modelStackWithSoundFlags,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, instruction.ticksLateOn,
+			    instruction.samplesLateOn,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
