@@ -38,6 +38,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 
@@ -821,17 +822,21 @@ void changeRefreshTime(int32_t offset) {
 }
 
 void changeDimmerInterval(int32_t offset) {
-	int32_t newInterval = dimmerInterval - offset;
-	if (newInterval > 25 || newInterval < 0) {}
-	else {
-		setDimmerInterval(newInterval);
+	// Recover an invalid stored interval so the encoder can adjust brightness again.
+	int32_t current_interval = std::clamp<int32_t>(dimmerInterval, 0, kMaxLedBrightness);
+	int64_t new_interval = static_cast<int64_t>(current_interval) - offset;
+	if (new_interval >= 0 && new_interval <= kMaxLedBrightness) {
+		setDimmerInterval(new_interval);
+	}
+	else if (current_interval != dimmerInterval) {
+		setDimmerInterval(current_interval);
 	}
 
 	if (display->haveOLED()) {
 		char text[20];
 		strcpy(text, "Brightness: ");
 		char* pos = strchr(text, 0);
-		intToString((25 - dimmerInterval) << 2, pos);
+		intToString((kMaxLedBrightness - dimmerInterval) * 4, pos);
 		pos = strchr(text, 0);
 		*(pos++) = '%';
 		*pos = 0;
@@ -840,6 +845,7 @@ void changeDimmerInterval(int32_t offset) {
 }
 
 void setDimmerInterval(int32_t newInterval) {
+	newInterval = std::clamp<int32_t>(newInterval, 0, kMaxLedBrightness);
 	// Uart::print("dimmerInterval: ");
 	// Uart::println(newInterval);
 	dimmerInterval = newInterval;
