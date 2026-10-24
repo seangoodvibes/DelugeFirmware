@@ -284,8 +284,17 @@ renderEnvelope:
 		rendered = true;
 		std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		outputRecordingFrom->renderOutput(songModelStack, output, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		                                  shouldLimitDelayFeedback, isClipActive);
+		alignas(CACHE_LINE_SIZE) StereoSample monitoredMemory[SSI_TX_BUFFER_NUM_SAMPLES]{};
+		std::span<StereoSample> monitoredAudio{monitoredMemory, output.size()};
+		outputRecordingFrom->renderOutput(songModelStack, monitoredAudio, reverbBuffer, reverbAmountAdjust,
+		                                  sideChainHitPending, shouldLimitDelayFeedback, isClipActive);
+		// The source is already at output level. Convert to the audio clip's pre-FX level: its default
+		// volume and filter compensation apply a net gain of 1/4. Scale only the incoming monitor signal,
+		// leaving any sample playing in this clip at its existing level and retaining the destination FX.
+		std::ranges::transform(
+		    monitoredAudio, output, output.begin(), [](StereoSample source, StereoSample destination) {
+			    return destination + StereoSample{lshiftAndSaturate<2>(source.l), lshiftAndSaturate<2>(source.r)};
+		    });
 	}
 	return rendered;
 }
