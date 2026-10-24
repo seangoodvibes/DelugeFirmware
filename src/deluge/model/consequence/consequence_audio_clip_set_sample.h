@@ -31,4 +31,5 @@ public:
 	String filePathToRevertTo;
 	uint64_t endPosToRevertTo;
 	bool recordedAtOutputLevelToRevertTo;
+	bool recordedForOverdubToRevertTo;
 };

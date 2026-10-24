@@ -183,10 +183,13 @@ renderEnvelope:
 				std::span render_mono{reinterpret_cast<q31_t*>(render.data()), render.size()};
 				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
 				                       pitchAdjust);
-				if (activeAudioClip.sampleHolder.recordedAtOutputLevel) {
+				if (activeAudioClip.sampleHolder.recordedAtOutputLevel
+				    || activeAudioClip.sampleHolder.recordedForOverdub) {
 					// Undo sample playback's 1/8 scale after rendering, before the shared volume and FX.
-					// Legacy clips also need the x4 conversion used by their monitoring path.
-					const uint8_t gain = activeAudioClip.unityLevel ? 3 : 5;
+					// Self-overdubs restore the pre-volume buffer directly. Only other-track recordings
+					// on legacy clips need the additional x4 conversion used by their monitoring path.
+					const uint8_t gain =
+					    (activeAudioClip.sampleHolder.recordedForOverdub || activeAudioClip.unityLevel) ? 3 : 5;
 					auto samples =
 					    std::span{reinterpret_cast<q31_t*>(render.data()),
 					              render.size() * (willRenderAsOneChannelOnlyWhichWillNeedCopying() ? 1 : 2)};

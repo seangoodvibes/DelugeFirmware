@@ -183,7 +183,8 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	    numChannels, AudioRecordingFolder::CLIPS, inputChannel, true, shouldRecordMarginsNow, buttonPressLatency, false,
 	    outputRecordingFrom,
 	    {.neverUseThreshold = not tempoless_recording,
-	     .recordingToAudioClip = inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom != output});
+	     .recordingToAudioClip = inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom != output,
+	     .recordingForOverdub = inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom == output});
 	if (!recorder) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -246,6 +247,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	                                              // endSyncedRecording(), which puts some final values in the Sample
 
 	sampleHolder.recordedAtOutputLevel = recorder->recordingToAudioClip;
+	sampleHolder.recordedForOverdub = recorder->recordingForOverdub;
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
 	if (recorder->recordingExtraMargins) {
@@ -1123,6 +1125,9 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	if (unityLevel) {
 		writer.writeAttribute("unityLevel", 1);
 	}
+	if (sampleHolder.recordedForOverdub) {
+		writer.writeAttribute("recordedForOverdub", 1);
+	}
 	if (sampleHolder.recordedAtOutputLevel) {
 		writer.writeAttribute("recordedAtOutputLevel", 1);
 	}
@@ -1207,6 +1212,9 @@ someError:
 
 		else if (!strcmp(tagName, "unityLevel")) {
 			unityLevel = reader.readTagOrAttributeValueInt() != 0;
+		}
+		else if (!strcmp(tagName, "recordedForOverdub")) {
+			sampleHolder.recordedForOverdub = reader.readTagOrAttributeValueInt() != 0;
 		}
 		else if (!strcmp(tagName, "recordedAtOutputLevel")) {
 			sampleHolder.recordedAtOutputLevel = reader.readTagOrAttributeValueInt() != 0;

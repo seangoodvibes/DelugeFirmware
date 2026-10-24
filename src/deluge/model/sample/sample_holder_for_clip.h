@@ -31,6 +31,7 @@ public:
 
 	int16_t transpose;
 	int8_t cents;
+	bool recordedForOverdub = false;    // Pre-volume self-overdub captured without PCM amplification.
 	bool recordedAtOutputLevel = false; // Another track captured without PCM amplification.
 
 protected:

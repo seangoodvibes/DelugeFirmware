@@ -32,6 +32,7 @@ void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, b
 
 	if (!newAudioFile || manuallySelected) {
 		recordedAtOutputLevel = false;
+		recordedForOverdub = false;
 	}
 	SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 
@@ -63,6 +64,7 @@ void SampleHolderForClip::beenClonedFrom(SampleHolderForClip const* other, bool 
 	cents = other->cents;
 	SampleHolder::beenClonedFrom(other, reversed);
 	recordedAtOutputLevel = other->recordedAtOutputLevel;
+	recordedForOverdub = other->recordedForOverdub;
 }
 
 void SampleHolderForClip::sampleBeenSet(bool reversed, bool manuallySelected) {

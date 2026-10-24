@@ -118,6 +118,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 
 	outputRecordingFrom = outputRecordingFrom_;
 	recordingToAudioClip = config.recordingToAudioClip;
+	recordingForOverdub = config.recordingForOverdub;
 	keepingReasonsForFirstClusters = newKeepingReasons;
 	recordingExtraMargins = shouldRecordExtraMargins;
 	folderID = newFolderID;
@@ -918,8 +919,8 @@ void SampleRecorder::finishCapturing() {
 // Only call this after checking that status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
 // Watch out - this could be called during SD writing - including during cardRoutine() for this class!
 void SampleRecorder::feedAudio(std::span<StereoSample> input, bool applyGain, uint8_t gainToApply) {
-	if (mode == AudioInputChannel::SPECIFIC_OUTPUT && recordingToAudioClip) {
-		// Preserve output-level headroom in the WAV, including for synth callers requesting x4.
+	if (mode == AudioInputChannel::SPECIFIC_OUTPUT && (recordingToAudioClip || recordingForOverdub)) {
+		// Preserve capture headroom in the WAV, including for callers requesting x4.
 		// The sample holder records that playback must compensate for its internal sample scaling.
 		applyGain = false;
 	}

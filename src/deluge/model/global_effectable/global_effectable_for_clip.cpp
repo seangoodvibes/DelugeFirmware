@@ -152,7 +152,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Record before pan/compression/volume to keep volumes consistent for self-overdubs and standalone sampling.
 	if (recorder != nullptr && !recorder->recordingToAudioClip
 	    && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
+		// Standalone sampling retains its existing gain. Self-overdubs capture without amplification
+		// and compensate for sample playback scaling when the recorded sample is rendered.
 		recorder->feedAudio(global_effectable_audio, true, 2);
 	}
 
