@@ -178,9 +178,12 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	    currentPlaybackMode->wantsToDoTempolessRecord(modelStack->getTimelineCounter()->getLastProcessedPos());
 
 	// recorder needs more config settings
-	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
-	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom,
-	                                       {.neverUseThreshold = not tempoless_recording});
+	recorder = AudioEngine::getNewRecorder(
+	    numChannels, AudioRecordingFolder::CLIPS, inputChannel, true, shouldRecordMarginsNow, buttonPressLatency, false,
+	    outputRecordingFrom,
+	    {.neverUseThreshold = not tempoless_recording,
+	     .recordingSpecificTrackToAudioClip =
+	         inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom != output});
 	if (!recorder) {
 		return Error::INSUFFICIENT_RAM;
 	}

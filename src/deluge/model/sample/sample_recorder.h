@@ -48,6 +48,8 @@ class AudioClip;
 class Output;
 struct RecorderConfig {
 	bool neverUseThreshold = false;
+	// Another track is being recorded for audio-clip playback (not a self-overdub).
+	bool recordingSpecificTrackToAudioClip = false;
 };
 
 class SampleRecorder {
@@ -106,6 +108,8 @@ public:
 	Output* outputRecordingFrom; // for when recording from a specific output
 	// A looper overdub - outputRecordingFrom's own clip is recording it, so the clip's audio comes round every pass
 	bool recordingOwnClip = false;
+	// Keep track of if a recorder is recording a specific track to the audio clip.
+	bool recordingSpecificTrackToAudioClip = false;
 
 	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
 	// there... but this is nice.

@@ -114,6 +114,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
                             Output* outputRecordingFrom_, RecorderConfig config) {
 
 	outputRecordingFrom = outputRecordingFrom_;
+	recordingSpecificTrackToAudioClip = config.recordingSpecificTrackToAudioClip;
 	keepingReasonsForFirstClusters = newKeepingReasons;
 	recordingExtraMargins = shouldRecordExtraMargins;
 	folderID = newFolderID;
