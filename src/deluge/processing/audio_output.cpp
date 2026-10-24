@@ -183,6 +183,17 @@ renderEnvelope:
 				std::span render_mono{reinterpret_cast<q31_t*>(render.data()), render.size()};
 				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
 				                       pitchAdjust);
+				if (activeAudioClip.sampleHolder.recordedAtOutputLevel) {
+					// Undo sample playback's 1/8 scale after rendering, before the shared volume and FX.
+					// Legacy clips also need the x4 conversion used by their monitoring path.
+					const uint8_t gain = activeAudioClip.unityLevel ? 3 : 5;
+					auto samples =
+					    std::span{reinterpret_cast<q31_t*>(render.data()),
+					              render.size() * (willRenderAsOneChannelOnlyWhichWillNeedCopying() ? 1 : 2)};
+					for (auto& sample : samples) {
+						sample = lshiftAndSaturateUnknown(sample, gain);
+					}
+				}
 				rendered = true;
 				amplitudeLastTime = amplitudeLocal;
 
@@ -288,12 +299,15 @@ renderEnvelope:
 		std::span<StereoSample> monitoredAudio{monitoredMemory, output.size()};
 		outputRecordingFrom->renderOutput(songModelStack, monitoredAudio, reverbBuffer, reverbAmountAdjust,
 		                                  sideChainHitPending, shouldLimitDelayFeedback, isClipActive);
-		// The source is already at output level. Convert to the audio clip's pre-FX level: its default
-		// volume and filter compensation apply a net gain of 1/4. Scale only the incoming monitor signal,
-		// leaving any sample playing in this clip at its existing level and retaining the destination FX.
+		// Unity-level clips accept the source's rendered output directly. Retain legacy monitoring gain
+		// for older songs, scaling only the incoming source rather than the clip's own sample.
+		const bool unity = activeClip && static_cast<AudioClip*>(activeClip)->unityLevel;
 		std::ranges::transform(
-		    monitoredAudio, output, output.begin(), [](StereoSample source, StereoSample destination) {
-			    return destination + StereoSample{lshiftAndSaturate<2>(source.l), lshiftAndSaturate<2>(source.r)};
+		    monitoredAudio, output, output.begin(), [unity](StereoSample source, StereoSample destination) {
+			    if (!unity) {
+				    source = StereoSample{lshiftAndSaturate<2>(source.l), lshiftAndSaturate<2>(source.r)};
+			    }
+			    return destination + source;
 		    });
 	}
 	return rendered;

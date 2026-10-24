@@ -112,6 +112,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 
 void AudioClip::copyBasicsFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
+	unityLevel = static_cast<AudioClip const*>(otherClip)->unityLevel;
 	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
 }
 
@@ -244,6 +245,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
 	                                              // endSyncedRecording(), which puts some final values in the Sample
 
+	sampleHolder.recordedAtOutputLevel = recorder->recordingToAudioClip;
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
 	if (recorder->recordingExtraMargins) {
@@ -1118,6 +1120,12 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	                                                         : sampleHolder.filePath.get());
 	writer.writeAttribute("startSamplePos", sampleHolder.startPos);
 	writer.writeAttribute("endSamplePos", sampleHolder.endPos);
+	if (unityLevel) {
+		writer.writeAttribute("unityLevel", 1);
+	}
+	if (sampleHolder.recordedAtOutputLevel) {
+		writer.writeAttribute("recordedAtOutputLevel", 1);
+	}
 	writer.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
 	if (sampleControls.interpolationMode == InterpolationMode::LINEAR) {
 		writer.writeAttribute("linearInterpolation", 1);
@@ -1162,6 +1170,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 }
 
 Error AudioClip::readFromFile(Deserializer& reader, Song* song) {
+	unityLevel = false; // Missing attribute means a legacy song.
 
 	Error error;
 
@@ -1196,6 +1205,12 @@ someError:
 			overdubsShouldCloneOutput = reader.readTagOrAttributeValueInt();
 		}
 
+		else if (!strcmp(tagName, "unityLevel")) {
+			unityLevel = reader.readTagOrAttributeValueInt() != 0;
+		}
+		else if (!strcmp(tagName, "recordedAtOutputLevel")) {
+			sampleHolder.recordedAtOutputLevel = reader.readTagOrAttributeValueInt() != 0;
+		}
 		else if (!strcmp(tagName, "startSamplePos")) {
 			sampleHolder.startPos = reader.readTagOrAttributeValueInt();
 		}

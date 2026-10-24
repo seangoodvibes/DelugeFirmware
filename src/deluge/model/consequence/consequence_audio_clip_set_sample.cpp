@@ -28,6 +28,7 @@ ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip)
 	clip = newClip;
 	filePathToRevertTo.set(&newClip->sampleHolder.filePath);
 	endPosToRevertTo = newClip->sampleHolder.endPos;
+	recordedAtOutputLevelToRevertTo = newClip->sampleHolder.recordedAtOutputLevel;
 }
 
 Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStack) {
@@ -35,12 +36,14 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	String filePathBeforeRevert;
 	filePathBeforeRevert.set(&clip->sampleHolder.filePath);
 	uint64_t endPosBeforeRevert = clip->sampleHolder.endPos;
+	bool recordedAtOutputLevelBeforeRevert = clip->sampleHolder.recordedAtOutputLevel;
 	// don't keep cached since we undid the set
 	clip->unassignVoiceSample(true);
 
 	clip->sampleHolder.setAudioFile(nullptr);
 	clip->sampleHolder.filePath.set(&filePathToRevertTo);
 	clip->sampleHolder.endPos = endPosToRevertTo;
+	clip->sampleHolder.recordedAtOutputLevel = recordedAtOutputLevelToRevertTo;
 
 	if (filePathToRevertTo.isEmpty()) {
 
@@ -68,6 +71,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 
 	filePathToRevertTo.set(&filePathBeforeRevert);
 	endPosToRevertTo = endPosBeforeRevert;
+	recordedAtOutputLevelToRevertTo = recordedAtOutputLevelBeforeRevert;
 
 	return Error::NONE;
 }

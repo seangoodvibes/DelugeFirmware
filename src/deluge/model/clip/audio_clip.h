@@ -94,6 +94,8 @@ public:
 	char const* getXMLTag() override { return "audioClip"; }
 	int32_t nextSampleRestartPos;
 	SampleControls sampleControls;
+	// New clips use a 0 dB midpoint; older songs retain their original volume curve.
+	bool unityLevel = true;
 
 	SampleHolderForClip sampleHolder;
 

@@ -425,6 +425,7 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 		case params::UNPATCHED_DELAY_AMOUNT:
 		case params::UNPATCHED_PAN:
 		case params::UNPATCHED_PITCH_ADJUST:
+		case params::UNPATCHED_VOLUME:
 			return true;
 		}
 	}

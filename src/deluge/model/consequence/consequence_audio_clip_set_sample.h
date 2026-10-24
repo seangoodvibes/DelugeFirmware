@@ -30,4 +30,5 @@ public:
 	AudioClip* clip;
 	String filePathToRevertTo;
 	uint64_t endPosToRevertTo;
+	bool recordedAtOutputLevelToRevertTo;
 };

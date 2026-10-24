@@ -29,6 +29,7 @@
 // #include <algorithm>
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
@@ -60,6 +61,13 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
 	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
 
+	const bool unityAudioLevel = outputType == OutputType::AUDIO && modelStack->getTimelineCounter()
+	                             && static_cast<AudioClip*>(modelStack->getTimelineCounter())->unityLevel;
+	if (unityAudioLevel) {
+		// The legacy audio curve, including neutral filter compensation, is 4/9 at midpoint.
+		// Normalize it to unity: gain = (2 * normalized knob position)^2, with +12 dB at maximum.
+		volumeAdjustment = static_cast<int32_t>((int64_t{volumeAdjustment} * 9) / 4);
+	}
 	int32_t volumePostFX = volumeAdjustment;
 
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
@@ -68,7 +76,11 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
 	                                                  : (volumeAdjustment >> 2);
 
-	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
+	// A monitored track already renders its own filters. Pass the destination's actual trim to its reverb send.
+	int32_t sourceVolumeAdjustment =
+	    unityAudioLevel ? static_cast<int32_t>((int64_t{volumeAdjustment} * 8) / 9) : volumeAdjustment;
+	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, sourceVolumeAdjustment)
+	                                     << 5;
 
 	int32_t pitchAdjust =
 	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);

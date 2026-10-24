@@ -30,6 +30,9 @@ SampleHolderForClip::~SampleHolderForClip() {
 void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
                                        int32_t clusterLoadInstruction) {
 
+	if (!newAudioFile || manuallySelected) {
+		recordedAtOutputLevel = false;
+	}
 	SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 
 	recalculateNeutralPhaseIncrement();
@@ -59,6 +62,7 @@ void SampleHolderForClip::beenClonedFrom(SampleHolderForClip const* other, bool 
 	transpose = other->transpose;
 	cents = other->cents;
 	SampleHolder::beenClonedFrom(other, reversed);
+	recordedAtOutputLevel = other->recordedAtOutputLevel;
 }
 
 void SampleHolderForClip::sampleBeenSet(bool reversed, bool manuallySelected) {
