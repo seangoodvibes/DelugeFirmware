@@ -46,8 +46,13 @@ class Sample;
 class Cluster;
 class AudioClip;
 class Output;
+// Sample keeps the existing standalone-sampler recording level and capture point.
+// Audio clips capture another track after its final gain, or themselves before it for overdubs.
+enum class OutputRecordingPurpose { Sample, AudioClip, AudioClipOverdub };
+
 struct RecorderConfig {
 	bool neverUseThreshold = false;
+	OutputRecordingPurpose outputRecordingPurpose = OutputRecordingPurpose::Sample;
 };
 
 class SampleRecorder {
@@ -59,6 +64,7 @@ public:
 	            Output* outputRecordingFrom, RecorderConfig config = {});
 	void setRecordingThreshold(RecorderConfig config);
 	void feedAudio(std::span<StereoSample> input, bool applyGain = false, uint8_t gainToApply = 5);
+	void feedOutputAudio(std::span<StereoSample> input);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
@@ -104,6 +110,7 @@ public:
 	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
 	AudioInputChannel mode;
 	Output* outputRecordingFrom; // for when recording from a specific output
+	OutputRecordingPurpose outputRecordingPurpose = OutputRecordingPurpose::Sample;
 
 	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
 	// there... but this is nice.

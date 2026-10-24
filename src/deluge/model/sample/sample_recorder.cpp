@@ -24,6 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/sample/audio_clip_recording.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -117,6 +118,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
                             Output* outputRecordingFrom_, RecorderConfig config) {
 
 	outputRecordingFrom = outputRecordingFrom_;
+	outputRecordingPurpose = config.outputRecordingPurpose;
 	keepingReasonsForFirstClusters = newKeepingReasons;
 	recordingExtraMargins = shouldRecordExtraMargins;
 	folderID = newFolderID;
@@ -914,9 +916,25 @@ void SampleRecorder::finishCapturing() {
 	}
 }
 
+void SampleRecorder::feedOutputAudio(std::span<StereoSample> input) {
+	if (status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		// Standalone sampling retains its existing x4 gain. Audio-clip conversion is applied in feedAudio.
+		feedAudio(input, true, 2);
+	}
+}
+
 // Only call this after checking that status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
 // Watch out - this could be called during SD writing - including during cardRoutine() for this class!
 void SampleRecorder::feedAudio(std::span<StereoSample> input, bool applyGain, uint8_t gainToApply) {
+	// Keep this policy on the recorder: it can still capture trailing samples after the clip stops recording.
+	const bool audioClipOutput =
+	    mode == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingPurpose != OutputRecordingPurpose::Sample;
+	const auto convert = [=](int32_t value) {
+		if (audioClipOutput) {
+			return audioClipRecordingSample(value);
+		}
+		return applyGain ? lshiftAndSaturateUnknown(value, gainToApply) : value;
+	};
 	int32_t numSamples = input.size();
 	do {
 		int32_t numSamplesThisCycle = input.size();
@@ -994,9 +1012,7 @@ doFinishCapturing:
 			// Or, all other, non-balanced input types
 			else {
 				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
-					if (applyGain) {
-						rxL = lshiftAndSaturateUnknown(rxL, gainToApply);
-					}
+					rxL = convert(rxL);
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxL)[1], 3, writePosNow);
@@ -1019,9 +1035,7 @@ doFinishCapturing:
 
 					// recording stereo
 					if (recordingNumChannels == 2) {
-						if (applyGain) {
-							rxR = lshiftAndSaturateUnknown(rxR, gainToApply);
-						}
+						rxR = convert(rxR);
 
 						// Copy the last 24 bits (lower 3 bytes) to writePosNow
 						writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxR)[1], 3, writePosNow);

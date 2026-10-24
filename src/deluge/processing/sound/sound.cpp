@@ -2621,9 +2621,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		compressor.reset();
 	}
 
-	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio(sound_stereo, true, 2);
+	if (recorder) {
+		recorder->feedOutputAudio(sound_stereo);
 	}
 
 	// add the sound to the output, i.e. output = output + sound
