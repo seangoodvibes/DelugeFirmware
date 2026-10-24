@@ -48,6 +48,8 @@ class AudioClip;
 class Output;
 struct RecorderConfig {
 	bool neverUseThreshold = false;
+	// Another track is being recorded for audio-clip playback (not a self-overdub).
+	bool recordingToAudioClip = false;
 };
 
 class SampleRecorder {
@@ -104,6 +106,7 @@ public:
 	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
 	AudioInputChannel mode;
 	Output* outputRecordingFrom; // for when recording from a specific output
+	bool recordingToAudioClip = false;
 
 	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
 	// there... but this is nice.

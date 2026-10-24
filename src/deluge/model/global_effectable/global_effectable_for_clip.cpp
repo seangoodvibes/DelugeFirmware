@@ -137,8 +137,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
 	                             renderedLastTime, reverbSendAmount);
 	processStutter(global_effectable_audio, paramManagerForClip);
-	// record before pan/compression/volume to keep volumes consistent
-	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+	// Record before pan/compression/volume to keep volumes consistent for self-overdubs and standalone sampling.
+	if (recorder != nullptr && !recorder->recordingToAudioClip
+	    && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
 		recorder->feedAudio(global_effectable_audio, true, 2);
 	}
@@ -151,6 +152,12 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 	else {
 		compressor.reset();
+	}
+
+	// Match the signal monitored by the destination audio clip, including source volume, pan and compression.
+	if (recorder != nullptr && recorder->recordingToAudioClip
+	    && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		recorder->feedAudio(global_effectable_audio);
 	}
 
 	// Add the global effectable data to the output
