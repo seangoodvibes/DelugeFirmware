@@ -274,9 +274,15 @@ void renderUIsForOled() {
 
 uint32_t whichMainRowsNeedRendering = 0;
 uint32_t whichSideRowsNeedRendering = 0;
+static uint32_t whichMainRowsNeedRefinement = 0;
 
 void clearPendingUIRendering() {
 	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
+	whichMainRowsNeedRefinement = 0;
+}
+
+void retryMainPadRendering(uint32_t whichRows) {
+	whichMainRowsNeedRefinement |= whichRows;
 }
 
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows, uint32_t whichSideRows) {
@@ -312,7 +318,7 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 
 void doAnyPendingGridRendering() {
 
-	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) {
+	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering && !whichMainRowsNeedRefinement) {
 		return;
 	}
 
@@ -320,7 +326,7 @@ void doAnyPendingGridRendering() {
 		return;
 	}
 	// Make a local copy of our instructions
-	uint32_t mainRowsNow = whichMainRowsNeedRendering;
+	uint32_t mainRowsNow = whichMainRowsNeedRendering | whichMainRowsNeedRefinement;
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
 
 	// Clear the overall instructions - so it may now be written to again during this function call
@@ -337,6 +343,7 @@ void doAnyPendingGridRendering() {
 		if (mainRowsNow) {
 			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
+				// Refinement requests leave a usable frame. Ordinary redraw requests still invalidate it.
 				if (!whichMainRowsNeedRendering) {
 					PadLEDs::sendOutMainPadColours();
 				}
