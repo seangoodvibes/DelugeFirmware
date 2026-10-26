@@ -12,6 +12,7 @@ static void reset(void) {
 	oledDmaWatchdogArmed = false;
 	oledSettling = false;
 	picRead = picWrite = picMessage = 0;
+	picTxFullness = 0;
 	memset(picRx, 0, sizeof(picRx));
 	timer = notificationCount = criticalDepth = 0;
 }
@@ -52,6 +53,25 @@ int main(void) {
 	// CV may bypass a SELECT request only before it is sent to the PIC.
 	reset();
 	static uint8_t frame[768];
+	// A grid redraw already queued on the PIC UART must not commit OLED SELECT.
+	// CV can use the SPI bus while the unrelated pad bytes are still draining.
+	oledFrameQueue[0] = frame;
+	oledFrameQueueWritePos = 1;
+	sendSPITransferFromQueue();
+	picTxFullness = 392;
+	oledRoutine();
+	assert(picMessage == 0 && oledWaitingForMessage == OLED_MESSAGE_NONE);
+	assert(oledPendingMessageToSend == OLED_MESSAGE_SELECT);
+	enqueueCVMessage(0, 0x31123400);
+	assert(spi.SPDR.LONG == 0x31123400);
+	cvSPITransferComplete(0);
+	oledRoutine();
+	assert(picMessage == 0 && oledPendingMessageToSend == OLED_MESSAGE_SELECT);
+	picTxFullness = 0;
+	oledRoutine();
+	assert(picMessage == OLED_MESSAGE_SELECT && oledWaitingForMessage == OLED_MESSAGE_SELECT);
+
+	reset();
 	oledFrameQueue[0] = frame;
 	oledFrameQueueWritePos = 1;
 	sendSPITransferFromQueue();
@@ -83,6 +103,7 @@ int main(void) {
 	oledRoutine();
 	assert(oledFrameQueueReadPos == 1 && dma.N0TB_n == sizeof(frame));
 	oledTransferComplete(0);
+	picTxFullness = 392; // Never postpone DESELECT: CV is already blocked until it completes.
 	oledRoutine();
 	assert(picMessage == OLED_MESSAGE_DESELECT); // No separate 10 ms dispatch wait.
 

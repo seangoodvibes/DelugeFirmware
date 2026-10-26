@@ -69,6 +69,11 @@ static void cvSent(uint8_t channel) {
 	notified[notificationCount++] = channel;
 }
 static unsigned picMessage;
+static int32_t picTxFullness;
+static int32_t uartGetTxBufferFullnessByItem(int item) {
+	assert(item == UART_ITEM_PIC);
+	return picTxFullness;
+}
 #define bufferPICUart(message) (picMessage = (message))
 static uint8_t picRx[8];
 static unsigned picRead, picWrite;

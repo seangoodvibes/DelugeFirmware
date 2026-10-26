@@ -119,6 +119,13 @@ void oledRoutine()
 
     if (oledPendingMessageToSend)
     {
+        // Pad redraws share this UART. Keep SELECT cancellable by CV until those
+        // bytes have drained, rather than reserving SPI while SELECT waits behind
+        // them. DESELECT must always go out promptly to release an already-held bus.
+        if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && uartGetTxBufferFullnessByItem(UART_ITEM_PIC))
+        {
+            return;
+        }
         oledWaitingForMessage    = oledPendingMessageToSend; // We'll wait to hear back from the PIC.
         oledPendingMessageToSend = 0;
         last_message_sent        = oledWaitingForMessage;
