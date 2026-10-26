@@ -44,21 +44,7 @@ static uint8_t cvSendingChannel = 0;
 
 void sendCVWord(uint32_t message);
 bool sendPriorityCVIfPending();
-
-void enqueueCVMessage(int channel, uint32_t message)
-{
-    ENTER_CRITICAL_SECTION();
-    cvPendingData[channel] = message;
-    cvPendingChannels |= 1u << channel;
-    // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
-    // boundary, ahead of any queued OLED frames.
-    if (!spiBusCurrentlySending)
-    {
-        spiBusCurrentlySending = true;
-        sendPriorityCVIfPending();
-    }
-    EXIT_CRITICAL_SECTION();
-}
+static void finishOledSettling();
 
 int oledWaitingForMessage    = OLED_MESSAGE_NONE; // 256 means none.
 int oledPendingMessageToSend = 0; // 0 means none. The purpose of this variable is to ensure thread safety.
@@ -71,32 +57,83 @@ bool oledDmaWatchdogArmed = false;
 bool oled_sending = false;
 bool cv_sending   = false;
 
+static bool oledSettling = false;
+static uint16_t oledSettleTime;
+
+void enqueueCVMessage(int channel, uint32_t message)
+{
+    ENTER_CRITICAL_SECTION();
+    cvPendingData[channel] = message;
+    cvPendingChannels |= 1u << channel;
+    // A SELECT that has not reached the PIC can still yield to CV safely.
+    if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && oledWaitingForMessage == OLED_MESSAGE_NONE && !cv_sending)
+    {
+        oledPendingMessageToSend = 0;
+        oled_sending             = false;
+        spiBusCurrentlySending   = false;
+    }
+    // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
+    // boundary, ahead of any queued OLED frames.
+    if (!spiBusCurrentlySending)
+    {
+        spiBusCurrentlySending = true;
+        sendPriorityCVIfPending();
+    }
+    EXIT_CRITICAL_SECTION();
+}
+
 static void armOledDmaWatchdog()
 {
     oledDmaWatchdogArmed = true;
     oledDmaWatchdogTime  = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
 }
 
+// Keep the existing PIC settling interval, but measure it with the hardware clock
+// rather than waiting for the low-priority UI timer task (and its audio render clock).
+void oledAcknowledgementReceived(uint8_t message)
+{
+    if (message != oledWaitingForMessage || oledSettling)
+    {
+        return;
+    }
+    oledSettling   = true;
+    oledSettleTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(3);
+}
+
 // Call this before you routinely call uartFlushIfNotSending().
 void oledRoutine()
 {
+    if (oledWaitingForMessage != OLED_MESSAGE_NONE)
+    {
+        // Do not let a deferred pad event or SD lock hold a CV-critical PIC ack
+        // hostage. Replace only ack bytes; all other input stays in order.
+        if (uartReplacePendingByte(UART_ITEM_PIC, oledWaitingForMessage, OLED_MESSAGE_ACK_CONSUMED))
+        {
+            oledAcknowledgementReceived(oledWaitingForMessage);
+        }
+        if (oledSettling && (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oledSettleTime) >= 0)
+        {
+            finishOledSettling();
+        }
+    }
+
     if (oledPendingMessageToSend)
     {
         oledWaitingForMessage    = oledPendingMessageToSend; // We'll wait to hear back from the PIC.
         oledPendingMessageToSend = 0;
-sendMessageToPIC:
-        last_message_sent      = oledWaitingForMessage;
-        oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+        last_message_sent        = oledWaitingForMessage;
+        oledMessageTimeoutTime   = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+        // Discard acknowledgements left from an earlier transaction before sending
+        // this request. Deferred UI input may have kept them in the receive ring.
+        uartReplacePendingByte(UART_ITEM_PIC, oledWaitingForMessage, OLED_MESSAGE_ACK_CONSUMED);
         bufferPICUart(oledWaitingForMessage);
     }
 
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
         int16_t howLate = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
-        if (howLate >= 0)
+        if (!oledSettling && howLate >= 0)
         {
-            // oledLowLevelTimerCallback(); // No need to actually set the delay timer - we've already waited for ages -
-            // any further delay would be pointless.
             oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
             last_message_sent      = oledWaitingForMessage;
             bufferPICUart(oledWaitingForMessage);
@@ -320,10 +357,11 @@ void oledDeselectionComplete()
     }
 }
 
-void oledLowLevelTimerCallback()
+static void finishOledSettling()
 {
+    oledSettling = false;
     if (oledWaitingForMessage == OLED_MESSAGE_SELECT)
         oledSelectingComplete();
-    else
+    else if (oledWaitingForMessage == OLED_MESSAGE_DESELECT)
         oledDeselectionComplete();
 }

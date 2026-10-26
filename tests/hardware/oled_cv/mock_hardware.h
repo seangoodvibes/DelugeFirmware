@@ -1,4 +1,5 @@
 #pragma once
+#include "src/deluge/drivers/uart/rx_buffer.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -21,6 +22,8 @@
 #define OLED_MESSAGE_NONE 256
 #define OLED_MESSAGE_SELECT 248
 #define OLED_MESSAGE_DESELECT 249
+#define OLED_MESSAGE_ACK_CONSUMED 255
+#define UART_ITEM_PIC 0
 struct {
 	unsigned SPDCR, SPCMD0, SPCR;
 	struct {
@@ -67,5 +70,10 @@ static void cvSent(uint8_t channel) {
 }
 static unsigned picMessage;
 #define bufferPICUart(message) (picMessage = (message))
+static uint8_t picRx[8];
+static unsigned picRead, picWrite;
+static bool uartReplacePendingByte(int item, uint8_t value, uint8_t replacement) {
+	return uartReplaceByteInRing(picRx, sizeof(picRx), picRead, picWrite, value, replacement);
+}
 void cvSPITransferComplete(uint32_t);
 void oledTransferComplete(uint32_t);
