@@ -44,6 +44,7 @@
 #include "util/functions.h"
 #include "util/try.h"
 #include "version.h"
+#include <new>
 #include <string.h>
 
 extern "C" {
@@ -788,8 +789,7 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 }
 
 FileReader::FileReader() {
-	fileClusterBufferAllocation = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
-	fileClusterBuffer = fileClusterBufferAllocation ? (char*)fileClusterBufferAllocation + CACHE_LINE_SIZE : nullptr;
+	fileClusterBuffer = static_cast<char*>(::operator new(32768, std::align_val_t{CACHE_LINE_SIZE}, std::nothrow));
 }
 
 // Used to read an in-memory file stream.
@@ -803,7 +803,9 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 }
 
 FileReader::~FileReader() {
-	GeneralMemoryAllocator::get().dealloc(fileClusterBufferAllocation);
+	if (!memoryBased) {
+		::operator delete(fileClusterBuffer, std::align_val_t{CACHE_LINE_SIZE});
+	}
 }
 
 void FileReader::resetReader() {
@@ -929,8 +931,8 @@ FRESULT FileReader::closeWriter() {
 
 FileWriter::FileWriter() {
 	bufferSize = 32768;
-	writeClusterBufferAllocation = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
-	writeClusterBuffer = writeClusterBufferAllocation ? (char*)writeClusterBufferAllocation + CACHE_LINE_SIZE : nullptr;
+	writeClusterBuffer =
+	    static_cast<char*>(::operator new(bufferSize, std::align_val_t{CACHE_LINE_SIZE}, std::nothrow));
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {
@@ -938,7 +940,7 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 }
 
 FileWriter::~FileWriter() {
-	GeneralMemoryAllocator::get().dealloc(writeClusterBufferAllocation);
+	::operator delete(writeClusterBuffer, std::align_val_t{CACHE_LINE_SIZE});
 }
 
 int32_t FileWriter::bytesWritten() {
