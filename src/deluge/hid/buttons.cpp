@@ -26,6 +26,8 @@
 #include "gui/views/view.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
+#include "model/song/track_link.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -38,6 +40,7 @@
 namespace Buttons {
 
 bool recordButtonPressUsedUp;
+static bool track_lock_button_held = false;
 uint32_t timeRecordButtonPressed;
 bool selectButtonPressUsedUp;
 /**
@@ -110,12 +113,25 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			display->cancelPopup();
 		}
+		if (!on && track_lock_button_held) {
+			track_lock_button_held = false;
+			goto dealtWith;
+		}
 		if (on && isShiftButtonPressed() && isButtonPressed(LEARN)) {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
 			    != RuntimeFeatureStateEmulatedDisplay::Hardware) {
 				deluge::hid::display::swapDisplayType();
 				goto dealtWith;
 			}
+		}
+		if (deluge::model::track_link::enabled() && on && isShiftButtonPressed() && !isButtonPressed(LEARN)
+		    && rootUIIsClipMinderScreen() && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING)) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			track_lock_button_held = true;
+			deluge::model::track_link::toggleLockForClip(getCurrentClip());
+			goto dealtWith;
 		}
 	}
 	else if (b == BACK) [[unlikely]] {

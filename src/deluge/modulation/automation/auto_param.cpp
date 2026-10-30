@@ -29,9 +29,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
+#include "model/track_parameter_edit.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
@@ -303,8 +304,14 @@ getOut:
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
 
-	// Song view's track edit mode: write the same value to the same parameter in the track's other clips.
-	deluge::model::track_link::propagate(value, modelStack, shouldLogAction, mayDeleteNodesInLinearRun, doMPEMode);
+	// Link explicit edits across this output's clips when held in Session or persistently locked.
+	if (auto* output =
+	        Output::propagateParameterEdit(*modelStack, {.value = value,
+	                                                     .shouldLogAction = shouldLogAction,
+	                                                     .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
+	                                                     .isMPE = doMPEMode})) {
+		view.notifyTrackParameterEdited(*output);
+	}
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
@@ -1183,6 +1190,10 @@ yesChangeCurrentValue:
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          isAutomated());
+	if (auto* output = Output::propagateParameterEdit(
+	        *modelStack, {.value = value, .region = deluge::model::AutomationRegion{pos, length, actionType}})) {
+		view.notifyTrackParameterEdited(*output);
+	}
 }
 
 #define REGION_EDGE_LEFT 0

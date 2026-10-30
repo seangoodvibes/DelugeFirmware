@@ -43,7 +43,6 @@
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -914,6 +913,13 @@ doNewProbability:
 }
 
 void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn) {
+	// Note-ons can be deferred until after note-offs. Check mute again at dispatch so a queued
+	// note cannot sound on a muted Session track. Clear the row's sequenced state because this
+	// pending note will not be started.
+	if (output->isMutedInSession()) {
+		pendingNoteOn->noteRow->sequenced = false;
+		return;
+	}
 
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    modelStack->addNoteRow(pendingNoteOn->noteRowId, pendingNoteOn->noteRow);
@@ -4373,12 +4379,8 @@ void InstrumentClip::abortRecording() {
 // ----- PlayPositionCounter implementation -------
 
 void InstrumentClip::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	// Song view has no way to pick a drum, so track edit mode carries its own whole-kit / drum-row choice there.
-	bool useDrumRow = deluge::model::track_link::isSelected(output)
-	                      ? deluge::model::track_link::targetsDrumRow(output)
-	                      : (!affectEntire && getRootUI() != &sessionView && getRootUI() != &arrangerView);
-
-	if (output->type == OutputType::KIT && useDrumRow) {
+	if (output->type == OutputType::KIT && !affectEntire && getRootUI() != &sessionView
+	    && getRootUI() != &arrangerView) {
 		Kit* kit = (Kit*)output;
 
 		if (!kit->selectedDrum || kit->selectedDrum->type != DrumType::SOUND) {

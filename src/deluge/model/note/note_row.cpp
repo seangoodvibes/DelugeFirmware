@@ -2520,6 +2520,13 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
+	// Track mute leaves Session clips running in time, so suppress their sequenced note-ons here.
+	// Still allow note-offs through to release existing notes. A skipped note-on must not leave
+	// the row marked as sequenced, since no note was started.
+	if (on && output->isMutedInSession()) {
+		sequenced = false;
+		return;
+	}
 
 	if (output->type != OutputType::KIT) {
 		// If it's a note-on, we'll send it "soon", after all note-offs

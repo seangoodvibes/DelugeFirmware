@@ -821,12 +821,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	//  	return;
 	//  }
 
-	// Track edit mode with no usable track picked yet: say so rather than leaving the knob dead.
-	if (deluge::model::track_link::modeIsOn() && !activeModControllableModelStack.modControllable) {
-		display->displayPopup("PICK A TRACK");
-		return;
-	}
-
 	if (activeModControllableModelStack.modControllable) {
 
 		bool noteTailsAllowedBefore;
@@ -975,6 +969,7 @@ int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobP
 // get's modelStackWithParam for use with Gold Knobs and ModEncoderAction above
 // also used with ModButtonAction to display name's of parameters assigned to gold knobs
 ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore) {
+	noteTailsAllowedBefore = false;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (activeModControllableModelStack.modControllable) {
@@ -1578,9 +1573,9 @@ void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
 
-	// Track edit mode only lives in song view.
+	// Clear only the transient Session selection; output locks survive view changes.
 	if (deluge::model::track_link::modeIsOn() && rootUI != &sessionView) {
-		deluge::model::track_link::exitMode();
+		sessionView.gridEndTrackSelection();
 	}
 	UIType uiType = UIType::NONE;
 	UIType uiContextType = UIType::NONE;
@@ -1606,8 +1601,8 @@ void View::setModLedStates() {
 		// enabled
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 	}
-	if (deluge::model::track_link::modeIsOn()) {
-		// Track edit mode: the Affect-entire LED flashes so it is plain that the mode is on.
+	if (deluge::model::track_link::editingSelectedTrack()) {
+		// Track edit mode: the Affect-entire LED flashes to indicate that the mode is on.
 		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
 	}
 	else {
@@ -3013,3 +3008,7 @@ Clip* View::findNextClipForOutput(Output* output) {
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = setupModelStack(modelStackMemory);
 */
+
+void View::notifyTrackParameterEdited(Output const& output) {
+	deluge::model::track_link::parameterEdited(output);
+}

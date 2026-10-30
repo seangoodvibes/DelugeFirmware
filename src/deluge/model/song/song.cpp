@@ -2503,12 +2503,12 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 			continue;
 		}
 
-		bool isClipActiveNow =
-		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
+		bool is_clip_active_now = ((output->getActiveClip() != nullptr) && !output->isMutedInSession()
+		                           && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
 			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
-			                     !isClipActiveNow, isClipActiveNow);
+			                     !is_clip_active_now, is_clip_active_now);
 		}
 		EXIT_CRITICAL_SECTION();
 #if DO_AUDIO_LOG
@@ -3528,6 +3528,11 @@ traverseClips:
 	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
+	newOutput->trackLocked = oldOutput->trackLocked;
+	oldOutput->trackLocked = false;
+	// Temporary edit scope belongs to the UI gesture, not the replacement preset.
+	oldOutput->setTrackEditActive(false);
+	newOutput->setTrackEditActive(false);
 	oldOutput->mutedInArrangementMode = false;
 
 	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
@@ -5282,6 +5287,11 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
+	newOutput->trackLocked = oldOutput->trackLocked;
+	oldOutput->trackLocked = false;
+	// Temporary edit scope belongs to the UI gesture, not the replacement preset.
+	oldOutput->setTrackEditActive(false);
+	newOutput->setTrackEditActive(false);
 	oldOutput->mutedInArrangementMode = false;
 
 	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
