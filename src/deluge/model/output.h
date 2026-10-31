@@ -100,6 +100,7 @@ public:
 	bool mutedInArrangementMode;
 	// Temporary editing scope (e.g. a held Session track pad); never serialized.
 	void setTrackEditActive(bool active) { trackEditActive = active; }
+	bool isTrackLocked() const;
 	bool trackEditsAreLinked() const;
 	// Resolve the source clip and route its edit to its output. Returns that output
 	// when linking was applicable, so callers can update UI feedback separately.
@@ -108,6 +109,7 @@ public:
 	// True while an edit is being copied into the output's other clips. Those copies must not repeat the edit's
 	// side effects, such as sending MIDI, which the edited clip has already done.
 	static bool isPropagatingParameterEdit() { return propagatingParameterEdit; }
+	void setTrackLocked(bool locked) { trackLocked = locked; }
 	void transferTrackStateTo(Output& replacement);
 	bool mutedInArrangementModeBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;                             // Used by stem export to flag if this output should be exported
@@ -246,6 +248,7 @@ public:
 private:
 	bool applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const& source,
 	                             deluge::model::ParameterEdit const& edit);
+	bool trackLocked{false}; // Saved with the song.
 	bool trackEditActive{false};
 	// Linked writes re-enter AutoParam; suppress nested fan-out before resolving another source.
 	static bool propagatingParameterEdit;
