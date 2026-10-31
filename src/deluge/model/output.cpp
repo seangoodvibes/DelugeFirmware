@@ -638,7 +638,13 @@ for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
     ClipInstance* thisInstance = clipInstances.getElement(i);
 */
 
-// Keep launch/solo state and clip clocks independent from the shared track mute.
+void Output::transferTrackStateTo(Output& replacement) {
+	replacement.trackLocked = trackLocked;
+	replacement.trackEditActive = trackEditActive;
+	trackLocked = false;
+	trackEditActive = false;
+}
+
 bool Output::isTrackLocked() const {
 	return trackLocked && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
 }
@@ -680,43 +686,39 @@ void Output::deactivateInArrangement() {
 }
 
 void Output::toggleTrackMute() {
-	if (mutedInArrangementMode) {
-		mutedInArrangementMode = false;
-		if (arrangement.hasPlaybackActive() && !currentSong->getAnyOutputsSoloingInArrangement()) {
-			activateInArrangement();
-		}
-		else if (session.hasPlaybackActive() && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)) {
-			Clip* clip = getActiveClip();
-			if ((clip != nullptr) && currentSong->isClipActive(clip)) {
-				char memory[MODEL_STACK_MAX_SIZE];
-				auto* stack = setupModelStackWithSong(memory, currentSong)->addTimelineCounter(clip);
-				clip->resumePlayback(stack);
-			}
-		}
+	const bool muting = !mutedInArrangementMode;
+	if (muting && !currentSong->getAnyOutputsSoloingInArrangement()) {
+		deactivateInArrangement();
+	}
+	mutedInArrangementMode = muting;
+	if (!muting && arrangement.hasPlaybackActive() && !currentSong->getAnyOutputsSoloingInArrangement()) {
+		activateInArrangement();
+	}
+	if (!session.hasPlaybackActive() || currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid
+	    || !runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)) {
+		return;
+	}
+	Clip* clip = getActiveClip();
+	if (clip == nullptr || !currentSong->isClipActive(clip)) {
+		return;
+	}
+	char memory[MODEL_STACK_MAX_SIZE];
+	auto* stack = setupModelStackWithSong(memory, currentSong)->addTimelineCounter(clip);
+	if (!muting) {
+		clip->resumePlayback(stack);
+	}
+	else if (clip->type == ClipType::INSTRUMENT) {
+		static_cast<InstrumentClip*>(clip)->stopAllNotesPlaying(stack);
 	}
 	else {
-		if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-			deactivateInArrangement();
-		}
-		mutedInArrangementMode = true;
-		if (session.hasPlaybackActive() && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)) {
-			Clip* clip = getActiveClip();
-			if ((clip != nullptr) && currentSong->isClipActive(clip)) {
-				char memory[MODEL_STACK_MAX_SIZE];
-				auto* stack = setupModelStackWithSong(memory, currentSong)->addTimelineCounter(clip);
-				if (clip->type == ClipType::INSTRUMENT) {
-					static_cast<InstrumentClip*>(clip)->stopAllNotesPlaying(stack);
-				}
-				else {
-					clip->expectNoFurtherTicks(currentSong);
-				}
-			}
-		}
+		clip->expectNoFurtherTicks(currentSong);
 	}
 }
 
 bool Output::isMutedInSession() const {
+	// Rows has no track-mute controls; retain its existing clip-only mute behaviour.
 	return mutedInArrangementMode && currentPlaybackMode == &session
+	       && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
 	       && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
 }
 

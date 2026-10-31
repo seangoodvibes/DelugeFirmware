@@ -38,6 +38,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -70,7 +71,6 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
@@ -1574,7 +1574,7 @@ void View::setModLedStates() {
 	RootUI* rootUI = getRootUI();
 
 	// Clear only the transient Session selection; output locks survive view changes.
-	if (deluge::model::track_link::modeIsOn() && rootUI != &sessionView) {
+	if (deluge::gui::track_link::modeIsOn() && rootUI != &sessionView) {
 		sessionView.gridEndTrackSelection();
 	}
 	UIType uiType = UIType::NONE;
@@ -1601,7 +1601,7 @@ void View::setModLedStates() {
 		// enabled
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 	}
-	if (deluge::model::track_link::editingSelectedTrack()) {
+	if (deluge::gui::track_link::editingSelectedTrack()) {
 		// Track edit mode: the Affect-entire LED flashes to indicate that the mode is on.
 		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
 	}
@@ -3008,7 +3008,3 @@ Clip* View::findNextClipForOutput(Output* output) {
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = setupModelStack(modelStackMemory);
 */
-
-void View::notifyTrackParameterEdited(Output const& output) {
-	deluge::model::track_link::parameterEdited(output);
-}

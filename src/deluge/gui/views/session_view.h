@@ -129,6 +129,7 @@ public:
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 	void gridPulseSelectedClip();
+	bool gridUpdateTrackPadGesture();
 
 	// Track editing hooks used by selection state, pulse rendering, and view changes.
 	bool gridTrackRowEnabled() const;

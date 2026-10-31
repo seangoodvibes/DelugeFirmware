@@ -32,6 +32,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/track_edit_pulse.h"
 #include "gui/views/view.h"
@@ -64,7 +65,6 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -940,9 +940,9 @@ doNewPress:
 
 			view.displayOutputName(output);
 
-			silentTrackAudition = deluge::model::track_link::enabled() && Buttons::isShiftButtonPressed();
+			silentTrackAudition = deluge::gui::track_link::enabled() && Buttons::isShiftButtonPressed();
 			if (silentTrackAudition) {
-				deluge::model::track_link::toggleLock(output);
+				deluge::gui::track_link::toggleLock(output);
 			}
 			else {
 				beginAudition(output);
@@ -956,7 +956,8 @@ doNewPress:
 				                                                    output->getParamManager(currentSong));
 			}
 
-			uiNeedsRendering(ui, 1 << yPressedEffective, 1 << yPressedEffective);
+			uiNeedsRendering(ui, deluge::gui::track_link::enabled() ? (1u << yPressedEffective) : 0,
+			                 1u << yPressedEffective);
 		}
 	}
 
@@ -1739,7 +1740,8 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 		if (output) {
 			endAudition(output);
 			auditionEnded();
-			uiNeedsRendering(ui, 1 << yPressedEffective, 1 << yPressedEffective);
+			uiNeedsRendering(ui, deluge::gui::track_link::enabled() ? (1u << yPressedEffective) : 0,
+			                 1u << yPressedEffective);
 		}
 	}
 
@@ -2293,7 +2295,7 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 		}
 	}
 
-	if (deluge::model::track_link::enabled() && isTrackPadHeld(output)) {
+	if (deluge::gui::track_link::enabled() && isTrackPadHeld(output)) {
 		for (int32_t x = 0; x < renderWidth; ++x) {
 			if (imageThisRow[x] != colours::black) {
 				imageThisRow[x] = deluge::gui::track_edit_pulse::renderPulse(imageThisRow[x], *output, imageThisRow, x,

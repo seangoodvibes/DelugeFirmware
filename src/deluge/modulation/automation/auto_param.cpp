@@ -305,13 +305,10 @@ getOut:
 	                                                          automatedNow);
 
 	// Link explicit edits across this output's clips when held in Session or persistently locked.
-	if (auto* output =
-	        Output::propagateParameterEdit(*modelStack, {.value = value,
-	                                                     .shouldLogAction = shouldLogAction,
-	                                                     .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
-	                                                     .isMPE = doMPEMode})) {
-		view.notifyTrackParameterEdited(*output);
-	}
+	Output::propagateParameterEdit(*modelStack, {.value = value,
+	                                             .shouldLogAction = shouldLogAction,
+	                                             .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
+	                                             .isMPE = doMPEMode});
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
@@ -1190,10 +1187,8 @@ yesChangeCurrentValue:
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          isAutomated());
-	if (auto* output = Output::propagateParameterEdit(
-	        *modelStack, {.value = value, .region = deluge::model::AutomationRegion{pos, length, actionType}})) {
-		view.notifyTrackParameterEdited(*output);
-	}
+	Output::propagateParameterEdit(
+	    *modelStack, {.value = value, .region = deluge::model::AutomationRegion{pos, length, actionType}});
 }
 
 #define REGION_EDGE_LEFT 0

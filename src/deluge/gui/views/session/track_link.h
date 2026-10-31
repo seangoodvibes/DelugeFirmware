@@ -22,7 +22,7 @@ class Output;
 
 /// Temporary Session selection and sound-menu targeting.
 /// Output owns lock state and cross-clip parameter propagation.
-namespace deluge::model::track_link {
+namespace deluge::gui::track_link {
 
 bool enabled();
 
@@ -55,8 +55,4 @@ bool openMenu();
 /// with song view underneath, it still edits a clip rather than the song.
 bool isMenuOpen();
 
-/// UI feedback after Output accepts a linked edit: consume the selected track's
-/// tap gesture so releasing after an edit does not mute the track.
-void parameterEdited(Output const& output);
-
-} // namespace deluge::model::track_link
+} // namespace deluge::gui::track_link

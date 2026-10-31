@@ -3528,11 +3528,7 @@ traverseClips:
 	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
-	newOutput->trackLocked = oldOutput->trackLocked;
-	oldOutput->trackLocked = false;
-	// Temporary edit scope belongs to the UI gesture, not the replacement preset.
-	oldOutput->setTrackEditActive(false);
-	newOutput->setTrackEditActive(false);
+	oldOutput->transferTrackStateTo(*newOutput);
 	oldOutput->mutedInArrangementMode = false;
 
 	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
@@ -5287,11 +5283,7 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
-	newOutput->trackLocked = oldOutput->trackLocked;
-	oldOutput->trackLocked = false;
-	// Temporary edit scope belongs to the UI gesture, not the replacement preset.
-	oldOutput->setTrackEditActive(false);
-	newOutput->setTrackEditActive(false);
+	oldOutput->transferTrackStateTo(*newOutput);
 	oldOutput->mutedInArrangementMode = false;
 
 	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;

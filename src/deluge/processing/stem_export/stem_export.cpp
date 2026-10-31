@@ -39,6 +39,7 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "util/finally.h"
 #include <new>
 #include <string.h>
 
@@ -528,6 +529,12 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 				getLoopLengthOfLongestNotEmptyNoteRow(clip);
 				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
 
+				// Stem isolation controls clip/drum mute; bypass the output mute temporarily.
+				auto* stemOutput = clip->output;
+				const bool savedTrackMute = stemOutput->mutedInArrangementMode;
+				auto restoreTrackMute = util::finally(
+				    [stemOutput, savedTrackMute] { stemOutput->mutedInArrangementMode = savedTrackMute; });
+				stemOutput->mutedInArrangementMode = false;
 				bool started = startCurrentStemExport(stemExportType, clip->output, clip->activeIfNoSolo, idxClip,
 				                                      clip->exportStem);
 
@@ -650,6 +657,12 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 				}
 				getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
 
+				// Stem isolation controls clip/drum mute; bypass the output mute temporarily.
+				auto* stemOutput = output;
+				const bool savedTrackMute = stemOutput->mutedInArrangementMode;
+				auto restoreTrackMute = util::finally(
+				    [stemOutput, savedTrackMute] { stemOutput->mutedInArrangementMode = savedTrackMute; });
+				stemOutput->mutedInArrangementMode = false;
 				bool started = startCurrentStemExport(stemExportType, output, thisNoteRow->muted, idxNoteRow,
 				                                      thisNoteRow->exportStem, (SoundDrum*)thisNoteRow->drum);
 

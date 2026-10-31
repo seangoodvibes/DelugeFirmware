@@ -6,6 +6,11 @@ namespace deluge::l10n {
 // Strings that can be localized
 enum class String : size_t {
 	EMPTY_STRING,
+	STRING_FOR_TRACK_LOCK_ON,
+	STRING_FOR_TRACK_LOCK_OFF,
+	STRING_FOR_PICK_A_TRACK,
+	STRING_FOR_TRACK_NO_MENU,
+	STRING_FOR_TRACK_NO_CLIP,
 
 	// Errors
 	STRING_FOR_ERROR_INSUFFICIENT_RAM,

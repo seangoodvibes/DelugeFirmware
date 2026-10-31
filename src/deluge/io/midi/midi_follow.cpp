@@ -22,6 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -36,7 +37,6 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
@@ -395,9 +395,9 @@ void MidiFollow::initDefaultMappings() {
 ///	   arranger performance view, arranger automation view
 /// 3) entering a clip or previousy held a clip
 Clip* MidiFollow::getSelectedOrActiveClip() {
-	if (getRootUI() == &sessionView && deluge::model::track_link::modeIsOn()) {
+	if (getRootUI() == &sessionView && deluge::gui::track_link::modeIsOn()) {
 		// If the track-edit target is unavailable, do not fall back to an unrelated current clip.
-		return deluge::model::track_link::selectedClip();
+		return deluge::gui::track_link::selectedClip();
 	}
 	Clip* clip = nullptr;
 
@@ -434,8 +434,7 @@ Clip* MidiFollow::getSelectedClip() {
 	switch (uiType) {
 	case UIType::SESSION:
 		// if you're in session view, check if you're pressing a clip to control that clip
-		clip = deluge::model::track_link::modeIsOn() ? deluge::model::track_link::selectedClip()
-		                                             : sessionView.getClipForLayout();
+		clip = sessionView.getClipForLayout();
 		break;
 	case UIType::ARRANGER:
 		clip = arrangerView.getClipForSelection();

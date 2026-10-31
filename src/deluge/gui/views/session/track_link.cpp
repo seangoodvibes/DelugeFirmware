@@ -15,8 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/song/track_link.h"
+#include "gui/views/session/track_link.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
@@ -31,7 +32,7 @@
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 
-namespace deluge::model::track_link {
+namespace deluge::gui::track_link {
 
 namespace {
 
@@ -171,10 +172,11 @@ void toggleLock(Output* output) {
 	if (!enabled() || output == nullptr) {
 		return;
 	}
-	output->trackLocked = !output->trackLocked;
+	output->setTrackLocked(!output->isTrackLocked());
 	view.setModLedStates();
 	uiNeedsRendering(getRootUI());
-	display->displayPopup(output->trackLocked ? "TRACK LOCK ON" : "TRACK LOCK OFF");
+	display->displayPopup(output->isTrackLocked() ? deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_LOCK_ON)
+	                                              : deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_LOCK_OFF));
 }
 
 bool editingSelectedTrack() {
@@ -199,13 +201,14 @@ void toggleLockForClip(Clip* clip) {
 }
 
 bool isSelected(Output const* output) {
-	return modeIsOn() && currentSong == selection.song && selection.output != nullptr && selection.output == output;
+	return output != nullptr && selectedOutput() == output;
 }
 
 void exitMode() {
 	if (!selection.active) {
 		return;
 	}
+	selectedOutput(); // Resolve any replacement before releasing the transient edit scope.
 	restoreAfterMenu();
 	if (outputStillExists(selection.output)) {
 		selection.output->setTrackEditActive(false);
@@ -260,19 +263,19 @@ bool openMenu() {
 		selection.output = nullptr;
 	}
 	if (selection.output == nullptr) {
-		display->displayPopup("PICK A TRACK");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PICK_A_TRACK));
 		return true;
 	}
 	// MIDI and CV tracks have no sound parameters for the mode to carry.
 	if (selection.output->type != OutputType::SYNTH && selection.output->type != OutputType::KIT
 	    && selection.output->type != OutputType::AUDIO) {
-		display->displayPopup("NO MENU");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_NO_MENU));
 		return true;
 	}
 
 	Clip* clip = pickClipForKnobs(selection.knobClip);
 	if (clip == nullptr) {
-		display->displayPopup("NO CLIP");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_NO_CLIP));
 		return true;
 	}
 
@@ -298,7 +301,16 @@ bool openMenu() {
 }
 
 Output* selectedOutput() {
-	return modeIsOn() && outputStillExists(selection.output) ? selection.output : nullptr;
+	bool owned = outputStillExists(selection.output);
+	if (!owned && currentSong != nullptr && currentSong == selection.song) {
+		// Preset replacement moves this clip to a new output while the menu stays open.
+		// Only search clips when rebinding; pulse/render queries keep the usual output-only lookup.
+		if (auto* clip = findOwnedClip(*currentSong, selection.knobClip)) {
+			selection.output = clip->output;
+			owned = outputStillExists(selection.output);
+		}
+	}
+	return modeIsOn() && owned ? selection.output : nullptr;
 }
 
 Clip* selectedClip() {
@@ -312,10 +324,4 @@ bool isMenuOpen() {
 	return menu.clip != nullptr;
 }
 
-void parameterEdited(Output const& output) {
-	if (getRootUI() == &sessionView && isSelected(&output)) {
-		sessionView.gridTrackEditUsed();
-	}
-}
-
-} // namespace deluge::model::track_link
+} // namespace deluge::gui::track_link

@@ -81,7 +81,6 @@ public:
 	char const* getReverbPresetDisplayName(int32_t preset);
 	int32_t getCurrentReverbPreset();
 	void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int32_t noteRowId = 0);
-	void notifyTrackParameterEdited(Output const& output);
 	void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true);
 	void displayAutomation();
 	void displayOutputName(Output* output, bool doBlink = true, Clip* clip = nullptr);

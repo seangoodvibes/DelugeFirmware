@@ -22,11 +22,11 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/led/pad_leds.h"
 #include "model/output.h"
-#include "model/song/track_link.h"
 #include <algorithm>
 
 namespace deluge::gui::track_edit_pulse {
@@ -80,7 +80,7 @@ void clearPulseRow(RGB* row, int32_t y, bool sidebar) {
 }
 
 RGB renderPulse(RGB colour, Output const& output, RGB* row, int32_t x, int32_t y, bool held) {
-	if (!model::track_link::enabled()) {
+	if (!track_link::enabled()) {
 		return colour;
 	}
 	RGB track_colour = RGB::fromHue(output.colour);
@@ -90,8 +90,7 @@ RGB renderPulse(RGB colour, Output const& output, RGB* row, int32_t x, int32_t y
 	PulsePad pad{colour.adjust(255, track_colour == deluge::gui::colours::red ? 4 : 3),
 	             (held || colour == track_colour) ? track_colour.forBlur() : colour};
 	if (row == PadLEDs::image[y]) {
-		if (y == 0 && getRootUI() == &sessionView && model::track_link::isMenuOpen()
-		    && model::track_link::isSelected(&output)) {
+		if (y == 0 && getRootUI() == &sessionView && track_link::isMenuOpen() && track_link::isSelected(&output)) {
 			menu_pulse_column = x;
 		}
 		pulse_pads[y][x] = pad;
@@ -111,11 +110,11 @@ RGB renderPulse(RGB colour, Output const& output, RGB* row, int32_t x, int32_t y
 
 void pulseTimer() {
 	auto* root = getRootUI();
-	if (!model::track_link::enabled() || root != pulse_ui || (root != &sessionView && root != &arrangerView)
+	if (!track_link::enabled() || root != pulse_ui || (root != &sessionView && root != &arrangerView)
 	    || (root == &sessionView && !sessionView.gridTrackRowEnabled())) {
 		return;
 	}
-	bool track_menu = root == &sessionView && getCurrentUI() == &soundEditor && model::track_link::isMenuOpen();
+	bool track_menu = root == &sessionView && getCurrentUI() == &soundEditor && track_link::isMenuOpen();
 	bool main = false;
 	bool sidebar = false;
 	for (auto columns : pulse_columns) {

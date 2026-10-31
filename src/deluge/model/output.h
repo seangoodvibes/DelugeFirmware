@@ -106,7 +106,8 @@ public:
 	// when linking was applicable, so callers can update UI feedback separately.
 	static Output* propagateParameterEdit(ModelStackWithAutoParam const& source,
 	                                      deluge::model::ParameterEdit const& edit);
-	bool trackLocked{false}; // Saved with the song; links parameter edits across this output's clips.
+	void setTrackLocked(bool locked) { trackLocked = locked; }
+	void transferTrackStateTo(Output& replacement);
 	bool isMutedInSession() const;
 	// Update track mute and playback; callers handle UI feedback.
 	void toggleTrackMute();
@@ -250,6 +251,7 @@ public:
 private:
 	bool applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const& source,
 	                             deluge::model::ParameterEdit const& edit);
+	bool trackLocked{false}; // Saved with the song.
 	bool trackEditActive{false};
 	// Linked writes re-enter AutoParam; suppress nested fan-out before resolving another source.
 	static bool propagatingParameterEdit;

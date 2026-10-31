@@ -40,6 +40,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/track_edit_pulse.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -66,7 +67,6 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "model/song/track_link.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -219,7 +219,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (deluge::model::track_link::modeIsOn() && on && currentUIMode == UI_MODE_NONE) {
+	if (deluge::gui::track_link::modeIsOn() && on && currentUIMode == UI_MODE_NONE) {
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -233,8 +233,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		if (b == SELECT_ENC) {
 			// Attempting to open the track's sound menu cancels tap-to-mute, even if no menu is available.
 			gridTrackEditUsed();
-			deluge::model::track_link::openMenu();
-			if (deluge::model::track_link::isMenuOpen()) {
+			deluge::gui::track_link::openMenu();
+			if (deluge::gui::track_link::isMenuOpen()) {
 				// The menu retains the track's edit target. End audition and the pad gesture now,
 				// so its later physical release has no effect on selection or mute.
 				gridEndTrackPadGesture();
@@ -929,7 +929,8 @@ startHoldingDown:
 					// This is only interresting for changing colour
 					clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
 					selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
-					requestRendering(this, 0, 1 << selectedClipYDisplay);
+					requestRendering(
+					    this, 0, (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu));
 
 					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 						goto startHoldingDown;
@@ -1162,8 +1163,8 @@ void SessionView::clipPressEnded() {
 	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
-	if (auto* output = deluge::model::track_link::selectedOutput()) {
-		deluge::model::track_link::selectOutput(output, output->getActiveClip());
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
+		deluge::gui::track_link::selectOutput(output, output->getActiveClip());
 	}
 	else {
 		view.setActiveModControllableTimelineCounter(currentSong);
@@ -1499,7 +1500,8 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 
 			clip->colourOffset += offset;
 
-			requestRendering(this, 1 << selectedClipYDisplay, 0);
+			requestRendering(this, (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu),
+			                 0);
 
 			return ActionResult::DEALT_WITH;
 		}
@@ -1889,11 +1891,12 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	view.displayOutputName(newClip->output, true, newClip);
 
 	// If Clip was in keyboard view, need to redraw that
-	requestRendering(this, 1 << selectedClipYDisplay, 1 << selectedClipYDisplay);
+	requestRendering(this, (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu),
+	                 (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu));
 }
 
 void SessionView::removeClip(Clip* clip) {
-	if ((clip != nullptr) && deluge::model::track_link::isSelected(clip->output)) {
+	if ((clip != nullptr) && deluge::gui::track_link::isSelected(clip->output)) {
 		gridEndTrackSelection();
 	}
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager(
@@ -1942,9 +1945,6 @@ void SessionView::removeClip(Clip* clip) {
 }
 
 Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
-	if (gridTrackRowEnabled() && yDisplay == 0) {
-		return nullptr;
-	}
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (gridFirstPadActive()) {
 			return gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
@@ -2025,7 +2025,7 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 }
 
 void SessionView::redrawNumericDisplay() {
-	if (auto* output = deluge::model::track_link::selectedOutput()) {
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
 		view.displayOutputName(output);
 		return;
 	}
@@ -2149,7 +2149,7 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	char const* name;
-	if (auto* output = deluge::model::track_link::selectedOutput()) {
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
 		name = output->name.get();
 	}
 	else if (currentSong->name.isEmpty()) {
@@ -3569,7 +3569,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	}
 
 	// If we're currently pulsing this clip and we have the current pulse colour, use that instead
-	if (!clip->output->isTrackLocked() && !deluge::model::track_link::modeIsOn() && !viewingRecordArmingActive
+	if (!clip->output->isTrackLocked() && !deluge::gui::track_link::modeIsOn() && !viewingRecordArmingActive
 	    && renderPulse && (clip == selectedClipForPulsing)) {
 		return gridSelectedClipRenderedColour;
 	}
@@ -4638,7 +4638,7 @@ ActionResult SessionView::gridMoveHeldTrack(int32_t offset) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	gridTrackGesture.markUsed();
-	auto* output = deluge::model::track_link::selectedOutput();
+	auto* output = deluge::gui::track_link::selectedOutput();
 	const int32_t count = gridTrackCount();
 	const int32_t old_index = gridTrackIndexFromTrack(output, count);
 	if (output == nullptr || old_index < 0 || count == 0) {
@@ -4929,8 +4929,8 @@ int32_t SessionView::gridYFromSection(uint32_t section) {
 	if (section >= kMaxNumSections) {
 		return -1;
 	}
-	int32_t result = (kDisplayHeight - 1) - static_cast<int32_t>(section) + currentSong->songGridScrollY;
-	if (result >= kDisplayHeight || result < sessionClipRowOffset()) {
+	int32_t result = (kGridHeight - 1) - static_cast<int32_t>(section) + currentSong->songGridScrollY;
+	if (result >= kGridHeight || result < sessionClipRowOffset()) {
 		return -1;
 	}
 
@@ -4938,13 +4938,13 @@ int32_t SessionView::gridYFromSection(uint32_t section) {
 }
 
 int32_t SessionView::gridSectionFromY(uint32_t y) {
-	if (y >= kDisplayHeight) {
+	if (y >= kGridHeight) {
 		return -1;
 	}
 	if (static_cast<int32_t>(y) < sessionClipRowOffset()) {
 		return -1;
 	}
-	int32_t result = ((kDisplayHeight - 1) - static_cast<int32_t>(y)) + currentSong->songGridScrollY;
+	int32_t result = ((kGridHeight - 1) - static_cast<int32_t>(y)) + currentSong->songGridScrollY;
 	if (result >= kMaxNumSections) {
 		return -1;
 	}
@@ -5079,8 +5079,8 @@ bool SessionView::gridCheckForPulseStop() {
 
 static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_CREATING_CLIP, 0};
 
-void SessionView::gridPulseSelectedClip() {
-	if (gridHeldTrackPad >= 0 && deluge::model::track_link::modeIsOn() && getRootUI() == this) {
+bool SessionView::gridUpdateTrackPadGesture() {
+	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn() && getRootUI() == this) {
 		// Wait until this gesture can no longer mute before highlighting its clips.
 		if (!gridTrackClipsPulsing
 		    && !gridTrackGesture.shouldMute(AudioEngine::audioSampleTimer, FlashStorage::holdTime)) {
@@ -5091,18 +5091,26 @@ void SessionView::gridPulseSelectedClip() {
 		if (!gridTrackAuditioning
 		    && gridTrackGesture.shouldAudition(AudioEngine::audioSampleTimer, FlashStorage::holdTime)) {
 			gridTrackGesture.markUsed();
-			if (auto* output = deluge::model::track_link::selectedOutput()) {
+			if (auto* output = deluge::gui::track_link::selectedOutput()) {
 				arrangerView.beginAudition(output);
 				gridTrackAuditioning = (playbackHandler.playbackState == 0u);
 			}
 		}
 		if (gridTrackAuditioning && (playbackHandler.playbackState != 0u)) {
-			if (auto* output = deluge::model::track_link::selectedOutput()) {
+			if (auto* output = deluge::gui::track_link::selectedOutput()) {
 				arrangerView.endAudition(output, true);
 			}
 			gridTrackAuditioning = false;
 		}
 		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
+		return true;
+	}
+
+	return false;
+}
+
+void SessionView::gridPulseSelectedClip() {
+	if (gridUpdateTrackPadGesture()) {
 		return;
 	}
 
@@ -5212,16 +5220,20 @@ int32_t SessionView::sessionClipRows() const {
 }
 
 void SessionView::gridTrackEditUsed() {
-	if (deluge::model::track_link::modeIsOn()) {
+	if (deluge::gui::track_link::modeIsOn()) {
 		gridTrackGesture.markUsed();
 	}
 }
 
 void SessionView::gridEndTrackPadGesture() {
+	if (gridHeldTrackPad >= 0) {
+		const int32_t maxScroll = std::max<int32_t>(0, static_cast<int32_t>(gridTrackCount()) - kDisplayWidth + 1);
+		currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX, 0, maxScroll);
+	}
 	gridTrackClipsPulsing = false;
 	deluge::gui::track_edit_pulse::resetHeldPulse();
 	if (gridTrackAuditioning) {
-		if (auto* output = deluge::model::track_link::selectedOutput()) {
+		if (auto* output = deluge::gui::track_link::selectedOutput()) {
 			arrangerView.endAudition(output, true);
 		}
 	}
@@ -5232,8 +5244,8 @@ void SessionView::gridEndTrackPadGesture() {
 
 void SessionView::gridEndTrackSelection() {
 	gridEndTrackPadGesture();
-	const bool was_selected = deluge::model::track_link::modeIsOn();
-	deluge::model::track_link::exitMode();
+	const bool was_selected = deluge::gui::track_link::modeIsOn();
+	deluge::gui::track_link::exitMode();
 	if (was_selected && getRootUI() == this) {
 		// displayOutputName starts the instrument LED blinking when a track is selected.
 		setCentralLEDStates();
@@ -5248,7 +5260,7 @@ ActionResult SessionView::gridTrackPadAction(int32_t x, int32_t on) {
 		if (x != gridHeldTrackPad) {
 			return ActionResult::DEALT_WITH;
 		}
-		auto* output = deluge::model::track_link::selectedOutput();
+		auto* output = deluge::gui::track_link::selectedOutput();
 		const bool should_mute = gridTrackGesture.shouldMute(AudioEngine::audioSampleTimer, FlashStorage::holdTime);
 		gridEndTrackSelection();
 		if (should_mute && (output != nullptr)) {
@@ -5266,10 +5278,10 @@ ActionResult SessionView::gridTrackPadAction(int32_t x, int32_t on) {
 	}
 	bool silent = Buttons::isShiftButtonPressed();
 	gridEndTrackSelection();
-	deluge::model::track_link::selectOutput(output, output->getActiveClip());
+	deluge::gui::track_link::selectOutput(output, output->getActiveClip());
 	gridHeldTrackPad = x;
 	if (silent) {
-		deluge::model::track_link::toggleLock(output);
+		deluge::gui::track_link::toggleLock(output);
 	}
 	gridTrackGesture.press(AudioEngine::audioSampleTimer, silent);
 	view.displayOutputName(output);
@@ -5288,8 +5300,7 @@ void SessionView::gridRenderTrackRow(RGB* image, uint8_t* occupancy) {
 			if (output->mutedInArrangementMode) {
 				colour = colour.adjust(kInactiveGridBrightness, 1);
 			}
-			bool editing_menu =
-			    deluge::model::track_link::isMenuOpen() && deluge::model::track_link::isSelected(output);
+			bool editing_menu = deluge::gui::track_link::isMenuOpen() && deluge::gui::track_link::isSelected(output);
 			if (editing_menu || (output->isTrackLocked() && !gridIsTrackPadHeld(output))) {
 				colour = deluge::gui::track_edit_pulse::renderPulse(colour, *output, image, x, 0);
 			}
@@ -5302,5 +5313,5 @@ void SessionView::gridRenderTrackRow(RGB* image, uint8_t* occupancy) {
 }
 
 bool SessionView::gridIsTrackPadHeld(Output const* output) const {
-	return gridHeldTrackPad >= 0 && deluge::model::track_link::isSelected(output);
+	return gridHeldTrackPad >= 0 && deluge::gui::track_link::isSelected(output);
 }
