@@ -24,6 +24,7 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "processing/engines/audio_engine.h"
@@ -288,7 +289,9 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
+	// The edited clip has already sent this CC; linked copies in the track's other clips stay silent.
+	if (!Output::isPropagatingParameterEdit()
+	    && modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
 		auto new_v = modelStack->autoParam->getCurrentValue();
 		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
 		    oldValue, new_v, getParamKind(), modelStack->paramId);
