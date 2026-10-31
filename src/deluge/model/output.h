@@ -108,6 +108,7 @@ public:
 	// True while an edit is being copied into the output's other clips. Those copies must not repeat the edit's
 	// side effects, such as sending MIDI, which the edited clip has already done.
 	static bool isPropagatingParameterEdit() { return propagatingParameterEdit; }
+	void transferTrackStateTo(Output& replacement);
 	bool mutedInArrangementModeBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;                             // Used by stem export to flag if this output should be exported
 	bool soloingInArrangementMode;
