@@ -2558,6 +2558,9 @@ getOut:
 			return;
 		}
 		if (results.error != Error::NONE) {
+			// The candidate name was shown while navigating, but the clip still
+			// uses the original instrument. Restore it beneath the error popup.
+			displayOutputName(oldInstrument, doBlink, clip);
 			display->displayError(results.error);
 			goto getOut;
 		}
