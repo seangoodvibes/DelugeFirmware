@@ -36,10 +36,20 @@ void AutomationEditorLayoutNote::renderNoteEditor(ModelStackWithNoteRow* modelSt
                                                   int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
                                                   int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea,
                                                   SquareInfo& squareInfo) {
+	if (automationView.inNoteExpressionEditor()) {
+		for (int32_t y = 0; y < kDisplayHeight; ++y) {
+			image[y][xDisplay] = RGB{};
+			occupancyMask[y][xDisplay] = 0;
+		}
+	}
 	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 		if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 			automationEditorLayoutNoteVelocity.renderNoteColumn(modelStackWithNoteRow, clip, image, occupancyMask,
 			                                                    xDisplay, xScroll, xZoom, squareInfo);
+		}
+		else {
+			automationEditorLayoutNoteExpression.renderNoteColumn(modelStackWithNoteRow, clip, image, occupancyMask,
+			                                                      xDisplay, xScroll, xZoom, squareInfo);
 		}
 	}
 	if (drawUndefinedArea) {
@@ -55,6 +65,9 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	DEF_STACK_STRING_BUF(parameterName, 30);
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 		parameterName.append("Velocity");
+	}
+	else {
+		parameterName.append(automationEditorLayoutNoteExpression.getParameterName());
 	}
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
@@ -74,7 +87,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 	                                                                        modelStack); // don't create
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		if (!isKit) {
+		if (!isKit && getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 			modelStackWithNoteRow =
 			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
 		}
@@ -89,6 +102,11 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 		automationEditorLayoutNoteVelocity.displayParameterValueOLED(canvas, yPos, knobPosLeft, knobPosRight);
 	}
+	else if (knobPosLeft != kNoSelection) {
+		char buffer[12];
+		intToString(knobPosLeft, buffer);
+		canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+	}
 }
 
 void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType,
@@ -100,7 +118,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 	                                                                        modelStack); // don't create
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		if (!isKit) {
+		if (!isKit && getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 			modelStackWithNoteRow =
 			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
 		}
@@ -113,6 +131,9 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 	}
 	else {
 		std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
+		if (getAutomationParamType() != AutomationParamType::NOTE_VELOCITY) {
+			noteRowName = std::string(automationEditorLayoutNoteExpression.getParameterName()) + " " + noteRowName;
+		}
 		display->setScrollingText(noteRowName.c_str());
 	}
 }

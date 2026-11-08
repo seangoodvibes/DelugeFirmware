@@ -1911,10 +1911,9 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		// down that audition pad, because if they've done that, they're probably not intending to deliberately go into
 		// the SoundEditor, but might be trying to edit notes. Which they currently can't do...
 		if (velocity && (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
-			// are we trying to enter the automation view velocity note editor
-			// by pressing audition pad + velocity shortcut?
-			if (isUIModeActive(UI_MODE_AUDITIONING) && automationView.isNoteVelocityEditorShortcut(x, y)) {
-				return commandEnterNoteVelocityEditor(x, y);
+			// Enter a note editor with audition + velocity / X / Y / aftertouch.
+			if (isUIModeActive(UI_MODE_AUDITIONING) && automationView.isNoteEditorShortcut(x, y)) {
+				return commandEnterNoteEditor(x, y);
 			}
 			// otherwise let's check for another shortcut pad action
 			else {
@@ -2189,16 +2188,16 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	return ActionResult::NOT_DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32_t y) {
+ActionResult InstrumentClipView::commandEnterNoteEditor(int32_t x, int32_t y) {
 	Clip* clip = getCurrentClip();
 	// don't enter if you're in a kit with affect entire on
 	if (!(clip->output->type == OutputType::KIT && automationView.getAffectEntire())) {
 		if (automationView.inAutomationEditor()) {
 			automationView.initParameterSelection(false);
 		}
-		automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
 		clip->lastSelectedParamShortcutX = x;
 		clip->lastSelectedParamShortcutY = y;
+		automationView.setAutomationParamType();
 		changeRootUI(&automationView);
 	}
 	return ActionResult::DEALT_WITH;

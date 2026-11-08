@@ -48,6 +48,16 @@ Note Velocity Editing View that has been added as part of the existing Automatio
 - The :key[audition pad] pad will blink to indicate the currently selected note row
 - The display will indicate the note code / drum name of the row you have selected
 
+### Edit per-note expression (X, Y and Z)
+
+From Instrument Clip View or Automation View, hold an audition pad and press X (pitch), Y (timbre), or Aftertouch (Z / pressure). This opens the corresponding expression editor for that note row.
+
+The grid uses the velocity editor's coloured bars and dimmer note tails. Expression values appear across the full length of each note, including tails that wrap around the row's loop. Pressing a pad sets the expression value for the part of that step occupied by the note, so a two-step note can have a different value on each step. Empty steps do nothing. If multiple notes share a step, zoom in before editing them.
+
+X and Y are bipolar: the fifth pad from the bottom sets zero, with negative values below and positive values above. Z runs from zero pressure at the bottom to full pressure at the top. The display shows normalized values (-64 to +64 for X/Y, 0 to 128 for Z); the pitch bend range determines the audible pitch change.
+
+These editors only change expression on existing notes. They do not add, delete, or resize notes, and row/clip resizing is disabled. Edits support undo/redo. Use audition pads or vertical scrolling to select another row, as in the velocity editor. Expression grid edits use constant values within each step; interpolation and velocity-style note creation gestures are unavailable.
+
 ### Add Note / Adjust Velocity Using Grid
 
 - Press grid :key[Pad] to set/adjust velocities of existing notes and add note (if no note exists)

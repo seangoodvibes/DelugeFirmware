@@ -17,14 +17,20 @@
 
 #pragma once
 
-#include "gui/views/automation/editor_layout/mod_controllable.h"
 #include "gui/views/automation/editor_layout/note.h"
 
 // namespace deluge::gui::views::automation::editor_layout::note {
 
-class AutomationEditorLayoutNoteExpression : public AutomationEditorLayoutNote, AutomationEditorLayoutModControllable {
+class AutomationEditorLayoutNoteExpression : public AutomationEditorLayoutNote {
 public:
 	AutomationEditorLayoutNoteExpression() = default;
+
+	const char* getParameterName();
+	int32_t getExpressionDimension();
+	void renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
+	                      RGB image[][kDisplayWidth + kSideBarWidth],
+	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t xScroll,
+	                      int32_t xZoom, SquareInfo& squareInfo);
 
 	// edit pad action
 	void expressionEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,

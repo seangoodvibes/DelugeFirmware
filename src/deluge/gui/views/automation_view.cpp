@@ -454,7 +454,7 @@ void AutomationView::initializeView() {
 
 			// if you're not in note editor, turn led off if it's on
 			if (clip->wrapEditing) {
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteVelocityEditor());
 			}
 		}
 
@@ -1518,7 +1518,7 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 	}
 	// If user wants to "multiply" Clip contents
 	else if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
-	         && !onAutomationOverview()) {
+	         && !onAutomationOverview() && !inNoteExpressionEditor()) {
 		if (isNoUIModeActive()) {
 			// Zoom to max if we weren't already there...
 			if (!zoomToMax()) {
@@ -1735,7 +1735,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 				// if you're in note editor and note row doesn't exist, create it
 				// don't create note rows that don't exist in kits because those are empty kit rows
-				if (outputType != OutputType::KIT) {
+				if (outputType != OutputType::KIT && inNoteVelocityEditor()) {
 					modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
 					    modelStackWithTimelineCounter, instrumentClipView.lastAuditionedYDisplay);
 				}
@@ -1784,25 +1784,27 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		return ActionResult::DEALT_WITH;
 	}
 
-	// potentially enter or refresh note velocity editor if you're in an instrument clip, holding audition pad and
-	// pressing PatchSource::Velocity shortcut
+	// Enter the selected note editor with audition + velocity / X / Y / aftertouch.
 	if (!onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
-	    && isNoteVelocityEditorShortcut(x, y)) {
+	    && isNoteEditorShortcut(x, y)) {
+		if (!velocity) {
+			return ActionResult::DEALT_WITH;
+		}
 		// don't enter if we're in a kit with affect entire enabled
 		if (!(outputType == OutputType::KIT && getAffectEntire())) {
 			if (outputType == OutputType::KIT) {
 				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
 			}
 			initParameterSelection(false);
-			automationParamType = AutomationParamType::NOTE_VELOCITY;
 			clip->lastSelectedParamShortcutX = x;
 			clip->lastSelectedParamShortcutY = y;
+			setAutomationParamType();
 			blinkShortcuts();
 			renderDisplay();
 			uiNeedsRendering(&automationView);
 			// if you're in note editor, turn led on
 			if (((InstrumentClip*)clip)->wrapEditing) {
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteVelocityEditor());
 			}
 		}
 		return ActionResult::DEALT_WITH;
@@ -1836,6 +1838,10 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	return ActionResult::DEALT_WITH;
 }
 
+bool AutomationView::isNoteEditorShortcut(int32_t x, int32_t y) {
+	return isNoteVelocityEditorShortcut(x, y) || params::expressionParamFromShortcut(x, y) != kNoParamID;
+}
+
 bool AutomationView::isNoteVelocityEditorShortcut(int32_t x, int32_t y) {
 	return (x == kVelocityShortcutX && y == kVelocityShortcutY);
 }
@@ -1865,7 +1871,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		if (Buttons::isShiftButtonPressed()
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
-			if (!inNoteNonExpressionEditor()) {
+			if (!inNoteEditor()) {
 				// toggle interpolation on / off
 				// not relevant for note editor because interpolation doesn't apply to note params
 				if ((x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
@@ -2239,6 +2245,9 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 // shift automations left / right
 // adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
+	if (inNoteExpressionEditor() && Buttons::isShiftButtonPressed()) {
+		return ActionResult::DEALT_WITH;
+	}
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
@@ -2307,6 +2316,9 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 
 	// Auditioning but not holding down <> encoder - edit length of just one row
 	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
+		if (inNoteExpressionEditor()) {
+			return ActionResult::DEALT_WITH;
+		}
 		instrumentClipView.editNoteRowLength(offset);
 		return ActionResult::DEALT_WITH;
 	}
@@ -2600,6 +2612,9 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 // once parameter is selected
 // used to fine tune the values of non-midi parameters
 void AutomationView::selectEncoderAction(int8_t offset) {
+	if (inNoteExpressionEditor()) {
+		return;
+	}
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		offset = offset * 5;
@@ -3218,7 +3233,7 @@ bool AutomationView::inAutomationEditor() {
 
 void AutomationView::setAutomationParamType() {
 	automationParamType = AutomationParamType::PER_SOUND;
-	if (!onArrangerView && !inAutomationEditor()) {
+	if (!onArrangerView && getCurrentClip()->type == ClipType::INSTRUMENT && !inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
 		if (isNoteVelocityEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
@@ -3304,7 +3319,7 @@ void AutomationView::blinkShortcuts() {
 			resetParameterShortcutBlinking();
 		}
 	}
-	if (interpolation && !inNoteNonExpressionEditor()) {
+	if (interpolation && !inNoteEditor()) {
 		if (!interpolationShortcutBlinking) {
 			blinkInterpolationShortcut();
 		}

@@ -61,9 +61,9 @@ public:
 	}
 
 	void readCurrentValue() override {
-		int32_t xDisplay = instrumentClipView.lastSelectedNoteXDisplay;
-		int32_t yDisplay = instrumentClipView.lastSelectedNoteYDisplay;
-		if (xDisplay == kNoSelection || yDisplay == kNoSelection) {
+		int32_t xDisplay;
+		int32_t yDisplay;
+		if (!getSelectedSquare(xDisplay, yDisplay)) {
 			this->setValue(0);
 			return;
 		}
@@ -117,9 +117,9 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		int32_t xDisplay = instrumentClipView.lastSelectedNoteXDisplay;
-		int32_t yDisplay = instrumentClipView.lastSelectedNoteYDisplay;
-		if (xDisplay == kNoSelection || yDisplay == kNoSelection) {
+		int32_t xDisplay;
+		int32_t yDisplay;
+		if (!getSelectedSquare(xDisplay, yDisplay)) {
 			return;
 		}
 		if (!instrumentClipView.gridSquareInfo[yDisplay][xDisplay].isValid) {
@@ -173,6 +173,21 @@ public:
 	void writeCurrentValue() override { ; }
 
 private:
+	bool getSelectedSquare(int32_t& xDisplay, int32_t& yDisplay) {
+		const EditPadPress* selected = nullptr;
+		for (const auto& target : instrumentClipView.get_note_edit_targets()) {
+			if (target.isActive && (!selected || target.intendedPos < selected->intendedPos)) {
+				selected = &target;
+			}
+		}
+		if (!selected) {
+			return false;
+		}
+		xDisplay = selected->xDisplay;
+		yDisplay = selected->yDisplay;
+		return xDisplay >= 0 && xDisplay < kDisplayWidth && yDisplay >= 0 && yDisplay < kDisplayHeight;
+	}
+
 	const char* getDisplayString() {
 		static char buffer[16];
 		int32_t value = this->getValue();

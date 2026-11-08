@@ -176,6 +176,7 @@ public:
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
 
+	bool isNoteEditorShortcut(int32_t x, int32_t y);
 	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
 	bool isNoteXPitchBendEditorShortcut(int32_t x, int32_t y);
 	bool isNoteYSlideTimbreEditorShortcut(int32_t x, int32_t y);
