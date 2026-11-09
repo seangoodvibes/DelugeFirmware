@@ -98,7 +98,6 @@ private:
 	float handoffLowPass_[2][2][3]{};
 	float handoffBandPower_[2][4]{};
 	int32_t matchedSamples_ = 0;
-	int32_t levelMatchedSamples_ = 0;
 	int32_t warmupSamples_ = 0;
 	float warmLivePower_ = 0, warmCachePower_ = 0;
 	bool stereoRendering_ = false;
