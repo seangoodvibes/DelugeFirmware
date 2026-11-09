@@ -1,0 +1,52 @@
+<song firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" timePerTimerTick="229" timerTickFraction="2952790016" inputTickMagnitude="0" sessionLayout="1" songGridScrollX="0" songGridScrollY="0"><instruments><sound presetName="SYNT8" presetFolder="SYNTHS" defaultVelocity="72" isArmedForRecording="0" activeModFunction="1" colour="0" polyphonic="poly" voicePriority="1" mode="subtractive" modFXType="none" lpfMode="24dB" hpfMode="HPLadder" filterRoute="H2L" maxVoices="8">
+			<osc1 type="sine" transpose="0" cents="0" retrigPhase="0" />
+			<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
+			<lfo1 type="triangle" syncLevel="0" syncType="0" />
+			<lfo2 type="triangle" syncLevel="0" syncType="0" />
+			<lfo3 type="triangle" syncLevel="0" syncType="0" />
+			<lfo4 type="triangle" syncLevel="0" syncType="0" />
+			<unison num="1" detune="8" spread="0" />
+			<modKnobs>
+				<modKnob controlsParam="pan" />
+				<modKnob controlsParam="volumePostFX" />
+				<modKnob controlsParam="lpfResonance" />
+				<modKnob controlsParam="lpfFrequency" />
+				<modKnob controlsParam="env1Release" />
+				<modKnob controlsParam="env1Attack" />
+				<modKnob controlsParam="delayFeedback" />
+				<modKnob controlsParam="delayRate" />
+				<modKnob controlsParam="reverbAmount" />
+				<modKnob controlsParam="volumePostReverbSend" patchAmountFromSource="compressor" />
+				<modKnob controlsParam="pitch" patchAmountFromSource="lfo1" />
+				<modKnob controlsParam="lfo1Rate" />
+				<modKnob controlsParam="portamento" />
+				<modKnob controlsParam="stutterRate" />
+				<modKnob controlsParam="bitcrushAmount" />
+				<modKnob controlsParam="sampleRateReduction" />
+			</modKnobs>
+			<midiOutput channel="255" noteForDrum="255" />
+			<delay pingPong="1" analog="0" syncLevel="7" syncType="0" />
+			<sidechain attack="327244" release="936" syncLevel="6" syncType="0" />
+			<audioCompressor attack="83886080" release="83886080" thresh="0" ratio="1073741824" compHPF="0" compBlend="2147483647" />
+			<stutter quantized="1" reverse="0" pingPong="0" />
+		</sound>
+		</instruments><sessionClips><instrumentClip clipName="Freeze Test" inKeyMode="1" yScroll="53" yScrollKeyboard="50" instrumentPresetName="SYNT8" instrumentPresetFolder="SYNTHS" isPlaying="1" isSoloing="0" isArmedForRecording="0" length="192" colourOffset="30" section="0" selected="1" keyboardLayout="0" keyboardRowInterval="5" drumsScrollOffset="0" drumsZoomLevel="8" inKeyScrollOffset="21" inKeyRowInterval="3">
+			<arpeggiator mode="off" syncLevel="2" numOctaves="2" syncType="0" arpMode="off" chordType="0" noteMode="up" octaveMode="up" mpeVelocity="off" stepRepeat="1" randomizerLock="0" kitArp="1" lastLockedNoteProb="0" lockedNoteProbArray="00000000000000000000000000000000" lastLockedBassProb="0" lockedBassProbArray="00000000000000000000000000000000" lastLockedSwapProb="0" lockedSwapProbArray="00000000000000000000000000000000" lastLockedGlideProb="0" lockedGlideProbArray="00000000000000000000000000000000" lastLockedReverseProb="0" lockedReverseProbArray="00000000000000000000000000000000" lastLockedChordProb="0" lockedChordProbArray="00000000000000000000000000000000" lastLockedRatchetProb="0" lockedRatchetProbArray="00000000000000000000000000000000" lastLockedVelocitySpread="0" lockedVelocitySpreadArray="00000000000000000000000000000000" lastLockedGateSpread="0" lockedGateSpreadArray="00000000000000000000000000000000" lastLockedOctaveSpread="0" lockedOctaveSpreadArray="00000000000000000000000000000000" notePattern="0000020202040107020400090607030A" />
+			<soundParams portamento="0x80000000" compressorShape="0xDC28F5B2" oscAVolume="0x00000000" oscAPulseWidth="0x00000000" oscAWavetablePosition="0x00000000" oscBVolume="0x80000000" oscBPulseWidth="0x00000000" oscBWavetablePosition="0x00000000" noiseVolume="0x80000000" volume="0x00000000" pan="0x00000000" lpfFrequency="0x7FFFFFFF" lpfResonance="0x80000000" hpfFrequency="0x80000000" hpfResonance="0x80000000" lfo1Rate="0x1999997E" lfo2Rate="0x00000000" lfo3Rate="0x1999997E" lfo4Rate="0x00000000" modulator1Amount="0x80000000" modulator1Feedback="0x80000000" modulator2Amount="0x80000000" modulator2Feedback="0x80000000" carrier1Feedback="0x80000000" carrier2Feedback="0x80000000" modFXRate="0x00000000" modFXDepth="0x00000000" delayRate="0x00000000" delayFeedback="0xC0000000" reverbAmount="0xE0000000" arpeggiatorRate="0x00000000" stutterRate="0x00000000" sampleRateReduction="0x80000000" bitCrush="0x80000000" modFXOffset="0x00000000" modFXFeedback="0x00000000" compressorThreshold="0x00000000" arpeggiatorGate="0x00000000" noteProbability="0x7FFFFFFF" bassProbability="0x80000000" swapProbability="0x80000000" glideProbability="0x80000000" reverseProbability="0x80000000" chordProbability="0x80000000" ratchetProbability="0x80000000" ratchetAmount="0x80000000" sequenceLength="0x80000000" chordPolyphony="0x80000000" rhythm="0x80000000" spreadVelocity="0x80000000" spreadGate="0x80000000" spreadOctave="0x80000000" lpfMorph="0x80000000" hpfMorph="0x80000000" waveFold="0x80000000">
+				<envelope1 attack="0x80000000" decay="0xE6666654" sustain="0x7FFFFFFF" release="0x80000000" />
+				<envelope2 attack="0xE6666654" decay="0xE6666654" sustain="0xFFFFFFE9" release="0xE6666654" />
+				<envelope3 attack="0x00000000" decay="0x00000000" sustain="0x00000000" release="0x00000000" />
+				<envelope4 attack="0x00000000" decay="0x00000000" sustain="0x00000000" release="0x00000000" />
+				<patchCables>
+					<patchCable source="velocity" destination="volume" polarity="unipolar" amount="0x3FFFFFE8" />
+					<patchCable source="aftertouch" destination="volume" polarity="unipolar" amount="0x2A3D7094" />
+					<patchCable source="y" destination="lpfFrequency" polarity="bipolar" amount="0x19999990" />
+				</patchCables>
+				<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />
+			</soundParams>
+			<columnControls>
+				<leftCol type="velocity" />
+				<rightCol type="mod" />
+			</columnControls>
+			<noteRows><noteRow y="60" noteDataWithSplitProb="0x0000000000000048484014000000" /><noteRow y="67" noteDataWithSplitProb="0x0000006000000048484014000000" /></noteRows></instrumentClip>
+		</sessionClips></song>

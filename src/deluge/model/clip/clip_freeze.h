@@ -93,13 +93,9 @@ private:
 	Fade loopFade_, handoffFade_;
 	bool thawing_ = false, entering_ = false;
 	void resetHandoff();
-	bool thawMatched_ = false, waitingForNativeStart_ = false;
+	bool waitingForNativeStart_ = false;
 	int64_t nativeWaitSamples_ = 0;
-	float handoffLowPass_[2][2][3]{};
-	float handoffBandPower_[2][4]{};
-	int32_t matchedSamples_ = 0;
 	int32_t warmupSamples_ = 0;
-	float warmLivePower_ = 0, warmCachePower_ = 0;
 	bool stereoRendering_ = false;
 	uint64_t tickTime_ = 0;
 	int64_t lastBoundary_ = 0;

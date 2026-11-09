@@ -14,6 +14,8 @@
 #include <cmath>
 
 namespace {
+constexpr int32_t fallbackFadeSamples = 44100 * 3;
+constexpr int32_t thawRebuildSamples = 44100 * 4;
 constexpr int32_t crossfadeSamples = 2048; // 46 ms at 44.1 kHz.
 constexpr int32_t tailGuardSamples = SSI_TX_BUFFER_NUM_SAMPLES;
 constexpr int32_t priority = static_cast<int32_t>(ClusterPriority::forAudioClip(VoicePriority::MEDIUM));
@@ -596,14 +598,6 @@ void ClipFreeze::beginThaw(bool alignToPattern) {
 
 void ClipFreeze::resetHandoff() {
 	warmupSamples_ = 0;
-	warmLivePower_ = warmCachePower_ = 0;
-	matchedSamples_ = 0;
-	thawMatched_ = false;
-	for (auto& stream : handoffLowPass_)
-		for (auto& channel : stream)
-			std::fill_n(channel, 3, 0);
-	for (auto& stream : handoffBandPower_)
-		std::fill_n(stream, 4, 0);
 	handoffFade_.reset(0);
 }
 
@@ -621,76 +615,21 @@ void ClipFreeze::mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reve
 	std::fill_n(cachedSend, dry.size(), 0);
 	if (!render({cached, dry.size()}, {cachedSend, dry.size()}))
 		return;
-	if (thawing_ || entering_) {
-		if (!handoffFade_.length) {
-			float live = 0, cache = 0;
-			for (size_t i = 0; i < dry.size(); ++i) {
-				float l = dry[i].l, r = dry[i].r, cl = cached[i].l, cr = cached[i].r;
-				live += l * l + r * r;
-				cache += cl * cl + cr * cr;
-			}
-			float alpha = float(dry.size()) / (dry.size() + 882);
-			warmLivePower_ += alpha * (live / dry.size() - warmLivePower_);
-			warmCachePower_ += alpha * (cache / dry.size() - warmCachePower_);
+	if ((thawing_ || entering_) && !handoffFade_.length) {
+		// The cache remains audible while the ordinary renderer rebuilds. This
+		// is a fixed delay, not a claim that arbitrary synth history is restored.
+		// Snapshot entry already has a running renderer and can fade immediately.
+		if (thawing_) {
 			warmupSamples_ += dry.size();
-			// Match spectral balance too: a loud restarted modulation envelope can
-			// have a completely different timbre. Four broad stereo bands, with
-			// 50 ms averaging, must track the cached sound for at least 250 ms.
-			constexpr float coefficients[3] = {0.028093f, 0.107735f, 0.366131f};
-			float powers[2][4]{};
-			for (size_t i = 0; i < dry.size(); ++i) {
-				for (int stream = 0; stream < 2; ++stream) {
-					const auto& frame = stream ? cached[i] : dry[i];
-					for (int channel = 0; channel < 2; ++channel) {
-						float value = channel ? frame.r : frame.l;
-						auto& lows = handoffLowPass_[stream][channel];
-						for (int band = 0; band < 3; ++band)
-							lows[band] += coefficients[band] * (value - lows[band]);
-						float bands[4] = {lows[0], lows[1] - lows[0], lows[2] - lows[1], value - lows[2]};
-						for (int band = 0; band < 4; ++band)
-							powers[stream][band] += bands[band] * bands[band];
-					}
-				}
-			}
-			float spectralAlpha = float(dry.size()) / (dry.size() + 2205);
-			float totals[2]{};
-			for (int stream = 0; stream < 2; ++stream) {
-				for (int band = 0; band < 4; ++band) {
-					auto& power = handoffBandPower_[stream][band];
-					power += spectralAlpha * (powers[stream][band] / dry.size() - power);
-					totals[stream] += power;
-				}
-			}
-			bool matches = warmLivePower_ >= warmCachePower_ * 0.81f && warmLivePower_ <= warmCachePower_ * 1.235f;
-			for (int band = 0; band < 4 && matches; ++band) {
-				float target = handoffBandPower_[1][band] / std::max(1.0f, totals[1]);
-				float actual = handoffBandPower_[0][band] / std::max(1.0f, totals[0]);
-				if (handoffBandPower_[1][band] > totals[1] * 0.0001f) {
-					matches = actual >= target * 0.63f && actual <= target * 1.585f;
-				}
-			}
-			matchedSamples_ = matches ? matchedSamples_ + dry.size() : 0;
-			bool matched = warmupSamples_ >= 11025 && matchedSamples_ >= 11025;
-			// Entry already has a running native renderer. A long search for an
-			// arbitrary modulation match postpones the CPU saving without ensuring
-			// a better match. Keep the established slow fade after a short search.
-			// Thaw must match both level and spectrum before handing off early.
-			// Recovered power alone can still expose a restarted modulation envelope;
-			// retain the original rebuild timeout when the timbre does not match.
-			bool fallback = (!thawing_ && warmupSamples_ >= 44100) || warmupSamples_ >= 44100 * 30;
-			if (matched || fallback) {
-				thawMatched_ = matched;
-				handoffFade_.reset(thawMatched_ ? 44100 : 132300);
-			}
-			else {
-				if (thawing_) {
-					std::copy_n(cached, dry.size(), dry.begin());
-					std::copy_n(cachedSend, dry.size(), reverb.begin());
-				}
+			if (warmupSamples_ < thawRebuildSamples) {
+				std::copy_n(cached, dry.size(), dry.begin());
+				std::copy_n(cachedSend, dry.size(), reverb.begin());
 				return;
 			}
 		}
+		handoffFade_.reset(fallbackFadeSamples);
 	}
+
 	if (thawing_) {
 		handoffFade_.apply(dry, reverb, {cached, dry.size()}, {cachedSend, dry.size()});
 		if (!handoffFade_.remaining)
