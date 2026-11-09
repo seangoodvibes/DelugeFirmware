@@ -597,7 +597,7 @@ void ClipFreeze::beginThaw(bool alignToPattern) {
 void ClipFreeze::resetHandoff() {
 	warmupSamples_ = 0;
 	warmLivePower_ = warmCachePower_ = 0;
-	matchedSamples_ = 0;
+	matchedSamples_ = levelMatchedSamples_ = 0;
 	thawMatched_ = false;
 	for (auto& stream : handoffLowPass_)
 		for (auto& channel : stream)
@@ -670,8 +670,19 @@ void ClipFreeze::mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reve
 				}
 			}
 			matchedSamples_ = matches ? matchedSamples_ + dry.size() : 0;
-			if ((warmupSamples_ >= 11025 && matchedSamples_ >= 11025) || warmupSamples_ >= 44100 * 30) {
-				thawMatched_ = matchedSamples_ >= 11025;
+			bool levelReady = warmLivePower_ >= warmCachePower_ * 0.5f && warmLivePower_ <= warmCachePower_ * 2;
+			levelMatchedSamples_ = levelReady ? levelMatchedSamples_ + dry.size() : 0;
+			bool matched = warmupSamples_ >= 11025 && matchedSamples_ >= 11025;
+			// Entry already has a running native renderer. A long search for an
+			// arbitrary modulation match postpones the CPU saving without ensuring
+			// a better match. Keep the established slow fade after a short search.
+			// Thaw gets longer to rebuild, and must have recovered audible power
+			// before taking that fallback. Preserve the old bound for long attacks.
+			bool fallback = (!thawing_ && warmupSamples_ >= 44100)
+			                || (thawing_ && warmupSamples_ >= 44100 * 3 && levelMatchedSamples_ >= 11025)
+			                || warmupSamples_ >= 44100 * 30;
+			if (matched || fallback) {
+				thawMatched_ = matched;
 				handoffFade_.reset(thawMatched_ ? 44100 : 132300);
 			}
 			else {
