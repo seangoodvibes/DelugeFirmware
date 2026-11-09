@@ -87,6 +87,8 @@ Error SoundInstrument::readFromFile(Deserializer& reader, Song* song, Clip* clip
 }
 
 void SoundInstrument::cutAllSound() {
+	if (activeClip && static_cast<InstrumentClip*>(activeClip)->freeze)
+		static_cast<InstrumentClip*>(activeClip)->freeze->pause();
 	Sound::killAllVoices();
 }
 
@@ -104,12 +106,16 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 
 	auto* clip = static_cast<InstrumentClip*>(activeClip);
 	auto* freeze = clip->freeze;
-	if (freeze && freeze->playing() && !freeze->entering()) {
+	if (freeze && freeze->releasing()) {
+		if (freeze->render(output, {reverbBuffer, output.size()}, recorder))
+			return;
+	}
+	if (freeze && freeze->playing() && !freeze->entering() && !freeze->capturingRelease()) {
 		if (isClipActive && playbackHandler.isEitherClockActive() && freeze->validFor(*clip)
 		    && freeze->render(output, {reverbBuffer, output.size()}, recorder)) {
 			return;
 		}
-		// Failed streaming or a changed tempo/length must restore note playback, not leave a silent synth.
+		// Failed streaming or a changed clip length must restore note playback, not leave a silent synth.
 		freeze->clear();
 		if (isClipActive && playbackHandler.isEitherClockActive()) {
 			auto* stack = modelStack->addTimelineCounter(clip);
@@ -126,7 +132,8 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 	if (freeze && (freeze->thawing() || freeze->entering()) && recorder) {
 		freeze->clear();
 	}
-	const bool handoff = freeze && (freeze->entering() || freeze->thawing());
+	const bool releaseCapture = freeze && freeze->capturingRelease();
+	const bool handoff = freeze && (freeze->entering() || freeze->thawing() || releaseCapture);
 	const bool capturing = freeze && freeze->capturing();
 	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
@@ -153,10 +160,15 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 			freeze->capture(renderBuffer, {renderReverb, output.size()});
 		}
 		else {
+			if (releaseCapture) {
+				freeze->captureRelease(renderBuffer, {renderReverb, output.size()});
+				if (!freeze->capturingRelease())
+					clip->stopSoundForFreeze();
+			}
 			bool entering = freeze->entering();
 			freeze->mixHandoff(renderBuffer, {renderReverb, output.size()});
 			if (entering && !freeze->entering() && freeze->playing())
-				clip->stopSoundForFreeze();
+				clip->releaseSoundForFreeze(modelStack->addTimelineCounter(clip));
 		}
 		for (size_t i = 0; i < output.size(); ++i) {
 			output[i] += renderBuffer[i];

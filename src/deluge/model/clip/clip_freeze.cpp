@@ -61,13 +61,18 @@ void ClipFreeze::Stream::clear() {
 void ClipFreeze::clear() {
 	dry_.clear();
 	reverb_.clear();
+	releaseDry_.clear();
+	releaseReverb_.clear();
+	capturingRelease_ = releasing_ = entering_ = clearAfterRelease_ = false;
+	releaseSamples_ = releaseQuietSamples_ = releasePosition_ = 0;
+	releaseHeadPower_ = playbackPower_ = 0;
 	state_ = State::OFF;
 	haveBoundary_ = false;
 	resumePending_ = false;
 	crossfadeLength_ = 0;
 	loopFade_.reset(0);
 	handoffFade_.reset(0);
-	instrument_ = thawing_ = waitingForNativeStart_ = syncedStretch_ = false;
+	thawing_ = waitingForNativeStart_ = syncedStretch_ = false;
 	loopSamples_ = 0;
 	tailRemaining_ = -1;
 }
@@ -85,9 +90,7 @@ Error ClipFreeze::arm(InstrumentClip& clip) {
 		clear();
 		return error;
 	}
-	error = arm(clip, period, continuous, snapshot);
-	instrument_ = error == Error::NONE;
-	return error;
+	return arm(clip, period, continuous, snapshot);
 }
 
 Error ClipFreeze::arm(Clip& clip, int32_t period, bool continuousPlayback, bool snapshot) {
@@ -180,13 +183,14 @@ bool ClipFreeze::Stream::start(int32_t pos, int32_t length, int64_t loopSamples,
 	// launches. The outgoing voice keeps its previous anchor through the overlap.
 	int64_t now = playbackHandler.getCurrentInternalTickCount();
 	int64_t elapsed = now - (playbackHandler.lastSwungTickActioned - pos);
-	elapsed = std::max<int64_t>(0, elapsed) % length;
+	elapsed = length ? std::max<int64_t>(0, elapsed) % length : 0;
 	guide.sequenceSyncStartedAtTick = now - elapsed;
+	guide.sequenceSyncLengthTicks = length;
 	auto* sample = static_cast<Sample*>(holder.audioFile);
 	guide.endPlaybackAtByte =
 	    sample->audioDataStartPosBytes + sample->lengthInSamples * sample->numChannels * sample->byteDepth;
 	voice->noteOn(&guide, 0, priority);
-	int64_t offset = loopSamples * pos / length;
+	int64_t offset = length ? loopSamples * pos / length : 0;
 	return voice->setupClusersForInitialPlay(&guide, sample, offset * sample->numChannels * sample->byteDepth, false,
 	                                         priority);
 }
@@ -199,6 +203,11 @@ int32_t ClipFreeze::phase(int32_t pos, int32_t repeatCount) const {
 bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 	if (state_ != State::READY && state_ != State::PLAYING) {
 		return false;
+	}
+	if (releasing_) {
+		finishRelease();
+		if (state_ != State::READY)
+			return false; // A pending thaw or song-relative cache was discarded.
 	}
 	pos = phase(pos, repeatCount);
 	if (state_ == State::PLAYING && syncedStretch_ && pos == 0 && dry_.voice->canContinueTimeStretching()
@@ -223,15 +232,61 @@ bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 	// duration available for the fade; never read beyond the recorded margin.
 	int32_t fadeSamples = (int64_t{std::max<int32_t>(0, sourceFade)} << 24) / std::max(kMaxSampleValue, stretchRatio());
 	loopFade_.reset(overlap ? std::max<int32_t>(1, fadeSamples) : 0);
-	if (firstStart && instrument_) {
-		handoffFade_.reset(snapshot_ ? 11025 : crossfadeSamples);
+	if (firstStart) {
+		entering_ = true;
+		resetHandoff();
+		if (!snapshot_)
+			handoffFade_.reset(crossfadeSamples);
 	}
 	state_ = State::PLAYING;
 	resumePending_ = false;
 	return true;
 }
 
-void ClipFreeze::pause() {
+void ClipFreeze::pause(bool release) {
+	if (release && state_ == State::PLAYING && !entering_) {
+		if (releasing_)
+			return;
+		if (capturingRelease_) {
+			capturingRelease_ = false;
+			releaseDry_.clear();
+			releaseReverb_.clear();
+		}
+		clearAfterRelease_ = thawing_;
+		thawing_ = waitingForNativeStart_ = false;
+		releasing_ = true;
+		// The transport clock may stop; let the short bridge run freely.
+		dry_.guide.sequenceSyncLengthTicks = reverb_.guide.sequenceSyncLengthTicks = 0;
+		releasePosition_ = 0;
+		// End the bridge before its source continuation runs out when stopping
+		// near a loop boundary. The recorded release itself remains untruncated.
+		int32_t available = std::min(dry_.remainingSamples(), reverb_.remainingSamples()) - tailGuardSamples;
+		int32_t bridge = (int64_t{std::max<int32_t>(1, available)} << 24) / std::max(kMaxSampleValue, stretchRatio());
+		releaseFade_.reset(std::clamp<int32_t>(bridge, 1, 4410));
+		releaseGain_ = std::sqrt(std::clamp(playbackPower_ / std::max(1.0f, releaseHeadPower_), 0.0625f, 16.0f));
+		bool ready = releaseDry_.recorder && releaseReverb_.recorder
+		             && releaseDry_.recorder->status == RecorderStatus::COMPLETE
+		             && releaseReverb_.recorder->status == RecorderStatus::COMPLETE;
+		if (ready) {
+			releaseDry_.prepare(0, releaseSamples_);
+			releaseReverb_.prepare(0, releaseSamples_);
+			ready =
+			    releaseDry_.start(0, 0, releaseSamples_, false) && releaseReverb_.start(0, 0, releaseSamples_, false);
+		}
+		if (!ready) {
+			releaseDry_.stop();
+			releaseReverb_.stop();
+		}
+		return;
+	}
+	if (releasing_)
+		finishRelease();
+	entering_ = false;
+	if (capturingRelease_) {
+		capturingRelease_ = false;
+		releaseDry_.clear();
+		releaseReverb_.clear();
+	}
 	syncedStretch_ = false;
 	loopFade_.reset(0);
 	handoffFade_.reset(0);
@@ -384,6 +439,16 @@ bool ClipFreeze::Stream::render(int32_t* buffer, int32_t count, int32_t channels
 }
 
 bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder) {
+	return releasing_ ? renderRelease(dry, reverb, recorder) : renderLoop(dry, reverb, recorder);
+}
+
+bool ClipFreeze::renderLoop(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder) {
+	if (releaseDry_.recorder && releaseReverb_.recorder && !releaseDry_.holder.audioFile
+	    && releaseDry_.recorder->status == RecorderStatus::COMPLETE
+	    && releaseReverb_.recorder->status == RecorderStatus::COMPLETE) {
+		releaseDry_.prepare(0, releaseSamples_);
+		releaseReverb_.prepare(0, releaseSamples_);
+	}
 	if (state_ != State::PLAYING) {
 		return false;
 	}
@@ -397,7 +462,7 @@ bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, 
 	std::fill_n(audio, dry.size(), StereoSample{0, 0});
 	std::fill_n(send, dry.size(), 0);
 	int32_t stretch = stretchRatio();
-	if (!syncedStretch_) {
+	if (!syncedStretch_ && !releasing_) {
 		// Use the same native-rate tolerance as AudioClip, but make one shared
 		// decision so dry audio and reverb send retain the same musical clock.
 		syncedStretch_ = stretch < 16661327 || stretch >= 16893911
@@ -444,10 +509,13 @@ bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, 
 		tailSend[i] *= 2;
 	}
 	loopFade_.apply({audio, dry.size()}, {send, dry.size()}, {tailAudio, size_t(overlap)}, {tailSend, size_t(overlap)});
+	float power = 0;
 	for (size_t i = 0; i < dry.size(); ++i) {
+		power += float(audio[i].l) * audio[i].l + float(audio[i].r) * audio[i].r;
 		dry[i] += audio[i];
 		reverb[i] += send[i];
 	}
+	playbackPower_ += float(dry.size()) / (dry.size() + 2205) * (power / dry.size() - playbackPower_);
 	if (!loopFade_.remaining) {
 		dry_.stopOutgoing();
 		reverb_.stopOutgoing();
@@ -514,9 +582,19 @@ void ClipFreeze::beginThaw(bool alignToPattern) {
 		clear();
 		return;
 	}
+	entering_ = false;
+	if (capturingRelease_) {
+		capturingRelease_ = false;
+		releaseDry_.clear();
+		releaseReverb_.clear();
+	}
 	thawing_ = true;
 	waitingForNativeStart_ = alignToPattern;
 	nativeWaitSamples_ = 0;
+	resetHandoff();
+}
+
+void ClipFreeze::resetHandoff() {
 	warmupSamples_ = 0;
 	warmLivePower_ = warmCachePower_ = 0;
 	matchedSamples_ = 0;
@@ -543,7 +621,7 @@ void ClipFreeze::mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reve
 	std::fill_n(cachedSend, dry.size(), 0);
 	if (!render({cached, dry.size()}, {cachedSend, dry.size()}))
 		return;
-	if (thawing_) {
+	if (thawing_ || entering_) {
 		if (!handoffFade_.length) {
 			float live = 0, cache = 0;
 			for (size_t i = 0; i < dry.size(); ++i) {
@@ -557,7 +635,7 @@ void ClipFreeze::mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reve
 			warmupSamples_ += dry.size();
 			// Match spectral balance too: a loud restarted modulation envelope can
 			// have a completely different timbre. Four broad stereo bands, with
-			// 50 ms averaging, must track the cached sound for at least 100 ms.
+			// 50 ms averaging, must track the cached sound for at least 250 ms.
 			constexpr float coefficients[3] = {0.028093f, 0.107735f, 0.366131f};
 			float powers[2][4]{};
 			for (size_t i = 0; i < dry.size(); ++i) {
@@ -592,23 +670,169 @@ void ClipFreeze::mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reve
 				}
 			}
 			matchedSamples_ = matches ? matchedSamples_ + dry.size() : 0;
-			if ((warmupSamples_ >= 11025 && matchedSamples_ >= 4410) || warmupSamples_ >= 44100 * 30) {
-				thawMatched_ = matchedSamples_ >= 4410;
-				handoffFade_.reset(thawMatched_ ? 11025 : 44100);
+			if ((warmupSamples_ >= 11025 && matchedSamples_ >= 11025) || warmupSamples_ >= 44100 * 30) {
+				thawMatched_ = matchedSamples_ >= 11025;
+				handoffFade_.reset(thawMatched_ ? 44100 : 132300);
 			}
 			else {
-				std::copy_n(cached, dry.size(), dry.begin());
-				std::copy_n(cachedSend, dry.size(), reverb.begin());
+				if (thawing_) {
+					std::copy_n(cached, dry.size(), dry.begin());
+					std::copy_n(cachedSend, dry.size(), reverb.begin());
+				}
 				return;
 			}
 		}
+	}
+	if (thawing_) {
 		handoffFade_.apply(dry, reverb, {cached, dry.size()}, {cachedSend, dry.size()});
 		if (!handoffFade_.remaining)
 			clear();
 	}
 	else {
 		handoffFade_.apply({cached, dry.size()}, {cachedSend, dry.size()}, dry, reverb);
+		if (!handoffFade_.remaining)
+			entering_ = false;
 		std::copy_n(cached, dry.size(), dry.begin());
 		std::copy_n(cachedSend, dry.size(), reverb.begin());
 	}
+}
+
+bool ClipFreeze::beginReleaseCapture() {
+	// Render an ordinary note-off once, while the listener hears the cache.
+	// These temporary recorders and native voices are not part of frozen playback.
+	releaseDry_.clear();
+	releaseReverb_.clear();
+	releaseSamples_ = releaseQuietSamples_ = 0;
+	releaseHeadPower_ = 0;
+	for (auto* stream : {&releaseDry_, &releaseReverb_}) {
+		stream->recorder = AudioEngine::getNewRecorder(
+		    stream == &releaseDry_ ? 2 : 1, AudioRecordingFolder::CLIPS, AudioInputChannel::OFFLINE_OUTPUT, true, false,
+		    0, false, nullptr, {.neverUseThreshold = true, .forceStereoRendering = false});
+		if (!stream->recorder) {
+			releaseDry_.clear();
+			releaseReverb_.clear();
+			return false;
+		}
+		stream->recorder->numSamplesToRunBeforeBeginningCapturing = 0;
+		stream->recorder->numSamplesExtraToCaptureAtEndSyncingWise = 0;
+		stream->recorder->allowFileAlterationAfter = false;
+	}
+	capturingRelease_ = true;
+	return true;
+}
+
+void ClipFreeze::captureRelease(std::span<StereoSample> dry, std::span<int32_t> reverb) {
+	if (!capturingRelease_)
+		return;
+	for (auto* stream : {&releaseDry_, &releaseReverb_}) {
+		if (stream->recorder->hadCardError || stream->recorder->reachedMaxFileSize
+		    || stream->recorder->status >= RecorderStatus::ABORTED) {
+			capturingRelease_ = false;
+			releaseDry_.clear();
+			releaseReverb_.clear();
+			return;
+		}
+	}
+	float power = 0, sendPower = 0;
+	static StereoSample send[SSI_TX_BUFFER_NUM_SAMPLES];
+	for (size_t i = 0; i < dry.size(); ++i) {
+		power += float(dry[i].l) * dry[i].l + float(dry[i].r) * dry[i].r;
+		send[i] = {reverb[i], reverb[i]};
+		sendPower += float(reverb[i]) * reverb[i];
+	}
+	power /= dry.size();
+	sendPower /= dry.size();
+	if (releaseSamples_ < 441)
+		releaseHeadPower_ = (releaseHeadPower_ * releaseSamples_ + power * dry.size()) / (releaseSamples_ + dry.size());
+	releaseDry_.recorder->feedAudio(dry);
+	releaseReverb_.recorder->feedAudio({send, dry.size()});
+	releaseSamples_ += dry.size();
+	// Keep long delay gaps; bound infinite releases/feedback to thirty seconds.
+	releaseQuietSamples_ =
+	    power < std::max(1.0f, releaseHeadPower_ * 0.000001f) ? releaseQuietSamples_ + dry.size() : 0;
+	if (releaseQuietSamples_ >= 44100 * 2 || releaseSamples_ >= 44100 * 30) {
+		releaseDry_.recorder->endSyncedRecording(0);
+		releaseReverb_.recorder->endSyncedRecording(0);
+		capturingRelease_ = false;
+	}
+}
+
+void ClipFreeze::finishRelease() {
+	releaseDry_.stop();
+	releaseReverb_.stop();
+	releasing_ = false;
+	if (clearAfterRelease_) {
+		clear();
+		return;
+	}
+	// An unsynchronised loop can retain its cache for the next launch. Song-
+	// relative modulation still follows the existing invalidation rule.
+	pause();
+}
+
+bool ClipFreeze::renderRelease(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder) {
+	static StereoSample audio[SSI_TX_BUFFER_NUM_SAMPLES], continuation[SSI_TX_BUFFER_NUM_SAMPLES];
+	static int32_t send[SSI_TX_BUFFER_NUM_SAMPLES], continuationSend[SSI_TX_BUFFER_NUM_SAMPLES];
+	std::fill_n(audio, dry.size(), StereoSample{0, 0});
+	std::fill_n(send, dry.size(), 0);
+	std::fill_n(continuation, dry.size(), StereoSample{0, 0});
+	std::fill_n(continuationSend, dry.size(), 0);
+	bool haveTail = releaseDry_.voice && releaseReverb_.voice;
+	int32_t count = haveTail ? std::min<int32_t>(dry.size(), releaseSamples_ - releasePosition_) : 0;
+	if (count > 0) {
+		bool ok = releaseDry_.render(reinterpret_cast<int32_t*>(audio), count, 2, kMaxSampleValue, false)
+		          && releaseReverb_.render(send, count, 1, kMaxSampleValue, false);
+		if (!ok) {
+			releaseDry_.stop();
+			releaseReverb_.stop();
+			haveTail = false;
+			std::fill_n(audio, dry.size(), StereoSample{0, 0});
+			std::fill_n(send, dry.size(), 0);
+		}
+		// Convert VoiceSample's half-gain contract and mono packing exactly as
+		// for the loop, with a short fade at a bounded/truncated release end.
+		if (!AudioEngine::renderInStereo) {
+			auto* mono = reinterpret_cast<int32_t*>(audio);
+			for (int i = count - 1; i >= 0; --i)
+				audio[i] = {mono[i], mono[i]};
+		}
+		for (int32_t i = 0; i < count; ++i) {
+			float gain = 2 * releaseGain_ * std::min(1.0f, float(releaseSamples_ - releasePosition_ - i) / 2205);
+			auto scale = [gain](int32_t value) {
+				return static_cast<int32_t>(std::clamp(double(value) * gain, double(INT32_MIN), double(INT32_MAX)));
+			};
+			audio[i] = {scale(audio[i].l), scale(audio[i].r)};
+			send[i] = scale(send[i]);
+		}
+	}
+	if (releaseFade_.remaining) {
+		// No sequencer ticks arrive after a stop. Keep the short bridge inside
+		// available source data, wrapping only if the stop fell at the file end.
+		if (std::min(dry_.remainingSamples(), reverb_.remainingSamples()) < int32_t(dry.size()) + tailGuardSamples) {
+			loopFade_.reset(0);
+			dry_.start(0, period_, loopSamples_, false);
+			reverb_.start(0, period_, loopSamples_, false);
+			dry_.guide.sequenceSyncLengthTicks = reverb_.guide.sequenceSyncLengthTicks = 0;
+		}
+		if (!renderLoop({continuation, dry.size()}, {continuationSend, dry.size()}, nullptr)) {
+			return false;
+		}
+		// A missing/incomplete release recording still gets a bounded fade-out.
+		releaseFade_.apply({audio, dry.size()}, {send, dry.size()}, {continuation, dry.size()},
+		                   {continuationSend, dry.size()});
+		if (!releaseFade_.remaining) {
+			dry_.stop();
+			reverb_.stop();
+		}
+	}
+	for (size_t i = 0; i < dry.size(); ++i) {
+		dry[i] += audio[i];
+		reverb[i] += send[i];
+	}
+	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING)
+		recorder->feedAudio({audio, dry.size()}, true, 2);
+	releasePosition_ += dry.size();
+	if (!releaseFade_.remaining && (!haveTail || releasePosition_ >= releaseSamples_))
+		finishRelease();
+	return true;
 }

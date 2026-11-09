@@ -51,6 +51,7 @@ public:
 	explicit InstrumentClip(Song* song = nullptr);
 	~InstrumentClip() override;
 	void stopSoundForFreeze();
+	void releaseSoundForFreeze(ModelStackWithTimelineCounter* modelStack);
 	void resumeAfterFreeze(ModelStackWithTimelineCounter* modelStack);
 	Error setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack);
 	Error getFreezeCycleLength(int32_t& length, bool& continuousPlayback, bool& snapshot);

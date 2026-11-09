@@ -104,11 +104,17 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 	auto* freeze = clip ? clip->freeze : nullptr;
 	// Track recording taps before final volume/pan/compression. Preserve that tap,
 	// and never replace live monitoring or overdubbing with cached audio.
-	if (freeze && freeze->enabled()
+	if (freeze && (freeze->enabled() || freeze->thawing())
 	    && (!clip->freezeAvailable() || !freeze->validFor(*clip) || recorder || stemExport.processStarted)) {
 		clip->setFrozen(false, modelStackWithTimelineCounter);
 	}
-	if (freeze && freeze->playing()) {
+	if (freeze && freeze->thawing() && (recorder || stemExport.processStarted))
+		freeze->clear();
+	if (freeze && freeze->releasing()) {
+		if (freeze->render(output, {reverbBuffer, output.size()}))
+			return;
+	}
+	if (freeze && freeze->playing() && !freeze->entering() && !freeze->capturingRelease()) {
 		if (isClipActive && playbackHandler.isEitherClockActive()
 		    && freeze->render(output, {reverbBuffer, output.size()})) {
 			return;
@@ -119,12 +125,14 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 			clip->resumePlayback(modelStackWithTimelineCounter);
 		}
 	}
+	const bool releaseCapture = freeze && freeze->capturingRelease();
+	const bool handoff = freeze && (freeze->entering() || freeze->thawing() || releaseCapture);
 	const bool capturing = freeze && freeze->capturing();
 	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
 	auto mixedOutput = output;
 	auto* mixedReverb = reverbBuffer;
-	if (capturing) {
+	if (capturing || handoff) {
 		std::fill_n(freezeAudio, output.size(), StereoSample{0, 0});
 		std::fill_n(freezeReverb, output.size(), 0);
 		output = {freezeAudio, output.size()};
@@ -134,8 +142,29 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
 	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
 	                                      isClipActive, OutputType::AUDIO, recorder);
-	if (capturing) {
-		freeze->capture(output, {reverbBuffer, output.size()});
+	if (capturing || handoff) {
+		if (capturing) {
+			freeze->capture(output, {reverbBuffer, output.size()});
+		}
+		else {
+			if (releaseCapture) {
+				freeze->captureRelease(output, {reverbBuffer, output.size()});
+				if (!freeze->capturingRelease()) {
+					clip->unassignVoiceSample(false);
+					wontBeRenderedForAWhile();
+				}
+			}
+			bool entering = freeze->entering();
+			freeze->mixHandoff(output, {reverbBuffer, output.size()});
+			if (entering && !freeze->entering() && freeze->playing()) {
+				if (freeze->beginReleaseCapture())
+					envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+				else {
+					clip->unassignVoiceSample(false);
+					wontBeRenderedForAWhile();
+				}
+			}
+		}
 		for (size_t i = 0; i < output.size(); ++i) {
 			mixedOutput[i] += output[i];
 			mixedReverb[i] += reverbBuffer[i];

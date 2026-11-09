@@ -526,6 +526,8 @@ Drum* Kit::getDrumFromName(std::string_view name, bool onlyIfNoNoteRow) {
 }
 
 void Kit::cutAllSound() {
+	if (activeClip && static_cast<InstrumentClip*>(activeClip)->freeze)
+		static_cast<InstrumentClip*>(activeClip)->freeze->pause();
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		thisDrum->killAllVoices();
 	}
@@ -694,7 +696,11 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		if (waiting)
 			clip->resumeAfterFreeze(modelStackWithTimelineCounter);
 	}
-	if (freeze && freeze->playing() && !freeze->entering()) {
+	if (freeze && freeze->releasing()) {
+		if (freeze->render(output, {reverbBuffer, output.size()}))
+			return;
+	}
+	if (freeze && freeze->playing() && !freeze->entering() && !freeze->capturingRelease()) {
 		if (isClipActive && playbackHandler.isEitherClockActive() && freeze->validFor(*clip)
 		    && freeze->render(output, {reverbBuffer, output.size()})) {
 			return;
@@ -713,7 +719,8 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	if (freeze && (freeze->thawing() || freeze->entering()) && (recorder || stemExport.processStarted)) {
 		freeze->clear();
 	}
-	const bool handoff = freeze && (freeze->entering() || freeze->thawing());
+	const bool releaseCapture = freeze && freeze->capturingRelease();
+	const bool handoff = freeze && (freeze->entering() || freeze->thawing() || releaseCapture);
 	const bool capturing = freeze && freeze->capturing();
 	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
@@ -754,10 +761,15 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			freeze->capture(output, {reverbBuffer, output.size()});
 		}
 		else {
+			if (releaseCapture) {
+				freeze->captureRelease(output, {reverbBuffer, output.size()});
+				if (!freeze->capturingRelease())
+					clip->stopSoundForFreeze();
+			}
 			bool entering = freeze->entering();
 			freeze->mixHandoff(output, {reverbBuffer, output.size()});
 			if (entering && !freeze->entering() && freeze->playing())
-				clip->stopSoundForFreeze();
+				clip->releaseSoundForFreeze(modelStack->addTimelineCounter(clip));
 		}
 		for (size_t i = 0; i < output.size(); ++i) {
 			mixedOutput[i] += output[i];

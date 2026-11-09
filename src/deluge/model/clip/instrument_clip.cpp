@@ -220,6 +220,32 @@ void InstrumentClip::resumeAfterFreeze(ModelStackWithTimelineCounter* modelStack
 	expectEvent();
 }
 
+void InstrumentClip::releaseSoundForFreeze(ModelStackWithTimelineCounter* modelStack) {
+	if (!freeze->beginReleaseCapture()) {
+		stopSoundForFreeze();
+		return;
+	}
+	// Ordinary engine note-offs preserve envelopes/FX without changing the
+	// sequencer's logical held notes, which still advance while frozen.
+	if (output->type == OutputType::KIT) {
+		auto* kit = static_cast<Kit*>(output);
+		kit->arpeggiator.reset();
+		for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+			auto* row = noteRows.getElement(i);
+			if (!row->drum || row->drum->type != DrumType::SOUND)
+				continue;
+			auto* sound = static_cast<SoundDrum*>(row->drum);
+			auto* stack = modelStack->addNoteRow(i, row)->addOtherTwoThings(sound, &row->paramManager);
+			sound->allNotesOff(stack, sound->getArp());
+		}
+	}
+	else {
+		auto* sound = static_cast<SoundInstrument*>(output);
+		auto* stack = modelStack->addOtherTwoThingsButNoNoteRow(sound, &paramManager);
+		sound->allNotesOff(stack, sound->getArp());
+	}
+}
+
 void InstrumentClip::stopSoundForFreeze() {
 	if (output->type == OutputType::KIT) {
 		auto* kit = static_cast<Kit*>(output);
@@ -238,6 +264,8 @@ Error InstrumentClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* mod
 	if (!enabled) {
 		bool wasPlaying = freeze && freeze->playing();
 		bool bridgeDrone = false;
+		bool bridge = wasPlaying && freeze->validFor(*this) && playbackHandler.isEitherClockActive()
+		              && modelStack->song->isClipActive(this);
 		if (wasPlaying && freeze->validFor(*this) && playbackHandler.isEitherClockActive()
 		    && modelStack->song->isClipActive(this)) {
 			for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
@@ -247,8 +275,8 @@ Error InstrumentClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* mod
 			}
 		}
 		if (freeze) {
-			if (bridgeDrone)
-				freeze->beginThaw(true);
+			if (bridge)
+				freeze->beginThaw(bridgeDrone);
 			else
 				freeze->clear();
 		}
@@ -1386,7 +1414,10 @@ void InstrumentClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, b
 
 void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 	if (freeze) {
-		freeze->pause();
+		bool wasCapturingRelease = freeze->capturingRelease() || freeze->thawing();
+		freeze->pause(actuallySoundChange);
+		if (wasCapturingRelease)
+			stopSoundForFreeze();
 	}
 
 	// If it's actually another Clip, that we're recording into the arranger...

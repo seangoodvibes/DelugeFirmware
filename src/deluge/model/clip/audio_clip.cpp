@@ -76,12 +76,22 @@ Error AudioClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelSta
 	if (!enabled) {
 		bool wasPlaying = freeze && freeze->playing();
 		if (freeze) {
-			freeze->clear();
+			if (wasPlaying && freezeAvailable() && freeze->validFor(*this) && playbackHandler.isEitherClockActive()
+			    && modelStack->song->isClipActive(this))
+				freeze->beginThaw();
+			else
+				freeze->clear();
 		}
 		if (wasPlaying && playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
 			setPosForParamManagers(modelStack, true);
 			resumePlayback(modelStack);
 		}
+		return Error::NONE;
+	}
+	if (freeze && freeze->thawing() && freeze->validFor(*this)) {
+		freeze->cancelThaw();
+		unassignVoiceSample(false);
+		static_cast<AudioOutput*>(output)->wontBeRenderedForAWhile();
 		return Error::NONE;
 	}
 	if (!freezeAvailable() || !playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this)
@@ -363,7 +373,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 		return;
 	}
 
-	if (freeze && freeze->enabled()) {
+	if (freeze && (freeze->enabled() || freeze->thawing())) {
 		if (!freezeAvailable() || !freeze->validFor(*this)) {
 			setFrozen(false, modelStack);
 		}
@@ -372,14 +382,14 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 			if (!lastProcessedPos) {
 				freeze->loop(repeatCount);
 			}
-			if (freeze->playing()) {
+			if (freeze->playing() && !freeze->entering()) {
 				if (!wasPlaying) {
 					unassignVoiceSample(false);
 					static_cast<AudioOutput*>(output)->wontBeRenderedForAWhile();
 				}
 				return;
 			}
-			if (wasPlaying) {
+			if (wasPlaying && !freeze->playing()) {
 				setPosForParamManagers(modelStack, true);
 				resumePlayback(modelStack);
 			}
@@ -959,7 +969,12 @@ void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
 
 void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 	if (freeze && actuallySoundChange) {
-		freeze->pause();
+		bool wasCapturingRelease = freeze->capturingRelease() || freeze->thawing();
+		freeze->pause(true);
+		if (wasCapturingRelease) {
+			unassignVoiceSample(false);
+			static_cast<AudioOutput*>(output)->wontBeRenderedForAWhile();
+		}
 	}
 
 	// If it's actually another Clip, that we're recording into the arranger...

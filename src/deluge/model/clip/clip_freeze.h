@@ -26,7 +26,11 @@ public:
 	Error arm(InstrumentClip& clip);
 	Error arm(Clip& clip, int32_t period, bool continuousPlayback = false, bool snapshot = false);
 	void clear();
-	void pause();
+	void pause(bool release = false);
+	bool beginReleaseCapture();
+	void captureRelease(std::span<StereoSample> dry, std::span<int32_t> reverb);
+	bool capturingRelease() const { return capturingRelease_; }
+	bool releasing() const { return releasing_; }
 	bool start(int32_t pos, int32_t repeatCount);
 	void loop(int32_t repeatCount);
 	bool validFor(Clip& clip) const;
@@ -36,7 +40,7 @@ public:
 	void cancelThaw();
 	void mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reverb);
 	bool thawing() const { return thawing_; }
-	bool entering() const { return state_ == State::PLAYING && !thawing_ && handoffFade_.remaining > 0; }
+	bool entering() const { return state_ == State::PLAYING && !thawing_ && entering_; }
 	bool playing() const { return state_ == State::PLAYING && (!thawing_ || waitingForNativeStart_); }
 	bool capturing() const { return state_ == State::CAPTURING; }
 	bool enabled() const { return state_ != State::OFF && state_ != State::FAILED && !thawing_; }
@@ -65,7 +69,14 @@ private:
 		bool render(int32_t* buffer, int32_t count, int32_t channels, int32_t stretch, bool syncedStretch,
 		            bool tail = false);
 	};
-	Stream dry_, reverb_;
+	Stream dry_, reverb_, releaseDry_, releaseReverb_;
+	bool capturingRelease_ = false, releasing_ = false, clearAfterRelease_ = false;
+	int32_t releaseSamples_ = 0, releaseQuietSamples_ = 0, releasePosition_ = 0;
+	float releaseHeadPower_ = 0, playbackPower_ = 0, releaseGain_ = 1;
+	Fade releaseFade_;
+	bool renderLoop(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder);
+	bool renderRelease(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder);
+	void finishRelease();
 	State state_ = State::OFF;
 	Output* output_ = nullptr;
 	int32_t length_ = 0;
@@ -80,7 +91,8 @@ private:
 	int32_t crossfadeLength_ = 0;
 	int32_t tailRemaining_ = -1;
 	Fade loopFade_, handoffFade_;
-	bool instrument_ = false, thawing_ = false;
+	bool thawing_ = false, entering_ = false;
+	void resetHandoff();
 	bool thawMatched_ = false, waitingForNativeStart_ = false;
 	int64_t nativeWaitSamples_ = 0;
 	float handoffLowPass_[2][2][3]{};

@@ -19,7 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
+#include "model/clip/clip_freeze.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
@@ -66,8 +68,21 @@ void Output::setupWithoutActiveClip(ModelStack* modelStack) {
 	inValidState = true;
 }
 
+namespace {
+void pauseFreezePlayback(Clip* clip) {
+	if (!clip)
+		return;
+	auto* freeze = clip->type == ClipType::AUDIO ? static_cast<AudioClip*>(clip)->freeze
+	                                             : static_cast<InstrumentClip*>(clip)->freeze;
+	if (freeze)
+		freeze->pause(); // A detached clip has no output callback to finish its release.
+}
+} // namespace
+
 // Returns whether Clip changed from before
 bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
+	if (!modelStack || activeClip != modelStack->getTimelineCounter())
+		pauseFreezePlayback(activeClip);
 	if (!modelStack) {
 		activeClip = nullptr;
 		inValidState = false;
@@ -82,6 +97,7 @@ bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeS
 }
 
 void Output::detachActiveClip(Song* song) {
+	pauseFreezePlayback(activeClip);
 	activeClip = nullptr;
 	inValidState = false;
 
