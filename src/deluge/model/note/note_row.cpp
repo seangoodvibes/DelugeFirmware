@@ -2408,7 +2408,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 }
 
 // Only call if we already know the "next note" should have already started
-void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note) {
+void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note, bool resumeHeldNote) {
 
 	bool currentlyPlayingReversed = modelStack->isCurrentlyPlayingReversed();
 
@@ -2495,7 +2495,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	if ((sound
 	     && (allows =
 	             sound->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager)))
-	    || timeAgo < kAmountNoteOnLatenessAllowed) {
+	    || timeAgo < kAmountNoteOnLatenessAllowed || resumeHeldNote) {
 
 		D_PRINTLN("doing late");
 
@@ -3133,7 +3133,8 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 	}
 }
 
-void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos) {
+void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos,
+                                 bool resumeHeldNote) {
 	// See if our play-pos is inside of a note, which we might want to try playing...
 	int32_t i = notes.search(effectiveActualCurrentPos, LESS);
 	bool wrapping = (i == -1);
@@ -3148,11 +3149,11 @@ void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effe
 
 	if (noteEnd > effectiveActualCurrentPos) {
 		// if we're not allowed we'll just come back here later (next tick)
-		attemptLateStartOfNextNoteToPlay(modelStack, note);
+		attemptLateStartOfNextNoteToPlay(modelStack, note, resumeHeldNote);
 	}
 }
 // Attempts (possibly late) start of any note at or overlapping the currentPos
-void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound) {
+void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound, bool resumeHeldNote) {
 	if (noteRowMayMakeSound(clipMayMakeSound) && !sequenced && !isAuditioning(modelStack)) {
 
 		if (!notes.getNumElements()) {
@@ -3161,8 +3162,9 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
-		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
-			maybeStartLateNote(modelStack, effectiveActualCurrentPos);
+		if (resumeHeldNote
+		    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On) {
+			maybeStartLateNote(modelStack, effectiveActualCurrentPos, resumeHeldNote);
 		}
 	}
 

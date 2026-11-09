@@ -104,7 +104,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 
 	auto* clip = static_cast<InstrumentClip*>(activeClip);
 	auto* freeze = clip->freeze;
-	if (freeze && freeze->playing()) {
+	if (freeze && freeze->playing() && !freeze->entering()) {
 		if (isClipActive && playbackHandler.isEitherClockActive() && freeze->validFor(*clip)
 		    && freeze->render(output, {reverbBuffer, output.size()}, recorder)) {
 			return;
@@ -117,15 +117,22 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 		}
 	}
 
-	if (freeze && freeze->enabled() && !freeze->validFor(*clip)) {
+	if (freeze && (freeze->enabled() || freeze->thawing())
+	    && (!freeze->validFor(*clip)
+	        || (freeze->thawing() && (!isClipActive || !playbackHandler.isEitherClockActive())))) {
 		freeze->clear();
 	}
+	// Track recorders tap the native graph before this handoff mix.
+	if (freeze && (freeze->thawing() || freeze->entering()) && recorder) {
+		freeze->clear();
+	}
+	const bool handoff = freeze && (freeze->entering() || freeze->thawing());
 	const bool capturing = freeze && freeze->capturing();
 	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
 	auto renderBuffer = output;
 	auto* renderReverb = reverbBuffer;
-	if (capturing) {
+	if (capturing || handoff) {
 		std::fill_n(freezeAudio, output.size(), StereoSample{0, 0});
 		std::fill_n(freezeReverb, output.size(), 0);
 		renderBuffer = {freezeAudio, output.size()};
@@ -141,8 +148,16 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 		              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 	}
 
-	if (capturing) {
-		freeze->capture(renderBuffer, {renderReverb, output.size()});
+	if (capturing || handoff) {
+		if (capturing) {
+			freeze->capture(renderBuffer, {renderReverb, output.size()});
+		}
+		else {
+			bool entering = freeze->entering();
+			freeze->mixHandoff(renderBuffer, {renderReverb, output.size()});
+			if (entering && !freeze->entering() && freeze->playing())
+				clip->stopSoundForFreeze();
+		}
 		for (size_t i = 0; i < output.size(); ++i) {
 			output[i] += renderBuffer[i];
 			reverbBuffer[i] += renderReverb[i];
@@ -416,7 +431,8 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 		return;
 	}
 	if (isOn && activeClip && static_cast<InstrumentClip*>(activeClip)->freeze
-	    && static_cast<InstrumentClip*>(activeClip)->freeze->playing()) {
+	    && static_cast<InstrumentClip*>(activeClip)->freeze->playing()
+	    && !static_cast<InstrumentClip*>(activeClip)->freeze->entering()) {
 		if (sideChainSendLevel) {
 			AudioEngine::registerSideChainHit(sideChainSendLevel);
 		}
@@ -460,7 +476,8 @@ void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
 int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	if (!activeClip
 	    || (static_cast<InstrumentClip*>(activeClip)->freeze
-	        && static_cast<InstrumentClip*>(activeClip)->freeze->playing())) {
+	        && static_cast<InstrumentClip*>(activeClip)->freeze->playing()
+	        && !static_cast<InstrumentClip*>(activeClip)->freeze->entering())) {
 		return 2147483647;
 	}
 

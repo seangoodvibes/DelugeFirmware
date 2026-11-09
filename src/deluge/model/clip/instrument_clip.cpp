@@ -211,7 +211,10 @@ void InstrumentClip::resumeAfterFreeze(ModelStackWithTimelineCounter* modelStack
 		if (row->sequenced) {
 			auto* rowStack = modelStack->addNoteRow(getNoteRowId(row, i), row);
 			row->stopCurrentlyPlayingNote(rowStack);
-			row->resumePlayback(rowStack, true);
+			// This note already passed its conditions while frozen. Restore its
+			// physical voice even when ordinary late-note catching is disabled or
+			// disallowed for a wave oscillator; waiting for its next onset makes a gap.
+			row->resumePlayback(rowStack, true, true);
 		}
 	}
 	expectEvent();
@@ -234,12 +237,32 @@ void InstrumentClip::stopSoundForFreeze() {
 Error InstrumentClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack) {
 	if (!enabled) {
 		bool wasPlaying = freeze && freeze->playing();
-		if (freeze) {
-			freeze->clear();
+		bool bridgeDrone = false;
+		if (wasPlaying && freeze->validFor(*this) && playbackHandler.isEitherClockActive()
+		    && modelStack->song->isClipActive(this)) {
+			for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+				auto* row = noteRows.getElement(i);
+				int32_t length = row->loopLengthIfIndependent ? row->loopLengthIfIndependent : loopLength;
+				bridgeDrone |= row->sequenced && !row->muted && row->isDroning(length);
+			}
 		}
-		if (wasPlaying && playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+		if (freeze) {
+			if (bridgeDrone)
+				freeze->beginThaw(true);
+			else
+				freeze->clear();
+		}
+		if (wasPlaying && !freeze->playing() && playbackHandler.isEitherClockActive()
+		    && modelStack->song->isClipActive(this)) {
 			resumeAfterFreeze(modelStack);
 		}
+		return Error::NONE;
+	}
+	if (freeze && freeze->thawing() && freeze->validFor(*this)) {
+		// Cancelling a delayed thaw keeps the existing recording and releases
+		// any voices allocated by the temporary native rebuild.
+		freeze->cancelThaw();
+		stopSoundForFreeze();
 		return Error::NONE;
 	}
 	if ((output->type != OutputType::SYNTH && output->type != OutputType::KIT)
@@ -886,7 +909,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		return; // Is this in case it's created a new Clip or something?
 	}
 
-	if (freeze && freeze->enabled()) {
+	if (freeze && (freeze->enabled() || freeze->thawing())) {
 		if (!freeze->validFor(*this)) {
 			setFrozen(false, modelStack);
 		}
@@ -896,7 +919,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 				freeze->loop(repeatCount);
 			}
 			if (freeze->playing()) {
-				if (!wasPlaying) {
+				if (!wasPlaying && !freeze->entering()) {
 					stopAllNotesPlaying(modelStack);
 					stopSoundForFreeze();
 				}

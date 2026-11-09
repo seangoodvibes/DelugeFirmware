@@ -32,12 +32,24 @@ public:
 	bool validFor(Clip& clip) const;
 	void capture(std::span<StereoSample> dry, std::span<int32_t> reverb);
 	bool render(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder = nullptr);
-	bool playing() const { return state_ == State::PLAYING; }
+	void beginThaw(bool alignToPattern = false);
+	void cancelThaw();
+	void mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reverb);
+	bool thawing() const { return thawing_; }
+	bool entering() const { return state_ == State::PLAYING && !thawing_ && handoffFade_.remaining > 0; }
+	bool playing() const { return state_ == State::PLAYING && (!thawing_ || waitingForNativeStart_); }
 	bool capturing() const { return state_ == State::CAPTURING; }
-	bool enabled() const { return state_ != State::OFF && state_ != State::FAILED; }
+	bool enabled() const { return state_ != State::OFF && state_ != State::FAILED && !thawing_; }
 	State state() const { return state_; }
 
 private:
+	struct Fade {
+		int32_t length = 0, remaining = 0;
+		float incomingPower = 0, outgoingPower = 0, crossPower = 0;
+		void reset(int32_t samples) { length = remaining = samples; }
+		void apply(std::span<StereoSample> incoming, std::span<int32_t> send, std::span<const StereoSample> outgoing,
+		           std::span<const int32_t> outgoingSend);
+	};
 	struct Stream {
 		SampleRecorder* recorder = nullptr;
 		SampleHolder holder;
@@ -63,9 +75,16 @@ private:
 	bool snapshot_ = false;
 	int64_t loopSamples_ = 0;
 	int32_t crossfadeLength_ = 0;
-	int32_t crossfadeRemaining_ = 0;
 	int32_t tailRemaining_ = -1;
-	float outgoingPower_ = 0, incomingPower_ = 0, crossPower_ = 0;
+	Fade loopFade_, handoffFade_;
+	bool instrument_ = false, thawing_ = false;
+	bool thawMatched_ = false, waitingForNativeStart_ = false;
+	int64_t nativeWaitSamples_ = 0;
+	float handoffLowPass_[2][2][3]{};
+	float handoffBandPower_[2][4]{};
+	int32_t matchedSamples_ = 0;
+	int32_t warmupSamples_ = 0;
+	float warmLivePower_ = 0, warmCachePower_ = 0;
 	bool stereoRendering_ = false;
 	uint64_t tickTime_ = 0;
 	int64_t lastBoundary_ = 0;

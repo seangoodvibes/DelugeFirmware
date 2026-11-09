@@ -109,9 +109,10 @@ public:
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     int32_t numRepeatsRounded, Action* action);
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
-	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos);
+	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos,
+	                        bool resumeHeldNote = false);
 	bool hasNoNotes();
-	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
+	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound, bool resumeHeldNote = false);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
 	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
@@ -247,7 +248,7 @@ private:
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,
 	                  PendingNoteOnList* pendingNoteOnList = nullptr);
 	void findNextNoteToPlay(uint32_t);
-	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note);
+	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note, bool resumeHeldNote = false);
 	bool check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, SoundInstrument* output);
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,

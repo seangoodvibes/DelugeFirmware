@@ -57,7 +57,10 @@ void ClipFreeze::clear() {
 	state_ = State::OFF;
 	haveBoundary_ = false;
 	resumePending_ = false;
-	crossfadeLength_ = crossfadeRemaining_ = 0;
+	crossfadeLength_ = 0;
+	loopFade_.reset(0);
+	handoffFade_.reset(0);
+	instrument_ = thawing_ = waitingForNativeStart_ = false;
 	loopSamples_ = 0;
 	tailRemaining_ = -1;
 }
@@ -75,7 +78,9 @@ Error ClipFreeze::arm(InstrumentClip& clip) {
 		clear();
 		return error;
 	}
-	return arm(clip, period, continuous, snapshot);
+	error = arm(clip, period, continuous, snapshot);
+	instrument_ = error == Error::NONE;
+	return error;
 }
 
 Error ClipFreeze::arm(Clip& clip, int32_t period, bool continuousPlayback, bool snapshot) {
@@ -181,14 +186,22 @@ bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 		fail();
 		return false;
 	}
-	crossfadeRemaining_ = overlap ? crossfadeLength_ : 0;
+	loopFade_.reset(overlap ? crossfadeLength_ : 0);
+	if (!overlap && instrument_ && !resumePending_) {
+		handoffFade_.reset(snapshot_ ? 11025 : crossfadeSamples);
+	}
 	state_ = State::PLAYING;
 	resumePending_ = false;
 	return true;
 }
 
 void ClipFreeze::pause() {
-	crossfadeRemaining_ = 0;
+	loopFade_.reset(0);
+	handoffFade_.reset(0);
+	if (thawing_) {
+		clear();
+		return;
+	}
 	if (continuousPlayback_) {
 		// Global LFO phase follows the song clock, not clip repeatCount. A relaunch
 		// can change their relative phase, so do not reuse this cache after a stop/seek.
@@ -208,7 +221,7 @@ void ClipFreeze::pause() {
 }
 
 void ClipFreeze::loop(int32_t repeatCount) {
-	if (!enabled()) {
+	if (!enabled() && !thawing_) {
 		return;
 	}
 	if (haveBoundary_ && lastBoundary_ == playbackHandler.lastSwungTickActioned) {
@@ -253,6 +266,12 @@ void ClipFreeze::loop(int32_t repeatCount) {
 		break;
 	case State::READY:
 	case State::PLAYING:
+		// Restart through the ordinary sequencer at a complete musical pattern
+		// boundary. Starting a held note halfway through a cycle offsets local
+		// synced modulation even if its level has already recovered.
+		if (waitingForNativeStart_ && repeatCount % (period_ / length_) == 0) {
+			waitingForNativeStart_ = false;
+		}
 		// Wait for the recorded phase to come around again. Do not restart at each ordinary clip loop:
 		// the file contains the complete multi-loop pattern, including intentionally silent iterations.
 		// Transport starts may reach the first tick without resumePlayback(). A
@@ -304,14 +323,14 @@ bool ClipFreeze::Stream::render(int32_t* buffer, int32_t count, int32_t channels
 }
 
 bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder) {
-	if (!playing()) {
+	if (state_ != State::PLAYING) {
 		return false;
 	}
 	static StereoSample audio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t send[SSI_TX_BUFFER_NUM_SAMPLES];
 	static StereoSample tailAudio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t tailSend[SSI_TX_BUFFER_NUM_SAMPLES];
-	int32_t overlap = std::min<int32_t>(crossfadeRemaining_, dry.size());
+	int32_t overlap = std::min<int32_t>(loopFade_.remaining, dry.size());
 	std::fill_n(tailAudio, overlap, StereoSample{0, 0});
 	std::fill_n(tailSend, overlap, 0);
 	std::fill_n(audio, dry.size(), StereoSample{0, 0});
@@ -340,70 +359,182 @@ bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, 
 			tailAudio[i] = {value, value};
 		}
 	}
-	float previousIncoming = incomingPower_, previousOutgoing = outgoingPower_, previousCross = crossPower_;
-	if (overlap) {
-		float incoming = 0, outgoing = 0, cross = 0;
-		for (int32_t i = 0; i < overlap; ++i) {
-			float il = audio[i].l, ir = audio[i].r;
-			float ol = tailAudio[i].l, oright = tailAudio[i].r;
-			incoming += il * il + ir * ir;
-			outgoing += ol * ol + oright * oright;
-			cross += il * ol + ir * oright;
-		}
-		if (crossfadeRemaining_ == crossfadeLength_) {
-			previousIncoming = incomingPower_ = incoming / overlap;
-			previousOutgoing = outgoingPower_ = outgoing / overlap;
-			previousCross = crossPower_ = cross / overlap;
-		}
-		else {
-			float alpha = float(overlap) / (overlap + 256);
-			incomingPower_ += alpha * (incoming / overlap - incomingPower_);
-			outgoingPower_ += alpha * (outgoing / overlap - outgoingPower_);
-			crossPower_ += alpha * (cross / overlap - crossPower_);
-		}
-	}
 	for (size_t i = 0; i < dry.size(); ++i) {
 		audio[i].l *= 2;
 		audio[i].r *= 2;
-		int32_t sendSample = send[i] * 2;
-		if (i < static_cast<size_t>(overlap)) {
-			// Smoothstep weights have zero slope at each end of the overlap.
-			int64_t x = int64_t{crossfadeLength_ - crossfadeRemaining_} * 65536 / crossfadeLength_;
-			int64_t weight = ((x * x >> 16) * (3 * 65536 - 2 * x)) >> 16;
-			// Correlated material needs unity gain; phase-shifted sustained tones need
-			// more than a linear fade to avoid a hole. Estimate the mixed power from
-			// both streams and their correlation, with sample-count-based smoothing.
-			// Bound compensation to +12 dB for near-opposite phases, and saturate.
-			float w = float(weight) / 65536;
-			// Interpolate estimates to avoid gain steps at render-block boundaries.
-			float progress = float(i + 1) / overlap;
-			float incomingPower = previousIncoming + progress * (incomingPower_ - previousIncoming);
-			float outgoingPower = previousOutgoing + progress * (outgoingPower_ - previousOutgoing);
-			float crossPower = previousCross + progress * (crossPower_ - previousCross);
-			float targetPower = (1 - w) * outgoingPower + w * incomingPower;
-			float mixedPower = (1 - w) * (1 - w) * outgoingPower + w * w * incomingPower + 2 * w * (1 - w) * crossPower;
-			float gain = targetPower > 1.0f
-			                 ? std::sqrt(std::clamp(targetPower / std::max(mixedPower, targetPower / 16), 1.0f, 16.0f))
-			                 : 1.0f;
-			auto blend = [&](int32_t incoming, int32_t outgoing) {
-				int64_t mixed = (int64_t{incoming} * weight + int64_t{outgoing} * (65536 - weight)) >> 16;
-				return static_cast<int32_t>(
-				    std::clamp<int64_t>(static_cast<int64_t>(mixed * gain), INT32_MIN, INT32_MAX));
-			};
-			audio[i].l = blend(audio[i].l, tailAudio[i].l * 2);
-			audio[i].r = blend(audio[i].r, tailAudio[i].r * 2);
-			sendSample = blend(sendSample, tailSend[i] * 2);
-			--crossfadeRemaining_;
-		}
-		dry[i] += audio[i];
-		reverb[i] += sendSample;
+		send[i] *= 2;
 	}
-	if (!crossfadeRemaining_) {
+	for (int32_t i = 0; i < overlap; ++i) {
+		tailAudio[i].l *= 2;
+		tailAudio[i].r *= 2;
+		tailSend[i] *= 2;
+	}
+	loopFade_.apply({audio, dry.size()}, {send, dry.size()}, {tailAudio, size_t(overlap)}, {tailSend, size_t(overlap)});
+	for (size_t i = 0; i < dry.size(); ++i) {
+		dry[i] += audio[i];
+		reverb[i] += send[i];
+	}
+	if (!loopFade_.remaining) {
 		dry_.stopOutgoing();
 		reverb_.stopOutgoing();
 	}
+	if (waitingForNativeStart_)
+		nativeWaitSamples_ += dry.size();
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		recorder->feedAudio({audio, dry.size()}, true, 2); // Match Sound::render's output recording gain.
 	}
 	return true;
+}
+
+void ClipFreeze::Fade::apply(std::span<StereoSample> incoming, std::span<int32_t> send,
+                             std::span<const StereoSample> outgoing, std::span<const int32_t> outgoingSend) {
+	int32_t count = std::min<int32_t>(remaining, incoming.size());
+	if (!count)
+		return;
+	float oldIncoming = incomingPower, oldOutgoing = outgoingPower, oldCross = crossPower;
+	float in = 0, out = 0, cross = 0;
+	for (int32_t i = 0; i < count; ++i) {
+		float il = incoming[i].l, ir = incoming[i].r;
+		float ol = outgoing[i].l, oright = outgoing[i].r;
+		in += il * il + ir * ir;
+		out += ol * ol + oright * oright;
+		cross += il * ol + ir * oright;
+	}
+	if (remaining == length) {
+		oldIncoming = incomingPower = in / count;
+		oldOutgoing = outgoingPower = out / count;
+		oldCross = crossPower = cross / count;
+	}
+	else {
+		float alpha = float(count) / (count + 256);
+		incomingPower += alpha * (in / count - incomingPower);
+		outgoingPower += alpha * (out / count - outgoingPower);
+		crossPower += alpha * (cross / count - crossPower);
+	}
+	for (int32_t i = 0; i < count; ++i) {
+		// Smoothstep endpoints and bounded correlation compensation. Interpolate
+		// power estimates within the block so updates cannot introduce gain steps.
+		int64_t x = int64_t{length - remaining} * 65536 / length;
+		int64_t weight = ((x * x >> 16) * (3 * 65536 - 2 * x)) >> 16;
+		float w = float(weight) / 65536;
+		float progress = float(i + 1) / count;
+		float inPower = oldIncoming + progress * (incomingPower - oldIncoming);
+		float outPower = oldOutgoing + progress * (outgoingPower - oldOutgoing);
+		float correlation = oldCross + progress * (crossPower - oldCross);
+		float target = (1 - w) * outPower + w * inPower;
+		float mixed = (1 - w) * (1 - w) * outPower + w * w * inPower + 2 * w * (1 - w) * correlation;
+		float gain = target > 1 ? std::sqrt(std::clamp(target / std::max(mixed, target / 16), 1.0f, 16.0f)) : 1;
+		auto blend = [&](int32_t a, int32_t b) {
+			int64_t value = (int64_t{a} * weight + int64_t{b} * (65536 - weight)) >> 16;
+			return static_cast<int32_t>(std::clamp<int64_t>(static_cast<int64_t>(value * gain), INT32_MIN, INT32_MAX));
+		};
+		incoming[i].l = blend(incoming[i].l, outgoing[i].l);
+		incoming[i].r = blend(incoming[i].r, outgoing[i].r);
+		send[i] = blend(send[i], outgoingSend[i]);
+		--remaining;
+	}
+}
+
+void ClipFreeze::beginThaw(bool alignToPattern) {
+	if (state_ != State::PLAYING) {
+		clear();
+		return;
+	}
+	thawing_ = true;
+	waitingForNativeStart_ = alignToPattern;
+	nativeWaitSamples_ = 0;
+	warmupSamples_ = 0;
+	warmLivePower_ = warmCachePower_ = 0;
+	matchedSamples_ = 0;
+	thawMatched_ = false;
+	for (auto& stream : handoffLowPass_)
+		for (auto& channel : stream)
+			std::fill_n(channel, 3, 0);
+	for (auto& stream : handoffBandPower_)
+		std::fill_n(stream, 4, 0);
+	handoffFade_.reset(0);
+}
+
+void ClipFreeze::cancelThaw() {
+	if (!thawing_)
+		return;
+	thawing_ = waitingForNativeStart_ = false;
+	handoffFade_.reset(0);
+}
+
+void ClipFreeze::mixHandoff(std::span<StereoSample> dry, std::span<int32_t> reverb) {
+	static StereoSample cached[SSI_TX_BUFFER_NUM_SAMPLES];
+	static int32_t cachedSend[SSI_TX_BUFFER_NUM_SAMPLES];
+	std::fill_n(cached, dry.size(), StereoSample{0, 0});
+	std::fill_n(cachedSend, dry.size(), 0);
+	if (!render({cached, dry.size()}, {cachedSend, dry.size()}))
+		return;
+	if (thawing_) {
+		if (!handoffFade_.length) {
+			float live = 0, cache = 0;
+			for (size_t i = 0; i < dry.size(); ++i) {
+				float l = dry[i].l, r = dry[i].r, cl = cached[i].l, cr = cached[i].r;
+				live += l * l + r * r;
+				cache += cl * cl + cr * cr;
+			}
+			float alpha = float(dry.size()) / (dry.size() + 882);
+			warmLivePower_ += alpha * (live / dry.size() - warmLivePower_);
+			warmCachePower_ += alpha * (cache / dry.size() - warmCachePower_);
+			warmupSamples_ += dry.size();
+			// Match spectral balance too: a loud restarted modulation envelope can
+			// have a completely different timbre. Four broad stereo bands, with
+			// 50 ms averaging, must track the cached sound for at least 100 ms.
+			constexpr float coefficients[3] = {0.028093f, 0.107735f, 0.366131f};
+			float powers[2][4]{};
+			for (size_t i = 0; i < dry.size(); ++i) {
+				for (int stream = 0; stream < 2; ++stream) {
+					const auto& frame = stream ? cached[i] : dry[i];
+					for (int channel = 0; channel < 2; ++channel) {
+						float value = channel ? frame.r : frame.l;
+						auto& lows = handoffLowPass_[stream][channel];
+						for (int band = 0; band < 3; ++band)
+							lows[band] += coefficients[band] * (value - lows[band]);
+						float bands[4] = {lows[0], lows[1] - lows[0], lows[2] - lows[1], value - lows[2]};
+						for (int band = 0; band < 4; ++band)
+							powers[stream][band] += bands[band] * bands[band];
+					}
+				}
+			}
+			float spectralAlpha = float(dry.size()) / (dry.size() + 2205);
+			float totals[2]{};
+			for (int stream = 0; stream < 2; ++stream) {
+				for (int band = 0; band < 4; ++band) {
+					auto& power = handoffBandPower_[stream][band];
+					power += spectralAlpha * (powers[stream][band] / dry.size() - power);
+					totals[stream] += power;
+				}
+			}
+			bool matches = warmLivePower_ >= warmCachePower_ * 0.81f && warmLivePower_ <= warmCachePower_ * 1.235f;
+			for (int band = 0; band < 4 && matches; ++band) {
+				float target = handoffBandPower_[1][band] / std::max(1.0f, totals[1]);
+				float actual = handoffBandPower_[0][band] / std::max(1.0f, totals[0]);
+				if (handoffBandPower_[1][band] > totals[1] * 0.0001f) {
+					matches = actual >= target * 0.63f && actual <= target * 1.585f;
+				}
+			}
+			matchedSamples_ = matches ? matchedSamples_ + dry.size() : 0;
+			if ((warmupSamples_ >= 11025 && matchedSamples_ >= 4410) || warmupSamples_ >= 44100 * 30) {
+				thawMatched_ = matchedSamples_ >= 4410;
+				handoffFade_.reset(thawMatched_ ? 11025 : 44100);
+			}
+			else {
+				std::copy_n(cached, dry.size(), dry.begin());
+				std::copy_n(cachedSend, dry.size(), reverb.begin());
+				return;
+			}
+		}
+		handoffFade_.apply(dry, reverb, {cached, dry.size()}, {cachedSend, dry.size()});
+		if (!handoffFade_.remaining)
+			clear();
+	}
+	else {
+		handoffFade_.apply({cached, dry.size()}, {cachedSend, dry.size()}, dry, reverb);
+		std::copy_n(cached, dry.size(), dry.begin());
+		std::copy_n(cachedSend, dry.size(), reverb.begin());
+	}
 }

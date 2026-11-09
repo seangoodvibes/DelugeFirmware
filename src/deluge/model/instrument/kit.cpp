@@ -686,7 +686,15 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	if (freeze && freeze->enabled() && (recorder || stemExport.processStarted)) {
 		clip->setFrozen(false, modelStackWithTimelineCounter);
 	}
-	if (freeze && freeze->playing()) {
+	if (freeze && freeze->thawing() && (recorder || stemExport.processStarted)) {
+		// Recording taps the native kit graph. A pending boundary wait must not
+		// return through cached playback before that graph has restarted.
+		bool waiting = freeze->playing();
+		freeze->clear();
+		if (waiting)
+			clip->resumeAfterFreeze(modelStackWithTimelineCounter);
+	}
+	if (freeze && freeze->playing() && !freeze->entering()) {
 		if (isClipActive && playbackHandler.isEitherClockActive() && freeze->validFor(*clip)
 		    && freeze->render(output, {reverbBuffer, output.size()})) {
 			return;
@@ -696,15 +704,22 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			clip->resumeAfterFreeze(modelStackWithTimelineCounter);
 		}
 	}
-	if (freeze && freeze->enabled() && !freeze->validFor(*clip)) {
+	if (freeze && (freeze->enabled() || freeze->thawing())
+	    && (!freeze->validFor(*clip)
+	        || (freeze->thawing() && (!isClipActive || !playbackHandler.isEitherClockActive())))) {
 		freeze->clear();
 	}
+	// Track recorders tap the native graph before this handoff mix.
+	if (freeze && (freeze->thawing() || freeze->entering()) && (recorder || stemExport.processStarted)) {
+		freeze->clear();
+	}
+	const bool handoff = freeze && (freeze->entering() || freeze->thawing());
 	const bool capturing = freeze && freeze->capturing();
 	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
 	auto mixedOutput = output;
 	auto* mixedReverb = reverbBuffer;
-	if (capturing) {
+	if (capturing || handoff) {
 		std::fill_n(freezeAudio, output.size(), StereoSample{0, 0});
 		std::fill_n(freezeReverb, output.size(), 0);
 		output = {freezeAudio, output.size()};
@@ -734,8 +749,16 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 
 	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
 	renderNonAudioArpPostOutput(output);
-	if (capturing) {
-		freeze->capture(output, {reverbBuffer, output.size()});
+	if (capturing || handoff) {
+		if (capturing) {
+			freeze->capture(output, {reverbBuffer, output.size()});
+		}
+		else {
+			bool entering = freeze->entering();
+			freeze->mixHandoff(output, {reverbBuffer, output.size()});
+			if (entering && !freeze->entering() && freeze->playing())
+				clip->stopSoundForFreeze();
+		}
 		for (size_t i = 0; i < output.size(); ++i) {
 			mixedOutput[i] += output[i];
 			mixedReverb[i] += reverbBuffer[i];
@@ -1174,7 +1197,8 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	if (!activeClip
 	    || (static_cast<InstrumentClip*>(activeClip)->freeze
-	        && static_cast<InstrumentClip*>(activeClip)->freeze->playing())) {
+	        && static_cast<InstrumentClip*>(activeClip)->freeze->playing()
+	        && !static_cast<InstrumentClip*>(activeClip)->freeze->entering())) {
 		return 2147483647;
 	}
 
@@ -1332,7 +1356,8 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
                           int16_t const* mpeValues, int32_t fromMIDIChannel, uint32_t sampleSyncLength,
                           int32_t ticksLate, uint32_t samplesLate) {
 	if (activeClip && static_cast<InstrumentClip*>(activeClip)->freeze
-	    && static_cast<InstrumentClip*>(activeClip)->freeze->playing()) {
+	    && static_cast<InstrumentClip*>(activeClip)->freeze->playing()
+	    && !static_cast<InstrumentClip*>(activeClip)->freeze->entering()) {
 		// Sequencing continues while frozen: retain sidechain sends without allocating audio voices.
 		if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum)->sideChainSendLevel) {
 			AudioEngine::registerSideChainHit(static_cast<SoundDrum*>(drum)->sideChainSendLevel);

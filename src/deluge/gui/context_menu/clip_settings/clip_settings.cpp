@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "model/clip/audio_clip.h"
@@ -48,7 +49,8 @@ std::span<char const*> ClipSettingsMenu::getOptions() {
 		static const char* options[] = {nullptr, nullptr, nullptr};
 		options[0] = l10n::get(STRING_FOR_CLIP_MODE);
 		options[1] = l10n::get(STRING_FOR_CLIP_NAME);
-		options[2] = freeze && freeze->enabled() ? "[x] Freeze" : "[ ] Freeze";
+		options[2] = freeze && freeze->thawing() ? "[~] Unfreezing"
+		                                         : (freeze && freeze->enabled() ? "[x] Freeze" : "[ ] Freeze");
 		return options;
 	}
 	else if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT) {
@@ -57,7 +59,8 @@ std::span<char const*> ClipSettingsMenu::getOptions() {
 		options[0] = l10n::get(STRING_FOR_CONVERT_TO_AUDIO);
 		options[1] = l10n::get(STRING_FOR_CLIP_MODE);
 		options[2] = l10n::get(STRING_FOR_CLIP_NAME);
-		options[3] = freeze && freeze->enabled() ? "[x] Freeze" : "[ ] Freeze";
+		options[3] = freeze && freeze->thawing() ? "[~] Unfreezing"
+		                                         : (freeze && freeze->enabled() ? "[x] Freeze" : "[ ] Freeze");
 		return options;
 	}
 	else {
@@ -68,6 +71,23 @@ std::span<char const*> ClipSettingsMenu::getOptions() {
 		};
 		return {optionsls, 3};
 	}
+}
+
+void ClipSettingsMenu::focusRegained() {
+	ContextMenu::focusRegained();
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250);
+}
+
+ActionResult ClipSettingsMenu::timerCallback() {
+	// Refresh the pending label when the audio thread completes the handoff.
+	// UI transitions cancel this timer, so it cannot outlive the open menu.
+	drawCurrentOption();
+	renderUIsForOled();
+	auto* freeze = clip->type == ClipType::AUDIO ? static_cast<AudioClip*>(clip)->freeze
+	                                             : static_cast<InstrumentClip*>(clip)->freeze;
+	if (freeze && freeze->thawing())
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250);
+	return ActionResult::DEALT_WITH;
 }
 
 bool ClipSettingsMenu::setupAndCheckAvailability() {
@@ -112,6 +132,7 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 		}
 		drawCurrentOption();
 		renderUIsForOled();
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250);
 		return true;
 	}
 	if (clip->type == ClipType::INSTRUMENT && this->currentOption == 0) {
