@@ -172,6 +172,12 @@ Error InstrumentClip::getFreezeCycleLength(int32_t& length, bool& continuousPlay
 			}
 		}
 		int32_t rowLength = row->loopLengthIfIndependent ? row->loopLengthIfIndependent : loopLength;
+		// A drone keeps its voices across clip boundaries. Oscillator phase and
+		// unison beating therefore need not repeat with the notes or synced LFOs.
+		// Preserve a longer performance instead of forcing it into one clip loop.
+		if (row->isDroning(rowLength)) {
+			snapshot = true;
+		}
 		// Ping-pong needs both directions, independently of the note's iteration mask.
 		if (!cycle.include(rowLength, row->sequenceDirectionMode == SequenceDirection::PINGPONG ? 2 : 1)) {
 			return Error::FILE_TOO_BIG;

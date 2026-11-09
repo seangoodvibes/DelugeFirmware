@@ -11,16 +11,28 @@
 #include "storage/cluster/cluster_priority_queue.h"
 #include <algorithm>
 #include <climits>
+#include <cmath>
 
 namespace {
+constexpr int32_t crossfadeSamples = 2048; // 46 ms at 44.1 kHz.
+constexpr int32_t tailGuardSamples = SSI_TX_BUFFER_NUM_SAMPLES;
 constexpr int32_t priority = static_cast<int32_t>(ClusterPriority::forAudioClip(VoicePriority::MEDIUM));
-}
+} // namespace
 
 ClipFreeze::~ClipFreeze() {
 	clear();
 }
 
+void ClipFreeze::Stream::stopOutgoing() {
+	if (outgoing) {
+		outgoing->beenUnassigned(false);
+		AudioEngine::voiceSampleUnassigned(outgoing);
+		outgoing = nullptr;
+	}
+}
+
 void ClipFreeze::Stream::stop() {
+	stopOutgoing();
 	if (voice) {
 		voice->beenUnassigned(false);
 		AudioEngine::voiceSampleUnassigned(voice);
@@ -45,8 +57,9 @@ void ClipFreeze::clear() {
 	state_ = State::OFF;
 	haveBoundary_ = false;
 	resumePending_ = false;
-	haveLastSample_ = blendAtStart_ = false;
-	blendRemaining_ = 0;
+	crossfadeLength_ = crossfadeRemaining_ = 0;
+	loopSamples_ = 0;
+	tailRemaining_ = -1;
 }
 
 void ClipFreeze::fail() {
@@ -72,7 +85,7 @@ Error ClipFreeze::arm(Clip& clip, int32_t period, bool continuousPlayback, bool 
 	stereoRendering_ = AudioEngine::renderInStereo;
 	// Keep snapshots within the stream's signed byte-offset limit too. A long clip
 	// may fit once but not eight times; retain as many complete patterns as fit.
-	constexpr uint64_t maxSamples = (INT32_MAX - 44) / 6;
+	constexpr uint64_t maxSamples = (INT32_MAX - 44) / 6 - crossfadeSamples - tailGuardSamples;
 	tickTime_ = playbackHandler.getTimePerInternalTickBig();
 	if (!tickTime_) {
 		return Error::UNSPECIFIED;
@@ -133,15 +146,22 @@ void ClipFreeze::Stream::prepare() {
 	guide.setupPlaybackBounds(false);
 }
 
-bool ClipFreeze::Stream::start(int32_t pos, int32_t length) {
-	stop();
+bool ClipFreeze::Stream::start(int32_t pos, int32_t length, int64_t loopSamples, bool overlap) {
+	stopOutgoing();
+	if (overlap) {
+		outgoing = voice;
+		voice = nullptr;
+	}
+	else {
+		stop();
+	}
 	voice = AudioEngine::solicitVoiceSample();
 	if (!voice) {
 		return false;
 	}
 	voice->noteOn(&guide, 0, priority);
 	auto* sample = static_cast<Sample*>(holder.audioFile);
-	int64_t offset = sample->lengthInSamples * pos / length;
+	int64_t offset = loopSamples * pos / length;
 	return voice->setupClusersForInitialPlay(&guide, sample, offset * sample->numChannels * sample->byteDepth, false,
 	                                         priority);
 }
@@ -155,20 +175,20 @@ bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 	if (state_ != State::READY && state_ != State::PLAYING) {
 		return false;
 	}
-	blendAtStart_ = snapshot_ && state_ == State::PLAYING && haveLastSample_;
+	bool overlap = state_ == State::PLAYING && crossfadeLength_ > 0;
 	pos = phase(pos, repeatCount);
-	if (!dry_.start(pos, period_) || !reverb_.start(pos, period_)) {
+	if (!dry_.start(pos, period_, loopSamples_, overlap) || !reverb_.start(pos, period_, loopSamples_, overlap)) {
 		fail();
 		return false;
 	}
+	crossfadeRemaining_ = overlap ? crossfadeLength_ : 0;
 	state_ = State::PLAYING;
 	resumePending_ = false;
 	return true;
 }
 
 void ClipFreeze::pause() {
-	haveLastSample_ = blendAtStart_ = false;
-	blendRemaining_ = 0;
+	crossfadeRemaining_ = 0;
 	if (continuousPlayback_) {
 		// Global LFO phase follows the song clock, not clip repeatCount. A relaunch
 		// can change their relative phase, so do not reuse this cache after a stop/seek.
@@ -207,12 +227,22 @@ void ClipFreeze::loop(int32_t repeatCount) {
 		state_ = State::CAPTURING;
 		break;
 	case State::CAPTURING:
+		if (tailRemaining_ >= 0) {
+			break;
+		}
 		if (--loopsRemaining_ > 0) {
 			break;
 		}
-		dry_.recorder->endSyncedRecording(0);
-		reverb_.recorder->endSyncedRecording(0);
-		state_ = State::WRITING;
+		loopSamples_ = dry_.recorder->numSamplesCaptured;
+		if (!loopSamples_ || reverb_.recorder->numSamplesCaptured != loopSamples_) {
+			fail();
+			break;
+		}
+		crossfadeLength_ = std::min<int64_t>(crossfadeSamples, loopSamples_ / 4);
+		// Continue the native performance beyond the musical loop. At each wrap,
+		// the outgoing voice plays this continuation while the incoming voice fades
+		// in at the original start, preserving the exact musical loop duration.
+		tailRemaining_ = crossfadeLength_ + tailGuardSamples;
 		break;
 	case State::WRITING:
 		if (dry_.recorder->status == RecorderStatus::COMPLETE && reverb_.recorder->status == RecorderStatus::COMPLETE) {
@@ -244,21 +274,33 @@ void ClipFreeze::capture(std::span<StereoSample> dry, std::span<int32_t> reverb)
 		fail();
 		return;
 	}
+	if (tailRemaining_ >= 0) {
+		size_t count = std::min<size_t>(dry.size(), tailRemaining_);
+		dry = dry.first(count);
+		reverb = reverb.first(count);
+		tailRemaining_ -= count;
+	}
 	dry_.recorder->feedAudio(dry);
 	static StereoSample send[SSI_TX_BUFFER_NUM_SAMPLES];
 	for (size_t i = 0; i < reverb.size(); ++i) {
 		send[i] = {reverb[i], reverb[i]};
 	}
 	reverb_.recorder->feedAudio({send, reverb.size()});
+	if (tailRemaining_ == 0) {
+		dry_.recorder->endSyncedRecording(0);
+		reverb_.recorder->endSyncedRecording(0);
+		state_ = State::WRITING;
+	}
 }
 
-bool ClipFreeze::Stream::render(int32_t* buffer, int32_t count, int32_t channels) {
+bool ClipFreeze::Stream::render(int32_t* buffer, int32_t count, int32_t channels, bool tail) {
 	// VoiceSample shifts amplitude left by three before its Q32 multiply. Use half gain, then restore it
 	// after reading. This preserves headroom and avoids clipping the recorded data.
-	return voice
-	       && voice->render(&guide, buffer, count, static_cast<Sample*>(holder.audioFile), channels,
-	                        LoopType::LOW_LEVEL, kMaxSampleValue, kMaxSampleValue, (INT32_MAX >> 3), 0, 2,
-	                        InterpolationMode::LINEAR, priority);
+	auto* player = tail ? outgoing : voice;
+	return player
+	       && player->render(&guide, buffer, count, static_cast<Sample*>(holder.audioFile), channels, LoopType::NONE,
+	                         kMaxSampleValue, kMaxSampleValue, (INT32_MAX >> 3), 0, 2, InterpolationMode::LINEAR,
+	                         priority);
 }
 
 bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder) {
@@ -267,9 +309,20 @@ bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, 
 	}
 	static StereoSample audio[SSI_TX_BUFFER_NUM_SAMPLES];
 	static int32_t send[SSI_TX_BUFFER_NUM_SAMPLES];
+	static StereoSample tailAudio[SSI_TX_BUFFER_NUM_SAMPLES];
+	static int32_t tailSend[SSI_TX_BUFFER_NUM_SAMPLES];
+	int32_t overlap = std::min<int32_t>(crossfadeRemaining_, dry.size());
+	std::fill_n(tailAudio, overlap, StereoSample{0, 0});
+	std::fill_n(tailSend, overlap, 0);
 	std::fill_n(audio, dry.size(), StereoSample{0, 0});
 	std::fill_n(send, dry.size(), 0);
 	if (!dry_.render(reinterpret_cast<int32_t*>(audio), dry.size(), 2) || !reverb_.render(send, dry.size(), 1)) {
+		fail();
+		return false;
+	}
+	if (overlap
+	    && (!dry_.render(reinterpret_cast<int32_t*>(tailAudio), overlap, 2, true)
+	        || !reverb_.render(tailSend, overlap, 1, true))) {
 		fail();
 		return false;
 	}
@@ -281,35 +334,73 @@ bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, 
 			int32_t value = mono[i];
 			audio[i] = {value, value};
 		}
+		auto* tailMono = reinterpret_cast<int32_t*>(tailAudio);
+		for (int32_t i = overlap; i-- > 0;) {
+			int32_t value = tailMono[i];
+			tailAudio[i] = {value, value};
+		}
+	}
+	float previousIncoming = incomingPower_, previousOutgoing = outgoingPower_, previousCross = crossPower_;
+	if (overlap) {
+		float incoming = 0, outgoing = 0, cross = 0;
+		for (int32_t i = 0; i < overlap; ++i) {
+			float il = audio[i].l, ir = audio[i].r;
+			float ol = tailAudio[i].l, oright = tailAudio[i].r;
+			incoming += il * il + ir * ir;
+			outgoing += ol * ol + oright * oright;
+			cross += il * ol + ir * oright;
+		}
+		if (crossfadeRemaining_ == crossfadeLength_) {
+			previousIncoming = incomingPower_ = incoming / overlap;
+			previousOutgoing = outgoingPower_ = outgoing / overlap;
+			previousCross = crossPower_ = cross / overlap;
+		}
+		else {
+			float alpha = float(overlap) / (overlap + 256);
+			incomingPower_ += alpha * (incoming / overlap - incomingPower_);
+			outgoingPower_ += alpha * (outgoing / overlap - outgoingPower_);
+			crossPower_ += alpha * (cross / overlap - crossPower_);
+		}
 	}
 	for (size_t i = 0; i < dry.size(); ++i) {
 		audio[i].l *= 2;
 		audio[i].r *= 2;
 		int32_t sendSample = send[i] * 2;
-		// Smooth only a snapshot's wrap discontinuity. Keep its duration and interior
-		// samples unchanged; no extra voice or overlap shortens the musical pattern.
-		if (blendAtStart_) {
-			blendLeft_ = int64_t{lastDry_.l} - audio[i].l;
-			blendRight_ = int64_t{lastDry_.r} - audio[i].r;
-			blendSend_ = int64_t{lastSend_} - sendSample;
-			blendRemaining_ = 64;
-			blendAtStart_ = false;
-		}
-		if (blendRemaining_) {
-			auto blend = [&](int32_t sample, int64_t delta) {
+		if (i < static_cast<size_t>(overlap)) {
+			// Smoothstep weights have zero slope at each end of the overlap.
+			int64_t x = int64_t{crossfadeLength_ - crossfadeRemaining_} * 65536 / crossfadeLength_;
+			int64_t weight = ((x * x >> 16) * (3 * 65536 - 2 * x)) >> 16;
+			// Correlated material needs unity gain; phase-shifted sustained tones need
+			// more than a linear fade to avoid a hole. Estimate the mixed power from
+			// both streams and their correlation, with sample-count-based smoothing.
+			// Bound compensation to +12 dB for near-opposite phases, and saturate.
+			float w = float(weight) / 65536;
+			// Interpolate estimates to avoid gain steps at render-block boundaries.
+			float progress = float(i + 1) / overlap;
+			float incomingPower = previousIncoming + progress * (incomingPower_ - previousIncoming);
+			float outgoingPower = previousOutgoing + progress * (outgoingPower_ - previousOutgoing);
+			float crossPower = previousCross + progress * (crossPower_ - previousCross);
+			float targetPower = (1 - w) * outgoingPower + w * incomingPower;
+			float mixedPower = (1 - w) * (1 - w) * outgoingPower + w * w * incomingPower + 2 * w * (1 - w) * crossPower;
+			float gain = targetPower > 1.0f
+			                 ? std::sqrt(std::clamp(targetPower / std::max(mixedPower, targetPower / 16), 1.0f, 16.0f))
+			                 : 1.0f;
+			auto blend = [&](int32_t incoming, int32_t outgoing) {
+				int64_t mixed = (int64_t{incoming} * weight + int64_t{outgoing} * (65536 - weight)) >> 16;
 				return static_cast<int32_t>(
-				    std::clamp<int64_t>(int64_t{sample} + delta * blendRemaining_ / 64, INT32_MIN, INT32_MAX));
+				    std::clamp<int64_t>(static_cast<int64_t>(mixed * gain), INT32_MIN, INT32_MAX));
 			};
-			audio[i].l = blend(audio[i].l, blendLeft_);
-			audio[i].r = blend(audio[i].r, blendRight_);
-			sendSample = blend(sendSample, blendSend_);
-			--blendRemaining_;
+			audio[i].l = blend(audio[i].l, tailAudio[i].l * 2);
+			audio[i].r = blend(audio[i].r, tailAudio[i].r * 2);
+			sendSample = blend(sendSample, tailSend[i] * 2);
+			--crossfadeRemaining_;
 		}
-		lastDry_ = audio[i];
-		lastSend_ = sendSample;
-		haveLastSample_ = true;
 		dry[i] += audio[i];
 		reverb[i] += sendSample;
+	}
+	if (!crossfadeRemaining_) {
+		dry_.stopOutgoing();
+		reverb_.stopOutgoing();
 	}
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		recorder->feedAudio({audio, dry.size()}, true, 2); // Match Sound::render's output recording gain.
