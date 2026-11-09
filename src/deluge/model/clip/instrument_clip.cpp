@@ -266,7 +266,7 @@ Error InstrumentClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* mod
 		return Error::NONE;
 	}
 	if ((output->type != OutputType::SYNTH && output->type != OutputType::KIT)
-	    || sequenceDirectionMode != SequenceDirection::FORWARD || !playbackHandler.isInternalClockActive()
+	    || sequenceDirectionMode != SequenceDirection::FORWARD || !playbackHandler.isEitherClockActive()
 	    || !modelStack->song->isClipActive(this) || currentlyRecordingLinearly
 	    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return Error::UNSPECIFIED;

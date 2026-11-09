@@ -84,7 +84,7 @@ Error AudioClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelSta
 		}
 		return Error::NONE;
 	}
-	if (!freezeAvailable() || !playbackHandler.isInternalClockActive() || !modelStack->song->isClipActive(this)
+	if (!freezeAvailable() || !playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this)
 	    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return Error::UNSPECIFIED;
 	}
@@ -426,17 +426,9 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 				// But, if it's reading from (or writing to) a cache, we have to manually cut it out right now and tell
 				// it to restart, so the new play-through will remain perfectly synced up to this start-tick we're at
 				// now.
-				if (voiceSample->cache
-
-				    // Or, if no time-stretcher, which also means we're not "fudging" - probably because there was no
-				    // pre-margin - then yup we'll wanna force restart now too - because AudioClip VoiceSamples don't
-				    // obey their loop points, so it won't have happened otherwise.
-				    || !voiceSample->timeStretcher
-
-				    // Or, if time stretching is on but the "newer" play-head is no longer active - because it's shot
-				    // past the end of the waveform, and this waveform didn't have an extra "margin" at the end, then we
-				    // want to just cut everything and start from scratch again.
-				    || !voiceSample->timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
+				// A finished newer read head needs restarting too: there may have
+				// been no waveform margin available beyond the musical loop.
+				if (voiceSample->cache || !voiceSample->canContinueTimeStretching()) {
 
 					// Yup, do that unassignment
 doUnassignment:

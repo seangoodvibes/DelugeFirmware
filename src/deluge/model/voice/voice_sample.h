@@ -57,6 +57,7 @@ public:
 	                                              int64_t rawSamplesLate, int32_t priorityRating,
 	                                              int32_t numSamples = 0);
 	void endTimeStretching();
+	bool canContinueTimeStretching() const;
 	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int32_t numSamples, Sample* sample, int32_t numChannels,
 	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t bufferSize, InterpolationMode desiredInterpolationMode,

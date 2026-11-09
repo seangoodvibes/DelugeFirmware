@@ -53,15 +53,17 @@ private:
 	struct Stream {
 		SampleRecorder* recorder = nullptr;
 		SampleHolder holder;
-		SamplePlaybackGuide guide;
+		SamplePlaybackGuide guide, outgoingGuide;
 		VoiceSample* voice = nullptr;
 		VoiceSample* outgoing = nullptr;
+		int32_t remainingSamples();
 		void stopOutgoing();
 		void stop();
 		void clear();
-		void prepare();
+		void prepare(int32_t length, int64_t loopSamples);
 		bool start(int32_t pos, int32_t length, int64_t loopSamples, bool overlap);
-		bool render(int32_t* buffer, int32_t count, int32_t channels, bool tail = false);
+		bool render(int32_t* buffer, int32_t count, int32_t channels, int32_t stretch, bool syncedStretch,
+		            bool tail = false);
 	};
 	Stream dry_, reverb_;
 	State state_ = State::OFF;
@@ -73,6 +75,7 @@ private:
 	int32_t phase(int32_t pos, int32_t repeatCount) const;
 	bool continuousPlayback_ = false;
 	bool snapshot_ = false;
+	bool syncedStretch_ = false;
 	int64_t loopSamples_ = 0;
 	int32_t crossfadeLength_ = 0;
 	int32_t tailRemaining_ = -1;
@@ -92,4 +95,5 @@ private:
 	bool resumePending_ = false;
 	void fail();
 	bool healthy() const;
+	int32_t stretchRatio() const;
 };

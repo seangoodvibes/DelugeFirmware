@@ -112,8 +112,8 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 			return true;
 		}
 		if (enable
-		    && (clip->sequenceDirectionMode != SequenceDirection::FORWARD || playbackHandler.isExternalClockActive()
-		        || clip->getCurrentlyRecordingLinearly() || playbackHandler.recording == RecordingMode::ARRANGEMENT)) {
+		    && (clip->sequenceDirectionMode != SequenceDirection::FORWARD || clip->getCurrentlyRecordingLinearly()
+		        || playbackHandler.recording == RecordingMode::ARRANGEMENT)) {
 			display->displayPopup("Freeze unavailable");
 			return true;
 		}

@@ -308,6 +308,10 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 	return true;
 }
 
+bool VoiceSample::canContinueTimeStretching() const {
+	return timeStretcher && timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER];
+}
+
 // Returns false if becoming unassigned now
 bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,
                                               int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection,

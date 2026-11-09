@@ -23,6 +23,13 @@ ClipFreeze::~ClipFreeze() {
 	clear();
 }
 
+int32_t ClipFreeze::Stream::remainingSamples() {
+	if (!voice)
+		return 0;
+	auto* sample = static_cast<Sample*>(holder.audioFile);
+	return std::max<int64_t>(0, sample->lengthInSamples - voice->getPlaySample(sample, &guide));
+}
+
 void ClipFreeze::Stream::stopOutgoing() {
 	if (outgoing) {
 		outgoing->beenUnassigned(false);
@@ -60,7 +67,7 @@ void ClipFreeze::clear() {
 	crossfadeLength_ = 0;
 	loopFade_.reset(0);
 	handoffFade_.reset(0);
-	instrument_ = thawing_ = waitingForNativeStart_ = false;
+	instrument_ = thawing_ = waitingForNativeStart_ = syncedStretch_ = false;
 	loopSamples_ = 0;
 	tailRemaining_ = -1;
 }
@@ -126,9 +133,8 @@ Error ClipFreeze::arm(Clip& clip, int32_t period, bool continuousPlayback, bool 
 
 bool ClipFreeze::validFor(Clip& clip) const {
 	return clip.output == output_ && clip.loopLength == length_ && AudioEngine::renderInStereo == stereoRendering_
-	       && clip.sequenceDirectionMode == SequenceDirection::FORWARD
-	       && playbackHandler.getTimePerInternalTickBig() == tickTime_ && !playbackHandler.isExternalClockActive()
-	       && !clip.getCurrentlyRecordingLinearly() && playbackHandler.recording != RecordingMode::ARRANGEMENT;
+	       && clip.sequenceDirectionMode == SequenceDirection::FORWARD && !clip.getCurrentlyRecordingLinearly()
+	       && playbackHandler.recording != RecordingMode::ARRANGEMENT;
 }
 
 bool ClipFreeze::healthy() const {
@@ -141,20 +147,26 @@ bool ClipFreeze::healthy() const {
 	return true;
 }
 
-void ClipFreeze::Stream::prepare() {
+void ClipFreeze::Stream::prepare(int32_t length, int64_t loopSamples) {
 	holder.startPos = 0;
-	holder.endPos = recorder->sample->lengthInSamples;
+	holder.endPos = loopSamples;
 	holder.setAudioFile(recorder->sample);
 	guide.audioFileHolder = &holder;
-	guide.sequenceSyncLengthTicks = 0;
+	guide.sequenceSyncLengthTicks = length;
 	guide.sequenceSyncStartedAtTick = 0;
 	guide.setupPlaybackBounds(false);
+	// Sync uses only the musical loop. Playback may read the recorded continuation
+	// beyond it during a wrap crossfade, without stretching that margin into the beat.
+	auto* sample = recorder->sample;
+	guide.endPlaybackAtByte =
+	    sample->audioDataStartPosBytes + sample->lengthInSamples * sample->numChannels * sample->byteDepth;
 }
 
 bool ClipFreeze::Stream::start(int32_t pos, int32_t length, int64_t loopSamples, bool overlap) {
 	stopOutgoing();
 	if (overlap) {
 		outgoing = voice;
+		outgoingGuide = guide;
 		voice = nullptr;
 	}
 	else {
@@ -164,8 +176,16 @@ bool ClipFreeze::Stream::start(int32_t pos, int32_t length, int64_t loopSamples,
 	if (!voice) {
 		return false;
 	}
-	voice->noteOn(&guide, 0, priority);
+	// As with AudioClip, anchor sync to the sequence's ticks, including mid-loop
+	// launches. The outgoing voice keeps its previous anchor through the overlap.
+	int64_t now = playbackHandler.getCurrentInternalTickCount();
+	int64_t elapsed = now - (playbackHandler.lastSwungTickActioned - pos);
+	elapsed = std::max<int64_t>(0, elapsed) % length;
+	guide.sequenceSyncStartedAtTick = now - elapsed;
 	auto* sample = static_cast<Sample*>(holder.audioFile);
+	guide.endPlaybackAtByte =
+	    sample->audioDataStartPosBytes + sample->lengthInSamples * sample->numChannels * sample->byteDepth;
+	voice->noteOn(&guide, 0, priority);
 	int64_t offset = loopSamples * pos / length;
 	return voice->setupClusersForInitialPlay(&guide, sample, offset * sample->numChannels * sample->byteDepth, false,
 	                                         priority);
@@ -180,14 +200,30 @@ bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 	if (state_ != State::READY && state_ != State::PLAYING) {
 		return false;
 	}
-	bool overlap = state_ == State::PLAYING && crossfadeLength_ > 0;
 	pos = phase(pos, repeatCount);
+	if (state_ == State::PLAYING && syncedStretch_ && pos == 0 && dry_.voice->canContinueTimeStretching()
+	    && reverb_.voice->canContinueTimeStretching()) {
+		// AudioClip keeps its stretched voices across wraps and moves the sync
+		// anchor. The next grain returns to the loop start with its native fade.
+		dry_.guide.sequenceSyncStartedAtTick = playbackHandler.lastSwungTickActioned;
+		reverb_.guide.sequenceSyncStartedAtTick = playbackHandler.lastSwungTickActioned;
+		return true;
+	}
+	bool firstStart = state_ == State::READY && !resumePending_;
+	// Near unity speed the native fast path may drift slightly ahead of the
+	// clock. Only fade across continuation that is actually still unread.
+	int32_t availableTail = std::min(dry_.remainingSamples(), reverb_.remainingSamples()) - tailGuardSamples;
+	int32_t sourceFade = std::min(crossfadeLength_, availableTail);
+	bool overlap = state_ == State::PLAYING && !syncedStretch_ && sourceFade > 0;
 	if (!dry_.start(pos, period_, loopSamples_, overlap) || !reverb_.start(pos, period_, loopSamples_, overlap)) {
 		fail();
 		return false;
 	}
-	loopFade_.reset(overlap ? crossfadeLength_ : 0);
-	if (!overlap && instrument_ && !resumePending_) {
+	// The tail is measured in source frames. Speeding up shortens the output
+	// duration available for the fade; never read beyond the recorded margin.
+	int32_t fadeSamples = (int64_t{std::max<int32_t>(0, sourceFade)} << 24) / std::max(kMaxSampleValue, stretchRatio());
+	loopFade_.reset(overlap ? std::max<int32_t>(1, fadeSamples) : 0);
+	if (firstStart && instrument_) {
 		handoffFade_.reset(snapshot_ ? 11025 : crossfadeSamples);
 	}
 	state_ = State::PLAYING;
@@ -196,6 +232,7 @@ bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 }
 
 void ClipFreeze::pause() {
+	syncedStretch_ = false;
 	loopFade_.reset(0);
 	handoffFade_.reset(0);
 	if (thawing_) {
@@ -259,8 +296,8 @@ void ClipFreeze::loop(int32_t repeatCount) {
 		break;
 	case State::WRITING:
 		if (dry_.recorder->status == RecorderStatus::COMPLETE && reverb_.recorder->status == RecorderStatus::COMPLETE) {
-			dry_.prepare();
-			reverb_.prepare();
+			dry_.prepare(period_, loopSamples_);
+			reverb_.prepare(period_, loopSamples_);
 			state_ = State::READY; // Give the card routine a pass to preload the loop starts before switching.
 		}
 		break;
@@ -312,14 +349,38 @@ void ClipFreeze::capture(std::span<StereoSample> dry, std::span<int32_t> reverb)
 	}
 }
 
-bool ClipFreeze::Stream::render(int32_t* buffer, int32_t count, int32_t channels, bool tail) {
-	// VoiceSample shifts amplitude left by three before its Q32 multiply. Use half gain, then restore it
-	// after reading. This preserves headroom and avoids clipping the recorded data.
+int32_t ClipFreeze::stretchRatio() const {
+	// Use the measured recording duration, not the tempo at arm time: the
+	// external clock may have settled or changed during capture.
+	double duration = double(playbackHandler.getTimePerInternalTickBig()) / 4294967296.0 * period_;
+	if (duration <= 0)
+		return kMaxSampleValue;
+	return static_cast<int32_t>(std::clamp(double(loopSamples_) * kMaxSampleValue / duration, 1.0, double(INT32_MAX)));
+}
+
+bool ClipFreeze::Stream::render(int32_t* buffer, int32_t count, int32_t channels, int32_t stretch, bool syncedStretch,
+                                bool tail) {
 	auto* player = tail ? outgoing : voice;
-	return player
-	       && player->render(&guide, buffer, count, static_cast<Sample*>(holder.audioFile), channels, LoopType::NONE,
-	                         kMaxSampleValue, kMaxSampleValue, (INT32_MAX >> 3), 0, 2, InterpolationMode::LINEAR,
-	                         priority);
+	auto* playbackGuide = tail ? &outgoingGuide : &guide;
+	if (!player)
+		return false;
+	if (syncedStretch) {
+		// Native time-stretcher looping uses the musical marker, not the extra
+		// continuation recorded for non-stretched crossfades.
+		auto* sample = static_cast<Sample*>(holder.audioFile);
+		playbackGuide->endPlaybackAtByte =
+		    sample->audioDataStartPosBytes + holder.endPos * sample->numChannels * sample->byteDepth;
+	}
+	// VoiceSample doubles its gain for time stretching. Quarter gain leaves room
+	// for that doubling; restore the common half-gain contract after rendering.
+	bool success =
+	    player->render(playbackGuide, buffer, count, static_cast<Sample*>(holder.audioFile), channels,
+	                   syncedStretch ? LoopType::TIMESTRETCHER_LEVEL_IF_ACTIVE : LoopType::NONE, kMaxSampleValue,
+	                   stretch, (INT32_MAX >> 4), 0, 2, InterpolationMode::LINEAR, priority);
+	int32_t outputChannels = channels == 2 && AudioEngine::renderInStereo ? 2 : 1;
+	for (int32_t i = 0; i < count * outputChannels; ++i)
+		buffer[i] *= 2;
+	return success;
 }
 
 bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder) {
@@ -335,13 +396,26 @@ bool ClipFreeze::render(std::span<StereoSample> dry, std::span<int32_t> reverb, 
 	std::fill_n(tailSend, overlap, 0);
 	std::fill_n(audio, dry.size(), StereoSample{0, 0});
 	std::fill_n(send, dry.size(), 0);
-	if (!dry_.render(reinterpret_cast<int32_t*>(audio), dry.size(), 2) || !reverb_.render(send, dry.size(), 1)) {
+	int32_t stretch = stretchRatio();
+	if (!syncedStretch_) {
+		// Use the same native-rate tolerance as AudioClip, but make one shared
+		// decision so dry audio and reverb send retain the same musical clock.
+		syncedStretch_ = stretch < 16661327 || stretch >= 16893911
+		                 || std::abs(dry_.guide.getNumSamplesLaggingBehindSync(dry_.voice)) >= (44100 >> 7)
+		                 || std::abs(reverb_.guide.getNumSamplesLaggingBehindSync(reverb_.voice)) >= (44100 >> 7);
+	}
+	if (!syncedStretch_)
+		stretch = kMaxSampleValue;
+	else if (stretch == kMaxSampleValue)
+		++stretch; // Retain both grain streams through unity and release them on pause/clear.
+	if (!dry_.render(reinterpret_cast<int32_t*>(audio), dry.size(), 2, stretch, syncedStretch_)
+	    || !reverb_.render(send, dry.size(), 1, stretch, syncedStretch_)) {
 		fail();
 		return false;
 	}
 	if (overlap
-	    && (!dry_.render(reinterpret_cast<int32_t*>(tailAudio), overlap, 2, true)
-	        || !reverb_.render(tailSend, overlap, 1, true))) {
+	    && (!dry_.render(reinterpret_cast<int32_t*>(tailAudio), overlap, 2, kMaxSampleValue, false, true)
+	        || !reverb_.render(tailSend, overlap, 1, kMaxSampleValue, false, true))) {
 		fail();
 		return false;
 	}
