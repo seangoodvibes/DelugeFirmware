@@ -23,6 +23,7 @@ namespace deluge::gui::context_menu {
 class DoneStemExport final : public ContextMenu {
 public:
 	DoneStemExport() = default;
+	bool freezing = false;
 
 	std::span<char const*> getOptions() override;
 	bool acceptCurrentOption() override;

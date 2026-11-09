@@ -31,6 +31,13 @@ class StemExport {
 public:
 	StemExport();
 
+	Error freezeTrack(Output* output);
+	Error unfreezeTrack(Output* output);
+	bool trackFrozen(Output* output) const;
+	bool pollTrackFreeze();
+	Clip* freezeClip_ = nullptr;
+	bool freezeReleaseStarted_ = false;
+
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();

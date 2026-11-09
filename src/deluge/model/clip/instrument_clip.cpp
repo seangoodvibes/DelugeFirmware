@@ -263,40 +263,15 @@ void InstrumentClip::stopSoundForFreeze() {
 Error InstrumentClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack) {
 	if (!enabled) {
 		bool wasPlaying = freeze && freeze->playing();
-		bool bridgeDrone = false;
-		bool bridge = wasPlaying && freeze->validFor(*this) && playbackHandler.isEitherClockActive()
-		              && modelStack->song->isClipActive(this);
-		if (wasPlaying && freeze->validFor(*this) && playbackHandler.isEitherClockActive()
-		    && modelStack->song->isClipActive(this)) {
-			for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
-				auto* row = noteRows.getElement(i);
-				int32_t length = row->loopLengthIfIndependent ? row->loopLengthIfIndependent : loopLength;
-				bridgeDrone |= row->sequenced && !row->muted && row->isDroning(length);
-			}
-		}
-		if (freeze) {
-			if (bridge)
-				freeze->beginThaw(bridgeDrone);
-			else
-				freeze->clear();
-		}
-		if (wasPlaying && !freeze->playing() && playbackHandler.isEitherClockActive()
-		    && modelStack->song->isClipActive(this)) {
+		if (freeze)
+			freeze->clear();
+		if (wasPlaying && playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this))
 			resumeAfterFreeze(modelStack);
-		}
-		return Error::NONE;
-	}
-	if (freeze && freeze->thawing() && freeze->validFor(*this)) {
-		// Cancelling a delayed thaw keeps the existing recording and releases
-		// any voices allocated by the temporary native rebuild.
-		freeze->cancelThaw();
-		stopSoundForFreeze();
 		return Error::NONE;
 	}
 	if ((output->type != OutputType::SYNTH && output->type != OutputType::KIT)
-	    || sequenceDirectionMode != SequenceDirection::FORWARD || !playbackHandler.isEitherClockActive()
-	    || !modelStack->song->isClipActive(this) || currentlyRecordingLinearly
-	    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+	    || sequenceDirectionMode != SequenceDirection::FORWARD || playbackHandler.isEitherClockActive()
+	    || currentlyRecordingLinearly || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return Error::UNSPECIFIED;
 	}
 	if (output->type == OutputType::KIT) {
@@ -330,7 +305,10 @@ Error InstrumentClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* mod
 		}
 		freeze = new (memory) ClipFreeze();
 	}
-	return freeze->arm(*this);
+	Error error = freeze->arm(*this);
+	if (error == Error::NONE)
+		freeze->beginOfflineRender();
+	return error;
 }
 
 // You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()

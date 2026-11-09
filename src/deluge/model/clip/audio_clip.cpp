@@ -75,29 +75,17 @@ bool AudioClip::freezeAvailable() {
 Error AudioClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack) {
 	if (!enabled) {
 		bool wasPlaying = freeze && freeze->playing();
-		if (freeze) {
-			if (wasPlaying && freezeAvailable() && freeze->validFor(*this) && playbackHandler.isEitherClockActive()
-			    && modelStack->song->isClipActive(this))
-				freeze->beginThaw();
-			else
-				freeze->clear();
-		}
+		if (freeze)
+			freeze->clear();
 		if (wasPlaying && playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
 			setPosForParamManagers(modelStack, true);
 			resumePlayback(modelStack);
 		}
 		return Error::NONE;
 	}
-	if (freeze && freeze->thawing() && freeze->validFor(*this)) {
-		freeze->cancelThaw();
-		unassignVoiceSample(false);
-		static_cast<AudioOutput*>(output)->wontBeRenderedForAWhile();
-		return Error::NONE;
-	}
-	if (!freezeAvailable() || !playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this)
-	    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+	if (!freezeAvailable() || playbackHandler.isEitherClockActive()
+	    || playbackHandler.recording == RecordingMode::ARRANGEMENT)
 		return Error::UNSPECIFIED;
-	}
 	if (freeze && freeze->enabled()) {
 		return Error::NONE;
 	}
@@ -108,7 +96,11 @@ Error AudioClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelSta
 		}
 		freeze = new (memory) ClipFreeze();
 	}
-	return freeze->arm(*this, loopLength, false, static_cast<AudioOutput*>(output)->getModFXType() != ModFXType::NONE);
+	Error error =
+	    freeze->arm(*this, loopLength, false, static_cast<AudioOutput*>(output)->getModFXType() != ModFXType::NONE);
+	if (error == Error::NONE)
+		freeze->beginOfflineRender();
+	return error;
 }
 
 AudioClip::~AudioClip() {

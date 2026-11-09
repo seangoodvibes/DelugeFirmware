@@ -1294,6 +1294,19 @@ void routine() {
 				// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
 				// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
 				// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
+				if (stemExport.currentStemExportType == StemExportType::FREEZE_TRACK) {
+					// Freeze feeds separate dry/send recorders, not audioRecorder.recorder.
+					// Drain every completed cluster before rendering ahead and risking its reuse.
+					for (int pass = 0; pass < 16; ++pass) {
+						bool pending = false;
+						for (auto* item = firstRecorder; item; item = item->next)
+							pending |= !item->hadCardError && item->status < RecorderStatus::COMPLETE
+							           && item->firstUnwrittenClusterIndex < item->currentRecordClusterIndex;
+						if (!pending)
+							break;
+						doRecorderCardRoutines();
+					}
+				}
 				SampleRecorder* recorder = audioRecorder.recorder;
 				if (recorder != nullptr) {
 					// Each call writes at most one cluster, and we don't render (so can't produce new ones) until

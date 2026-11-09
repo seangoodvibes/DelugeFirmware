@@ -243,6 +243,7 @@ enum class StemExportType : uint8_t {
 	TRACK,
 	DRUM,
 	MIXDOWN,
+	FREEZE_TRACK, // Internal operation; deliberately absent from stem export menu options.
 };
 
 enum class ThingType : uint8_t {

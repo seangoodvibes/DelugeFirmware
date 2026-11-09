@@ -28,8 +28,6 @@ class ClipSettingsMenu final : public ContextMenu {
 public:
 	ClipSettingsMenu() = default;
 	void selectEncoderAction(int8_t offset) override;
-	void focusRegained() override;
-	ActionResult timerCallback() override;
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
 	bool acceptCurrentOption() override; // If returns false, will cause UI to exit

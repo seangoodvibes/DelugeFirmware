@@ -30,7 +30,7 @@ PLACE_SDRAM_BSS DoneStemExport doneStemExport{};
 
 char const* DoneStemExport::getTitle() {
 	using enum l10n::String;
-	return l10n::get(STRING_FOR_DONE_EXPORT_STEMS);
+	return freezing ? "Freezing Done!" : l10n::get(STRING_FOR_DONE_EXPORT_STEMS);
 }
 
 std::span<char const*> DoneStemExport::getOptions() {
@@ -41,7 +41,8 @@ std::span<char const*> DoneStemExport::getOptions() {
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {l10n::get(STRING_FOR_DONE_EXPORT_STEMS)};
+		static char const* options[] = {nullptr};
+		options[0] = getTitle();
 		return {options, 1};
 	}
 }

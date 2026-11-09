@@ -26,6 +26,9 @@ public:
 	Error arm(InstrumentClip& clip);
 	Error arm(Clip& clip, int32_t period, bool continuousPlayback = false, bool snapshot = false);
 	void clear();
+	void beginOfflineRender();
+	bool finishOfflineRender();
+	bool renderingOffline() const { return offlineRendering_; }
 	void pause(bool release = false);
 	bool beginReleaseCapture();
 	void captureRelease(std::span<StereoSample> dry, std::span<int32_t> reverb);
@@ -77,6 +80,8 @@ private:
 	bool renderLoop(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder);
 	bool renderRelease(std::span<StereoSample> dry, std::span<int32_t> reverb, SampleRecorder* recorder);
 	void finishRelease();
+	bool offline_ = false, offlineRendering_ = false;
+	int32_t warmupLoops_ = 0;
 	State state_ = State::OFF;
 	Output* output_ = nullptr;
 	int32_t length_ = 0;

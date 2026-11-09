@@ -28,10 +28,15 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
+#include "model/clip/clip_freeze.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
+#include "model/sample/sample_recorder.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -39,6 +44,7 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include <array>
 #include <new>
 #include <string.h>
 
@@ -78,6 +84,253 @@ StemExport::StemExport() {
 	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 
 	lastFolderNameForStemExport.clear();
+}
+
+namespace {
+ClipFreeze* clipCache(Clip* clip) {
+	return clip->type == ClipType::AUDIO ? static_cast<AudioClip*>(clip)->freeze
+	                                     : static_cast<InstrumentClip*>(clip)->freeze;
+}
+
+struct FreezeClipState {
+	Clip* clip;
+	bool active, solo, armed, pending;
+	ArmState arm;
+};
+struct FreezeOutputState {
+	Output* output;
+	Clip* active;
+};
+
+void drainDiscardedFreezeFiles() {
+	// clear() relinquishes the sample/cluster references before the card routine
+	// unlinks the files. Do not return to the menu while deletion is pending.
+	yield([]() {
+		AudioEngine::doRecorderCardRoutines();
+		for (auto* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next)
+			if (recorder->status >= RecorderStatus::ABORTED)
+				return false;
+		return true;
+	});
+}
+} // namespace
+
+bool StemExport::trackFrozen(Output* output) const {
+	for (Clip* clip : AllClips::everywhere(currentSong))
+		if (clip->output == output && clipCache(clip) && clipCache(clip)->enabled())
+			return true;
+	return false;
+}
+
+Error StemExport::unfreezeTrack(Output* output) {
+	if (playbackHandler.playbackState || processStarted)
+		return Error::UNSPECIFIED;
+	for (Clip* clip : AllClips::everywhere(currentSong))
+		if (clip->output == output && clipCache(clip))
+			clipCache(clip)->clear();
+	drainDiscardedFreezeFiles();
+	return Error::NONE;
+}
+
+bool StemExport::pollTrackFreeze() {
+	if (!isUIModeActive(UI_MODE_STEM_EXPORT))
+		return true;
+	auto* cache = clipCache(freezeClip_);
+	if (!cache || cache->state() == ClipFreeze::State::FAILED || cache->state() == ClipFreeze::State::OFF)
+		return true;
+	if (cache->state() == ClipFreeze::State::WRITING && !freezeReleaseStarted_) {
+		// The complete pattern and loop continuation have been captured. Ordinary
+		// transport note-offs release voices; keep offline rendering running for FX tails.
+		stopPlayback();
+		freezeReleaseStarted_ = true;
+		if (!cache->beginReleaseCapture()) {
+			cache->clear();
+			return true;
+		}
+	}
+	if (freezeReleaseStarted_) {
+		bool done = cache->finishOfflineRender();
+		return done || cache->state() == ClipFreeze::State::FAILED;
+	}
+	return false;
+}
+
+Error StemExport::freezeTrack(Output* output) {
+	if (playbackHandler.playbackState || processStarted || !output
+	    || audioRecorder.recordingSource != AudioInputChannel::NONE
+	    || (output->type != OutputType::SYNTH && output->type != OutputType::KIT && output->type != OutputType::AUDIO))
+		return Error::UNSPECIFIED;
+	if (trackFrozen(output))
+		return Error::UNSPECIFIED;
+
+	const int32_t sessionCount = currentSong->sessionClips.getNumElements();
+	const int32_t clipCount = sessionCount + currentSong->arrangementOnlyClips.getNumElements();
+	int32_t outputCount = 0;
+	for (Output* item = currentSong->firstOutput; item; item = item->next)
+		++outputCount;
+	auto* clips =
+	    static_cast<FreezeClipState*>(GeneralMemoryAllocator::get().allocLowSpeed(sizeof(FreezeClipState) * clipCount));
+	auto* outputs = static_cast<FreezeOutputState*>(
+	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(FreezeOutputState) * outputCount));
+	if (!clips || !outputs || !currentSong->sessionClips.ensureEnoughSpaceAllocated(1)
+	    || !currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
+		if (clips)
+			delugeDealloc(clips);
+		if (outputs)
+			delugeDealloc(outputs);
+		return Error::INSUFFICIENT_RAM;
+	}
+	int32_t index = 0;
+	totalNumStemsToExport = 0;
+	for (Clip* clip : AllClips::everywhere(currentSong)) {
+		clips[index++] = {clip,
+		                  clip->activeIfNoSolo,
+		                  clip->soloingInSessionMode,
+		                  clip->armedForRecording,
+		                  clip->isPendingOverdub,
+		                  clip->armState};
+		if (clip->output == output && !clip->isEmpty(false))
+			++totalNumStemsToExport;
+	}
+	index = 0;
+	for (Output* item = currentSong->firstOutput; item; item = item->next) {
+		outputs[index++] = {item, item->getActiveClip()};
+		item->cutAllSound();
+	}
+	const bool freeEmptyArrangement = currentSong->arrangementOnlyClips.emptyingShouldFreeMemory;
+	currentSong->arrangementOnlyClips.emptyingShouldFreeMemory = false;
+	std::array<int32_t, kMaxNumSections> sectionRepeats;
+	for (int32_t i = 0; i < kMaxNumSections; ++i) {
+		sectionRepeats[i] = currentSong->sections[i].numRepetitions;
+		currentSong->sections[i].numRepetitions = 0; // Do not auto-launch another section during a render.
+	}
+	const auto oldReturnSection = currentSong->sectionToReturnToAfterSongEnd;
+	const bool wasSoloing = currentSong->anyClipsSoloing;
+	const auto oldRecording = playbackHandler.recording;
+	auto* oldPlaybackMode = currentPlaybackMode;
+	const auto oldContinuePos = playbackHandler.posToNextContinuePlaybackFrom;
+	const auto oldType = currentStemExportType;
+	const bool oldOffline = renderOffline, oldSongFX = includeSongFX;
+	const int32_t oldInstancePos = currentSong->lastClipInstanceEnteredStartPos;
+	currentSong->lastClipInstanceEnteredStartPos = -1;
+	currentSong->anyClipsSoloing = false;
+	for (int32_t i = 0; i < clipCount; ++i) {
+		auto* clip = clips[i].clip;
+		clip->activeIfNoSolo = clip->soloingInSessionMode = clip->armedForRecording = clip->isPendingOverdub = false;
+		clip->armState = ArmState::OFF;
+	}
+	playbackHandler.recording = RecordingMode::OFF;
+	currentStemExportType = StemExportType::FREEZE_TRACK;
+	processStarted = renderOffline = true;
+	includeSongFX = false; // The per-clip dry and reverb-send taps preserve shared song processing.
+	stopRecording = false;
+	numStemsExported = 0;
+	enterUIMode(UI_MODE_STEM_EXPORT);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
+	if (display->haveOLED())
+		hid::display::OLED::displayWorkingAnimation("Saving");
+	Error error = totalNumStemsToExport ? Error::NONE : Error::UNSPECIFIED;
+	char memory[MODEL_STACK_MAX_SIZE];
+	auto* stack = setupModelStackWithSong(memory, currentSong);
+	for (int32_t i = 0; i < clipCount && error == Error::NONE && isUIModeActive(UI_MODE_STEM_EXPORT); ++i) {
+		auto* clip = clips[i].clip;
+		if (clip->output != output || clip->isEmpty(false))
+			continue;
+		const auto originalSection = clip->section;
+		int32_t arrangementIndex = currentSong->arrangementOnlyClips.getIndexForClip(clip);
+		if (arrangementIndex >= 0) {
+			// Session sequencing renders a unique arrangement clip once as well. Keep
+			// array capacity so moving it back cannot allocate or lose the original clip.
+			error = currentSong->sessionClips.insertClipAtIndex(clip, sessionCount);
+			if (error != Error::NONE)
+				break;
+			currentSong->arrangementOnlyClips.deleteAtIndex(arrangementIndex, 1, false);
+			clip->section = 0; // The session sequencer requires a valid session section.
+		}
+		clip->activeIfNoSolo = true;
+		auto* clipStack = stack->addTimelineCounter(clip);
+		output->setActiveClip(clipStack);
+		error = clip->type == ClipType::AUDIO ? static_cast<AudioClip*>(clip)->setFrozen(true, clipStack)
+		                                      : static_cast<InstrumentClip*>(clip)->setFrozen(true, clipStack);
+		if (error == Error::NONE) {
+			freezeClip_ = clip;
+			freezeReleaseStarted_ = false;
+			displayStemExportProgress(StemExportType::FREEZE_TRACK);
+			playbackHandler.setupPlaybackUsingInternalClock(0, false, false, true);
+			yield([]() { return stemExport.pollTrackFreeze(); });
+			stopPlayback();
+			if (!clipCache(clip) || clipCache(clip)->state() != ClipFreeze::State::READY)
+				error = Error::UNSPECIFIED;
+			else
+				++numStemsExported;
+			output->cutAllSound();
+		}
+		clip->activeIfNoSolo = false;
+		if (arrangementIndex >= 0) {
+			clip->section = originalSection;
+			currentSong->sessionClips.deleteAtIndex(sessionCount, 1, false);
+			currentSong->arrangementOnlyClips.insertClipAtIndex(clip, arrangementIndex);
+		}
+	}
+	stopPlayback();
+	const bool cancelled = !isUIModeActive(UI_MODE_STEM_EXPORT);
+	const bool completed = !cancelled && error == Error::NONE && numStemsExported == totalNumStemsToExport;
+	if (!completed) {
+		for (int32_t i = 0; i < clipCount; ++i)
+			if (clips[i].clip->output == output && clipCache(clips[i].clip))
+				clipCache(clips[i].clip)->clear();
+		drainDiscardedFreezeFiles();
+	}
+	freezeClip_ = nullptr;
+	for (int32_t i = 0; i < clipCount; ++i) {
+		auto& saved = clips[i];
+		saved.clip->activeIfNoSolo = saved.active;
+		saved.clip->soloingInSessionMode = saved.solo;
+		saved.clip->armedForRecording = saved.armed;
+		saved.clip->isPendingOverdub = saved.pending;
+		saved.clip->armState = saved.arm;
+	}
+	for (int32_t i = 0; i < outputCount; ++i) {
+		auto& saved = outputs[i];
+		if (saved.active)
+			saved.output->setActiveClip(stack->addTimelineCounter(saved.active));
+		else
+			saved.output->detachActiveClip(currentSong);
+	}
+	currentSong->arrangementOnlyClips.emptyingShouldFreeMemory = freeEmptyArrangement;
+	for (int32_t i = 0; i < kMaxNumSections; ++i)
+		currentSong->sections[i].numRepetitions = sectionRepeats[i];
+	currentSong->sectionToReturnToAfterSongEnd = oldReturnSection;
+	currentSong->anyClipsSoloing = wasSoloing;
+	currentSong->lastClipInstanceEnteredStartPos = oldInstancePos;
+	playbackHandler.recording = oldRecording;
+	playbackHandler.posToNextContinuePlaybackFrom = oldContinuePos;
+	currentPlaybackMode = oldPlaybackMode;
+	processStarted = false;
+	renderOffline = oldOffline;
+	includeSongFX = oldSongFX;
+	currentStemExportType = oldType;
+	exitUIMode(UI_MODE_STEM_EXPORT);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
+	playbackHandler.setLedStates();
+	delugeDealloc(outputs);
+	delugeDealloc(clips);
+	display->removeWorkingAnimation();
+	uiNeedsRendering(getRootUI());
+	// Progress is drawn directly into the OLED image. Redraw it before showing
+	// completion so dismissing the dialog cannot reveal stale progress text.
+	renderUIsForOled();
+	if (completed) {
+		context_menu::doneStemExport.freezing = true;
+		if (context_menu::doneStemExport.setupAndCheckAvailability()) {
+			display->setNextTransitionDirection(1);
+			openUI(&context_menu::doneStemExport);
+		}
+	}
+	else {
+		display->displayPopup(cancelled ? "Freeze cancelled" : "Freeze failed");
+	}
+	return cancelled ? Error::NONE : error;
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
@@ -217,7 +470,8 @@ void StemExport::stopOutputRecording() {
 /// we want to export up to length of the longest sequence in the clip (clip or note row loop length)
 /// when we reach longest loop length, we stop playback and allow recording to continue until silence
 bool StemExport::checkForLoopEnd() {
-	if (processStarted && currentStemExportType != StemExportType::TRACK) {
+	if (processStarted && currentStemExportType != StemExportType::TRACK
+	    && currentStemExportType != StemExportType::FREEZE_TRACK) {
 		int32_t currentPos =
 		    playbackHandler.lastSwungTickActioned + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
@@ -756,6 +1010,7 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType, int32_t 
 	}
 
 	// display stem export completed context menu
+	context_menu::doneStemExport.freezing = false;
 	bool available = context_menu::doneStemExport.setupAndCheckAvailability();
 	if (available) {
 		display->setNextTransitionDirection(1);
@@ -811,17 +1066,21 @@ void StemExport::displayStemExportProgress(StemExportType stemExportType) {
 }
 
 void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
+	// Root views may request their ordinary export type during a redraw.
+	// The active operation owns the progress label, including its first frame.
+	if (processStarted)
+		stemExportType = currentStemExportType;
 	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
 	if (inContextMenu()) {
 		return;
 	}
 	hid::display::OLED::clearMainImage();
 	DEF_STACK_STRING_BUF(exportStatus, 50);
-	exportStatus.append("Exported ");
+	exportStatus.append(stemExportType == StemExportType::FREEZE_TRACK ? "Frozen " : "Exported ");
 	exportStatus.appendInt(numStemsExported);
 	exportStatus.append(" of ");
 	exportStatus.appendInt(totalNumStemsToExport);
-	if (stemExportType == StemExportType::CLIP) {
+	if (stemExportType == StemExportType::CLIP || stemExportType == StemExportType::FREEZE_TRACK) {
 		exportStatus.append(" clips");
 	}
 	else if (stemExportType == StemExportType::TRACK) {
@@ -860,7 +1119,7 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 
 	// wavFileName is uniquely set for each stem export
 	// when this flag is true, there is a valid wavFileName that has been set for stem exporting
-	if (wavFileNameForStemExportSet) {
+	if (wavFileNameForStemExportSet && currentStemExportType != StemExportType::FREEZE_TRACK) {
 		// reset flag to false to ensure that next stem exported is valid
 		wavFileNameForStemExportSet = false;
 
@@ -950,6 +1209,9 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 	}
 
 	switch (currentStemExportType) {
+	case StemExportType::FREEZE_TRACK:
+		error = tempPath.concatenate("/FREEZE");
+		break;
 	case StemExportType::CLIP:
 		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
 		error = tempPath.concatenate("/CLIPS");

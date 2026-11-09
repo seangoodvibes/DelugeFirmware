@@ -105,10 +105,13 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 	// Track recording taps before final volume/pan/compression. Preserve that tap,
 	// and never replace live monitoring or overdubbing with cached audio.
 	if (freeze && (freeze->enabled() || freeze->thawing())
-	    && (!clip->freezeAvailable() || !freeze->validFor(*clip) || recorder || stemExport.processStarted)) {
+	    && (!clip->freezeAvailable() || !freeze->validFor(*clip) || recorder
+	        || (stemExport.processStarted && stemExport.currentStemExportType != StemExportType::FREEZE_TRACK))) {
 		clip->setFrozen(false, modelStackWithTimelineCounter);
 	}
-	if (freeze && freeze->thawing() && (recorder || stemExport.processStarted))
+	if (freeze && freeze->thawing()
+	    && (recorder
+	        || (stemExport.processStarted && stemExport.currentStemExportType != StemExportType::FREEZE_TRACK)))
 		freeze->clear();
 	if (freeze && freeze->releasing()) {
 		if (freeze->render(output, {reverbBuffer, output.size()}))

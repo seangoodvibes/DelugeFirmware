@@ -61,6 +61,8 @@ void ClipFreeze::Stream::clear() {
 }
 
 void ClipFreeze::clear() {
+	offline_ = offlineRendering_ = false;
+	warmupLoops_ = 0;
 	dry_.clear();
 	reverb_.clear();
 	releaseDry_.clear();
@@ -136,6 +138,41 @@ Error ClipFreeze::arm(Clip& clip, int32_t period, bool continuousPlayback, bool 
 	return Error::NONE;
 }
 
+// The stem-export scheduler owns this pass. Warm up one complete known pattern,
+// then record it and its continuation through the ordinary clip renderer.
+void ClipFreeze::beginOfflineRender() {
+	offline_ = offlineRendering_ = true;
+	warmupLoops_ = period_ / length_;
+}
+
+bool ClipFreeze::finishOfflineRender() {
+	if (!healthy()) {
+		fail();
+		return false;
+	}
+	for (auto* stream : {&releaseDry_, &releaseReverb_}) {
+		if (!stream->recorder || stream->recorder->hadCardError
+		    || stream->recorder->status >= RecorderStatus::ABORTED) {
+			fail();
+			return false;
+		}
+	}
+	if (state_ != State::WRITING || capturingRelease_)
+		return false;
+	for (auto* stream : {&dry_, &reverb_, &releaseDry_, &releaseReverb_})
+		if (stream->recorder->status != RecorderStatus::COMPLETE)
+			return false;
+	dry_.prepare(period_, loopSamples_);
+	reverb_.prepare(period_, loopSamples_);
+	offlineRendering_ = false;
+	state_ = State::READY;
+	// First launch starts at the first iteration of the recorded pattern.
+	captureStartRepeat_ = 0;
+	haveBoundary_ = false;
+	resumePending_ = true;
+	return true;
+}
+
 bool ClipFreeze::validFor(Clip& clip) const {
 	return clip.output == output_ && clip.loopLength == length_ && AudioEngine::renderInStereo == stereoRendering_
 	       && clip.sequenceDirectionMode == SequenceDirection::FORWARD && !clip.getCurrentlyRecordingLinearly()
@@ -203,6 +240,8 @@ int32_t ClipFreeze::phase(int32_t pos, int32_t repeatCount) const {
 }
 
 bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
+	if (offlineRendering_)
+		return false;
 	if (state_ != State::READY && state_ != State::PLAYING) {
 		return false;
 	}
@@ -234,7 +273,7 @@ bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 	// duration available for the fade; never read beyond the recorded margin.
 	int32_t fadeSamples = (int64_t{std::max<int32_t>(0, sourceFade)} << 24) / std::max(kMaxSampleValue, stretchRatio());
 	loopFade_.reset(overlap ? std::max<int32_t>(1, fadeSamples) : 0);
-	if (firstStart) {
+	if (firstStart && !offline_) {
 		entering_ = true;
 		resetHandoff();
 		if (!snapshot_)
@@ -246,6 +285,10 @@ bool ClipFreeze::start(int32_t pos, int32_t repeatCount) {
 }
 
 void ClipFreeze::pause(bool release) {
+	if (offlineRendering_)
+		return; // The export owns capture and releases the normal engine at its loop end.
+	// A new transport launch can use the same tick zero as the previous launch.
+	haveBoundary_ = false;
 	if (release && state_ == State::PLAYING && !entering_) {
 		if (releasing_)
 			return;
@@ -296,7 +339,7 @@ void ClipFreeze::pause(bool release) {
 		clear();
 		return;
 	}
-	if (continuousPlayback_) {
+	if (continuousPlayback_ && !offline_) {
 		// Global LFO phase follows the song clock, not clip repeatCount. A relaunch
 		// can change their relative phase, so do not reuse this cache after a stop/seek.
 		clear();
@@ -329,6 +372,8 @@ void ClipFreeze::loop(int32_t repeatCount) {
 	}
 	switch (state_) {
 	case State::ARMED:
+		if (offlineRendering_ && warmupLoops_-- > 0)
+			break;
 		captureStartRepeat_ = repeatCount;
 		loopsRemaining_ = period_ / length_;
 		state_ = State::CAPTURING;
@@ -352,6 +397,8 @@ void ClipFreeze::loop(int32_t repeatCount) {
 		tailRemaining_ = crossfadeLength_ + tailGuardSamples;
 		break;
 	case State::WRITING:
+		if (offlineRendering_)
+			break;
 		if (dry_.recorder->status == RecorderStatus::COMPLETE && reverb_.recorder->status == RecorderStatus::COMPLETE) {
 			dry_.prepare(period_, loopSamples_);
 			reverb_.prepare(period_, loopSamples_);

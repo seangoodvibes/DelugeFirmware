@@ -685,10 +685,14 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	auto* freeze = clip ? clip->freeze : nullptr;
 	// Kit recording taps before pan/compression/volume, and drum stems need isolated rows.
 	// Restore the live graph for those operations rather than record/export the final cached mix.
-	if (freeze && freeze->enabled() && (recorder || stemExport.processStarted)) {
+	if (freeze && freeze->enabled()
+	    && (recorder
+	        || (stemExport.processStarted && stemExport.currentStemExportType != StemExportType::FREEZE_TRACK))) {
 		clip->setFrozen(false, modelStackWithTimelineCounter);
 	}
-	if (freeze && freeze->thawing() && (recorder || stemExport.processStarted)) {
+	if (freeze && freeze->thawing()
+	    && (recorder
+	        || (stemExport.processStarted && stemExport.currentStemExportType != StemExportType::FREEZE_TRACK))) {
 		// Recording taps the native kit graph. A pending boundary wait must not
 		// return through cached playback before that graph has restarted.
 		bool waiting = freeze->playing();
@@ -716,7 +720,9 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		freeze->clear();
 	}
 	// Track recorders tap the native graph before this handoff mix.
-	if (freeze && (freeze->thawing() || freeze->entering()) && (recorder || stemExport.processStarted)) {
+	if (freeze && (freeze->thawing() || freeze->entering())
+	    && (recorder
+	        || (stemExport.processStarted && stemExport.currentStemExportType != StemExportType::FREEZE_TRACK))) {
 		freeze->clear();
 	}
 	const bool releaseCapture = freeze && freeze->capturingRelease();
