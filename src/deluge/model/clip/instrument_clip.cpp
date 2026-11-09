@@ -29,7 +29,9 @@
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip_freeze.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/freeze_cycle.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
@@ -103,9 +105,184 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	outputTypeWhileLoading = OutputType::SYNTH; // NOTE: (Kate) was 0, should probably be NONE
 }
 
+Error InstrumentClip::getFreezeCycleLength(int32_t& length, bool& continuousPlayback, bool& snapshot) {
+	static_assert(SYNC_LEVEL_256TH == 9 && SYNC_TYPE_EVEN == 0 && SYNC_TYPE_TRIPLET == 10 && SYNC_TYPE_DOTTED == 19);
+	FreezeCycle cycle(loopLength);
+	continuousPlayback = false;
+	snapshot = false;
+	auto includeSound = [&](Sound& sound, ParamManager& manager) -> Error {
+		auto* cables = manager.getPatchCableSet();
+		// These generators have state which does not repeat on the musical grid.
+		if (sound.getModFXType() != ModFXType::NONE
+		    || cables->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::RANDOM)) {
+			snapshot = true;
+		}
+		for (const auto& source : sound.sources) {
+			if (source.oscType == OscType::DX7) {
+				snapshot = true; // DX7 has its own modulation clock.
+			}
+		}
+		constexpr PatchSource sources[] = {PatchSource::LFO_GLOBAL_1, PatchSource::LFO_LOCAL_1,
+		                                   PatchSource::LFO_GLOBAL_2, PatchSource::LFO_LOCAL_2};
+		for (int i = 0; i < LFO_COUNT; ++i) {
+			if (!cables->isSourcePatchedToSomethingManuallyCheckCables(sources[i])) {
+				continue;
+			}
+			const auto& config = sound.lfoConfig[i];
+			if (config.waveType == LFOType::SAMPLE_AND_HOLD || config.waveType == LFOType::RANDOM_WALK
+			    || config.waveType == LFOType::WARBLER) {
+				snapshot = true;
+			}
+			if (i == LFO2_ID || i == LFO4_ID) {
+				// Local deterministic LFOs restart with each voice, including free-rate LFOs.
+				if (sound.polyphonic == PolyphonyMode::LEGATO) {
+					snapshot = true;
+				}
+				continue;
+			}
+			if (config.syncLevel == SYNC_LEVEL_NONE) {
+				snapshot = true;
+				continue;
+			}
+			continuousPlayback = true;
+			if (!cycle.includeSyncedLfo(config.syncLevel, config.syncType)) {
+				return Error::FILE_TOO_BIG;
+			}
+		}
+		return Error::NONE;
+	};
+	if (output->type == OutputType::SYNTH) {
+		Error error = includeSound(*static_cast<SoundInstrument*>(output), paramManager);
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	else if (output->type == OutputType::KIT && static_cast<Kit*>(output)->getModFXType() != ModFXType::NONE) {
+		snapshot = true;
+	}
+	for (int32_t r = 0; r < noteRows.getNumElements(); ++r) {
+		auto* row = noteRows.getElement(r);
+		if (row->muted || !row->notes.getNumElements()) {
+			continue;
+		}
+		if (output->type == OutputType::KIT && row->drum && row->drum->type == DrumType::SOUND) {
+			Error error = includeSound(*static_cast<SoundDrum*>(row->drum), row->paramManager);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+		int32_t rowLength = row->loopLengthIfIndependent ? row->loopLengthIfIndependent : loopLength;
+		// Ping-pong needs both directions, independently of the note's iteration mask.
+		if (!cycle.include(rowLength, row->sequenceDirectionMode == SequenceDirection::PINGPONG ? 2 : 1)) {
+			return Error::FILE_TOO_BIG;
+		}
+		for (int32_t n = 0; n < row->notes.getNumElements(); ++n) {
+			auto* note = row->notes.getElement(n);
+			auto iterance = note->getIterance();
+			if (note->getProbability() != kNumProbabilityValues || note->getFill() != FillMode::OFF
+			    || (iterance != kDefaultIteranceValue && iterance.divisor == 0)) {
+				snapshot = true; // Probability, FIRST/LAST and FILL cannot be represented by a fixed loop.
+			}
+			if (!cycle.include(rowLength, iterance.divisor == 0 ? 1 : iterance.divisor)) {
+				return Error::FILE_TOO_BIG;
+			}
+		}
+	}
+	// A snapshot intentionally replays this performance, including its modulation phase.
+	if (snapshot) {
+		continuousPlayback = false;
+	}
+	length = cycle.ticks();
+	return Error::NONE;
+}
+
+// Keep row iteration counters running while streaming. Only notes which passed
+// their conditions and are logically held may be caught when returning to synthesis.
+void InstrumentClip::resumeAfterFreeze(ModelStackWithTimelineCounter* modelStack) {
+	setPosForParamManagers(modelStack, true);
+	for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+		NoteRow* row = noteRows.getElement(i);
+		if (row->sequenced) {
+			auto* rowStack = modelStack->addNoteRow(getNoteRowId(row, i), row);
+			row->stopCurrentlyPlayingNote(rowStack);
+			row->resumePlayback(rowStack, true);
+		}
+	}
+	expectEvent();
+}
+
+void InstrumentClip::stopSoundForFreeze() {
+	if (output->type == OutputType::KIT) {
+		auto* kit = static_cast<Kit*>(output);
+		kit->wontBeRenderedForAWhile();
+		kit->arpeggiator.reset();
+		for (Drum* drum = kit->firstDrum; drum; drum = drum->next) {
+			drum->drumWontBeRenderedForAWhile();
+		}
+	}
+	else {
+		static_cast<SoundInstrument*>(output)->wontBeRenderedForAWhile();
+	}
+}
+
+Error InstrumentClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack) {
+	if (!enabled) {
+		bool wasPlaying = freeze && freeze->playing();
+		if (freeze) {
+			freeze->clear();
+		}
+		if (wasPlaying && playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+			resumeAfterFreeze(modelStack);
+		}
+		return Error::NONE;
+	}
+	if ((output->type != OutputType::SYNTH && output->type != OutputType::KIT)
+	    || sequenceDirectionMode != SequenceDirection::FORWARD || !playbackHandler.isInternalClockActive()
+	    || !modelStack->song->isClipActive(this) || currentlyRecordingLinearly
+	    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		return Error::UNSPECIFIED;
+	}
+	if (output->type == OutputType::KIT) {
+		// MIDI and gate rows have external side effects which an audio cache cannot reproduce.
+		for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum; drum = drum->next) {
+			if (drum->type != DrumType::SOUND) {
+				return Error::UNSPECIFIED;
+			}
+			auto* sound = static_cast<SoundDrum*>(drum);
+			if (sound->sideChainSendLevel
+			    && (arpSettings.mode != ArpMode::OFF || sound->arpSettings.mode != ArpMode::OFF
+			        || sound->polyphonic == PolyphonyMode::LEGATO)) {
+				return Error::UNSPECIFIED; // These triggers depend on arp/voice state, not just sequenced note-ons.
+			}
+		}
+	}
+	else {
+		auto* sound = static_cast<SoundInstrument*>(output);
+		if (sound->sideChainSendLevel
+		    && (arpSettings.mode != ArpMode::OFF || sound->polyphonic == PolyphonyMode::LEGATO)) {
+			return Error::UNSPECIFIED;
+		}
+	}
+	if (freeze && freeze->enabled()) {
+		return Error::NONE;
+	}
+	if (!freeze) {
+		void* memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ClipFreeze));
+		if (!memory) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		freeze = new (memory) ClipFreeze();
+	}
+	return freeze->arm(*this);
+}
+
 // You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()
 // Will call audio routine!!! Necessary to avoid voice cuts, especially when switching song
 InstrumentClip::~InstrumentClip() {
+	if (freeze) {
+		freeze->~ClipFreeze();
+		delugeDealloc(freeze);
+	}
 
 	// Note: it's possible that we might be currentlyRecordingLinearly if we're being destructed because of a song-swap.
 	// That's ok. Whereas, for AudioClips, it's made sure that all linear recording is stopped first
@@ -378,6 +555,9 @@ void InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineCo
 // Accepts any pos >= -length
 void InstrumentClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
                             bool useActualPosForParamManagers) {
+	if (freeze) {
+		freeze->pause();
+	}
 	Clip::setPos(modelStack, newPos, useActualPosForParamManagers); // This will also call our own virtual expectEvent()
 
 	noteRowsNumTicksBehindClip = 0;
@@ -698,6 +878,27 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 	Clip::processCurrentPos(modelStack, ticksSinceLast);
 	if (modelStack->getTimelineCounter() != this) {
 		return; // Is this in case it's created a new Clip or something?
+	}
+
+	if (freeze && freeze->enabled()) {
+		if (!freeze->validFor(*this)) {
+			setFrozen(false, modelStack);
+		}
+		else {
+			bool wasPlaying = freeze->playing();
+			if (lastProcessedPos == 0) {
+				freeze->loop(repeatCount);
+			}
+			if (freeze->playing()) {
+				if (!wasPlaying) {
+					stopAllNotesPlaying(modelStack);
+					stopSoundForFreeze();
+				}
+			}
+			if (wasPlaying && !freeze->playing()) {
+				resumeAfterFreeze(modelStack);
+			}
+		}
 	}
 
 	// We already incremented / decremented noteRowsNumTicksBehindClip and ticksTilNextNoteRowEvent, in the call to
@@ -1133,6 +1334,16 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 // I think you need to check (playbackHandler.isEitherClockActive() && song->isClipActive(thisClip)) before calling
 // this.
 void InstrumentClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound) {
+	if (freeze && freeze->enabled()) {
+		if (!freeze->validFor(*this)) {
+			freeze->clear();
+		}
+		else if (mayMakeSound && freeze->start(lastProcessedPos, repeatCount)) {
+			stopSoundForFreeze();
+			expectEvent();
+			return;
+		}
+	}
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		if (!thisNoteRow->muted) {
@@ -1145,6 +1356,9 @@ void InstrumentClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, b
 }
 
 void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
+	if (freeze) {
+		freeze->pause();
+	}
 
 	// If it's actually another Clip, that we're recording into the arranger...
 	if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {

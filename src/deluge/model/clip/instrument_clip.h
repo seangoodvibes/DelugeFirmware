@@ -24,6 +24,7 @@
 #include "modulation/arpeggiator.h"
 
 class Song;
+class ClipFreeze;
 
 class NoteRow;
 class InstrumentClip;
@@ -49,6 +50,11 @@ class InstrumentClip final : public Clip {
 public:
 	explicit InstrumentClip(Song* song = nullptr);
 	~InstrumentClip() override;
+	void stopSoundForFreeze();
+	void resumeAfterFreeze(ModelStackWithTimelineCounter* modelStack);
+	Error setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack);
+	Error getFreezeCycleLength(int32_t& length, bool& continuousPlayback, bool& snapshot);
+	ClipFreeze* freeze = nullptr; // Session-local cache; clones retain their editable source only.
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                               bool completelyRenderOutIterationDependence = false,

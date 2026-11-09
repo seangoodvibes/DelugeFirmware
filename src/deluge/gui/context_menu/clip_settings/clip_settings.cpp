@@ -23,7 +23,13 @@
 #include "gui/ui/root_ui.h"
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
+#include "model/clip/clip_freeze.h"
+#include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include <cstddef>
 
 namespace deluge::gui::context_menu::clip_settings {
@@ -38,11 +44,21 @@ char const* ClipSettingsMenu::getTitle() {
 std::span<char const*> ClipSettingsMenu::getOptions() {
 	using enum l10n::String;
 	if (clip->type == ClipType::AUDIO) {
-		static const char* optionsls[] = {
-		    l10n::get(STRING_FOR_CLIP_MODE),
-		    l10n::get(STRING_FOR_CLIP_NAME),
-		};
-		return {optionsls, 2};
+		auto* freeze = static_cast<AudioClip*>(clip)->freeze;
+		static const char* options[] = {nullptr, nullptr, nullptr};
+		options[0] = l10n::get(STRING_FOR_CLIP_MODE);
+		options[1] = l10n::get(STRING_FOR_CLIP_NAME);
+		options[2] = freeze && freeze->enabled() ? "[x] Freeze" : "[ ] Freeze";
+		return options;
+	}
+	else if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT) {
+		auto* freeze = static_cast<InstrumentClip*>(clip)->freeze;
+		static const char* options[] = {nullptr, nullptr, nullptr, nullptr};
+		options[0] = l10n::get(STRING_FOR_CONVERT_TO_AUDIO);
+		options[1] = l10n::get(STRING_FOR_CLIP_MODE);
+		options[2] = l10n::get(STRING_FOR_CLIP_NAME);
+		options[3] = freeze && freeze->enabled() ? "[x] Freeze" : "[ ] Freeze";
+		return options;
 	}
 	else {
 		static const char* optionsls[] = {
@@ -64,6 +80,40 @@ void ClipSettingsMenu::selectEncoderAction(int8_t offset) {
 }
 
 bool ClipSettingsMenu::acceptCurrentOption() {
+	if ((clip->type == ClipType::AUDIO && currentOption == 2)
+	    || (clip->type == ClipType::INSTRUMENT
+	        && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
+	        && currentOption == 3)) {
+		auto* freeze = clip->type == ClipType::AUDIO ? static_cast<AudioClip*>(clip)->freeze
+		                                             : static_cast<InstrumentClip*>(clip)->freeze;
+		bool enable = !freeze || !freeze->enabled();
+		if (enable && (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(clip))) {
+			display->displayPopup("Play clip first");
+			return true;
+		}
+		if (enable
+		    && (clip->sequenceDirectionMode != SequenceDirection::FORWARD || playbackHandler.isExternalClockActive()
+		        || clip->getCurrentlyRecordingLinearly() || playbackHandler.recording == RecordingMode::ARRANGEMENT)) {
+			display->displayPopup("Freeze unavailable");
+			return true;
+		}
+		char memory[MODEL_STACK_MAX_SIZE];
+		auto* stack = setupModelStackWithTimelineCounter(memory, currentSong, clip);
+		Error error = clip->type == ClipType::AUDIO ? static_cast<AudioClip*>(clip)->setFrozen(enable, stack)
+		                                            : static_cast<InstrumentClip*>(clip)->setFrozen(enable, stack);
+		if (error == Error::UNSPECIFIED) {
+			display->displayPopup("Cannot freeze sound");
+		}
+		else if (error == Error::FILE_TOO_BIG) {
+			display->displayPopup("Freeze cycle too long");
+		}
+		else if (error != Error::NONE) {
+			display->displayError(error);
+		}
+		drawCurrentOption();
+		renderUIsForOled();
+		return true;
+	}
 	if (clip->type == ClipType::INSTRUMENT && this->currentOption == 0) {
 		sessionView.replaceInstrumentClipWithAudioClip(clip);
 		return false; // exit UI

@@ -24,6 +24,7 @@
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip_freeze.h"
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_output_existence.h"
 #include "model/model_stack.h"
@@ -64,7 +65,47 @@ AudioClip::AudioClip() : Clip(ClipType::AUDIO) {
 	attack = -2147483648;
 }
 
+bool AudioClip::freezeAvailable() {
+	return output && output->type == OutputType::AUDIO
+	       && static_cast<AudioOutput*>(output)->mode != AudioOutputMode::looper && sampleHolder.audioFile
+	       && !static_cast<Sample*>(sampleHolder.audioFile)->unplayable && !recorder
+	       && sequenceDirectionMode == SequenceDirection::FORWARD;
+}
+
+Error AudioClip::setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack) {
+	if (!enabled) {
+		bool wasPlaying = freeze && freeze->playing();
+		if (freeze) {
+			freeze->clear();
+		}
+		if (wasPlaying && playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+			setPosForParamManagers(modelStack, true);
+			resumePlayback(modelStack);
+		}
+		return Error::NONE;
+	}
+	if (!freezeAvailable() || !playbackHandler.isInternalClockActive() || !modelStack->song->isClipActive(this)
+	    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		return Error::UNSPECIFIED;
+	}
+	if (freeze && freeze->enabled()) {
+		return Error::NONE;
+	}
+	if (!freeze) {
+		void* memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ClipFreeze));
+		if (!memory) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		freeze = new (memory) ClipFreeze();
+	}
+	return freeze->arm(*this, loopLength, false, static_cast<AudioOutput*>(output)->getModFXType() != ModFXType::NONE);
+}
+
 AudioClip::~AudioClip() {
+	if (freeze) {
+		freeze->~ClipFreeze();
+		delugeDealloc(freeze);
+	}
 	if (recorder) {
 		FREEZE_WITH_ERROR("E278");
 	}
@@ -148,6 +189,7 @@ bool AudioClip::isAbandonedOverdub() {
 }
 
 Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+	setFrozen(false, modelStack);
 
 	AudioInputChannel inputChannel;
 	Output* outputRecordingFrom;
@@ -321,6 +363,29 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 		return;
 	}
 
+	if (freeze && freeze->enabled()) {
+		if (!freezeAvailable() || !freeze->validFor(*this)) {
+			setFrozen(false, modelStack);
+		}
+		else {
+			bool wasPlaying = freeze->playing();
+			if (!lastProcessedPos) {
+				freeze->loop(repeatCount);
+			}
+			if (freeze->playing()) {
+				if (!wasPlaying) {
+					unassignVoiceSample(false);
+					static_cast<AudioOutput*>(output)->wontBeRenderedForAWhile();
+				}
+				return;
+			}
+			if (wasPlaying) {
+				setPosForParamManagers(modelStack, true);
+				resumePlayback(modelStack);
+			}
+		}
+	}
+
 	// If we have a recorder that's gotten into error/aborted state, but we haven't registered that here yet, do that
 	// now. This isn't really the ideal place for this...
 	if (recorder && recorder->status == RecorderStatus::ABORTED) {
@@ -452,6 +517,17 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		FREEZE_WITH_ERROR("E430");
 	}
 #endif
+
+	if (freeze && freeze->enabled()) {
+		if (!freezeAvailable() || !freeze->validFor(*this)) {
+			freeze->clear();
+		}
+		else if (mayMakeSound && freeze->start(lastProcessedPos, repeatCount)) {
+			unassignVoiceSample(false);
+			static_cast<AudioOutput*>(output)->wontBeRenderedForAWhile();
+			return;
+		}
+	}
 
 	if (!sampleHolder.audioFile || ((Sample*)sampleHolder.audioFile)->unplayable) {
 		return;
@@ -890,6 +966,9 @@ void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
 }
 
 void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
+	if (freeze && actuallySoundChange) {
+		freeze->pause();
+	}
 
 	// If it's actually another Clip, that we're recording into the arranger...
 	if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {
@@ -1002,6 +1081,9 @@ void AudioClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool
 }
 
 void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith) {
+	if (freeze) {
+		freeze->clear();
+	}
 	// detaching from output, so don't need it anymore
 	unassignVoiceSample(true);
 
@@ -1384,6 +1466,9 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 }
 
 void AudioClip::clearSample(Action* action) {
+	if (freeze) {
+		freeze->clear();
+	}
 	if (!sampleHolder.audioFile) {
 		return;
 	}
@@ -1416,6 +1501,9 @@ bool AudioClip::getCurrentlyRecordingLinearly() {
 }
 
 void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) {
+	if (freeze) {
+		freeze->pause();
+	}
 
 	Clip::setPos(modelStack, newPos, useActualPosForParamManagers);
 

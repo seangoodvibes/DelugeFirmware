@@ -1886,7 +1886,7 @@ errorAfterAllocation:
 
 	createdNewRecorder = true;
 
-	if (mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
+	if (mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && newRecorder->forceStereoRendering) {
 		renderInStereo = true; // Quickly set it to true. It'll keep getting reset to true now every time
 		                       // inputRoutine() is called
 	}
@@ -1927,7 +1927,7 @@ void discardRecorder(SampleRecorder* recorder) {
 
 bool isAnyInternalRecordingHappening() {
 	for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
-		if (recorder->mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
+		if (recorder->mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && recorder->forceStereoRendering) {
 			return true;
 		}
 	}

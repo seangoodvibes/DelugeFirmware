@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
+#include "model/clip/clip_freeze.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -101,13 +102,51 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
+	auto* clip = static_cast<InstrumentClip*>(activeClip);
+	auto* freeze = clip->freeze;
+	if (freeze && freeze->playing()) {
+		if (isClipActive && playbackHandler.isEitherClockActive() && freeze->validFor(*clip)
+		    && freeze->render(output, {reverbBuffer, output.size()}, recorder)) {
+			return;
+		}
+		// Failed streaming or a changed tempo/length must restore note playback, not leave a silent synth.
+		freeze->clear();
+		if (isClipActive && playbackHandler.isEitherClockActive()) {
+			auto* stack = modelStack->addTimelineCounter(clip);
+			clip->resumeAfterFreeze(stack);
+		}
+	}
+
+	if (freeze && freeze->enabled() && !freeze->validFor(*clip)) {
+		freeze->clear();
+	}
+	const bool capturing = freeze && freeze->capturing();
+	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
+	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
+	auto renderBuffer = output;
+	auto* renderReverb = reverbBuffer;
+	if (capturing) {
+		std::fill_n(freezeAudio, output.size(), StereoSample{0, 0});
+		std::fill_n(freezeReverb, output.size(), 0);
+		renderBuffer = {freezeAudio, output.size()};
+		renderReverb = freezeReverb;
+	}
+
 	if (skippingRendering) {
 		compressor.reset();
 		compressor.gainReduction = 0;
 	}
 	else {
-		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
-		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+		Sound::render(modelStackWithThreeMainThings, renderBuffer, renderReverb, sideChainHitPending,
+		              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+	}
+
+	if (capturing) {
+		freeze->capture(renderBuffer, {renderReverb, output.size()});
+		for (size_t i = 0; i < output.size(); ++i) {
+			output[i] += renderBuffer[i];
+			reverbBuffer[i] += renderReverb[i];
+		}
 	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
@@ -376,6 +415,13 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 	if (!inValidState) {
 		return;
 	}
+	if (isOn && activeClip && static_cast<InstrumentClip*>(activeClip)->freeze
+	    && static_cast<InstrumentClip*>(activeClip)->freeze->playing()) {
+		if (sideChainSendLevel) {
+			AudioEngine::registerSideChainHit(sideChainSendLevel);
+		}
+		return;
+	}
 
 	if (isOn) {
 		noteOn(modelStack, &arpeggiator, noteCode, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
@@ -412,7 +458,9 @@ void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
 
 // Returns num ticks til next arp event
 int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) {
+	if (!activeClip
+	    || (static_cast<InstrumentClip*>(activeClip)->freeze
+	        && static_cast<InstrumentClip*>(activeClip)->freeze->playing())) {
 		return 2147483647;
 	}
 

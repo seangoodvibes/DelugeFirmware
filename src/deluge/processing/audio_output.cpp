@@ -22,6 +22,7 @@
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip_freeze.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -29,6 +30,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
@@ -98,9 +100,47 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
+	auto* clip = static_cast<AudioClip*>(activeClip);
+	auto* freeze = clip ? clip->freeze : nullptr;
+	// Track recording taps before final volume/pan/compression. Preserve that tap,
+	// and never replace live monitoring or overdubbing with cached audio.
+	if (freeze && freeze->enabled()
+	    && (!clip->freezeAvailable() || !freeze->validFor(*clip) || recorder || stemExport.processStarted)) {
+		clip->setFrozen(false, modelStackWithTimelineCounter);
+	}
+	if (freeze && freeze->playing()) {
+		if (isClipActive && playbackHandler.isEitherClockActive()
+		    && freeze->render(output, {reverbBuffer, output.size()})) {
+			return;
+		}
+		freeze->clear();
+		if (isClipActive && playbackHandler.isEitherClockActive()) {
+			clip->setPosForParamManagers(modelStackWithTimelineCounter, true);
+			clip->resumePlayback(modelStackWithTimelineCounter);
+		}
+	}
+	const bool capturing = freeze && freeze->capturing();
+	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
+	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
+	auto mixedOutput = output;
+	auto* mixedReverb = reverbBuffer;
+	if (capturing) {
+		std::fill_n(freezeAudio, output.size(), StereoSample{0, 0});
+		std::fill_n(freezeReverb, output.size(), 0);
+		output = {freezeAudio, output.size()};
+		reverbBuffer = freezeReverb;
+	}
+
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
 	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
 	                                      isClipActive, OutputType::AUDIO, recorder);
+	if (capturing) {
+		freeze->capture(output, {reverbBuffer, output.size()});
+		for (size_t i = 0; i < output.size(); ++i) {
+			mixedOutput[i] += output[i];
+			mixedReverb[i] += reverbBuffer[i];
+		}
+	}
 }
 
 void AudioOutput::resetEnvelope() {
@@ -296,6 +336,9 @@ bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
 
 void AudioOutput::cutAllSound() {
 	if (activeClip) {
+		if (auto* freeze = static_cast<AudioClip*>(activeClip)->freeze) {
+			freeze->pause();
+		}
 		((AudioClip*)activeClip)->unassignVoiceSample(false);
 		((AudioClip*)activeClip)->abortRecording(); // Needed for when this is being called as part of a song-swap - we
 		                                            // can't leave recording happening in such a case.
@@ -432,6 +475,9 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 	if (activeClip
 	    && (!modelStack || activeClip != modelStack->getTimelineCounter()
 	        || (playbackHandler.playbackState && currentPlaybackMode == &arrangement))) {
+		if (auto* freeze = static_cast<AudioClip*>(activeClip)->freeze) {
+			freeze->pause();
+		}
 		((AudioClip*)activeClip)->unassignVoiceSample(false);
 	}
 	bool clipChanged = Output::setActiveClip(modelStack, maySendMIDIPGMs);
@@ -444,7 +490,11 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 }
 
 bool AudioOutput::isSkippingRendering() {
-	return mode == AudioOutputMode::player && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
+	return mode == AudioOutputMode::player
+	       && (!activeClip
+	           || (!static_cast<AudioClip*>(activeClip)->voiceSample
+	               && !(static_cast<AudioClip*>(activeClip)->freeze
+	                    && static_cast<AudioClip*>(activeClip)->freeze->playing())));
 }
 
 void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,

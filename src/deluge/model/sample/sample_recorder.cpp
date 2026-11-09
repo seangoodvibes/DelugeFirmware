@@ -247,6 +247,7 @@ gotError:
 	int32_t lengthSamples = lengthSec * sample->sampleRate;
 	audioDataLengthBytesAsWrittenToFile = lengthSamples * 3 * recordingNumChannels;
 
+	forceStereoRendering = config.forceStereoRendering;
 	setRecordingThreshold(config);
 
 	// Riff chunk -------------------------------------------------------

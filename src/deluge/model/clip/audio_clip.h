@@ -29,6 +29,7 @@
 #include "util/d_string.h"
 
 class VoiceSample;
+class ClipFreeze;
 class SampleRecorder;
 class ModelStackWithTimelineCounter;
 
@@ -36,6 +37,9 @@ class AudioClip final : public Clip {
 public:
 	AudioClip();
 	~AudioClip() override;
+	ClipFreeze* freeze = nullptr;
+	Error setFrozen(bool enabled, ModelStackWithTimelineCounter* modelStack);
+	bool freezeAvailable();
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) override;
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
 	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;

@@ -28,6 +28,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/clip_freeze.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/gate_drum.h"
@@ -678,6 +679,38 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
+	auto* clip = static_cast<InstrumentClip*>(activeClip);
+	auto* freeze = clip ? clip->freeze : nullptr;
+	// Kit recording taps before pan/compression/volume, and drum stems need isolated rows.
+	// Restore the live graph for those operations rather than record/export the final cached mix.
+	if (freeze && freeze->enabled() && (recorder || stemExport.processStarted)) {
+		clip->setFrozen(false, modelStackWithTimelineCounter);
+	}
+	if (freeze && freeze->playing()) {
+		if (isClipActive && playbackHandler.isEitherClockActive() && freeze->validFor(*clip)
+		    && freeze->render(output, {reverbBuffer, output.size()})) {
+			return;
+		}
+		freeze->clear();
+		if (isClipActive && playbackHandler.isEitherClockActive()) {
+			clip->resumeAfterFreeze(modelStackWithTimelineCounter);
+		}
+	}
+	if (freeze && freeze->enabled() && !freeze->validFor(*clip)) {
+		freeze->clear();
+	}
+	const bool capturing = freeze && freeze->capturing();
+	static StereoSample freezeAudio[SSI_TX_BUFFER_NUM_SAMPLES];
+	static int32_t freezeReverb[SSI_TX_BUFFER_NUM_SAMPLES];
+	auto mixedOutput = output;
+	auto* mixedReverb = reverbBuffer;
+	if (capturing) {
+		std::fill_n(freezeAudio, output.size(), StereoSample{0, 0});
+		std::fill_n(freezeReverb, output.size(), 0);
+		output = {freezeAudio, output.size()};
+		reverbBuffer = freezeReverb;
+	}
+
 	// Kit arp, get arp settings, perform setup and render arp pre-output
 	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
 
@@ -701,6 +734,13 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 
 	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
 	renderNonAudioArpPostOutput(output);
+	if (capturing) {
+		freeze->capture(output, {reverbBuffer, output.size()});
+		for (size_t i = 0; i < output.size(); ++i) {
+			mixedOutput[i] += output[i];
+			mixedReverb[i] += reverbBuffer[i];
+		}
+	}
 }
 
 void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
@@ -1132,7 +1172,9 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 // Returns num ticks til next arp event
 int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) {
+	if (!activeClip
+	    || (static_cast<InstrumentClip*>(activeClip)->freeze
+	        && static_cast<InstrumentClip*>(activeClip)->freeze->playing())) {
 		return 2147483647;
 	}
 
@@ -1289,6 +1331,14 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
                           int16_t const* mpeValues, int32_t fromMIDIChannel, uint32_t sampleSyncLength,
                           int32_t ticksLate, uint32_t samplesLate) {
+	if (activeClip && static_cast<InstrumentClip*>(activeClip)->freeze
+	    && static_cast<InstrumentClip*>(activeClip)->freeze->playing()) {
+		// Sequencing continues while frozen: retain sidechain sends without allocating audio voices.
+		if (drum->type == DrumType::SOUND && static_cast<SoundDrum*>(drum)->sideChainSendLevel) {
+			AudioEngine::registerSideChainHit(static_cast<SoundDrum*>(drum)->sideChainSendLevel);
+		}
+		return;
+	}
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction kitInstruction;
 	// Run everything by the Kit Arp...

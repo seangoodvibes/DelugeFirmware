@@ -48,6 +48,8 @@ class AudioClip;
 class Output;
 struct RecorderConfig {
 	bool neverUseThreshold = false;
+	// Render caches preserve the existing output mode; ordinary internal recordings request stereo.
+	bool forceStereoRendering = true;
 };
 
 class SampleRecorder {
@@ -103,6 +105,7 @@ public:
 
 	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
 	AudioInputChannel mode;
+	bool forceStereoRendering = true;
 	Output* outputRecordingFrom; // for when recording from a specific output
 	// A looper overdub - outputRecordingFrom's own clip is recording it, so the clip's audio comes round every pass
 	bool recordingOwnClip = false;
