@@ -46,6 +46,10 @@ class ParamNode;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 
+namespace deluge::gui::menu_item::note {
+class Placement;
+}
+
 struct EditPadPress {
 	bool isActive;
 	uint8_t yDisplay;
@@ -61,6 +65,7 @@ struct EditPadPress {
 	StolenParamNodes stolenMPE[kNumExpressionDimensions];
 	uint32_t intendedPos;    // For "blurred squares", means start of square
 	uint32_t intendedLength; // For "blurred squares", means length of square
+	int32_t nudgeBasePos{};  // Absolute grid origin for a released note's nudge display.
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
@@ -70,6 +75,8 @@ static constexpr const char* PATTERN_FILE_VERSION = "0.0.1";
 enum class NudgeMode { QUANTIZE, QUANTIZE_ALL };
 
 class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
+	friend class deluge::gui::menu_item::note::Placement;
+
 public:
 	InstrumentClipView();
 	bool opened() override;
@@ -300,7 +307,7 @@ public:
 	                              bool allowTogglingBetweenPresetsAndCustom = true);
 
 	// other note functions
-	void editNoteRepeat(int32_t offset);
+	int32_t editNoteRepeat(int32_t offset, bool displayValue = true);
 
 	// pulse selected note
 	void pulseSelectedNote();
@@ -371,7 +378,11 @@ private:
 	std::array<RGB, kDisplayHeight> rowBlurColour;
 
 	// note functions
-	void nudgeNotes(int32_t offset);
+	void nudgeNotes(int32_t offset, bool displayValue = true, int32_t* value = nullptr);
+	void moveNotePosition(int32_t offset);
+	void moveNotePitch(int32_t offset);
+	void moveNotePlacement(int32_t offset, bool pitch);
+	void moveHeldNotesHorizontally(int32_t offset, ModelStackWithTimelineCounter* modelStack);
 	void displayProbability(uint8_t probability, bool prevBase);
 	void displayIterance(Iterance iterance);
 	void displayFill(uint8_t mode);

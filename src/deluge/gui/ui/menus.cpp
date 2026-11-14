@@ -134,6 +134,7 @@
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
 #include "gui/menu_item/note/iterance_step_toggle.h"
+#include "gui/menu_item/note/placement.h"
 #include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
@@ -1633,6 +1634,16 @@ PLACE_SDRAM_BSS menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE
 PLACE_SDRAM_BSS menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
 PLACE_SDRAM_BSS menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 
+using NotePlacement = menu_item::note::Placement;
+PLACE_SDRAM_BSS NotePlacement notePositionMenu{STRING_FOR_NOTE_POSITION, STRING_FOR_NOTE_EDITOR_POSITION,
+                                               NotePlacement::Kind::POSITION};
+PLACE_SDRAM_BSS NotePlacement noteNudgeMenu{STRING_FOR_NOTE_NUDGE, STRING_FOR_NOTE_EDITOR_NUDGE,
+                                            NotePlacement::Kind::NUDGE};
+PLACE_SDRAM_BSS NotePlacement noteRepeatsMenu{STRING_FOR_NOTE_REPEATS, STRING_FOR_NOTE_EDITOR_REPEATS,
+                                              NotePlacement::Kind::REPEATS};
+PLACE_SDRAM_BSS NotePlacement notePitchMenu{STRING_FOR_NOTE_PITCH, STRING_FOR_NOTE_EDITOR_PITCH,
+                                            NotePlacement::Kind::PITCH};
+
 // Root menu for Note Editor
 PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                   {
@@ -1640,7 +1651,12 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteProbabilityMenu,
                                                       &noteIteranceMenu,
                                                       &noteFillMenu,
-                                                  }};
+                                                      &notePositionMenu,
+                                                      &noteNudgeMenu,
+                                                      &noteRepeatsMenu,
+                                                      &notePitchMenu,
+                                                  },
+                                                  HorizontalMenu::FIXED};
 
 PLACE_SDRAM_BSS menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
 PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,

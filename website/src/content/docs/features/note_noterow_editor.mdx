@@ -34,6 +34,17 @@ You can select another note by pressing the note (:key[PAD]) on the grid. You ca
 
 You can vertical scroll (:key[TURN VERTICAL]), horizontal scroll (:key[TURN HORIZONTAL]), and zoom in / out (:key[PRESS TURN HORIZONTAL]) to find note(s) you want to edit.
 
+### Note Position, Nudge, Repeats and Pitch
+
+With horizontal menus enabled, the note editor has two pages. Press Cross Screen Edit to go to the next page, or Scale to go to the previous page. The first page contains Velocity, Probability, Iterance and Fill. The second page contains:
+
+- **Note Position:** the one-based grid column counted from the beginning of the clip at the current zoom. Turn Select to move the selected note(s) by grid columns. The selection keeps its spacing and note lengths, skips occupied positions as a group, and stops if no clear placement exists before a note row's loop boundary.
+- **Note Nudge:** the timing offset shown by the Hold Note + Press and Turn Horizontal shortcut. Turn Select to nudge left or right by one tick.
+- **Note Repeats:** the number of notes in the selected grid square, as shown by Hold Note + Press and Turn Vertical. Turn Select to decrease or increase it. Select one square at a time for this control; multiple selected squares show `--`.
+- **Note Pitch:** the selected note's code (for example, C3), or its row index in a kit. Turn Select to move up or down using the same scale and row behavior as holding a note and turning Vertical.
+
+Use Synth, Kit, MIDI and CV to select the four columns, then turn Select to edit. These controls also work after releasing the selected pads. Position and Pitch move individual notes; as with the vertical shortcut, zoom in to select individual notes within a blurred square before moving them. The same controls are available in the vertical menu when horizontal menus are disabled.
+
 ### Note Actions
 
 While in the note editing menu with a note selected, you are able to perform other functions as if you were holding that note, including:

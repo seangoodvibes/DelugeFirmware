@@ -38,6 +38,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/note_edit_math.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -3798,6 +3799,7 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 					remembered_note = {};
 					remembered_note.isActive = true;
 					remembered_note.intendedPos = press.intendedPos;
+					remembered_note.nudgeBasePos = getPosFromSquare(press.xDisplay);
 					remembered_note.intendedLength = press.intendedLength;
 					remembered_note.isBlurredSquare = press.isBlurredSquare;
 					remembered_note_row_ids[selection_index] = row_stack->noteRowId;
@@ -3851,8 +3853,8 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// to allow you to switch between items in horizontal menu
-	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+	// Route horizontal-menu item selection and page navigation to the menu.
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV, SCALE_MODE, CROSS_SCREEN_EDIT})) {
 		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
 	}
 
@@ -7010,31 +7012,34 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 }
 
 // Supply offset as 0 to just popup number, not change anything
-void InstrumentClipView::editNoteRepeat(int32_t offset) {
+int32_t InstrumentClipView::editNoteRepeat(int32_t offset, bool displayValue) {
 
-	shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
-
-	if (numEditPadPresses != 1) {
-		return; // Yup, you're only allowed to do this with one press at a time.
+	if (displayValue) {
+		shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 	}
-
-	int32_t i;
-	for (i = 0; i < kEditPadPressBufferSize; i++) {
-		if (editPadPresses[i].isActive) {
-			break;
+	auto targets = get_note_edit_targets();
+	EditPadPress* selected = nullptr;
+	for (auto& target : targets) {
+		if (target.isActive) {
+			if (selected) {
+				return 0; // As with the shortcut, repeats require a single selected square.
+			}
+			selected = &target;
 		}
 	}
-
+	if (!selected) {
+		return 0;
+	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* currentClip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	ModelStackWithNoteRow* modelStackWithNoteRow =
-	    currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+	ModelStackWithNoteRow* modelStackWithNoteRow = get_note_edit_row(modelStack, *selected);
 
-	int32_t squareStart = getPosFromSquare(editPadPresses[i].xDisplay);
-	int32_t squareWidth = getSquareWidth(editPadPresses[i].xDisplay, modelStackWithNoteRow->getLoopLength());
+	int32_t square = displayValue && numEditPadPresses ? selected->xDisplay : getSquareFromPos(selected->intendedPos);
+	int32_t squareStart = getPosFromSquare(square);
+	int32_t squareWidth = getSquareWidth(square, modelStackWithNoteRow->getLoopLength());
 
 	int32_t searchTerms[2];
 	searchTerms[0] = squareStart;
@@ -7051,7 +7056,10 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 	}
 
 	else {
-		editPadPresses[i].isBlurredSquare = true; // It's (probably) blurred now - better remember that.
+		selected->intendedPos = squareStart;
+		selected->intendedLength = squareWidth;
+		selected->deleteOnDepress = false;
+		selected->isBlurredSquare = true; // It's (probably) blurred now - better remember that.
 
 		// See if we can do a "secret UNDO".
 		Action* lastAction = actionLogger.firstAction[BEFORE];
@@ -7078,6 +7086,9 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 		currentClip->expectEvent();
 	}
 
+	if (!displayValue) {
+		return newNumNotes;
+	}
 	if (display->haveOLED()) {
 		char buffer[20];
 		strcpy(buffer, "Note repeats: ");
@@ -7089,6 +7100,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 		intToString(newNumNotes, buffer);
 		display->displayPopup(buffer, 0, true);
 	}
+	return newNumNotes;
 }
 
 // GCC doesn't like the MODEL_STACK_MAX_SIZE on the stack
@@ -7096,7 +7108,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 #pragma GCC diagnostic ignored "-Wstack-usage="
 
 // Supply offset as 0 to just popup number, not change anything
-void InstrumentClipView::nudgeNotes(int32_t offset) {
+void InstrumentClipView::nudgeNotes(int32_t offset, bool displayValue, int32_t* value) {
 	// moveRegionHorizontally (called via nudgeAutomationHorizontallyAtPos) assumes |offset| == 1 in its
 	// wrap-region path, so clamp here to keep notes and automation in sync.
 	offset = std::clamp(offset, (int32_t)-1, (int32_t)1);
@@ -7104,11 +7116,44 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 	// if we're in note row editor and we nudge a note we're holding
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
 
-	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
+	if (displayValue) {
+		shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
+	}
+	auto targets = get_note_edit_targets();
+	int32_t targetCount =
+	    std::count_if(targets.begin(), targets.end(), [](const auto& target) { return target.isActive; });
+	if (!targetCount) {
+		if (value) {
+			*value = 0;
+		}
+		return;
+	}
+
+	if (!offset && !displayValue) {
+		const EditPadPress* selected = nullptr;
+		for (const auto& target : targets) {
+			if (target.isActive && (!selected || target.intendedPos < selected->intendedPos)) {
+				selected = &target;
+			}
+		}
+		char memory[MODEL_STACK_MAX_SIZE];
+		auto* stack = currentSong->setupModelStackWithCurrentClip(memory);
+		auto* row = get_note_edit_row(stack, *selected);
+		int32_t square = numEditPadPresses ? selected->xDisplay : getSquareFromPos(selected->nudgeBasePos);
+		int32_t result = selected->intendedPos - getPosFromSquare(square);
+		bool offsetFromNextSquare = offsettingNudgeNumberDisplay;
+		result = deluge::gui::noteNudgeDisplayOffset(result, getCurrentInstrumentClip()->loopLength,
+		                                             getSquareWidth(square, row->getLoopLength()),
+		                                             doneAnyNudgingSinceFirstEditPadPress, offsetFromNextSquare);
+		if (value) {
+			*value = result;
+		}
+		return;
+	}
 
 	// If just popping up number, but multiple presses, we're quite limited with what intelligible stuff we can
 	// display
-	if (!offset && numEditPadPresses > 1) {
+	if (!offset && displayValue && targetCount > 1) {
 		return;
 	}
 
@@ -7143,24 +7188,21 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 	modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
 	// For each note / pad held down...
-	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-		if (editPadPresses[i].isActive) {
-			editPadPresses[i].deleteOnDepress = false;
+	for (auto& target : targets) {
+		if (target.isActive) {
+			target.deleteOnDepress = false;
 
-			if (offset) {
-				editPadPresses[i].isBlurredSquare = true; // So it doesn't get dragged along with a vertical scroll
+			if (offset && displayValue && numEditPadPresses) {
+				target.isBlurredSquare = true; // So it doesn't get dragged along with a vertical scroll
 			}
 
-			int32_t noteRowIndex;
-			noteRow = currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
-			noteRowId = currentClip->getNoteRowId(noteRow, noteRowIndex);
-
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    modelStackWithTimelineCounter->addNoteRow(noteRowId, noteRow);
+			ModelStackWithNoteRow* modelStackWithNoteRow = get_note_edit_row(modelStackWithTimelineCounter, target);
+			noteRow = modelStackWithNoteRow->getNoteRow();
+			noteRowId = modelStackWithNoteRow->noteRowId;
 
 			int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
 
-			newPos = editPadPresses[i].intendedPos + offset;
+			newPos = target.intendedPos + offset;
 			if (newPos < 0) {
 				newPos += noteRowEffectiveLength;
 			}
@@ -7189,19 +7231,19 @@ doSearch:
 doCompareNote:
 						Note* note = noteRow->notes.getElement(n);
 						if (note && note->pos == newPos) {
-							newPos = editPadPresses[i].intendedPos; // Make it so the below code just displays the
-							                                        // already existing offset
+							newPos = target.intendedPos; // Make it so the below code just displays the
+							                             // already existing offset
 							gotCollision = true;
 						}
 					}
 				}
 				else { // Nudging left
-					if (editPadPresses[i].intendedPos == 0) {
+					if (target.intendedPos == 0) {
 						n = noteRow->notes.getNumElements();
 						goto doCompareNote;
 					}
 					else {
-						searchBoundary = editPadPresses[i].intendedPos;
+						searchBoundary = target.intendedPos;
 						searchDirection = LESS;
 						goto doSearch;
 					}
@@ -7210,7 +7252,7 @@ doCompareNote:
 
 			if (!foundOne) {
 				foundOne = true;
-				xDisplay = editPadPresses[i].xDisplay;
+				xDisplay = numEditPadPresses ? target.xDisplay : getSquareFromPos(target.nudgeBasePos);
 				int32_t squareStart = getPosFromSquare(xDisplay);
 				resultingTotalOffset = newPos - squareStart;
 				if (!offset) {
@@ -7219,11 +7261,10 @@ doCompareNote:
 			}
 
 			if (!gotCollision) {
-				int32_t distanceTilNext =
-				    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
+				int32_t distanceTilNext = noteRow->getDistanceToNextNote(target.intendedPos, modelStackWithNoteRow);
 
-				Error error = noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-				                                                  action, currentClip->getWrapEditLevel(), offset);
+				Error error = noteRow->nudgeNotesAcrossAllScreens(target.intendedPos, modelStackWithNoteRow, action,
+				                                                  currentClip->getWrapEditLevel(), offset);
 				if (error != Error::NONE) {
 					display->displayError(error);
 					return;
@@ -7231,10 +7272,10 @@ doCompareNote:
 
 				// if you do any nudging, the square info we saved previously will be out of date
 				if (inNoteRowEditor) {
-					int32_t yDisplay = editPadPresses[i].yDisplay;
+					int32_t yDisplay = target.yDisplay;
 					noteRow->getRowSquareInfo(modelStackWithNoteRow->getLoopLength(), gridSquareInfo[yDisplay]);
 					if (soundEditor.getCurrentMenuItem() != &noteRowEditorRootMenu) {
-						int32_t xDisplay = editPadPresses[i].xDisplay;
+						int32_t xDisplay = numEditPadPresses ? target.xDisplay : getSquareFromPos(target.nudgeBasePos);
 						// if the note is no longer in the square we're pressing,
 						// go back up a level to row editor
 						if (!gridSquareInfo[yDisplay][xDisplay].firstNote) {
@@ -7254,8 +7295,8 @@ doCompareNote:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
 					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 					noteRow->paramManager.nudgeAutomationHorizontallyAtPos(
-					    editPadPresses[i].intendedPos, offset, modelStackWithThreeMainThingsForNoteRow->getLoopLength(),
-					    action, modelStackWithThreeMainThingsForNoteRow, nudgeAutomation, nudgeMPE, distanceTilNext);
+					    target.intendedPos, offset, modelStackWithThreeMainThingsForNoteRow->getLoopLength(), action,
+					    modelStackWithThreeMainThingsForNoteRow, nudgeAutomation, nudgeMPE, distanceTilNext);
 				}
 
 				// WARNING! A bit dodgy, but at this stage, we can no longer refer to modelStackWithNoteRow, cos
@@ -7268,15 +7309,15 @@ doCompareNote:
 					    modelStackWithTimelineCounter->addOtherTwoThingsButNoNoteRow(
 					        currentClip->output->toModControllable(), &currentClip->paramManager);
 					currentClip->paramManager.nudgeAutomationHorizontallyAtPos(
-					    editPadPresses[i].intendedPos, offset, lengthBeforeLoop, action, modelStackWithThreeMainThings,
+					    target.intendedPos, offset, lengthBeforeLoop, action, modelStackWithThreeMainThings,
 					    nudgeAutomation, nudgeMPE);
 				}
 
-				editPadPresses[i].intendedPos = newPos;
+				target.intendedPos = newPos;
 				didAnySuccessfulNudging = true;
 			}
 			else {
-				newPos = editPadPresses[i].intendedPos;
+				newPos = target.intendedPos;
 			}
 		}
 	}
@@ -7290,7 +7331,7 @@ doCompareNote:
 	    modelStack->addTimelineCounter(currentClip); // Can finally do this since we're not going to use the bare
 	                                                 // ModelStack for anything else
 
-	if (numEditPadPresses > 1) {
+	if (targetCount > 1 && displayValue) {
 		if (!didAnySuccessfulNudging) {
 			return; // Don't want to see these "multiple pads moved" messages if in fact none were moved
 		}
@@ -7303,32 +7344,10 @@ doCompareNote:
 	}
 
 	else {
-		if (resultingTotalOffset >= (currentClip->loopLength >> 1)) {
-			resultingTotalOffset -= currentClip->loopLength;
-		}
-		else if (resultingTotalOffset <= -(currentClip->loopLength >> 1)) {
-			resultingTotalOffset += currentClip->loopLength;
-		}
-
-		if (resultingTotalOffset > 0) {
-
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    modelStackWithTimelineCounter->addNoteRow(noteRowId, noteRow);
-
-			int32_t squareWidth = getSquareWidth(xDisplay, modelStackWithNoteRow->getLoopLength());
-			if (resultingTotalOffset > (squareWidth >> 1)) {
-				if (!doneAnyNudgingSinceFirstEditPadPress) {
-					offsettingNudgeNumberDisplay = true;
-				}
-			}
-			else {
-				offsettingNudgeNumberDisplay = false;
-			}
-
-			if (offsettingNudgeNumberDisplay) {
-				resultingTotalOffset -= squareWidth;
-			}
-		}
+		auto* rowStack = modelStackWithTimelineCounter->addNoteRow(noteRowId, noteRow);
+		resultingTotalOffset = deluge::gui::noteNudgeDisplayOffset(
+		    resultingTotalOffset, currentClip->loopLength, getSquareWidth(xDisplay, rowStack->getLoopLength()),
+		    doneAnyNudgingSinceFirstEditPadPress, offsettingNudgeNumberDisplay);
 
 		if (display->haveOLED()) {
 			strcpy(buffer, "Note nudge: ");
@@ -7350,11 +7369,16 @@ doCompareNote:
 		}
 	}
 
-	if (display->haveOLED()) {
-		display->popupTextTemporary(message);
+	if (value) {
+		*value = resultingTotalOffset;
 	}
-	else {
-		display->displayPopup(message, 0, alignRight);
+	if (displayValue) {
+		if (display->haveOLED()) {
+			display->popupTextTemporary(message);
+		}
+		else {
+			display->displayPopup(message, 0, alignRight);
+		}
 	}
 
 	doneAnyNudgingSinceFirstEditPadPress = true; // Even if we didn't actually nudge, we want to record this for the
@@ -7365,7 +7389,7 @@ doCompareNote:
 	}
 
 	// If multiple presses, just abandon the mod region
-	if (numEditPadPresses > 1) {
+	if (targetCount > 1) {
 abandonModRegion:
 		view.setModRegion();
 	}
@@ -8416,4 +8440,165 @@ void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
 	noteRowFlashOn = !noteRowFlashOn;
 	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
 	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
+}
+
+// Move notes in grid steps; fine timing is edited separately with Note Nudge.
+void InstrumentClipView::moveNotePosition(int32_t offset) {
+	moveNotePlacement(offset, false);
+}
+
+void InstrumentClipView::moveNotePitch(int32_t offset) {
+	moveNotePlacement(offset, true);
+}
+
+void InstrumentClipView::moveHeldNotesHorizontally(int32_t offset, ModelStackWithTimelineCounter* modelStack) {
+	auto* clip = getCurrentInstrumentClip();
+	std::array<deluge::gui::NoteMoveRegion, kEditPadPressBufferSize> regions;
+	int32_t count = 0;
+	for (const auto& press : editPadPresses) {
+		if (!press.isActive) {
+			continue;
+		}
+		// Do not move only part of a selection, or a press whose source no longer exists.
+		if (press.isBlurredSquare || !press.deleteOnScroll) {
+			return;
+		}
+		auto* rowStack = clip->getNoteRowOnScreen(press.yDisplay, modelStack);
+		auto* row = rowStack->getNoteRowAllowNull();
+		if (!row) {
+			return;
+		}
+		auto* note = row->notes.getElement(row->notes.search(press.intendedPos, GREATER_OR_EQUAL));
+		if (!note || note->pos != press.intendedPos) {
+			return;
+		}
+		regions[count++] = {press.yDisplay, note->pos, note->length, rowStack->getLoopLength()};
+	}
+	std::span<const deluge::gui::NoteMoveRegion> selected{regions.data(), static_cast<size_t>(count)};
+	int32_t displacement =
+	    deluge::gui::findNoteGridMove(selected, offset, currentSong->xZoom[NAVIGATION_CLIP], [&](auto visit) {
+		    uint32_t visitedRows = 0;
+		    for (const auto& region : selected) {
+			    if (visitedRows & (1u << region.row)) {
+				    continue;
+			    }
+			    visitedRows |= 1u << region.row;
+			    auto* row = clip->getNoteRowOnScreen(region.row, currentSong);
+			    for (int32_t i = 0; i < row->notes.getNumElements(); ++i) {
+				    auto* note = row->notes.getElement(i);
+				    bool moving = std::any_of(selected.begin(), selected.end(), [&](const auto& source) {
+					    return source.row == region.row && source.position == note->pos;
+				    });
+				    if (!moving) {
+					    visit(deluge::gui::NoteMoveRegion{region.row, note->pos, note->length, region.loopLength});
+				    }
+			    }
+		    }
+	    });
+	if (!displacement) {
+		return; // No deletion, MPE changes or undo action until the whole shape fits.
+	}
+
+	// Every destination is clear for the complete note length. Reuse the held-note
+	// move path for MPE and undo, removing all sources before placing destinations.
+	for (auto& press : editPadPresses) {
+		if (press.isActive) {
+			auto* row = clip->getNoteRowOnScreen(press.yDisplay, currentSong);
+			auto* note = row->notes.getElement(row->notes.search(press.intendedPos, GREATER_OR_EQUAL));
+			press.intendedLength = note->length;
+		}
+	}
+	scrollVertical_grabNotesPressed(modelStack, clip);
+	for (auto& press : editPadPresses) {
+		if (press.isActive) {
+			press.intendedPos += displacement;
+		}
+	}
+	scrollVertical_placeNotesPressed(modelStack, clip, clip->output->type == OutputType::KIT);
+	clip->expectEvent();
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+}
+
+void InstrumentClipView::moveNotePlacement(int32_t offset, bool pitch) {
+	if (!offset) {
+		return;
+	}
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	auto* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	if (numEditPadPresses) {
+		if (pitch) {
+			scrollVertical(offset, false, false, modelStack);
+		}
+		else {
+			moveHeldNotesHorizontally(offset, modelStack);
+		}
+		return;
+	}
+
+	// Rehydrate released selections as presses so pitch uses the exact same note,
+	// scale, kit, collision and MPE handling as holding pads and turning vertical.
+	auto targets = get_note_edit_targets();
+	if (!pitch && std::any_of(targets.begin(), targets.end(), [](const auto& target) {
+		    return target.isActive && target.isBlurredSquare;
+	    })) {
+		return;
+	}
+	auto* clip = getCurrentInstrumentClip();
+	int32_t lowest = INT32_MAX;
+	int32_t highest = INT32_MIN;
+	for (int32_t i = 0; i < remembered_note_count; ++i) {
+		if (!targets[i].isActive || targets[i].isBlurredSquare) {
+			continue; // The vertical shortcut also cannot drag blurred squares.
+		}
+		int32_t visual = clip->output->type == OutputType::KIT
+		                     ? remembered_note_row_ids[i]
+		                     : clip->getYVisualFromYNote(remembered_note_row_ids[i], currentSong);
+		lowest = std::min(lowest, visual);
+		highest = std::max(highest, visual);
+	}
+	if (lowest == INT32_MAX || highest - lowest >= kDisplayHeight) {
+		return;
+	}
+	clip->yScroll = std::clamp<int32_t>(clip->yScroll, highest - kDisplayHeight + 1, lowest);
+	for (int32_t i = 0; i < remembered_note_count; ++i) {
+		if (!targets[i].isActive || targets[i].isBlurredSquare) {
+			continue;
+		}
+		auto& press = editPadPresses[i];
+		press = targets[i];
+		press.yDisplay =
+		    (clip->output->type == OutputType::KIT ? remembered_note_row_ids[i]
+		                                           : clip->getYVisualFromYNote(remembered_note_row_ids[i], currentSong))
+		    - clip->yScroll;
+		press.xDisplay = std::clamp<int32_t>(getSquareFromPos(press.intendedPos), 0, kDisplayWidth - 1);
+		press.deleteOnScroll = true;
+		press.deleteOnDepress = false;
+		++numEditPadPresses;
+		++numEditPadPressesPerNoteRowOnScreen[press.yDisplay];
+	}
+	if (pitch) {
+		scrollVertical(offset, false, false, modelStack);
+	}
+	else {
+		moveHeldNotesHorizontally(offset, modelStack);
+	}
+	for (int32_t i = 0; i < remembered_note_count; ++i) {
+		auto& press = editPadPresses[i];
+		if (!press.isActive) {
+			continue;
+		}
+		auto* rowStack = clip->getNoteRowOnScreen(press.yDisplay, modelStack);
+		if (rowStack->getNoteRowAllowNull()) {
+			remembered_note_row_ids[i] = rowStack->noteRowId;
+			remembered_notes[i].intendedPos = press.intendedPos;
+			remembered_notes[i].intendedLength = press.intendedLength;
+			if (!pitch) {
+				remembered_notes[i].nudgeBasePos = getPosFromSquare(getSquareFromPos(press.intendedPos));
+			}
+		}
+		endEditPadPress(i); // Frees any cached MPE nodes owned by the temporary press.
+	}
+	reassessAllAuditionStatus();
+	recalculateColours();
+	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 }
