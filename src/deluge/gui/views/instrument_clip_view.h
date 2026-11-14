@@ -46,6 +46,10 @@ class ParamNode;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 
+namespace deluge::gui {
+class NoteClipboard;
+}
+
 namespace deluge::gui::menu_item::note {
 class Placement;
 }
@@ -76,6 +80,7 @@ enum class NudgeMode { QUANTIZE, QUANTIZE_ALL };
 
 class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
 	friend class deluge::gui::menu_item::note::Placement;
+	friend class deluge::gui::NoteClipboard;
 
 public:
 	InstrumentClipView();

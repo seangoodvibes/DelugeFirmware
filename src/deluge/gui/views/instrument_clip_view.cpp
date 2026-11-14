@@ -38,6 +38,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/note_clipboard.h"
 #include "gui/views/note_edit_math.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -249,6 +250,10 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
+
+	if (b == LEARN && !inCardRoutine) {
+		deluge::gui::noteClipboard.learnButton(on);
+	}
 
 	maybeStartShortcutOverview(b, on);
 
@@ -1905,6 +1910,10 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	if (x < kDisplayWidth) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
+		if (deluge::gui::noteClipboard.shortcutPadAction(x, y, velocity)) {
+			return ActionResult::DEALT_WITH;
 		}
 
 		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad
@@ -3736,6 +3745,7 @@ bool InstrumentClipView::enterNoteEditor() {
 }
 
 void InstrumentClipView::exitNoteEditor() {
+	deluge::gui::noteClipboard.cancelPreview();
 	// if you're exiting the note editor, clear all remembered note edit targets
 	remembered_note_count = 0;
 	// also end all edit pad presses to avoid any stuck notes
@@ -3747,6 +3757,24 @@ void InstrumentClipView::exitNoteEditor() {
 }
 
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
+	if (deluge::gui::noteClipboard.consumePadRelease(x, y, on)) {
+		return;
+	}
+	if (on && deluge::gui::noteClipboard.hasNotes()) {
+		char memory[MODEL_STACK_MAX_SIZE];
+		auto* stack = currentSong->setupModelStackWithCurrentClip(memory);
+		auto* rowStack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, stack);
+		auto* row = rowStack->getNoteRowAllowNull();
+		SquareInfo square{};
+		if (row) {
+			row->getSquareInfo(x, rowStack->getLoopLength(), square);
+		}
+		if (deluge::gui::noteClipboard.isPlacing() || !square.numNotes) {
+			deluge::gui::noteClipboard.previewAt(x, y);
+			return;
+		}
+		deluge::gui::noteClipboard.cancelPreview();
+	}
 	char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* model_stack = currentSong->setupModelStackWithCurrentClip(model_stack_memory);
 	auto* row_stack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, model_stack);
@@ -7630,6 +7658,7 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
 	render_selected_note_pulse(whichRows, image);
+	deluge::gui::noteClipboard.renderPreview(whichRows, image);
 	PadLEDs::renderingLock = false;
 
 	return true;
@@ -8317,6 +8346,7 @@ void InstrumentClipView::pulseSelectedNote() {
 	}
 	updating_note_pulse_directly = true;
 	render_selected_note_pulse(0xFFFFFFFF, PadLEDs::image);
+	deluge::gui::noteClipboard.renderPreview(0xFFFFFFFF, PadLEDs::image);
 	updating_note_pulse_directly = false;
 
 	PadLEDs::sendOutMainPadColours();

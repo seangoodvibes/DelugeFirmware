@@ -64,6 +64,43 @@ int32_t findNoteGridMove(std::span<const NoteMoveRegion> selected, int32_t steps
 	return 0;
 }
 
+// Paste never truncates or wraps a copied note. An existing wrapped tail also
+// occupies the start of its row, even though its note-on lies near the end.
+inline bool notePasteFits(int32_t position, int32_t length, int32_t loopLength) {
+	return position >= 0 && length > 0 && static_cast<int64_t>(position) + length <= loopLength;
+}
+
+inline bool notePasteOverlaps(int32_t position, int32_t length, int32_t otherPosition, int32_t otherLength,
+                              int32_t loopLength) {
+	int64_t end = static_cast<int64_t>(position) + length;
+	int64_t otherEnd = static_cast<int64_t>(otherPosition) + otherLength;
+	return (position < otherEnd && end > otherPosition) || (otherEnd > loopLength && position < otherEnd - loopLength);
+}
+
+// Match NoteRow::attemptNoteAdd: occupied heads are skipped; a new tail stops
+// at the next existing note. Existing notes themselves never change in gentle mode.
+inline int32_t gentleNotePasteLength(int32_t position, int32_t length, int32_t otherPosition, int32_t otherLength,
+                                     int32_t loopLength) {
+	if (notePasteOverlaps(position, 1, otherPosition, otherLength, loopLength)) {
+		return 0;
+	}
+	return otherPosition > position ? std::min(length, otherPosition - position) : length;
+}
+
+inline int32_t noteLengthAfterPasteClear(int32_t position, int32_t length, int32_t loopLength, int32_t clearStart,
+                                         int64_t clearEnd) {
+	if (clearStart >= loopLength || clearEnd <= clearStart) {
+		return length;
+	}
+	if (position >= clearStart && position < clearEnd) {
+		return 0;
+	}
+	if (position < clearStart) {
+		return std::min(length, clearStart - position);
+	}
+	return std::min<int64_t>(length, static_cast<int64_t>(loopLength) + clearStart - position);
+}
+
 // Shared by the shortcut popup and the menu. Pass a copy of offsetFromNextSquare
 // when reading, so rendering does not change the ongoing nudge gesture.
 inline int32_t noteNudgeDisplayOffset(int32_t offset, int32_t loopLength, int32_t squareWidth, bool alreadyNudged,

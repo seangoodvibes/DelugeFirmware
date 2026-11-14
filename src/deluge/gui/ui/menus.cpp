@@ -130,6 +130,7 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/note/clipboard.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
@@ -1644,6 +1645,15 @@ PLACE_SDRAM_BSS NotePlacement noteRepeatsMenu{STRING_FOR_NOTE_REPEATS, STRING_FO
 PLACE_SDRAM_BSS NotePlacement notePitchMenu{STRING_FOR_NOTE_PITCH, STRING_FOR_NOTE_EDITOR_PITCH,
                                             NotePlacement::Kind::PITCH};
 
+using NoteClipboardMenu = menu_item::note::Clipboard;
+PLACE_SDRAM_BSS NoteClipboardMenu noteCutMenu{STRING_FOR_CUT, NoteClipboardMenu::Operation::CUT};
+PLACE_SDRAM_BSS NoteClipboardMenu noteCopyMenu{STRING_FOR_NOTE_COPY, NoteClipboardMenu::Operation::COPY};
+PLACE_SDRAM_BSS NoteClipboardMenu notePasteFirmlyMenu{STRING_FOR_NOTE_PASTE_FIRMLY,
+                                                      NoteClipboardMenu::Operation::PASTE_FIRMLY};
+PLACE_SDRAM_BSS NoteClipboardMenu notePasteGentlyMenu{STRING_FOR_NOTE_PASTE_GENTLY,
+                                                      NoteClipboardMenu::Operation::PASTE_GENTLY};
+PLACE_SDRAM_BSS NoteClipboardMenu noteDeleteMenu{STRING_FOR_DELETE, NoteClipboardMenu::Operation::DELETE};
+
 // Root menu for Note Editor
 PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                   {
@@ -1655,6 +1665,11 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteNudgeMenu,
                                                       &noteRepeatsMenu,
                                                       &notePitchMenu,
+                                                      &noteCutMenu,
+                                                      &noteCopyMenu,
+                                                      &notePasteFirmlyMenu,
+                                                      &notePasteGentlyMenu,
+                                                      &noteDeleteMenu,
                                                   },
                                                   HorizontalMenu::FIXED};
 

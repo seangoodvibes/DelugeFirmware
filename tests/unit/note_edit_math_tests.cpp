@@ -115,3 +115,87 @@ TEST(NoteEditMath, OngoingNudgeDoesNotJumpToNextSquareReference) {
 	CHECK_EQUAL(13, noteNudgeDisplayOffset(13, 96, 24, true, nextSquare));
 	CHECK_FALSE(nextSquare);
 }
+
+TEST(NoteEditMath, PasteRequiresRoomForTheCompleteNote) {
+	CHECK_TRUE(notePasteFits(12, 4, 16));
+	CHECK_FALSE(notePasteFits(13, 4, 16));
+	CHECK_FALSE(notePasteFits(-1, 4, 16));
+	CHECK_FALSE(notePasteFits(0, 0, 16));
+	CHECK_FALSE(notePasteFits(INT32_MAX, INT32_MAX, INT32_MAX));
+}
+
+TEST(NoteEditMath, PasteCanTouchButNotOverlapExistingNotes) {
+	CHECK_FALSE(notePasteOverlaps(4, 4, 0, 4, 32));
+	CHECK_FALSE(notePasteOverlaps(4, 4, 8, 4, 32));
+	CHECK_TRUE(notePasteOverlaps(4, 4, 4, 4, 32));
+	CHECK_TRUE(notePasteOverlaps(4, 4, 2, 4, 32));
+	CHECK_TRUE(notePasteOverlaps(4, 8, 8, 4, 32));
+}
+
+TEST(NoteEditMath, PasteProtectsWrappedTailsAtBeginningOfRow) {
+	CHECK_TRUE(notePasteOverlaps(0, 2, 14, 6, 16));
+	CHECK_TRUE(notePasteOverlaps(3, 2, 14, 6, 16));
+	CHECK_FALSE(notePasteOverlaps(4, 2, 14, 6, 16));
+	CHECK_TRUE(notePasteOverlaps(12, 4, 14, 6, 16));
+}
+
+TEST(NoteEditMath, PasteOverlapMatchesEveryOccupiedTickOnSmallLoops) {
+	for (int loop = 1; loop <= 16; ++loop) {
+		for (int start = 0; start < loop; ++start) {
+			for (int length = 1; length <= loop - start; ++length) {
+				for (int other = 0; other < loop; ++other) {
+					for (int otherLength = 1; otherLength <= loop; ++otherLength) {
+						bool overlaps = false;
+						for (int tick = other; tick < other + otherLength; ++tick) {
+							int occupied = tick % loop;
+							overlaps |= occupied >= start && occupied < start + length;
+						}
+						CHECK_EQUAL(overlaps, notePasteOverlaps(start, length, other, otherLength, loop));
+					}
+				}
+			}
+		}
+	}
+}
+
+TEST(NoteEditMath, GentlePasteSkipsOccupiedStartsAndClipsOnlyNewTails) {
+	CHECK_EQUAL(0, gentleNotePasteLength(4, 8, 2, 4, 32));
+	CHECK_EQUAL(0, gentleNotePasteLength(4, 8, 4, 4, 32));
+	CHECK_EQUAL(4, gentleNotePasteLength(4, 8, 8, 8, 32));
+	CHECK_EQUAL(8, gentleNotePasteLength(4, 8, 0, 4, 32));
+	CHECK_EQUAL(0, gentleNotePasteLength(0, 4, 30, 4, 32));
+}
+
+TEST(NoteEditMath, FirmPasteClearsHeadsAndTrimsTailsWithinItsFootprint) {
+	CHECK_EQUAL(0, noteLengthAfterPasteClear(8, 12, 32, 4, 16));
+	CHECK_EQUAL(4, noteLengthAfterPasteClear(0, 12, 32, 4, 16));
+	CHECK_EQUAL(8, noteLengthAfterPasteClear(16, 8, 32, 4, 16));
+	CHECK_EQUAL(6, noteLengthAfterPasteClear(30, 10, 32, 4, 16));
+	CHECK_EQUAL(2, noteLengthAfterPasteClear(30, 10, 32, 0, 16));
+	CHECK_EQUAL(10, noteLengthAfterPasteClear(30, 10, 32, 36, 40));
+}
+
+TEST(NoteEditMath, GentlePasteAddsOnlyUnoccupiedTicksWithoutChangingExistingNotes) {
+	for (int loop = 1; loop <= 16; ++loop) {
+		for (int start = 0; start < loop; ++start) {
+			for (int length = 1; length <= loop - start; ++length) {
+				for (int other = 0; other < loop; ++other) {
+					for (int otherLength = 1; otherLength <= loop; ++otherLength) {
+						int expected = 0;
+						for (int tick = start; tick < start + length; ++tick) {
+							bool occupied = false;
+							for (int o = other; o < other + otherLength; ++o) {
+								occupied |= o % loop == tick;
+							}
+							if (occupied) {
+								break;
+							}
+							++expected;
+						}
+						CHECK_EQUAL(expected, gentleNotePasteLength(start, length, other, otherLength, loop));
+					}
+				}
+			}
+		}
+	}
+}
