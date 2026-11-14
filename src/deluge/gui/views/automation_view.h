@@ -256,6 +256,8 @@ private:
 	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
 	bool midiCCShortcutsLoaded;
 	bool orderedMIDICCOverview = false;
+	bool secondLayerSoundOverview = false;
+	bool supportsSoundOverviewLayers();
 	uint32_t getMIDICCForAutomation(int32_t x, int32_t y) const;
 
 	bool probabilityChanged;

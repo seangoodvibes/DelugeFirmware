@@ -395,6 +395,17 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
+// Only synths and individual sound drums have sound-parameter shortcut layers.
+bool AutomationView::supportsSoundOverviewLayers() {
+	if (onArrangerView) {
+		return false;
+	}
+	Output* output = getCurrentClip()->output;
+	return output->type == OutputType::SYNTH
+	       || (output->type == OutputType::KIT && !getAffectEntire() && static_cast<Kit*>(output)->selectedDrum
+	           && static_cast<Kit*>(output)->selectedDrum->type == DrumType::SOUND);
+}
+
 // Fill the grid in CC order, reserving the usual X, Y and Z expression shortcuts.
 uint32_t AutomationView::getMIDICCForAutomation(int32_t x, int32_t y) const {
 	if (!orderedMIDICCOverview) {
@@ -549,8 +560,11 @@ void AutomationView::focusRegained() {
 		instrumentClipView.noteRowBlinking = false;
 		// remove patch cable blink frequencies
 		soundEditor.resetSourceBlinks();
-		// Another MIDI clip may have changed the overview page since this clip was last opened.
-		if (!onArrangerView && getCurrentClip()->output->type == OutputType::MIDI_OUT && inAutomationEditor()) {
+		// Another clip may have changed the overview page since this clip was last opened.
+		if (!onArrangerView && inAutomationEditor()
+		    && (getCurrentClip()->output->type == OutputType::MIDI_OUT
+		        || (supportsSoundOverviewLayers()
+		            && getCurrentClip()->lastSelectedParamKind != params::Kind::PATCH_CABLE))) {
 			getLastSelectedParamShortcut(getCurrentClip());
 		}
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
@@ -806,7 +820,14 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 			if (!onArrangerView && (outputType == OutputType::SYNTH || singleSoundDrum)) {
-				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				if (secondLayerSoundOverview) {
+					uint32_t paramID = params::patchedParamShortcutsSecondLayer[xDisplay][yDisplay];
+					if (paramID != kNoParamID) {
+						modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+						                                                    paramID, params::Kind::PATCHED);
+					}
+				}
+				else if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 					modelStackWithParam =
 					    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
 					                                  patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
@@ -1930,14 +1951,23 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 // overview or by using a grid shortcut combo
 void AutomationView::handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
                                               int32_t yDisplay) {
+	if (secondLayerSoundOverview && supportsSoundOverviewLayers()) {
+		uint32_t paramID = params::patchedParamShortcutsSecondLayer[xDisplay][yDisplay];
+		if (paramID == kNoParamID) {
+			return;
+		}
+		clip->lastSelectedParamKind = params::Kind::PATCHED;
+		clip->lastSelectedParamID = paramID;
+		getLastSelectedNonGlobalParamArrayPosition(clip);
+	}
 	// potentially select a regular automatable parameter
-	if (!onArrangerView
-	    && (outputType == OutputType::SYNTH
-	        || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
-	            && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
-	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	        || params::isPatchCableShortcut(xDisplay, yDisplay))) {
+	else if (!onArrangerView
+	         && (outputType == OutputType::SYNTH
+	             || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	                 && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
+	         && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+	             || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+	             || params::isPatchCableShortcut(xDisplay, yDisplay))) {
 		// don't allow automation of portamento in kit's
 		if ((outputType == OutputType::KIT)
 		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
@@ -2320,13 +2350,19 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// MIDI overviews have a shortcut page and a sequential CC page.
+	// Switch between the two overview pages for MIDI, synths and individual sound drums.
 	else if (onAutomationOverview()) {
-		if (!onArrangerView && getCurrentClip()->output->type == OutputType::MIDI_OUT && isNoUIModeActive()
-		    && !Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::button::Y_ENC) && offset != 0) {
-			bool ordered = offset > 0;
-			if (orderedMIDICCOverview != ordered) {
-				orderedMIDICCOverview = ordered;
+		if (!onArrangerView && isNoUIModeActive() && !Buttons::isShiftButtonPressed()
+		    && !Buttons::isButtonPressed(hid::button::Y_ENC) && offset != 0) {
+			bool* secondPage = nullptr;
+			if (getCurrentClip()->output->type == OutputType::MIDI_OUT) {
+				secondPage = &orderedMIDICCOverview;
+			}
+			else if (supportsSoundOverviewLayers()) {
+				secondPage = &secondLayerSoundOverview;
+			}
+			if (secondPage && *secondPage != (offset > 0)) {
+				*secondPage = offset > 0;
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
 		}
@@ -2982,42 +3018,63 @@ int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_
 // used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
 void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 	bool paramShortcutFound = false;
-	for (int32_t x = 0; x < kDisplayWidth; x++) {
-		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (onArrangerView) {
-				if (unpatchedGlobalParamShortcuts[x][y] == currentSong->lastSelectedParamID) {
-					currentSong->lastSelectedParamShortcutX = x;
-					currentSong->lastSelectedParamShortcutY = y;
-					paramShortcutFound = true;
-					break;
+	// Encoder and menu selection can choose a parameter on either shortcut layer.
+	bool soundLayers = supportsSoundOverviewLayers();
+	for (int32_t page = 0; page < (soundLayers ? 2 : 1); page++) {
+		bool secondSoundLayer = secondLayerSoundOverview && soundLayers;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				if (onArrangerView) {
+					if (unpatchedGlobalParamShortcuts[x][y] == currentSong->lastSelectedParamID) {
+						currentSong->lastSelectedParamShortcutX = x;
+						currentSong->lastSelectedParamShortcutY = y;
+						paramShortcutFound = true;
+						break;
+					}
+				}
+				else if (clip->output->type == OutputType::MIDI_OUT) {
+					if (getMIDICCForAutomation(x, y) == clip->lastSelectedParamID) {
+						clip->lastSelectedParamShortcutX = x;
+						clip->lastSelectedParamShortcutY = y;
+						paramShortcutFound = true;
+						break;
+					}
+				}
+				else if (secondSoundLayer) {
+					if (clip->lastSelectedParamKind == params::Kind::PATCHED
+					    && params::patchedParamShortcutsSecondLayer[x][y] == clip->lastSelectedParamID) {
+						clip->lastSelectedParamShortcutX = x;
+						clip->lastSelectedParamShortcutY = y;
+						paramShortcutFound = true;
+						break;
+					}
+				}
+				else {
+					if ((clip->lastSelectedParamKind == params::Kind::PATCHED
+					     && patchedParamShortcuts[x][y] == clip->lastSelectedParamID)
+					    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_SOUND
+					        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
+					    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL
+					        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
+					    || (clip->lastSelectedParamKind == params::Kind::EXPRESSION
+					        && params::expressionParamFromShortcut(x, y) == clip->lastSelectedParamID)) {
+						clip->lastSelectedParamShortcutX = x;
+						clip->lastSelectedParamShortcutY = y;
+						paramShortcutFound = true;
+						break;
+					}
 				}
 			}
-			else if (clip->output->type == OutputType::MIDI_OUT) {
-				if (getMIDICCForAutomation(x, y) == clip->lastSelectedParamID) {
-					clip->lastSelectedParamShortcutX = x;
-					clip->lastSelectedParamShortcutY = y;
-					paramShortcutFound = true;
-					break;
-				}
-			}
-			else {
-				if ((clip->lastSelectedParamKind == params::Kind::PATCHED
-				     && patchedParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_SOUND
-				        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL
-				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == params::Kind::EXPRESSION
-				        && params::expressionParamFromShortcut(x, y) == clip->lastSelectedParamID)) {
-					clip->lastSelectedParamShortcutX = x;
-					clip->lastSelectedParamShortcutY = y;
-					paramShortcutFound = true;
-					break;
-				}
+			if (paramShortcutFound) {
+				break;
 			}
 		}
 		if (paramShortcutFound) {
 			break;
+		}
+		if (soundLayers) {
+			// Try the other page, restoring the original page if neither has a shortcut.
+			secondLayerSoundOverview = !secondLayerSoundOverview;
 		}
 	}
 	if (!paramShortcutFound) {
