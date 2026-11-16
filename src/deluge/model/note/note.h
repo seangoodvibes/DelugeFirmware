@@ -18,6 +18,7 @@
 #pragma once
 
 #include "model/iterance/iterance.h"
+#include "model/note/accidental.h"
 #include "model/positionable.h"
 #include <cstdint>
 
@@ -36,6 +37,9 @@ public:
 	inline void setLift(int32_t newLift) { lift = newLift; }
 
 	inline int32_t getLift() { return lift; }
+
+	inline void setAccidental(int32_t semitones) { accidental = deluge::notes::encodeAccidental(semitones); }
+	inline int32_t getAccidental() const { return deluge::notes::decodeAccidental(accidental); }
 
 	inline void setProbability(int32_t newProbability) { probability = newProbability; }
 
@@ -59,6 +63,7 @@ public:
 	uint8_t fill;
 	/// Lift is noteOff velocity.
 	uint8_t lift;
+	uint8_t accidental = 0;
 
 	// Understanding the probability field: the first bit says whether it's based on a previous one.
 	// So take the rightmost 7 bits. If that's greater than kNumProbabilityValues (20),

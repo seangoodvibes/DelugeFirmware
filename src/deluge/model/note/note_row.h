@@ -78,6 +78,7 @@ struct PendingNoteOn {
 	uint8_t velocity;
 	Iterance iterance;
 	uint8_t fill;
+	uint8_t accidental;
 };
 
 struct PendingNoteOnList {
@@ -115,6 +116,9 @@ public:
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
 	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
+	int32_t getSoundingNoteCode() const { return soundingNoteCode == INT16_MIN ? y : soundingNoteCode; }
+	int32_t getRecordingNoteCode() const { return recordingSourceNote < 0 ? y : recordingSourceNote; }
+	int32_t getExpressionNoteCode() const { return sequenced ? getSoundingNoteCode() : getRecordingNoteCode(); }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
@@ -157,6 +161,9 @@ public:
 	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead -
 	// which calls Clip::expectEvent(), which is needed
 	bool sequenced;
+	// Runtime pitch tracking must stay after y, the key used by NoteRowVector.
+	int16_t soundingNoteCode = INT16_MIN;
+	int16_t recordingSourceNote = -1;
 
 	/// Time before which all note events should be ignored during live playback. 0 means all notes should play (i.e. a
 	/// note event at the time stored here should be allowed to sound). When doing quantized recording, we might have
@@ -170,9 +177,9 @@ public:
 	Iterance getDefaultIterance();
 	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
+	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint8_t accidental = 0);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
-	                               bool allowingNoteTails);
+	                               bool allowingNoteTails, uint8_t accidental = 0);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
 	                            bool allowNoteTails, Action* action);
 	int32_t processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,

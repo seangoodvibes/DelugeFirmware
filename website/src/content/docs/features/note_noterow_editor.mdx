@@ -43,9 +43,10 @@ With horizontal menus enabled, the note editor has five pages. Press Cross Scree
 - **Note Nudge:** the timing offset shown by the Hold Note + Press and Turn Horizontal shortcut. Turn Select to nudge left or right by one tick.
 - **Note Repeats:** the number of notes in the selected grid square, as shown by Hold Note + Press and Turn Vertical. Turn Select to decrease or increase it. Select one square at a time for this control; multiple selected squares show `--`.
 
-The third page contains **Note Pitch** on its own:
+The third page contains **Note Pitch** and **Accidental**:
 
 - **Note Pitch:** the selected note's code (for example, C3), or its row index in a kit. Turn Select to move up or down using the same scale and row behavior as holding a note and turning Vertical.
+- **Accidental:** a signed semitone offset added to the note’s row pitch. Turn Select to raise or lower it; `0` is natural, `+1` is one semitone up, and `-1` is one semitone down. Works with held or remembered notes, including blurred squares, and supports undo. This control does not apply to kits.
 
 Use Synth, Kit, MIDI and CV to select the four columns, then turn Select to edit. These controls also work after releasing the selected pads. Position and Pitch move individual notes; as with the vertical shortcut, zoom in to select individual notes within a blurred square before moving them. The same controls are available in the vertical menu when horizontal menus are disabled.
 
@@ -124,3 +125,15 @@ You can also perform note editing actions:
 ### Exit Note Row Editor Menu
 
 You can exit the menu by pressing :key[BACK] to back out
+
+### Record Accidental
+
+Enable **Settings > Community Features > Record Accidental** to record chromatic pitches in a scale-mode clip without changing the song’s scale. This setting defaults to Off.
+
+- With the setting Off, recording retains the existing behaviour, including extending the scale for out-of-scale notes.
+- With the setting On in a non-scale clip, notes record at their played pitch with an accidental of zero.
+- With the setting On in a scale-mode clip, each note is stored on the nearest scale row with a semitone offset that preserves its played pitch. Equal-distance ties prefer the lower row. If another held pitch occupies that row, another available scale row is used.
+
+For example, playing C♯ in C major records C with `+1`, so playback still sounds C♯. Pitch changes move the scale row; Accidental changes the semitone offset. The recording setting only controls new recordings: stored accidentals still play when it is Off.
+
+This applies to incoming MIDI and the Deluge keyboard, including count-in notes. Accidentals are retained by song and pattern storage, copying, transposing, repeats, and undo. Older song and pattern records load with an accidental of zero.

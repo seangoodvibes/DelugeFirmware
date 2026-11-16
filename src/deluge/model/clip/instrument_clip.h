@@ -95,7 +95,11 @@ public:
 	NoteRow* getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_t* getIndex = nullptr);
 	bool currentlyScrollableAndZoomable() override;
 	void recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0 = false,
-	                  int16_t const* mpeValuesOrNull = nullptr, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
+	                  int16_t const* mpeValuesOrNull = nullptr, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE,
+	                  uint8_t accidental = 0);
+	ModelStackWithNoteRow* getOrCreateNoteRowForRecording(int32_t playedNote, ModelStackWithTimelineCounter* modelStack,
+	                                                      Action* action, bool* scaleAltered);
+	ModelStackWithNoteRow* getNoteRowForRecordedNote(int32_t playedNote, ModelStackWithTimelineCounter* modelStack);
 	void recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t velocity = kDefaultLiftValue);
 
 	void copyBasicsFrom(Clip const* otherClip) override;

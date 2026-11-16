@@ -15,10 +15,10 @@ namespace deluge::gui::menu_item::note {
 
 class Placement final : public SelectedNote {
 public:
-	enum class Kind { POSITION, LENGTH, NUDGE, REPEATS, PITCH };
+	enum class Kind { POSITION, LENGTH, NUDGE, REPEATS, PITCH, ACCIDENTAL };
 	Placement(l10n::String name, l10n::String title, Kind kind) : SelectedNote(name, title), kind_(kind) {}
 
-	int32_t getOccupiedSlots() const override { return kind_ == Kind::PITCH ? 4 : 1; }
+	int32_t getOccupiedSlots() const override { return kind_ == Kind::PITCH || kind_ == Kind::ACCIDENTAL ? 2 : 1; }
 
 	void readCurrentValue() override {
 		setValue(0);
@@ -34,7 +34,8 @@ public:
 				}
 			}
 		}
-		if (!selected || (kind_ == Kind::REPEATS && count != 1)) {
+		if (!selected || (kind_ == Kind::REPEATS && count != 1)
+		    || (kind_ == Kind::ACCIDENTAL && getCurrentInstrumentClip()->output->type == OutputType::KIT)) {
 			return;
 		}
 		valid_ = true;
@@ -46,14 +47,15 @@ public:
 			// One-based grid columns, counted from the start of the clip.
 			setValue(selected->intendedPos / currentSong->xZoom[NAVIGATION_CLIP] + 1);
 			break;
-		case Kind::LENGTH: {
+		case Kind::LENGTH:
+		case Kind::ACCIDENTAL: {
 			auto* noteRow = row->getNoteRowAllowNull();
 			auto* note = noteRow
 			                 ? noteRow->notes.getElement(noteRow->notes.search(selected->intendedPos, GREATER_OR_EQUAL))
 			                 : nullptr;
 			valid_ = note != nullptr;
 			if (note) {
-				setValue(note->length);
+				setValue(kind_ == Kind::LENGTH ? note->length : note->getAccidental());
 			}
 			break;
 		}
@@ -86,6 +88,9 @@ public:
 		case Kind::REPEATS:
 			instrumentClipView.editNoteRepeat(offset, false);
 			break;
+		case Kind::ACCIDENTAL:
+			instrumentClipView.adjustNoteAccidental(offset);
+			break;
 		case Kind::PITCH:
 			instrumentClipView.moveNotePitch(offset);
 			break;
@@ -99,6 +104,10 @@ protected:
 	void formatValue(char* buffer) {
 		if (!valid_) {
 			strcpy(buffer, "--");
+		}
+		else if (kind_ == Kind::ACCIDENTAL && getValue() > 0) {
+			buffer[0] = '+';
+			intToString(getValue(), buffer + 1);
 		}
 		else if (kind_ == Kind::LENGTH) {
 			intToString(getValue(), buffer);

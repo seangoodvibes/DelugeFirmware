@@ -137,6 +137,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setProbability(oldNote->getProbability());
 						newNote->setVelocity(oldNote->getVelocity());
 						newNote->setLift(oldNote->getLift());
+						newNote->accidental = oldNote->accidental;
 						newNote->setIterance(oldNote->getIterance());
 						newNote->setFill(oldNote->getFill());
 					}
@@ -154,6 +155,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->accidental = oldNote->accidental;
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 				}
@@ -182,6 +184,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->accidental = oldNote->accidental;
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 				}
@@ -402,6 +405,7 @@ addNewNote:
 
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
 		newNote->setLift(kDefaultLiftValue);
+		newNote->accidental = 0;
 
 		newNote->setProbability(getDefaultProbability());
 		newNote->setIterance(getDefaultIterance());
@@ -626,6 +630,7 @@ addNewNote:
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
 			destNote->setLift(kDefaultLiftValue);
+			destNote->accidental = 0;
 			destNote->setProbability(getDefaultProbability());
 			destNote->setIterance(getDefaultIterance());
 			destNote->setFill(getDefaultFill(modelStack));
@@ -720,7 +725,7 @@ int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
+                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint8_t accidental) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 
@@ -775,6 +780,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 	newNote->setLength(length);
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
+	newNote->accidental = accidental;
 	newNote->setProbability(probability);
 	newNote->setIterance(iterance);
 	newNote->setFill(fill);
@@ -792,7 +798,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 
 // Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
-                                        bool allowingNoteTails) {
+                                        bool allowingNoteTails, uint8_t accidental) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 	// The length-1 note will be placed at pos-1.
@@ -835,6 +841,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
+	newNote->accidental = accidental;
 	newNote->setProbability(getDefaultProbability());
 	newNote->setIterance(getDefaultIterance());
 	newNote->setFill(getDefaultFill(modelStack));
@@ -1085,12 +1092,14 @@ modifyNote:
 			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
+			uint8_t accidental = note->accidental;
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
 			notes.insertAtIndex(i); // Shouldn't be able to fail.
 			note = notes.getElement(i);
 			note->setProbability(probability);
 			note->setVelocity(noteOnVelocity);
+			note->accidental = accidental;
 			note->setIterance(iterance);
 			note->setFill(fill);
 		}
@@ -2403,7 +2412,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 		return drum && drum->auditioned;
 	}
 	else {
-		return ((MelodicInstrument*)output)->notesAuditioned.contains(y);
+		return ((MelodicInstrument*)output)->notesAuditioned.contains(getRecordingNoteCode());
 	}
 }
 
@@ -2508,7 +2517,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 }
 /// If a note is on in a SoundInstrument and it's allowed to have tails it might be a drone
 bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, SoundInstrument* output) {
-	return (output)->noteIsOn(getNoteCode(), true)
+	return (output)->noteIsOn(getSoundingNoteCode(), true)
 	       && (output)->allowNoteTails(
 	           modelStack
 	               ->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
@@ -2525,6 +2534,11 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 		// If it's a note-on, we'll send it "soon", after all note-offs
 
 		if (on) {
+			// An edited drone must release its old pitch before starting the new one.
+			if (noteMightBeConstant && getSoundingNoteCode() != y + thisNote->getAccidental()) {
+				playNote(false, modelStack, nullptr);
+				noteMightBeConstant = false;
+			}
 			if (noteMightBeConstant) {
 
 				// Special case for Sounds
@@ -2550,6 +2564,7 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRow = this;
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRowId = modelStack->noteRowId;
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].velocity = thisNote->getVelocity();
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].accidental = thisNote->accidental;
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].probability =
 					    thisNote->getProbability();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].iterance = thisNote->getIterance();
@@ -2568,9 +2583,10 @@ storePendingNoteOn:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
 					    ((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 					    &modelStack->getTimelineCounter()->paramManager);
+					soundingNoteCode = getNoteCode() + thisNote->getAccidental();
 					((MelodicInstrument*)output)
-					    ->sendNote(modelStackWithThreeMainThings, true, getNoteCode(), mpeValues, MIDI_CHANNEL_NONE,
-					               thisNote->velocity, thisNote->length, ticksLate, samplesLate);
+					    ->sendNote(modelStackWithThreeMainThings, true, getSoundingNoteCode(), mpeValues,
+					               MIDI_CHANNEL_NONE, thisNote->velocity, thisNote->length, ticksLate, samplesLate);
 				}
 			}
 		}
@@ -2586,7 +2602,9 @@ storePendingNoteOn:
 			    modelStack->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 			                                  &modelStack->getTimelineCounter()->paramManager);
 			((MelodicInstrument*)output)
-			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCode(), nullptr, MIDI_CHANNEL_NONE, lift);
+			    ->sendNote(modelStackWithThreeMainThings, false, getSoundingNoteCode(), nullptr, MIDI_CHANNEL_NONE,
+			               lift);
+			soundingNoteCode = INT16_MIN;
 		}
 	}
 	else if (drum) {
@@ -2901,6 +2919,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->accidental = oldNote->accidental;
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 
@@ -2951,6 +2970,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->accidental = oldNote->accidental;
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
 
@@ -3187,6 +3207,7 @@ void NoteRow::silentlyResumePlayback(ModelStackWithNoteRow* modelStack) {
 	}
 
 	if (noteEnd > effectiveCurrentPos) {
+		soundingNoteCode = y + note->getAccidental();
 		sequenced = true;
 	}
 }
@@ -3342,6 +3363,7 @@ finishedNormalStuff:
 						newNote->setLength(length);
 						newNote->setVelocity(velocity);
 						newNote->setLift(kDefaultLiftValue);
+						newNote->accidental = 0;
 						newNote->setProbability(kNumProbabilityValues);
 						newNote->setIterance(kDefaultIteranceValue);
 						newNote->setFill(FillMode::OFF);
@@ -3402,7 +3424,7 @@ doReadNoteData:
 				uint8_t lift, probability, fill;
 				Iterance iterance;
 
-				if (noteHexLength == 28) { // if reading custom iterance and fill
+				if (noteHexLength >= 28) { // if reading custom iterance and fill
 					fill = hexToIntFixedLength(&hexChars[26], 2);
 					iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
@@ -3509,6 +3531,8 @@ useDefaultLift:
 				newNote->setLength(length);
 				newNote->setVelocity(velocity);
 				newNote->setLift(lift);
+				newNote->accidental =
+				    deluge::notes::accidentalFromNoteData({hexChars, static_cast<size_t>(noteHexLength)});
 				newNote->setProbability(probability);
 				newNote->setIterance(iterance);
 				newNote->setFill(fill);
@@ -3531,6 +3555,10 @@ getOut: {}
 			goto doReadNoteData;
 		}
 		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
+		else if (!strcmp(tagName, "noteDataWithAccidental")) {
+			noteHexLength = 30;
+			goto doReadNoteData;
+		}
 		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
 			noteHexLength = 28;
 			goto doReadNoteData;
@@ -3588,7 +3616,10 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.writeTagNameAndSeperator("noteDataWithSplitProb");
+		bool hasAccidentals = false;
+		for (int32_t n = 0; n < notes.getNumElements(); ++n)
+			hasAccidentals |= notes.getElement(n)->accidental != 0;
+		writer.writeTagNameAndSeperator(hasAccidentals ? "noteDataWithAccidental" : "noteDataWithSplitProb");
 		writer.write("\"0x");
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
@@ -3615,6 +3646,10 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 			intToHex(thisNote->getFill(), buffer, 2);
 			writer.write(buffer);
+			if (hasAccidentals) {
+				intToHex(thisNote->accidental, buffer, 2);
+				writer.write(buffer);
+			}
 		}
 		writer.write("\"");
 	}
@@ -4066,7 +4101,7 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 
 		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
 		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
-		               noteSource->fill, modelStack, nullptr);
+		               noteSource->fill, modelStack, nullptr, noteSource->accidental);
 
 		minPos = newPos + newLength;
 	}
@@ -4216,6 +4251,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setProbability(oldNote->getProbability());
 				newNote->setVelocity(oldNote->getVelocity());
 				newNote->setLift(oldNote->getLift());
+				newNote->accidental = oldNote->accidental;
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
 			}
@@ -4246,6 +4282,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setProbability(oldNote->getProbability());
 				newNote->setVelocity(oldNote->getVelocity());
 				newNote->setLift(oldNote->getLift());
+				newNote->accidental = oldNote->accidental;
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
 			}
@@ -4262,6 +4299,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 			newNote->length = oldNote->length;
 			newNote->velocity = oldNote->velocity;
 			newNote->setLift(oldNote->getLift());
+			newNote->accidental = oldNote->accidental;
 			newNote->probability = oldNote->probability;
 			newNote->iterance = oldNote->iterance;
 			newNote->fill = oldNote->fill;
@@ -4294,6 +4332,8 @@ void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelSta
 	bool stillSounding = (originalNoteRow && !originalNoteRow->muted && originalNoteRow->sequenced);
 
 	bool shouldSoundNoteOffNow = (wasSounding && !stillSounding);
+	if (wasSounding && stillSounding)
+		originalNoteRow->soundingNoteCode = getSoundingNoteCode();
 
 	stopCurrentlyPlayingNote(modelStackClone, shouldSoundNoteOffNow);
 }

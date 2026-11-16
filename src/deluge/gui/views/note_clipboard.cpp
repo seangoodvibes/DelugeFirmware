@@ -33,7 +33,8 @@ NoteRow* findRow(InstrumentClip* clip, int32_t id) {
 
 bool sameNote(const Note& a, const Note& b) {
 	return a.pos == b.pos && a.length == b.length && a.velocity == b.velocity && a.lift == b.lift
-	       && a.probability == b.probability && a.iterance == b.iterance && a.fill == b.fill;
+	       && a.accidental == b.accidental && a.probability == b.probability && a.iterance == b.iterance
+	       && a.fill == b.fill;
 }
 
 // All allocations and note-array edits are staged before the first live row changes.

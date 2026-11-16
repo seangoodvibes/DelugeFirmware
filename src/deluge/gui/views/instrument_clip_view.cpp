@@ -1228,6 +1228,9 @@ ramError:
 				newCopiedNoteRow->yNote = thisNoteRow->y;
 				newCopiedNoteRow->yDisplay = noteRowYDisplay;
 
+				bool hasAccidentals = false;
+				for (int32_t n = 0; n < numNotes; ++n)
+					hasAccidentals |= thisNoteRow->notes.getElement(n + startI)->accidental != 0;
 				if (copyToFile) {
 					writer->writeOpeningTagBeginning("noteRow");
 
@@ -1237,7 +1240,8 @@ ramError:
 					writer->insertCommaIfNeeded();
 					writer->write("\n");
 					writer->printIndents();
-					writer->writeTagNameAndSeperator("noteDataWithSplitProb");
+					writer->writeTagNameAndSeperator(hasAccidentals ? "noteDataWithAccidental"
+					                                                : "noteDataWithSplitProb");
 					writer->write("\"0x");
 				}
 
@@ -1252,6 +1256,7 @@ ramError:
 					newNote->velocity = noteToCopy->velocity;
 					newNote->probability = noteToCopy->probability;
 					newNote->lift = noteToCopy->lift;
+					newNote->accidental = noteToCopy->accidental;
 					newNote->iterance = noteToCopy->iterance;
 					newNote->fill = noteToCopy->fill;
 
@@ -1279,6 +1284,10 @@ ramError:
 
 						intToHex(newNote->getFill(), buffer, 2);
 						writer->write(buffer);
+						if (hasAccidentals) {
+							intToHex(newNote->accidental, buffer, 2);
+							writer->write(buffer);
+						}
 					}
 				}
 
@@ -1649,9 +1658,10 @@ ramError:
 							int16_t yDisplay = reader.readTagOrAttributeValueInt();
 							newCopiedNoteRow->yDisplay = yDisplay;
 						}
-						else if (!strcmp(tagName, "noteDataWithSplitProb")) {
+						else if (!strcmp(tagName, "noteDataWithSplitProb")
+						         || !strcmp(tagName, "noteDataWithAccidental")) {
 
-							noteHexLength = 28;
+							noteHexLength = !strcmp(tagName, "noteDataWithAccidental") ? 30 : 28;
 							int32_t minPos = 0;
 							int32_t numElementsToAllocateFor = 0;
 
@@ -1700,6 +1710,8 @@ ramError:
 								newNote->velocity = velocity;
 								newNote->probability = probability;
 								newNote->lift = lift;
+								newNote->accidental = deluge::notes::accidentalFromNoteData(
+								    {hexChars, static_cast<size_t>(noteHexLength)});
 								newNote->iterance = iterance;
 								newNote->fill = fill;
 
@@ -2606,6 +2618,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					editPadPresses[i].intendedProbability = firstNote->getProbability();
 					editPadPresses[i].intendedIterance = firstNote->getIterance();
 					editPadPresses[i].intendedFill = firstNote->getFill();
+					editPadPresses[i].intendedAccidental = firstNote->accidental;
 					editPadPresses[i].isActive = true;
 					editPadPresses[i].yDisplay = yDisplay;
 					editPadPresses[i].xDisplay = xDisplay;
@@ -3292,6 +3305,7 @@ multiplePresses:
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 							edit_targets[i].intendedFill = note->getFill();
+							edit_targets[i].intendedAccidental = note->accidental;
 						}
 
 						if (note->pos < leftMostPos) {
@@ -3689,6 +3703,7 @@ std::span<EditPadPress> InstrumentClipView::get_note_edit_targets() {
 			remembered_note.intendedProbability = note->getProbability();
 			remembered_note.intendedIterance = note->getIterance();
 			remembered_note.intendedFill = note->getFill();
+			remembered_note.intendedAccidental = note->accidental;
 		}
 		// return the remembered note pad press info
 		return {remembered_notes, static_cast<size_t>(remembered_note_count)};
@@ -4866,10 +4881,10 @@ cancelPress:
 
 			int32_t pos = editPadPresses[i].intendedPos;
 
-			bool success =
-			    noteRow->attemptNoteAdd(pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
-			                            editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
-			                            editPadPresses[i].intendedFill, modelStackWithNoteRow, action);
+			bool success = noteRow->attemptNoteAdd(
+			    pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
+			    editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
+			    editPadPresses[i].intendedFill, modelStackWithNoteRow, action, editPadPresses[i].intendedAccidental);
 
 			editPadPresses[i].deleteOnDepress = false;
 			editPadPresses[i].deleteOnScroll = success;
@@ -6559,6 +6574,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 		int32_t length;
 		uint8_t velocity;
 		uint8_t lift;
+		uint8_t accidental;
 		uint8_t probability;
 		Iterance iterance;
 		uint8_t fill;
@@ -6599,6 +6615,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 					ntm.length = note->length;
 					ntm.velocity = note->velocity;
 					ntm.lift = note->lift;
+					ntm.accidental = note->accidental;
 					ntm.probability = note->probability;
 					ntm.iterance = note->iterance;
 					ntm.fill = note->fill;
@@ -6647,7 +6664,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 			if (destRow) {
 				// Use attemptNoteAdd like scrollVertical_placeNotesPressed does
 				bool success = destRow->attemptNoteAdd(ntm.pos, ntm.length, ntm.velocity, ntm.probability, ntm.iterance,
-				                                       ntm.fill, destModelStack, action);
+				                                       ntm.fill, destModelStack, action, ntm.accidental);
 
 				if (success) {
 					// Check if there are any MPE nodes to restore
@@ -7909,6 +7926,7 @@ justDisplayOldNumNotes:
 						note->probability = noteRow->getDefaultProbability();
 						note->velocity = ((Instrument*)clip->output)->defaultVelocity;
 						note->lift = kDefaultLiftValue;
+						note->accidental = 0;
 						note->iterance = noteRow->getDefaultIterance();
 						note->fill = noteRow->getDefaultFill(modelStack);
 					}
@@ -8686,6 +8704,53 @@ void InstrumentClipView::adjustNoteLength(int32_t offset) {
 	}
 	if (!tailsAllowed) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
+	}
+	if (action) {
+		clip->expectEvent();
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+}
+
+void InstrumentClipView::adjustNoteAccidental(int32_t offset) {
+	auto* clip = getCurrentInstrumentClip();
+	if (!offset || clip->output->type == OutputType::KIT)
+		return;
+	auto targets = get_note_edit_targets();
+	char memory[MODEL_STACK_MAX_SIZE];
+	auto* stack = currentSong->setupModelStackWithCurrentClip(memory);
+	Action* action = nullptr;
+	for (auto& target : targets) {
+		if (!target.isActive)
+			continue;
+		auto* rowStack = get_note_edit_row(stack, target);
+		auto* row = rowStack->getNoteRowAllowNull();
+		if (!row)
+			continue;
+		for (int32_t i = row->notes.search(target.intendedPos, GREATER_OR_EQUAL); i < row->notes.getNumElements();
+		     ++i) {
+			auto* note = row->notes.getElement(i);
+			if (target.isBlurredSquare ? note->pos - target.intendedPos >= target.intendedLength
+			                           : note->pos != target.intendedPos)
+				break;
+			int32_t accidental = std::clamp<int64_t>(static_cast<int64_t>(note->getAccidental()) + offset, -127, 127);
+			if (accidental == note->getAccidental() || !clip->isScrollWithinRange(offset, row->y + accidental))
+				continue;
+			if (!action) {
+				action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+				if (!action)
+					return;
+			}
+			Error error =
+			    action->recordNoteArrayChangeIfNotAlreadySnapshotted(clip, rowStack->noteRowId, &row->notes, false);
+			if (error != Error::NONE) {
+				display->displayError(error);
+				return;
+			}
+			note->setAccidental(accidental);
+			if (!target.isBlurredSquare)
+				target.intendedAccidental = note->accidental;
+		}
+		target.deleteOnDepress = false;
 	}
 	if (action) {
 		clip->expectEvent();

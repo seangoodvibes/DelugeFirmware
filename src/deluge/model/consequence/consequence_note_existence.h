@@ -36,6 +36,7 @@ public:
 	int8_t velocity;
 	int8_t probability;
 	uint8_t lift;
+	uint8_t accidental;
 	Iterance iterance;
 	int8_t fill;
 

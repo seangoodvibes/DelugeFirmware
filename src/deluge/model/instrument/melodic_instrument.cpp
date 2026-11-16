@@ -26,6 +26,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/note/accidental.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/arpeggiator.h"
 #include "playback/mode/session.h"
@@ -109,8 +110,9 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		// -1 means no change
 		auto* instrumentClip = (InstrumentClip*)activeClip;
 
-		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    instrumentClip ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, nullptr);
+		ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip
+		                                                   ? instrumentClip->getNoteRowForRecordedNote(note, modelStack)
+		                                                   : modelStack->addNoteRow(0, nullptr);
 
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
@@ -187,7 +189,7 @@ doRecord:
 
 							bool scaleAltered = false;
 
-							modelStackWithNoteRow = instrumentClip->getOrCreateNoteRowForYNote(
+							modelStackWithNoteRow = instrumentClip->getOrCreateNoteRowForRecording(
 							    note, modelStack, action,
 							    &scaleAltered); // Have to re-get this anyway since called
 							                    // possiblyCloneForArrangementRecording(), above.
@@ -195,7 +197,8 @@ doRecord:
 							if (noteRow) {
 								// midichannel is not used by instrument clip
 								instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, forcePos0,
-								                             mpeValuesOrNull, midiChannel);
+								                             mpeValuesOrNull, midiChannel,
+								                             deluge::notes::encodeAccidental(note - noteRow->y));
 								if (getRootUI()) {
 									getRootUI()->noteRowChanged(instrumentClip, noteRow);
 								}
@@ -500,7 +503,8 @@ bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack,
 }
 
 bool MelodicInstrument::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {
-	return notesAuditioned.contains(noteRow->y) && !earlyNotes.contains(noteRow->y);
+	return notesAuditioned.contains(noteRow->getRecordingNoteCode())
+	       && !earlyNotes.contains(noteRow->getRecordingNoteCode());
 }
 
 void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
@@ -514,6 +518,11 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	}
 
 	notesAuditioned.clear();
+	if (activeClip) {
+		auto* clip = static_cast<InstrumentClip*>(activeClip);
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); ++i)
+			clip->noteRows.getElement(i)->recordingSourceNote = -1;
+	}
 	earlyNotes.clear(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
 	                    // longer active
 	if (activeClip) {
@@ -538,7 +547,7 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
-	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+	    ((InstrumentClip*)activeClip)->getNoteRowForRecordedNote(note, modelStackWithTimelineCounter);
 
 	// don't audition this note row if there is a drone note that is currently sounding
 	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
@@ -572,8 +581,12 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
-	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+	    ((InstrumentClip*)activeClip)->getNoteRowForRecordedNote(note, modelStackWithTimelineCounter);
 	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
+	if (noteRow && noteRow->recordingSourceNote == note) {
+		noteRow->recordingSourceNote = -1;
+	}
 
 	// here we check if this note row has a drone note that is currently sounding
 	// in which case we don't want to stop it from sounding
@@ -703,7 +716,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				// messages, and there's hardly much to search through.
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    ((InstrumentClip*)modelStack->getTimelineCounter())
-				        ->getNoteRowForYNote(
+				        ->getNoteRowForRecordedNote(
 				            arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				            modelStack); // No need to create - it should already exist if they're recording a
 				                         // note here.

@@ -42,6 +42,7 @@
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
@@ -488,14 +489,16 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 				const auto [velocity, still_active] = noteInfo;
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
+				    getOrCreateNoteRowForRecording(note, modelStack, action, &scaleAltered);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow != nullptr) {
 					int32_t probability = noteRow->getDefaultProbability();
 					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
-					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
+					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action,
+					                        deluge::notes::encodeAccidental(note - noteRow->y));
 					if (!still_active) {
+						noteRow->recordingSourceNote = -1;
 						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
 						// note-ons until at least tick 1 to avoid double-playing that note
 						noteRow->ignoreNoteOnsBefore_ = 1;
@@ -931,8 +934,10 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 	else {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStackWithNoteRow->addOtherTwoThings(output->toModControllable(), &paramManager);
+		pendingNoteOn->noteRow->soundingNoteCode =
+		    pendingNoteOn->noteRow->getNoteCode() + deluge::notes::decodeAccidental(pendingNoteOn->accidental);
 		((MelodicInstrument*)output)
-		    ->sendNote(modelStackWithThreeMainThings, true, pendingNoteOn->noteRow->getNoteCode(), mpeValues,
+		    ->sendNote(modelStackWithThreeMainThings, true, pendingNoteOn->noteRow->getSoundingNoteCode(), mpeValues,
 		               MIDI_CHANNEL_NONE, pendingNoteOn->velocity, pendingNoteOn->sampleSyncLength,
 		               pendingNoteOn->ticksLate);
 	}
@@ -4207,7 +4212,9 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 						// I'm guessing I deliberately didn't send the Action in here, cos didn't want to
 						// make this Note on the new InstrumentClip undoable?
 						newNoteRow->attemptNoteAdd(0, lastNote->length, lastNote->velocity, lastNote->probability,
-						                           lastNote->iterance, lastNote->fill, modelStackWithNoteRow, nullptr);
+						                           lastNote->iterance, lastNote->fill, modelStackWithNoteRow, nullptr,
+						                           lastNote->accidental);
+						newNoteRow->recordingSourceNote = thisNoteRow->recordingSourceNote;
 						// Make sure we don't double-play the note
 						newNoteRow->ignoreNoteOnsBefore_ = 1;
 					}
@@ -4242,6 +4249,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 					// if we just recorded a drone note, transfer the note to the sequencer
 					// so that we can stop auditioning / sending midi and note will continue sustaining
 					if (thisNoteRow->isDroning(loopLength)) {
+						thisNoteRow->soundingNoteCode = thisNoteRow->getRecordingNoteCode();
 						thisNoteRow->sequenced = true;
 					}
 				}
@@ -4422,7 +4430,7 @@ ModelStackWithNoteRow* InstrumentClip::duplicateModelStackForClipBeingRecordedFr
 extern int16_t zeroMPEValues[kNumExpressionDimensions];
 
 void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0,
-                                  int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
+                                  int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel, uint8_t accidental) {
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
@@ -4566,7 +4574,8 @@ doNormal: // Wrap it back to the start.
 	// Add the actual note
 	if (reversed) {
 		bool allowingNoteTails = allowNoteTails(modelStack);
-		distanceToNextNote = noteRow->attemptNoteAddReversed(modelStack, quantizedPos, velocity, allowingNoteTails);
+		distanceToNextNote =
+		    noteRow->attemptNoteAddReversed(modelStack, quantizedPos, velocity, allowingNoteTails, accidental);
 	}
 
 	else {
@@ -4574,8 +4583,8 @@ doNormal: // Wrap it back to the start.
 		Iterance iterance = noteRow->getDefaultIterance();
 		int32_t fill = noteRow->getDefaultFill(modelStack);
 		// Don't supply Action, cos we've done our own thing, above
-		distanceToNextNote =
-		    noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, iterance, fill, modelStack, nullptr);
+		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, iterance, fill, modelStack,
+		                                             nullptr, accidental);
 	}
 
 	// If that didn't work, get out - but not in the special case for linear recording, discussed below.
@@ -4753,3 +4762,39 @@ void InstrumentClip::incrementPos(ModelStackWithTimelineCounter* modelStack, int
     for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
         NoteRow* thisNoteRow = noteRows.getElement(i);
 */
+
+// Resolve live input separately from the scale row that stores it.
+ModelStackWithNoteRow* InstrumentClip::getNoteRowForRecordedNote(int32_t playedNote,
+                                                                 ModelStackWithTimelineCounter* modelStack) {
+	for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+		auto* row = noteRows.getElement(i);
+		if (row->recordingSourceNote == playedNote)
+			return modelStack->addNoteRow(row->y, row);
+	}
+	return getNoteRowForYNote(playedNote, modelStack);
+}
+
+ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForRecording(int32_t playedNote,
+                                                                      ModelStackWithTimelineCounter* modelStack,
+                                                                      Action* action, bool* scaleAltered) {
+	int32_t rowNote = deluge::notes::noteForRecording(
+	    playedNote, inScaleMode && output->type != OutputType::KIT,
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RecordAccidental), [&](int32_t candidate) {
+		    if (!modelStack->song->isYNoteAllowed(candidate, true)) {
+			    return false;
+		    }
+		    auto* row = getNoteRowForYNote(candidate);
+		    // Two simultaneously held pitches need separate rows, even if their nearest scale note is the same.
+		    return !row
+		           || (!row->sequenced
+		               && (row->recordingSourceNote < 0 || row->recordingSourceNote == playedNote
+		                   || !static_cast<MelodicInstrument*>(output)->isNoteAuditioning(row->recordingSourceNote)));
+	    });
+	if (rowNote < 0) {
+		return modelStack->addNoteRow(0, nullptr);
+	}
+	auto* result = getOrCreateNoteRowForYNote(rowNote, modelStack, action, scaleAltered);
+	if (auto* row = result->getNoteRowAllowNull())
+		row->recordingSourceNote = playedNote;
+	return result;
+}

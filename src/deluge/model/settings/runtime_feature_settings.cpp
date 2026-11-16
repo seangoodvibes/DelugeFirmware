@@ -113,6 +113,8 @@ void RuntimeFeatureSettings::init() {
 	// FineTempoKnob
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
 	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RecordAccidental], STRING_FOR_RECORD_ACCIDENTAL,
+	                  "recordAccidental", RuntimeFeatureStateToggle::Off);
 	// CatchNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
 	                  "catchNotes", RuntimeFeatureStateToggle::On);

@@ -34,6 +34,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/note/accidental.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -346,12 +347,14 @@ void KeyboardScreen::updateActiveNotes() {
 
 				bool scaleAltered = false;
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(
-				    newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    getCurrentInstrumentClip()->getOrCreateNoteRowForRecording(newNote, modelStackWithTimelineCounter,
+				                                                               action, &scaleAltered);
 				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (thisNoteRow) {
-					getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRow,
-					                                         currentNotesState.notes[idx].velocity);
+					getCurrentInstrumentClip()->recordNoteOn(
+					    modelStackWithNoteRow, currentNotesState.notes[idx].velocity, false, nullptr, MIDI_CHANNEL_NONE,
+					    deluge::notes::encodeAccidental(newNote - thisNoteRow->y));
 
 					// If this caused the scale to change, update scroll
 					if (action && scaleAltered) {
@@ -393,22 +396,21 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
 		}
 	}
 
-	if (activeInstrument.type == OutputType::KIT) {
-		unscrolledPadAudition(0, note, false);
-	}
-	else {
-		(static_cast<MelodicInstrument*>(&activeInstrument))->endAuditioningForNote(&modelStack, note);
-	}
-
 	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
 	if (activeInstrument.type != OutputType::KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
 	    && currentSong->isClipActive(getCurrentClip())) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack.addTimelineCounter(getCurrentClip());
 		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    getCurrentInstrumentClip()->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+		    getCurrentInstrumentClip()->getNoteRowForRecordedNote(note, modelStackWithTimelineCounter);
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRow);
 		}
+	}
+	if (activeInstrument.type == OutputType::KIT) {
+		unscrolledPadAudition(0, note, false);
+	}
+	else {
+		(static_cast<MelodicInstrument*>(&activeInstrument))->endAuditioningForNote(&modelStack, note);
 	}
 }
 

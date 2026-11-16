@@ -1647,6 +1647,9 @@ PLACE_SDRAM_BSS NotePlacement noteRepeatsMenu{STRING_FOR_NOTE_REPEATS, STRING_FO
 PLACE_SDRAM_BSS NotePlacement notePitchMenu{STRING_FOR_NOTE_PITCH, STRING_FOR_NOTE_EDITOR_PITCH,
                                             NotePlacement::Kind::PITCH};
 
+PLACE_SDRAM_BSS NotePlacement noteAccidentalMenu{STRING_FOR_NOTE_ACCIDENTAL, STRING_FOR_NOTE_EDITOR_ACCIDENTAL,
+                                                 NotePlacement::Kind::ACCIDENTAL};
+
 using NoteClipboardMenu = menu_item::note::Clipboard;
 PLACE_SDRAM_BSS NoteClipboardMenu noteCutMenu{STRING_FOR_CUT, NoteClipboardMenu::Operation::CUT};
 PLACE_SDRAM_BSS NoteClipboardMenu noteCopyMenu{STRING_FOR_NOTE_COPY, NoteClipboardMenu::Operation::COPY};
@@ -1668,6 +1671,7 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteNudgeMenu,
                                                       &noteRepeatsMenu,
                                                       &notePitchMenu,
+                                                      &noteAccidentalMenu,
                                                       &noteCutMenu,
                                                       &noteCopyMenu,
                                                       &notePasteFirmlyMenu,

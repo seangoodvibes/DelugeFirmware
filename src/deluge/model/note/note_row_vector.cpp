@@ -18,7 +18,15 @@
 #include "model/note/note_row_vector.h"
 #include "model/note/note_row.h"
 #include "processing/engines/audio_engine.h"
+#include <cstddef>
 #include <new>
+
+// This packed-key container reads the first 16 bits of each NoteRow as its pitch.
+// NoteRow is not standard-layout; GCC/Clang support offsetof for this ABI check.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+static_assert(offsetof(NoteRow, y) == 0, "NoteRowVector requires NoteRow::y at byte zero");
+#pragma GCC diagnostic pop
 
 NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 16, 7) {
 }

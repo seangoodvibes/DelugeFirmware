@@ -52,6 +52,7 @@ public:
 SettingToggle menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
 SettingToggle menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 SettingToggle menuQuantize(RuntimeFeatureSettingType::Quantize);
+SettingToggle menuRecordAccidental(RuntimeFeatureSettingType::RecordAccidental);
 SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
@@ -80,6 +81,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuFineTempo,
     &menuQuantize,
     &menuCatchNotes,
+    &menuRecordAccidental,
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
     &menuDevSysexAllowed,
