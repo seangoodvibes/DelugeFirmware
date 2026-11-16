@@ -199,3 +199,21 @@ TEST(NoteEditMath, GentlePasteAddsOnlyUnoccupiedTicksWithoutChangingExistingNote
 		}
 	}
 }
+
+TEST(NoteEditMath, LengthEditsUseCurrentZoomAndKeepFineTiming) {
+	CHECK_EQUAL(27, resizeNoteLength(3, 1, 24, 96));
+	CHECK_EQUAL(3, resizeNoteLength(27, -1, 24, 96));
+	CHECK_EQUAL(51, resizeNoteLength(3, 2, 24, 96));
+}
+
+TEST(NoteEditMath, LengthEditsStopAtOneTickAndAtTheNextNote) {
+	CHECK_EQUAL(1, resizeNoteLength(3, -1, 24, 96));
+	CHECK_EQUAL(30, resizeNoteLength(24, 1, 24, 30));
+	CHECK_EQUAL(1, resizeNoteLength(1, 1, 24, 1));
+	CHECK_EQUAL(96, resizeNoteLength(72, 2, 24, 96));
+}
+
+TEST(NoteEditMath, AcceleratedLengthEditsCannotOverflow) {
+	CHECK_EQUAL(96, resizeNoteLength(24, INT32_MAX, INT32_MAX, 96));
+	CHECK_EQUAL(1, resizeNoteLength(24, INT32_MIN, INT32_MAX, 96));
+}

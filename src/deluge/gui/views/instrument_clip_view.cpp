@@ -8632,3 +8632,63 @@ void InstrumentClipView::moveNotePlacement(int32_t offset, bool pitch) {
 	recalculateColours();
 	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 }
+
+// Resize the actual selected notes, retaining blurred-square selection bounds.
+void InstrumentClipView::adjustNoteLength(int32_t offset) {
+	if (!offset) {
+		return;
+	}
+	auto targets = get_note_edit_targets();
+	auto* clip = getCurrentInstrumentClip();
+	char memory[MODEL_STACK_MAX_SIZE];
+	auto* stack = currentSong->setupModelStackWithCurrentClip(memory);
+	Action* action = nullptr;
+	bool tailsAllowed = false;
+	for (auto& target : targets) {
+		if (!target.isActive) {
+			continue;
+		}
+		auto* rowStack = get_note_edit_row(stack, target);
+		auto* row = rowStack->getNoteRowAllowNull();
+		if (!row || !clip->allowNoteTails(rowStack)) {
+			continue;
+		}
+		tailsAllowed = true;
+		for (int32_t i = row->notes.search(target.intendedPos, GREATER_OR_EQUAL); i < row->notes.getNumElements();
+		     ++i) {
+			auto* note = row->notes.getElement(i);
+			if (target.isBlurredSquare ? note->pos - target.intendedPos >= target.intendedLength
+			                           : note->pos != target.intendedPos) {
+				break;
+			}
+			int32_t length = deluge::gui::resizeNoteLength(note->length, offset, currentSong->xZoom[NAVIGATION_CLIP],
+			                                               row->getDistanceToNextNote(note->pos, rowStack));
+			if (length != note->length) {
+				if (!action) {
+					action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+					if (!action) {
+						return;
+					}
+				}
+				Error error =
+				    action->recordNoteArrayChangeIfNotAlreadySnapshotted(clip, rowStack->noteRowId, &row->notes, false);
+				if (error != Error::NONE) {
+					display->displayError(error);
+					return;
+				}
+				note->setLength(length);
+			}
+			if (!target.isBlurredSquare) {
+				target.intendedLength = note->length;
+			}
+		}
+		target.deleteOnDepress = false;
+	}
+	if (!tailsAllowed) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
+	}
+	if (action) {
+		clip->expectEvent();
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+}

@@ -15,8 +15,10 @@ namespace deluge::gui::menu_item::note {
 
 class Placement final : public SelectedNote {
 public:
-	enum class Kind { POSITION, NUDGE, REPEATS, PITCH };
+	enum class Kind { POSITION, LENGTH, NUDGE, REPEATS, PITCH };
 	Placement(l10n::String name, l10n::String title, Kind kind) : SelectedNote(name, title), kind_(kind) {}
+
+	int32_t getOccupiedSlots() const override { return kind_ == Kind::PITCH ? 4 : 1; }
 
 	void readCurrentValue() override {
 		setValue(0);
@@ -44,6 +46,17 @@ public:
 			// One-based grid columns, counted from the start of the clip.
 			setValue(selected->intendedPos / currentSong->xZoom[NAVIGATION_CLIP] + 1);
 			break;
+		case Kind::LENGTH: {
+			auto* noteRow = row->getNoteRowAllowNull();
+			auto* note = noteRow
+			                 ? noteRow->notes.getElement(noteRow->notes.search(selected->intendedPos, GREATER_OR_EQUAL))
+			                 : nullptr;
+			valid_ = note != nullptr;
+			if (note) {
+				setValue(note->length);
+			}
+			break;
+		}
 		case Kind::NUDGE: {
 			int32_t value = 0;
 			instrumentClipView.nudgeNotes(0, false, &value);
@@ -64,6 +77,9 @@ public:
 		case Kind::POSITION:
 			instrumentClipView.moveNotePosition(offset);
 			break;
+		case Kind::LENGTH:
+			instrumentClipView.adjustNoteLength(offset);
+			break;
 		case Kind::NUDGE:
 			instrumentClipView.nudgeNotes(offset, false);
 			break;
@@ -83,6 +99,10 @@ protected:
 	void formatValue(char* buffer) {
 		if (!valid_) {
 			strcpy(buffer, "--");
+		}
+		else if (kind_ == Kind::LENGTH) {
+			intToString(getValue(), buffer);
+			strcat(buffer, "t");
 		}
 		else if (kind_ == Kind::PITCH && getCurrentInstrumentClip()->output->type != OutputType::KIT) {
 			noteCodeToString(getValue(), buffer);

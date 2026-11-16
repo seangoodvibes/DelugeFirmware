@@ -34,20 +34,24 @@ You can select another note by pressing the note (:key[PAD]) on the grid. You ca
 
 You can vertical scroll (:key[TURN VERTICAL]), horizontal scroll (:key[TURN HORIZONTAL]), and zoom in / out (:key[PRESS TURN HORIZONTAL]) to find note(s) you want to edit.
 
-### Note Position, Nudge, Repeats and Pitch
+### Note Position, Length, Nudge, Repeats and Pitch
 
-With horizontal menus enabled, the note editor has four pages. Press Cross Screen Edit to go to the next page, or Scale to go to the previous page. The first page contains Velocity, Probability, Iterance and Fill. The second page contains:
+With horizontal menus enabled, the note editor has five pages. Press Cross Screen Edit to go to the next page, or Scale to go to the previous page. The first page contains Velocity, Probability, Iterance and Fill. The second page contains:
 
 - **Note Position:** the one-based grid column counted from the beginning of the clip at the current zoom. Turn Select to move the selected note(s) by grid columns. The selection keeps its spacing and note lengths, skips occupied positions as a group, and stops if no clear placement exists before a note row's loop boundary.
+- **Note Length:** the leftmost selected note's duration in ticks (`t`). Turn Select to resize selected notes by one grid column at the current zoom, with a minimum of one tick and a maximum at the next note. Works for held and remembered selections, including notes in blurred squares, and supports undo. Instruments that do not allow note tails cannot edit length.
 - **Note Nudge:** the timing offset shown by the Hold Note + Press and Turn Horizontal shortcut. Turn Select to nudge left or right by one tick.
 - **Note Repeats:** the number of notes in the selected grid square, as shown by Hold Note + Press and Turn Vertical. Turn Select to decrease or increase it. Select one square at a time for this control; multiple selected squares show `--`.
+
+The third page contains **Note Pitch** on its own:
+
 - **Note Pitch:** the selected note's code (for example, C3), or its row index in a kit. Turn Select to move up or down using the same scale and row behavior as holding a note and turning Vertical.
 
 Use Synth, Kit, MIDI and CV to select the four columns, then turn Select to edit. These controls also work after releasing the selected pads. Position and Pitch move individual notes; as with the vertical shortcut, zoom in to select individual notes within a blurred square before moving them. The same controls are available in the vertical menu when horizontal menus are disabled.
 
 ### Cut, Copy, Paste and Delete
 
-The third horizontal page contains **Cut**, **Copy**, **Paste Firmly** and **Paste Gently**. The icons show scissors, overlapping pages, and clipboards marked **F** and **G**. **Delete** is on its own fourth page. Use Synth, Kit, MIDI and CV to select a column, then press Select to perform the action.
+The fourth horizontal page contains **Cut**, **Copy**, **Paste Firmly** and **Paste Gently**. The icons show scissors, overlapping pages, and clipboards marked **F** and **G**. **Delete** is on its own fifth page. Use Synth, Kit, MIDI and CV to select a column, then press Select to perform the action.
 
 1. Hold one or more note pads, or release them to keep the selection, then press Select on **Copy** or **Cut**. Blurred squares include all their notes.
 2. Press a destination grid pad. It anchors the pattern's earliest position and lowest row. A valid placement appears in grey, including note tails; no notes are changed yet. Press another pad to reposition it. You can scroll or zoom to reach another part of the clip.

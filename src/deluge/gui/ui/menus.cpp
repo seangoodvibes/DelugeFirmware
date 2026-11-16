@@ -1638,6 +1638,8 @@ PLACE_SDRAM_BSS menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 using NotePlacement = menu_item::note::Placement;
 PLACE_SDRAM_BSS NotePlacement notePositionMenu{STRING_FOR_NOTE_POSITION, STRING_FOR_NOTE_EDITOR_POSITION,
                                                NotePlacement::Kind::POSITION};
+PLACE_SDRAM_BSS NotePlacement noteLengthMenu{STRING_FOR_NOTE_LENGTH, STRING_FOR_NOTE_EDITOR_LENGTH,
+                                             NotePlacement::Kind::LENGTH};
 PLACE_SDRAM_BSS NotePlacement noteNudgeMenu{STRING_FOR_NOTE_NUDGE, STRING_FOR_NOTE_EDITOR_NUDGE,
                                             NotePlacement::Kind::NUDGE};
 PLACE_SDRAM_BSS NotePlacement noteRepeatsMenu{STRING_FOR_NOTE_REPEATS, STRING_FOR_NOTE_EDITOR_REPEATS,
@@ -1662,6 +1664,7 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteIteranceMenu,
                                                       &noteFillMenu,
                                                       &notePositionMenu,
+                                                      &noteLengthMenu,
                                                       &noteNudgeMenu,
                                                       &noteRepeatsMenu,
                                                       &notePitchMenu,

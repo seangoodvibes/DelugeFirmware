@@ -385,6 +385,7 @@ private:
 	// note functions
 	void nudgeNotes(int32_t offset, bool displayValue = true, int32_t* value = nullptr);
 	void moveNotePosition(int32_t offset);
+	void adjustNoteLength(int32_t offset);
 	void moveNotePitch(int32_t offset);
 	void moveNotePlacement(int32_t offset, bool pitch);
 	void moveHeldNotesHorizontally(int32_t offset, ModelStackWithTimelineCounter* modelStack);

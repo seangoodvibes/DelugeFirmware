@@ -6,6 +6,11 @@
 #include <span>
 
 namespace deluge::gui {
+inline int32_t resizeNoteLength(int32_t length, int32_t steps, int32_t zoom, int32_t distanceToNextNote) {
+	return std::clamp<int64_t>(static_cast<int64_t>(length) + static_cast<int64_t>(steps) * zoom, 1,
+	                           distanceToNextNote);
+}
+
 struct NoteMoveRegion {
 	int32_t row;
 	int32_t position;

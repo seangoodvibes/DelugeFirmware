@@ -1007,6 +1007,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FIRMLY, "Firmly"},
         {STRING_FOR_GENTLY, "Gently"},
         {STRING_FOR_NOTE_POSITION, "Position"},
+        {STRING_FOR_NOTE_LENGTH, "Length"},
+        {STRING_FOR_NOTE_EDITOR_LENGTH, "Note Length"},
         {STRING_FOR_NOTE_EDITOR_POSITION, "Note Position"},
         {STRING_FOR_NOTE_NUDGE, "Nudge"},
         {STRING_FOR_NOTE_EDITOR_NUDGE, "Note Nudge"},
