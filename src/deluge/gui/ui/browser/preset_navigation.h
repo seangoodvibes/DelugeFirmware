@@ -12,6 +12,7 @@ namespace deluge::gui {
 
 // UI-independent state shared by the deferred loader and its original caller.
 enum class PresetNavigationDestination { CLIP, ARRANGER, OUTPUT };
+enum class PresetNavigationDecision { CANCEL, WAIT, LOAD };
 
 struct PresetNavigationContext {
 	Song* song = nullptr;
@@ -25,6 +26,8 @@ struct PresetNavigationContext {
 	bool padReleased = false;
 
 	bool matchesUI(Song* liveSong, UI* liveUI, uint32_t liveMode, Clip* liveCurrentClip) const;
+	PresetNavigationDecision decision(Song* liveSong, UI* liveUI, uint32_t liveMode, Clip* liveCurrentClip,
+	                                  bool arrangementRecording) const;
 	bool matchesSelection(Clip* liveSelectedClip, bool arrangerTargetMatches) const;
 	void markPadReleased(bool targetMatches);
 	PresetNavigationDestination destination() const;

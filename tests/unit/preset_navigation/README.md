@@ -7,7 +7,9 @@ call these production policies:
 - `performPresetLoad` consumes the pending preview, holds the busy UI mode across
   timer cancellation and loading, records the result, and restores the old mode.
 - `PresetNavigationContext` validates UI/selection identities, records validated
-  pad releases, and chooses clip, arranger, or whole-output resumption.
+  pad releases, chooses clip, arranger, or whole-output resumption, cancels
+  session navigation when arrangement recording starts, and waits for clip
+  audition to end without accepting unrelated UI or target changes.
 - `presetInstrumentAvailable` implements the shared availability rules, including
   the exemption that lets navigation return to the original loaded instrument.
 

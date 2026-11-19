@@ -41,6 +41,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
@@ -1734,12 +1735,8 @@ doneMoving:
 	if (toReturn.error != Error::NONE) {
 		return toReturn;
 	}
-	pending.task = addConditionalTask(resumePresetNavigation, 20, presetNavigationReady, "preset navigation",
-	                                  RESOURCE_SD | RESOURCE_SD_ROUTINE);
-	if (pending.task < 0) {
-		stopPresetLoadingIndicator();
-		clearPresetNavigationCursor();
-		toReturn.error = Error::INSUFFICIENT_RAM;
+	toReturn.error = schedulePresetNavigation();
+	if (toReturn.error != Error::NONE) {
 		return toReturn;
 	}
 	indicatorGuard.keepActive = true;
@@ -1855,7 +1852,6 @@ void LoadInstrumentPresetUI::loadPendingPreview() {
 	    previewPending, currentUIMode, currentInstrumentLoadError,
 	    [] { uiTimerManager.unsetTimer(TimerName::INSTRUMENT_PREVIEW); },
 	    [this] { return loadingSynthToKitRow ? performLoadSynthToKit() : performLoad(); });
-	currentUIMode = UI_MODE_NONE;
 }
 
 void LoadInstrumentPresetUI::clearPresetNavigationCursor() {
@@ -1891,6 +1887,23 @@ void LoadInstrumentPresetUI::cancelPresetNavigation() {
 	}
 }
 
+Error LoadInstrumentPresetUI::schedulePresetNavigation() {
+	presetNavigation.task = addConditionalTask(resumePresetNavigation, 20, presetNavigationReady, "preset navigation",
+	                                           RESOURCE_SD | RESOURCE_SD_ROUTINE);
+	if (presetNavigation.task < 0) {
+		stopPresetLoadingIndicator();
+		clearPresetNavigationCursor();
+		return Error::INSUFFICIENT_RAM;
+	}
+	return Error::NONE;
+}
+
+deluge::gui::PresetNavigationDecision LoadInstrumentPresetUI::presetNavigationDecision() const {
+	return presetNavigation.decision(currentSong, getCurrentUI(), currentUIMode,
+	                                 currentSong ? getCurrentClip() : nullptr,
+	                                 playbackHandler.recording == RecordingMode::ARRANGEMENT);
+}
+
 void LoadInstrumentPresetUI::presetNavigationPadReleased() {
 	// Capture a genuine release before the caller clears its selection and UI mode.
 	if (presetNavigation.task >= 0) {
@@ -1900,7 +1913,7 @@ void LoadInstrumentPresetUI::presetNavigationPadReleased() {
 
 bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	const auto& pending = presetNavigation;
-	if (!pending.matchesUI(currentSong, getCurrentUI(), currentUIMode, getCurrentClip())) {
+	if (presetNavigationDecision() == deluge::gui::PresetNavigationDecision::CANCEL) {
 		return false;
 	}
 	// Compare against live objects before dereferencing saved pointers.
@@ -1937,7 +1950,8 @@ bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 bool LoadInstrumentPresetUI::presetNavigationReady() {
 	// Keep the scheduler's condition cheap. Validate the saved context and check
 	// queued input when the task actually runs, after its resources are available.
-	return getSystemTime() >= loadInstrumentPresetUI.presetNavigation.deadline;
+	return getSystemTime() >= loadInstrumentPresetUI.presetNavigation.deadline
+	       && loadInstrumentPresetUI.presetNavigationDecision() != deluge::gui::PresetNavigationDecision::WAIT;
 }
 
 void LoadInstrumentPresetUI::resumePresetNavigation() {
@@ -1949,6 +1963,17 @@ void LoadInstrumentPresetUI::resumePresetNavigation() {
 		ui.clearPresetNavigationCursor();
 		uiNeedsRendering(getCurrentUI());
 		renderUIsForOled();
+		return;
+	}
+
+	// The scheduler may have latched readiness before an audition pad went down.
+	// Requeue after validating the target, rather than losing the candidate or
+	// replacing the instrument while notes from it are still being auditioned.
+	if (ui.presetNavigationDecision() == deluge::gui::PresetNavigationDecision::WAIT) {
+		Error error = ui.schedulePresetNavigation();
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
 		return;
 	}
 

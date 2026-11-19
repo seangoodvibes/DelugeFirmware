@@ -2,6 +2,25 @@
 
 namespace deluge::gui {
 
+PresetNavigationDecision PresetNavigationContext::decision(Song* liveSong, UI* liveUI, uint32_t liveMode,
+                                                           Clip* liveCurrentClip, bool arrangementRecording) const {
+	// The Session caller checks this before starting navigation. Recheck after
+	// the delay too, including after release has cleared the live selection.
+	if (selectedClip && arrangementRecording) {
+		return PresetNavigationDecision::CANCEL;
+	}
+	if (matchesUI(liveSong, liveUI, liveMode, liveCurrentClip)) {
+		return PresetNavigationDecision::LOAD;
+	}
+	// Auditioning the same clip is temporary. Do not replace an instrument while
+	// it is auditioned, or discard the selection just because the pad is held.
+	if (song == liveSong && ui == liveUI && currentClip == liveCurrentClip && uiMode == UI_MODE_NONE && !selectedClip
+	    && destination() == PresetNavigationDestination::CLIP && liveMode == UI_MODE_AUDITIONING) {
+		return PresetNavigationDecision::WAIT;
+	}
+	return PresetNavigationDecision::CANCEL;
+}
+
 bool PresetNavigationContext::matchesUI(Song* liveSong, UI* liveUI, uint32_t liveMode, Clip* liveCurrentClip) const {
 	uint32_t expectedMode = padReleased ? UI_MODE_NONE : uiMode;
 	return liveSong == song && liveUI == ui && liveMode == expectedMode && liveCurrentClip == currentClip;

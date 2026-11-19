@@ -212,3 +212,67 @@ TEST(PresetAvailabilityTests, DiskAndHibernatingPresetsRemainAvailable) {
 TEST(PresetAvailabilityTests, UnrestrictedBrowserKeepsOccupiedPresets) {
 	CHECK(presetInstrumentAvailable(Availability::ANY, true, true, other));
 }
+
+TEST(PresetLoadTests, AuditionLoadPreservesHeldLoadOrSelectGestureOnSuccessAndFailure) {
+	for (Error error : {Error::NONE, Error::FILE_CORRUPTED}) {
+		mode = UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS;
+		pending = true;
+		performPresetLoad(pending, mode, result, [] {}, [error] { return error; });
+		CHECK_EQUAL(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS, mode);
+		CHECK(result == error);
+	}
+}
+
+TEST(PresetNavigationContextTests, ArrangementRecordingCancelsHeldAndReleasedSessionSelections) {
+	for (bool wholeOutput : {false, true}) {
+		context.replacingWholeOutput = wholeOutput;
+		context.padReleased = false;
+		CHECK(context.decision(song, ui, context.uiMode, clip, false) == deluge::gui::PresetNavigationDecision::LOAD);
+		CHECK(context.decision(song, ui, context.uiMode, clip, true) == deluge::gui::PresetNavigationDecision::CANCEL);
+		context.markPadReleased(true);
+		CHECK(context.decision(song, ui, UI_MODE_NONE, clip, true) == deluge::gui::PresetNavigationDecision::CANCEL);
+	}
+}
+
+TEST(PresetNavigationContextTests, RecordingRestrictionFollowsSessionOriginNotVisibleUI) {
+	context.ui = reinterpret_cast<UI*>(&identities[4]);
+	CHECK(context.decision(song, context.ui, context.uiMode, clip, true)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+}
+
+TEST(PresetNavigationContextTests, ClipAuditionWaitsThenResumesOnRelease) {
+	context.selectedClip = nullptr;
+	context.uiMode = UI_MODE_NONE;
+	CHECK(context.decision(song, ui, UI_MODE_NONE, clip, false) == deluge::gui::PresetNavigationDecision::LOAD);
+	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING, clip, false) == deluge::gui::PresetNavigationDecision::WAIT);
+	CHECK(context.decision(song, ui, UI_MODE_NONE, clip, false) == deluge::gui::PresetNavigationDecision::LOAD);
+}
+
+TEST(PresetNavigationContextTests, AuditionDoesNotKeepNavigationAliveAfterViewOrTargetChanges) {
+	context.selectedClip = nullptr;
+	context.uiMode = UI_MODE_NONE;
+	CHECK(context.decision(song, nullptr, UI_MODE_AUDITIONING, clip, false)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING, otherClip, false)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+	CHECK(context.decision(nullptr, ui, UI_MODE_AUDITIONING, clip, false)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+}
+
+TEST(PresetNavigationContextTests, AuditionExceptionDoesNotPermitUnrelatedGesturesOrOutputReplacement) {
+	context.selectedClip = nullptr;
+	context.uiMode = UI_MODE_NONE;
+	CHECK(context.decision(song, ui, UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS, clip, false)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING | UI_MODE_NOTES_PRESSED, clip, false)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+	context.replacingWholeOutput = true;
+	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING, clip, false)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+}
+
+TEST(PresetNavigationContextTests, SessionNavigationDoesNotBecomeClipAuditionOnRelease) {
+	context.markPadReleased(true);
+	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING, clip, false)
+	      == deluge::gui::PresetNavigationDecision::CANCEL);
+}

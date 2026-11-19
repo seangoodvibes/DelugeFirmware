@@ -109,6 +109,8 @@ private:
 	void clearPresetNavigationCursor();
 	Error rememberPresetNavigationCandidate(Instrument* origin, FileItem* candidate, Clip* targetClip);
 	void cancelPresetNavigation();
+	Error schedulePresetNavigation();
+	deluge::gui::PresetNavigationDecision presetNavigationDecision() const;
 	bool presetNavigationContextMatches() const;
 	static bool presetNavigationReady();
 	static void resumePresetNavigation();
