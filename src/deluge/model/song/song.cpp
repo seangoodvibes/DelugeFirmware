@@ -4832,7 +4832,8 @@ bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequi
 	}
 }
 
-Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip) {
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip,
+                                                  bool fromArranger) {
 	if (output->type == OutputType::AUDIO) {
 		return output;
 	}
@@ -4939,7 +4940,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 	// Or if we're on a Kit or Synth...
 	else {
 		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
-		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip);
+		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip, fromArranger);
 		if (results.pending) {
 			return output;
 		}

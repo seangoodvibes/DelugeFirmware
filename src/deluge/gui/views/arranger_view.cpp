@@ -2598,7 +2598,7 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	endAudition(output);
 
-	output = currentSong->navigateThroughPresetsForInstrument(output, offset);
+	output = currentSong->navigateThroughPresetsForInstrument(output, offset, nullptr, true);
 
 	outputsOnScreen[yPressedEffective] = output;
 

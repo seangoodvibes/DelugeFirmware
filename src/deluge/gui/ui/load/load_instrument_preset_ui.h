@@ -59,7 +59,7 @@ public:
 	                                                                 Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink,
-	                                          Clip* displayClip = nullptr);
+	                                          Clip* displayClip = nullptr, bool fromArranger = false);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;
@@ -122,6 +122,7 @@ private:
 		Clip* displayClip = nullptr;
 		Instrument* instrument = nullptr;
 		bool doBlink = false;
+		bool fromArranger = false;
 		FileItem item;
 		String displayName;
 	} presetNavigation;

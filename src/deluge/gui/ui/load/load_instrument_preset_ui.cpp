@@ -1485,7 +1485,7 @@ needToGrabLeftmostButHaveToReadFirst:
 /// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
                                                                   Availability availabilityRequirement, bool doBlink,
-                                                                  Clip* displayClip) {
+                                                                  Clip* displayClip, bool fromArranger) {
 
 	// Resumption enters through the original caller, which has rebuilt its model
 	// stack and recalculated instrument availability. No caller stack survives the wait.
@@ -1716,6 +1716,8 @@ doneMoving:
 	pending.displayClip = displayClip;
 	pending.instrument = oldInstrument;
 	pending.doBlink = doBlink;
+	// Performance View can delegate navigation to Arranger View while remaining the current UI.
+	pending.fromArranger = fromArranger;
 	pending.deadline = getSystemTime() + kPresetPreviewDelayMs / 1000.0;
 	// The next encoder turn starts from this candidate, even though the original
 	// instrument remains loaded. The same cursor also lets us pass corrupt presets.
@@ -1903,7 +1905,7 @@ bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	if (pending.ui == &sessionView && sessionView.getClipForLayout() != pending.selectedClip) {
 		return false;
 	}
-	if (pending.ui == &arrangerView) {
+	if (pending.fromArranger) {
 		int32_t row = arrangerView.yPressedEffective;
 		if (row < 0 || row >= kDisplayHeight || arrangerView.outputsOnScreen[row] != pending.instrument) {
 			return false;
@@ -1955,7 +1957,7 @@ void LoadInstrumentPresetUI::resumePresetNavigation() {
 		auto* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, pending.displayClip);
 		view.navigateThroughPresetsForInstrumentClip(0, modelStack, pending.doBlink);
 	}
-	else if (pending.ui == &arrangerView) {
+	else if (pending.fromArranger) {
 		arrangerView.navigateThroughPresets(0);
 	}
 	else {
