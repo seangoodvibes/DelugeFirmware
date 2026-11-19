@@ -523,7 +523,12 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
-		performLoad();
+		// Consume the scheduled preview before loading directly: parsing can service UI timers.
+		cancelPendingPreview();
+		auto oldUIMode = currentUIMode;
+		currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
+		currentInstrumentLoadError = performLoad();
+		currentUIMode = oldUIMode;
 	}
 }
 
