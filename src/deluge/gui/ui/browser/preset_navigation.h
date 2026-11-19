@@ -30,7 +30,7 @@ struct PresetNavigationContext {
 	                                  bool arrangementRecording) const;
 	bool matchesSelection(Clip* liveSelectedClip, bool arrangerTargetMatches) const;
 	void markPadReleased(bool targetMatches);
-	PresetNavigationDestination destination() const;
+	[[nodiscard]] PresetNavigationDestination destination() const;
 };
 
 // Both catalog filtering and navigation must allow returning to the origin,

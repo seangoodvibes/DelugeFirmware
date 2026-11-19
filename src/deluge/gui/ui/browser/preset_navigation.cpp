@@ -6,7 +6,7 @@ PresetNavigationDecision PresetNavigationContext::decision(Song* liveSong, UI* l
                                                            Clip* liveCurrentClip, bool arrangementRecording) const {
 	// The Session caller checks this before starting navigation. Recheck after
 	// the delay too, including after release has cleared the live selection.
-	if (selectedClip && arrangementRecording) {
+	if ((selectedClip != nullptr) && arrangementRecording) {
 		return PresetNavigationDecision::CANCEL;
 	}
 	if (matchesUI(liveSong, liveUI, liveMode, liveCurrentClip)) {
@@ -14,20 +14,21 @@ PresetNavigationDecision PresetNavigationContext::decision(Song* liveSong, UI* l
 	}
 	// Auditioning the same clip is temporary. Do not replace an instrument while
 	// it is auditioned, or discard the selection just because the pad is held.
-	if (song == liveSong && ui == liveUI && currentClip == liveCurrentClip && uiMode == UI_MODE_NONE && !selectedClip
-	    && destination() == PresetNavigationDestination::CLIP && liveMode == UI_MODE_AUDITIONING) {
+	if (song == liveSong && ui == liveUI && currentClip == liveCurrentClip && uiMode == UI_MODE_NONE
+	    && (selectedClip == nullptr) && destination() == PresetNavigationDestination::CLIP
+	    && liveMode == UI_MODE_AUDITIONING) {
 		return PresetNavigationDecision::WAIT;
 	}
 	return PresetNavigationDecision::CANCEL;
 }
 
 bool PresetNavigationContext::matchesUI(Song* liveSong, UI* liveUI, uint32_t liveMode, Clip* liveCurrentClip) const {
-	uint32_t expectedMode = padReleased ? UI_MODE_NONE : uiMode;
-	return liveSong == song && liveUI == ui && liveMode == expectedMode && liveCurrentClip == currentClip;
+	uint32_t expected_mode = padReleased ? UI_MODE_NONE : uiMode;
+	return liveSong == song && liveUI == ui && liveMode == expected_mode && liveCurrentClip == currentClip;
 }
 
 bool PresetNavigationContext::matchesSelection(Clip* liveSelectedClip, bool arrangerTargetMatches) const {
-	return (padReleased || !selectedClip || liveSelectedClip == selectedClip)
+	return (padReleased || (selectedClip == nullptr) || liveSelectedClip == selectedClip)
 	       && (!fromArranger || arrangerTargetMatches);
 }
 
@@ -39,7 +40,7 @@ void PresetNavigationContext::markPadReleased(bool targetMatches) {
 }
 
 PresetNavigationDestination PresetNavigationContext::destination() const {
-	if (displayClip && !replacingWholeOutput) {
+	if ((displayClip != nullptr) && !replacingWholeOutput) {
 		return PresetNavigationDestination::CLIP;
 	}
 	return fromArranger ? PresetNavigationDestination::ARRANGER : PresetNavigationDestination::OUTPUT;
@@ -47,7 +48,7 @@ PresetNavigationDestination PresetNavigationContext::destination() const {
 
 bool presetInstrumentAvailable(Availability requirement, bool alreadyInSong, bool activeInSession,
                                const Instrument* candidate, const Instrument* exemptInstrument) {
-	if (!alreadyInSong || (candidate && candidate == exemptInstrument)) {
+	if (!alreadyInSong || ((candidate != nullptr) && candidate == exemptInstrument)) {
 		return true;
 	}
 	if (requirement == Availability::INSTRUMENT_UNUSED) {

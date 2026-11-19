@@ -1,3 +1,5 @@
+// CppUTest TEST macros generate static registration and owning factory code.
+// NOLINTBEGIN(bugprone-throwing-static-initialization, cppcoreguidelines-owning-memory)
 #include "CppUTest/TestHarness.h"
 #include "gui/ui/browser/preset_navigation.h"
 #include <array>
@@ -8,12 +10,22 @@ using deluge::gui::presetInstrumentAvailable;
 using deluge::gui::PresetNavigationContext;
 using deluge::gui::PresetNavigationDestination;
 
+namespace {
+template <typename T>
+T* identity(std::max_align_t& token) {
+	// Opaque pointer identities only; the production policies never dereference them.
+	return reinterpret_cast<T*>(&token); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+}
+} // namespace
+
 TEST_GROUP(PresetLoadTests) {
 	bool pending = true;
 	uint32_t mode = UI_MODE_NONE;
 	Error result = Error::NONE;
 };
 
+// Assertion macros contribute branching that is outside the test body.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST(PresetLoadTests, ConsumesPreviewAndSetsBusyBeforeTimerCancellation) {
 	bool cancelled = false;
 	performPresetLoad(
@@ -54,16 +66,16 @@ TEST_GROUP(PresetNavigationContextTests) {
 	// The context compares identities without dereferencing model/UI objects.
 	// Distinct, aligned addresses supply those identities without fake class definitions.
 	std::array<std::max_align_t, 5> identities{};
-	Song* song;
-	UI* ui;
-	Clip* clip;
-	Clip* otherClip;
+	Song* song = nullptr;
+	UI* ui = nullptr;
+	Clip* clip = nullptr;
+	Clip* other_clip = nullptr;
 
 	void setup() override {
-		song = reinterpret_cast<Song*>(&identities[0]);
-		ui = reinterpret_cast<UI*>(&identities[1]);
-		clip = reinterpret_cast<Clip*>(&identities[2]);
-		otherClip = reinterpret_cast<Clip*>(&identities[3]);
+		song = identity<Song>(identities.at(0));
+		ui = identity<UI>(identities.at(1));
+		clip = identity<Clip>(identities.at(2));
+		other_clip = identity<Clip>(identities.at(3));
 		context.song = song;
 		context.ui = ui;
 		context.currentClip = clip;
@@ -81,7 +93,7 @@ TEST(PresetNavigationContextTests, SameHeldTargetMatches) {
 TEST(PresetNavigationContextTests, ChangedSongUIOrCurrentClipCancels) {
 	CHECK_FALSE(context.matchesUI(nullptr, ui, context.uiMode, clip));
 	CHECK_FALSE(context.matchesUI(song, nullptr, context.uiMode, clip));
-	CHECK_FALSE(context.matchesUI(song, ui, context.uiMode, otherClip));
+	CHECK_FALSE(context.matchesUI(song, ui, context.uiMode, other_clip));
 }
 
 TEST(PresetNavigationContextTests, UnrecordedModeChangeCancels) {
@@ -89,7 +101,7 @@ TEST(PresetNavigationContextTests, UnrecordedModeChangeCancels) {
 }
 
 TEST(PresetNavigationContextTests, ChangedSelectionCancelsWhilePadHeld) {
-	CHECK_FALSE(context.matchesSelection(otherClip, true));
+	CHECK_FALSE(context.matchesSelection(other_clip, true));
 	CHECK_FALSE(context.matchesSelection(nullptr, true));
 }
 
@@ -115,7 +127,7 @@ TEST(PresetNavigationContextTests, NewGestureAfterReleaseCancels) {
 TEST(PresetNavigationContextTests, ChangingViewOrTargetAfterReleaseStillCancels) {
 	context.markPadReleased(true);
 	CHECK_FALSE(context.matchesUI(song, nullptr, UI_MODE_NONE, clip));
-	CHECK_FALSE(context.matchesUI(song, ui, UI_MODE_NONE, otherClip));
+	CHECK_FALSE(context.matchesUI(song, ui, UI_MODE_NONE, other_clip));
 	CHECK_FALSE(context.matchesUI(nullptr, ui, UI_MODE_NONE, clip));
 }
 
@@ -161,9 +173,9 @@ TEST(PresetNavigationContextTests, GridLabelClipDoesNotTurnWholeOutputReplacemen
 
 TEST(PresetNavigationContextTests, GridReplacementScopeSurvivesDelegationToAnotherUI) {
 	context.replacingWholeOutput = true;
-	context.ui = reinterpret_cast<UI*>(&identities[4]);
+	context.ui = identity<UI>(identities.at(4));
 	CHECK(context.destination() == PresetNavigationDestination::OUTPUT);
-	CHECK_FALSE(context.matchesSelection(otherClip, true));
+	CHECK_FALSE(context.matchesSelection(other_clip, true));
 }
 
 TEST(PresetNavigationContextTests, NavigationWithoutADisplayClipReplacesOutput) {
@@ -173,11 +185,11 @@ TEST(PresetNavigationContextTests, NavigationWithoutADisplayClipReplacesOutput) 
 
 TEST_GROUP(PresetAvailabilityTests) {
 	std::array<std::max_align_t, 2> identities{};
-	Instrument* origin;
-	Instrument* other;
+	Instrument* origin = nullptr;
+	Instrument* other = nullptr;
 	void setup() override {
-		origin = reinterpret_cast<Instrument*>(&identities[0]);
-		other = reinterpret_cast<Instrument*>(&identities[1]);
+		origin = identity<Instrument>(identities.at(0));
+		other = identity<Instrument>(identities.at(1));
 	}
 };
 
@@ -224,8 +236,8 @@ TEST(PresetLoadTests, AuditionLoadPreservesHeldLoadOrSelectGestureOnSuccessAndFa
 }
 
 TEST(PresetNavigationContextTests, ArrangementRecordingCancelsHeldAndReleasedSessionSelections) {
-	for (bool wholeOutput : {false, true}) {
-		context.replacingWholeOutput = wholeOutput;
+	for (bool whole_output : {false, true}) {
+		context.replacingWholeOutput = whole_output;
 		context.padReleased = false;
 		CHECK(context.decision(song, ui, context.uiMode, clip, false) == deluge::gui::PresetNavigationDecision::LOAD);
 		CHECK(context.decision(song, ui, context.uiMode, clip, true) == deluge::gui::PresetNavigationDecision::CANCEL);
@@ -235,7 +247,7 @@ TEST(PresetNavigationContextTests, ArrangementRecordingCancelsHeldAndReleasedSes
 }
 
 TEST(PresetNavigationContextTests, RecordingRestrictionFollowsSessionOriginNotVisibleUI) {
-	context.ui = reinterpret_cast<UI*>(&identities[4]);
+	context.ui = identity<UI>(identities.at(4));
 	CHECK(context.decision(song, context.ui, context.uiMode, clip, true)
 	      == deluge::gui::PresetNavigationDecision::CANCEL);
 }
@@ -253,7 +265,7 @@ TEST(PresetNavigationContextTests, AuditionDoesNotKeepNavigationAliveAfterViewOr
 	context.uiMode = UI_MODE_NONE;
 	CHECK(context.decision(song, nullptr, UI_MODE_AUDITIONING, clip, false)
 	      == deluge::gui::PresetNavigationDecision::CANCEL);
-	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING, otherClip, false)
+	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING, other_clip, false)
 	      == deluge::gui::PresetNavigationDecision::CANCEL);
 	CHECK(context.decision(nullptr, ui, UI_MODE_AUDITIONING, clip, false)
 	      == deluge::gui::PresetNavigationDecision::CANCEL);
@@ -276,3 +288,5 @@ TEST(PresetNavigationContextTests, SessionNavigationDoesNotBecomeClipAuditionOnR
 	CHECK(context.decision(song, ui, UI_MODE_AUDITIONING, clip, false)
 	      == deluge::gui::PresetNavigationDecision::CANCEL);
 }
+
+// NOLINTEND(bugprone-throwing-static-initialization, cppcoreguidelines-owning-memory)

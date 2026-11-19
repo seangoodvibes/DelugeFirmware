@@ -37,6 +37,7 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	void previewTimerCallback();
+	bool prepareForParameterEdit();
 	void presetNavigationPadReleased();
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
@@ -88,6 +89,7 @@ public:
 	bool canDisplayFavourites() override { return true; }
 
 protected:
+	void displayText(bool blinkImmediately = false) override;
 	void enterKeyPress() override;
 	void folderContentsReady(int32_t entryDirection) override;
 	void currentFileChanged(int32_t movementDirection) override;
@@ -96,13 +98,14 @@ private:
 	void cancelPendingPreview();
 	void startPresetLoadingIndicator();
 	void stopPresetLoadingIndicator();
-	bool loadingIndicatorActive = false;
+	bool loading_indicator_active_ = false;
 	struct LoadingIndicatorGuard {
-		LoadInstrumentPresetUI& ui;
+		explicit LoadingIndicatorGuard(LoadInstrumentPresetUI& owner) : ui(&owner) {}
+		LoadInstrumentPresetUI* ui;
 		bool keepActive = false;
 		~LoadingIndicatorGuard() {
 			if (!keepActive) {
-				ui.stopPresetLoadingIndicator();
+				ui->stopPresetLoadingIndicator();
 			}
 		}
 	};
@@ -110,8 +113,8 @@ private:
 	Error rememberPresetNavigationCandidate(Instrument* origin, FileItem* candidate, Clip* targetClip);
 	void cancelPresetNavigation();
 	Error schedulePresetNavigation();
-	deluge::gui::PresetNavigationDecision presetNavigationDecision() const;
-	bool presetNavigationContextMatches() const;
+	[[nodiscard]] deluge::gui::PresetNavigationDecision presetNavigationDecision() const;
+	[[nodiscard]] bool presetNavigationContextMatches() const;
 	static bool presetNavigationReady();
 	static void resumePresetNavigation();
 	PresetNavigationResult loadNavigatedPreset(FileItem* item, Instrument* oldInstrument, Clip* displayClip);
@@ -123,7 +126,7 @@ private:
 		bool doBlink = false;
 		FileItem item;
 		String displayName;
-	} presetNavigation;
+	} preset_navigation_;
 	struct {
 		Song* song = nullptr;
 		Instrument* instrument = nullptr;
@@ -133,9 +136,9 @@ private:
 		String sourceName;
 		String dir;
 		String filename;
-	} presetNavigationCursor;
+	} preset_navigation_cursor_;
 	void loadPendingPreview();
-	bool previewPending = false;
+	bool preview_pending_ = false;
 	bool showingAuditionPads();
 	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);

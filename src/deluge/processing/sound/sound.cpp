@@ -3550,14 +3550,19 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 					// is a sampleRange or wavetableRange
 
-					char tempMemory[source->ranges.elementSize];
+					alignas(MultiWaveTableRange) alignas(MultisampleRange)
+					    std::array<char, std::max(sizeof(MultiWaveTableRange), sizeof(MultisampleRange))>
+					        temp_memory{};
 
 					MultiRange* tempRange;
 					if (source->oscType == OscType::WAVETABLE) {
-						tempRange = new (tempMemory) MultiWaveTableRange();
+						// Placement construction borrows stack storage, not heap ownership.
+						// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+						tempRange = new (temp_memory.data()) MultiWaveTableRange();
 					}
 					else {
-						tempRange = new (tempMemory) MultisampleRange();
+						// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+						tempRange = new (temp_memory.data()) MultisampleRange();
 					}
 
 					AudioFileHolder* holder = tempRange->getAudioFileHolder();
