@@ -4940,7 +4940,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 	// Or if we're on a Kit or Synth...
 	else {
 		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
-		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip, fromArranger);
+		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip, fromArranger, true);
 		if (results.pending) {
 			return output;
 		}

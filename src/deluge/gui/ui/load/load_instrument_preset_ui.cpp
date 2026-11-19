@@ -1485,7 +1485,8 @@ needToGrabLeftmostButHaveToReadFirst:
 /// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
                                                                   Availability availabilityRequirement, bool doBlink,
-                                                                  Clip* displayClip, bool fromArranger) {
+                                                                  Clip* displayClip, bool fromArranger,
+                                                                  bool replacingWholeOutput) {
 
 	// Resumption enters through the original caller, which has rebuilt its model
 	// stack and recalculated instrument availability. No caller stack survives the wait.
@@ -1715,12 +1716,14 @@ doneMoving:
 	pending.ui = getCurrentUI();
 	pending.uiMode = currentUIMode;
 	pending.currentClip = getCurrentClip();
-	pending.selectedClip = pending.ui == &sessionView ? sessionView.getClipForLayout() : nullptr;
+	pending.selectedClip =
+	    currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW ? sessionView.getClipForLayout() : nullptr;
 	pending.displayClip = displayClip;
 	pending.instrument = oldInstrument;
 	pending.doBlink = doBlink;
 	// Performance View can delegate navigation to Arranger View while remaining the current UI.
 	pending.fromArranger = fromArranger;
+	pending.replacingWholeOutput = replacingWholeOutput;
 	pending.padReleased = false;
 	pending.deadline = getSystemTime() + kPresetPreviewDelayMs / 1000.0;
 	// The next encoder turn starts from this candidate, even though the original
@@ -1916,7 +1919,7 @@ bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	    || strcmp(pending.instrument->dirPath.get(), presetNavigationCursor.dir.get())) {
 		return false;
 	}
-	if (!pending.padReleased && pending.ui == &sessionView && sessionView.getClipForLayout() != pending.selectedClip) {
+	if (!pending.padReleased && pending.selectedClip && sessionView.getClipForLayout() != pending.selectedClip) {
 		return false;
 	}
 	if (pending.fromArranger) {
@@ -1963,10 +1966,8 @@ void LoadInstrumentPresetUI::resumePresetNavigation() {
 	}
 
 	pending.resuming = true;
-	// A grid selection carries a clip for its label, but replaces the whole output.
-	bool isSessionGrid =
-	    pending.ui == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid;
-	if (pending.displayClip && !isSessionGrid) {
+	// Preserve whole-output replacement even when another UI delegates the navigation.
+	if (pending.displayClip && !pending.replacingWholeOutput) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		auto* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, pending.displayClip);
 		view.navigateThroughPresetsForInstrumentClip(0, modelStack, pending.doBlink);
