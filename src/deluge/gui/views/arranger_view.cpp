@@ -944,6 +944,7 @@ doNewPress:
 }
 
 void ArrangerView::auditionEnded() {
+	loadInstrumentPresetUI.presetNavigationPadReleased();
 	setNoSubMode();
 	setLedStates();
 
@@ -2589,6 +2590,7 @@ void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 }
 
 void ArrangerView::navigateThroughPresets(int32_t offset) {
+	bool auditioning = currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 	Output* output = outputsOnScreen[yPressedEffective];
 	if (output->type == OutputType::AUDIO) {
 		auto ao = (AudioOutput*)output;
@@ -2596,17 +2598,19 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 		return;
 	}
 
-	endAudition(output);
+	if (auditioning) {
+		endAudition(output);
+	}
 
 	output = currentSong->navigateThroughPresetsForInstrument(output, offset, nullptr, true);
 
 	outputsOnScreen[yPressedEffective] = output;
 
-	view.setActiveModControllableTimelineCounter(output->getActiveClip());
-
-	AudioEngine::routineWithClusterLoading();
-
-	beginAudition(output);
+	if (auditioning) {
+		view.setActiveModControllableTimelineCounter(output->getActiveClip());
+		AudioEngine::routineWithClusterLoading();
+		beginAudition(output);
+	}
 }
 
 void ArrangerView::changeOutputType(OutputType newOutputType) {

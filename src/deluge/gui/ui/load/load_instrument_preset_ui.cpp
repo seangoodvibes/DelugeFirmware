@@ -1721,6 +1721,7 @@ doneMoving:
 	pending.doBlink = doBlink;
 	// Performance View can delegate navigation to Arranger View while remaining the current UI.
 	pending.fromArranger = fromArranger;
+	pending.padReleased = false;
 	pending.deadline = getSystemTime() + kPresetPreviewDelayMs / 1000.0;
 	// The next encoder turn starts from this candidate, even though the original
 	// instrument remains loaded. The same cursor also lets us pass corrupt presets.
@@ -1887,9 +1888,19 @@ void LoadInstrumentPresetUI::cancelPresetNavigation() {
 	}
 }
 
+void LoadInstrumentPresetUI::presetNavigationPadReleased() {
+	// Capture a genuine release before the caller clears its selection and UI mode.
+	if (presetNavigation.task >= 0 && presetNavigationContextMatches()
+	    && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
+	        || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+		presetNavigation.padReleased = true;
+	}
+}
+
 bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	const auto& pending = presetNavigation;
-	if (currentSong != pending.song || getCurrentUI() != pending.ui || currentUIMode != pending.uiMode
+	int32_t expectedUIMode = pending.padReleased ? UI_MODE_NONE : pending.uiMode;
+	if (currentSong != pending.song || getCurrentUI() != pending.ui || currentUIMode != expectedUIMode
 	    || getCurrentClip() != pending.currentClip) {
 		return false;
 	}
@@ -1905,7 +1916,7 @@ bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	    || strcmp(pending.instrument->dirPath.get(), presetNavigationCursor.dir.get())) {
 		return false;
 	}
-	if (pending.ui == &sessionView && sessionView.getClipForLayout() != pending.selectedClip) {
+	if (!pending.padReleased && pending.ui == &sessionView && sessionView.getClipForLayout() != pending.selectedClip) {
 		return false;
 	}
 	if (pending.fromArranger) {
@@ -1970,4 +1981,9 @@ void LoadInstrumentPresetUI::resumePresetNavigation() {
 		renderUIsForOled();
 	}
 	pending.resuming = false;
+	if (pending.padReleased) {
+		view.setActiveModControllableTimelineCounter(currentSong);
+		uiNeedsRendering(getCurrentUI());
+		renderUIsForOled();
+	}
 }

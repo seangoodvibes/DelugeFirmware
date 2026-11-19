@@ -36,6 +36,7 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	void previewTimerCallback();
+	void presetNavigationPadReleased();
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -123,6 +124,7 @@ private:
 		Instrument* instrument = nullptr;
 		bool doBlink = false;
 		bool fromArranger = false;
+		bool padReleased = false;
 		FileItem item;
 		String displayName;
 	} presetNavigation;
