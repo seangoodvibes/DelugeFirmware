@@ -1551,7 +1551,9 @@ emptyFileItemsAndReturn:
 	sortFileItems();
 	AudioEngine::logAction("doPresetNavigation4");
 
-	deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION);
+	// Keep the loaded preset reachable when reversing from a pending or failed candidate.
+	deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION,
+	                              resumeFromCandidate ? oldInstrument : nullptr);
 	AudioEngine::logAction("doPresetNavigation5");
 
 	// Now that we've deleted duplicates etc...
@@ -1569,7 +1571,7 @@ noErrorButGetOut:
 			return toReturn;
 		}
 	}
-	else if (fileItems.getNumElements() == 1
+	else if (!resumeFromCandidate && fileItems.getNumElements() == 1
 	         && ((FileItem*)fileItems.getElementAddress(0))->instrument == oldInstrument) {
 		goto reachedEnd;
 	}
@@ -1648,7 +1650,8 @@ doneMoving:
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
 	// wrapped is here to prevent an infinite loop
-	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong && wrapped < 2) {
+	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong && wrapped < 2
+	    && !(resumeFromCandidate && toReturn.fileItem->instrument == oldInstrument)) {
 		goto moveAgain;
 	}
 

@@ -347,7 +347,8 @@ extensionNotSupported:
 	return error;
 }
 
-void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
+void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement,
+                                            Instrument* availabilityExemptInstrument) {
 	int32_t writeI = 0;
 	FileItem* nextItem = (FileItem*)fileItems.getElementAddress(0);
 
@@ -388,7 +389,7 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 
 checkAvailabilityRequirement:
 				// Check Instrument's availabilityRequirement
-				if (readItem->instrumentAlreadyInSong) {
+				if (readItem->instrumentAlreadyInSong && readItem->instrument != availabilityExemptInstrument) {
 					if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 deleteThisItem:
 						readItem->~FileItem();
