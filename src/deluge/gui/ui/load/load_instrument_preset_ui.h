@@ -19,6 +19,7 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/preset_navigation.h"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "model/instrument/kit.h"
@@ -112,21 +113,12 @@ private:
 	static bool presetNavigationReady();
 	static void resumePresetNavigation();
 	PresetNavigationResult loadNavigatedPreset(FileItem* item, Instrument* oldInstrument, Clip* displayClip);
-	struct {
+	struct PendingPresetNavigation : deluge::gui::PresetNavigationContext {
 		TaskID task = -1;
 		bool resuming = false;
 		double deadline = 0;
-		Song* song = nullptr;
-		UI* ui = nullptr;
-		int32_t uiMode = 0;
-		Clip* currentClip = nullptr;
-		Clip* selectedClip = nullptr;
-		Clip* displayClip = nullptr;
 		Instrument* instrument = nullptr;
 		bool doBlink = false;
-		bool fromArranger = false;
-		bool replacingWholeOutput = false;
-		bool padReleased = false;
 		FileItem item;
 		String displayName;
 	} presetNavigation;

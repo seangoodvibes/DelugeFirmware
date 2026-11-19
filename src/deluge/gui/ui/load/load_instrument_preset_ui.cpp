@@ -524,11 +524,9 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 			renderUIsForOled();
 		}
 		// Consume the scheduled preview before loading directly: parsing can service UI timers.
-		cancelPendingPreview();
-		auto oldUIMode = currentUIMode;
-		currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-		currentInstrumentLoadError = performLoad();
-		currentUIMode = oldUIMode;
+		deluge::gui::performPresetLoad(
+		    previewPending, currentUIMode, currentInstrumentLoadError, [this] { cancelPendingPreview(); },
+		    [this] { return performLoad(); });
 	}
 }
 
@@ -1651,8 +1649,10 @@ doneMoving:
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
 	// wrapped is here to prevent an infinite loop
-	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong && wrapped < 2
-	    && !(resumeFromCandidate && toReturn.fileItem->instrument == oldInstrument)) {
+	if (wrapped < 2
+	    && !deluge::gui::presetInstrumentAvailable(availabilityRequirement, isAlreadyInSong, false,
+	                                               toReturn.fileItem->instrument,
+	                                               resumeFromCandidate ? oldInstrument : nullptr)) {
 		goto moveAgain;
 	}
 
@@ -1851,10 +1851,10 @@ void LoadInstrumentPresetUI::previewTimerCallback() {
 }
 
 void LoadInstrumentPresetUI::loadPendingPreview() {
-	previewPending = false;
-	uiTimerManager.unsetTimer(TimerName::INSTRUMENT_PREVIEW);
-	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	currentInstrumentLoadError = loadingSynthToKitRow ? performLoadSynthToKit() : performLoad();
+	deluge::gui::performPresetLoad(
+	    previewPending, currentUIMode, currentInstrumentLoadError,
+	    [] { uiTimerManager.unsetTimer(TimerName::INSTRUMENT_PREVIEW); },
+	    [this] { return loadingSynthToKitRow ? performLoadSynthToKit() : performLoad(); });
 	currentUIMode = UI_MODE_NONE;
 }
 
@@ -1893,18 +1893,14 @@ void LoadInstrumentPresetUI::cancelPresetNavigation() {
 
 void LoadInstrumentPresetUI::presetNavigationPadReleased() {
 	// Capture a genuine release before the caller clears its selection and UI mode.
-	if (presetNavigation.task >= 0 && presetNavigationContextMatches()
-	    && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
-	        || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-		presetNavigation.padReleased = true;
+	if (presetNavigation.task >= 0) {
+		presetNavigation.markPadReleased(presetNavigationContextMatches());
 	}
 }
 
 bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	const auto& pending = presetNavigation;
-	int32_t expectedUIMode = pending.padReleased ? UI_MODE_NONE : pending.uiMode;
-	if (currentSong != pending.song || getCurrentUI() != pending.ui || currentUIMode != expectedUIMode
-	    || getCurrentClip() != pending.currentClip) {
+	if (!pending.matchesUI(currentSong, getCurrentUI(), currentUIMode, getCurrentClip())) {
 		return false;
 	}
 	// Compare against live objects before dereferencing saved pointers.
@@ -1919,14 +1915,12 @@ bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	    || strcmp(pending.instrument->dirPath.get(), presetNavigationCursor.dir.get())) {
 		return false;
 	}
-	if (!pending.padReleased && pending.selectedClip && sessionView.getClipForLayout() != pending.selectedClip) {
+	int32_t row = arrangerView.yPressedEffective;
+	bool arrangerTargetMatches =
+	    row >= 0 && row < kDisplayHeight && arrangerView.outputsOnScreen[row] == pending.instrument;
+	Clip* selectedClip = !pending.padReleased && pending.selectedClip ? sessionView.getClipForLayout() : nullptr;
+	if (!pending.matchesSelection(selectedClip, arrangerTargetMatches)) {
 		return false;
-	}
-	if (pending.fromArranger) {
-		int32_t row = arrangerView.yPressedEffective;
-		if (row < 0 || row >= kDisplayHeight || arrangerView.outputsOnScreen[row] != pending.instrument) {
-			return false;
-		}
 	}
 	Clip* target = pending.displayClip ? pending.displayClip : pending.selectedClip;
 	if (target) {
@@ -1967,12 +1961,12 @@ void LoadInstrumentPresetUI::resumePresetNavigation() {
 
 	pending.resuming = true;
 	// Preserve whole-output replacement even when another UI delegates the navigation.
-	if (pending.displayClip && !pending.replacingWholeOutput) {
+	if (pending.destination() == deluge::gui::PresetNavigationDestination::CLIP) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		auto* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, pending.displayClip);
 		view.navigateThroughPresetsForInstrumentClip(0, modelStack, pending.doBlink);
 	}
-	else if (pending.fromArranger) {
+	else if (pending.destination() == deluge::gui::PresetNavigationDestination::ARRANGER) {
 		arrangerView.navigateThroughPresets(0);
 	}
 	else {

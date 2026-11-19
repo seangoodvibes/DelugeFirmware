@@ -22,6 +22,7 @@
 #include "gui/context_menu/delete_file.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/default_name.h"
+#include "gui/ui/browser/preset_navigation.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -389,17 +390,15 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 
 checkAvailabilityRequirement:
 				// Check Instrument's availabilityRequirement
-				if (readItem->instrumentAlreadyInSong && readItem->instrument != availabilityExemptInstrument) {
-					if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_UNUSED) {
+				if (!deluge::gui::presetInstrumentAvailable(
+				        instrumentAvailabilityRequirement, readItem->instrumentAlreadyInSong,
+				        readItem->instrumentAlreadyInSong && readItem->instrument != availabilityExemptInstrument
+				            && instrumentAvailabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION
+				            && currentSong->doesOutputHaveActiveClipInSession(readItem->instrument),
+				        readItem->instrument, availabilityExemptInstrument)) {
 deleteThisItem:
-						readItem->~FileItem();
-						continue;
-					}
-					else if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-						if (currentSong->doesOutputHaveActiveClipInSession(readItem->instrument)) {
-							goto deleteThisItem;
-						}
-					}
+					readItem->~FileItem();
+					continue;
 				}
 			}
 
