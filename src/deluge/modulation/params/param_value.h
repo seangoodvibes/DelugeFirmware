@@ -98,6 +98,12 @@ public:
 			parameterBaselinesChanged();
 		}
 	}
+	// Detach only from a zero baseline slot which is about to be reused for another route.
+	void detachFromPreset(const int32_t* preset) {
+		if (presetPointer() == preset) {
+			detachZeroPreset();
+		}
+	}
 	void bindPreset(const int32_t* preset) {
 		if (presetPointer() == preset) {
 			return;
