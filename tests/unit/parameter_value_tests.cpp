@@ -81,6 +81,24 @@ TEST(ParameterValueTests, SaturatingPlaybackIncrementRetainsWideEndpoints) {
 	CHECK_EQUAL(0, saturatingAutomationIncrement(4294967295LL, 0));
 }
 
+TEST(ParameterValueTests, SampleIncrementMatchesTheWideCalculation) {
+	auto wide = [](int64_t per_half_tick, uint32_t inverse, int32_t num_samples) {
+		return saturatingAutomationIncrement(((per_half_tick * inverse) + (int64_t{1} << 31)) >> 32,
+		                                     int64_t{6} * num_samples);
+	};
+	const int64_t rates[] = {0,         1,         -1,           12345,        -12345,       INT32_MAX,
+	                         INT32_MIN, 1LL << 40, -(1LL << 40), 4294967295LL, -4294967295LL};
+	const uint32_t inverses[] = {0, 1, 0x00400000, 0x12345678, INT32_MAX, 0x80000000U, UINT32_MAX};
+	const int32_t samples[] = {1, 7, 128, 1024};
+	for (int64_t rate : rates) {
+		for (uint32_t inverse : inverses) {
+			for (int32_t num_samples : samples) {
+				CHECK_EQUAL(wide(rate, inverse, num_samples), automationSampleIncrement(rate, inverse, num_samples));
+			}
+		}
+	}
+}
+
 TEST_GROUP(AutomationValueTests) {
 	AutoParamValue value;
 };
