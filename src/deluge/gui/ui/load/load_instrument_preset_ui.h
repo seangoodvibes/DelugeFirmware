@@ -37,7 +37,10 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	void previewTimerCallback();
-	bool prepareForParameterEdit();
+	[[nodiscard]] deluge::gui::PresetEditReadiness prepareForParameterEdit();
+	// True while a parameter edit can't resolve the pending preset yet, so the
+	// input should be redelivered rather than applied to the old preset or lost.
+	[[nodiscard]] bool parameterEditMustWait() const;
 	void selectEncoderUsedForGlobalControl();
 	[[nodiscard]] bool hasPendingPresetLoad() const;
 	void presetNavigationPadReleased();

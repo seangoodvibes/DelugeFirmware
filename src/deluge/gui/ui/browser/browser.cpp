@@ -1921,17 +1921,12 @@ void Browser::sortFileItems() {
 			}
 		}
 		else if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
-			bool foundExact;
-			int32_t searchIndex = fileItems.search(filenameToStartSearchAt, &foundExact);
-			// Check for duplicates.
-			if (foundExact) {
-				int32_t prevIndex = searchIndex - 1;
-				if (prevIndex >= 0) {
-					FileItem* prevItem = (FileItem*)fileItems.getElementAddress(prevIndex);
-					if (!strcmpspecial(prevItem->displayName, filenameToStartSearchAt)) {
-						searchIndex = prevIndex;
-					}
-				}
+			int32_t searchIndex = fileItems.search(filenameToStartSearchAt);
+			// search() may return any of several equal keys (e.g. same-named instruments). Exclude them all.
+			while (searchIndex > 0
+			       && !strcmpspecial(((FileItem*)fileItems.getElementAddress(searchIndex - 1))->displayName,
+			                         filenameToStartSearchAt)) {
+				searchIndex--;
 			}
 			int32_t numToDelete = fileItems.getNumElements() - searchIndex;
 			if (numToDelete > 0) {
@@ -1940,19 +1935,13 @@ void Browser::sortFileItems() {
 			}
 		}
 		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
-			bool foundExact;
-			int32_t searchIndex = fileItems.search(filenameToStartSearchAt, &foundExact);
-			// Check for duplicates.
-			if (foundExact) {
-				int32_t nextIndex = searchIndex + 1;
-				if (nextIndex < fileItems.getNumElements()) {
-					FileItem* nextItem = (FileItem*)fileItems.getElementAddress(nextIndex);
-					if (!strcmpspecial(nextItem->displayName, filenameToStartSearchAt)) {
-						searchIndex = nextIndex;
-					}
-				}
+			int32_t numToDelete = fileItems.search(filenameToStartSearchAt);
+			// search() may return any of several equal keys (e.g. same-named instruments). Exclude them all.
+			while (numToDelete < fileItems.getNumElements()
+			       && !strcmpspecial(((FileItem*)fileItems.getElementAddress(numToDelete))->displayName,
+			                         filenameToStartSearchAt)) {
+				numToDelete++;
 			}
-			int32_t numToDelete = searchIndex + (int32_t)foundExact;
 			if (numToDelete > 0) {
 				deleteSomeFileItems(0, numToDelete);
 				numFileItemsDeletedAtStart += numToDelete;

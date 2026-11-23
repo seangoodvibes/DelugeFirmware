@@ -816,7 +816,7 @@ void View::midiLearnFlash() {
 }
 
 void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	if (!loadInstrumentPresetUI.prepareForParameterEdit()) {
+	if (loadInstrumentPresetUI.prepareForParameterEdit() != deluge::gui::PresetEditReadiness::READY) {
 		return;
 	}
 	// this routine used to exit if shift was held, but the shift+encoder combo does not seem used anywhere else either

@@ -12,6 +12,11 @@ PresetInputAction presetInputAction(bool pending, bool press, bool cardBusy, boo
 	return cardBusy || parsing ? PresetInputAction::DEFER : PresetInputAction::RESOLVE;
 }
 
+ActionResult presetEditInputResult(PresetEditReadiness readiness) {
+	return readiness == PresetEditReadiness::RETRY ? ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
+	                                               : ActionResult::DEALT_WITH;
+}
+
 PresetNavigationSteps::PresetNavigationSteps(int32_t offset)
     : direction_(offset < 0 ? -1 : 1),
       remaining_(static_cast<uint32_t>(offset < 0 ? -static_cast<int64_t>(offset) : offset)) {
@@ -25,6 +30,12 @@ bool PresetNavigationSteps::visit(bool available) {
 		--remaining_;
 	}
 	return finished();
+}
+
+void PresetNavigationSteps::limitToCycle(uint32_t availablePerCycle) {
+	if (availablePerCycle != 0 && remaining_ > availablePerCycle) {
+		remaining_ = ((remaining_ - 1) % availablePerCycle) + 1;
+	}
 }
 
 PresetNavigationDecision PresetNavigationContext::decision(Song* liveSong, UI* liveUI, uint32_t liveMode,

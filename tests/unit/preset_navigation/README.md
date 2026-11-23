@@ -14,10 +14,14 @@ call these production policies:
 - `presetInputAction` resolves pending selections before press events, defers only
   those presses while the card or parser is busy, and preserves both edges
   while a forced load is in progress. Otherwise releases pass.
+- `presetEditInputResult` redelivers only edits that are temporarily busy. Edits
+  rejected by a held UI mode or failed load are consumed, so they can't stall the
+  input queue ahead of the release that ends that mode.
 - `PresetEditGesture` suppresses the remaining events of a failed edit gesture
   but allows edits again after 150 ms without another rejected event.
 - `PresetNavigationSteps` retains accumulated detents across catalog pages and
-  wraps without counting unavailable candidates.
+  wraps without counting unavailable candidates. After a full pass, it drops
+  whole cycles so large offsets don't rescan the folder once per detent.
 - `presetInstrumentAvailable` implements the shared availability rules, including
   the exemption that lets navigation return to the original loaded instrument.
 

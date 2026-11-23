@@ -101,6 +101,12 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	for (int32_t i = 0; i < kNumModButtons; ++i) {
 		edits_preset |= std::cmp_equal(xy.x, modButtonX[i]) && std::cmp_equal(xy.y, modButtonY[i]);
 	}
+	// These open the sound editor, save screen or browser for the displayed preset,
+	// or change its type. Act on the candidate, as when it loaded immediately.
+	// The preset browser resolves its own preview.
+	if (getCurrentUI() != &loadInstrumentPresetUI) {
+		edits_preset |= b == SELECT_ENC || b == SAVE || b == LOAD || b == SYNTH || b == KIT || b == MIDI || b == CV;
+	}
 	const auto preset_action = deluge::gui::presetInputAction(
 	    loadInstrumentPresetUI.hasPendingPresetLoad(), on && edits_preset, inCardRoutine,
 	    StorageManager::isDeserializerOpen(),
@@ -108,9 +114,11 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (preset_action == deluge::gui::PresetInputAction::DEFER) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	if (on && edits_preset && !loadInstrumentPresetUI.prepareForParameterEdit()) {
-		return loadInstrumentPresetUI.hasPendingPresetLoad() ? ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
-		                                                     : ActionResult::DEALT_WITH;
+	if (on && edits_preset) {
+		const auto readiness = loadInstrumentPresetUI.prepareForParameterEdit();
+		if (readiness != deluge::gui::PresetEditReadiness::READY) {
+			return deluge::gui::presetEditInputResult(readiness);
+		}
 	}
 
 	ActionResult result;

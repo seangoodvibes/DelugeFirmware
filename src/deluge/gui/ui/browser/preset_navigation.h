@@ -17,6 +17,12 @@ enum class PresetInputAction { PASS, DEFER, RESOLVE };
 [[nodiscard]] PresetInputAction presetInputAction(bool pending, bool press, bool cardBusy, bool parsing,
                                                   bool loading = false);
 
+// READY: the edit may proceed. RETRY: a load or queued navigation is temporarily
+// busy, so redeliver the input later. REJECT: drop the input; retrying it ahead
+// of other queued events (e.g. the release that ends a held UI mode) would stall.
+enum class PresetEditReadiness { READY, RETRY, REJECT };
+[[nodiscard]] ActionResult presetEditInputResult(PresetEditReadiness readiness);
+
 // Suppress remaining events of a failed edit gesture, then allow the restored
 // preset to be edited after the user pauses.
 class PresetEditGesture {
@@ -42,6 +48,9 @@ public:
 	[[nodiscard]] int32_t direction() const { return direction_; }
 	[[nodiscard]] bool finished() const { return remaining_ == 0; }
 	bool visit(bool available);
+	// After a complete pass over the catalog, skip whole cycles of the given
+	// number of available candidates. The selected candidate is unchanged.
+	void limitToCycle(uint32_t availablePerCycle);
 
 private:
 	int32_t direction_;

@@ -183,6 +183,13 @@ checkResult:
 			if (offset != 0) {
 				anything = true;
 
+				// The edit must first load the pending preset, which can't happen
+				// yet (e.g. a SELECT turn arrived meanwhile). Keep the turn for later.
+				if (loadInstrumentPresetUI.parameterEditMustWait()) {
+					encoder.restore(offset);
+					continue;
+				}
+
 				// Do it, only if
 				if (offset + modEncoderInitialTurnDirection[e] != 0) {
 					int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);

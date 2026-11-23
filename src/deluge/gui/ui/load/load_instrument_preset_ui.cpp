@@ -1479,15 +1479,21 @@ needToGrabLeftmostButHaveToReadFirst:
 }
 
 namespace {
+// Cleanup can't keep part of an equal-name group, so a group filling a page is
+// reread with more room. Past this size, the rest of the group is skipped instead.
+constexpr int32_t kMaxPresetNavigationPageSize = FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION << 4;
+
 FileItem* advancePresetNavigationPage(deluge::gui::PresetNavigationSteps& steps, Availability requirement,
-                                      Instrument* origin, bool& advancedSinceWrap) {
+                                      Instrument* origin, uint32_t& availableSinceWrap) {
 	const int32_t direction = steps.direction();
 	const int32_t count = Browser::fileItems.getNumElements();
 	for (int32_t index = direction > 0 ? 0 : count - 1; index >= 0 && index < count; index += direction) {
 		auto* candidate = static_cast<FileItem*>(Browser::fileItems.getElementAddress(index));
 		const bool available = deluge::gui::presetInstrumentAvailable(requirement, candidate->instrumentAlreadyInSong,
 		                                                              false, candidate->instrument, origin);
-		advancedSinceWrap |= available;
+		if (available) {
+			++availableSinceWrap;
+		}
 		if (steps.visit(available)) {
 			return candidate;
 		}
@@ -1495,9 +1501,10 @@ FileItem* advancePresetNavigationPage(deluge::gui::PresetNavigationSteps& steps,
 	return nullptr;
 }
 
-Error readPresetNavigationPage(Browser& browser, OutputType outputType, char const* searchName, int32_t direction) {
+Error readPresetNavigationPage(Browser& browser, OutputType outputType, char const* searchName, int32_t direction,
+                               int32_t pageSize) {
 	Error error = browser.readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, searchName,
-	                                             FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, direction);
+	                                             pageSize, direction);
 	if (error == Error::NONE) {
 		error = currentSong->addInstrumentsToFileItems(outputType);
 	}
@@ -1515,34 +1522,61 @@ std::expected<FileItem*, Error> findPresetNavigationItem(Browser& browser, int32
 	deluge::gui::PresetNavigationSteps steps(offset);
 	const int32_t direction = steps.direction();
 	bool wrapped = false;
-	bool advanced_since_wrap = false;
+	uint32_t available_since_wrap = 0;
 	bool include_boundary = false;
+	int32_t page_size = FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION;
 	// Count available candidates across pages and wraps, retaining all detents.
 	while (true) {
 		int32_t search_direction = direction > 0 ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
 		if (include_boundary) {
 			search_direction = direction > 0 ? CATALOG_SEARCH_RIGHT_INCLUSIVE : CATALOG_SEARCH_LEFT_INCLUSIVE;
 		}
-		Error error = readPresetNavigationPage(browser, origin->type, searchName.get(), search_direction);
+		Error error = readPresetNavigationPage(browser, origin->type, searchName.get(), search_direction, page_size);
+		if (error == Error::INSUFFICIENT_RAM && page_size > FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION) {
+			// Couldn't hold an oversized group. Skip the rest of it, as below.
+			include_boundary = false;
+			page_size = FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION;
+			continue;
+		}
 		if (error != Error::NONE) {
 			return std::unexpected(error);
 		}
 		const int32_t page_count = Browser::fileItems.getNumElements();
 		if (page_count == 0) {
-			if (searchName.isEmpty() || (wrapped && !advanced_since_wrap)) {
+			if (searchName.isEmpty() || (wrapped && available_since_wrap == 0)) {
 				Browser::emptyFileItems();
 				return std::unexpected(Error::NO_ERROR_BUT_GET_OUT);
 			}
+			// The pass since the previous wrap covered the whole catalog. Don't
+			// rescan it once per remaining detent.
+			if (wrapped) {
+				steps.limitToCycle(available_since_wrap);
+			}
 			wrapped = true;
-			advanced_since_wrap = false;
+			available_since_wrap = 0;
 			searchName.clear();
 			include_boundary = false;
+			page_size = FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION;
+			continue;
+		}
+		String& boundary = direction > 0 ? Browser::lastFileItemRemaining : Browser::firstFileItemRemaining;
+		if (include_boundary && !boundary.isEmpty() && strcmpspecial(boundary.get(), searchName.get()) == 0) {
+			// The page holds only part of one equal-name group, which cleanup
+			// would discard entirely. Rereading it unchanged would never advance.
+			Browser::emptyFileItems();
+			if (page_size < kMaxPresetNavigationPageSize) {
+				page_size <<= 1;
+			}
+			else {
+				include_boundary = false;
+				page_size = FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION;
+			}
 			continue;
 		}
 		// Cleanup discards a culled edge's incomplete group. Revisit that key
 		// inclusively; advance exclusively only past fully processed entries.
-		include_boundary =
-		    direction > 0 ? !Browser::lastFileItemRemaining.isEmpty() : !Browser::firstFileItemRemaining.isEmpty();
+		include_boundary = !boundary.isEmpty();
+		page_size = FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION;
 		auto* last = static_cast<FileItem*>(Browser::fileItems.getElementAddress(direction > 0 ? page_count - 1 : 0));
 		error = searchName.set(last->displayName);
 		if (error != Error::NONE) {
@@ -1550,7 +1584,7 @@ std::expected<FileItem*, Error> findPresetNavigationItem(Browser& browser, int32
 			return std::unexpected(error);
 		}
 		Browser::deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION, origin);
-		if (auto* candidate = advancePresetNavigationPage(steps, requirement, origin, advanced_since_wrap)) {
+		if (auto* candidate = advancePresetNavigationPage(steps, requirement, origin, available_since_wrap)) {
 			return candidate;
 		}
 	}
@@ -1635,11 +1669,6 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	}
 	else {
 		to_return.error = to_return.fileItem->getFilenameWithoutExtension(&new_name);
-		if (to_return.error != Error::NONE) {
-			emptyFileItems();
-			return to_return;
-		}
-		to_return.error = search_name.set(to_return.fileItem->displayName);
 		if (to_return.error != Error::NONE) {
 			emptyFileItems();
 			return to_return;
@@ -1820,32 +1849,42 @@ void LoadInstrumentPresetUI::selectEncoderUsedForGlobalControl() {
 	}
 }
 
-bool LoadInstrumentPresetUI::prepareForParameterEdit() {
-	if (hasPendingPresetLoad()
-	    && (sdRoutineLock || StorageManager::isDeserializerOpen() || encoders::selectNavigationPending())) {
-		return false;
+bool LoadInstrumentPresetUI::parameterEditMustWait() const {
+	return hasPendingPresetLoad()
+	       && (sdRoutineLock || StorageManager::isDeserializerOpen() || encoders::selectNavigationPending()
+	           || currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED);
+}
+
+deluge::gui::PresetEditReadiness LoadInstrumentPresetUI::prepareForParameterEdit() {
+	using deluge::gui::PresetEditReadiness;
+	if (parameterEditMustWait()) {
+		return PresetEditReadiness::RETRY;
 	}
 	// Resolve browser previews before View obtains the parameter/model stack.
 	if (getCurrentUI() == this && preview_pending_) {
-		if (currentUIMode != UI_MODE_NONE || sdRoutineLock) {
-			return false;
+		// A held browser mode (e.g. Backspace or an audition pad) blocks the load
+		// until its release, which is queued behind this input. Don't retry.
+		if (currentUIMode != UI_MODE_NONE) {
+			return PresetEditReadiness::REJECT;
 		}
 		loadPendingPreview();
 	}
 	if (getCurrentUI() == this) {
 		if (currentInstrumentLoadError != Error::NONE) {
 			display->displayError(currentInstrumentLoadError);
-			return false;
+			return PresetEditReadiness::REJECT;
 		}
 	}
 	if (preset_navigation_.task < 0) {
-		return !presetNavigationContextMatches() || !preset_navigation_.editGesture.rejects(getSystemTime());
+		return (!presetNavigationContextMatches() || !preset_navigation_.editGesture.rejects(getSystemTime()))
+		           ? PresetEditReadiness::READY
+		           : PresetEditReadiness::REJECT;
 	}
 	if (presetNavigationDecision() == deluge::gui::PresetNavigationDecision::CANCEL) {
 		cancelPresetNavigation();
 		clearPresetNavigationCursor();
 		redrawLivePresetName();
-		return true; // The new gesture edits the now visibly restored live model.
+		return PresetEditReadiness::READY; // The new gesture edits the now visibly restored live model.
 	}
 	// Auditioning still prevents replacement. Cancel the selection and restore
 	// the loaded preset's name before editing it instead.
@@ -1857,16 +1896,20 @@ bool LoadInstrumentPresetUI::prepareForParameterEdit() {
 			view.displayOutputName(preset_navigation_.instrument, preset_navigation_.doBlink,
 			                       preset_navigation_.displayClip);
 		}
-		return true;
+		return PresetEditReadiness::READY;
 	}
 	// The callback normally runs as a one-shot scheduler task. Remove that task
 	// before invoking it synchronously, so it cannot run again after the edit.
 	removeTask(preset_navigation_.task);
 	resumePresetNavigation();
-	if (preset_navigation_.task < 0 && !preset_navigation_.loadSucceeded) {
-		preset_navigation_.editGesture.reject(getSystemTime());
+	if (preset_navigation_.task >= 0) {
+		return PresetEditReadiness::RETRY; // Requeued behind newly arrived navigation.
 	}
-	return preset_navigation_.task < 0 && preset_navigation_.loadSucceeded;
+	if (!preset_navigation_.loadSucceeded) {
+		preset_navigation_.editGesture.reject(getSystemTime());
+		return PresetEditReadiness::REJECT;
+	}
+	return PresetEditReadiness::READY;
 }
 
 void LoadInstrumentPresetUI::focusRegained() {
@@ -1969,15 +2012,29 @@ void LoadInstrumentPresetUI::presetNavigationPadReleaseFinished() {
 }
 
 void LoadInstrumentPresetUI::redrawLivePresetName() {
-	if (!display->have7SEG() || currentSong == nullptr) {
+	if (currentSong == nullptr) {
 		return;
 	}
+	// While a clip or arranger row is held, the display shows that output's name.
 	if (getCurrentUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		if (Clip* clip = sessionView.getClipForLayout(); clip != nullptr) {
 			view.displayOutputName(clip->output, false, clip);
 		}
+		return;
 	}
-	else if (getCurrentUI() == &sessionView || getCurrentUI() == &arrangerView) {
+	if (getCurrentUI() == &arrangerView && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+		const int32_t row = arrangerView.yPressedEffective;
+		if (row >= 0 && row < kDisplayHeight && arrangerView.outputsOnScreen[row] != nullptr) {
+			view.displayOutputName(arrangerView.outputsOnScreen[row]);
+			return;
+		}
+	}
+	if (display->haveOLED()) {
+		// Candidate names are drawn straight into the main image.
+		renderUIsForOled();
+		return;
+	}
+	if (getCurrentUI() == &sessionView || getCurrentUI() == &arrangerView) {
 		sessionView.redrawNumericDisplay();
 	}
 	else if (getCurrentUI() == &performanceView) {
@@ -2088,13 +2145,24 @@ void LoadInstrumentPresetUI::resumePresetNavigation() {
 	}
 	else {
 		Output* output = currentSong->navigateThroughPresetsForInstrument(pending.instrument, 0, pending.displayClip);
-		view.setActiveModControllableTimelineCounter(output->getActiveClip());
+		// A failed or aborted load keeps the old output. Keep controlling the held clip then.
+		if (output != pending.instrument) {
+			view.setActiveModControllableTimelineCounter(output->getActiveClip());
+		}
 		uiNeedsRendering(getCurrentUI());
 		renderUIsForOled();
 	}
 	pending.resuming = false;
 	if (pending.padReleased) {
+		// The release already restored the view's display and LEDs. Undo the
+		// loaded output's name and blinking type LED drawn since then.
 		view.setActiveModControllableTimelineCounter(currentSong);
+		ui.redrawLivePresetName();
+		if (getCurrentUI() == &sessionView || getCurrentUI() == &arrangerView) {
+			for (auto led : {IndicatorLED::SYNTH, IndicatorLED::KIT, IndicatorLED::MIDI, IndicatorLED::CV}) {
+				indicator_leds::setLedState(led, false);
+			}
+		}
 		uiNeedsRendering(getCurrentUI());
 		renderUIsForOled();
 	}

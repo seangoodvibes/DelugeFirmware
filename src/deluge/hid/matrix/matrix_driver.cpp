@@ -93,10 +93,11 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 		if (preset_action == deluge::gui::PresetInputAction::DEFER) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		if (preset_action == deluge::gui::PresetInputAction::RESOLVE
-		    && !loadInstrumentPresetUI.prepareForParameterEdit()) {
-			return loadInstrumentPresetUI.hasPendingPresetLoad() ? ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
-			                                                     : ActionResult::DEALT_WITH;
+		if (preset_action == deluge::gui::PresetInputAction::RESOLVE) {
+			const auto readiness = loadInstrumentPresetUI.prepareForParameterEdit();
+			if (readiness != deluge::gui::PresetEditReadiness::READY) {
+				return deluge::gui::presetEditInputResult(readiness);
+			}
 		}
 	}
 	ActionResult result = getCurrentUI()->padAction(x, y, velocity);

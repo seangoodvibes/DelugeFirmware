@@ -105,6 +105,14 @@ TEST(PresetInputTests, ForcedLoadDefersBothEdgesEvenAfterPreviewWasConsumed) {
 	CHECK(deluge::gui::presetInputAction(false, false, false, false, false) == PASS);
 }
 
+TEST(PresetInputTests, OnlyBusyEditsAreRedelivered) {
+	using enum deluge::gui::PresetEditReadiness;
+	CHECK(deluge::gui::presetEditInputResult(RETRY) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE);
+	// A rejected press (e.g. blocked by a held browser mode) must not stay at
+	// the head of the input queue, ahead of the release that would unblock it.
+	CHECK(deluge::gui::presetEditInputResult(REJECT) == ActionResult::DEALT_WITH);
+}
+
 TEST_GROUP(PresetEditGestureTests){};
 
 TEST(PresetEditGestureTests, RejectsRemainingEventsButAllowsNewGestureAfterIdle) {
@@ -146,6 +154,36 @@ TEST(PresetNavigationStepsTests, AccumulatedDetentsSkipUnavailableCandidatesAcro
 TEST(PresetNavigationStepsTests, SingleDetentDoesNotConsumeOccupiedEntry) {
 	deluge::gui::PresetNavigationSteps steps(1);
 	CHECK_FALSE(steps.visit(false));
+	CHECK_TRUE(steps.visit(true));
+}
+
+// Assertion macros contribute branches outside the test logic.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST(PresetNavigationStepsTests, FullCycleBoundsLargeOffsetsWithoutChangingSelection) {
+	for (int32_t offset : {127, -128}) {
+		// Only the loaded origin is available: every detent lands on it again.
+		deluge::gui::PresetNavigationSteps steps(offset);
+		CHECK_FALSE(steps.visit(true));
+		steps.limitToCycle(1);
+		CHECK_TRUE(steps.visit(true));
+	}
+	// 3 available per cycle. After 2 detents, the remaining 9 land where 3 would.
+	deluge::gui::PresetNavigationSteps steps(11);
+	CHECK_FALSE(steps.visit(true));
+	CHECK_FALSE(steps.visit(false));
+	CHECK_FALSE(steps.visit(true));
+	steps.limitToCycle(3);
+	CHECK_FALSE(steps.visit(true));
+	CHECK_FALSE(steps.visit(false));
+	CHECK_FALSE(steps.visit(true));
+	CHECK_TRUE(steps.visit(true));
+}
+
+TEST(PresetNavigationStepsTests, CycleLimitKeepsShortRemainderAndIgnoresEmptyCycle) {
+	deluge::gui::PresetNavigationSteps steps(2);
+	steps.limitToCycle(0);
+	steps.limitToCycle(5);
+	CHECK_FALSE(steps.visit(true));
 	CHECK_TRUE(steps.visit(true));
 }
 
