@@ -75,6 +75,9 @@ bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeS
 		return true;
 	}
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
+	if (auto* mod_controllable = toModControllable()) {
+		mod_controllable->bindPresetValues(&newClip->paramManager);
+	}
 
 	bool clipChanged = (activeClip != newClip);
 	activeClip = newClip;
@@ -274,6 +277,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		if (usbBus_ != 0) {
 			writer.writeAttribute("usbBus", usbBus_);
 		}
+		writer.writeAttribute("trackLink", static_cast<int32_t>(trackLink));
 
 		if (clipInstances.getNumElements()) {
 			writer.insertCommaIfNeeded();
@@ -333,6 +337,11 @@ Error Output::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t
 
 // If this returns false, the caller has to call reader.exitTag();
 bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
+	if (strcmp(tagName, "trackLink") == 0) {
+		trackLink = (reader.readTagOrAttributeValueInt() != 0);
+		reader.exitTag(tagName);
+		return true;
+	}
 
 	if (!strcmp(tagName, "isMutedInArrangement")) {
 		mutedInArrangementMode = reader.readTagOrAttributeValueInt();

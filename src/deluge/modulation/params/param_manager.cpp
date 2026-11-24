@@ -19,15 +19,20 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/tick_interpolation.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include <array>
+#include <cstddef>
 #include <new>
 
 ParamManager::ParamManager() {
@@ -54,6 +59,13 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 	return this;
 }
 
+namespace {
+// Offsets of collections sharing an allocation.
+constexpr uint32_t alignCollection(uint32_t size) {
+	return (size + alignof(std::max_align_t) - 1) & ~(alignof(std::max_align_t) - 1);
+}
+} // namespace
+
 Error ParamManager::setupMIDI() {
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
 	if (!memory) {
@@ -69,43 +81,44 @@ Error ParamManager::setupMIDI() {
 }
 
 Error ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
-	if (!memoryUnpatched) {
+	void* memory_unpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
+	if (memory_unpatched == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
 	summaries[1] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
+	// ParamManager owns these placement-constructed collections and destroys them before deallocation.
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[0].paramCollection = new (memory_unpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[2] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
 
 Error ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
-	if (!memoryUnpatched) {
+	// The main collections are always allocated, moved and freed together, so they share one
+	// allocation: one block in the allocator's size classes rather than three.
+	constexpr uint32_t patched_offset = alignCollection(sizeof(UnpatchedParamSet));
+	constexpr uint32_t patch_cables_offset = patched_offset + alignCollection(sizeof(PatchedParamSet));
+	auto* memory =
+	    static_cast<char*>(GeneralMemoryAllocator::get().allocMaxSpeed(patch_cables_offset + sizeof(PatchCableSet)));
+	if (memory == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
-
-	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
-	if (!memoryPatched) {
-ramError2:
-		delugeDealloc(memoryUnpatched);
-		return Error::INSUFFICIENT_RAM;
-	}
-
-	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
-	if (!memoryPatchCables) {
-		delugeDealloc(memoryPatched);
-		goto ramError2;
-	}
+	void* memory_unpatched = memory;
+	void* memory_patched = memory + patched_offset;
+	void* memory_patch_cables = memory + patch_cables_offset;
 
 	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
 	summaries[3] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
-	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
+	// ParamManager owns these placement-constructed collections and destroys them before deallocation.
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[0].paramCollection = new (memory_unpatched) UnpatchedParamSet(&summaries[0]);
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[1].paramCollection = new (memory_patched) PatchedParamSet(&summaries[1]);
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[2].paramCollection = new (memory_patch_cables) PatchCableSet(&summaries[2]);
 	summaries[4] = {0};
 	expressionParamSetOffset = 3;
 	return Error::NONE;
@@ -127,12 +140,9 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 
 	// Main collections already owned by the destination are about to be
 	// overwritten. Release them while retaining its expression collection.
+	releaseMainParamCollections();
 	for (int32_t i = 0; i < mpeParamsOffsetHere; i++) {
-		if (summaries[i].paramCollection) {
-			summaries[i].paramCollection->~ParamCollection();
-			delugeDealloc(summaries[i].paramCollection);
-			summaries[i] = {0};
-		}
+		summaries[i] = ParamCollectionSummary{};
 	}
 
 	// If we're planning to steal expression params, and yes "other" does in fact have them...
@@ -200,16 +210,37 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		otherStopAt++;
 	}
 
+	// The main collections share one allocation, as when set up; expression params have their own.
+	ParamCollectionSummary const* other_main_end = &other->summaries[other->expressionParamSetOffset];
+	uint32_t main_size = 0;
+	for (auto const* summary = otherSummary; summary != other_main_end; summary++) {
+		main_size += alignCollection(summary->paramCollection->objectSize);
+	}
+	char* main_memory = nullptr;
 	while (otherSummary != otherStopAt) {
 		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
-		newSummary->paramCollection =
-		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
+		if (otherSummary == other_main_end) {
+			newSummary->paramCollection = static_cast<ParamCollection*>(
+			    GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize));
+		}
+		else {
+			if (main_memory == nullptr) {
+				main_memory = static_cast<char*>(GeneralMemoryAllocator::get().allocMaxSpeed(main_size));
+				main_size = 0;
+			}
+			newSummary->paramCollection = nullptr;
+			if (main_memory != nullptr) {
+				// The collection is constructed in its part of the shared block.
+				// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+				newSummary->paramCollection = reinterpret_cast<ParamCollection*>(main_memory + main_size);
+			}
+			main_size += alignCollection(otherSummary->paramCollection->objectSize);
+		}
 
-		// If that failed, deallocate all the previous memories
+		// If that failed, deallocate the previous memory
 		if (!newSummary->paramCollection) {
-			while (newSummary != newSummaries) {
-				newSummary--;
-				delugeDealloc(newSummary->paramCollection);
+			if (main_memory != nullptr) {
+				delugeDealloc(main_memory);
 			}
 
 			if (this == other) {
@@ -303,24 +334,31 @@ void ParamManager::forgetParamCollections() {
 
 // This one deletes MPE params too
 void ParamManager::destructAndForgetParamCollections() {
-	ParamCollectionSummary* summary = summaries;
-	while (summary->paramCollection) {
-		summary->paramCollection->~ParamCollection();
-		delugeDealloc(summary->paramCollection);
-		summary++;
+	releaseMainParamCollections();
+	ParamCollection* expression = summaries[expressionParamSetOffset].paramCollection;
+	if (expression != nullptr) {
+		expression->~ParamCollection();
+		delugeDealloc(expression);
 	}
 
 	summaries[0] = {0};
 	expressionParamSetOffset = 0;
 }
 
-void ParamManager::destructAndForgetMainParamCollections() {
+// The main collections share the allocation that starts with the first of them.
+void ParamManager::releaseMainParamCollections() {
 	for (int32_t i = 0; i < expressionParamSetOffset; i++) {
 		if (summaries[i].paramCollection) {
 			summaries[i].paramCollection->~ParamCollection();
-			delugeDealloc(summaries[i].paramCollection);
 		}
 	}
+	if (expressionParamSetOffset > 0 && summaries[0].paramCollection != nullptr) {
+		delugeDealloc(summaries[0].paramCollection);
+	}
+}
+
+void ParamManager::destructAndForgetMainParamCollections() {
+	releaseMainParamCollections();
 	forgetParamCollections(); // Shuffles any expression params down to the start
 }
 
@@ -652,3 +690,118 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
             paramCollection++;
         } while (*paramCollection);
  */
+
+namespace {
+PLACE_SDRAM_TEXT Error resetParameterValue(ParamCollection* collection, ParamCollectionSummary* summary,
+                                           ModelStackWithThreeMainThings* model_stack, int32_t id, bool create,
+                                           Action* action) {
+	auto* scalar = collection->getClipValueStorage(id);
+	bool existed = scalar != nullptr;
+	if ((scalar != nullptr && scalar->getOffset() == 0
+	     && collection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE)
+	    || (scalar == nullptr && !create)) {
+		return Error::NONE;
+	}
+	auto* stack = collection->getAutoParamFromId(model_stack->addParamCollectionAndId(collection, summary, id), create);
+	if (stack->autoParam == nullptr) {
+		return create ? Error::INSUFFICIENT_RAM : Error::NONE;
+	}
+	scalar = collection->getClipValueStorage(id);
+	if (scalar == nullptr) {
+		return Error::NONE;
+	}
+	int32_t old_value = existed ? stack->autoParam->getCurrentValue() : 0;
+	bool automated = stack->autoParam->isAutomated();
+	if (action != nullptr) {
+		action->recordParamChangeIfNotAlreadySnapshotted(stack, false);
+	}
+	// Restore the clip scalar directly rather than through the recording-sensitive control setter,
+	// so reset applies even while recording or playing.
+	scalar->setValue(scalar->getPresetValue());
+	// An inactive MIDI clip bypasses MIDIParamCollection's notification, which would send its value
+	// to the output.
+	if (collection->getParamKind() == deluge::modulation::params::Kind::MIDI && model_stack->timelineCounterIsSet()
+	    && !static_cast<Clip*>(model_stack->getTimelineCounter())->isActiveOnOutput()) {
+		collection->ParamCollection::notifyParamValueModified(stack, old_value, stack->autoParam->getCurrentValue(),
+		                                                      false, automated, automated);
+	}
+	else {
+		collection->notifyParamModifiedInSomeWay(stack, old_value, false, automated, automated);
+	}
+	return Error::NONE;
+}
+template <typename Reset>
+PLACE_SDRAM_TEXT Error resetPatchCableValues(PatchCableSet* cables, const PatchCablePresetValues& preset,
+                                             const Reset& reset) {
+	// Reset can delete zero-strength routes and reorder storage. Use stable
+	// route IDs, including routes removed since the preset was loaded.
+	std::array<int32_t, kMaxNumPatchCables * 2> ids_storage{};
+	int32_t* ids = ids_storage.data();
+	int32_t count = 0;
+	for (int32_t c = 0; c < cables->numPatchCables; ++c) {
+		auto& cable = cables->patchCables[c];
+		ids[count++] = PatchCableSet::getParamId(cable.destinationParamDescriptor, cable.from);
+	}
+	for (int32_t c = 0; c < preset.count; ++c) {
+		bool found = false;
+		for (int32_t i = 0; i < count; ++i) {
+			found |= static_cast<uint32_t>(ids[i]) == preset.entries[c].id;
+		}
+		if (!found && (preset.entries[c].value != 0)) {
+			ids[count++] = static_cast<int32_t>(preset.entries[c].id);
+		}
+	}
+	for (int32_t i = 0; i < count; ++i) {
+		Error error = reset(ids[i], *preset.find(ids[i]) != 0);
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	return Error::NONE;
+}
+} // namespace
+
+PLACE_SDRAM_TEXT Error ParamManager::resetValuesToPreset(ModelStackWithThreeMainThings* modelStack, Action* action) {
+	if (modelStack->modControllable == nullptr) {
+		return Error::NONE;
+	}
+	using deluge::modulation::params::Kind;
+	modelStack->modControllable->bindPresetValues(this);
+	for (auto* summary = summaries; summary->paramCollection != nullptr; ++summary) {
+		auto* collection = summary->paramCollection;
+		auto kind = collection->getParamKind();
+		// Expression is not a preset parameter collection.
+		if (kind != Kind::PATCHED && kind != Kind::UNPATCHED_SOUND && kind != Kind::UNPATCHED_GLOBAL
+		    && kind != Kind::MIDI && kind != Kind::PATCH_CABLE) {
+			continue;
+		}
+		auto reset = [&](int32_t id, bool create) {
+			return resetParameterValue(collection, summary, modelStack, id, create, action);
+		};
+		if (kind == Kind::PATCH_CABLE) {
+			auto* cables = static_cast<PatchCableSet*>(collection);
+			const auto& preset =
+			    static_cast<ModControllableAudio*>(modelStack->modControllable)->getPresetPatchCableValues();
+			Error error = resetPatchCableValues(cables, preset, reset);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+		else if (kind == Kind::MIDI) {
+			auto* instrument = static_cast<MIDIInstrument*>(modelStack->modControllable);
+			for (int32_t cc = 0; cc < 256; ++cc) {
+				Error error = reset(cc, instrument->getPresetMidiValue(cc) != 0);
+				if (error != Error::NONE) {
+					return error;
+				}
+			}
+		}
+		else {
+			auto* set = static_cast<ParamSet*>(collection);
+			for (int32_t id = 0; id < set->getNumParams(); ++id) {
+				reset(id, false);
+			}
+		}
+	}
+	return Error::NONE;
+}

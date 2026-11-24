@@ -647,7 +647,7 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
 
 	if (modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->setValuePossiblyForRegion(
+		modelStackWithParam->paramCollection->setValueFromControl(
 		    newValue, modelStackWithParam, modPos, modLength,
 		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
 	}

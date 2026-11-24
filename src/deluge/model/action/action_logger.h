@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/performance_view.h"
 #include "model/action/action.h"
+#include "model/action/parameter_action.h"
 #include <cstdint>
 
 class ParamCollection;
@@ -37,12 +38,13 @@ public:
 	ActionLogger();
 
 	// warning - super not thread safe
-	Action* getNewAction(ActionType newActionType,
-	                     ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED);
+	Action* getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED,
+	                     ActionOrigin origin = ActionOrigin::DEFAULT);
+	Action* getParameterChangeAction(ActionOrigin origin = ActionOrigin::DEFAULT);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
 	                                  ActionType actionType = ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
-	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
+	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter, const int64_t* scalarBefore = nullptr);
 	Action* recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
 	                                   FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
 	void closeAction(ActionType actionType);
