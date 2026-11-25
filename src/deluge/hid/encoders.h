@@ -110,6 +110,9 @@ public:
 	/// Returns the accumulated tick count and resets pos to 0.
 	int8_t take() { return pos.exchange(0, std::memory_order_relaxed); }
 
+	/// Puts a taken value back, keeping any ticks that arrived from the IRQ since take().
+	void restore(int8_t val) { pos.fetch_add(val, std::memory_order_relaxed); }
+
 	/// Returns multiplier for encoder offset
 	double calcNextKnobSpeed(int8_t offset);
 
@@ -124,6 +127,7 @@ extern DetentedEncoder scrollY;
 extern DetentedEncoder scrollX;
 extern DetentedEncoder tempo;
 extern DetentedEncoder select;
+[[nodiscard]] bool selectNavigationPending();
 extern ContinuousEncoder mod0; ///< lower gold encoder
 extern ContinuousEncoder mod1; ///< upper gold encoder
 

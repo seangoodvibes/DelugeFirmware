@@ -113,7 +113,7 @@ public:
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	ActionResult modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	CopiedParamAutomation copiedParamAutomation;
 

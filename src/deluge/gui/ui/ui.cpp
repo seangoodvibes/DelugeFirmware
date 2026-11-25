@@ -30,8 +30,8 @@ UI::UI() {
 	oledShowsUIUnderneath = false;
 }
 
-void UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	view.modEncoderAction(whichModEncoder, offset);
+ActionResult UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	return view.modEncoderAction(whichModEncoder, offset);
 }
 
 void UI::modButtonAction(uint8_t whichButton, bool on) {

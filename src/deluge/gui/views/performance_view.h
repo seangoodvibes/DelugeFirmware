@@ -95,7 +95,7 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 
 	// mod encoder action
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	ActionResult modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	void modButtonAction(uint8_t whichButton, bool on) override;
 

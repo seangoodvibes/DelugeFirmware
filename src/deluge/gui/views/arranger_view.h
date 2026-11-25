@@ -46,7 +46,7 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	void selectEncoderAction(int8_t offset) override;
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	ActionResult modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 
 	void repopulateOutputsOnScreen(bool doRender = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -65,6 +65,7 @@ public:
 	void graphicsRoutine() override;
 	[[nodiscard]] int32_t getNavSysId() const override { return NAVIGATION_ARRANGEMENT; }
 	void navigateThroughPresets(int32_t offset);
+	void endAudition(Output* output, bool evenIfPlaying = false);
 	void notifyActiveClipChangedOnOutput(Output* output);
 	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
@@ -133,7 +134,6 @@ private:
 	void moveClipToSession();
 	void auditionPadAction(bool on, int32_t y, UI* ui);
 	void beginAudition(Output* output);
-	void endAudition(Output* output, bool evenIfPlaying = false);
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
 	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);

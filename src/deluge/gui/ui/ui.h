@@ -101,7 +101,8 @@ public:
 	virtual ActionResult horizontalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
 	virtual ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}
-	virtual void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	// Return REMIND_ME_OUTSIDE_CARD_ROUTINE to preserve the original encoder delta for retry.
+	virtual ActionResult modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	virtual void modButtonAction(uint8_t whichButton, bool on);
 	virtual void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 

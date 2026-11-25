@@ -1103,6 +1103,7 @@ void SessionView::clipPressEnded() {
 	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
 		return;
 	}
+	loadInstrumentPresetUI.presetNavigationPadReleased();
 	// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
 	// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
@@ -1125,6 +1126,7 @@ void SessionView::clipPressEnded() {
 	else {
 		redrawNumericDisplay();
 	}
+	loadInstrumentPresetUI.presetNavigationPadReleaseFinished();
 }
 
 void SessionView::sectionPadAction(uint8_t y, bool on) {
@@ -3152,12 +3154,13 @@ void SessionView::midiLearnFlash() {
 	requestRendering(this, mainRowsToRender, sideRowsToRender);
 }
 
-void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
 	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+		return ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
+	return ActionResult::DEALT_WITH;
 }
 
 Clip* SessionView::getClipForLayout() {

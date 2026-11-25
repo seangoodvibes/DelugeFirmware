@@ -815,7 +815,11 @@ void View::midiLearnFlash() {
 	}
 }
 
-void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	const auto readiness = loadInstrumentPresetUI.prepareForParameterEdit();
+	if (readiness != deluge::gui::PresetEditReadiness::READY) {
+		return deluge::gui::presetEditInputResult(readiness);
+	}
 	// this routine used to exit if shift was held, but the shift+encoder combo does not seem used anywhere else either
 	//  if (Buttons::isShiftButtonPressed()) {
 	//  	return;
@@ -823,21 +827,23 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	if (activeModControllableModelStack.modControllable) {
 
-		bool noteTailsAllowedBefore;
-		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
+		bool note_tails_allowed_before = false;
+		ModelStackWithAutoParam* model_stack_with_param =
+		    getModelStackWithParam(whichModEncoder, note_tails_allowed_before);
 
 		// If non-existent param, still let the ModControllable know
-		if (!modelStackWithParam || !modelStackWithParam->autoParam) {
-			modEncoderAction_nonExistentParam(whichModEncoder, offset, modelStackWithParam);
+		if (model_stack_with_param == nullptr || model_stack_with_param->autoParam == nullptr) {
+			modEncoderAction_nonExistentParam(whichModEncoder, offset, model_stack_with_param);
 		}
 
 		// Or, if normal case - an actual param
 		else {
-			modEncoderAction_existentParam(whichModEncoder, offset, modelStackWithParam, noteTailsAllowedBefore);
+			modEncoderAction_existentParam(whichModEncoder, offset, model_stack_with_param, note_tails_allowed_before);
 		}
 	}
 
 	instrumentBeenEdited();
+	return ActionResult::DEALT_WITH;
 }
 
 void View::modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t offset,
@@ -2620,12 +2626,19 @@ gotAnInstrument:
 
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false, clip);
+		if (results.pending) {
+			return;
+		}
+
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
 			return;
 		}
 		if (results.error != Error::NONE) {
+			// The candidate name was shown while navigating, but the clip still
+			// uses the original instrument. Restore it beneath the error popup.
+			displayOutputName(oldInstrument, doBlink, clip);
 			display->displayError(results.error);
 			goto getOut;
 		}

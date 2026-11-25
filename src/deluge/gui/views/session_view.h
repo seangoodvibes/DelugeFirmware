@@ -96,7 +96,7 @@ public:
 	void sampleNeedsReRendering(Sample* sample) override;
 	Clip* getClipOnScreen(int32_t yDisplay);
 	Output* getOutputFromPad(int32_t x, int32_t y);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	ActionResult modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;

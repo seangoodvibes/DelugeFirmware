@@ -1598,9 +1598,12 @@ uint32_t PerformanceView::getMaxLength() {
 
 /// updates the display if the mod encoder has just updated the same parameter currently being held / last held
 /// if no param is currently being held, it will reset the display to just show "Performance View"
-void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+		const auto result = ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			return result;
+		}
 
 		if (!defaultEditingMode) {
 			if (lastPadPress.isActive) {
@@ -1615,6 +1618,7 @@ void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) 
 			}
 		}
 	}
+	return ActionResult::DEALT_WITH;
 }
 
 /// used to reset stutter if it's already active

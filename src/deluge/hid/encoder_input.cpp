@@ -18,6 +18,7 @@
 #include "hid/encoder_input.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -43,6 +44,11 @@ static uint32_t timeNextSDTestAction = 0;
 static int32_t nextSDTestDirection = 1;
 
 static uint32_t encodersWaitingForCardRoutineEnd;
+
+bool selectNavigationPending() {
+	return select.pending() && !Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)
+	       && !Buttons::isButtonPressed(deluge::hid::button::RECORD);
+}
 
 void interpretEncodersTask() {
 	poll_encoder_pins();
@@ -148,9 +154,11 @@ checkResult:
 
 			case 3: // select
 				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
+					loadInstrumentPresetUI.selectEncoderUsedForGlobalControl();
 					PadLEDs::changeRefreshTime(saturatedDelta);
 				}
 				else if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
+					loadInstrumentPresetUI.selectEncoderUsedForGlobalControl();
 					if (currentSong) {
 						currentSong->changeThresholdRecordingMode(saturatedDelta);
 					}
@@ -175,11 +183,22 @@ checkResult:
 			if (offset != 0) {
 				anything = true;
 
+				// The edit must first load the pending preset, which can't happen
+				// yet (e.g. a SELECT turn arrived meanwhile). Keep the turn for later.
+				if (loadInstrumentPresetUI.parameterEditMustWait()) {
+					encoder.restore(offset);
+					continue;
+				}
+
 				// Do it, only if
 				if (offset + modEncoderInitialTurnDirection[e] != 0) {
 					int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);
 
-					getCurrentUI()->modEncoderAction(e, offset_accelerated);
+					const auto result = getCurrentUI()->modEncoderAction(e, offset_accelerated);
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+						encoder.restore(offset);
+						continue;
+					}
 
 					modEncoderInitialTurnDirection[e] = 0;
 				}
