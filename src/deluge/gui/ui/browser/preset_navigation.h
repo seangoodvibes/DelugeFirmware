@@ -23,6 +23,9 @@ enum class PresetInputAction { PASS, DEFER, RESOLVE };
 enum class PresetEditReadiness { READY, RETRY, REJECT };
 [[nodiscard]] ActionResult presetEditInputResult(PresetEditReadiness readiness);
 
+// Only retry a load cancellation while SELECT still has navigation to process.
+[[nodiscard]] bool presetLoadWasNavigationCancelled(Error error, bool navigationPending);
+
 // Suppress remaining events of a failed edit gesture, then allow the restored
 // preset to be edited after the user pauses.
 class PresetEditGesture {

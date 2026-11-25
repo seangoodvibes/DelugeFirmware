@@ -3154,12 +3154,13 @@ void SessionView::midiLearnFlash() {
 	requestRendering(this, mainRowsToRender, sideRowsToRender);
 }
 
-void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
 	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+		return ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
+	return ActionResult::DEALT_WITH;
 }
 
 Clip* SessionView::getClipForLayout() {

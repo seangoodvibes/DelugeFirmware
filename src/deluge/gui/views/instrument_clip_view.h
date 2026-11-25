@@ -206,7 +206,7 @@ public:
 	void playbackEnded() override;
 	void scrollFinished() override;
 	void clipNeedsReRendering(Clip* clip) override;
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	ActionResult modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	ClipMinder* toClipMinder() override { return this; }
 	void reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack, int16_t const* mpeValues);
 	void reportMPEValueForNoteEditing(int32_t expressionDimension, int32_t value);

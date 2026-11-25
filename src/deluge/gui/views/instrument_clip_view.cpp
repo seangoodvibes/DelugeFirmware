@@ -7687,7 +7687,7 @@ void InstrumentClipView::dontDeleteNotesOnDepress() {
 	}
 }
 
-void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	dontDeleteNotesOnDepress();
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
@@ -7706,7 +7706,7 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 			// The active Clip gets dereferenced below
 			if (!kit->getActiveClip()) {
 				FREEZE_WITH_ERROR("E381");
-				return;
+				return ActionResult::DEALT_WITH;
 			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -7730,7 +7730,7 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 		}
 	}
 
-	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+	return ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
 void InstrumentClipView::commandEuclidean(int32_t offset) {

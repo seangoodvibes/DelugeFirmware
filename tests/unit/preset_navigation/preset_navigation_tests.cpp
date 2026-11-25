@@ -113,6 +113,19 @@ TEST(PresetInputTests, OnlyBusyEditsAreRedelivered) {
 	CHECK(deluge::gui::presetEditInputResult(REJECT) == ActionResult::DEALT_WITH);
 }
 
+TEST(PresetInputTests, NavigationCancellationRedeliversTheEdit) {
+	CHECK(deluge::gui::presetLoadWasNavigationCancelled(Error::ABORTED_BY_USER, true));
+	CHECK(deluge::gui::presetLoadWasNavigationCancelled(Error::NO_ERROR_BUT_GET_OUT, true));
+}
+
+TEST(PresetInputTests, QueuedNavigationDoesNotHideGenuineLoadFailures) {
+	CHECK_FALSE(deluge::gui::presetLoadWasNavigationCancelled(Error::FILE_CORRUPTED, true));
+	CHECK_FALSE(deluge::gui::presetLoadWasNavigationCancelled(Error::INSUFFICIENT_RAM, true));
+	CHECK_FALSE(deluge::gui::presetLoadWasNavigationCancelled(Error::NONE, true));
+	CHECK_FALSE(deluge::gui::presetLoadWasNavigationCancelled(Error::ABORTED_BY_USER, false));
+	CHECK_FALSE(deluge::gui::presetLoadWasNavigationCancelled(Error::NO_ERROR_BUT_GET_OUT, false));
+}
+
 TEST_GROUP(PresetEditGestureTests){};
 
 TEST(PresetEditGestureTests, RejectsRemainingEventsButAllowsNewGestureAfterIdle) {

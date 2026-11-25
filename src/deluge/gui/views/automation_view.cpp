@@ -2524,13 +2524,12 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 
 // used to change the value of a step when you press and hold a pad on the timeline
 // used to record live automations in
-void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	// if we're in automation overview or note editor
 	// then we want to change the value of the parameter assigned to the mod encoder
 	if (!inAutomationEditor()) {
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
-		return;
+		return ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
 
 	// ok we're on the automation editor, so both mod encoders will edit the currently selected parameter
@@ -2556,7 +2555,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	// if we don't have a model stack or auto param, then no parameter to edit, so return early
 	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
-		return;
+		return ActionResult::DEALT_WITH;
 	}
 
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
@@ -2572,7 +2571,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 			if (automationEditorLayoutModControllable.automationModEncoderActionForSelectedPad(
 			        modelStackWithParam, whichModEncoder, offset, effectiveLength)) {
-				return;
+				return ActionResult::DEALT_WITH;
 			}
 		}
 	}
@@ -2585,6 +2584,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 
 	uiNeedsRendering(&automationView);
+	return ActionResult::DEALT_WITH;
 }
 
 // used to change gold knob parameter, copy paste automation or to delete automation of the current selected parameter

@@ -2585,9 +2585,9 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 	}
 }
 
-void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
-	TimelineView::modEncoderAction(whichModEncoder, offset);
+	return TimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
 void ArrangerView::navigateThroughPresets(int32_t offset) {

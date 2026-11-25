@@ -1601,6 +1601,16 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	// Resumption enters through the original caller, which has rebuilt its model
 	// stack and recalculated instrument availability. No caller stack survives the wait.
 	if (preset_navigation_.resuming) {
+		// The caller recalculates availability after the settling delay.
+		const auto& item = preset_navigation_.item;
+		const bool active =
+		    item.instrumentAlreadyInSong && currentSong->doesOutputHaveActiveClipInSession(item.instrument);
+		if (!deluge::gui::presetInstrumentAvailable(availabilityRequirement, item.instrumentAlreadyInSong, active,
+		                                            item.instrument, oldInstrument)) {
+			stopPresetLoadingIndicator();
+			preset_navigation_.loadError = Error::PRESET_IN_USE;
+			return {.error = Error::PRESET_IN_USE};
+		}
 		auto result = loadNavigatedPreset(&preset_navigation_.item, oldInstrument, displayClip);
 		preset_navigation_.loadSucceeded = result.error == Error::NONE;
 		preset_navigation_.loadError = result.error;
@@ -1677,19 +1687,13 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 		                               displayClip);
 	}
 
-	if (!to_return.fileItem->instrumentAlreadyInSong) {
-		startPresetLoadingIndicator();
-	}
+	startPresetLoadingIndicator();
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
 	}
 
 	// Leave queued turns for the encoder task. The owned cursor below lets the
 	// next turn continue from this selection, and resumption yields to that input.
-	if (to_return.fileItem->instrumentAlreadyInSong) {
-		return loadNavigatedPreset(to_return.fileItem, oldInstrument, displayClip);
-	}
-
 	// Own the candidate across the delay: Browser's catalog is shared with other
 	// UIs and must not stay live while normal input handling continues.
 	auto& pending = preset_navigation_;
@@ -1705,7 +1709,7 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	pending.item.filenameIncludesExtension = to_return.fileItem->filenameIncludesExtension;
 	pending.item.isFolder = false;
 	pending.item.instrument = to_return.fileItem->instrument;
-	pending.item.instrumentAlreadyInSong = false;
+	pending.item.instrumentAlreadyInSong = to_return.fileItem->instrumentAlreadyInSong;
 	if (pending.item.instrument != nullptr) {
 		pending.candidateName.set(&pending.item.instrument->name);
 		pending.candidateDir.set(&pending.item.instrument->dirPath);
@@ -1871,6 +1875,10 @@ deluge::gui::PresetEditReadiness LoadInstrumentPresetUI::prepareForParameterEdit
 	}
 	if (getCurrentUI() == this) {
 		if (currentInstrumentLoadError != Error::NONE) {
+			if (deluge::gui::presetLoadWasNavigationCancelled(currentInstrumentLoadError,
+			                                                  encoders::selectNavigationPending())) {
+				return PresetEditReadiness::RETRY;
+			}
 			display->displayError(currentInstrumentLoadError);
 			return PresetEditReadiness::REJECT;
 		}
@@ -1906,6 +1914,10 @@ deluge::gui::PresetEditReadiness LoadInstrumentPresetUI::prepareForParameterEdit
 		return PresetEditReadiness::RETRY; // Requeued behind newly arrived navigation.
 	}
 	if (!preset_navigation_.loadSucceeded) {
+		if (deluge::gui::presetLoadWasNavigationCancelled(preset_navigation_.loadError,
+		                                                  encoders::selectNavigationPending())) {
+			return PresetEditReadiness::RETRY;
+		}
 		preset_navigation_.editGesture.reject(getSystemTime());
 		return PresetEditReadiness::REJECT;
 	}
@@ -2051,9 +2063,12 @@ bool LoadInstrumentPresetUI::presetNavigationContextMatches() const {
 	if (presetNavigationDecision() == deluge::gui::PresetNavigationDecision::CANCEL) {
 		return false;
 	}
-	// Hibernating candidates can be deleted or reused while the task waits.
+	// Candidates can be deleted or reused while the task waits. Validate membership
+	// before dereferencing a saved pointer.
 	if (pending.item.instrument != nullptr) {
-		if (!isInstrumentInList(pending.item.instrument, currentSong->firstHibernatingInstrument)
+		if (!isInstrumentInList(pending.item.instrument, pending.item.instrumentAlreadyInSong
+		                                                     ? currentSong->firstOutput
+		                                                     : currentSong->firstHibernatingInstrument)
 		    || strcmp(pending.item.instrument->name.get(), pending.candidateName.get()) != 0
 		    || strcmp(pending.item.instrument->dirPath.get(), pending.candidateDir.get()) != 0) {
 			return false;

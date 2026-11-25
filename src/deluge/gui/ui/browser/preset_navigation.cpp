@@ -12,6 +12,10 @@ PresetInputAction presetInputAction(bool pending, bool press, bool cardBusy, boo
 	return cardBusy || parsing ? PresetInputAction::DEFER : PresetInputAction::RESOLVE;
 }
 
+bool presetLoadWasNavigationCancelled(Error error, bool navigationPending) {
+	return navigationPending && (error == Error::ABORTED_BY_USER || error == Error::NO_ERROR_BUT_GET_OUT);
+}
+
 ActionResult presetEditInputResult(PresetEditReadiness readiness) {
 	return readiness == PresetEditReadiness::RETRY ? ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE
 	                                               : ActionResult::DEALT_WITH;

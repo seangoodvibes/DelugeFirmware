@@ -194,7 +194,11 @@ checkResult:
 				if (offset + modEncoderInitialTurnDirection[e] != 0) {
 					int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);
 
-					getCurrentUI()->modEncoderAction(e, offset_accelerated);
+					const auto result = getCurrentUI()->modEncoderAction(e, offset_accelerated);
+					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+						encoder.restore(offset);
+						continue;
+					}
 
 					modEncoderInitialTurnDirection[e] = 0;
 				}

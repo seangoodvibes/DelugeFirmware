@@ -1906,9 +1906,9 @@ bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t d
 	return false;
 }
 
-void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+ActionResult SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getRootUI() == &automationView) {
-		automationView.modEncoderAction(whichModEncoder, offset);
+		return automationView.modEncoderAction(whichModEncoder, offset);
 	}
 	else {
 		// If learn button is pressed, learn this knob for current param
@@ -1927,9 +1927,10 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 		// Otherwise, send the action to the Editor as usual
 		else {
-			UI::modEncoderAction(whichModEncoder, offset);
+			return UI::modEncoderAction(whichModEncoder, offset);
 		}
 	}
+	return ActionResult::DEALT_WITH;
 }
 
 void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {

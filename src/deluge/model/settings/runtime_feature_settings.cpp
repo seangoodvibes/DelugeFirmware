@@ -301,6 +301,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				// unknownSettings.insertSetting(&currentName, currentValue);
 				int32_t idx = unknownSettings.getNumElements();
 				if (unknownSettings.insertAtIndex(idx) != Error::NONE) {
+					smDeserializer.closeWriter();
 					return;
 				}
 				void* address = unknownSettings.getElementAddress(idx);
